@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const { id } = req.body;
   if (!id) return res.status(400).json({ error: "Missing id" });
 
-  const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+  const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`, {
     method: "DELETE",
     headers: {
       "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,

@@ -97,6 +97,83 @@ const fmtD = d => new Date(d).toLocaleDateString("en-ZA", { day: "numeric", mont
 
 const MODEL = import.meta.env.VITE_ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
 
+/* ─── Fuzzy Search with Relevance Ranking ─── */
+function scoreEntry(entry, query) {
+  if (!query) return 0;
+  const q = query.toLowerCase();
+  const words = q.split(/\s+/).filter(Boolean);
+  let score = 0;
+
+  const titleL = (entry.title || "").toLowerCase();
+  const contentL = (entry.content || "").toLowerCase();
+  const tagsL = (entry.tags || []).map(t => t.toLowerCase());
+  const metaL = JSON.stringify(entry.metadata || {}).toLowerCase();
+
+  for (const w of words) {
+    // Title matches score highest
+    if (titleL === w) score += 100;
+    else if (titleL.startsWith(w)) score += 60;
+    else if (titleL.includes(w)) score += 40;
+
+    // Tag exact match
+    if (tagsL.some(t => t === w)) score += 50;
+    else if (tagsL.some(t => t.includes(w))) score += 25;
+
+    // Content match
+    if (contentL.includes(w)) score += 15;
+
+    // Metadata match
+    if (metaL.includes(w)) score += 10;
+
+    // Fuzzy: check if word chars appear in order in title (typo tolerance)
+    if (score === 0 && w.length >= 3) {
+      let ti = 0;
+      for (let ci = 0; ci < titleL.length && ti < w.length; ci++) {
+        if (titleL[ci] === w[ti]) ti++;
+      }
+      if (ti === w.length) score += 8;
+    }
+  }
+
+  // Boost pinned and important entries
+  if (entry.pinned) score += 3;
+  if (entry.importance === 2) score += 2;
+  if (entry.importance === 1) score += 1;
+
+  return score;
+}
+
+/* ─── Upcoming Reminders Detection ─── */
+function getUpcomingReminders(entries) {
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const reminders = [];
+
+  entries.forEach(e => {
+    const dates = [e.metadata?.deadline, e.metadata?.due_date, e.metadata?.valid_to].filter(Boolean);
+    dates.forEach(d => {
+      const date = new Date(d);
+      if (date >= now && date <= soon) {
+        const daysLeft = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+        reminders.push({ entry: e, date: d, daysLeft });
+      }
+    });
+  });
+
+  return reminders.sort((a, b) => a.daysLeft - b.daysLeft);
+}
+
+/* ─── Entry Templates ─── */
+const ENTRY_TEMPLATES = {
+  person: "Name, role/relationship, phone number",
+  contact: "Business name, what they do, phone/email, account number",
+  place: "Name, address, what's notable about it",
+  document: "Document type, ID/serial number, expiry date",
+  reminder: "What needs doing, deadline, any notes",
+  idea: "The idea, why it matters, next step",
+  supplier: "Business name, what they supply, contact details, account number",
+};
+
 /* ═══════════════════════════════════════════════════════════════
    QUICK CAPTURE BAR
    ═══════════════════════════════════════════════════════════════ */
@@ -153,7 +230,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, onNewEntry }) {
           body: JSON.stringify({
             model: MODEL, max_tokens: 800,
             system: `You classify and structure a raw text capture into an OpenBrain entry. Return ONLY valid JSON — no markdown, no explanation.
-Format: {"title":"...","content":"...","type":"...","metadata":{},"tags":[]}
+Format: {"title":"...","content":"...","type":"...","metadata":{},"tags":[],"importance":0}
 
 TYPE RULES (pick the BEST match — do NOT default to note):
 - person → any individual: name + role/number (e.g. John the plumber, 0821234567)
@@ -165,6 +242,11 @@ TYPE RULES (pick the BEST match — do NOT default to note):
 - decision → something already decided or chosen
 - color → paint colour, hex code, design colour
 - note → ONLY use this if absolutely none of the above apply
+
+IMPORTANCE RULES:
+- 2 (Critical) → identity documents, medical info, emergency contacts, licences with expiry dates, insurance details, bank accounts
+- 1 (Important) → key suppliers, business contacts, deadlines within 6 months, recurring expenses, contracts
+- 0 (Normal) → everything else (ideas, general notes, preferences, reviews)
 
 EXTRACTION RULES:
 - Put phone numbers, dates, ID/serial numbers into metadata
@@ -190,18 +272,21 @@ EXTRACTION RULES:
           });
           if (rpcRes.ok) {
             const result = await rpcRes.json();
-            const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || input, type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+            const imp = [0,1,2].includes(parsed.importance) ? parsed.importance : 0;
+            const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || input, type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: imp === 2, importance: imp, tags: parsed.tags || [], created_at: new Date().toISOString() };
             setEntries(prev => [newEntry, ...prev]);
             setStatus("saved-db");
             onNewEntry?.(newEntry);
           } else {
-            const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+            const imp = [0,1,2].includes(parsed.importance) ? parsed.importance : 0;
+            const newEntry = { id: Date.now().toString(), ...parsed, pinned: imp === 2, importance: imp, tags: parsed.tags || [], created_at: new Date().toISOString() };
             setEntries(prev => [newEntry, ...prev]);
             setStatus("saved-local");
             onNewEntry?.(newEntry);
           }
         } else {
-          const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+          const imp = [0,1,2].includes(parsed.importance) ? parsed.importance : 0;
+          const newEntry = { id: Date.now().toString(), ...parsed, pinned: imp === 2, importance: imp, tags: parsed.tags || [], created_at: new Date().toISOString() };
           setEntries(prev => [newEntry, ...prev]);
           setStatus("saved-local");
           onNewEntry?.(newEntry);
@@ -228,7 +313,7 @@ EXTRACTION RULES:
       <div style={{ display: "flex", gap: 8, position: "relative" }}>
         <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
         <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && capture()} disabled={loading}
-          placeholder={loading ? "Processing..." : "Quick capture — just type anything..."}
+          placeholder={loading ? "Processing..." : "Quick capture — type anything (name, place, document, idea...)"}
           style={{ flex: 1, padding: "12px 16px", background: "#1a1a2e", border: "1px solid #4ECDC440", borderRadius: 12, color: "#ddd", fontSize: 14, outline: "none", fontFamily: "inherit", opacity: loading ? 0.5 : 1 }} />
         <button onClick={() => imgRef.current?.click()} disabled={loading} title="Upload photo" style={{ padding: "12px 14px", background: "#1a1a2e", border: "1px solid #4ECDC440", borderRadius: 12, color: loading ? "#444" : "#4ECDC4", cursor: loading ? "default" : "pointer", fontSize: 16 }}>📷</button>
         <button onClick={capture} disabled={loading || !text.trim()} style={{ padding: "12px 18px", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : "#1a1a2e", border: "none", borderRadius: 12, color: text.trim() && !loading ? "#0f0f23" : "#555", fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 16 }}>+</button>
@@ -241,7 +326,7 @@ EXTRACTION RULES:
 /* ═══════════════════════════════════════════════════════════════
    SETTINGS
    ═══════════════════════════════════════════════════════════════ */
-function SettingsView() {
+function SettingsView({ onExport, onScanAll, scanStatus, offlineQueue = [] }) {
   const [testStatus, setTestStatus] = useState(null);
   const [email, setEmail] = useState("");
 
@@ -293,7 +378,7 @@ function SettingsView() {
         </div>
       </div>
 
-      <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", border: "1px solid #2a2a4a" }}>
+      <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: "1px solid #2a2a4a" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Supabase Database</p><p style={{ margin: "4px 0 0", fontSize: 11, color: "#666" }}>Memory storage</p></div>
           <button onClick={testDB} style={{ ...btnStyle, background: "#4ECDC420", color: "#4ECDC4" }}>
@@ -301,6 +386,28 @@ function SettingsView() {
           </button>
         </div>
       </div>
+
+      <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: "1px solid #2a2a4a" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd", marginBottom: 12 }}>Export Data</p>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={() => onExport?.("json")} style={{ ...btnStyle, flex: 1, background: "#4ECDC420", color: "#4ECDC4" }}>Export JSON</button>
+          <button onClick={() => onExport?.("csv")} style={{ ...btnStyle, flex: 1, background: "#4ECDC420", color: "#4ECDC4" }}>Export CSV</button>
+        </div>
+      </div>
+
+      <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: "1px solid #2a2a4a" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Connection Scanner</p><p style={{ margin: "4px 0 0", fontSize: 11, color: "#666" }}>Find links between all entries</p></div>
+          <button onClick={onScanAll} disabled={scanStatus === "scanning"} style={{ ...btnStyle, background: "#A29BFE20", color: "#A29BFE" }}>
+            {scanStatus === "scanning" ? "Scanning…" : scanStatus?.startsWith("done") ? `✓ ${scanStatus.split("-")[1]} found` : "Scan All"}
+          </button>
+        </div>
+      </div>
+
+      {offlineQueue.length > 0 && <div style={{ background: "#FFEAA710", borderRadius: 14, padding: "20px 24px", border: "1px solid #FFEAA730" }}>
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#FFEAA7" }}>{offlineQueue.length} entries pending sync</p>
+        <p style={{ margin: "4px 0 0", fontSize: 11, color: "#888" }}>These will sync automatically when the database is reachable.</p>
+      </div>}
     </div>
   );
 }
@@ -772,10 +879,19 @@ function DetailModal({ entry, onClose, onDelete, onUpdate, links = [], allEntrie
             </div>}
             {editTags.split(',').map(t => t.trim()).filter(Boolean).length > 0 && <div style={{ marginTop: 16 }}><div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{editTags.split(',').map(t => t.trim()).filter(Boolean).map(t => <span key={t} style={{ fontSize: 11, color: cfg.c, background: cfg.c + '15', padding: '4px 12px', borderRadius: 20 }}>{t}</span>)}</div></div>}
             {related.length > 0 && <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #2a2a4a' }}>
-              <p style={{ fontSize: 11, color: '#666', fontWeight: 600, marginBottom: 10, textTransform: 'uppercase' }}>Connections</p>
+              <p style={{ fontSize: 11, color: '#666', fontWeight: 600, marginBottom: 10, textTransform: 'uppercase' }}>Connections ({related.length})</p>
               {related.map((r, i) => r.other && <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#ffffff05', borderRadius: 8, marginBottom: 4, fontSize: 13 }}>
                 <span>{TC[r.other.type]?.i}</span><span style={{ color: '#999' }}>{r.dir}</span><span style={{ color: '#ccc', flex: 1 }}>{r.other.title}</span><span style={{ color: '#666', fontSize: 11, fontStyle: 'italic' }}>{r.rel}</span>
               </div>)}
+            </div>}
+            {(entry.metadata?._history || []).length > 0 && <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #2a2a4a' }}>
+              <p style={{ fontSize: 11, color: '#666', fontWeight: 600, marginBottom: 10, textTransform: 'uppercase' }}>Edit History ({entry.metadata._history.length})</p>
+              {entry.metadata._history.slice().reverse().map((h, i) => (
+                <div key={i} style={{ padding: '6px 12px', background: '#ffffff05', borderRadius: 8, marginBottom: 4, fontSize: 12 }}>
+                  <span style={{ color: '#888' }}>{fmtD(h.edited_at)}</span>
+                  <span style={{ color: '#666', marginLeft: 8 }}>"{h.title}" — {(h.content || "").slice(0, 60)}…</span>
+                </div>
+              ))}
             </div>}
           </div>
         )}
@@ -868,8 +984,20 @@ export default function OpenBrain() {
   const linksRef = useRef(links);
   linksRef.current = links;
 
-  // Persist links to localStorage
-  useEffect(() => { try { localStorage.setItem('openbrain_links', JSON.stringify(links)); } catch {} }, [links]);
+  // Persist links to localStorage + attempt DB sync
+  useEffect(() => {
+    try { localStorage.setItem('openbrain_links', JSON.stringify(links)); } catch {}
+    // Debounced DB sync for links
+    const timer = setTimeout(() => {
+      if (sbKey && links.length > 0) {
+        authFetch("/api/save-links", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ links })
+        }).catch(() => {}); // Silent fail — localStorage is the primary store
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [links, sbKey]);
 
   // Connection discovery callback — runs in background after each new entry
   const handleNewEntry = useCallback((newEntry) => {
@@ -886,6 +1014,79 @@ export default function OpenBrain() {
     });
   }, [apiKey]);
 
+  // Offline sync queue
+  const [offlineQueue, setOfflineQueue] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('openbrain_offline_queue') || '[]'); } catch { return []; }
+  });
+
+  const syncOfflineQueue = useCallback(async () => {
+    if (offlineQueue.length === 0) return;
+    const remaining = [];
+    for (const item of offlineQueue) {
+      try {
+        const res = await authFetch("/api/capture", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(item)
+        });
+        if (!res.ok) remaining.push(item);
+      } catch {
+        remaining.push(item);
+      }
+    }
+    setOfflineQueue(remaining);
+    try { localStorage.setItem('openbrain_offline_queue', JSON.stringify(remaining)); } catch {}
+  }, [offlineQueue]);
+
+  // Scan All connections
+  const [scanStatus, setScanStatus] = useState(null); // null | "scanning" | "done"
+  const scanAllConnections = useCallback(async () => {
+    if (!apiKey) return;
+    setScanStatus("scanning");
+    let totalFound = 0;
+    const currentEntries = entriesRef.current;
+    const currentLinks = linksRef.current;
+
+    // Process entries in batches - check each against all others
+    for (let i = 0; i < Math.min(currentEntries.length, 30); i++) {
+      const entry = currentEntries[i];
+      const newLinks = await findConnections(entry, currentEntries, [...currentLinks, ...linksRef.current.slice(currentLinks.length)]);
+      if (newLinks.length > 0) {
+        setLinks(prev => [...prev, ...newLinks]);
+        totalFound += newLinks.length;
+      }
+    }
+    setScanStatus(`done-${totalFound}`);
+    setTimeout(() => setScanStatus(null), 4000);
+  }, [apiKey]);
+
+  // Data export
+  const exportData = useCallback((format) => {
+    const data = { entries: entriesRef.current, links: linksRef.current, exported_at: new Date().toISOString() };
+    let content, filename, mime;
+
+    if (format === "json") {
+      content = JSON.stringify(data, null, 2);
+      filename = `openbrain-export-${new Date().toISOString().slice(0, 10)}.json`;
+      mime = "application/json";
+    } else {
+      // CSV
+      const headers = ["id", "title", "content", "type", "importance", "pinned", "tags", "created_at"];
+      const rows = data.entries.map(e => headers.map(h => {
+        const v = h === "tags" ? (e.tags || []).join("; ") : String(e[h] ?? "");
+        return `"${v.replace(/"/g, '""')}"`;
+      }).join(","));
+      content = [headers.join(","), ...rows].join("\n");
+      filename = `openbrain-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      mime = "text/csv";
+    }
+
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   useEffect(() => {
     authFetch("/api/entries")
       .then(r => r.ok ? r.json() : null)
@@ -897,7 +1098,10 @@ export default function OpenBrain() {
         setEntriesLoaded(true);
       })
       .catch(() => setEntriesLoaded(true));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync offline queue when online
+  useEffect(() => { if (entriesLoaded && offlineQueue.length > 0) syncOfflineQueue(); }, [entriesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { if (entriesLoaded) { try { localStorage.setItem('openbrain_entries', JSON.stringify(entries)); } catch {} } }, [entries, entriesLoaded]);
 
@@ -905,7 +1109,11 @@ export default function OpenBrain() {
   const filtered = useMemo(() => {
     let r = entries;
     if (typeFilter !== "all") r = r.filter(e => e.type === typeFilter);
-    if (search) { const q = search.toLowerCase(); r = r.filter(e => e.title.toLowerCase().includes(q) || e.content.toLowerCase().includes(q) || e.tags?.some(t => t.includes(q)) || JSON.stringify(e.metadata).toLowerCase().includes(q)); }
+    if (search) {
+      const scored = r.map(e => ({ entry: e, score: scoreEntry(e, search) })).filter(s => s.score > 0);
+      scored.sort((a, b) => b.score - a.score);
+      r = scored.map(s => s.entry);
+    }
     return r;
   }, [search, typeFilter, entries]);
 
@@ -913,9 +1121,18 @@ export default function OpenBrain() {
     if (!chatInput.trim()) return;
     const msg = chatInput.trim(); setChatInput(""); setChatMsgs(p => [...p, { role: "user", content: msg }]); setChatLoading(true);
     try {
+      // Two-pass semantic search: score entries by relevance to the question
+      const words = msg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const scored = entries.map(e => ({ e, s: scoreEntry(e, msg) }));
+      scored.sort((a, b) => b.s - a.s);
+      // Include top relevant entries + always include pinned/critical ones
+      const relevant = scored.filter(s => s.s > 0).slice(0, 50).map(s => s.e);
+      const critical = entries.filter(e => (e.pinned || e.importance >= 2) && !relevant.find(r => r.id === e.id));
+      const context = [...relevant, ...critical].slice(0, 80);
+
       const res = await authFetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] })
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Answer based on the memories provided. Be concise and specific. If the answer is in the data, quote it precisely. If not found, say so honestly.\n\nMEMORIES (${context.length} most relevant):\n${JSON.stringify(context)}\n\nCONNECTIONS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] })
       });
       const data = await res.json(); setChatMsgs(p => [...p, { role: "assistant", content: data.content?.map(c => c.text||"").join("") || "Couldn't process." }]);
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error. Check your API key in Settings." }]); }
@@ -924,6 +1141,7 @@ export default function OpenBrain() {
 
   const views = [
     { id: "grid", l: "Grid", ic: "▦" }, { id: "suggest", l: "Fill Brain", ic: "✦" },
+    { id: "digest", l: "Digest", ic: "☀" },
     { id: "calendar", l: "Calendar", ic: "📅" }, { id: "todos", l: "Todos", ic: "✓" },
     { id: "timeline", l: "Timeline", ic: "◔" }, { id: "graph", l: "Graph", ic: "◉" },
     { id: "chat", l: "Ask", ic: "◈" }, { id: "settings", l: "Settings", ic: "⚙" },
@@ -938,7 +1156,8 @@ export default function OpenBrain() {
           <div><h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>OpenBrain</h1><p style={{ margin: 0, fontSize: 11, color: "#666" }}>Your eternal memory</p></div>
           <div style={{ marginLeft: "auto", textAlign: "right" }}>
             <span style={{ fontSize: 11, color: "#555" }}>{entries.length} memories</span>
-            {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
+            {!entriesLoaded && <span style={{ display: "block", fontSize: 9, color: "#FFEAA7" }}>Syncing...</span>}
+            {entriesLoaded && apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
           </div>
         </div>
       </div>
@@ -1004,6 +1223,83 @@ export default function OpenBrain() {
 
         {view === "suggest" && <SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} onNewEntry={handleNewEntry} />}
 
+        {view === "digest" && (() => {
+          const reminders = getUpcomingReminders(entries);
+          const recentEntries = entries.slice(0, 5);
+          const today = new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+          const connectedIds = new Set(); links.forEach(l => { connectedIds.add(l.from); connectedIds.add(l.to); });
+          const unconnected = entries.filter(e => !connectedIds.has(e.id)).length;
+          // Find potential duplicates (similar titles)
+          const dupes = [];
+          for (let i = 0; i < entries.length && dupes.length < 5; i++) {
+            for (let j = i + 1; j < entries.length; j++) {
+              const a = entries[i].title.toLowerCase(), b = entries[j].title.toLowerCase();
+              if (a === b || (a.length > 5 && b.length > 5 && (a.includes(b) || b.includes(a)))) {
+                dupes.push({ a: entries[i], b: entries[j] });
+                break;
+              }
+            }
+          }
+          return <div>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#EAEAEA" }}>Daily Digest</h2>
+            <p style={{ fontSize: 12, color: "#666", margin: "0 0 20px" }}>{today}</p>
+
+            {/* Upcoming reminders */}
+            {reminders.length > 0 && <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 11, color: "#FF6B35", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 }}>Upcoming ({reminders.length})</p>
+              {reminders.map((r, i) => {
+                const cfg = TC[r.entry.type] || TC.note;
+                const urgent = r.daysLeft <= 7;
+                return <div key={i} style={{ background: urgent ? "#FF6B3510" : "#1a1a2e", border: `1px solid ${urgent ? "#FF6B3540" : "#2a2a4a"}`, borderRadius: 10, padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 16 }}>{cfg.i}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 14, color: "#ddd", fontWeight: 500 }}>{r.entry.title}</p>
+                    <p style={{ margin: "2px 0 0", fontSize: 11, color: "#888" }}>{fmtD(r.date)}</p>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: urgent ? "#FF6B35" : "#4ECDC4", whiteSpace: "nowrap" }}>
+                    {r.daysLeft === 0 ? "Today!" : r.daysLeft === 1 ? "Tomorrow" : `${r.daysLeft}d`}
+                  </span>
+                </div>;
+              })}
+            </div>}
+
+            {/* Brain stats */}
+            <div style={{ background: "#1a1a2e", borderRadius: 12, padding: "16px 20px", marginBottom: 24, border: "1px solid #2a2a4a" }}>
+              <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 12 }}>Brain Health</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div><span style={{ fontSize: 20, fontWeight: 800, color: "#4ECDC4" }}>{entries.length}</span><span style={{ fontSize: 11, color: "#666", marginLeft: 6 }}>memories</span></div>
+                <div><span style={{ fontSize: 20, fontWeight: 800, color: "#FF6B35" }}>{links.length}</span><span style={{ fontSize: 11, color: "#666", marginLeft: 6 }}>connections</span></div>
+                <div><span style={{ fontSize: 20, fontWeight: 800, color: "#A29BFE" }}>{unconnected}</span><span style={{ fontSize: 11, color: "#666", marginLeft: 6 }}>unlinked</span></div>
+                <div><span style={{ fontSize: 20, fontWeight: 800, color: "#FFEAA7" }}>{entries.filter(e => e.importance >= 2).length}</span><span style={{ fontSize: 11, color: "#666", marginLeft: 6 }}>critical</span></div>
+              </div>
+              {unconnected > 5 && <button onClick={scanAllConnections} disabled={scanStatus === "scanning"} style={{ marginTop: 12, width: "100%", padding: 10, background: scanStatus === "scanning" ? "#1a1a2e" : "#A29BFE20", border: "1px solid #A29BFE40", borderRadius: 8, color: "#A29BFE", fontSize: 12, fontWeight: 600, cursor: scanStatus === "scanning" ? "default" : "pointer" }}>
+                {scanStatus === "scanning" ? "Scanning for connections..." : scanStatus?.startsWith("done") ? `Found ${scanStatus.split("-")[1]} new connections` : `Scan all entries for connections`}
+              </button>}
+            </div>
+
+            {/* Potential duplicates */}
+            {dupes.length > 0 && <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 11, color: "#FFEAA7", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 }}>Possible Duplicates</p>
+              {dupes.map((d, i) => <div key={i} style={{ background: "#FFEAA710", border: "1px solid #FFEAA730", borderRadius: 10, padding: "10px 14px", marginBottom: 6, fontSize: 12, color: "#ccc" }}>
+                <span style={{ color: "#FFEAA7" }}>{(TC[d.a.type] || TC.note).i} {d.a.title}</span> ↔ <span style={{ color: "#FFEAA7" }}>{(TC[d.b.type] || TC.note).i} {d.b.title}</span>
+              </div>)}
+            </div>}
+
+            {/* Recent entries */}
+            <div>
+              <p style={{ fontSize: 11, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 }}>Recently Added</p>
+              {recentEntries.map(e => {
+                const cfg = TC[e.type] || TC.note;
+                return <div key={e.id} onClick={() => setSelected(e)} style={{ background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, padding: "10px 14px", marginBottom: 6, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span>{cfg.i}</span>
+                  <span style={{ fontSize: 13, color: "#ddd", flex: 1 }}>{e.title}</span>
+                  <span style={{ fontSize: 10, color: "#555" }}>{fmtD(e.created_at)}</span>
+                </div>;
+              })}
+            </div>
+          </div>;
+        })()}
+
         {view === "calendar" && <CalendarView entries={entries} />}
 
         {view === "todos" && <TodoView />}
@@ -1039,7 +1335,7 @@ export default function OpenBrain() {
           </div>
         )}
 
-        {view === "settings" && <SettingsView />}
+        {view === "settings" && <SettingsView onExport={exportData} onScanAll={scanAllConnections} scanStatus={scanStatus} offlineQueue={offlineQueue} />}
       </div>
 
       <DetailModal entry={selected} onClose={() => setSelected(null)} links={links} allEntries={entries}
@@ -1055,7 +1351,14 @@ export default function OpenBrain() {
             if (!res.ok) throw new Error((data?.message || data?.error) ?? `HTTP ${res.status}`);
             if (Array.isArray(data) && data.length === 0) throw new Error(`No row matched id=${id}`);
           } catch (e) { alert(`Save failed: ${e.message}`); return; }
-          setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
+          // Store edit history in metadata
+          setEntries(prev => prev.map(e => {
+            if (e.id !== id) return e;
+            const history = e.metadata?._history || [];
+            const snapshot = { title: e.title, content: e.content, type: e.type, tags: e.tags, edited_at: new Date().toISOString() };
+            const newMeta = { ...(e.metadata || {}), _history: [...history, snapshot].slice(-10) };
+            return { ...e, ...changes, metadata: { ...newMeta, ...(changes.metadata || {}) } };
+          }));
           setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
         }}
       />
