@@ -32,9 +32,57 @@ const INITIAL_ENTRIES = [
   { id: "b0f6b2d4", title: "OpenBrain Architecture Decision", content: "Using Claude app as primary capture. Supabase via MCP.", type: "decision", metadata: { status: "confirmed" }, pinned: false, importance: 0, tags: ["openbrain", "architecture"], created_at: "2026-04-02T12:54:31Z" },
 ];
 
-const LINKS = [
+const INITIAL_LINKS = [
   { from: "35af7614", to: "80453a6d", rel: "used at" },{ from: "7afc6042", to: "b38c3cde", rel: "renewal for" },{ from: "cfff1d67", to: "80453a6d", rel: "idea for" },{ from: "e8b12737", to: "80453a6d", rel: "idea for" },{ from: "a723d2a1", to: "80453a6d", rel: "idea for" },{ from: "54db5972", to: "80453a6d", rel: "built" },{ from: "72e305b7", to: "80453a6d", rel: "electrical work" },{ from: "c82a2d3c", to: "80453a6d", rel: "shopfitting" },{ from: "5664bb8d", to: "80453a6d", rel: "kitchen equipment" },{ from: "63b24d12", to: "80453a6d", rel: "supplies" },{ from: "27e3eca1", to: "80453a6d", rel: "supplies" },{ from: "c25b32f7", to: "80453a6d", rel: "supplies" },{ from: "d1c32f5a", to: "80453a6d", rel: "supplies" },{ from: "507dc46f", to: "80453a6d", rel: "supplies" },{ from: "c49dbece", to: "80453a6d", rel: "supplies" },{ from: "5033882a", to: "80453a6d", rel: "supplies" },
 ];
+
+/* ─── AI Connection Discovery ─── */
+async function findConnections(newEntry, existingEntries, existingLinks) {
+  // Build a compact summary of existing entries for context
+  const candidates = existingEntries
+    .filter(e => e.id !== newEntry.id)
+    .slice(0, 50)
+    .map(e => ({ id: e.id, title: e.title, type: e.type, tags: e.tags, content: (e.content || "").slice(0, 120) }));
+
+  if (candidates.length === 0) return [];
+
+  // Build a set of existing link keys for deduplication
+  const existingKeys = new Set(existingLinks.map(l => `${l.from}-${l.to}`));
+
+  try {
+    const res = await authFetch("/api/anthropic", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 600,
+        system: `You are a knowledge-graph builder for a personal memory system called OpenBrain. Given a NEW entry and a list of EXISTING entries, find meaningful connections between them.
+
+RULES:
+- Only create connections where a real, specific relationship exists (shared context, same business, supplier→business, person→place, idea→business, document→reminder, etc.)
+- The "rel" label should be a short, specific phrase (2-4 words) describing HOW they relate: "supplies", "works at", "idea for", "renewal for", "located near", "same category", "manages", "part of", etc.
+- Do NOT connect entries just because they are the same type — there must be a meaningful contextual link
+- Return between 0 and 5 connections. Quality over quantity. Return 0 if nothing connects.
+- "from" is always the new entry's ID. "to" is the existing entry's ID.
+- Return ONLY a valid JSON array: [{"from":"...","to":"...","rel":"..."}]
+- If no connections exist, return: []`,
+        messages: [{ role: "user", content: `NEW ENTRY:\n${JSON.stringify({ id: newEntry.id, title: newEntry.title, type: newEntry.type, content: newEntry.content, tags: newEntry.tags })}\n\nEXISTING ENTRIES:\n${JSON.stringify(candidates)}` }]
+      })
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    // Validate and deduplicate
+    return parsed.filter(l =>
+      l.from && l.to && l.rel &&
+      candidates.some(c => c.id === l.to) &&
+      !existingKeys.has(`${l.from}-${l.to}`) &&
+      !existingKeys.has(`${l.to}-${l.from}`)
+    );
+  } catch (e) {
+    console.error("Connection discovery failed:", e);
+    return [];
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    CONFIG
@@ -52,7 +100,7 @@ const MODEL = import.meta.env.VITE_ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001
 /* ═══════════════════════════════════════════════════════════════
    QUICK CAPTURE BAR
    ═══════════════════════════════════════════════════════════════ */
-function QuickCapture({ apiKey, sbKey, entries, setEntries }) {
+function QuickCapture({ apiKey, sbKey, entries, setEntries, onNewEntry }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -145,15 +193,18 @@ EXTRACTION RULES:
             const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || input, type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
             setEntries(prev => [newEntry, ...prev]);
             setStatus("saved-db");
+            onNewEntry?.(newEntry);
           } else {
             const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
             setEntries(prev => [newEntry, ...prev]);
             setStatus("saved-local");
+            onNewEntry?.(newEntry);
           }
         } else {
           const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
           setEntries(prev => [newEntry, ...prev]);
           setStatus("saved-local");
+          onNewEntry?.(newEntry);
         }
       } else {
         const newEntry = { id: Date.now().toString(), title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
@@ -257,7 +308,7 @@ function SettingsView() {
 /* ═══════════════════════════════════════════════════════════════
    SUGGESTIONS (Fill Brain)
    ═══════════════════════════════════════════════════════════════ */
-function SuggestionsView({ apiKey, sbKey, entries, setEntries }) {
+function SuggestionsView({ apiKey, sbKey, entries, setEntries, onNewEntry }) {
   const [idx, setIdx] = useState(0);
   const [answer, setAnswer] = useState("");
   const [answered, setAnswered] = useState(0);
@@ -383,6 +434,7 @@ function SuggestionsView({ apiKey, sbKey, entries, setEntries }) {
           const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
           setEntries(prev => [newEntry, ...prev]);
           setSaved(prev => [{ q: current.q, a, cat: current.cat, db: savedToDB }, ...prev]);
+          onNewEntry?.(newEntry);
         }
       } catch {
         setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false }, ...prev]);
@@ -663,7 +715,7 @@ function TodoView() {
 /* ═══════════════════════════════════════════════════════════════
    DETAIL MODAL
    ═══════════════════════════════════════════════════════════════ */
-function DetailModal({ entry, onClose, onDelete, onUpdate }) {
+function DetailModal({ entry, onClose, onDelete, onUpdate, links = [], allEntries = [] }) {
   if (!entry) return null;
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -673,7 +725,7 @@ function DetailModal({ entry, onClose, onDelete, onUpdate }) {
   const [editType, setEditType] = useState(entry.type);
   const [editTags, setEditTags] = useState((entry.tags || []).join(', '));
   const cfg = TC[editType] || TC.note;
-  const related = LINKS.filter(l => l.from === entry.id || l.to === entry.id).map(l => ({ ...l, other: INITIAL_ENTRIES.find(e => e.id === (l.from === entry.id ? l.to : l.from)), dir: l.from === entry.id ? '→' : '←' }));
+  const related = links.filter(l => l.from === entry.id || l.to === entry.id).map(l => ({ ...l, other: allEntries.find(e => e.id === (l.from === entry.id ? l.to : l.from)), dir: l.from === entry.id ? '→' : '←' }));
   const skip = new Set(['category', 'status']);
   const meta = Object.entries(entry.metadata || {}).filter(([k]) => !skip.has(k));
   const inp = { padding: '10px 14px', background: '#0f0f23', border: '1px solid #4ECDC440', borderRadius: 10, color: '#ddd', fontSize: 14, outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
@@ -735,33 +787,37 @@ function DetailModal({ entry, onClose, onDelete, onUpdate }) {
 /* ═══════════════════════════════════════════════════════════════
    GRAPH
    ═══════════════════════════════════════════════════════════════ */
-function GraphView({ onSelect }) {
+function GraphView({ onSelect, links = [], allEntries = [] }) {
   const ref = useRef(null);
   const nodesRef = useRef([]);
   const frameRef = useRef(null);
+  const allEntriesRef = useRef(allEntries);
+  allEntriesRef.current = allEntries;
   useEffect(() => {
     const c = ref.current; if (!c) return;
     const ctx = c.getContext("2d");
     const W = c.width = c.offsetWidth * 2, H = c.height = c.offsetHeight * 2;
     ctx.scale(2, 2); const w = W/2, h = H/2;
-    const ids = new Set(); LINKS.forEach(l => { ids.add(l.from); ids.add(l.to); });
-    const nodes = INITIAL_ENTRIES.filter(e => ids.has(e.id)).map((e, i, a) => {
+    const ids = new Set(); links.forEach(l => { ids.add(l.from); ids.add(l.to); });
+    // Count connections per node to size hubs
+    const connCount = {}; links.forEach(l => { connCount[l.from] = (connCount[l.from]||0)+1; connCount[l.to] = (connCount[l.to]||0)+1; });
+    const nodes = allEntries.filter(e => ids.has(e.id)).map((e, i, a) => {
       const ang = (i/a.length)*Math.PI*2, r = Math.min(w,h)*0.35;
       return { ...e, x: w/2+Math.cos(ang)*r+(Math.random()-0.5)*40, y: h/2+Math.sin(ang)*r+(Math.random()-0.5)*40, vx:0, vy:0 };
     });
     nodesRef.current = nodes;
     const sim = () => {
       for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++){let dx=nodes[j].x-nodes[i].x,dy=nodes[j].y-nodes[i].y,d=Math.sqrt(dx*dx+dy*dy)||1,f=800/(d*d);nodes[i].vx-=(dx/d)*f;nodes[i].vy-=(dy/d)*f;nodes[j].vx+=(dx/d)*f;nodes[j].vy+=(dy/d)*f;}
-      LINKS.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1,f=(d-120)*0.02;a.vx+=(dx/d)*f;a.vy+=(dy/d)*f;b.vx-=(dx/d)*f;b.vy-=(dy/d)*f;});
+      links.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1,f=(d-120)*0.02;a.vx+=(dx/d)*f;a.vy+=(dy/d)*f;b.vx-=(dx/d)*f;b.vy-=(dy/d)*f;});
       nodes.forEach(n=>{n.vx*=0.85;n.vy*=0.85;n.x+=n.vx;n.y+=n.vy;n.x=Math.max(30,Math.min(w-30,n.x));n.y=Math.max(30,Math.min(h-30,n.y));});
       ctx.clearRect(0,0,w,h);
-      LINKS.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle="#ffffff15";ctx.lineWidth=1;ctx.stroke();});
-      nodes.forEach(n=>{const cfg=TC[n.type]||TC.note,r=n.id==="80453a6d"?22:n.pinned?16:12;ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);ctx.fillStyle=cfg.c+"30";ctx.fill();ctx.strokeStyle=cfg.c+"80";ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle="#ddd";ctx.font=`${r>14?12:10}px system-ui`;ctx.textAlign="center";ctx.fillText(cfg.i,n.x,n.y+4);if(r>14){ctx.fillStyle="#aaa";ctx.font="9px system-ui";ctx.fillText(n.title.length>18?n.title.slice(0,18)+"…":n.title,n.x,n.y+r+14);}});
+      links.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle="#ffffff15";ctx.lineWidth=1;ctx.stroke();});
+      nodes.forEach(n=>{const cfg=TC[n.type]||TC.note; const cc=connCount[n.id]||0; const r=cc>=5?22:n.pinned?16:cc>=2?14:12;ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);ctx.fillStyle=cfg.c+"30";ctx.fill();ctx.strokeStyle=cfg.c+"80";ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle="#ddd";ctx.font=`${r>14?12:10}px system-ui`;ctx.textAlign="center";ctx.fillText(cfg.i,n.x,n.y+4);if(r>14){ctx.fillStyle="#aaa";ctx.font="9px system-ui";ctx.fillText(n.title.length>18?n.title.slice(0,18)+"…":n.title,n.x,n.y+r+14);}});
       frameRef.current=requestAnimationFrame(sim);
     };
     sim();return()=>cancelAnimationFrame(frameRef.current);
-  },[]);
-  return <canvas ref={ref} onClick={e=>{const r=ref.current.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;const n=nodesRef.current.find(n=>Math.hypot(n.x-x,n.y-y)<20);if(n)onSelect(INITIAL_ENTRIES.find(en=>en.id===n.id));}} style={{width:"100%",height:400,borderRadius:12,background:"#0d0d1a",cursor:"pointer"}} />;
+  },[links, allEntries]);
+  return <canvas ref={ref} onClick={e=>{const r=ref.current.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;const n=nodesRef.current.find(n=>Math.hypot(n.x-x,n.y-y)<20);if(n)onSelect(allEntriesRef.current.find(en=>en.id===n.id));}} style={{width:"100%",height:400,borderRadius:12,background:"#0d0d1a",cursor:"pointer"}} />;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -780,6 +836,17 @@ export default function OpenBrain() {
     } catch {}
     return INITIAL_ENTRIES;
   });
+  const [links, setLinks] = useState(() => {
+    try {
+      const cached = localStorage.getItem('openbrain_links');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return INITIAL_LINKS;
+  });
+  const [linkingStatus, setLinkingStatus] = useState(null); // null | "finding" | "found N"
   const [entriesLoaded, setEntriesLoaded] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -794,6 +861,30 @@ export default function OpenBrain() {
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs]);
+
+  // Refs for latest state (used in async callbacks)
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+  const linksRef = useRef(links);
+  linksRef.current = links;
+
+  // Persist links to localStorage
+  useEffect(() => { try { localStorage.setItem('openbrain_links', JSON.stringify(links)); } catch {} }, [links]);
+
+  // Connection discovery callback — runs in background after each new entry
+  const handleNewEntry = useCallback((newEntry) => {
+    if (!apiKey) return;
+    setLinkingStatus("finding");
+    findConnections(newEntry, entriesRef.current, linksRef.current).then(newLinks => {
+      if (newLinks.length > 0) {
+        setLinks(prev => [...prev, ...newLinks]);
+        setLinkingStatus(`found ${newLinks.length}`);
+      } else {
+        setLinkingStatus(null);
+      }
+      setTimeout(() => setLinkingStatus(null), 3000);
+    });
+  }, [apiKey]);
 
   useEffect(() => {
     authFetch("/api/entries")
@@ -824,7 +915,7 @@ export default function OpenBrain() {
     try {
       const res = await authFetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(LINKS)}`, messages: [{ role: "user", content: msg }] })
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] })
       });
       const data = await res.json(); setChatMsgs(p => [...p, { role: "assistant", content: data.content?.map(c => c.text||"").join("") || "Couldn't process." }]);
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error. Check your API key in Settings." }]); }
@@ -853,7 +944,8 @@ export default function OpenBrain() {
       </div>
 
       {/* Quick Capture - always visible */}
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} onNewEntry={handleNewEntry} />
+      {linkingStatus && <p style={{ fontSize: 11, color: linkingStatus === "finding" ? "#A29BFE" : "#4ECDC4", margin: "0 28px 8px", transition: "opacity 0.3s" }}>{linkingStatus === "finding" ? "🔗 Finding connections..." : `🔗 ${linkingStatus} new connection${linkingStatus === "found 1" ? "" : "s"}!`}</p>}
 
       {/* Nav tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #1a1a2e", overflowX: "auto", scrollbarWidth: "none" }}>
@@ -880,7 +972,7 @@ export default function OpenBrain() {
           </div>
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
-            {[{l:"Memories",v:entries.length,c:"#4ECDC4"},{l:"Pinned",v:entries.filter(e=>e.pinned).length,c:"#FFD700"},{l:"Types",v:Object.keys(types).length,c:"#A29BFE"},{l:"Links",v:LINKS.length,c:"#FF6B35"}].map(s=>
+            {[{l:"Memories",v:entries.length,c:"#4ECDC4"},{l:"Pinned",v:entries.filter(e=>e.pinned).length,c:"#FFD700"},{l:"Types",v:Object.keys(types).length,c:"#A29BFE"},{l:"Links",v:links.length,c:"#FF6B35"}].map(s=>
               <div key={s.l} style={{background:"#1a1a2e",borderRadius:12,padding:"14px 12px",textAlign:"center",border:"1px solid #2a2a4a"}}><div style={{fontSize:26,fontWeight:800,color:s.c}}>{s.v}</div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1,marginTop:2}}>{s.l}</div></div>
             )}
           </div>
@@ -910,7 +1002,7 @@ export default function OpenBrain() {
           {!filtered.length && <p style={{textAlign:"center",color:"#555",marginTop:40}}>No memories match.</p>}
         </>}
 
-        {view === "suggest" && <SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} />}
+        {view === "suggest" && <SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} onNewEntry={handleNewEntry} />}
 
         {view === "calendar" && <CalendarView entries={entries} />}
 
@@ -928,7 +1020,7 @@ export default function OpenBrain() {
           </div>;
         })()}
 
-        {view === "graph" && <><p style={{fontSize:12,color:"#666",marginBottom:12}}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} /></>}
+        {view === "graph" && <><p style={{fontSize:12,color:"#666",marginBottom:12}}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} links={links} allEntries={entries} /></>}
 
         {view === "chat" && (
           <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 240px)"}}>
@@ -950,7 +1042,7 @@ export default function OpenBrain() {
         {view === "settings" && <SettingsView />}
       </div>
 
-      <DetailModal entry={selected} onClose={() => setSelected(null)}
+      <DetailModal entry={selected} onClose={() => setSelected(null)} links={links} allEntries={entries}
         onDelete={async (id) => {
           try { await authFetch('/api/delete-entry', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); } catch {}
           setEntries(prev => prev.filter(e => e.id !== id));
