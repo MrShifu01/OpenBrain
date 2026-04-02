@@ -702,9 +702,8 @@ function DetailModal({ entry, onClose, onDelete, onUpdate }) {
           <div style={{ padding: '20px 28px', display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div><label style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>Title</label><input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={inp} /></div>
             <div><label style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>Type</label>
-              <select value={editType} onChange={e => setEditType(e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
-                {['note','person','place','idea','contact','document','reminder','color','decision'].map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
+              <input value={editType} onChange={e => setEditType(e.target.value.toLowerCase())} list="type-options" style={inp} placeholder="note, person, place…" />
+              <datalist id="type-options">{['note','person','place','idea','contact','document','reminder','color','decision'].map(t => <option key={t} value={t} />)}</datalist>
             </div>
             <div><label style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>Content</label><textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={4} style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }} /></div>
             <div><label style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1, display: 'block', marginBottom: 6 }}>Tags <span style={{ color: '#555', fontWeight: 400, textTransform: 'none' }}>(comma separated)</span></label><input value={editTags} onChange={e => setEditTags(e.target.value)} style={inp} placeholder="tag1, tag2, tag3" /></div>
@@ -782,7 +781,9 @@ export default function OpenBrain() {
     return INITIAL_ENTRIES;
   });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const searchDebounceRef = useRef(null);
   const [typeFilter, setTypeFilter] = useState("all");
   const [view, setView] = useState("grid");
   const [selected, setSelected] = useState(null);
@@ -823,7 +824,7 @@ export default function OpenBrain() {
     try {
       const res = await authFetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries)}\n\nLINKS:\n${JSON.stringify(LINKS)}`, messages: [{ role: "user", content: msg }] })
+        body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(LINKS)}`, messages: [{ role: "user", content: msg }] })
       });
       const data = await res.json(); setChatMsgs(p => [...p, { role: "assistant", content: data.content?.map(c => c.text||"").join("") || "Couldn't process." }]);
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error. Check your API key in Settings." }]); }
@@ -871,7 +872,7 @@ export default function OpenBrain() {
           {/* Search + filters */}
           <div style={{ position: "relative", marginBottom: 16 }}>
             <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#555" }}>⌕</span>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search..." style={{ width: "100%", boxSizing: "border-box", padding: "12px 16px 12px 38px", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, color: "#ddd", fontSize: 14, outline: "none" }} />
+            <input value={searchInput} onChange={e => { setSearchInput(e.target.value); clearTimeout(searchDebounceRef.current); searchDebounceRef.current = setTimeout(() => setSearch(e.target.value), 200); }} placeholder="Search..." style={{ width: "100%", boxSizing: "border-box", padding: "12px 16px 12px 38px", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, color: "#ddd", fontSize: 14, outline: "none" }} />
           </div>
           <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 16, scrollbarWidth: "none" }}>
             <button onClick={() => setTypeFilter("all")} style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: typeFilter === "all" ? "#4ECDC4" : "#1a1a2e", color: typeFilter === "all" ? "#0f0f23" : "#888" }}>All ({entries.length})</button>
