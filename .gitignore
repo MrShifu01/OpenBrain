@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .env
 openbrain-dashboard.jsx
+
+.vercel
+.env*.local
