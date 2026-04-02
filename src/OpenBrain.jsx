@@ -770,7 +770,13 @@ function GraphView({ onSelect }) {
    MAIN APP
    ═══════════════════════════════════════════════════════════════ */
 export default function OpenBrain() {
-  const [entries, setEntries] = useState(INITIAL_ENTRIES);
+  const [entries, setEntries] = useState(() => {
+    try {
+      const cached = localStorage.getItem('openbrain_entries');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return INITIAL_ENTRIES;
+  });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -790,11 +796,14 @@ export default function OpenBrain() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setEntries(data);
+          try { localStorage.setItem('openbrain_entries', JSON.stringify(data)); } catch {}
         }
         setEntriesLoaded(true);
       })
       .catch(() => setEntriesLoaded(true));
   }, []);
+
+  useEffect(() => { if (entriesLoaded) { try { localStorage.setItem('openbrain_entries', JSON.stringify(entries)); } catch {} } }, [entries, entriesLoaded]);
 
   const types = useMemo(() => { const t = {}; entries.forEach(e => { t[e.type] = (t[e.type]||0)+1; }); return t; }, [entries]);
   const filtered = useMemo(() => {
