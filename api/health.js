@@ -1,6 +1,6 @@
 import { verifyAuth } from "./_lib/verifyAuth.js";
 
-const SB_URL = "https://wfvoqpdfzkqnenzjxhui.supabase.co";
+const SB_URL = process.env.SUPABASE_URL;
 
 export default async function handler(req, res) {
   const user = await verifyAuth(req);

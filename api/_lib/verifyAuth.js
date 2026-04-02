@@ -1,4 +1,4 @@
-const SB_URL = "https://wfvoqpdfzkqnenzjxhui.supabase.co";
+const SB_URL = process.env.SUPABASE_URL;
 
 export async function verifyAuth(req) {
   const token = req.headers.authorization?.split(" ")[1];

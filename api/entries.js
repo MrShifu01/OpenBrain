@@ -1,15 +1,17 @@
 import { verifyAuth } from "./_lib/verifyAuth.js";
+import { rateLimit } from "./_lib/rateLimit.js";
 
-const SB_URL = "https://wfvoqpdfzkqnenzjxhui.supabase.co";
+const SB_URL = process.env.SUPABASE_URL;
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  if (!rateLimit(req, 60)) return res.status(429).json({ error: "Too many requests" });
 
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const response = await fetch(
-    `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500`,
+    `${SB_URL}/rest/v1/entries?select=*&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc&limit=500`,
     {
       headers: {
         "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
