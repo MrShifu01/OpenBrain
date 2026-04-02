@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { authFetch } from "./lib/authFetch";
+import { supabase } from "./lib/supabase";
 
 /* ═══════════════════════════════════════════════════════════════
    DATA
@@ -228,13 +229,27 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries }) {
 /* ═══════════════════════════════════════════════════════════════
    SETTINGS
    ═══════════════════════════════════════════════════════════════ */
-function SettingsView({ apiKey, setApiKey, sbKey, setSbKey }) {
-  const [showApi, setShowApi] = useState(false);
-  const [showSb, setShowSb] = useState(false);
+function SettingsView() {
   const [testStatus, setTestStatus] = useState(null);
+  const [email, setEmail] = useState("");
 
-  const testConnection = async () => {
-    if (!sbKey) return;
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || ""));
+  }, []);
+
+  const testAI = async () => {
+    setTestStatus("testing-ai");
+    try {
+      const res = await authFetch("/api/anthropic", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: MODEL, max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] })
+      });
+      setTestStatus(res.ok ? "ai-success" : "ai-fail");
+    } catch { setTestStatus("ai-fail"); }
+    setTimeout(() => setTestStatus(null), 3000);
+  };
+
+  const testDB = async () => {
     setTestStatus("testing");
     try {
       const res = await authFetch("/api/health");
@@ -243,60 +258,36 @@ function SettingsView({ apiKey, setApiKey, sbKey, setSbKey }) {
     setTimeout(() => setTestStatus(null), 3000);
   };
 
-  const testAI = async () => {
-    if (!apiKey) return;
-    setTestStatus("testing-ai");
-    try {
-      const res = await authFetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: MODEL, max_tokens: 50, messages: [{ role: "user", content: "Say 'connected' in one word" }] })
-      });
-      setTestStatus(res.ok ? "ai-success" : "ai-fail");
-    } catch { setTestStatus("ai-fail"); }
-    setTimeout(() => setTestStatus(null), 3000);
-  };
-
-  const inputStyle = { width: "100%", boxSizing: "border-box", padding: "12px 16px", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 10, color: "#ddd", fontSize: 14, outline: "none", fontFamily: "monospace" };
   const btnStyle = { padding: "10px 20px", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" };
 
   return (
     <div>
       <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: "#EAEAEA" }}>Settings</h2>
-      <p style={{ fontSize: 12, color: "#666", margin: "0 0 24px" }}>Configure API keys for AI parsing and direct database writes.</p>
+      <p style={{ fontSize: 12, color: "#666", margin: "0 0 24px" }}>All API keys are managed server-side.</p>
 
       <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: "1px solid #2a2a4a" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Anthropic API Key (Haiku)</p><p style={{ margin: "2px 0 0", fontSize: 11, color: "#666" }}>Powers AI parsing of quick captures and chat</p></div>
-          <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 20, background: apiKey ? "#4ECDC420" : "#FF6B3520", color: apiKey ? "#4ECDC4" : "#FF6B35", fontWeight: 600 }}>{apiKey ? "Set" : "Not set"}</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Signed in as</p><p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>{email}</p></div>
+          <button onClick={() => supabase.auth.signOut()} style={{ ...btnStyle, background: "#FF6B3520", color: "#FF6B35" }}>Sign out</button>
         </div>
-        <div style={{ position: "relative" }}>
-          <input type={showApi ? "text" : "password"} value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sk-ant-..." style={inputStyle} />
-          <button onClick={() => setShowApi(!showApi)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 12 }}>{showApi ? "Hide" : "Show"}</button>
-        </div>
-        {apiKey && <button onClick={testAI} style={{ ...btnStyle, marginTop: 10, background: "#4ECDC420", color: "#4ECDC4" }}>
-          {testStatus === "testing-ai" ? "Testing..." : testStatus === "ai-success" ? "✅ Connected!" : testStatus === "ai-fail" ? "❌ Failed" : "Test AI Connection"}
-        </button>}
       </div>
 
       <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: "1px solid #2a2a4a" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Supabase Service Key</p><p style={{ margin: "2px 0 0", fontSize: 11, color: "#666" }}>Enables direct database writes from the app</p></div>
-          <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 20, background: sbKey ? "#4ECDC420" : "#FF6B3520", color: sbKey ? "#4ECDC4" : "#FF6B35", fontWeight: 600 }}>{sbKey ? "Set" : "Not set"}</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Claude AI (Haiku)</p><p style={{ margin: "4px 0 0", fontSize: 11, color: "#666" }}>AI parsing and chat</p></div>
+          <button onClick={testAI} style={{ ...btnStyle, background: "#4ECDC420", color: "#4ECDC4" }}>
+            {testStatus === "testing-ai" ? "Testing…" : testStatus === "ai-success" ? "✓ Connected" : testStatus === "ai-fail" ? "✗ Failed" : "Test"}
+          </button>
         </div>
-        <div style={{ position: "relative" }}>
-          <input type={showSb ? "text" : "password"} value={sbKey} onChange={e => setSbKey(e.target.value)} placeholder="eyJ..." style={inputStyle} />
-          <button onClick={() => setShowSb(!showSb)} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#666", cursor: "pointer", fontSize: 12 }}>{showSb ? "Hide" : "Show"}</button>
-        </div>
-        {sbKey && <button onClick={testConnection} style={{ ...btnStyle, marginTop: 10, background: "#4ECDC420", color: "#4ECDC4" }}>
-          {testStatus === "testing" ? "Testing..." : testStatus === "success" ? "✅ Connected!" : testStatus === "fail" ? "❌ Failed" : "Test DB Connection"}
-        </button>}
       </div>
 
       <div style={{ background: "#1a1a2e", borderRadius: 14, padding: "20px 24px", border: "1px solid #2a2a4a" }}>
-        <p style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 600, color: "#ddd" }}>Connection Info</p>
-        <p style={{ margin: 0, fontSize: 12, color: "#888", lineHeight: 1.6 }}>
-          Project: OpenBrain<br />URL: {SB_URL}<br />Owner: {OWNER_ID}<br />Region: eu-west-1
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div><p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#ddd" }}>Supabase Database</p><p style={{ margin: "4px 0 0", fontSize: 11, color: "#666" }}>Memory storage</p></div>
+          <button onClick={testDB} style={{ ...btnStyle, background: "#4ECDC420", color: "#4ECDC4" }}>
+            {testStatus === "testing" ? "Testing…" : testStatus === "success" ? "✓ Connected" : testStatus === "fail" ? "✗ Failed" : "Test"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -661,7 +652,7 @@ export default function OpenBrain() {
           </div>
         )}
 
-        {view === "settings" && <SettingsView apiKey={apiKey} setApiKey={setApiKey} sbKey={sbKey} setSbKey={setSbKey} />}
+        {view === "settings" && <SettingsView />}
       </div>
 
       <DetailModal entry={selected} onClose={() => setSelected(null)} />
