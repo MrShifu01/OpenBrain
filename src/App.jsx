@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "./lib/supabase"
 import OpenBrain from "./OpenBrain.jsx"
 import LoginScreen from "./LoginScreen.jsx"
+import ErrorBoundary from "./ErrorBoundary.jsx"
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -14,5 +15,5 @@ export default function App() {
 
   if (session === undefined) return null
   if (!session) return <LoginScreen />
-  return <OpenBrain />
+  return <ErrorBoundary><OpenBrain /></ErrorBoundary>
 }

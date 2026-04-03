@@ -12,10 +12,40 @@ const DetailModal     = lazy(() => import("./views/DetailModal"));
 
 const Loader = () => <div style={{ padding: 40, textAlign: "center", color: "#555", fontSize: 13 }}>Loading…</div>;
 
+/* ─── AI Connection Discovery ─── */
+async function findConnections(newEntry, existingEntries, existingLinks) {
+  const candidates = existingEntries
+    .filter(e => e.id !== newEntry.id)
+    .slice(0, 50)
+    .map(e => ({ id: e.id, title: e.title, type: e.type, tags: e.tags, content: (e.content || "").slice(0, 120) }));
+  if (candidates.length === 0) return [];
+  const existingKeys = new Set(existingLinks.map(l => `${l.from}-${l.to}`));
+  try {
+    const res = await authFetch("/api/anthropic", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: MODEL, max_tokens: 600,
+        system: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{\"from\":\"...\",\"to\":\"...\",\"rel\":\"...\"}]\n- If no connections: []`,
+        messages: [{ role: "user", content: `NEW ENTRY:\n${JSON.stringify({ id: newEntry.id, title: newEntry.title, type: newEntry.type, content: newEntry.content, tags: newEntry.tags })}\n\nEXISTING ENTRIES:\n${JSON.stringify(candidates)}` }]
+      })
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(l =>
+      l.from && l.to && l.rel &&
+      candidates.some(c => c.id === l.to) &&
+      !existingKeys.has(`${l.from}-${l.to}`) &&
+      !existingKeys.has(`${l.to}-${l.from}`)
+    );
+  } catch { return []; }
+}
+
 /* ═══════════════════════════════════════════════════════════════
    QUICK CAPTURE BAR
    ═══════════════════════════════════════════════════════════════ */
-function QuickCapture({ apiKey, sbKey, entries, setEntries }) {
+function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -48,8 +78,15 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries }) {
           const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || input, p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
           if (rpcRes.ok) {
             const result = await rpcRes.json();
-            setEntries(prev => [{ id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || input, type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() }, ...prev]);
+            const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || input, type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+            setEntries(prev => [newEntry, ...prev]);
             setStatus("saved-db");
+            // Discover + save connections in the background
+            findConnections(newEntry, entries, links || []).then(newLinks => {
+              if (newLinks.length === 0) return;
+              addLinks?.(newLinks);
+              authFetch("/api/save-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: newLinks }) }).catch(() => {});
+            });
           } else {
             setEntries(prev => [{ id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() }, ...prev]);
             setStatus("saved-local");
@@ -224,6 +261,8 @@ export default function OpenBrain() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [view, setView] = useState("grid");
   const [selected, setSelected] = useState(null);
+  const [links, setLinks] = useState(LINKS);
+  const addLinks = (newLinks) => setLinks(prev => [...prev, ...newLinks]);
   const [apiKey] = useState("configured");
   const [sbKey] = useState("configured");
   const [chatInput, setChatInput] = useState("");
@@ -264,7 +303,7 @@ export default function OpenBrain() {
     if (!chatInput.trim()) return;
     const msg = chatInput.trim(); setChatInput(""); setChatMsgs(p => [...p, { role: "user", content: msg }]); setChatLoading(true);
     try {
-      const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(LINKS)}`, messages: [{ role: "user", content: msg }] }) });
+      const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] }) });
       const data = await res.json();
       setChatMsgs(p => [...p, { role: "assistant", content: data.content?.map(c => c.text || "").join("") || "Couldn't process." }]);
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error." }]); }
@@ -291,7 +330,7 @@ export default function OpenBrain() {
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} />
 
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #1a1a2e", overflowX: "auto", scrollbarWidth: "none" }}>
         {navViews.map(v => (
@@ -313,7 +352,7 @@ export default function OpenBrain() {
             {Object.entries(types).map(([t, n]) => { const c = TC[t] || TC.note; return <button key={t} onClick={() => setTypeFilter(t)} style={{ flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: typeFilter === t ? c.c : "#1a1a2e", color: typeFilter === t ? "#0f0f23" : "#888" }}>{c.i} {t} ({n})</button>; })}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
-            {[{ l: "Memories", v: entries.length, c: "#4ECDC4" }, { l: "Pinned", v: entries.filter(e => e.pinned).length, c: "#FFD700" }, { l: "Types", v: Object.keys(types).length, c: "#A29BFE" }, { l: "Links", v: LINKS.length, c: "#FF6B35" }].map(s =>
+            {[{ l: "Memories", v: entries.length, c: "#4ECDC4" }, { l: "Pinned", v: entries.filter(e => e.pinned).length, c: "#FFD700" }, { l: "Types", v: Object.keys(types).length, c: "#A29BFE" }, { l: "Links", v: links.length, c: "#FF6B35" }].map(s =>
               <div key={s.l} style={{ background: "#1a1a2e", borderRadius: 12, padding: "14px 12px", textAlign: "center", border: "1px solid #2a2a4a" }}><div style={{ fontSize: 26, fontWeight: 800, color: s.c }}>{s.v}</div><div style={{ fontSize: 9, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginTop: 2 }}>{s.l}</div></div>
             )}
           </div>
