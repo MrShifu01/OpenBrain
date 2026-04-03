@@ -1,5 +1,11 @@
 # OpenBrain — Decisions Log
 
+## GAPS.md is a live document — update when specs are approved
+Created `GAPS.md` as a strategic gaps analysis. When a spec is approved and implementation begins, the corresponding gap must be removed from GAPS.md in the same session to keep it accurate.
+
+## Embedding dimensions: 768 for both OpenAI and Google providers
+`text-embedding-3-small` uses `dimensions: 768` parameter (quality loss negligible). `text-embedding-004` is natively 768. Both share the same `vector(768)` column in `entries`. Tracked via `embedding_provider` column. Affects `supabase/migrations/008_pgvector.sql`.
+
 ## Per-task AI model selection: OpenRouter-only, task param in callAI()
 Task-specific models stored in `user_ai_settings` (5 nullable columns) and localStorage keyed `openbrain_{uid}_task_{task}`. `callAI()` resolves task model first when provider=openrouter, falls back to global. Affects `src/lib/aiFetch.js`, `src/lib/ai.js`, `supabase/migrations/007_task_models.sql`.
 

@@ -1,29 +1,27 @@
 # Active Context — 2026-04-03
-**Branch:** main | **Enhancement:** per-task AI models | **Project:** OpenBrain
+**Branch:** main | **Enhancement:** standard | **Project:** OpenBrain
 
 ## Session Summary
-Designed and implemented per-task AI model selection. Spec written to AI-models.md (4 phases). Phase 1 (data layer) is fully complete and deployed to prod. Phases 2–3 are partially done — the routing layer is ready but task: params and the Settings UI were lost when a linter refactor overwrote the view files mid-session.
+Q&A and documentation session. Discussed Supabase RAG capabilities, embedding model options (OpenAI vs Google), and pricing. Created GAPS.md — a strategic analysis of what OpenBrain is missing to be world-class, covering E2EE/encryption architecture, AI intelligence gaps, product/UX, and infrastructure. The file was immediately cross-referenced against the approved embeddings spec and updated to remove the RAG gap (already in-flight).
 
 ## Built This Session
-- `AI-models.md` — full spec with pricing tier badges, vision filtering, 4-phase plan
-- `supabase/migrations/007_task_models.sql` — 5 task columns on `user_ai_settings` (applied to prod)
-- `src/lib/aiFetch.js` — `getModelForTask()`, `setModelForTask()`, `loadTaskModels()` helpers added
-- `src/lib/ai.js` — `callAI()` accepts `task` param, resolves task-specific model for OpenRouter
-- `supabase/functions/telegram-webhook/index.ts` — reads `model_chat` first before global model
+- `GAPS.md` — strategic gaps analysis (new file, root of OpenBrain project)
 
 ## Current State
-- Phase 1 complete and deployed
-- Phase 2 incomplete: `task:` params NOT added to callAI() call sites (overwritten by linter)
-- Phase 3 incomplete: Settings UI not added to OpenBrain.jsx (overwritten by linter)
-- OpenBrain.jsx has `callAI` import + `PROMPTS.*` usage but zero `task:` params on any call
-- SuggestionsView.jsx image upload hardcoded to `authFetch("/api/anthropic")` — NOT using callAI
+- RAG implementation actively being built: `api/embed.js`, `api/search.js`, `api/_lib/generateEmbedding.js`, `supabase/migrations/008_pgvector.sql` — all untracked
+- `GAPS.md` untracked, ready to commit
+- `supabase/functions/test-secret.ts` untracked — unknown purpose, should be reviewed
+- Phase 1 of per-task model selection complete and deployed
+- Phase 2 + 3 of AI-models.md still incomplete (task: params + Settings UI)
 
 ## In-Flight Work
-- Phase 2 + 3 from AI-models.md need to be completed next session
+- RAG embeddings: `api/embed.js`, `api/search.js`, `api/_lib/generateEmbedding.js`, `supabase/migrations/008_pgvector.sql`
+- AI-models.md Phase 2 + 3 — per previous next-steps.md
 
 ## Known Issues
-- SuggestionsView.jsx ~line 168: image upload must be changed to `callAI({ task: "vision" })`
-- All 8 callAI() call sites missing `task:` param
+- SuggestionsView.jsx ~line 168: image upload hardcoded to `authFetch("/api/anthropic")` — bypasses model routing
+- All callAI() call sites missing `task:` param
+- Critical security gaps: in-memory rate limiter, weak PIN, API key fallback — documented in GAPS.md
 
 ## Pipeline State
 - **Last pipeline:** feature — 2026-04-03

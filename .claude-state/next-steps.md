@@ -65,24 +65,26 @@ const saveTaskModel = (task, model) => { setModelForTask(task, model || null); s
 ```
 
 Update `fetchOrModels` model mapping — add `modality: m.architecture?.modality ?? "text->text"` to each model object.
-
 Update global OR model picker option labels to use `priceTier()` instead of raw $/1M.
-
 Add per-task section after the global model picker, inside the OpenRouter branch of the AI Provider card.
-
-Import `setModelForTask`, `loadTaskModels` in OpenBrain.jsx aiFetch import line (already imports `getModelForTask` — add the other two).
+Import `setModelForTask`, `loadTaskModels` in OpenBrain.jsx aiFetch import line.
 
 ## Soon
+- Complete RAG implementation: `api/embed.js`, `api/search.js`, `api/_lib/generateEmbedding.js`, `supabase/migrations/008_pgvector.sql` — confirm and commit
 - Fix QuickCapture offline path — missing `p_brain_id` in `enqueue()` body in `src/OpenBrain.jsx`
 - Delete SupplierPanel dead code from `src/OpenBrain.jsx`
 - Apply migration 006 if not yet applied (check Supabase dashboard first)
+- Review/delete `supabase/functions/test-secret.ts` — untracked, unknown purpose
 
 ## Deferred
 - AI-models.md Phase 4 (Voice/Whisper) — separate transcription API, needs design
 - Wire GraphView + CalendarView to live entries (currently use INITIAL_ENTRIES)
 - TodoView DB sync (currently localStorage-only)
+- E2EE implementation — documented in GAPS.md Part 1 as Phase 1–3 roadmap
+- Distributed rate limiting (Upstash Redis) — documented in GAPS.md as critical security gap
 
 ## Warnings
-- ⚠️ SuggestionsView.jsx image upload is hardcoded `authFetch("/api/anthropic")` — this is the most important fix; it bypasses the entire model routing system
-- ⚠️ After adding task: params, verify OpenBrain.jsx still imports `setModelForTask` and `loadTaskModels` from `./lib/aiFetch` (add to import line 5 if missing)
+- ⚠️ SuggestionsView.jsx image upload is hardcoded `authFetch("/api/anthropic")` — bypasses entire model routing system
+- ⚠️ After adding task: params, verify OpenBrain.jsx still imports `setModelForTask` and `loadTaskModels` from `./lib/aiFetch`
 - ⚠️ `src/config/prompts.js` EXISTS — use `PROMPTS.*` constants when adding task params, do not revert to inline strings
+- ⚠️ In-memory rate limiter is still live — serverless instances each have separate counters, easy to bypass with distributed requests
