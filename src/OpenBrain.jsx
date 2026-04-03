@@ -132,7 +132,7 @@ function NudgeBanner({ nudge, onDismiss }) {
 /* ═══════════════════════════════════════════════════════════════
    PRE-SAVE PREVIEW MODAL
    ═══════════════════════════════════════════════════════════════ */
-function PreviewModal({ preview, entries, onSave, onCancel }) {
+function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
   const { t } = useTheme();
   const [title, setTitle] = useState(preview.title || "");
   const [type, setType] = useState(preview.type || "note");
@@ -167,8 +167,16 @@ function PreviewModal({ preview, entries, onSave, onCancel }) {
         </div>
         {dupes.length > 0 && (
           <div style={{ marginTop: 14, padding: "10px 14px", background: "#FFEAA710", border: "1px solid #FFEAA730", borderRadius: 10 }}>
-            <p style={{ margin: "0 0 6px", fontSize: 11, color: "#FFEAA7", fontWeight: 700 }}>⚠ Similar entries found</p>
-            {dupes.map(d => <div key={d.id} style={{ fontSize: 12, color: "#bbb", marginBottom: 2 }}>• {d.title}</div>)}
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#FFEAA7", fontWeight: 700 }}>⚠ Similar entries found — update one instead?</p>
+            {dupes.map(d => (
+              <div key={d.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 12, color: "#bbb" }}>• {d.title}</span>
+                <button
+                  onClick={() => { onUpdate(d.id, { title: title.trim(), type, tags: tags.split(",").map(t => t.trim()).filter(Boolean), content: preview.content, metadata: preview.metadata }); onCancel(); }}
+                  style={{ fontSize: 11, padding: "3px 8px", background: "#FFEAA720", border: "1px solid #FFEAA750", borderRadius: 6, color: "#FFEAA7", cursor: "pointer" }}
+                >Update this</button>
+              </div>
+            ))}
           </div>
         )}
         <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
@@ -269,7 +277,7 @@ const BRAIN_META_QC = {
   business: { emoji: "🏪" },
 };
 
-function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, isOnline = true, refreshCount, brainId, brains = [] }) {
+function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, onUpdate, isOnline = true, refreshCount, brainId, brains = [] }) {
   const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -300,6 +308,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     const file = e.target.files?.[0]; if (!file) return;
     e.target.value = "";
     if (!isOnline) { setStatus("offline-image"); setTimeout(() => setStatus(null), 3000); return; }
+    if (file.size > 4 * 1024 * 1024) { setStatus("img-too-large"); setTimeout(() => setStatus(null), 3000); return; }
     setLoading(true); setStatus("thinking");
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
@@ -428,7 +437,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     setLoading(false); setTimeout(() => setStatus(null), 3000);
   };
 
-  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Image uploads need a connection" };
+  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Image uploads need a connection", "img-too-large": "⚠️ Photo too large — try a smaller image" };
 
   return (
     <div style={{ padding: "0 12px 12px" }}>
@@ -465,7 +474,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
         <button onClick={capture} disabled={loading || !text.trim()} title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`} style={{ padding: "12px 18px", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 12, color: text.trim() && !loading ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 16 }}>+</button>
       </div>
       {status && <p style={{ fontSize: 11, color: status.includes("error") ? "#FF6B35" : "#4ECDC4", margin: "6px 0 0 4px" }}>{statusMsg[status]}</p>}
-      {preview && <PreviewModal preview={preview} entries={entries} onSave={doSave} onCancel={() => setPreview(null)} />}
+      {preview && <PreviewModal preview={preview} entries={entries} onSave={doSave} onUpdate={onUpdate} onCancel={() => setPreview(null)} />}
     </div>
   );
 }
@@ -1072,7 +1081,7 @@ export default function OpenBrain() {
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} isOnline={isOnline} refreshCount={refreshCount} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} onUpdate={handleUpdate} brainId={activeBrain?.id} isOnline={isOnline} refreshCount={refreshCount} />
 
       {showBrainTip && (
         <BrainTipCard

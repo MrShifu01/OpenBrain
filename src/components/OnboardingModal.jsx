@@ -60,6 +60,7 @@ export default function OnboardingModal({ onComplete, apiKey }) {
   const [answer, setAnswer] = useState("");
   const [showInput, setShowInput] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
+  const [imgError, setImgError] = useState(null);
   const [answeredItems, setAnsweredItems] = useState([]); // [{q, a, cat}]
   const [skippedQs, setSkippedQs] = useState([]);         // [{q, cat, p}]
   const imgRef = useRef(null);
@@ -86,6 +87,7 @@ export default function OnboardingModal({ onComplete, apiKey }) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    if (file.size > 4 * 1024 * 1024) { setImgError("Photo too large — try a smaller image"); setTimeout(() => setImgError(null), 3000); return; }
     setImgLoading(true);
     try {
       const base64 = await new Promise((res, rej) => {
@@ -321,6 +323,7 @@ export default function OnboardingModal({ onComplete, apiKey }) {
                   style={{ width: "100%", boxSizing: "border-box", minHeight: 90, padding: "12px 14px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: t.textSoft, fontSize: 13, lineHeight: 1.6, outline: "none", resize: "vertical", fontFamily: "inherit", opacity: imgLoading ? 0.5 : 1 }}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  {imgError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 4px", gridColumn: "1/-1" }}>{imgError}</p>}
                   <button onClick={resetQInput} style={{ ...btn(false), flex: 1, padding: "10px 8px", fontSize: 12 }}>Cancel</button>
                   <button onClick={() => imgRef.current?.click()} disabled={imgLoading} title="Take photo or upload" style={{ padding: "10px 14px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: imgLoading ? t.textDim : "#4ECDC4", cursor: imgLoading ? "default" : "pointer", fontSize: 16 }}>
                     {imgLoading ? "⏳" : "📷"}

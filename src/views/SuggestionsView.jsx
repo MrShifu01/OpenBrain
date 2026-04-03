@@ -43,6 +43,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
   const [anim, setAnim] = useState("");
   const [saving, setSaving] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
+  const [imgError, setImgError] = useState(null);
   const [aiQuestion, setAiQuestion] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
@@ -131,6 +132,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+    if (file.size > 4 * 1024 * 1024) { setImgError("Photo too large — try a smaller image"); setTimeout(() => setImgError(null), 3000); return; }
     setImgLoading(true);
     try {
       const base64 = await new Promise((res, rej) => {
@@ -341,6 +343,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
       ) : (
         <div>
           <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
+          {imgError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 6px" }}>{imgError}</p>}
           <textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Type your answer..." autoFocus
             style={{ width: "100%", boxSizing: "border-box", minHeight: 100, padding: "14px 16px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 12, color: t.textSoft, fontSize: 14, lineHeight: 1.6, outline: "none", resize: "vertical", fontFamily: "inherit", opacity: imgLoading ? 0.5 : 1 }} />
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
