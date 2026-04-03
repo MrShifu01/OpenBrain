@@ -4,6 +4,8 @@ import { authFetch } from "./lib/authFetch";
 import { supabase } from "./lib/supabase";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain } from "./hooks/useBrain";
+import { useOfflineSync } from "./hooks/useOfflineSync";
+import { enqueue } from "./lib/offlineQueue";
 import BrainSwitcher from "./components/BrainSwitcher";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
@@ -557,6 +559,17 @@ export default function OpenBrain() {
       setEntriesLoaded(false);
     }, [])
   );
+
+  const { isOnline, pendingCount, refreshCount } = useOfflineSync({
+    onEntryIdUpdate: useCallback((tempId, realId) => {
+      setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
+    }, []),
+  });
+
+  // Keep a ref so timer callbacks can read current isOnline without stale closure
+  const isOnlineRef = useRef(isOnline);
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -635,9 +648,13 @@ export default function OpenBrain() {
   const commitPendingDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return;
     const { id } = pendingDeleteRef.current;
-    authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+    if (isOnlineRef.current) {
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+    } else {
+      enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
+    }
     pendingDeleteRef.current = null;
-  }, []);
+  }, [refreshCount]);
 
   const handleDelete = useCallback((id) => {
     const entry = entries.find(e => e.id === id);
@@ -646,7 +663,11 @@ export default function OpenBrain() {
     setEntries(prev => prev.filter(e => e.id !== id));
     setSelected(null);
     const timer = setTimeout(() => {
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      if (isOnlineRef.current) {
+        authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      } else {
+        enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
+      }
       pendingDeleteRef.current = null;
       setLastAction(null);
     }, 5000);
@@ -656,6 +677,14 @@ export default function OpenBrain() {
 
   const handleUpdate = useCallback(async (id, changes) => {
     const previous = entries.find(e => e.id === id);
+    if (!isOnline) {
+      await enqueue({ id: crypto.randomUUID(), url: "/api/update-entry", method: "PATCH", body: JSON.stringify({ id, ...changes }), created_at: new Date().toISOString() });
+      refreshCount();
+      setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
+      setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
+      if (previous) setLastAction({ type: "update", id, previous: { title: previous.title, content: previous.content, type: previous.type, tags: previous.tags, metadata: previous.metadata } });
+      return;
+    }
     try {
       const res = await authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...changes }) });
       const data = await res.json().catch(() => null);
@@ -665,7 +694,7 @@ export default function OpenBrain() {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
     setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
     if (previous) setLastAction({ type: "update", id, previous: { title: previous.title, content: previous.content, type: previous.type, tags: previous.tags, metadata: previous.metadata } });
-  }, [entries]);
+  }, [entries, isOnline, refreshCount]);
 
   const handleUndo = useCallback(() => {
     if (!lastAction) return;
@@ -766,7 +795,7 @@ export default function OpenBrain() {
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} isOnline={isOnline} refreshCount={refreshCount} />
 
       {view === "grid" && nudge && <NudgeBanner nudge={nudge} onDismiss={() => { setNudge(null); sessionStorage.removeItem("openbrain_nudge"); }} />}
 
