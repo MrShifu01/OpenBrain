@@ -67,6 +67,24 @@ export default async function handler(req, res) {
   );
 
   console.log(`[audit] PATCH entry id=${id} user=${user.id} ok=${response.ok}`);
+
+  // SEC-14: Fire-and-forget audit log write to Supabase
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+      'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      'Prefer': 'return=minimal',
+    },
+    body: JSON.stringify({
+      user_id: user.id,
+      action: 'entry_update',
+      resource_id: id,
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {}); // best-effort, never blocks
+
   const data = await response.json();
   res.status(response.ok ? 200 : 502).json(data);
 }

@@ -77,6 +77,25 @@ export default async function handler(req, res) {
 
   const data = await response.json();
 
+  // SEC-14: Fire-and-forget audit log write to Supabase
+  if (response.ok && data?.id) {
+    fetch(`${SB_URL}/rest/v1/audit_log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        action: 'entry_capture',
+        resource_id: data.id,
+        timestamp: new Date().toISOString(),
+      }),
+    }).catch(() => {}); // best-effort, never blocks
+  }
+
   // If extra brain IDs provided, share the entry into those brains via entry_brains
   if (response.ok && data?.id && Array.isArray(p_extra_brain_ids) && p_extra_brain_ids.length > 0) {
     const extraIds = p_extra_brain_ids.filter(id => typeof id === "string" && id !== p_brain_id);

@@ -1,6 +1,11 @@
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 
+// SEC-17: API Key Rotation Policy
+// Rotate ANTHROPIC_API_KEY every 90 days. Last rotation: 2026-04-03
+// Set up usage alerts in Anthropic console to catch unexpected spend.
+// Key is stored in Vercel environment variables (never in code).
+
 const ALLOWED_MODELS = [
   "claude-haiku-4-5-20251001",
   "claude-sonnet-4-6",

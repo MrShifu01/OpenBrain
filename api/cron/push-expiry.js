@@ -21,6 +21,10 @@ export default async function handler(req, res) {
     }
   }
 
+  // SEC-16 TODO: Upgrade to HMAC-signed request
+  // Current: Bearer token comparison (timing-attack vulnerable)
+  // Target: HMAC-SHA256 signature over timestamp + path, with 5-minute replay window
+  // See: https://vercel.com/docs/cron-jobs/manage-cron-jobs
   if (req.headers["authorization"] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
