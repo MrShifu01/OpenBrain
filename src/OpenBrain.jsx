@@ -9,6 +9,7 @@ import { useBrain } from "./hooks/useBrain";
 import { useRole } from "./hooks/useRole";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { enqueue } from "./lib/offlineQueue";
+import { readEntriesCache, writeEntriesCache } from "./lib/entriesCache";
 import BrainSwitcher from "./components/BrainSwitcher";
 import CreateBrainModal from "./components/CreateBrainModal";
 import OnboardingModal from "./components/OnboardingModal";
@@ -705,6 +706,10 @@ function VirtualTimeline({ sorted, setSelected }) {
 /* ═══════════════════════════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════════════════════════ */
+
+// PERF-9: Module-level constant so regex is compiled once, not on every render.
+const PHONE_REGEX = /(\+27[0-9]{9}|0[6-8][0-9]{8})/;
+
 const CHAT_CHIPS = [
   { label: "Who supplies...", text: "Who supplies " },
   { label: "Who do I call for...", text: "Who do I call for " },
@@ -713,6 +718,8 @@ const CHAT_CHIPS = [
 ];
 
 export default function OpenBrain() {
+  // PERF-8: Initial state uses synchronous localStorage read (fast, no flicker).
+  // A useEffect below loads from IndexedDB (the primary cache) and updates if needed.
   const [entries, setEntries] = useState(() => {
     try {
       const cached = localStorage.getItem("openbrain_entries");
@@ -724,6 +731,16 @@ export default function OpenBrain() {
     return [];
   });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
+
+  // PERF-8: On mount, upgrade the initial state from IndexedDB (richer than localStorage).
+  // Only runs once; if IDB has data and localStorage was empty/stale, this hydrates faster.
+  useEffect(() => {
+    readEntriesCache().then(cached => {
+      if (cached && cached.length > 0) {
+        setEntries(prev => prev.length === 0 ? cached : prev);
+      }
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Brain context + role ───
   const { brains, activeBrain, setActiveBrain, createBrain, deleteBrain, refresh } = useBrain(
@@ -798,7 +815,7 @@ export default function OpenBrain() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           setEntries(data);
-          try { localStorage.setItem("openbrain_entries", JSON.stringify(data)); } catch {}
+          writeEntriesCache(data); // PERF-8: write to IDB (with localStorage fallback)
         }
         setEntriesLoaded(true);
       })
@@ -828,7 +845,7 @@ export default function OpenBrain() {
 
   useEffect(() => {
     if (!entriesLoaded) return;
-    const t = setTimeout(() => { try { localStorage.setItem("openbrain_entries", JSON.stringify(entries)); } catch {} }, 3000);
+    const t = setTimeout(() => { writeEntriesCache(entries); }, 3000); // PERF-8: debounced IDB write
     return () => clearTimeout(t);
   }, [entries, entriesLoaded]);
 
@@ -1140,8 +1157,8 @@ export default function OpenBrain() {
               {chatMsgs.map((m, i) => (
                 <div key={i} style={{ marginBottom: 12, display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
                   <div style={{ maxWidth: "85%", padding: "10px 14px", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", background: m.role === "user" ? "#4ECDC4" : t.surface, color: m.role === "user" ? "#0f0f23" : t.textMid, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap", wordBreak: "break-word", overflowWrap: "break-word" }}>
-                    {m.role === "assistant" ? m.content.split(/(\+27[0-9]{9}|0[6-8][0-9]{8})/).map((part, pi) =>
-                      /(\+27[0-9]{9}|0[6-8][0-9]{8})/.test(part)
+                    {m.role === "assistant" ? m.content.split(PHONE_REGEX).map((part, pi) =>
+                      PHONE_REGEX.test(part)
                         ? <a key={pi} href={`tel:${part}`} style={{ color: "#4ECDC4", fontWeight: 700, textDecoration: "none" }}>{part}</a>
                         : part
                     ) : m.content}

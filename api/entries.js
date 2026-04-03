@@ -22,8 +22,12 @@ export default async function handler(req, res) {
     const [member] = await memberRes.json();
     if (!member) return res.status(403).json({ error: "Forbidden" });
 
+    // PERF-11: Only request the fields the UI actually needs.
+    const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at";
+
     // Use RPC to get entries visible in this brain (primary + cross-brain shares)
-    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/get_entries_for_brain`, {
+    // The ?select= param on a PostgREST RPC endpoint filters the returned columns.
+    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/get_entries_for_brain?select=${encodeURIComponent(ENTRY_FIELDS)}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -40,7 +44,7 @@ export default async function handler(req, res) {
 
     // Fallback: direct query if RPC not yet available (pre-migration)
     const fallbackRes = await fetch(
-      `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500&brain_id=eq.${encodeURIComponent(brain_id)}`,
+      `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&brain_id=eq.${encodeURIComponent(brain_id)}`,
       { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } }
     );
     const fallbackData = await fallbackRes.json();
@@ -48,7 +52,8 @@ export default async function handler(req, res) {
   }
 
   // Fallback: user's own entries (pre-migration compatibility)
-  const url = `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500&user_id=eq.${encodeURIComponent(user.id)}`;
+  const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at";
+  const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&user_id=eq.${encodeURIComponent(user.id)}`;
   const response = await fetch(url, {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` },
   });
