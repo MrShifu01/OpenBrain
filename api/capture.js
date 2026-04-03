@@ -78,7 +78,7 @@ export default async function handler(req, res) {
           "Prefer": "resolution=ignore-duplicates",
         },
         body: JSON.stringify(rows),
-      }).catch(() => {}); // Non-fatal — fire and forget
+      }).catch(err => console.error('[capture:entry_brains] Failed to share entry to extra brains', err)); // Non-fatal — fire and forget
     }
   }
 

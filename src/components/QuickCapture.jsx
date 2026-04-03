@@ -182,7 +182,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
             findConnections(newEntry, entries, links || []).then(newLinks => {
               if (newLinks.length === 0) return;
               addLinks?.(newLinks);
-              authFetch("/api/save-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: newLinks }) }).catch(() => {});
+              authFetch("/api/save-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: newLinks }) }).catch(err => console.error('[QuickCapture:findConnections] Failed to save links', err));
             });
           } else {
             console.warn("[doSave] API returned non-ok, queuing for retry:", rpcRes.status);

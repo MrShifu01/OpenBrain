@@ -260,7 +260,7 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
 
   const copyAll = () => {
     const text = saved.map(s => `**${s.cat}**\nQ: ${s.q}\nA: ${s.a}`).join("\n\n---\n\n");
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch(err => console.error('[SuggestionsView:copyAll] Failed to copy text', err));
   };
 
   const pc = current ? PC[current.p] : PC.medium;

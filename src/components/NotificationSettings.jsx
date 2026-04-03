@@ -54,7 +54,7 @@ export default function NotificationSettings() {
       navigator.serviceWorker.ready
         .then(reg => reg.pushManager.getSubscription())
         .then(sub => setSubscription(sub))
-        .catch(() => {});
+        .catch(err => console.error('[NotificationSettings] Failed to get push subscription', err));
     }
   }, []);
 

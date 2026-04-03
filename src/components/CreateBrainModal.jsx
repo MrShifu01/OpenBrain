@@ -49,7 +49,7 @@ export default function CreateBrainModal({ onClose, onCreate }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ brain_id: brain.id, email: invite.email, role: invite.role }),
-        }).catch(() => {}); // Non-fatal
+        }).catch(err => console.error('[CreateBrainModal:invite] Failed to send invite', err)); // Non-fatal
       }
 
       await onCreate(brain, brainType);

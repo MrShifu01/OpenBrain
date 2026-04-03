@@ -263,7 +263,7 @@ function MemoryEditor() {
   const [status, setStatus] = useState(null);
   const MAX = 8000;
   useEffect(() => {
-    authFetch("/api/memory").then(r => r.ok ? r.json() : {}).then(d => setContent(d.content || "")).catch(() => {});
+    authFetch("/api/memory").then(r => r.ok ? r.json() : {}).then(d => setContent(d.content || "")).catch(err => console.error('[OpenBrain:MemoryEditor] Failed to load memory content', err));
   }, []);
   const save = async () => {
     setSaving(true);
@@ -363,7 +363,7 @@ function SettingsView({ activeBrain, canInvite, canManageMembers, onRefreshBrain
     authFetch(`/api/brains?action=members&brain_id=${activeBrain.id}`)
       .then(r => r.ok ? r.json() : [])
       .then(setMembers)
-      .catch(() => {});
+      .catch(err => console.error('[OpenBrain:BrainMembers] Failed to fetch brain members', err));
   }, [activeBrain?.id]);
 
   const handleInvite = async () => {
@@ -808,7 +808,7 @@ export default function OpenBrain() {
     if (!pendingDeleteRef.current) return;
     const { id } = pendingDeleteRef.current;
     if (isOnlineRef.current) {
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => console.error('[OpenBrain:commitPendingDelete] Failed to delete entry', err));
     } else {
       enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
     }
@@ -864,13 +864,13 @@ export default function OpenBrain() {
     }
     if (lastAction.type === "update") {
       const { id, previous } = lastAction;
-      authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...previous }) }).catch(() => {});
+      authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...previous }) }).catch(err => console.error('[OpenBrain:undo] Failed to update entry', err));
       setEntries(prev => prev.map(e => e.id === id ? { ...e, ...previous } : e));
       setSelected(prev => prev?.id === id ? { ...prev, ...previous } : prev);
     }
     if (lastAction.type === "create") {
       const { id } = lastAction;
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => console.error('[OpenBrain:undo] Failed to delete created entry', err));
       setEntries(prev => prev.filter(e => e.id !== id));
     }
     setLastAction(null);
@@ -1206,10 +1206,10 @@ export default function OpenBrain() {
                           p_tags: parsed.tags || [],
                           p_brain_id: activeBrain.id,
                         })
-                      }).catch(() => {});
+                      }).catch(err => console.error('[OpenBrain:onboarding] Failed to save parsed Q&A', err));
                     }
                   })
-                  .catch(() => {});
+                  .catch(err => console.error('[OpenBrain:onboarding] Failed to parse Q&A with AI', err));
               });
             }
 

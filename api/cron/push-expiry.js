@@ -123,7 +123,7 @@ export default async function handler(req, res) {
             expiry_date: date,
             lead_days: lead,
           }),
-        }).catch(() => {});
+        }).catch(err => console.error('[push-expiry:dedup-log] Failed to log expiry notification', err));
 
         sent++;
       }
