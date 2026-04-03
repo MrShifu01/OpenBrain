@@ -5,6 +5,8 @@ import { authFetch } from "./lib/authFetch";
 import { supabase } from "./lib/supabase";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain } from "./hooks/useBrain";
+import { useOfflineSync } from "./hooks/useOfflineSync";
+import { enqueue } from "./lib/offlineQueue";
 import BrainSwitcher from "./components/BrainSwitcher";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
@@ -257,7 +259,7 @@ WORKSPACE RULES:
 
 IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.`;
 
-function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated }) {
+function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, isOnline = true, refreshCount }) {
   const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -269,7 +271,9 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
-    e.target.value = ""; setLoading(true); setStatus("thinking");
+    e.target.value = "";
+    if (!isOnline) { setStatus("offline-image"); setTimeout(() => setStatus(null), 3000); return; }
+    setLoading(true); setStatus("thinking");
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
       const apiRes = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 600, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: "Extract all text from this image. Output just the extracted content, clean and readable. If it's a business card, document, label, or receipt — preserve structure. No commentary." }] }] }) });
@@ -309,23 +313,33 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     setLoading(true); setStatus("saving");
     try {
       if (sbKey && parsed.title) {
-        const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
-        if (rpcRes.ok) {
-          const result = await rpcRes.json();
-          const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
-          setEntries(prev => [newEntry, ...prev]);
-          onCreated?.(newEntry);
-          setStatus("saved-db");
-          findConnections(newEntry, entries, links || []).then(newLinks => {
-            if (newLinks.length === 0) return;
-            addLinks?.(newLinks);
-            authFetch("/api/save-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: newLinks }) }).catch(() => {});
-          });
-        } else {
-          const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+        if (!isOnline) {
+          const tempId = Date.now().toString();
+          const newEntry = { id: tempId, title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+          await enqueue({ id: crypto.randomUUID(), url: "/api/capture", method: "POST", body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }), created_at: new Date().toISOString(), tempId });
+          refreshCount?.();
           setEntries(prev => [newEntry, ...prev]);
           onCreated?.(newEntry);
           setStatus("saved-local");
+        } else {
+          const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
+          if (rpcRes.ok) {
+            const result = await rpcRes.json();
+            const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+            setEntries(prev => [newEntry, ...prev]);
+            onCreated?.(newEntry);
+            setStatus("saved-db");
+            findConnections(newEntry, entries, links || []).then(newLinks => {
+              if (newLinks.length === 0) return;
+              addLinks?.(newLinks);
+              authFetch("/api/save-links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ links: newLinks }) }).catch(() => {});
+            });
+          } else {
+            const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+            setEntries(prev => [newEntry, ...prev]);
+            onCreated?.(newEntry);
+            setStatus("saved-local");
+          }
         }
       } else {
         const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
@@ -338,7 +352,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
       setStatus("error");
     }
     setLoading(false); setTimeout(() => setStatus(null), 3000);
-  }, [sbKey, entries, links, addLinks, onCreated, setEntries]);
+  }, [sbKey, entries, links, addLinks, onCreated, setEntries, isOnline, refreshCount]);
 
   const capture = async () => {
     if (!text.trim()) return;
@@ -369,7 +383,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     setLoading(false); setTimeout(() => setStatus(null), 3000);
   };
 
-  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved!", "saved-local": "✅ Saved locally", "saved-raw": "📝 Saved", error: "⚠️ Saved locally" };
+  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved!", "saved-local": "✅ Saved locally", "saved-raw": "📝 Saved", error: "⚠️ Saved locally", "offline-image": "📵 Image uploads need a connection" };
 
   return (
     <div style={{ padding: "0 24px 16px" }}>
@@ -570,6 +584,17 @@ export default function OpenBrain() {
       setEntriesLoaded(false);
     }, [])
   );
+
+  const { isOnline, pendingCount, refreshCount } = useOfflineSync({
+    onEntryIdUpdate: useCallback((tempId, realId) => {
+      setEntries(prev => prev.map(e => e.id === tempId ? { ...e, id: realId } : e));
+    }, []),
+  });
+
+  // Keep a ref so timer callbacks can read current isOnline without stale closure
+  const isOnlineRef = useRef(isOnline);
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
+
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -649,9 +674,13 @@ export default function OpenBrain() {
   const commitPendingDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return;
     const { id } = pendingDeleteRef.current;
-    authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+    if (isOnlineRef.current) {
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+    } else {
+      enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
+    }
     pendingDeleteRef.current = null;
-  }, []);
+  }, [refreshCount]);
 
   const handleDelete = useCallback((id) => {
     const entry = entries.find(e => e.id === id);
@@ -660,7 +689,11 @@ export default function OpenBrain() {
     setEntries(prev => prev.filter(e => e.id !== id));
     setSelected(null);
     const timer = setTimeout(() => {
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      if (isOnlineRef.current) {
+        authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      } else {
+        enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
+      }
       pendingDeleteRef.current = null;
       setLastAction(null);
     }, 5000);
@@ -670,6 +703,14 @@ export default function OpenBrain() {
 
   const handleUpdate = useCallback(async (id, changes) => {
     const previous = entries.find(e => e.id === id);
+    if (!isOnline) {
+      await enqueue({ id: crypto.randomUUID(), url: "/api/update-entry", method: "PATCH", body: JSON.stringify({ id, ...changes }), created_at: new Date().toISOString() });
+      refreshCount();
+      setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
+      setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
+      if (previous) setLastAction({ type: "update", id, previous: { title: previous.title, content: previous.content, type: previous.type, tags: previous.tags, metadata: previous.metadata } });
+      return;
+    }
     try {
       const res = await authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...changes }) });
       const data = await res.json().catch(() => null);
@@ -679,7 +720,7 @@ export default function OpenBrain() {
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
     setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
     if (previous) setLastAction({ type: "update", id, previous: { title: previous.title, content: previous.content, type: previous.type, tags: previous.tags, metadata: previous.metadata } });
-  }, [entries]);
+  }, [entries, isOnline, refreshCount]);
 
   const handleUndo = useCallback(() => {
     if (!lastAction) return;
@@ -785,12 +826,17 @@ export default function OpenBrain() {
             <div style={{ textAlign: "right" }}>
               <span style={{ fontSize: 11, color: t.textFaint }}>{entries.length} memories</span>
               {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
+              {pendingCount > 0 && (
+                <span style={{ display: "block", fontSize: 9, color: "#FFD700", marginTop: 2 }}>
+                  {pendingCount} pending sync
+                </span>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} isOnline={isOnline} refreshCount={refreshCount} />
 
       {view === "grid" && nudge && <NudgeBanner nudge={nudge} onDismiss={() => { setNudge(null); sessionStorage.removeItem("openbrain_nudge"); }} />}
 
