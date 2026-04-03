@@ -51,7 +51,7 @@ Schema: [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"v
 
 If no valuable relationships are found, return: []`;
 
-export default function RefineView({ apiKey, entries, setEntries, links, addLinks, activeBrain, brains = [], onSwitchBrain }) {
+export default function RefineView({ entries, setEntries, links, addLinks, activeBrain, brains = [], onSwitchBrain }) {
   const [loading, setLoading]         = useState(false);
   const [suggestions, setSuggestions] = useState(null); // null = never run
   const [dismissed, setDismissed]     = useState(new Set());
@@ -61,7 +61,7 @@ export default function RefineView({ apiKey, entries, setEntries, links, addLink
 
   /* ── Analyze: entry quality + link discovery in parallel ── */
   const analyze = useCallback(async () => {
-    if (!apiKey || loading) return;
+    if (loading) return;
     setLoading(true);
     setSuggestions(null);
     setDismissed(new Set());
@@ -139,7 +139,7 @@ export default function RefineView({ apiKey, entries, setEntries, links, addLink
 
     setSuggestions([...entrySuggestions, ...linkSuggestions]);
     setLoading(false);
-  }, [apiKey, loading, entries, links]);
+  }, [loading, entries, links]);
 
   /* ── Accept an entry-quality suggestion ── */
   const applyEntry = useCallback(async (s, override) => {
@@ -278,14 +278,14 @@ export default function RefineView({ apiKey, entries, setEntries, links, addLink
       {/* Analyze button */}
       <button
         onClick={analyze}
-        disabled={!apiKey || loading}
+        disabled={loading}
         style={{
           width: "100%", padding: "14px 20px", marginBottom: 20,
-          background: apiKey && !loading ? "linear-gradient(135deg, #A29BFE, #6C63FF)" : "#1a1a2e",
+          background: !loading ? "linear-gradient(135deg, #A29BFE, #6C63FF)" : "#1a1a2e",
           border: "none", borderRadius: 14,
-          color: apiKey && !loading ? "#fff" : "#444",
+          color: !loading ? "#fff" : "#444",
           fontSize: 14, fontWeight: 700,
-          cursor: apiKey && !loading ? "pointer" : "default",
+          cursor: !loading ? "pointer" : "default",
         }}
       >
         {loading ? "Analyzing…" : suggestions === null ? "✦ Analyze my brain" : "✦ Re-analyze"}

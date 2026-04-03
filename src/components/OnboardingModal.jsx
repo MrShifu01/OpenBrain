@@ -56,7 +56,7 @@ const USE_CASES = [
   { id: "business", emoji: "🏪", label: "Business",  desc: "Staff, suppliers, SOPs, licences, costs" },
 ];
 
-export default function OnboardingModal({ onComplete, apiKey }) {
+export default function OnboardingModal({ onComplete }) {
   const { t } = useTheme();
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState(["personal"]);

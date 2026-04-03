@@ -20,7 +20,7 @@ const BRAIN_META = {
   business: { emoji: "🏪", label: "Business" },
 };
 
-export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, activeBrain, brains }) {
+export default function SuggestionsView({ entries, setEntries, activeBrain, brains }) {
   const { t } = useTheme();
 
   // Multi-select: which brains to pull questions from (default = [activeBrain])
@@ -123,11 +123,11 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
 
   const total = view.length;
   const poolEmpty = total === 0;
-  const isAiSlot = !!apiKey && (poolEmpty || position % 5 === 4);
+  const isAiSlot = poolEmpty || position % 5 === 4;
   const current = isAiSlot ? (aiLoading ? null : aiQuestion) : view[idx % total];
 
   useEffect(() => {
-    if (!isAiSlot || aiQuestion || aiLoading || !apiKey) return;
+    if (!isAiSlot || aiQuestion || aiLoading) return;
     setAiLoading(true);
     const ctx = entries.slice(0, 30).map(e => `- ${e.title}: ${(e.content || "").slice(0, 100)}`).join("\n");
     const brainContext = brainType === "family"
@@ -152,7 +152,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
       })
       .catch(() => setAiQuestion({ q: "What's one important thing you haven't captured yet?", cat: "✨ AI", p: "medium", ai: true }))
       .finally(() => setAiLoading(false));
-  }, [isAiSlot, aiQuestion, aiLoading, apiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAiSlot, aiQuestion, aiLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -204,41 +204,37 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
     if (!answer.trim()) return;
     const a = answer.trim();
     setSaving(true);
-    if (apiKey && sbKey) {
-      try {
-        const res = await authFetch("/api/anthropic", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+    try {
+      const res = await authFetch("/api/anthropic", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: MODEL, max_tokens: 800,
+          system: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"note|person|place|idea|contact|document|reminder|color|decision","metadata":{},"tags":[]}`,
+          messages: [{ role: "user", content: `Question: ${current.q}\nAnswer: ${a}` }]
+        })
+      });
+      const data = await res.json();
+      let parsed = {};
+      try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
+      if (parsed.title) {
+        const rpcRes = await authFetch("/api/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: MODEL, max_tokens: 800,
-            system: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"note|person|place|idea|contact|document|reminder|color|decision","metadata":{},"tags":[]}`,
-            messages: [{ role: "user", content: `Question: ${current.q}\nAnswer: ${a}` }]
+            p_title: parsed.title,
+            p_content: parsed.content || a,
+            p_type: parsed.type || "note",
+            p_metadata: parsed.metadata || {},
+            p_tags: parsed.tags || [],
+            p_brain_id: targetBrain?.id,
           })
         });
-        const data = await res.json();
-        let parsed = {};
-        try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
-        if (parsed.title) {
-          const rpcRes = await authFetch("/api/capture", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              p_title: parsed.title,
-              p_content: parsed.content || a,
-              p_type: parsed.type || "note",
-              p_metadata: parsed.metadata || {},
-              p_tags: parsed.tags || [],
-              p_brain_id: targetBrain?.id,
-            })
-          });
-          const savedToDB = rpcRes.ok;
-          const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
-          setEntries(prev => [newEntry, ...prev]);
-          setSaved(prev => [{ q: current.q, a, cat: current.cat, db: savedToDB, brain: targetBrain }, ...prev]);
-        }
-      } catch {
-        setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false, brain: targetBrain }, ...prev]);
+        const savedToDB = rpcRes.ok;
+        const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+        setEntries(prev => [newEntry, ...prev]);
+        setSaved(prev => [{ q: current.q, a, cat: current.cat, db: savedToDB, brain: targetBrain }, ...prev]);
       }
-    } else {
+    } catch {
       setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false, brain: targetBrain }, ...prev]);
     }
 
@@ -383,7 +379,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
             <button onClick={() => { setSkipped(s => s + 1); next("skip"); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: "#FF6B35", fontSize: 13, cursor: "pointer" }}>Skip</button>
             <button onClick={() => imgRef.current?.click()} disabled={imgLoading || saving} title="Upload photo" style={{ padding: 12, background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: imgLoading ? t.textDim : "#4ECDC4", cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📷</button>
             <button onClick={handleSave} disabled={!answer.trim() || saving || imgLoading} style={{ flex: 2, padding: 12, background: answer.trim() && !imgLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim, fontSize: 13, fontWeight: 700, cursor: answer.trim() && !imgLoading ? "pointer" : "default" }}>
-              {saving ? "Saving..." : imgLoading ? "Reading photo..." : apiKey && sbKey ? `Save to ${bm.emoji} ${targetBrain?.name || bm.label}` : "Save Answer"}
+              {saving ? "Saving..." : imgLoading ? "Reading photo..." : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
             </button>
           </div>
         </div>

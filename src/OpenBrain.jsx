@@ -279,7 +279,7 @@ const BRAIN_META_QC = {
   business: { emoji: "🏪" },
 };
 
-function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, onUpdate, isOnline = true, refreshCount, brainId, brains = [], canWrite = true }) {
+function QuickCapture({ entries, setEntries, links, addLinks, onCreated, onUpdate, isOnline = true, refreshCount, brainId, brains = [], canWrite = true }) {
   const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -350,7 +350,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     setPreview(null);
     setLoading(true); setStatus("saving");
     try {
-      if (sbKey && parsed.title) {
+      if (parsed.title) {
         if (!isOnline) {
           const tempId = Date.now().toString();
           const newEntry = { id: tempId, title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
@@ -383,18 +383,13 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
             setStatus("error");
           }
         }
-      } else {
-        const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
-        setEntries(prev => [newEntry, ...prev]);
-        onCreated?.(newEntry);
-        setStatus("saved-local");
       }
     } catch (e) {
       console.error(e);
       setStatus("error");
     }
     setLoading(false); setTimeout(() => setStatus(null), 3000);
-  }, [sbKey, entries, links, addLinks, onCreated, setEntries, isOnline, refreshCount, primaryBrainId, extraBrainIds]);
+  }, [entries, links, addLinks, onCreated, setEntries, isOnline, refreshCount, primaryBrainId, extraBrainIds]);
 
   const capture = async () => {
     if (!text.trim()) return;
@@ -411,16 +406,14 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
       return;
     }
     try {
-      if (apiKey) {
-        const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
-        const data = await res.json();
-        let parsed = {};
-        try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
-        if (parsed.title) {
-          setLoading(false); setStatus(null);
-          setPreview({ ...parsed, _raw: input });
-          return;
-        }
+      const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
+      const data = await res.json();
+      let parsed = {};
+      try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
+      if (parsed.title) {
+        setLoading(false); setStatus(null);
+        setPreview({ ...parsed, _raw: input });
+        return;
       }
       const newEntry = { id: Date.now().toString(), title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
       setEntries(prev => [newEntry, ...prev]);
@@ -1066,8 +1059,6 @@ export default function OpenBrain() {
   const [selected, setSelected] = useState(null);
   const [links, setLinks] = useState(LINKS);
   const addLinks = (newLinks) => setLinks(prev => [...prev, ...newLinks]);
-  const apiKey = "configured";
-  const sbKey = "configured";
   const { canWrite, canInvite, canManageMembers, role: myRole } = useRole(activeBrain);
   const { t, isDark, toggleTheme } = useTheme();
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("openbrain_onboarded"));
@@ -1117,7 +1108,7 @@ export default function OpenBrain() {
 
   // Proactive intelligence nudge — runs once per session after entries load
   useEffect(() => {
-    if (!entriesLoaded || !apiKey || sessionStorage.getItem("openbrain_nudge") !== null) return;
+    if (!entriesLoaded || sessionStorage.getItem("openbrain_nudge") !== null) return;
     const recent = entries.slice(0, 30).map(e => ({ id: e.id, title: e.title, type: e.type, tags: e.tags, metadata: e.metadata, created_at: e.created_at }));
     aiFetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -1329,7 +1320,7 @@ export default function OpenBrain() {
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} onUpdate={handleUpdate} brainId={activeBrain?.id} brains={brains} isOnline={isOnline} refreshCount={refreshCount} canWrite={canWrite} />
+      <QuickCapture entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} onUpdate={handleUpdate} brainId={activeBrain?.id} brains={brains} isOnline={isOnline} refreshCount={refreshCount} canWrite={canWrite} />
 
       {showBrainTip && (
         <BrainTipCard
@@ -1426,8 +1417,8 @@ export default function OpenBrain() {
         </>}
 
         {view === "suppliers" && <SupplierPanel entries={entries} onSelect={setSelected} onReorder={handleReorder} />}
-        {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} activeBrain={activeBrain} brains={brains} /></Suspense>}
-        {view === "refine" && <Suspense fallback={<Loader />}><RefineView apiKey={apiKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} brains={brains} onSwitchBrain={setActiveBrain} /></Suspense>}
+        {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView entries={entries} setEntries={setEntries} activeBrain={activeBrain} brains={brains} /></Suspense>}
+        {view === "refine" && <Suspense fallback={<Loader />}><RefineView entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} brains={brains} onSwitchBrain={setActiveBrain} /></Suspense>}
         {view === "calendar" && <Suspense fallback={<Loader />}><CalendarView entries={entries} /></Suspense>}
         {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
@@ -1458,7 +1449,7 @@ export default function OpenBrain() {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleChat()} placeholder="Ask about your memories..." style={{ flex: 1, padding: "12px 16px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, color: t.textSoft, fontSize: 14, outline: "none" }} />
-              <button onClick={handleChat} disabled={chatLoading || !apiKey} style={{ padding: "12px 20px", background: apiKey ? "#4ECDC4" : t.surface, border: "none", borderRadius: 12, color: apiKey ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: apiKey ? "pointer" : "default", opacity: chatLoading ? 0.5 : 1 }}>→</button>
+              <button onClick={handleChat} disabled={chatLoading} style={{ padding: "12px 20px", background: "#4ECDC4", border: "none", borderRadius: 12, color: "#0f0f23", fontWeight: 700, cursor: "pointer", opacity: chatLoading ? 0.5 : 1 }}>→</button>
             </div>
           </div>
         )}
@@ -1512,7 +1503,6 @@ export default function OpenBrain() {
 
       {showOnboarding && (
         <OnboardingModal
-          apiKey={apiKey}
           onComplete={(selected, answeredItems, skippedQs) => {
             // Mark answered onboarding questions so they don't re-appear in Fill Brain
             if (answeredItems?.length) {
