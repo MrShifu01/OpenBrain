@@ -14,6 +14,14 @@ export default async function handler(req, res) {
   const brain_id = req.query.brain_id;
 
   if (brain_id) {
+    // SEC-1: Verify the requesting user is a member of this brain
+    const memberRes = await fetch(
+      `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brain_id)}&user_id=eq.${encodeURIComponent(user.id)}&select=role`,
+      { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } }
+    );
+    const [member] = await memberRes.json();
+    if (!member) return res.status(403).json({ error: "Forbidden" });
+
     // Use RPC to get entries visible in this brain (primary + cross-brain shares)
     const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/get_entries_for_brain`, {
       method: "POST",

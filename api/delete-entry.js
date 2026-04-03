@@ -15,7 +15,28 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing or invalid id" });
   }
 
-  // Filter by id; RLS (brain membership) enforces access control
+  // SEC-1: Verify the requesting user is a member of this entry's brain
+  const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`, {
+    headers: {
+      "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  const [entry] = await entryRes.json();
+  if (!entry) return res.status(404).json({ error: "Not found" });
+
+  const memberRes = await fetch(
+    `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(entry.brain_id)}&user_id=eq.${encodeURIComponent(user.id)}&select=role`,
+    {
+      headers: {
+        "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
+        "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    }
+  );
+  const [member] = await memberRes.json();
+  if (!member) return res.status(403).json({ error: "Forbidden" });
+
   const response = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
     {
