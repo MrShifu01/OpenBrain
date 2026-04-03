@@ -3,6 +3,8 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { authFetch } from "./lib/authFetch";
 import { supabase } from "./lib/supabase";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
+import { useBrain } from "./hooks/useBrain";
+import BrainSwitcher from "./components/BrainSwitcher";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
 const CalendarView    = lazy(() => import("./views/CalendarView"));
@@ -545,6 +547,16 @@ export default function OpenBrain() {
     return INITIAL_ENTRIES;
   });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
+
+  // ─── Brain context ───
+  const { brains, activeBrain, setActiveBrain, createBrain, deleteBrain } = useBrain(
+    useCallback(() => {
+      // Reset local state when brain switches
+      setEntries(INITIAL_ENTRIES);
+      setLinks(LINKS);
+      setEntriesLoaded(false);
+    }, [])
+  );
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -567,7 +579,10 @@ export default function OpenBrain() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs]);
 
   useEffect(() => {
-    authFetch("/api/entries")
+    if (!activeBrain?.id) return;
+    setEntriesLoaded(false);
+    const url = `/api/entries?brain_id=${encodeURIComponent(activeBrain.id)}`;
+    authFetch(url)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
@@ -577,7 +592,7 @@ export default function OpenBrain() {
         setEntriesLoaded(true);
       })
       .catch(() => setEntriesLoaded(true));
-  }, []);
+  }, [activeBrain?.id]);
 
   // Proactive intelligence nudge — runs once per session after entries load
   useEffect(() => {
@@ -733,14 +748,25 @@ export default function OpenBrain() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #4ECDC4, #45B7D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🧠</div>
           <div><h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>OpenBrain</h1><p style={{ margin: 0, fontSize: 11, color: "#666" }}>Your eternal memory</p></div>
-          <div style={{ marginLeft: "auto", textAlign: "right" }}>
-            <span style={{ fontSize: 11, color: "#555" }}>{entries.length} memories</span>
-            {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+            {brains.length > 0 && (
+              <BrainSwitcher
+                brains={brains}
+                activeBrain={activeBrain}
+                onSwitch={setActiveBrain}
+                onBrainCreated={createBrain}
+                onBrainDeleted={deleteBrain}
+              />
+            )}
+            <div style={{ textAlign: "right" }}>
+              <span style={{ fontSize: 11, color: "#555" }}>{entries.length} memories</span>
+              {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
+            </div>
           </div>
         </div>
       </div>
 
-      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} />
+      <QuickCapture apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} brainId={activeBrain?.id} />
 
       {view === "grid" && nudge && <NudgeBanner nudge={nudge} onDismiss={() => { setNudge(null); sessionStorage.removeItem("openbrain_nudge"); }} />}
 
