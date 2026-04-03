@@ -30,12 +30,12 @@ export default function SupplierPanel({ entries, onSelect, onReorder }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 18 }}>{cfg.i}</span>
                   <span style={{ fontSize: 15, fontWeight: 600, color: t.text }}>{s.title}</span>
-                  {price && <span style={{ fontSize: 11, color: "#4ECDC4", background: "#4ECDC415", padding: "2px 8px", borderRadius: 20 }}>{price}</span>}
+                  {price && <span style={{ fontSize: 11, color: t.accent, background: `${t.accent}15`, padding: "2px 8px", borderRadius: 20 }}>{price}</span>}
                 </div>
                 <p style={{ margin: 0, fontSize: 12, color: "#999", lineHeight: 1.4 }}>{s.content}</p>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {phone && <a href={`tel:${phone}`} style={abtn("#4ECDC4")}>📞 Call</a>}
+                {phone && <a href={`tel:${phone}`} style={abtn(t.accent)}>📞 Call</a>}
                 {phone && <a href={toWaUrl(phone)} target="_blank" rel="noreferrer" style={abtn("#25D366")}>💬 WhatsApp</a>}
                 <button onClick={() => onReorder(s)} style={abtn("#FF6B35")}>🔁 Reorder</button>
               </div>
@@ -49,7 +49,7 @@ export default function SupplierPanel({ entries, onSelect, onReorder }) {
           {withPrice.map(s => (
             <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid #2a2a4a20" }}>
               <span style={{ color: "#ccc" }}>{s.title}</span>
-              <span style={{ color: "#4ECDC4", fontWeight: 600 }}>{s.metadata.price}{s.metadata.unit ? " " + s.metadata.unit : ""}</span>
+              <span style={{ color: t.accent, fontWeight: 600 }}>{s.metadata.price}{s.metadata.unit ? " " + s.metadata.unit : ""}</span>
             </div>
           ))}
         </div>

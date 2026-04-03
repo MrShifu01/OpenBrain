@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
+import { callAI } from "../lib/ai";
 import { TC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
+import { PROMPTS } from "../config/prompts";
 
 /* ─── Suggestion type metadata ─── */
 const LABELS = {
@@ -14,43 +16,6 @@ const LABELS = {
   LINK_SUGGESTED: { label: "Relationship",    icon: "⟷",  color: "#96CEB4" },
 };
 
-/* ─── System prompts ─── */
-const ENTRY_SYSTEM = `You are a ruthlessly skeptical data quality auditor reviewing a personal knowledge base. Your bar is very high — only flag what is obviously, undeniably wrong. If there is any ambiguity, skip it.
-
-Only identify these specific issues (nothing else):
-1. TYPE_MISMATCH — Entry is clearly the wrong type. Example: a named person saved as "note" should be "person"; a physical location saved as "note" should be "place"; a hard deadline saved as "note" should be "reminder". Skip if debatable.
-2. PHONE_FOUND — A phone number clearly appears in content/title but metadata.phone is missing or empty. Only flag if the number is complete and unambiguous.
-3. EMAIL_FOUND — An email address clearly appears in content/title but metadata.email is missing or empty.
-4. URL_FOUND — A full URL (https://...) clearly appears in content but metadata.url is missing.
-5. DATE_FOUND — A specific future deadline or due date is explicitly mentioned in content and not already in metadata.due_date. Only for actual deadlines, not historical dates.
-6. TITLE_POOR — Title is so vague it could describe anything (e.g. "Note", "Info", "Misc"). Very high bar — only if the title is genuinely useless.
-
-Hard rules:
-- Only suggest if confidence > 90%
-- Max 2 suggestions per entry
-- Skip entries that look complete and well-structured
-- For TYPE_MISMATCH: suggestedValue must be one of: note, reminder, document, contact, person, place, idea, color, decision
-- For DATE_FOUND: suggestedValue must be ISO date string YYYY-MM-DD
-- Return ONLY a valid JSON array, no markdown, no explanation
-
-Schema: [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|PHONE_FOUND|EMAIL_FOUND|URL_FOUND|DATE_FOUND|TITLE_POOR","field":"type|metadata.phone|metadata.email|metadata.url|metadata.due_date|title","currentValue":"...","suggestedValue":"...","reason":"max 90 chars"}]
-
-If nothing is wrong, return: []`;
-
-const LINK_SYSTEM = `You are building a knowledge graph for a personal/business brain. Your job is to find non-obvious, high-value relationships between entries that are not yet linked.
-
-Rules:
-- Only suggest a relationship if it is clearly meaningful and actionable (e.g. "this person works at this company", "this supplier provides this ingredient", "this idea is for this place")
-- Do NOT suggest relationships that are trivially obvious from shared tags alone
-- Do NOT suggest relationships that already exist in the provided existing links list
-- Relationship label (rel) should be a short verb phrase: "works at", "supplies", "built", "owns", "relates to", "deadline for", etc.
-- Maximum 8 link suggestions total
-- Only suggest if confidence > 85%
-- Return ONLY a valid JSON array, no markdown, no explanation
-
-Schema: [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"verb phrase","reason":"max 90 chars"}]
-
-If no valuable relationships are found, return: []`;
 
 export default function RefineView({ entries, setEntries, links, addLinks, activeBrain, brains = [], onSwitchBrain }) {
   const { t } = useTheme();
@@ -87,15 +52,10 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
         tags:     e.tags || [],
       }));
       try {
-        const res  = await authFetch("/api/anthropic", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({
-            model:      MODEL,
-            max_tokens: 1500,
-            system:     ENTRY_SYSTEM,
-            messages:   [{ role: "user", content: `Review these ${slim.length} entries:\n\n${JSON.stringify(slim)}` }],
-          }),
+        const res  = await callAI({
+          max_tokens: 1500,
+          system:     PROMPTS.ENTRY_AUDIT,
+          messages:   [{ role: "user", content: `Review these ${slim.length} entries:\n\n${JSON.stringify(slim)}` }],
         });
         const data = await res.json();
         const raw  = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
@@ -111,18 +71,13 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
         content: (e.content || "").slice(0, 200),
         tags: (e.tags || []).slice(0, 6),
       }));
-      const res  = await authFetch("/api/anthropic", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          model:      MODEL,
-          max_tokens: 1200,
-          system:     LINK_SYSTEM,
-          messages:   [{
-            role:    "user",
-            content: `Entries:\n${JSON.stringify(slim)}\n\nExisting links (do NOT re-suggest these):\n${JSON.stringify([...existingLinkKeys])}`,
-          }],
-        }),
+      const res  = await callAI({
+        max_tokens: 1200,
+        system:     PROMPTS.LINK_DISCOVERY,
+        messages:   [{
+          role:    "user",
+          content: `Entries:\n${JSON.stringify(slim)}\n\nExisting links (do NOT re-suggest these):\n${JSON.stringify([...existingLinkKeys])}`,
+        }],
       });
       const data = await res.json();
       const raw  = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();

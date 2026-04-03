@@ -1,4 +1,5 @@
-import { aiFetch, getUserModel } from "./aiFetch";
+import { callAI } from "./ai";
+import { PROMPTS } from "../config/prompts";
 
 /* ─── AI Connection Discovery ─── */
 export async function findConnections(newEntry, existingEntries, existingLinks) {
@@ -9,13 +10,10 @@ export async function findConnections(newEntry, existingEntries, existingLinks) 
   if (candidates.length === 0) return [];
   const existingKeys = new Set(existingLinks.map(l => `${l.from}-${l.to}`));
   try {
-    const res = await aiFetch("/api/anthropic", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: getUserModel(), max_tokens: 600,
-        system: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{\"from\":\"...\",\"to\":\"...\",\"rel\":\"...\"}]\n- If no connections: []`,
-        messages: [{ role: "user", content: `NEW ENTRY:\n${JSON.stringify({ id: newEntry.id, title: newEntry.title, type: newEntry.type, content: newEntry.content, tags: newEntry.tags })}\n\nEXISTING ENTRIES:\n${JSON.stringify(candidates)}` }]
-      })
+    const res = await callAI({
+      max_tokens: 600,
+      system: PROMPTS.CONNECTION_FINDER,
+      messages: [{ role: "user", content: `NEW ENTRY:\n${JSON.stringify({ id: newEntry.id, title: newEntry.title, type: newEntry.type, content: newEntry.content, tags: newEntry.tags })}\n\nEXISTING ENTRIES:\n${JSON.stringify(candidates)}` }]
     });
     const data = await res.json();
     const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();

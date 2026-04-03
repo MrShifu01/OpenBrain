@@ -49,6 +49,7 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
                 await remove(op.id);
                 setPendingCount(c => Math.max(0, c - 1));
               } else {
+                await remove(op.id);
                 await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + (Math.pow(2, retryCount) * 1000) });
               }
               continue;
@@ -71,6 +72,7 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
                 await remove(op.id);
                 setPendingCount(c => Math.max(0, c - 1));
               } else {
+                await remove(op.id);
                 await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + (Math.pow(2, retryCount) * 1000) });
               }
             }
@@ -91,6 +93,7 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
                 await remove(op.id);
                 setPendingCount(c => Math.max(0, c - 1));
               } else {
+                await remove(op.id);
                 await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + (Math.pow(2, retryCount) * 1000) });
               }
             }
@@ -103,7 +106,7 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
             await remove(op.id);
             setPendingCount(c => Math.max(0, c - 1));
           } else {
-            try { await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + (Math.pow(2, retryCount) * 1000) }); } catch {}
+            try { await remove(op.id); await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + (Math.pow(2, retryCount) * 1000) }); } catch {}
           }
         }
       }

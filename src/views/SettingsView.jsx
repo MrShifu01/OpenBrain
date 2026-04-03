@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { authFetch } from "../lib/authFetch";
 import { aiFetch, getUserApiKey, getUserModel, setUserApiKey, setUserModel, getUserProvider, setUserProvider, getOpenRouterKey, setOpenRouterKey, getOpenRouterModel, setOpenRouterModel } from "../lib/aiFetch";
+import { callAI } from "../lib/ai";
 import { supabase } from "../lib/supabase";
 import NotificationSettings from "../components/NotificationSettings";
 import { PinGate, getStoredPinHash, removePin } from "../lib/pin";
@@ -218,8 +219,10 @@ export default function SettingsView({ activeBrain, canInvite, canManageMembers,
 
   const testAI = async () => {
     setTestStatus("testing-ai");
-    // CODE-8: intentional — direct call needed for test-connection (must hit raw endpoint, not callAI wrapper)
-    try { const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] }) }); setTestStatus(res.ok ? "ai-success" : "ai-fail"); }
+    try {
+      const res = await callAI({ max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] });
+      setTestStatus(res.ok ? "ai-success" : "ai-fail");
+    }
     catch { setTestStatus("ai-fail"); }
     setTimeout(() => setTestStatus(null), 3000);
   };

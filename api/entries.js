@@ -3,6 +3,7 @@ import { rateLimit } from "./_lib/rateLimit.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -21,9 +22,6 @@ export default async function handler(req, res) {
     );
     const [member] = await memberRes.json();
     if (!member) return res.status(403).json({ error: "Forbidden" });
-
-    // PERF-11: Only request the fields the UI actually needs.
-    const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at";
 
     // Use RPC to get entries visible in this brain (primary + cross-brain shares)
     // The ?select= param on a PostgREST RPC endpoint filters the returned columns.
@@ -52,7 +50,6 @@ export default async function handler(req, res) {
   }
 
   // Fallback: user's own entries (pre-migration compatibility)
-  const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at";
   const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&user_id=eq.${encodeURIComponent(user.id)}`;
   const response = await fetch(url, {
     headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` },

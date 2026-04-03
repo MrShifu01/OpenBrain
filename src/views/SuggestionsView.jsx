@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
+import { callAI } from "../lib/ai";
 import { SUGGESTIONS } from "../data/personalSuggestions";
 import { FAMILY_SUGGESTIONS } from "../data/familySuggestions";
 import { BUSINESS_SUGGESTIONS } from "../data/businessSuggestions";
 import { TC, PC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
+import { PROMPTS } from "../config/prompts";
 
 /* ─── Brain-type → question set ─── */
 function getSuggestionsForType(type) {
@@ -135,13 +137,10 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       : brainType === "business"
       ? "business knowledge base (suppliers, staff, SOPs, costs, licences, equipment)"
       : "personal knowledge base";
-    authFetch("/api/anthropic", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: 200,
-        system: `You are helping someone build their ${brainContext} called OpenBrain. Identify important information they should capture but haven't yet. Study the gaps — important facts, records, contacts, plans that are missing. Generate ONE specific, actionable question relevant to this brain type. Return ONLY valid JSON: {"q":"...","cat":"...","p":"high"|"medium"|"low"}`,
-        messages: [{ role: "user", content: `What they have captured so far:\n${ctx}\n\nWhat important gap should they fill next?` }]
-      })
+    callAI({
+      max_tokens: 200,
+      system: PROMPTS.FILL_BRAIN.replace("{{BRAIN_CONTEXT}}", brainContext),
+      messages: [{ role: "user", content: `What they have captured so far:\n${ctx}\n\nWhat important gap should they fill next?` }]
     })
       .then(r => r.json())
       .then(data => {
@@ -205,13 +204,10 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     const a = answer.trim();
     setSaving(true);
     try {
-      const res = await authFetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: MODEL, max_tokens: 800,
-          system: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"note|person|place|idea|contact|document|reminder|color|decision","metadata":{},"tags":[]}`,
-          messages: [{ role: "user", content: `Question: ${current.q}\nAnswer: ${a}` }]
-        })
+      const res = await callAI({
+        max_tokens: 800,
+        system: PROMPTS.QA_PARSE,
+        messages: [{ role: "user", content: `Question: ${current.q}\nAnswer: ${a}` }]
       });
       const data = await res.json();
       let parsed = {};
