@@ -18,8 +18,9 @@ export default function CalendarView({ entries }) {
     const map = {};
     const addTo = (key, entry) => { if (!map[key]) map[key] = []; if (!map[key].find(e => e.id === entry.id)) map[key].push(entry); };
 
-    // Explicit date fields
+    // Explicit date fields — skip completed reminders
     entries.forEach(e => {
+      if (e.type === "reminder" && e.metadata?.status === "done") return;
       [e.metadata?.deadline, e.metadata?.due_date, e.metadata?.valid_to, e.metadata?.valid_from, e.metadata?.date, e.metadata?.event_date].filter(Boolean).forEach(d => addTo(d.slice(0, 10), e));
     });
 
@@ -75,7 +76,7 @@ export default function CalendarView({ entries }) {
               <span style={{ fontSize: 12, fontWeight: isToday ? 800 : 400, color: isSel ? "#0f0f23" : isToday ? "#4ECDC4" : t.textMid }}>{day}</span>
               {dots.length > 0 && !isSel && (
                 <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
-                  {dots.slice(0, 3).map((e, ei) => <div key={ei} style={{ width: 4, height: 4, borderRadius: "50%", background: (TC[e.type] || TC.note).c }} />)}
+                  {dots.slice(0, 3).map((e, ei) => <div key={ei} style={{ width: 4, height: 4, borderRadius: "50%", background: e.importance >= 2 ? "#FF6B35" : (TC[e.type] || TC.note).c }} />)}
                 </div>
               )}
             </div>

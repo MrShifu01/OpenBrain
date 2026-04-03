@@ -6,99 +6,7 @@ OpenBrain starts as a personal second brain, then expands to shared brains for f
 
 ---
 
-## Phase 1: Personal Brain (Current)
-
-**Status: Built**
-
-Single-user personal knowledge base with AI-powered capture, connections, search, and chat.
-
-- Quick capture with AI classification
-- Connection discovery between entries
-- Fuzzy search, daily digest, data export
-- Fill Brain guided knowledge building
-
----
-
-## Phase 2: Family Shared Brain
-
-**Goal:** A second brain that the whole family contributes to and benefits from.
-
-### What changes:
-
-**New concept: Brains**
-- Each user has a **Personal Brain** (private, only they see it)
-- A user can create or join a **Shared Brain** (e.g. "Stander Family")
-- Entries belong to a brain, not just a user
-- Users can copy/move entries between their personal brain and a shared brain
-
-**Family use cases:**
-- Emergency contacts everyone can access
-- Medical aid details, doctor info, allergies
-- Home maintenance contacts (plumber, electrician, gardener)
-- Important documents (home insurance policy number, alarm company code)
-- Shared grocery/shopping lists
-- Family calendar events and reminders
-- Kids' school info, teacher contacts, schedule
-- Vehicle details (registration, service due dates, insurance)
-- WiFi passwords, gate codes, alarm codes
-
-**Permissions model:**
-- Brain owner: full control, can invite/remove members
-- Member: can view, add, edit entries in the shared brain
-- Viewer: read-only access (e.g. for kids or extended family)
-
-**Key UX decisions:**
-- Brain switcher in the header: "Chris's Brain" | "Stander Family" | "Smash Burger Bar"
-- When capturing, choose which brain it goes to (default to last used)
-- Notifications when someone adds to a shared brain you're in
-- Each brain has its own connection graph
-
-### Database changes needed:
-
-```sql
--- Brains table
-CREATE TABLE brains (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name text NOT NULL,
-  owner_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  type text NOT NULL DEFAULT 'personal', -- 'personal' | 'shared'
-  created_at timestamptz DEFAULT now()
-);
-
--- Brain membership
-CREATE TABLE brain_members (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  brain_id uuid REFERENCES brains(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  role text NOT NULL DEFAULT 'member', -- 'owner' | 'member' | 'viewer'
-  joined_at timestamptz DEFAULT now(),
-  UNIQUE(brain_id, user_id)
-);
-
--- Add brain_id to entries
-ALTER TABLE entries ADD COLUMN brain_id uuid REFERENCES brains(id);
-
--- Add brain_id to links
-ALTER TABLE links ADD COLUMN brain_id uuid REFERENCES brains(id);
-
--- Row-level security: users can access entries in brains they belong to
-CREATE POLICY "Brain member access" ON entries
-  FOR ALL USING (
-    brain_id IN (
-      SELECT brain_id FROM brain_members WHERE user_id = auth.uid()
-    )
-  );
-```
-
-### Migration path:
-1. Create a default "personal" brain for every existing user
-2. Move all existing entries under their personal brain
-3. Add brain switcher to the UI
-4. Add invite flow (email-based)
-
----
-
-## Phase 3: Business Shared Brain
+## Phase 1: Business Shared Brain
 
 **Goal:** Teams and businesses share operational knowledge.
 
@@ -140,7 +48,7 @@ CREATE TABLE brain_settings (
 
 ---
 
-## Phase 4: Platform — Open to New Users
+## Phase 2: Platform — Open to New Users
 
 **Goal:** Anyone can sign up and build their own OpenBrain.
 
@@ -180,7 +88,7 @@ CREATE TABLE brain_settings (
 
 ---
 
-## Phase 5: Future Ideas (Long-term)
+## Phase 3: Future Ideas (Long-term)
 
 - **Mobile app** (React Native or Capacitor wrapper of the PWA)
 - **WhatsApp bot**: forward messages to OpenBrain, it captures automatically

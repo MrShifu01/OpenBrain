@@ -51,7 +51,7 @@ Schema: [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"v
 
 If no valuable relationships are found, return: []`;
 
-export default function RefineView({ apiKey, entries, setEntries, links, addLinks, activeBrain }) {
+export default function RefineView({ apiKey, entries, setEntries, links, addLinks, activeBrain, brains = [], onSwitchBrain }) {
   const [loading, setLoading]         = useState(false);
   const [suggestions, setSuggestions] = useState(null); // null = never run
   const [dismissed, setDismissed]     = useState(new Set());
@@ -242,6 +242,9 @@ export default function RefineView({ apiKey, entries, setEntries, links, addLink
     );
   }
 
+  const BRAIN_EMOJI = { personal: "🧠", business: "🏪", family: "🏠" };
+  const isOwnerMultiBrain = isOwner && brains.length > 1;
+
   return (
     <div>
       {/* Header */}
@@ -250,6 +253,26 @@ export default function RefineView({ apiKey, entries, setEntries, links, addLink
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "#555" }}>
           AI skeptically audits every entry — and discovers missing relationships between them.
         </p>
+        {/* Brain selector — owners only, when multiple brains exist */}
+        {isOwnerMultiBrain && onSwitchBrain && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 12 }}>
+            {brains.map(b => {
+              const active = b.id === activeBrain?.id;
+              return (
+                <button key={b.id} onClick={() => onSwitchBrain(b)}
+                  style={{ padding: "5px 12px", borderRadius: 20, border: active ? "1px solid #4ECDC4" : "1px solid #2a2a4a", background: active ? "#4ECDC420" : "#1a1a2e", color: active ? "#4ECDC4" : "#888", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                  <span>{BRAIN_EMOJI[b.type] || "🧠"}</span>
+                  <span>{b.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {!isOwnerMultiBrain && activeBrain && (
+          <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, color: "#666", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 20, padding: "4px 12px" }}>
+            {BRAIN_EMOJI[activeBrain.type] || "🧠"} {activeBrain.name}
+          </span>
+        )}
       </div>
 
       {/* Analyze button */}

@@ -2,6 +2,55 @@
 
 ---
 
+## [FEATURE] Password Firewall — 2026-04-03
+
+**Tags**: FEATURE, SECURITY, CHAT
+
+### Implemented
+- `containsSensitiveContent(text)` — regex detects password/credentials/wifi/bank/ID keywords in AI response text
+- `PinGate` component — 4-digit PIN modal with create/confirm/enter flows + shake animation
+- PIN stored as SHA-256 hash in `openbrain_${uid}_security_pin` (namespaced per user)
+- `handleChat` intercepts sensitive AI responses before adding to `chatMsgs` — shows PinGate instead
+- If no PIN set on first trigger: PinGate opens in setup mode (user creates PIN, then message is revealed)
+- Settings → "Security PIN" section: Set / Change / Remove PIN
+- `getUserId` exported from `aiFetch.js` for use in PIN key namespacing
+
+### Key decisions
+- Detection is on AI response text only (not user question) — avoids false positives when user types "password"
+- Threat model is friction-based (over-shoulder / casual), not cryptographic — no lockout after wrong PIN
+- "Change PIN" from Settings doesn't require verifying old PIN (by design for this friction tier)
+- Cancel discards the pending message entirely — sensitive data never stored unprotected
+
+---
+
+## [FEATURE] Sprint 3 — Completion Pass — 2026-04-03
+
+**Tags**: FEATURE, SPRINT3, BUG-FIX, UX
+
+### Implemented
+
+**Pre-Sprint Bug Fixes:**
+- Fix 1 (Undo race condition): removed inline setTimeout delete from `handleDelete`; timer now calls `commitPendingDelete()` only if ref still holds same id (guard prevents stale timer firing on second delete). Single delete path through `commitPendingDelete`.
+- Fix 2 (doSave wrong brain): added `primaryBrainId, extraBrainIds` to `doSave` useCallback deps
+- Fix 3 (stale nudge entries): added `entries` to nudge effect deps at line ~756
+
+**New features:**
+- Item 12 (Reminders in calendar): CalendarView filters `status === "done"` reminders; `importance >= 2` dots render orange (#FF6B35)
+- Item 13 (Family brain): already handled — no code change needed; `useBrain` + `BrainSwitcher` + API are all type-agnostic
+- Item 14 (QuickCapture brain destination): single-brain users now see an inactive label pill; save button tooltip shows destination brain
+- Item 15 (Quick Capture as home + hamburger nav): default view changed to `"capture"`; hamburger (☰) in header; slide-in right-side panel replaces tab bar; capture view shows 4 quick-nav tiles
+- Item 16 (Fill Brain + Refine brain selectors): SuggestionsView always shows brain label for single-brain users; RefineView accepts `brains`/`onSwitchBrain` props and renders chip selector for owners with multiple brains
+- Item 18 (BYO API keys + model picker): `src/lib/aiFetch.js` — drop-in authFetch wrapper that adds `X-User-Api-Key` header when user key set in localStorage; `api/anthropic.js` uses user key over env key when present; `api/openai.js` added (normalises OpenAI response to Anthropic shape); SettingsView has AI Provider section with provider/key/model; all `authFetch("/api/anthropic")` calls replaced with `aiFetch`; `MODEL` constant calls replaced with `getUserModel()`
+
+### Key decisions
+- Item 17 (dark/light toggle) was already shipped in prior session — no change needed
+- `aiFetch.js` reads Supabase userId by scanning localStorage keys (fragile but avoids circular import)
+- BYO key stored as `openbrain_${uid}_api_key` (namespaced per user per spec)
+- OpenAI proxy normalises response to Anthropic `content[0].text` shape — frontend unchanged
+- Timer guard: `if (pendingDeleteRef.current?.id === id)` prevents stale timers from committing the wrong entry
+
+---
+
 ## [FEATURE] Sprint 3 — Daily-Use Features — 2026-04-03
 
 **Tags**: FEATURE, SPRINT3, UX

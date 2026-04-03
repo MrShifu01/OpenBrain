@@ -12,6 +12,18 @@ CREATE TABLE IF NOT EXISTS brains (
   created_at timestamptz DEFAULT now()
 );
 
+-- ── Brain Members ────────────────────────────────────────────
+-- Created BEFORE brains RLS policies because those policies reference this table
+CREATE TABLE IF NOT EXISTS brain_members (
+  id        uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  brain_id  uuid REFERENCES brains(id) ON DELETE CASCADE NOT NULL,
+  user_id   uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  role      text NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member', 'viewer')),
+  joined_at timestamptz DEFAULT now(),
+  UNIQUE(brain_id, user_id)
+);
+
+-- ── Brains RLS ───────────────────────────────────────────────
 ALTER TABLE brains ENABLE ROW LEVEL SECURITY;
 
 -- Owner sees all their brains; members see brains they belong to
@@ -30,16 +42,7 @@ CREATE POLICY "Brain owner can delete" ON brains
 CREATE POLICY "Authenticated users can create brains" ON brains
   FOR INSERT WITH CHECK (owner_id = auth.uid());
 
--- ── Brain Members ────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS brain_members (
-  id        uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  brain_id  uuid REFERENCES brains(id) ON DELETE CASCADE NOT NULL,
-  user_id   uuid REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  role      text NOT NULL DEFAULT 'member' CHECK (role IN ('owner', 'member', 'viewer')),
-  joined_at timestamptz DEFAULT now(),
-  UNIQUE(brain_id, user_id)
-);
-
+-- ── Brain Members RLS ────────────────────────────────────────
 ALTER TABLE brain_members ENABLE ROW LEVEL SECURITY;
 
 -- Members can see who else is in the same brain
@@ -92,7 +95,6 @@ ALTER TABLE entries ADD COLUMN IF NOT EXISTS brain_id uuid REFERENCES brains(id)
 CREATE INDEX IF NOT EXISTS entries_brain_id_idx ON entries(brain_id);
 
 -- ── Add brain_id to links ────────────────────────────────────
--- links table: check if it exists and what columns it has
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'links') THEN
@@ -135,13 +137,8 @@ BEGIN
 END $$;
 
 -- ── RLS update for entries ───────────────────────────────────
--- Drop old user_id-only policy and replace with brain-aware one
--- (Only if the old policy exists — adjust name to match your actual policy name)
 DO $$
 BEGIN
-  -- Drop existing policies that only check user_id
-  -- Replace with brain-membership check
-  -- Note: adjust policy names to match your Supabase project
   DROP POLICY IF EXISTS "Users can manage own entries" ON entries;
   DROP POLICY IF EXISTS "Enable all for authenticated users" ON entries;
 EXCEPTION WHEN OTHERS THEN NULL;

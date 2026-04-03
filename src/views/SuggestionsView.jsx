@@ -66,17 +66,33 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
 
   const imgRef = useRef(null);
 
+  // Skipped onboarding questions — load once, stay at top of queue
+  const [onboardingSkipped] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("openbrain_onboarding_skipped") || "[]"); }
+    catch { return []; }
+  });
+
   const position = answered + skipped;
   const cats = useMemo(() => {
     const c = {};
     questionSet.forEach(s => { c[s.cat] = (c[s.cat] || 0) + 1; });
+    onboardingSkipped.forEach(s => { c[s.cat] = (c[s.cat] || 0) + 1; });
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
-  }, [questionSet]);
+  }, [questionSet, onboardingSkipped]);
 
   const view = useMemo(() => {
+    // Skipped onboarding questions come first (if not yet answered and matching category filter)
+    const skippedPriority = onboardingSkipped.filter(s =>
+      !answeredQs.has(s.q) &&
+      (filterCat === "all" || s.cat === filterCat)
+    );
     const base = filterCat === "all" ? questionSet : questionSet.filter(s => s.cat === filterCat);
-    return base.filter(s => !answeredQs.has(s.q));
-  }, [filterCat, answeredQs, questionSet]);
+    const rest = base.filter(s =>
+      !answeredQs.has(s.q) &&
+      !skippedPriority.find(sp => sp.q === s.q) // avoid duplicates if already in set
+    );
+    return [...skippedPriority, ...rest];
+  }, [filterCat, answeredQs, questionSet, onboardingSkipped]);
 
   const total = view.length;
   const poolEmpty = total === 0;
@@ -205,6 +221,12 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
         try { localStorage.setItem(answeredKey, JSON.stringify([...updated])); } catch {}
         return updated;
       });
+      // Remove from skipped onboarding list if it was there
+      try {
+        const skipped = JSON.parse(localStorage.getItem("openbrain_onboarding_skipped") || "[]");
+        const updated = skipped.filter(s => s.q !== current.q);
+        localStorage.setItem("openbrain_onboarding_skipped", JSON.stringify(updated));
+      } catch {}
     }
 
     setSaving(false);
@@ -223,39 +245,45 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
   return (
     <div>
       {/* Brain selector chips */}
-      {brains?.length > 1 && (
+      {brains?.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <p style={{ fontSize: 10, color: t.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1.2, margin: "0 0 8px" }}>
             Fill which brain?
           </p>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {brains.map(b => {
-              const bmt = BRAIN_META[b.type] || BRAIN_META.personal;
-              const active = b.id === targetBrainId;
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => setTargetBrainId(b.id)}
-                  style={{
-                    padding: "6px 14px",
-                    borderRadius: 20,
-                    border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`,
-                    background: active ? "#4ECDC420" : t.surface,
-                    color: active ? "#4ECDC4" : t.textMuted,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 5,
-                  }}
-                >
-                  <span>{bmt.emoji}</span>
-                  <span>{b.name}</span>
-                </button>
-              );
-            })}
-          </div>
+          {brains.length > 1 ? (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {brains.map(b => {
+                const bmt = BRAIN_META[b.type] || BRAIN_META.personal;
+                const active = b.id === targetBrainId;
+                return (
+                  <button
+                    key={b.id}
+                    onClick={() => setTargetBrainId(b.id)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 20,
+                      border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`,
+                      background: active ? "#4ECDC420" : t.surface,
+                      color: active ? "#4ECDC4" : t.textMuted,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                    }}
+                  >
+                    <span>{bmt.emoji}</span>
+                    <span>{b.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <span style={{ fontSize: 12, color: t.textMid, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: "6px 14px", fontWeight: 600 }}>
+              {bm.emoji} {targetBrain?.name || bm.label}
+            </span>
+          )}
           <p style={{ fontSize: 10, color: t.textDim, margin: "6px 0 0" }}>
             Showing questions for <strong style={{ color: t.textMuted }}>{bm.emoji} {targetBrain?.name || bm.label}</strong>
           </p>
@@ -297,6 +325,9 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, ac
           <span style={{ fontSize: 10, background: pc.bg, color: pc.c, padding: "3px 10px", borderRadius: 20, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{pc.l}</span>
           <span style={{ fontSize: 11, color: t.textDim }}>{current.cat}</span>
           {isAiSlot && <span style={{ fontSize: 9, background: "#A29BFE20", color: "#A29BFE", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>✨ AI</span>}
+          {!isAiSlot && current && onboardingSkipped.find(s => s.q === current.q) && (
+            <span style={{ fontSize: 9, background: "#FF6B3520", color: "#FF6B35", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>↩ From onboarding</span>
+          )}
           <span style={{ fontSize: 10, color: t.textDim, marginLeft: "auto" }}>#{idx + 1}/{total}</span>
         </div>
         <p style={{ fontSize: 18, color: t.text, lineHeight: 1.6, margin: 0, fontWeight: 500 }}>{current.q}</p>

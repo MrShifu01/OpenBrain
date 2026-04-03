@@ -2,6 +2,35 @@
 
 The focus of this sprint is shifting from "captures well" to "surfaces the right info at the right time." Everything here is about real daily value, not technical improvements.
 
+> **Audit note (2026-04-03):** Several Sprint 3 features are already partially built but broken or dead. Fix those first — they're faster than building from scratch and they're blocking real users right now.
+
+---
+
+## Pre-Sprint: Critical Bug Fixes (Do These First)
+
+These are bugs in features this sprint depends on. Nothing else ships cleanly until they're resolved.
+
+### Fix 1 — Undo race condition (data loss)
+**File:** `src/OpenBrain.jsx:736-751`
+
+`handleDelete` starts its own `setTimeout` that fires `authFetch("/api/delete-entry")` after 5 seconds — stored nowhere that undo can cancel. When the user clicks Undo, `pendingDeleteRef` is cleared but the timer keeps running and deletes the entry from the database anyway. `UndoToast.onDismiss` then fires a *second* delete call. The undo button is currently non-functional at the database level.
+
+**Fix:** Remove the inline `setTimeout` delete entirely from `handleDelete`. `commitPendingDelete` (called by `UndoToast.onDismiss`) must be the single delete path. The ref stores `{ id, entry, timer }` — the `timer` ref is what should be `clearTimeout`-ed in `handleUndo`.
+
+### Fix 2 — QuickCapture saves to the wrong brain after switching
+**File:** `src/OpenBrain.jsx:380`
+
+`doSave` useCallback is missing `primaryBrainId` and `extraBrainIds` from its dependency array. After switching brains, `doSave` closes over the previous brain's IDs. New captures silently go to the old brain with no error shown.
+
+**Fix:** Add `primaryBrainId` and `extraBrainIds` to `doSave`'s `useCallback` dependency array.
+
+### Fix 3 — Nudge uses stale entry data
+**File:** `src/OpenBrain.jsx:688-706`
+
+The proactive nudge effect (which Sprint 3 expands) runs on `entriesLoaded` but `entries` is omitted from the deps (eslint-disabled). The nudge is generated from the previous render's entry snapshot — cached stale data, not the freshly loaded set.
+
+**Fix:** Remove the `// eslint-disable-line` comment and add `entries` to the dependency array.
+
 ---
 
 ## 1. Proactive Intelligence Engine
@@ -17,8 +46,10 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 - Nudges appear as a dismissable banner at the top of the Grid view
 
 ### Implementation notes:
+- The nudge engine already exists (`OpenBrain.jsx:688-706`) — fix the stale entries bug (Pre-Sprint Fix 3) before expanding it
 - On app load, send 30 most recent entries + links to Haiku with a "what should Chris know right now?" prompt
-- Cache the nudge in sessionStorage so it doesn't re-fetch on every tab switch
+- **Strip PII from entries before sending** — only send `{ id, title, type, tags, metadata.status, metadata.deadline }` — never passport numbers, ID numbers, or bank details (audit finding)
+- Cache the nudge in sessionStorage so it doesn't re-fetch on every tab switch (partially done — verify the cache key uses an entries hash so it regenerates when data changes)
 - Limit to 1-2 nudges at a time — more than that gets ignored
 
 ---
@@ -34,6 +65,8 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 - "Reorder" quick action that creates a reminder entry: "Reorder from [supplier] — [date]"
 
 ### Implementation notes:
+- **`SupplierPanel` already exists** (`OpenBrain.jsx:188-241`) — it's a dead route. "suppliers" is never set by any navigation action in `navViews`. This task is "wire it up", not "build it from scratch"
+- Add `{ id: "suppliers", icon: "🏪", label: "Suppliers" }` to `navViews`
 - Filter by `metadata.category === "supplier"` or tags containing "supplier"
 - WhatsApp link: `https://wa.me/27XXXXXXXXX` (strip leading 0, add country code)
 - Phone link: `tel:XXXXXXXXXX`
@@ -73,6 +106,7 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 ### Implementation notes:
 - Actions are just targeted `onUpdate` calls with specific metadata changes
 - Phone/WhatsApp actions extract numbers from metadata or content using regex
+- Viewer-role users on shared brains must not see write actions (Call/WhatsApp fine; Reorder/Mark Done must check `myRole !== "viewer"`)
 
 ---
 
@@ -89,6 +123,8 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 ### Implementation notes:
 - Add 3-4 quick-ask chips above the chat input: "Who supplies...", "When does... expire?", "What's the number for..."
 - Parse AI response for phone numbers and render them as clickable links
+- **Strip PII metadata before sending entries to chat** — the audit found the current chat implementation sends raw metadata including passport numbers, ID numbers, and bank details to Anthropic's API on every message. Only send `{ id, title, type, tags, metadata.status, metadata.deadline, metadata.phone, metadata.category }` — never financial or identity document fields
+- Replace the hardcoded `"Hey Chris"` greeting (`OpenBrain.jsx:661`) with the authenticated user's display name
 
 ---
 
@@ -108,6 +144,7 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 ### Implementation notes:
 - Add `workspace` to the AI classification JSON format
 - For existing entries, infer workspace from tags (anything with "smash burger bar" = business)
+- localStorage write for workspace filter already exists — namespace it with user ID (`openbrain_${userId}_workspace`) to avoid data leaking between users on the same device
 
 ---
 
@@ -124,9 +161,11 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 - If score > threshold, show the existing entry and offer: "Save as new" | "Update existing" | "Cancel"
 
 ### Implementation notes:
+- `PreviewModal` already exists in `OpenBrain.jsx` — wire it into the capture flow rather than building new
 - This changes the QuickCapture flow from instant-save to preview-then-save
 - Keep a "quick mode" toggle for users who want instant capture without preview
 - Duplicate threshold: scoreEntry > 50 on title alone
+- The preview step must respect the brain selection fix from Pre-Sprint Fix 2 — verify the correct `primaryBrainId` is shown in the preview before the user confirms
 
 ---
 
@@ -143,10 +182,12 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 - Only tracks the last action (not a full undo stack)
 
 ### Implementation notes:
+- **`UndoToast` already exists and is wired up** — but the undo is currently non-functional at the DB level due to the race condition (see Pre-Sprint Fix 1). Fix that first; the rest of this feature is already built
 - Store `lastAction` in state: `{ type: "delete"|"update"|"create", entry: {...}, previous: {...} }`
 - On undo: reverse the action (re-add deleted entry, restore previous version, remove created entry)
 - Toast auto-dismisses after timeout
 - Delete undo: don't actually call the API delete until the toast expires — optimistic deletion with deferred commit
+- After fixing the race condition, also fix `UndoToast`'s `useEffect` which has `[]` as deps causing a stale `onDismiss` closure — add `[onDismiss, duration]` to the dep array
 
 ---
 
@@ -169,7 +210,7 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 
 ---
 
-## 10. WhatsApp / Voice Capture
+## 10. Voice Capture
 
 **Goal:** Capture info without typing on a phone.
 
@@ -178,15 +219,14 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
   - Uses Web Speech API (`SpeechRecognition`) to transcribe
   - Transcribed text goes into the input field, then processed normally by AI
   - Fallback: record audio → send to Haiku for transcription (via audio content type)
-- **WhatsApp forwarding** (future/manual):
-  - Document a flow: forward WhatsApp message to a dedicated number/email → webhook → capture API
-  - For now, add a "Paste from WhatsApp" hint in the capture bar
+
 
 ### Implementation notes:
 - `webkitSpeechRecognition` works in Chrome/Edge/Safari on mobile
 - Set language to `en-ZA` for South African English
 - Show live transcription as the user speaks
 - Auto-submit after 2 seconds of silence
+- **Add a 4MB file size check before base64 encoding photos** — currently there's no cap; a 12MP phone photo (8MB) creates a 6.6MB base64 string that can hit Vercel's 10MB payload limit. Add `if (file.size > 4 * 1024 * 1024) { setError("Photo too large — try a smaller image"); return; }` before the FileReader call. This applies to QuickCapture, SuggestionsView, and OnboardingModal image uploads
 
 ---
 
@@ -215,18 +255,185 @@ The focus of this sprint is shifting from "captures well" to "surfaces the right
 
 ---
 
+## 12. Reminders Not Appearing in Calendar
+
+**Goal:** Reminders you've captured actually show up on the calendar so you can see what's coming.
+
+### What to fix:
+- Reminder-type entries with `metadata.deadline` or `metadata.due_date` are not rendering on the Calendar view
+- Calendar view must pull from live `entries` prop and filter for `type === "reminder"` with a valid date field
+
+### Implementation notes:
+- Check `CalendarView.jsx` — confirm it receives `entries` as a prop and that it's actually reading `metadata.deadline` / `metadata.due_date` for placement
+- Also map `metadata.status !== "done"` — completed reminders should not clutter the calendar
+- If a reminder has both `deadline` and `due_date`, prefer `due_date` as the "start action" date and show `deadline` as a red indicator
+- Pinned reminders with `importance >= 2` should show with a distinct colour (e.g. orange `#FF6B35`)
+
+---
+
+## 13. Family Brain Not Showing in UI
+
+**Goal:** All three brain types — personal, family, and business — are accessible from the brain switcher.
+
+### What to fix:
+- Current UI only shows Personal and Business. Family brains created during onboarding (or via "Create Brain") are not appearing in the `BrainSwitcher` or the brain selector chips
+- Likely cause: `BrainSwitcher.jsx` or the brain chip render filters by type name and is missing `"family"`, or the `useBrain` hook isn't returning family brains
+
+### Implementation notes:
+- Audit `BrainSwitcher.jsx` — check if there is a hardcoded list of brain types that excludes `"family"`
+- `BRAIN_META` in `OpenBrain.jsx` and `SuggestionsView.jsx` both define `family: { emoji: "🏠", label: "Family" }` — confirm it's present in both copies (or deduplicate to `constants.js`)
+- Family brain questions exist in `FAMILY_SUGGESTIONS` in `suggestions.js` — verify `getSuggestionsForType("family")` returns them
+- Test: create a family brain and confirm it appears in the switcher, brain selector in QuickCapture, and triggers the family question set in Fill Brain
+
+---
+
+## 14. Quick Capture: Brain Destination Not Visible
+
+**Goal:** You always know which brain you're capturing into before you hit Save.
+
+### What to fix:
+- QuickCapture currently shows no indication of the target brain. Users capture entries without knowing if they're going to Personal, Family, or Business
+
+### What to build:
+- Below the capture input (or inline), show the active brain name + emoji as a pill: e.g. `🧠 Personal`
+- Tapping the pill opens a small sheet/popover to switch brain before saving
+- On save, confirm the destination in the save button label: "Save to 🧠 Personal"
+
+### Implementation notes:
+- `QuickCapture` already receives `brains` and `brainId` props — the display just isn't wired
+- The brain selector chips already exist in the component but may be hidden or not prominent enough — make the active brain always visible even when only one brain exists
+- This is the same fix as the audit finding: "viewer-role brains shown without labels" — while here, add the brain name to the button text so it's unambiguous
+
+---
+
+## 15. Quick Capture as Home Page + Hamburger Nav
+
+**Goal:** Opening the app immediately gets you into capture mode. Everything else is one tap away but out of the way.
+
+### What to build:
+- **Quick Capture becomes the default view** (landing view on app open instead of Grid)
+- Large, full-width capture area — generous padding, prominent placeholder text ("What's on your mind?")
+- Four clearly labelled input modes in a row below the text area:
+  - ✏️ **Write** (default — keyboard opens)
+  - 📷 **Add photo** (opens file picker for existing photo)
+  - 📸 **Take photo** (opens camera directly — `capture="environment"`)
+  - 🎤 **Voice note** (microphone — Web Speech API, from item 10)
+- **Hamburger menu (☰) in the top-right corner** reveals a slide-in side panel containing:
+  - Grid (Memory)
+  - Fill Brain
+  - Refine
+  - Ask
+  - Suppliers
+  - Calendar
+  - To-dos
+  - Settings
+- The current tab bar / nav row is removed from the main view
+
+### Implementation notes:
+- Set default `view` state in `OpenBrain.jsx` to `"capture"` instead of `"grid"`
+- The hamburger panel can be a fixed overlay with `transform: translateX()` transition — no library needed
+- Keep the brain switcher visible in the header alongside the hamburger icon so users always see which brain they're in
+- On desktop / tablet the side panel can be persistent (sidebar layout); on mobile it overlays
+
+---
+
+## 16. Fill Brain Brain Selector + Refine Brain Selector
+
+**Goal:** Fill Brain and Refine clearly show which brain they're working on and let you switch without leaving the view.
+
+### What to fix:
+- **Fill Brain (SuggestionsView):** Brain selector chips already exist but are only shown when `brains.length > 1`. They should always be visible if the user has more than one brain, and the current brain should be clearly labelled even for single-brain users
+- **Refine:** Currently has no brain selector at all. Owners must be able to choose which brain to refine. Members of a shared brain should see Refine auto-locked to the shared brain (no choice needed — they only have one writable brain)
+
+### Implementation notes:
+- **Fill Brain:** The `targetBrainId` selector in `SuggestionsView.jsx` is already implemented — just make it always render (remove the `brains.length > 1` gate; show even for 1 brain as a label, not as chips)
+- **Refine:** Add a brain selector at the top of `RefineView.jsx` — same chip pattern as SuggestionsView. Pass `brains` and an `activeBrain` prop
+- **Owner vs member logic:** If `activeBrain.myRole === "owner"`, show the full brain selector. If `myRole === "member"` or `"viewer"`, lock to the shared brain (no selector shown — just display the brain name as a label). Owners can have multiple brains; members are always working on the one they were invited to
+
+---
+
+## 17. Light / Dark Mode Toggle Not Visible
+
+**Goal:** Users can switch themes without hunting for the setting.
+
+### What to fix:
+- The theme toggle exists in `ThemeContext.jsx` and `toggleTheme` is wired in `OpenBrain.jsx`, but the toggle button is buried or not visible in the current UI
+
+### What to build:
+- Place a 🌙 / ☀️ icon button in the top header bar, always visible alongside the brain switcher and hamburger menu
+- One tap toggles between dark and light
+- Current theme preference already persists to localStorage — no backend change needed
+
+### Implementation notes:
+- `toggleTheme` is already available from `useTheme()` — just needs a visible button
+- Use `isDark ? "☀️" : "🌙"` as the icon so the button shows what you'll switch *to*
+- Style as a small icon button (28×28px) with a subtle border — same treatment as the brain switcher icon
+
+---
+
+## 18. BYO API Keys + Model Picker
+
+**Goal:** Users bring their own AI API keys and choose their preferred model. OpenBrain is not a paid AI proxy — it's a tool that uses your own credits.
+
+### What to build:
+- **Settings screen** — add an "AI Provider" section:
+  - Provider dropdown: **Anthropic** | **OpenAI**
+  - API key input (masked, with show/hide toggle)
+  - Model picker dropdown — populated based on selected provider:
+    - Anthropic: `claude-haiku-4-5`, `claude-sonnet-4-6`, `claude-opus-4-6`
+    - OpenAI: `gpt-4o-mini`, `gpt-4o`, `gpt-4.1`
+  - "Test key" button — sends a minimal ping to the provider API and shows ✓ / ✗
+- Keys stored in localStorage (per user, namespaced by user ID — `openbrain_${userId}_api_key`, `openbrain_${userId}_provider`)
+- **Never send user keys to OpenBrain's own backend** — API calls using BYO keys must be made from the client directly (or via a thin passthrough that never logs them)
+
+### Implementation notes:
+- **Anthropic calls:** Currently go through `/api/anthropic` serverless function which uses the server's `ANTHROPIC_API_KEY`. For BYO, pass the user's key in a request header (e.g. `X-User-Api-Key`) and use it instead of the env key when present — the serverless function becomes a CORS proxy only
+- **OpenAI calls:** Add a parallel `/api/openai` serverless function (same pattern as `/api/anthropic`) that forwards to `https://api.openai.com/v1/chat/completions`. Use the same message format adapter so the rest of the app doesn't need to know which provider is active
+- **Model constant:** `MODEL` in `src/data/constants.js` is currently hardcoded. Replace with a `useModel()` hook or context that reads the user's saved preference and falls back to the default
+- **System prompt compatibility:** OpenAI uses a `messages` array with a `{ role: "system", content: "..." }` first message instead of a separate `system` parameter. The serverless function adapter must handle this translation
+- For now, if no BYO key is set, fall back to the server key (current behaviour) — this lets existing users continue working while new users set up their own keys
+
+---
+
 ## Priority Order
 
-| # | Feature | Impact | Effort |
-|---|---------|--------|--------|
-| 7 | Pre-save preview & duplicate check | High | Medium |
-| 2 | Supplier quick-access panel | High | Low |
-| 1 | Proactive intelligence engine | High | Medium |
-| 4 | Quick actions on entries | High | Medium |
-| 8 | Undo system | High | Low |
-| 5 | "Who do I call?" shortcut | Medium | Low |
-| 6 | Business/personal toggle | Medium | Low |
-| 10 | Voice capture | High | Medium |
-| 11 | Shareable entries | Medium | Low |
-| 3 | Cost/price tracking | Medium | Low |
-| 9 | Morning briefing notification | Medium | High |
+| # | Feature | Impact | Effort | Notes |
+|---|---------|--------|--------|-------|
+| — | **Pre-Sprint Fix 1: Undo race condition** | 🔴 Critical | XS | Data loss bug — do first |
+| — | **Pre-Sprint Fix 2: Wrong brain capture** | 🔴 Critical | XS | Silent data routing bug |
+| — | **Pre-Sprint Fix 3: Stale nudge entries** | High | XS | Prerequisite for item 1 |
+| 8 | Undo system | High | XS | Already built — just needs Fix 1 |
+| 13 | Family brain not showing | High | XS | Bug — likely a missing type in a filter |
+| 12 | Reminders not in calendar | High | S | Bug — date field mapping |
+| 14 | Quick capture: brain destination | High | S | Display + label fix |
+| 15 | Quick capture as home + hamburger nav | High | M | UX restructure — high daily impact |
+| 17 | Light/dark mode toggle not visible | High | XS | Button already wired — just needs placement |
+| 2 | Supplier quick-access panel | High | XS | Already built — just needs wiring to nav |
+| 16 | Fill Brain + Refine brain selectors | High | S | SuggestionsView selector exists; add to Refine |
+| 7 | Pre-save preview & duplicate check | High | M | PreviewModal exists — wire it up |
+| 18 | BYO API keys + model picker | High | M | Enables self-hosting; removes server key dependency |
+| 1 | Proactive intelligence engine | High | M | Nudge exists — expand after Fix 3 |
+| 4 | Quick actions on entries | High | M | New build |
+| 5 | "Who do I call?" shortcut | Medium | S | Strip PII from chat first |
+| 6 | Business/personal toggle | Medium | S | Extends existing workspace filter |
+| 10 | Voice capture + photo size fix | High | M | Fix 4MB cap in all 3 image handlers |
+| 11 | Shareable entries | Medium | S | New build |
+| 3 | Cost/price tracking | Medium | S | New build |
+| 9 | Morning briefing notification | Medium | H | Deferred — complex SW work |
+
+| # | Feature | Impact | Effort | Notes |
+|---|---------|--------|--------|-------|
+| — | **Pre-Sprint Fix 1: Undo race condition** | 🔴 Critical | XS | Data loss bug — do first |
+| — | **Pre-Sprint Fix 2: Wrong brain capture** | 🔴 Critical | XS | Silent data routing bug |
+| — | **Pre-Sprint Fix 3: Stale nudge entries** | High | XS | Prerequisite for item 1 |
+| 8 | Undo system | High | XS | Already built — just needs Fix 1 |
+| 2 | Supplier quick-access panel | High | XS | Already built — just needs wiring to nav |
+| 7 | Pre-save preview & duplicate check | High | Medium | PreviewModal exists — wire it up |
+| 1 | Proactive intelligence engine | High | Medium | Nudge exists — expand after Fix 3 |
+| 4 | Quick actions on entries | High | Medium | New build |
+| 5 | "Who do I call?" shortcut | Medium | Low | Strip PII from chat first |
+| 6 | Business/personal toggle | Medium | Low | New build |
+| 10 | Voice capture + photo size fix | High | Medium | Fix 4MB cap in all 3 image handlers |
+| 11 | Shareable entries | Medium | Low | New build |
+| 3 | Cost/price tracking | Medium | Low | New build |
+| 9 | Morning briefing notification | Medium | High | Deferred — complex SW work |

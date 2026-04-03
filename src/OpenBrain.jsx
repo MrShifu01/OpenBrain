@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } fro
 import { useTheme } from "./ThemeContext";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { authFetch } from "./lib/authFetch";
+import { aiFetch, getUserId, getUserApiKey, getUserModel, setUserApiKey, setUserModel, getUserProvider, setUserProvider } from "./lib/aiFetch";
 import { supabase } from "./lib/supabase";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain } from "./hooks/useBrain";
@@ -32,10 +33,10 @@ async function findConnections(newEntry, existingEntries, existingLinks) {
   if (candidates.length === 0) return [];
   const existingKeys = new Set(existingLinks.map(l => `${l.from}-${l.to}`));
   try {
-    const res = await authFetch("/api/anthropic", {
+    const res = await aiFetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 600,
+        model: getUserModel(), max_tokens: 600,
         system: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{\"from\":\"...\",\"to\":\"...\",\"rel\":\"...\"}]\n- If no connections: []`,
         messages: [{ role: "user", content: `NEW ENTRY:\n${JSON.stringify({ id: newEntry.id, title: newEntry.title, type: newEntry.type, content: newEntry.content, tags: newEntry.tags })}\n\nEXISTING ENTRIES:\n${JSON.stringify(candidates)}` }]
       })
@@ -301,7 +302,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     setLoading(true); setStatus("thinking");
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
-      const apiRes = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 600, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: "Extract all text from this image. Output just the extracted content, clean and readable. If it's a business card, document, label, or receipt — preserve structure. No commentary." }] }] }) });
+      const apiRes = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 600, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: "Extract all text from this image. Output just the extracted content, clean and readable. If it's a business card, document, label, or receipt — preserve structure. No commentary." }] }] }) });
       const data = await apiRes.json();
       const extracted = data.content?.[0]?.text?.trim() || "";
       if (extracted) setText(extracted);
@@ -377,7 +378,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
       setStatus("error");
     }
     setLoading(false); setTimeout(() => setStatus(null), 3000);
-  }, [sbKey, entries, links, addLinks, onCreated, setEntries, isOnline, refreshCount]);
+  }, [sbKey, entries, links, addLinks, onCreated, setEntries, isOnline, refreshCount, primaryBrainId, extraBrainIds]);
 
   const capture = async () => {
     if (!text.trim()) return;
@@ -385,7 +386,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     if (!isOnline) {
       const tempId = Date.now().toString();
       const newEntry = { id: tempId, title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
-      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: MODEL, max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
+      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
       refreshCount?.();
       setEntries(prev => [newEntry, ...prev]);
       onCreated?.(newEntry);
@@ -395,7 +396,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
     }
     try {
       if (apiKey) {
-        const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
+        const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
         const data = await res.json();
         let parsed = {};
         try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
@@ -423,7 +424,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
 
   return (
     <div style={{ padding: "0 24px 16px" }}>
-      {brains.length > 1 && (
+      {brains.length > 1 ? (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
           {brains.map(b => {
             const bm = BRAIN_META_QC[b.type] || BRAIN_META_QC.personal;
@@ -435,7 +436,13 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
             );
           })}
         </div>
-      )}
+      ) : brains.length === 1 ? (
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: t.textDim, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: "4px 11px", fontWeight: 600 }}>
+            {(BRAIN_META_QC[brains[0].type] || BRAIN_META_QC.personal).emoji} {brains[0].name}
+          </span>
+        </div>
+      ) : null}
       <div style={{ display: "flex", gap: 8 }}>
         <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
         <input
@@ -447,11 +454,92 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
         />
         <button onClick={startVoice} disabled={loading} title="Voice capture" style={{ padding: "12px 14px", background: listening ? "#25D36620" : t.surface, border: `1px solid ${listening ? "#25D36640" : "#4ECDC440"}`, borderRadius: 12, color: listening ? "#25D366" : "#4ECDC4", cursor: loading ? "default" : "pointer", fontSize: 16 }}>🎤</button>
         <button onClick={() => imgRef.current?.click()} disabled={loading} style={{ padding: "12px 14px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 12, color: loading ? t.textDim : "#4ECDC4", cursor: loading ? "default" : "pointer", fontSize: 16 }}>📷</button>
-        <button onClick={capture} disabled={loading || !text.trim()} style={{ padding: "12px 18px", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 12, color: text.trim() && !loading ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 16 }}>+</button>
+        <button onClick={capture} disabled={loading || !text.trim()} title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`} style={{ padding: "12px 18px", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 12, color: text.trim() && !loading ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 16 }}>+</button>
       </div>
       {status && <p style={{ fontSize: 11, color: status.includes("error") ? "#FF6B35" : "#4ECDC4", margin: "6px 0 0 4px" }}>{statusMsg[status]}</p>}
       {preview && <PreviewModal preview={preview} entries={entries} onSave={doSave} onCancel={() => setPreview(null)} />}
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PASSWORD FIREWALL
+   ═══════════════════════════════════════════════════════════════ */
+const SENSITIVE_RE = /\b(password|passcode|passphrase|credentials|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|id\s*number|passport\s*number|secret\s*key|secret\s*word|pin\s*number|access\s*code)\b/i;
+function containsSensitiveContent(text) { return SENSITIVE_RE.test(text); }
+
+function _pinKey() { const uid = getUserId(); return uid ? `openbrain_${uid}_security_pin` : "openbrain_security_pin"; }
+function getStoredPinHash() { return localStorage.getItem(_pinKey()) || null; }
+function removePin() { localStorage.removeItem(_pinKey()); }
+async function _hashPin(pin) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin + "ob_salt_v1"));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function storePin(pin) { localStorage.setItem(_pinKey(), await _hashPin(pin)); }
+async function verifyPin(pin) { const s = getStoredPinHash(); if (!s) return false; return (await _hashPin(pin)) === s; }
+
+function PinGate({ onSuccess, onCancel, isSetup = false }) {
+  const { t } = useTheme();
+  const [pin, setPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [shake, setShake] = useState(false);
+  const [error, setError] = useState("");
+  const [step, setStep] = useState(isSetup ? "create" : "enter");
+  const inputRef = useRef(null);
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, [step]);
+
+  const doShake = () => { setShake(true); setTimeout(() => setShake(false), 380); };
+
+  const handleSubmit = async () => {
+    if (step === "enter") {
+      if (await verifyPin(pin)) { onSuccess(); }
+      else { setPin(""); setError("Wrong PIN — try again"); doShake(); }
+    } else if (step === "create") {
+      if (pin.length !== 4) { setError("Must be 4 digits"); doShake(); return; }
+      setError(""); setStep("confirm");
+    } else {
+      if (pin !== confirmPin) { setConfirmPin(""); setError("PINs don't match"); doShake(); return; }
+      await storePin(pin); onSuccess();
+    }
+  };
+
+  const titles = { enter: "Sensitive Info", create: "Set Security PIN", confirm: "Confirm PIN" };
+  const subs = { enter: "Enter your PIN to view this response", create: "Choose a 4-digit PIN to protect sensitive responses", confirm: "Re-enter your PIN to confirm" };
+  const btnLabel = { enter: "Unlock", create: "Next", confirm: "Set PIN" };
+
+  return (
+    <>
+      <style>{`@keyframes pinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.72)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(4px)" }} onClick={e => { if (e.target === e.currentTarget) onCancel(); }}>
+        <div style={{ background: t.surface, borderRadius: 20, padding: "32px 28px", width: 300, border: `1px solid ${t.border}`, animation: shake ? "pinShake 0.38s ease" : "none" }}>
+          <div style={{ textAlign: "center", marginBottom: 22 }}>
+            <div style={{ fontSize: 30, marginBottom: 8 }}>🔒</div>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: t.text }}>{titles[step]}</h3>
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: t.textDim }}>{subs[step]}</p>
+          </div>
+          <input
+            ref={inputRef}
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            value={step === "confirm" ? confirmPin : pin}
+            onChange={e => {
+              const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+              if (step === "confirm") setConfirmPin(v); else setPin(v);
+              setError("");
+            }}
+            onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
+            placeholder="• • • •"
+            style={{ width: "100%", padding: "14px", background: t.bg, border: `1px solid ${error ? "#FF6B35" : t.border}`, borderRadius: 12, color: t.textSoft, fontSize: 22, textAlign: "center", letterSpacing: 10, outline: "none", boxSizing: "border-box", fontFamily: "monospace" }}
+          />
+          {error && <p style={{ margin: "8px 0 0", fontSize: 11, color: "#FF6B35", textAlign: "center" }}>{error}</p>}
+          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+            <button onClick={onCancel} style={{ flex: 1, padding: 11, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textDim, cursor: "pointer", fontSize: 13 }}>Cancel</button>
+            <button onClick={handleSubmit} style={{ flex: 1, padding: 11, background: "#4ECDC4", border: "none", borderRadius: 10, color: "#0f0f23", fontWeight: 700, cursor: "pointer", fontSize: 13 }}>{btnLabel[step]}</button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -464,7 +552,34 @@ function SettingsView() {
   const [email, setEmail] = useState("");
   const [notifEnabled, setNotifEnabled] = useState(() => localStorage.getItem("openbrain_notif") === "true");
   const [notifTime, setNotifTime] = useState(() => localStorage.getItem("openbrain_notif_time") || "07:00");
+  const [byoKey, setByoKey] = useState(() => getUserApiKey() || "");
+  const [byoProvider, setByoProvider] = useState(() => getUserProvider());
+  const [byoModel, setByoModel] = useState(() => getUserModel());
+  const [showKey, setShowKey] = useState(false);
+  const [byoTestStatus, setByoTestStatus] = useState(null);
+  const [pinSet, setPinSet] = useState(() => !!getStoredPinHash());
+  const [showPinModal, setShowPinModal] = useState(false);
   useEffect(() => { supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || "")); }, []);
+
+  const ANTHROPIC_MODELS = ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6"];
+  const OPENAI_MODELS = ["gpt-4o-mini", "gpt-4o", "gpt-4.1"];
+  const modelOptions = byoProvider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
+
+  const saveByoKey = (key) => { setByoKey(key); setUserApiKey(key || null); };
+  const saveByoProvider = (p) => { setByoProvider(p); setUserProvider(p); const models = p === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS; if (!models.includes(byoModel)) { setByoModel(models[0]); setUserModel(models[0]); } };
+  const saveByoModel = (m) => { setByoModel(m); setUserModel(m); };
+
+  const testByoKey = async () => {
+    if (!byoKey) return;
+    setByoTestStatus("testing");
+    try {
+      const endpoint = byoProvider === "openai" ? "/api/openai" : "/api/anthropic";
+      const body = { model: byoModel, max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] };
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", "X-User-Api-Key": byoKey, ...(await (async () => { const { data: { session } } = await supabase.auth.getSession(); return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}; })()) }, body: JSON.stringify(body) });
+      setByoTestStatus(res.ok ? "ok" : "fail");
+    } catch { setByoTestStatus("fail"); }
+    setTimeout(() => setByoTestStatus(null), 3000);
+  };
 
   const requestNotification = async () => {
     if (!("Notification" in window)) { alert("Notifications not supported in this browser."); return; }
@@ -481,7 +596,7 @@ function SettingsView() {
 
   const testAI = async () => {
     setTestStatus("testing-ai");
-    try { const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] }) }); setTestStatus(res.ok ? "ai-success" : "ai-fail"); }
+    try { const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] }) }); setTestStatus(res.ok ? "ai-success" : "ai-fail"); }
     catch { setTestStatus("ai-fail"); }
     setTimeout(() => setTestStatus(null), 3000);
   };
@@ -514,6 +629,31 @@ function SettingsView() {
           <button onClick={testDB} style={{ ...btn, background: "#4ECDC420", color: "#4ECDC4" }}>{testStatus === "testing" ? "Testing…" : testStatus === "success" ? "✓ Connected" : testStatus === "fail" ? "✗ Failed" : "Test"}</button>
         </div>
       </div>
+      {/* AI Provider / BYO Key */}
+      <div style={{ background: t.surface, borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: `1px solid ${t.border}` }}>
+        <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: t.textSoft }}>AI Provider</p>
+        <p style={{ margin: "0 0 14px", fontSize: 11, color: t.textDim }}>Use your own API key — no OpenBrain credits deducted. Leave blank to use the shared key.</p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+          {["anthropic", "openai"].map(p => (
+            <button key={p} onClick={() => saveByoProvider(p)} style={{ padding: "6px 16px", borderRadius: 20, border: byoProvider === p ? "1px solid #4ECDC4" : `1px solid ${t.border}`, background: byoProvider === p ? "#4ECDC420" : t.bg, color: byoProvider === p ? "#4ECDC4" : t.textDim, fontSize: 12, fontWeight: 600, cursor: "pointer", textTransform: "capitalize" }}>{p}</button>
+          ))}
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <p style={{ margin: "0 0 6px", fontSize: 11, color: t.textDim, fontWeight: 600 }}>API Key</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type={showKey ? "text" : "password"} value={byoKey} onChange={e => saveByoKey(e.target.value)} placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."} style={{ flex: 1, padding: "9px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 13, fontFamily: "monospace", outline: "none" }} />
+            <button onClick={() => setShowKey(s => !s)} style={{ padding: "9px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textDim, cursor: "pointer", fontSize: 12 }}>{showKey ? "Hide" : "Show"}</button>
+            <button onClick={testByoKey} disabled={!byoKey} style={{ padding: "9px 14px", background: byoKey ? "#4ECDC420" : t.bg, border: `1px solid ${byoKey ? "#4ECDC440" : t.border}`, borderRadius: 8, color: byoKey ? "#4ECDC4" : t.textFaint, cursor: byoKey ? "pointer" : "default", fontSize: 12, fontWeight: 600 }}>{byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "fail" ? "✗" : "Test"}</button>
+          </div>
+        </div>
+        <div>
+          <p style={{ margin: "0 0 6px", fontSize: 11, color: t.textDim, fontWeight: 600 }}>Model</p>
+          <select value={byoModel} onChange={e => saveByoModel(e.target.value)} style={{ width: "100%", padding: "9px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 13, outline: "none" }}>
+            {modelOptions.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+
       <div style={{ background: t.surface, borderRadius: 14, padding: "20px 24px", border: `1px solid ${t.border}` }}>
         <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: t.textSoft }}>Morning Briefing</p>
         <p style={{ margin: "0 0 14px", fontSize: 12, color: t.textDim }}>Get a daily nudge with your reminders and key info.</p>
@@ -521,6 +661,17 @@ function SettingsView() {
           <input type="time" value={notifTime} onChange={e => { setNotifTime(e.target.value); localStorage.setItem("openbrain_notif_time", e.target.value); }} style={{ padding: "8px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 13, outline: "none" }} />
           <button onClick={requestNotification} style={{ ...btn, background: notifEnabled ? "#FF6B3520" : "#4ECDC420", color: notifEnabled ? "#FF6B35" : "#4ECDC4" }}>{notifEnabled ? "Disable" : "Enable"}</button>
         </div>
+      </div>
+      <div style={{ background: t.surface, borderRadius: 14, padding: "20px 24px", marginTop: 16, border: `1px solid ${t.border}` }}>
+        <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: t.textSoft }}>🔒 Security PIN</p>
+        <p style={{ margin: "0 0 14px", fontSize: 11, color: t.textDim }}>
+          {pinSet ? "PIN is active — sensitive AI responses require it before being revealed." : "No PIN set — AI responses with passwords or credentials are shown unguarded."}
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowPinModal(true)} style={{ ...btn, background: "#4ECDC420", color: "#4ECDC4" }}>{pinSet ? "Change PIN" : "Set PIN"}</button>
+          {pinSet && <button onClick={() => { removePin(); setPinSet(false); }} style={{ ...btn, background: "#FF6B3520", color: "#FF6B35" }}>Remove PIN</button>}
+        </div>
+        {showPinModal && <PinGate isSetup onSuccess={() => { setShowPinModal(false); setPinSet(!!getStoredPinHash()); }} onCancel={() => setShowPinModal(false)} />}
       </div>
     </div>
   );
@@ -648,7 +799,8 @@ export default function OpenBrain() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [workspace, setWorkspace] = useState(() => localStorage.getItem("openbrain_workspace") || "all");
-  const [view, setView] = useState("grid");
+  const [view, setView] = useState("capture");
+  const [navOpen, setNavOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [links, setLinks] = useState(LINKS);
   const addLinks = (newLinks) => setLinks(prev => [...prev, ...newLinks]);
@@ -660,6 +812,9 @@ export default function OpenBrain() {
   const [chatInput, setChatInput] = useState("");
   const [chatMsgs, setChatMsgs] = useState([{ role: "assistant", content: "Hey Chris. Ask me about your memories — \"What's my ID number?\", \"Who are my suppliers?\", etc." }]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [pendingSecureMsg, setPendingSecureMsg] = useState(null);
+  const [showPinGate, setShowPinGate] = useState(false);
+  const [pinGateIsSetup, setPinGateIsSetup] = useState(false);
   const [nudge, setNudge] = useState(() => sessionStorage.getItem("openbrain_nudge") || null);
   const [lastAction, setLastAction] = useState(null);
   const pendingDeleteRef = useRef(null);
@@ -688,10 +843,10 @@ export default function OpenBrain() {
   useEffect(() => {
     if (!entriesLoaded || !apiKey || sessionStorage.getItem("openbrain_nudge") !== null) return;
     const recent = entries.slice(0, 30).map(e => ({ id: e.id, title: e.title, type: e.type, tags: e.tags, metadata: e.metadata, created_at: e.created_at }));
-    authFetch("/api/anthropic", {
+    aiFetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 200,
+        model: getUserModel(), max_tokens: 200,
         system: `You are OpenBrain, a proactive memory assistant for Chris. Given his recent entries, generate 1-2 short, specific, actionable nudges he should know right now. Examples: expiring documents, stale ideas, gaps in his business records, upcoming deadlines. Be concrete — mention entry names. Do NOT suggest merging companies just because they share a word in their name. Return plain text, 1-2 sentences max.`,
         messages: [{ role: "user", content: `My recent memories:\n${JSON.stringify(recent)}\n\nWhat should I know right now?` }]
       })
@@ -703,7 +858,7 @@ export default function OpenBrain() {
         else sessionStorage.setItem("openbrain_nudge", "");
       })
       .catch(() => sessionStorage.setItem("openbrain_nudge", ""));
-  }, [entriesLoaded]);
+  }, [entriesLoaded, entries]); // entries in deps so nudge sees freshly loaded data, not stale snapshot
 
   useEffect(() => {
     if (entriesLoaded) { try { localStorage.setItem("openbrain_entries", JSON.stringify(entries)); } catch {} }
@@ -739,14 +894,14 @@ export default function OpenBrain() {
     commitPendingDelete();
     setEntries(prev => prev.filter(e => e.id !== id));
     setSelected(null);
+    // Deferred commit: actual DB delete fires only when toast expires.
+    // Guard: only commit if the ref still holds this exact entry (prevents a stale
+    // timer from firing after a second delete has replaced the ref with a different id).
     const timer = setTimeout(() => {
-      if (isOnlineRef.current) {
-        authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
-      } else {
-        enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
+      if (pendingDeleteRef.current?.id === id) {
+        commitPendingDelete();
+        setLastAction(null);
       }
-      pendingDeleteRef.current = null;
-      setLastAction(null);
     }, 5000);
     pendingDeleteRef.current = { id, entry, timer };
     setLastAction({ type: "delete", entry });
@@ -829,9 +984,17 @@ export default function OpenBrain() {
     if (!chatInput.trim()) return;
     const msg = chatInput.trim(); setChatInput(""); setChatMsgs(p => [...p, { role: "user", content: msg }]); setChatLoading(true);
     try {
-      const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] }) });
+      const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 1000, system: `You are OpenBrain, Chris's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] }) });
       const data = await res.json();
-      setChatMsgs(p => [...p, { role: "assistant", content: data.content?.map(c => c.text || "").join("") || "Couldn't process." }]);
+      const content = data.content?.map(c => c.text || "").join("") || "Couldn't process.";
+      if (containsSensitiveContent(content)) {
+        const hasPinSet = !!getStoredPinHash();
+        setPendingSecureMsg({ content });
+        setPinGateIsSetup(!hasPinSet);
+        setShowPinGate(true);
+      } else {
+        setChatMsgs(p => [...p, { role: "assistant", content }]);
+      }
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error." }]); }
     setChatLoading(false);
   };
@@ -854,7 +1017,7 @@ export default function OpenBrain() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, #4ECDC4, #45B7D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🧠</div>
           <div><h1 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: -0.5 }}>OpenBrain</h1><p style={{ margin: 0, fontSize: 11, color: t.textDim }}>Your eternal memory</p></div>
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
             {brains.length > 0 && (
               <BrainSwitcher
                 brains={brains}
@@ -872,21 +1035,18 @@ export default function OpenBrain() {
             <button
               onClick={toggleTheme}
               title={isDark ? "Switch to light mode" : "Switch to dark mode"}
-              style={{ width: 46, height: 26, borderRadius: 13, border: `1px solid ${t.border}`, background: isDark ? "#2a2a4a" : "#e8e8f8", cursor: "pointer", position: "relative", padding: 0, flexShrink: 0, transition: "background 0.25s" }}
+              style={{ width: 36, height: 36, borderRadius: 8, border: `1px solid ${isDark ? "#4a4a6a" : "#c0c0e0"}`, background: isDark ? "#2a2a4a" : "#ffffff", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}
             >
-              <div style={{ position: "absolute", top: 3, left: isDark ? 23 : 3, width: 18, height: 18, borderRadius: "50%", background: isDark ? "#A29BFE" : "#FFD700", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, transition: "left 0.25s, background 0.25s" }}>
-                {isDark ? "🌙" : "☀️"}
-              </div>
+              {isDark ? "🌙" : "☀️"}
             </button>
-            <div style={{ textAlign: "right" }}>
-              <span style={{ fontSize: 11, color: t.textFaint }}>{entries.length} memories</span>
-              {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
-              {pendingCount > 0 && (
-                <span style={{ display: "block", fontSize: 9, color: "#FFD700", marginTop: 2 }}>
-                  {pendingCount} pending sync
-                </span>
-              )}
-            </div>
+            {/* Hamburger */}
+            <button
+              onClick={() => setNavOpen(o => !o)}
+              title="Menu"
+              style={{ width: 36, height: 36, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 5, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, cursor: "pointer", flexShrink: 0, padding: 0 }}
+            >
+              {[0,1,2].map(i => <div key={i} style={{ width: 16, height: 2, background: t.textMid, borderRadius: 1 }} />)}
+            </button>
           </div>
         </div>
       </div>
@@ -903,16 +1063,43 @@ export default function OpenBrain() {
 
       {view === "grid" && nudge && <NudgeBanner nudge={nudge} onDismiss={() => { setNudge(null); sessionStorage.removeItem("openbrain_nudge"); }} />}
 
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${t.border}`, overflowX: "auto", scrollbarWidth: "none" }}>
-        {navViews.map(v => (
-          <button key={v.id} onClick={() => setView(v.id)} style={{ flexShrink: 0, minWidth: 72, padding: "10px 8px", border: "none", borderBottom: view === v.id ? "2px solid #4ECDC4" : "2px solid transparent", background: "none", color: view === v.id ? "#4ECDC4" : t.textFaint, fontSize: 10, fontWeight: 600, cursor: "pointer", position: "relative" }}>
-            {v.ic} {v.l}
-            {v.id === "suggest" && <span style={{ position: "absolute", top: 2, right: "calc(50% - 24px)", width: 5, height: 5, borderRadius: "50%", background: "#FF6B35" }} />}
-          </button>
-        ))}
-      </div>
+      {/* Slide-in nav panel */}
+      {navOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 1000 }} onClick={() => setNavOpen(false)}>
+          <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, width: 260, background: isDark ? "#16161e" : "#f8f8ff", borderLeft: `1px solid ${t.border}`, boxShadow: "-8px 0 32px rgba(0,0,0,0.4)", display: "flex", flexDirection: "column", padding: "20px 0" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "0 20px 16px", borderBottom: `1px solid ${t.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: t.textMid }}>Navigation</span>
+              <button onClick={() => setNavOpen(false)} style={{ background: "none", border: "none", color: t.textDim, fontSize: 18, cursor: "pointer", lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
+              {[{ id: "capture", l: "Capture", ic: "+" }, ...navViews].map(v => (
+                <button key={v.id} onClick={() => { setView(v.id); setNavOpen(false); }}
+                  style={{ width: "100%", textAlign: "left", padding: "12px 20px", border: "none", background: view === v.id ? (isDark ? "rgba(78,205,196,0.1)" : "rgba(78,205,196,0.15)") : "none", color: view === v.id ? "#4ECDC4" : t.text, fontSize: 14, fontWeight: view === v.id ? 700 : 400, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 16, width: 24, textAlign: "center" }}>{v.ic}</span>
+                  <span>{v.l}</span>
+                  {v.id === "suggest" && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6B35", marginLeft: "auto" }} />}
+                </button>
+              ))}
+            </div>
+            <div style={{ padding: "12px 20px", borderTop: `1px solid ${t.border}`, fontSize: 11, color: t.textDim }}>
+              {entries.length} memories · {pendingCount > 0 ? `${pendingCount} pending sync` : "synced"}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: 20 }}>
+        {view === "capture" && (
+          <div style={{ textAlign: "center", paddingTop: 40, color: t.textDim }}>
+            <p style={{ fontSize: 13, marginBottom: 20 }}>Tap ☰ to navigate — or just start capturing above.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              {[{ id: "grid", l: "Memory Grid", ic: "▦" }, { id: "suggest", l: "Fill Brain", ic: "✦" }, { id: "calendar", l: "Calendar", ic: "📅" }, { id: "chat", l: "Ask", ic: "◈" }].map(v => (
+                <button key={v.id} onClick={() => setView(v.id)} style={{ padding: "10px 18px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMid, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{v.ic} {v.l}</button>
+              ))}
+            </div>
+          </div>
+        )}
         {view === "grid" && <>
           {/* Workspace toggle */}
           <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
@@ -938,7 +1125,7 @@ export default function OpenBrain() {
 
         {view === "suppliers" && <SupplierPanel entries={entries} onSelect={setSelected} onReorder={handleReorder} />}
         {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} activeBrain={activeBrain} brains={brains} /></Suspense>}
-        {view === "refine" && <Suspense fallback={<Loader />}><RefineView apiKey={apiKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} /></Suspense>}
+        {view === "refine" && <Suspense fallback={<Loader />}><RefineView apiKey={apiKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} brains={brains} onSwitchBrain={setActiveBrain} /></Suspense>}
         {view === "calendar" && <Suspense fallback={<Loader />}><CalendarView entries={entries} /></Suspense>}
         {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
@@ -998,6 +1185,25 @@ export default function OpenBrain() {
         />
       )}
 
+      {showPinGate && (
+        <PinGate
+          isSetup={pinGateIsSetup}
+          onSuccess={() => {
+            if (pendingSecureMsg) {
+              setChatMsgs(p => [...p, { role: "assistant", content: pendingSecureMsg.content }]);
+              setPendingSecureMsg(null);
+            }
+            setShowPinGate(false);
+            setPinGateIsSetup(false);
+          }}
+          onCancel={() => {
+            setPendingSecureMsg(null);
+            setShowPinGate(false);
+            setPinGateIsSetup(false);
+          }}
+        />
+      )}
+
       {showOnboarding && (
         <OnboardingModal
           apiKey={apiKey}
@@ -1013,7 +1219,7 @@ export default function OpenBrain() {
 
               // Batch-save answered items to the brain via Quick Capture API
               answeredItems.forEach(item => {
-                authFetch("/api/anthropic", {
+                aiFetch("/api/anthropic", {
                   method: "POST", headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     model: "claude-haiku-4-5-20251001", max_tokens: 800,
