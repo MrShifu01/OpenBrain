@@ -14,6 +14,16 @@ export default async function handler(req, res) {
   const { brain_id } = req.query;
   if (!brain_id) return res.status(400).json({ error: "brain_id required" });
 
+  // Check role — viewers cannot export
+  const roleRes = await fetch(
+    `${SB_URL}/rest/v1/brain_members?brain_id=eq.${brain_id}&user_id=eq.${user.id}&select=role`,
+    { headers: hdrs() }
+  );
+  if (!roleRes.ok) return res.status(502).json({ error: "Database error" });
+  const [membership] = await roleRes.json();
+  if (!membership) return res.status(403).json({ error: "Not a member" });
+  if (membership.role === 'viewer') return res.status(403).json({ error: "Viewers cannot export" });
+
   // Verify access
   const [ownedRes, memberRes] = await Promise.all([
     fetch(`${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id)}&owner_id=eq.${encodeURIComponent(user.id)}`, { headers: hdrs() }),

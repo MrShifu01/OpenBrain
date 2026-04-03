@@ -21,6 +21,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid type" });
   }
 
+  if (p_extra_brain_ids !== undefined && p_extra_brain_ids !== null) {
+    if (!Array.isArray(p_extra_brain_ids)) {
+      return res.status(400).json({ error: "p_extra_brain_ids must be an array" });
+    }
+    if (p_extra_brain_ids.length > 5) {
+      return res.status(400).json({ error: "p_extra_brain_ids max 5 items" });
+    }
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!p_extra_brain_ids.every(id => typeof id === 'string' && uuidRe.test(id))) {
+      return res.status(400).json({ error: "p_extra_brain_ids must contain valid UUIDs" });
+    }
+  }
+
   const safeBody = {
     p_title: p_title.trim().slice(0, 500),
     p_content: p_content ? String(p_content).slice(0, 10000) : "",

@@ -131,6 +131,11 @@ export default async function handler(req, res) {
     const { token } = req.body;
     if (!token) return res.status(400).json({ error: "token required" });
 
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRe.test(token)) {
+      return res.status(400).json({ error: "Invalid invite token" });
+    }
+
     // Look up the invite
     const invRes = await fetch(
       `${SB_URL}/rest/v1/brain_invites?token=eq.${encodeURIComponent(token)}&accepted=eq.false`,
