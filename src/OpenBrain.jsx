@@ -8,6 +8,7 @@ import { useBrain } from "./hooks/useBrain";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { enqueue } from "./lib/offlineQueue";
 import BrainSwitcher from "./components/BrainSwitcher";
+import OnboardingModal from "./components/OnboardingModal";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
 const CalendarView    = lazy(() => import("./views/CalendarView"));
@@ -259,15 +260,38 @@ WORKSPACE RULES:
 
 IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.`;
 
-function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, isOnline = true, refreshCount }) {
+const BRAIN_META_QC = {
+  personal: { emoji: "🧠" },
+  family:   { emoji: "🏠" },
+  business: { emoji: "🏪" },
+};
+
+function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onCreated, isOnline = true, refreshCount, brainId, brains = [] }) {
   const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [preview, setPreview] = useState(null);
   const [listening, setListening] = useState(false);
+  // Multi-brain: which brains to capture into (primary = first element)
+  const [selectedBrainIds, setSelectedBrainIds] = useState(() => brainId ? [brainId] : []);
   const imgRef = useRef(null);
   const recognitionRef = useRef(null);
+
+  // Keep selection in sync when active brain changes
+  useEffect(() => {
+    if (brainId) setSelectedBrainIds(prev => prev.includes(brainId) ? prev : [brainId]);
+  }, [brainId]);
+
+  function toggleBrain(id) {
+    setSelectedBrainIds(prev => {
+      if (prev.includes(id)) return prev.length > 1 ? prev.filter(x => x !== id) : prev;
+      return [...prev, id];
+    });
+  }
+
+  const primaryBrainId = selectedBrainIds[0] || brainId;
+  const extraBrainIds = selectedBrainIds.slice(1);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -322,7 +346,7 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
           onCreated?.(newEntry);
           setStatus("saved-local");
         } else {
-          const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
+          const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [], p_brain_id: primaryBrainId, p_extra_brain_ids: extraBrainIds }) });
           if (rpcRes.ok) {
             const result = await rpcRes.json();
             const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
@@ -398,6 +422,19 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
 
   return (
     <div style={{ padding: "0 24px 16px" }}>
+      {brains.length > 1 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+          {brains.map(b => {
+            const bm = BRAIN_META_QC[b.type] || BRAIN_META_QC.personal;
+            const active = selectedBrainIds.includes(b.id);
+            return (
+              <button key={b.id} onClick={() => toggleBrain(b.id)} style={{ padding: "4px 11px", borderRadius: 20, border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`, background: active ? "#4ECDC420" : t.surface, color: active ? "#4ECDC4" : t.textDim, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                {bm.emoji} {b.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
         <input
@@ -617,6 +654,7 @@ export default function OpenBrain() {
   const [apiKey] = useState("configured");
   const [sbKey] = useState("configured");
   const { t, isDark, toggleTheme } = useTheme();
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("openbrain_onboarded"));
   const [chatInput, setChatInput] = useState("");
   const [chatMsgs, setChatMsgs] = useState([{ role: "assistant", content: "Hey Chris. Ask me about your memories — \"What's my ID number?\", \"Who are my suppliers?\", etc." }]);
   const [chatLoading, setChatLoading] = useState(false);
@@ -885,8 +923,8 @@ export default function OpenBrain() {
         </>}
 
         {view === "suppliers" && <SupplierPanel entries={entries} onSelect={setSelected} onReorder={handleReorder} />}
-        {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} /></Suspense>}
-        {view === "refine" && <Suspense fallback={<Loader />}><RefineView apiKey={apiKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} /></Suspense>}
+        {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView apiKey={apiKey} sbKey={sbKey} entries={entries} setEntries={setEntries} activeBrain={activeBrain} brains={brains} /></Suspense>}
+        {view === "refine" && <Suspense fallback={<Loader />}><RefineView apiKey={apiKey} entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} /></Suspense>}
         {view === "calendar" && <Suspense fallback={<Loader />}><CalendarView entries={entries} /></Suspense>}
         {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
@@ -942,6 +980,16 @@ export default function OpenBrain() {
           onDismiss={() => {
             if (lastAction.type === "delete") commitPendingDelete();
             setLastAction(null);
+          }}
+        />
+      )}
+
+      {showOnboarding && (
+        <OnboardingModal
+          onComplete={(selected) => {
+            setShowOnboarding(false);
+            // Auto-switch to Fill Brain tab after onboarding
+            setView("suggest");
           }}
         />
       )}

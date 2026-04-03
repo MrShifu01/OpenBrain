@@ -4,8 +4,14 @@ import { authFetch } from "../lib/authFetch";
 /**
  * CreateBrainModal — create a shared brain + optionally invite members by email.
  */
+const BRAIN_TYPES = [
+  { value: "family", label: "Family", emoji: "🏠", desc: "For household, kids, shared finances, emergencies" },
+  { value: "business", label: "Business", emoji: "🏪", desc: "For staff, suppliers, SOPs, costs, licences" },
+];
+
 export default function CreateBrainModal({ onClose, onCreate }) {
   const [name, setName] = useState("");
+  const [brainType, setBrainType] = useState("family");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [pendingInvites, setPendingInvites] = useState([]);
@@ -32,7 +38,7 @@ export default function CreateBrainModal({ onClose, onCreate }) {
       const res = await authFetch("/api/brains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({ name: name.trim(), type: brainType }),
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Failed to create brain"); }
       const brain = await res.json();
@@ -46,7 +52,7 @@ export default function CreateBrainModal({ onClose, onCreate }) {
         }).catch(() => {}); // Non-fatal
       }
 
-      await onCreate(brain);
+      await onCreate(brain, brainType);
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -74,6 +80,31 @@ export default function CreateBrainModal({ onClose, onCreate }) {
         <h3 style={{ margin: "0 0 18px", fontSize: 17, color: "#e8e8e8", fontWeight: 600 }}>
           Create shared brain
         </h3>
+
+        {/* Brain type selector */}
+        <label style={labelStyle}>Brain type</label>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {BRAIN_TYPES.map(bt => (
+            <button
+              key={bt.value}
+              type="button"
+              onClick={() => setBrainType(bt.value)}
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                background: brainType === bt.value ? "rgba(124,143,240,0.2)" : "rgba(255,255,255,0.04)",
+                border: brainType === bt.value ? "1px solid rgba(124,143,240,0.5)" : "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontSize: 18, marginBottom: 3 }}>{bt.emoji}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: brainType === bt.value ? "#a5b4fc" : "#d4d4d8" }}>{bt.label}</div>
+              <div style={{ fontSize: 10, color: "#666", lineHeight: 1.3, marginTop: 2 }}>{bt.desc}</div>
+            </button>
+          ))}
+        </div>
 
         {/* Brain name */}
         <label style={labelStyle}>Brain name</label>

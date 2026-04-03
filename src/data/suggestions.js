@@ -447,6 +447,319 @@ export const SUGGESTIONS = [
   { q: "Annual tax return deadline?", cat: "📅 Dates", p: "high" },
   { q: "Staff contract review dates?", cat: "📅 Dates", p: "medium" },
   { q: "Next equipment service due dates?", cat: "📅 Dates", p: "medium" },
+
+  // ─── RESTAURANT — KITCHEN CRAFT & RECIPES ───
+  { q: "Full smash burger spice blend recipe — what goes in beyond the Zesty Spice base?", cat: "🍔 Restaurant", p: "high" },
+  { q: "What are your signature sauces and how do you make them?", cat: "🍔 Restaurant", p: "high" },
+  { q: "What oil do you use on the flat top — brand and where do you buy it?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "What temperature do you cook smash burgers at?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "How long does each burger take from ball to plate?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Bun toasting method — butter, dry, or pressed?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "What cheese do you use — brand, slice thickness, and where do you source it?", cat: "🍔 Restaurant", p: "high" },
+  { q: "Lettuce, tomato, and onion specs — size, cut, and prep method required?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Do you have a morning prep checklist that kitchen staff follow each day?", cat: "🍔 Restaurant", p: "high" },
+  { q: "What does your restaurant closing checklist look like?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "How often do you deep clean the extractor fan and canopy?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "What's your stock take process — how often, who does it?", cat: "🍔 Restaurant", p: "high" },
+  { q: "Portion sizes for fries, onion rings, and sides?", cat: "🍔 Restaurant", p: "high" },
+  { q: "What's your food waste situation — what gets thrown away most?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Takeaway packaging — boxes, bags, wrappers — which supplier?", cat: "🍔 Restaurant", p: "medium" },
+
+  // ─── RESTAURANT — MENU & PRICING GAPS ───
+  { q: "When did you last update your menu prices?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Beverage cost percentage — target vs actual?", cat: "📊 Metrics", p: "high" },
+  { q: "Top 3 most profitable items by margin (not just volume)?", cat: "📊 Metrics", p: "high" },
+  { q: "Do you have a kids menu? What's on it and at what price?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Full sides menu with current prices?", cat: "🍔 Restaurant", p: "high" },
+  { q: "Alcohol markup — what's your margin per beer, spirit, and cocktail?", cat: "📊 Metrics", p: "high" },
+  { q: "Do you run combo deals or meal specials? What are they?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Do you offer any desserts? What and at what price?", cat: "🍔 Restaurant", p: "low" },
+
+  // ─── RESTAURANT — STAFF GAPS ───
+  { q: "Do you have signed employment contracts in place for all staff?", cat: "👥 Staff", p: "high" },
+  { q: "What's your onboarding and training process for new hires?", cat: "👥 Staff", p: "medium" },
+  { q: "Staff transport — do you provide it or is that their own responsibility?", cat: "👥 Staff", p: "low" },
+
+  // ─── COMPLIANCE GAPS ───
+  { q: "Business trading name vs registered company name — are they different?", cat: "📋 Compliance", p: "medium" },
+  { q: "Electrical Certificate of Compliance — do you have one and when does it expire?", cat: "📋 Compliance", p: "high" },
+  { q: "Gas Certificate of Compliance for the kitchen gas installation?", cat: "📋 Compliance", p: "high" },
+  { q: "Do you have a grease trap compliance certificate?", cat: "📋 Compliance", p: "medium" },
+  { q: "Do all food-handling staff have valid food handler certificates?", cat: "📋 Compliance", p: "high" },
+  { q: "What municipal permits do you currently hold for the restaurant?", cat: "📋 Compliance", p: "high" },
+  { q: "When is your annual health inspection typically scheduled?", cat: "📋 Compliance", p: "medium" },
+  { q: "Do you have a BEE certificate? What level?", cat: "📋 Compliance", p: "medium" },
+
+  // ─── FINANCE GAPS ───
+  { q: "What accounting software do you use, if any?", cat: "💰 Finance", p: "medium" },
+  { q: "Paystack merchant account ID and which bank does it settle to?", cat: "💰 Finance", p: "high" },
+  { q: "How much cash float do you keep in the till?", cat: "💰 Finance", p: "medium" },
+  { q: "UIF monthly declaration deadline — what date each month?", cat: "📅 Dates", p: "high" },
+  { q: "PAYE submission deadline each month?", cat: "📅 Dates", p: "high" },
+  { q: "Annual CIPC return due date for the business?", cat: "📅 Dates", p: "high" },
+  { q: "When does your medical aid annual premium increase take effect?", cat: "📅 Dates", p: "medium" },
+  { q: "When do you typically do annual staff salary reviews?", cat: "📅 Dates", p: "medium" },
+
+  // ─── HEALTH GAPS ───
+  { q: "What is your preferred pharmacy — name and location?", cat: "🏥 Health", p: "medium" },
+  { q: "Vaccination history — Covid, flu, or travel vaccines worth noting?", cat: "🏥 Health", p: "low" },
+
+  // ─── VEHICLE GAPS ───
+  { q: "Engine number — where is it recorded?", cat: "🚗 Vehicle", p: "low" },
+  { q: "Last service date and what mileage was it done at?", cat: "🚗 Vehicle", p: "medium" },
+  { q: "Is your spare wheel full size or space saver?", cat: "🚗 Vehicle", p: "low" },
+  { q: "Current tyre brand on all four wheels?", cat: "🚗 Vehicle", p: "low" },
+
+  // ─── DOCUMENTS GAPS ───
+  { q: "Do you have a second passport or any foreign residency document?", cat: "📄 Documents", p: "low" },
+  { q: "Marriage certificate — do you have one and where is it kept?", cat: "📄 Documents", p: "medium" },
+  { q: "Matric certificate — where is it physically stored?", cat: "📄 Documents", p: "medium" },
+  { q: "Any other qualifications or professional certificates worth capturing?", cat: "📄 Documents", p: "low" },
+
+  // ─── HOME GAPS ───
+  { q: "Municipality account number for rates and services?", cat: "🏠 Home", p: "medium" },
+  { q: "What type of geyser do you have — solar, electric, or gas? How old?", cat: "🏠 Home", p: "low" },
+  { q: "Last electrical compliance inspection date at home?", cat: "🏠 Home", p: "medium" },
+  { q: "Gate motor brand and the installer's contact number?", cat: "🏠 Home", p: "low" },
+  { q: "Do you have a generator or inverter at home? Specs and battery runtime?", cat: "🏠 Home", p: "medium" },
+
+  // ─── SECURITY & ACCESS GAPS ───
+  { q: "Which email is linked to your Google Business profile for the restaurant?", cat: "🔑 Security", p: "medium" },
+  { q: "Which phone number is registered on your Uber Eats / Mr D Food account?", cat: "🔑 Security", p: "medium" },
+  { q: "SARS eFiling login email address?", cat: "🔑 Security", p: "high" },
+  { q: "Important account recovery backup emails or phone numbers?", cat: "🔑 Security", p: "high" },
+
+  // ─── TECH GAPS ───
+  { q: "Internet provider and line speed at the restaurant?", cat: "💻 Tech", p: "medium" },
+  { q: "Backup internet or load shedding failover plan at the restaurant?", cat: "💻 Tech", p: "medium" },
+  { q: "UPS or inverter at the restaurant — brand, capacity, and runtime?", cat: "💻 Tech", p: "medium" },
+  { q: "Tablet used at the restaurant, if any — model and what it's used for?", cat: "💻 Tech", p: "low" },
+
+  // ─── FAMILY & RELATIONSHIPS GAPS ───
+  { q: "Benita's birthday and contact number?", cat: "👨‍👩‍👧 Family", p: "high" },
+  { q: "Closest friends — names and any birthdays worth remembering?", cat: "👨‍👩‍👧 Family", p: "medium" },
+  { q: "Family members' clothing sizes for gift buying?", cat: "👨‍👩‍👧 Family", p: "low" },
+
+  // ─── LIFESTYLE & PREFERENCES ───
+  { q: "What's your usual coffee order?", cat: "🍽️ Food", p: "low" },
+  { q: "Go-to takeaway order when you don't feel like cooking?", cat: "🍽️ Food", p: "low" },
+  { q: "Favourite beer or drink of choice?", cat: "🍽️ Food", p: "low" },
+  { q: "Favourite braai method or go-to braai recipe?", cat: "🍽️ Food", p: "low" },
+  { q: "Any foods you hate or avoid completely?", cat: "🍽️ Food", p: "low" },
+  { q: "Preferred clothing stores?", cat: "🛒 Personal", p: "low" },
+
+  // ─── BUSINESS INTELLIGENCE GAPS ───
+  { q: "What is the exact opening date of Smash Burger Bar?", cat: "📊 Metrics", p: "high" },
+  { q: "When did you start building SmashPOS?", cat: "💻 Tech", p: "medium" },
+  { q: "What were your first month's revenue numbers after opening?", cat: "📊 Metrics", p: "medium" },
+  { q: "What has been your worst month and what caused it?", cat: "📊 Metrics", p: "medium" },
+  { q: "Which supplier has let you down and you'd rather not use again?", cat: "📊 Metrics", p: "medium" },
+  { q: "What's a business decision that paid off far better than you expected?", cat: "💡 Reflection", p: "low" },
+  { q: "Seasonal patterns — which months are strong and which are weak?", cat: "📊 Metrics", p: "high" },
+  { q: "What is the estimated revenue impact of load shedding per month?", cat: "📊 Metrics", p: "high" },
+  { q: "What is the most common customer complaint?", cat: "📊 Metrics", p: "high" },
+  { q: "What is the most common customer compliment or praise?", cat: "📊 Metrics", p: "medium" },
+
+  // ─── GOALS GAPS ───
+  { q: "What pricing model are you thinking about for SmashPOS — per seat, per transaction, flat fee?", cat: "🎯 Goals", p: "medium" },
+  { q: "How many paying restaurant customers would SmashPOS need for you to go full-time on it?", cat: "🎯 Goals", p: "medium" },
+  { q: "Where do you want to be living in 5 years?", cat: "🎯 Goals", p: "low" },
+  { q: "Do you have a retirement plan? At what age do you want to retire?", cat: "🎯 Goals", p: "medium" },
+  { q: "Dream car?", cat: "🎯 Goals", p: "low" },
+  { q: "Dream holiday destination?", cat: "🎯 Goals", p: "low" },
+  { q: "If money wasn't an issue, what business would you build?", cat: "💡 Ideas", p: "low" },
+
+  // ─── NETWORK GAPS ───
+  { q: "Any Coca-Cola, SAB, or drinks brand reps you've met worth keeping in your network?", cat: "📇 Contacts", p: "low" },
+  { q: "Anyone who's offered to help with something — capture it before you forget?", cat: "📇 Contacts", p: "medium" },
+
+  // ─── MARKETING & BRAND GAPS ───
+  { q: "Brand colour palette with hex codes?", cat: "📣 Marketing", p: "high" },
+  { q: "What font do you use in your branding and marketing?", cat: "📣 Marketing", p: "medium" },
+  { q: "Do you have a master logo file and where is it stored?", cat: "📣 Marketing", p: "high" },
+  { q: "Who designed your logo and branding?", cat: "📣 Marketing", p: "medium" },
+  { q: "What signage does the restaurant have and who made it?", cat: "📣 Marketing", p: "medium" },
+  { q: "Print materials — menus, flyers, business cards — who prints them?", cat: "📣 Marketing", p: "low" },
+
+  // ─── SUPPLIER ACCOUNT GAPS ───
+  { q: "Ehrlichpark Butchery — do you have a trade account or pay cash?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Woolworths — do you use a trade account or personal card for stock?", cat: "🍔 Restaurant", p: "medium" },
+  { q: "Afrox gas account number, if applicable?", cat: "🍔 Restaurant", p: "low" },
+
+  // ─── INSURANCE GAPS ───
+  { q: "Do you have business interruption insurance? Provider and what it covers?", cat: "📋 Insurance", p: "high" },
+
+].sort((a, b) => {
+  const w = { high: 3, medium: 2, low: 1 };
+  return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;
+});
+
+// ─── FAMILY BRAIN QUESTIONS ──────────────────────────────────────────────────
+export const FAMILY_SUGGESTIONS = [
+  // ─── FAMILY MEMBERS ───
+  { q: "Full names and dates of birth of all family members?", cat: "👨‍👩‍👧 Family", p: "high" },
+  { q: "ID numbers for each family member?", cat: "👨‍👩‍👧 Family", p: "high" },
+  { q: "Passport numbers and expiry dates for each family member?", cat: "👨‍👩‍👧 Family", p: "high" },
+  { q: "Each family member's cell number?", cat: "👨‍👩‍👧 Family", p: "high" },
+  { q: "Each family member's email address?", cat: "👨‍👩‍👧 Family", p: "medium" },
+
+  // ─── HOUSEHOLD ───
+  { q: "Home address and postal code?", cat: "🏠 Household", p: "high" },
+  { q: "Landlord or property manager name and number (if renting)?", cat: "🏠 Household", p: "high" },
+  { q: "Home Wi-Fi network name and password?", cat: "🏠 Household", p: "medium" },
+  { q: "Monthly rent or bond payment amount and due date?", cat: "🏠 Household", p: "high" },
+  { q: "Rates and utilities accounts — account numbers?", cat: "🏠 Household", p: "medium" },
+  { q: "Home alarm system code and armed response company number?", cat: "🏠 Household", p: "high" },
+  { q: "Armed response account number and technician number?", cat: "🏠 Household", p: "high" },
+  { q: "Gate/garage door remote codes?", cat: "🏠 Household", p: "medium" },
+  { q: "Plumber contact number?", cat: "🏠 Household", p: "medium" },
+  { q: "Electrician contact number?", cat: "🏠 Household", p: "medium" },
+  { q: "Garden service / domestic worker name, days, and rate?", cat: "🏠 Household", p: "low" },
+  { q: "Refuse collection day and municipal contact?", cat: "🏠 Household", p: "low" },
+
+  // ─── CHILDREN ───
+  { q: "Children's school names and physical addresses?", cat: "🎒 Children", p: "high" },
+  { q: "School contact numbers and principal's name?", cat: "🎒 Children", p: "high" },
+  { q: "Class teacher names for each child?", cat: "🎒 Children", p: "medium" },
+  { q: "School WhatsApp group details for each child?", cat: "🎒 Children", p: "medium" },
+  { q: "School term dates for the year?", cat: "🎒 Children", p: "medium" },
+  { q: "Each child's GP and medical aid membership number?", cat: "🎒 Children", p: "high" },
+  { q: "Children's allergies or medical conditions?", cat: "🎒 Children", p: "high" },
+  { q: "After-school activities — what, where, time, cost?", cat: "🎒 Children", p: "medium" },
+  { q: "Children's device screen time rules or parental controls in place?", cat: "🎒 Children", p: "low" },
+
+  // ─── EMERGENCY ───
+  { q: "Emergency meeting point if you can't reach home?", cat: "🚨 Emergency", p: "high" },
+  { q: "Nearest hospital and trauma unit to your home?", cat: "🚨 Emergency", p: "high" },
+  { q: "Family doctor and after-hours number?", cat: "🚨 Emergency", p: "high" },
+  { q: "Poison control number (SA: 0861 555 777)?", cat: "🚨 Emergency", p: "high" },
+  { q: "Who to contact if parents are unreachable — trusted adult name and number?", cat: "🚨 Emergency", p: "high" },
+  { q: "Medical aid emergency number for each family member's plan?", cat: "🚨 Emergency", p: "high" },
+
+  // ─── SHARED FINANCES ───
+  { q: "Shared bank account details and who has access?", cat: "💳 Finances", p: "high" },
+  { q: "Monthly household budget — total income vs total expenses?", cat: "💳 Finances", p: "high" },
+  { q: "Major recurring debit orders — what, how much, which account?", cat: "💳 Finances", p: "high" },
+  { q: "Family savings goal — what for and how much saved so far?", cat: "💳 Finances", p: "medium" },
+  { q: "Life insurance policies — provider, policy number, beneficiaries?", cat: "💳 Finances", p: "high" },
+  { q: "Funeral cover provider and policy number?", cat: "💳 Finances", p: "high" },
+  { q: "Vehicle insurance — provider, policy number, excess?", cat: "💳 Finances", p: "high" },
+  { q: "Household contents insurance — provider and policy number?", cat: "💳 Finances", p: "high" },
+  { q: "Who has power of attorney if needed?", cat: "💳 Finances", p: "medium" },
+  { q: "Wills — who has them, where are the originals kept?", cat: "💳 Finances", p: "high" },
+
+  // ─── VEHICLES ───
+  { q: "Each vehicle's make, model, year, and registration number?", cat: "🚗 Vehicles", p: "high" },
+  { q: "Vehicle licence renewal dates and cost?", cat: "🚗 Vehicles", p: "high" },
+  { q: "Mechanic name and contact number?", cat: "🚗 Vehicles", p: "medium" },
+  { q: "Next service date and mileage for each vehicle?", cat: "🚗 Vehicles", p: "medium" },
+  { q: "Roadside assistance provider and number?", cat: "🚗 Vehicles", p: "high" },
+
+  // ─── PETS ───
+  { q: "Pets' names, breeds, and vet contact details?", cat: "🐾 Pets", p: "medium" },
+  { q: "Pet microchip numbers?", cat: "🐾 Pets", p: "medium" },
+  { q: "Pet vaccinations — what, when last done, when due?", cat: "🐾 Pets", p: "medium" },
+  { q: "Pet insurance provider and policy number?", cat: "🐾 Pets", p: "low" },
+
+  // ─── DIGITAL ───
+  { q: "Streaming subscriptions — which ones and monthly cost?", cat: "💻 Digital", p: "low" },
+  { q: "Family cloud storage plan — provider and how much space left?", cat: "💻 Digital", p: "low" },
+  { q: "Most important shared passwords (note: store securely)?", cat: "💻 Digital", p: "medium" },
+
+].sort((a, b) => {
+  const w = { high: 3, medium: 2, low: 1 };
+  return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;
+});
+
+// ─── BUSINESS BRAIN QUESTIONS ─────────────────────────────────────────────────
+export const BUSINESS_SUGGESTIONS = [
+  // ─── BUSINESS IDENTITY ───
+  { q: "Registered business name and trading name (if different)?", cat: "🏢 Business", p: "high" },
+  { q: "Business registration number (CIPC)?", cat: "🏢 Business", p: "high" },
+  { q: "VAT registration number (if applicable)?", cat: "🏢 Business", p: "high" },
+  { q: "Business address and postal address?", cat: "🏢 Business", p: "high" },
+  { q: "Business email address and main contact number?", cat: "🏢 Business", p: "high" },
+  { q: "Business bank account details (bank, branch code, account number)?", cat: "🏢 Business", p: "high" },
+  { q: "Director/owner names and ID numbers (for CIPC records)?", cat: "🏢 Business", p: "high" },
+  { q: "Accountant name, firm, and contact details?", cat: "🏢 Business", p: "high" },
+  { q: "Business attorney or conveyancer contact?", cat: "🏢 Business", p: "medium" },
+
+  // ─── LICENCES & COMPLIANCE ───
+  { q: "Liquor licence number and renewal date?", cat: "📋 Licences", p: "high" },
+  { q: "Business licence number and expiry date?", cat: "📋 Licences", p: "high" },
+  { q: "Certificate of Acceptability (food health cert) number and renewal date?", cat: "📋 Licences", p: "high" },
+  { q: "Fire compliance certificate number and expiry?", cat: "📋 Licences", p: "high" },
+  { q: "Health and safety compliance status?", cat: "📋 Licences", p: "medium" },
+  { q: "POPIA compliance officer name and contact?", cat: "📋 Licences", p: "medium" },
+  { q: "UIF registration number?", cat: "📋 Licences", p: "high" },
+  { q: "SARS PAYE reference number?", cat: "📋 Licences", p: "high" },
+  { q: "Workers' compensation / COIDA registration number?", cat: "📋 Licences", p: "high" },
+
+  // ─── SUPPLIERS ───
+  { q: "Primary meat supplier — name, rep name, cell, account number?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Produce / vegetable supplier — name, rep, delivery days?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Dry goods supplier (BidFoods / Makro / Econofoods) — account number?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Bread and rolls supplier — name, contact, delivery schedule?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Gas supplier — name, account number, emergency number?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Packaging and consumables supplier?", cat: "🥩 Suppliers", p: "medium" },
+  { q: "Cleaning products supplier — name and contact?", cat: "🥩 Suppliers", p: "medium" },
+  { q: "Uniforms / workwear supplier?", cat: "🥩 Suppliers", p: "low" },
+  { q: "POS system provider and support number?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Payment terminal provider (Yoco / iKhokha / Payflex) and support number?", cat: "🥩 Suppliers", p: "high" },
+  { q: "Internet/Wi-Fi provider and support number for the business?", cat: "🥩 Suppliers", p: "high" },
+
+  // ─── STAFF ───
+  { q: "Full-time staff list — names, roles, ID numbers, cell numbers?", cat: "👥 Staff", p: "high" },
+  { q: "Part-time staff list — names, availability, cell numbers?", cat: "👥 Staff", p: "high" },
+  { q: "Payroll frequency and method — weekly/monthly, EFT/cash?", cat: "👥 Staff", p: "high" },
+  { q: "Payday — which day of the week or month?", cat: "👥 Staff", p: "high" },
+  { q: "Shift schedule — opening, mid, closing?", cat: "👥 Staff", p: "medium" },
+  { q: "Who is responsible for banking daily takings?", cat: "👥 Staff", p: "high" },
+  { q: "Who has keys to the premises?", cat: "👥 Staff", p: "high" },
+  { q: "Emergency contact for each staff member?", cat: "👥 Staff", p: "medium" },
+  { q: "Any staff contracts in place — where are they stored?", cat: "👥 Staff", p: "high" },
+
+  // ─── EQUIPMENT ───
+  { q: "Commercial fridge/freezer — make, model, supplier, warranty expiry?", cat: "⚙️ Equipment", p: "high" },
+  { q: "Grill / flat top — make, model, service contact?", cat: "⚙️ Equipment", p: "high" },
+  { q: "Deep fryer — make, model, last service date?", cat: "⚙️ Equipment", p: "medium" },
+  { q: "Fire extinguishers — how many, last inspection date, next due?", cat: "⚙️ Equipment", p: "high" },
+  { q: "Hood / extraction fan — last cleaning date, service contact?", cat: "⚙️ Equipment", p: "high" },
+  { q: "POS hardware — serial numbers and warranty info?", cat: "⚙️ Equipment", p: "medium" },
+  { q: "CCTV system — provider, recording retention, remote access setup?", cat: "⚙️ Equipment", p: "medium" },
+
+  // ─── RECIPES & SOPs ───
+  { q: "Core recipe — smash burger patty blend, weight, cook time, temp?", cat: "📖 Recipes", p: "high" },
+  { q: "Signature sauce recipe — ingredients and ratios?", cat: "📖 Recipes", p: "high" },
+  { q: "Opening checklist — what must be done before service starts?", cat: "📖 Recipes", p: "high" },
+  { q: "Closing checklist — what must be done before locking up?", cat: "📖 Recipes", p: "high" },
+  { q: "Daily cash-up procedure — steps and who is responsible?", cat: "📖 Recipes", p: "high" },
+  { q: "Food safety FIFO protocol — how is it enforced?", cat: "📖 Recipes", p: "medium" },
+  { q: "Temperature log frequency — how often and who records it?", cat: "📖 Recipes", p: "medium" },
+  { q: "Waste log process — how is food waste tracked?", cat: "📖 Recipes", p: "low" },
+
+  // ─── COSTS & MARGINS ───
+  { q: "Target food cost percentage?", cat: "💰 Costs", p: "high" },
+  { q: "Average spend per customer (ATP)?", cat: "💰 Costs", p: "high" },
+  { q: "Monthly fixed costs — rent, salaries, utilities total?", cat: "💰 Costs", p: "high" },
+  { q: "Break-even daily sales target?", cat: "💰 Costs", p: "high" },
+  { q: "Best-selling items and their GP margins?", cat: "💰 Costs", p: "medium" },
+
+  // ─── MARKETING ───
+  { q: "Google Business profile — email it's registered under, last updated?", cat: "📣 Marketing", p: "high" },
+  { q: "Facebook page — admin email, URL?", cat: "📣 Marketing", p: "high" },
+  { q: "Instagram account handle and admin email?", cat: "📣 Marketing", p: "high" },
+  { q: "Takealot / Mr D / Uber Eats partner account details?", cat: "📣 Marketing", p: "high" },
+  { q: "Loyalty program — how does it work and what platform?", cat: "📣 Marketing", p: "medium" },
+  { q: "Who creates content / social media posts?", cat: "📣 Marketing", p: "low" },
+
+  // ─── INSURANCE ───
+  { q: "Business insurance broker name and contact?", cat: "📋 Insurance", p: "high" },
+  { q: "Contents insurance — provider, policy number, what's covered?", cat: "📋 Insurance", p: "high" },
+  { q: "Business interruption insurance — provider and what triggers it?", cat: "📋 Insurance", p: "high" },
+  { q: "Public liability insurance — policy number and cover amount?", cat: "📋 Insurance", p: "high" },
+  { q: "Employer's liability insurance in place?", cat: "📋 Insurance", p: "high" },
+
 ].sort((a, b) => {
   const w = { high: 3, medium: 2, low: 1 };
   return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;

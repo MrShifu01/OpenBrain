@@ -2,6 +2,7 @@ import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 
 const SB_URL = process.env.SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
@@ -11,21 +12,38 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const brain_id = req.query.brain_id;
-  let url = `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500`;
+
   if (brain_id) {
-    url += `&brain_id=eq.${encodeURIComponent(brain_id)}`;
-  } else {
-    // Fallback: user's own entries (pre-migration compatibility)
-    url += `&user_id=eq.${encodeURIComponent(user.id)}`;
+    // Use RPC to get entries visible in this brain (primary + cross-brain shares)
+    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/get_entries_for_brain`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SB_KEY,
+        "Authorization": `Bearer ${SB_KEY}`,
+      },
+      body: JSON.stringify({ p_brain_id: brain_id }),
+    });
+
+    if (rpcRes.ok) {
+      const data = await rpcRes.json();
+      return res.status(200).json(data);
+    }
+
+    // Fallback: direct query if RPC not yet available (pre-migration)
+    const fallbackRes = await fetch(
+      `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500&brain_id=eq.${encodeURIComponent(brain_id)}`,
+      { headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` } }
+    );
+    const fallbackData = await fallbackRes.json();
+    return res.status(fallbackRes.status).json(fallbackData);
   }
 
+  // Fallback: user's own entries (pre-migration compatibility)
+  const url = `${SB_URL}/rest/v1/entries?select=*&order=created_at.desc&limit=500&user_id=eq.${encodeURIComponent(user.id)}`;
   const response = await fetch(url, {
-    headers: {
-      "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
-      "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
-    },
+    headers: { "apikey": SB_KEY, "Authorization": `Bearer ${SB_KEY}` },
   });
-
   const data = await response.json();
   res.status(response.status).json(data);
 }

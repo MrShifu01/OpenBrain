@@ -1,5 +1,26 @@
 # OpenBrain — Decisions Log
 
+## Offline sync: IndexedDB queue + window.online drain (not Background Sync API)
+Chose IndexedDB + `window.online` event over Workbox Background Sync because Background Sync API is unsupported on iOS Safari. Affects `src/lib/offlineQueue.js` and `src/hooks/useOfflineSync.js`.
+
+## Offline captures queue raw text for AI parse on reconnect
+When offline, `capture()` enqueues `{ type: "raw-capture", anthropicRequest, tempId }` instead of saving raw text to DB immediately. On reconnect, drain calls `/api/anthropic` first, then `/api/capture`. If either fails, op stays in queue and retries. Affects `src/OpenBrain.jsx` (capture fn) and `src/hooks/useOfflineSync.js` (drain fn).
+
+## Last-write-wins conflict resolution for offline queue
+Ops drain oldest-first. No merge UI. Suitable for single-user personal app. Affects `src/hooks/useOfflineSync.js`.
+
+## Temp ID pattern for offline creates
+Offline creates use `Date.now().toString()` as local ID. When op drains and server returns real ID, `onEntryIdUpdate(tempId, realId)` callback in `OpenBrain` updates entries state. Affects `src/OpenBrain.jsx` and `src/hooks/useOfflineSync.js`.
+
+## Theme system: React Context + inline style token replacement
+Used a ThemeContext (DARK/LIGHT token objects) rather than CSS custom properties, because all styling is inline `style={{}}` objects. Each component calls `useTheme()` and uses `t.surface`, `t.text` etc. Accent colours (#4ECDC4, #A29BFE etc.) unchanged across themes. Affects `src/ThemeContext.jsx` and all component files.
+
+## Suppliers tab removed from nav
+`{ id: "suppliers" }` removed from `navViews` array in `src/OpenBrain.jsx`. SupplierPanel component code left in place (not deleted) — can be cleaned up later.
+
+## Calendar recurring events: metadata-based day_of_week
+CalendarView now checks `metadata.day_of_week | weekday | recurring_day` and plots entries on every matching weekday in the displayed month. Relies on AI extracting this field during quick-capture. `src/views/CalendarView.jsx`.
+
 ## Security: service_role key + explicit user_id filter (not RLS alone)
 All API endpoints use the Supabase service_role key (bypasses RLS) but add explicit `user_id=eq.${user.id}` URL filters on every query. This is secure: the user_id comes from the verified JWT, not the client. Affected: `api/entries.js`, `api/delete-entry.js`, `api/update-entry.js`, `api/capture.js`.
 
@@ -68,3 +89,18 @@ Delta Distribution and Delta Gas are confirmed distinct companies. The proactive
 
 ## onUpdate only mutates state on confirmed server success
 `onUpdate` in `OpenBrain.jsx` checks `res.ok` and empty-array before updating local state. Previous pattern caused phantom saves: optimistic update always ran even when PATCH failed silently. Affects: `src/OpenBrain.jsx` (~line 958).
+
+## Brain types: family + business replace 'shared'
+`brains.type` CHECK constraint expanded from `('personal','shared')` to `('personal','family','business')`. Existing 'shared' brains migrate to 'family'. Affects `supabase/migrations/002_brain_types.sql`, `api/brains.js`, `src/components/BrainSwitcher.jsx`, `src/hooks/useBrain.js`.
+
+## Multi-brain entry assignment via entry_brains junction table
+Entries stay in one primary brain (`entries.brain_id`) but can be shared into additional brains via `entry_brains(entry_id, brain_id)`. `get_entries_for_brain` RPC unions both. Affects `api/capture.js` (p_extra_brain_ids), `api/entries.js` (RPC call), `migration 002`.
+
+## Refine access: owner-only for family/business brains
+Non-owner members of family/business brains see a gate message in RefineView — cannot run AI analysis. Personal brain owners always have access. `activeBrain.myRole === "owner"` check in `src/views/RefineView.jsx`.
+
+## Suggestions: per-brain question sets with per-brain localStorage keys
+SUGGESTIONS (personal), FAMILY_SUGGESTIONS, BUSINESS_SUGGESTIONS arrays in `src/data/suggestions.js`. SuggestionsView uses brain type to pick question set. Answered state keyed by `openbrain_answered_qs_{type}` to avoid cross-brain pollution.
+
+## Onboarding: localStorage flag gates first-time wizard
+`localStorage.getItem("openbrain_onboarded")` — if absent, OnboardingModal shows on login. Set to "1" on completion. Auto-navigates to Fill Brain tab. `src/components/OnboardingModal.jsx`, wired in `src/OpenBrain.jsx`.

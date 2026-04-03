@@ -1,11 +1,38 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
-import { SUGGESTIONS } from "../data/suggestions";
+import { SUGGESTIONS, FAMILY_SUGGESTIONS, BUSINESS_SUGGESTIONS } from "../data/suggestions";
 import { TC, PC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 
-export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) {
+/* ─── Brain-type → question set ─── */
+function getSuggestionsForType(type) {
+  if (type === "family") return FAMILY_SUGGESTIONS;
+  if (type === "business") return BUSINESS_SUGGESTIONS;
+  return SUGGESTIONS;
+}
+
+/* ─── Brain type label/icon ─── */
+const BRAIN_META = {
+  personal: { emoji: "🧠", label: "Personal" },
+  family:   { emoji: "🏠", label: "Family" },
+  business: { emoji: "🏪", label: "Business" },
+};
+
+export default function SuggestionsView({ apiKey, sbKey, entries, setEntries, activeBrain, brains }) {
   const { t } = useTheme();
+
+  // Which brain to capture into (default = activeBrain)
+  const [targetBrainId, setTargetBrainId] = useState(activeBrain?.id || null);
+
+  // Derived target brain object
+  const targetBrain = useMemo(() => {
+    if (!brains?.length) return activeBrain;
+    return brains.find(b => b.id === targetBrainId) || activeBrain;
+  }, [targetBrainId, brains, activeBrain]);
+
+  const brainType = targetBrain?.type || "personal";
+  const questionSet = useMemo(() => getSuggestionsForType(brainType), [brainType]);
+
   const [idx, setIdx] = useState(0);
   const [answer, setAnswer] = useState("");
   const [answered, setAnswered] = useState(0);
@@ -18,18 +45,39 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
   const [imgLoading, setImgLoading] = useState(false);
   const [aiQuestion, setAiQuestion] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
+
+  // Per-brain answered tracking
+  const answeredKey = `openbrain_answered_qs_${brainType}`;
   const [answeredQs, setAnsweredQs] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem("openbrain_answered_qs") || "[]")); }
+    try { return new Set(JSON.parse(localStorage.getItem(answeredKey) || "[]")); }
     catch { return new Set(); }
   });
+
+  // Reset answered state when brain type changes
+  useEffect(() => {
+    try { setAnsweredQs(new Set(JSON.parse(localStorage.getItem(answeredKey) || "[]"))); }
+    catch { setAnsweredQs(new Set()); }
+    setIdx(0);
+    setFilterCat("all");
+    setAiQuestion(null);
+    setAnswered(0);
+    setSkipped(0);
+  }, [brainType]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const imgRef = useRef(null);
 
   const position = answered + skipped;
-  const cats = useMemo(() => { const c = {}; SUGGESTIONS.forEach(s => { c[s.cat] = (c[s.cat] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]); }, []);
+  const cats = useMemo(() => {
+    const c = {};
+    questionSet.forEach(s => { c[s.cat] = (c[s.cat] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [questionSet]);
+
   const view = useMemo(() => {
-    const base = filterCat === "all" ? SUGGESTIONS : SUGGESTIONS.filter(s => s.cat === filterCat);
+    const base = filterCat === "all" ? questionSet : questionSet.filter(s => s.cat === filterCat);
     return base.filter(s => !answeredQs.has(s.q));
-  }, [filterCat, answeredQs]);
+  }, [filterCat, answeredQs, questionSet]);
+
   const total = view.length;
   const poolEmpty = total === 0;
   const isAiSlot = !!apiKey && (poolEmpty || position % 5 === 4);
@@ -39,11 +87,16 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
     if (!isAiSlot || aiQuestion || aiLoading || !apiKey) return;
     setAiLoading(true);
     const ctx = entries.slice(0, 30).map(e => `- ${e.title}: ${(e.content || "").slice(0, 100)}`).join("\n");
+    const brainContext = brainType === "family"
+      ? "family shared knowledge base (household, family members, emergencies, finances)"
+      : brainType === "business"
+      ? "business knowledge base (suppliers, staff, SOPs, costs, licences, equipment)"
+      : "personal knowledge base";
     authFetch("/api/anthropic", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: MODEL, max_tokens: 200,
-        system: `You are helping someone build their personal knowledge base called OpenBrain. Your job is to identify important information they should capture but probably haven't yet.\n\nStudy what they have stored, then reason about the GAPS — important facts, records, contacts, plans, or details that a person in their situation almost certainly needs but hasn't captured. Think broadly: personal identity, health, finance, legal, business operations, insurance, contracts, relationships, assets, digital accounts, emergency info, goals, and daily routines.\n\nGenerate ONE specific, actionable question that would capture a high-value missing piece. Make it personal and relevant to their specific situation — not generic.\n\nReturn ONLY valid JSON: {"q":"...","cat":"...","p":"high"|"medium"|"low"}`,
+        system: `You are helping someone build their ${brainContext} called OpenBrain. Identify important information they should capture but haven't yet. Study the gaps — important facts, records, contacts, plans that are missing. Generate ONE specific, actionable question relevant to this brain type. Return ONLY valid JSON: {"q":"...","cat":"...","p":"high"|"medium"|"low"}`,
         messages: [{ role: "user", content: `What they have captured so far:\n${ctx}\n\nWhat important gap should they fill next?` }]
       })
     })
@@ -124,25 +177,32 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
           const rpcRes = await authFetch("/api/capture", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || a, p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] })
+            body: JSON.stringify({
+              p_title: parsed.title,
+              p_content: parsed.content || a,
+              p_type: parsed.type || "note",
+              p_metadata: parsed.metadata || {},
+              p_tags: parsed.tags || [],
+              p_brain_id: targetBrain?.id,
+            })
           });
           const savedToDB = rpcRes.ok;
           const newEntry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
           setEntries(prev => [newEntry, ...prev]);
-          setSaved(prev => [{ q: current.q, a, cat: current.cat, db: savedToDB }, ...prev]);
+          setSaved(prev => [{ q: current.q, a, cat: current.cat, db: savedToDB, brain: targetBrain }, ...prev]);
         }
       } catch {
-        setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false }, ...prev]);
+        setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false, brain: targetBrain }, ...prev]);
       }
     } else {
-      setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false }, ...prev]);
+      setSaved(prev => [{ q: current.q, a, cat: current.cat, db: false, brain: targetBrain }, ...prev]);
     }
 
     if (!isAiSlot && current?.q) {
       setAnsweredQs(prev => {
         const updated = new Set(prev);
         updated.add(current.q);
-        try { localStorage.setItem("openbrain_answered_qs", JSON.stringify([...updated])); } catch {}
+        try { localStorage.setItem(answeredKey, JSON.stringify([...updated])); } catch {}
         return updated;
       });
     }
@@ -158,11 +218,52 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
   };
 
   const pc = current ? PC[current.p] : PC.medium;
+  const bm = BRAIN_META[brainType] || BRAIN_META.personal;
 
   return (
     <div>
+      {/* Brain selector chips */}
+      {brains?.length > 1 && (
+        <div style={{ marginBottom: 16 }}>
+          <p style={{ fontSize: 10, color: t.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1.2, margin: "0 0 8px" }}>
+            Fill which brain?
+          </p>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {brains.map(b => {
+              const bmt = BRAIN_META[b.type] || BRAIN_META.personal;
+              const active = b.id === targetBrainId;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => setTargetBrainId(b.id)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 20,
+                    border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`,
+                    background: active ? "#4ECDC420" : t.surface,
+                    color: active ? "#4ECDC4" : t.textMuted,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                  }}
+                >
+                  <span>{bmt.emoji}</span>
+                  <span>{b.name}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: 10, color: t.textDim, margin: "6px 0 0" }}>
+            Showing questions for <strong style={{ color: t.textMuted }}>{bm.emoji} {targetBrain?.name || bm.label}</strong>
+          </p>
+        </div>
+      )}
+
       <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-        {[{ l: "Answered", v: answered, c: "#4ECDC4" }, { l: "Skipped", v: skipped, c: "#FF6B35" }, { l: "Remaining", v: Math.max(0, total - (idx % total)), c: "#A29BFE" }].map(s =>
+        {[{ l: "Answered", v: answered, c: "#4ECDC4" }, { l: "Skipped", v: skipped, c: "#FF6B35" }, { l: "Remaining", v: Math.max(0, total - (idx % Math.max(total, 1))), c: "#A29BFE" }].map(s =>
           <div key={s.l} style={{ flex: 1, background: t.surface, borderRadius: 10, padding: 12, textAlign: "center", border: `1px solid ${t.border}` }}>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.c }}>{s.v}</div>
             <div style={{ fontSize: 9, color: t.textDim, textTransform: "uppercase", letterSpacing: 1.2, marginTop: 2 }}>{s.l}</div>
@@ -171,7 +272,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
       </div>
 
       <div style={{ height: 3, background: t.surface, borderRadius: 4, marginBottom: 20, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${Math.min(((answered + skipped) / total) * 100, 100)}%`, background: "linear-gradient(90deg, #4ECDC4, #45B7D1)", transition: "width 0.4s", borderRadius: 4 }} />
+        <div style={{ height: "100%", width: `${Math.min(total > 0 ? ((answered + skipped) / total) * 100 : 0, 100)}%`, background: "linear-gradient(90deg, #4ECDC4, #45B7D1)", transition: "width 0.4s", borderRadius: 4 }} />
       </div>
 
       <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 20, paddingBottom: 4, scrollbarWidth: "none" }}>
@@ -190,7 +291,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
           <p style={{ color: "#A29BFE", fontSize: 14, margin: 0 }}>AI is generating a personalised question…</p>
         </div>
       )}
-      {current && !aiLoading && <div style={{ background: isAiSlot ? `linear-gradient(135deg, ${t.surface}, ${t.surface2})` : `linear-gradient(135deg, ${t.surface}, ${t.surface2})`, border: isAiSlot ? "1px solid #A29BFE40" : `1px solid ${t.border}`, borderRadius: 16, padding: "28px 24px", marginBottom: 16, position: "relative", overflow: "hidden", transform: anim === "skip" ? "translateX(-30px)" : anim === "save" ? "scale(0.95)" : "none", opacity: anim ? 0.4 : 1, transition: "all 0.2s" }}>
+      {current && !aiLoading && <div style={{ background: `linear-gradient(135deg, ${t.surface}, ${t.surface2})`, border: isAiSlot ? "1px solid #A29BFE40" : `1px solid ${t.border}`, borderRadius: 16, padding: "28px 24px", marginBottom: 16, position: "relative", overflow: "hidden", transform: anim === "skip" ? "translateX(-30px)" : anim === "save" ? "scale(0.95)" : "none", opacity: anim ? 0.4 : 1, transition: "all 0.2s" }}>
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${pc.c}, transparent)` }} />
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
           <span style={{ fontSize: 10, background: pc.bg, color: pc.c, padding: "3px 10px", borderRadius: 20, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{pc.l}</span>
@@ -216,7 +317,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
             <button onClick={() => { setSkipped(s => s + 1); next("skip"); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: "#FF6B35", fontSize: 13, cursor: "pointer" }}>Skip</button>
             <button onClick={() => imgRef.current?.click()} disabled={imgLoading || saving} title="Upload photo" style={{ padding: 12, background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: imgLoading ? t.textDim : "#4ECDC4", cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📷</button>
             <button onClick={handleSave} disabled={!answer.trim() || saving || imgLoading} style={{ flex: 2, padding: 12, background: answer.trim() && !imgLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim, fontSize: 13, fontWeight: 700, cursor: answer.trim() && !imgLoading ? "pointer" : "default" }}>
-              {saving ? "Saving..." : imgLoading ? "Reading photo..." : apiKey && sbKey ? "Save to DB" : "Save Answer"}
+              {saving ? "Saving..." : imgLoading ? "Reading photo..." : apiKey && sbKey ? `Save to ${bm.emoji} ${targetBrain?.name || bm.label}` : "Save Answer"}
             </button>
           </div>
         </div>
@@ -232,6 +333,7 @@ export default function SuggestionsView({ apiKey, sbKey, entries, setEntries }) 
             <div key={i} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ fontSize: 11, color: t.textDim }}>{s.cat}</span>
+                {s.brain && <span style={{ fontSize: 9, color: t.textDim }}>{BRAIN_META[s.brain.type]?.emoji} {s.brain.name}</span>}
                 {s.db && <span style={{ fontSize: 9, background: "#4ECDC420", color: "#4ECDC4", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Saved to DB</span>}
               </div>
               <p style={{ margin: 0, fontSize: 13, color: t.textMid }}>{s.a.slice(0, 120)}{s.a.length > 120 ? "…" : ""}</p>

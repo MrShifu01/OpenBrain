@@ -1,32 +1,40 @@
 # Active Context — 2026-04-03
-**Branch:** main | **Enhancement:** sprint3 | **Project:** OpenBrain
+**Branch:** main | **Enhancement:** Phase 1+2 | **Project:** OpenBrain
 
 ## Session Summary
-Implemented all 11 sprint 3 features (daily-use features) into OpenBrain. Merged dev branch and all stale remote branches into main. Repo is now clean with a single main branch.
+Built Phase 1 (Business Shared Brain) and Phase 2 (Platform Onboarding). Added brain types (family/business), multi-brain entry assignment via entry_brains junction table, brain-specific Fill Brain questions, Refine owner gate for shared brain members, 3-step onboarding wizard, and enhanced landing page.
 
 ## Built This Session
-- `src/OpenBrain.jsx` — full feature expansion: UndoToast, NudgeBanner, PreviewModal (pre-save preview + fuzzy duplicate detection), SupplierPanel (new 🏪 tab), voice capture (Web Speech API, en-ZA), workspace toggle (All/Business/Personal + localStorage persist), proactive nudge engine (Haiku on load, sessionStorage cached), quick-ask chat chips, handleReorder (supplier reorder + document renewal mode), undo system (deferred delete 5s, update undo, create undo), phone number tap-to-call links in chat responses
-- `src/views/DetailModal.jsx` — quick action buttons (Call/WhatsApp for contacts/suppliers/persons, Done/Snooze+1w/+1m for reminders, Start/Archive for ideas, Renewal reminder for documents), share button (Web Share API / clipboard fallback)
-- `extractPhone()` and `toWaUrl()` exported from OpenBrain.jsx, imported by DetailModal.jsx
-- AI capture system prompt updated: extracts price+unit into metadata, classifies workspace (business/personal/both), guards against merging distinct companies
+- `supabase/migrations/002_brain_types.sql` — type expansion to family/business, entry_brains junction, brain_activity, brain_settings, get_entries_for_brain RPC
+- `api/brains.js` — POST accepts {type: "family"|"business"}
+- `api/capture.js` — p_extra_brain_ids[] multi-brain capture → inserts entry_brains rows
+- `api/entries.js` — uses get_entries_for_brain RPC with direct-query fallback
+- `api/activity.js` — new activity log endpoint
+- `src/components/CreateBrainModal.jsx` — type selector cards (Family 🏠 / Business 🏪)
+- `src/components/BrainSwitcher.jsx` — type-aware icons 🧠/🏠/🏪
+- `src/components/OnboardingModal.jsx` — new 3-step first-login wizard
+- `src/views/SuggestionsView.jsx` — brain selector chips, per-brain question sets, per-brain localStorage keys
+- `src/views/RefineView.jsx` — owner gate: non-owners see locked message
+- `src/data/suggestions.js` — FAMILY_SUGGESTIONS + BUSINESS_SUGGESTIONS added
+- `src/hooks/useBrain.js` — createBrain(name, type)
+- `src/LoginScreen.jsx` — hero landing page with feature grid
+- `src/OpenBrain.jsx` — OnboardingModal, multi-brain QuickCapture chips, props wired to views
 
 ## Current State
-- main is up to date with origin/main — single branch, clean working tree
-- Build: 309ms, 73 modules, 0 errors
-- All 11 sprint 3 features working
-- Brains multi-context (BrainSwitcher, CreateBrainModal, useBrain hook, api/brains.js, supabase migration) — code merged but BrainSwitcher NOT yet rendered in OpenBrain.jsx JSX — hook is called, import is there, but no UI entry point yet
+- All code written and staged but NOT committed
+- migration 002 NOT yet applied to Supabase
+- migration 001 status still unknown — may not be applied
 
 ## In-Flight Work
-- *(none)* — all committed and pushed to main (c15c117)
+- Commit pending for all session changes
+- migration 002 needs applying before brain type features work in production
 
 ## Known Issues
-- BrainSwitcher imported + useBrain hook called in `src/OpenBrain.jsx` but BrainSwitcher not rendered in JSX — next session should add it to the header area
-- DetailModal connections still read from static `INITIAL_ENTRIES`/`LINKS` constants, not live state (pre-existing — pass entries+links as props to fix)
-- `capture()` RPC in Supabase likely still hardcodes `v_owner_id` — verify: `SELECT pg_get_functiondef(oid) FROM pg_proc WHERE proname = 'capture'`
-- Morning briefing is Notification API only — no service worker scheduled push (needs push subscription endpoint)
-- No Content-Security-Policy header in vercel.json (LOW security finding, still outstanding)
+- ⚠️ get_entries_for_brain uses DISTINCT ON in UNION — test in Supabase SQL editor; may need CTE rewrite
+- ⚠️ QuickCapture offline path omits p_brain_id (minor — stores locally)
+- ⚠️ migration 001 + 002 both need applying
 
 ## Pipeline State
-- **Last pipeline:** feature/sprint3 — 2026-04-03
-- **Last scores:** Correctness: 94, Architecture: 92, Security: 90, Maintainability: 89 — composite: 91/100
+- **Last pipeline:** feature — 2026-04-03
+- **Last scores:** composite 90/100 (Security 92, Architecture 90, Correctness 88, Maintainability 88)
 - **Open incidents:** none

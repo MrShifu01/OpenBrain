@@ -56,11 +56,11 @@ export function useBrain(onBrainSwitch) {
     if (onBrainSwitch) onBrainSwitch(brain);
   }, [onBrainSwitch]);
 
-  const createBrain = useCallback(async (name) => {
+  const createBrain = useCallback(async (name, type = "family") => {
     const res = await authFetch("/api/brains", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, type }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

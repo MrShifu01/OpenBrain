@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const { p_title, p_content, p_type, p_metadata, p_tags, p_brain_id } = req.body;
+  const { p_title, p_content, p_type, p_metadata, p_tags, p_brain_id, p_extra_brain_ids } = req.body;
 
   if (!p_title || typeof p_title !== "string" || p_title.trim().length === 0) {
     return res.status(400).json({ error: "Missing or invalid title" });
@@ -42,5 +42,24 @@ export default async function handler(req, res) {
   });
 
   const data = await response.json();
+
+  // If extra brain IDs provided, share the entry into those brains via entry_brains
+  if (response.ok && data?.id && Array.isArray(p_extra_brain_ids) && p_extra_brain_ids.length > 0) {
+    const extraIds = p_extra_brain_ids.filter(id => typeof id === "string" && id !== p_brain_id);
+    if (extraIds.length > 0) {
+      const rows = extraIds.map(brain_id => ({ entry_id: data.id, brain_id }));
+      fetch(`${SB_URL}/rest/v1/entry_brains`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
+          "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+          "Prefer": "resolution=ignore-duplicates",
+        },
+        body: JSON.stringify(rows),
+      }).catch(() => {}); // Non-fatal — fire and forget
+    }
+  }
+
   res.status(response.status).json(data);
 }

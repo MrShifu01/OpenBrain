@@ -20,7 +20,7 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
   }, []);
 
   const personalBrains = brains.filter(b => b.type === "personal");
-  const sharedBrains = brains.filter(b => b.type === "shared");
+  const sharedBrains = brains.filter(b => b.type !== "personal");
 
   function select(brain) {
     onSwitch(brain);
@@ -51,7 +51,7 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
           textOverflow: "ellipsis",
         }}
       >
-        <span style={{ fontSize: 15 }}>{activeBrain?.type === "personal" ? "🧠" : "🤝"}</span>
+        <span style={{ fontSize: 15 }}>{activeBrain?.type === "personal" ? "🧠" : activeBrain?.type === "business" ? "🏪" : "🏠"}</span>
         <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
           {activeBrain?.name || "Select Brain"}
         </span>
@@ -100,7 +100,7 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
               brain={b}
               active={activeBrain?.id === b.id}
               onSelect={select}
-              emoji="🤝"
+              emoji={b.type === "business" ? "🏪" : "🏠"}
               role={b.myRole}
               canDelete={b.myRole === "owner"}
               onDelete={() => { onBrainDeleted(b.id); setOpen(false); }}
