@@ -151,12 +151,40 @@ function containsSensitiveContent(text) { return SENSITIVE_RE.test(text); }
 function _pinKey() { const uid = getUserId(); return uid ? `openbrain_${uid}_security_pin` : "openbrain_security_pin"; }
 function getStoredPinHash() { return localStorage.getItem(_pinKey()) || null; }
 function removePin() { localStorage.removeItem(_pinKey()); }
-async function _hashPin(pin) {
+async function _legacyVerifyPin(pin, stored) {
+  // Used only during migration from SHA-256 + hardcoded salt (old format, no ':')
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin + "ob_salt_v1"));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  return hash === stored;
 }
-async function storePin(pin) { localStorage.setItem(_pinKey(), await _hashPin(pin)); }
-async function verifyPin(pin) { const s = getStoredPinHash(); if (!s) return false; return (await _hashPin(pin)) === s; }
+async function hashPin(pin) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(pin), { name: "PBKDF2" }, false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256
+  );
+  const hashHex = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, "0")).join("");
+  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, "0")).join("");
+  return saltHex + ":" + hashHex;
+}
+async function verifyPin(pin, stored) {
+  const s = stored !== undefined ? stored : getStoredPinHash();
+  if (!s) return false;
+  if (!s.includes(":")) return null; // old SHA-256 format — migration required
+  const [saltHex, hashHex] = s.split(":");
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(pin), { name: "PBKDF2" }, false, ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" }, keyMaterial, 256
+  );
+  const newHash = Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, "0")).join("");
+  return newHash === hashHex;
+}
+async function storePin(pin) { localStorage.setItem(_pinKey(), await hashPin(pin)); }
 
 function PinGate({ onSuccess, onCancel, isSetup = false }) {
   const { t } = useTheme();
@@ -164,7 +192,12 @@ function PinGate({ onSuccess, onCancel, isSetup = false }) {
   const [confirmPin, setConfirmPin] = useState("");
   const [shake, setShake] = useState(false);
   const [error, setError] = useState("");
-  const [step, setStep] = useState(isSetup ? "create" : "enter");
+  const [step, setStep] = useState(() => {
+    if (isSetup) return "create";
+    const stored = getStoredPinHash();
+    if (stored && !stored.includes(":")) return "migrate";
+    return "enter";
+  });
   const inputRef = useRef(null);
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 50); }, [step]);
 
@@ -172,8 +205,16 @@ function PinGate({ onSuccess, onCancel, isSetup = false }) {
 
   const handleSubmit = async () => {
     if (step === "enter") {
-      if (await verifyPin(pin)) { onSuccess(); }
+      const result = await verifyPin(pin);
+      if (result === true) { onSuccess(); }
       else { setPin(""); setError("Wrong PIN — try again"); doShake(); }
+    } else if (step === "migrate") {
+      // Verify against old SHA-256 hash, then re-store with PBKDF2 to complete migration
+      const oldStored = getStoredPinHash();
+      const legacyOk = await _legacyVerifyPin(pin, oldStored);
+      if (!legacyOk) { setPin(""); setError("Wrong PIN — try again"); doShake(); return; }
+      await storePin(pin);
+      onSuccess();
     } else if (step === "create") {
       if (pin.length !== 4) { setError("Must be 4 digits"); doShake(); return; }
       setError(""); setStep("confirm");
@@ -183,9 +224,9 @@ function PinGate({ onSuccess, onCancel, isSetup = false }) {
     }
   };
 
-  const titles = { enter: "Sensitive Info", create: "Set Security PIN", confirm: "Confirm PIN" };
-  const subs = { enter: "Enter your PIN to view this response", create: "Choose a 4-digit PIN to protect sensitive responses", confirm: "Re-enter your PIN to confirm" };
-  const btnLabel = { enter: "Unlock", create: "Next", confirm: "Set PIN" };
+  const titles = { enter: "Sensitive Info", create: "Set Security PIN", confirm: "Confirm PIN", migrate: "Security Upgrade" };
+  const subs = { enter: "Enter your PIN to view this response", create: "Choose a 4-digit PIN to protect sensitive responses", confirm: "Re-enter your PIN to confirm", migrate: "Security upgrade required — please re-enter your PIN to continue" };
+  const btnLabel = { enter: "Unlock", create: "Next", confirm: "Set PIN", migrate: "Upgrade & Unlock" };
 
   return (
     <>
