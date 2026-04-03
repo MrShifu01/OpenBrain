@@ -802,6 +802,11 @@ export default function OpenBrain() {
             <div style={{ textAlign: "right" }}>
               <span style={{ fontSize: 11, color: "#555" }}>{entries.length} memories</span>
               {apiKey && <span style={{ display: "block", fontSize: 9, color: "#4ECDC4" }}>AI active</span>}
+              {pendingCount > 0 && (
+                <span style={{ display: "block", fontSize: 9, color: "#FFD700", marginTop: 2 }}>
+                  {pendingCount} pending sync
+                </span>
+              )}
             </div>
           </div>
         </div>
