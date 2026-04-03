@@ -1248,11 +1248,21 @@ export default function OpenBrain() {
     } catch { /* silently fail */ }
   }, []);
 
+  // ─── Chat context memoization (PERF-3) ───
+  const chatContext = useMemo(() => {
+    return entries.slice(0, 100).map(e => ({
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      tags: e.tags,
+    }));
+  }, [entries]);
+
   const handleChat = async () => {
     if (!chatInput.trim()) return;
     const msg = chatInput.trim(); setChatInput(""); setChatMsgs(p => [...p, { role: "user", content: msg }]); setChatLoading(true);
     try {
-      const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 1000, system: `You are OpenBrain, the user's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n${JSON.stringify(entries.slice(0, 100))}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] }) });
+      const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 1000, system: `You are OpenBrain, the user's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n${JSON.stringify(chatContext)}\n\nLINKS:\n${JSON.stringify(links)}`, messages: [{ role: "user", content: msg }] }) });
       const data = await res.json();
       const content = data.content?.map(c => c.text || "").join("") || "Couldn't process.";
       if (containsSensitiveContent(content)) {
