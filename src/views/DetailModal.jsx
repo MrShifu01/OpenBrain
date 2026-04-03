@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { TC } from "../data/constants";
-import { extractPhone, toWaUrl } from "../OpenBrain";
+import { extractPhone, toWaUrl } from "../lib/phone";
 import { useTheme } from "../ThemeContext";
 
 export default function DetailModal({ entry, onClose, onDelete, onUpdate, onReorder, entries = [], links = [], canWrite = true }) {

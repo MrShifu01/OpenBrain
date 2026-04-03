@@ -1,28 +1,12 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { useTheme } from "../ThemeContext";
+import { callAI } from "../lib/ai";
 import { aiFetch, getUserModel } from "../lib/aiFetch";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { TC } from "../data/constants";
-
-const CAPTURE_SYSTEM = `You classify and structure a raw text capture into an OpenBrain entry. Return ONLY valid JSON.
-Format: {"title":"...","content":"...","type":"...","metadata":{},"tags":[],"workspace":"business"|"personal"|"both"}
-
-TYPE RULES (pick the BEST match): person, contact, place, document, reminder, idea, decision, color, note
-
-EXTRACTION RULES:
-- Put phone numbers, dates, IDs into metadata
-- If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
-- Title: max 60 chars
-- Content: 1-2 sentence description
-
-WORKSPACE RULES:
-- business: related to a business, restaurant, supplier, contractor
-- personal: identity documents, health, medical, family, personal contacts
-- both: general reminders, ideas
-
-IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.`;
+import { PROMPTS } from "../config/prompts";
 
 const BRAIN_META_QC = {
   personal: { emoji: "🧠" },
@@ -127,6 +111,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     setLoading(true); setStatus("thinking");
     try {
       const base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(",")[1]); r.onerror = rej; r.readAsDataURL(file); });
+      // CODE-8: intentional — direct call needed for vision/image processing (multipart content array not supported by callAI wrapper)
       const apiRes = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 600, messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: file.type, data: base64 } }, { type: "text", text: "Extract all text from this image. Output just the extracted content, clean and readable. If it's a business card, document, label, or receipt — preserve structure. No commentary." }] }] }) });
       const data = await apiRes.json();
       const extracted = data.content?.[0]?.text?.trim() || "";
@@ -223,7 +208,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     if (!isOnline) {
       const tempId = Date.now().toString();
       const newEntry = { id: tempId, title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
-      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
+      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: PROMPTS.CAPTURE, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
       refreshCount?.();
       setEntries(prev => [newEntry, ...prev]);
       onCreated?.(newEntry);
@@ -232,7 +217,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
       return;
     }
     try {
-      const res = await aiFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
+      const res = await callAI({ system: PROMPTS.CAPTURE, max_tokens: 800, messages: [{ role: "user", content: input }] });
       const data = await res.json();
       let parsed = {};
       try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
@@ -249,7 +234,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
       console.error("[capture] API error, queuing for retry:", e);
       const tempId = Date.now().toString();
       const newEntry = { id: tempId, title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
-      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
+      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: PROMPTS.CAPTURE, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
       refreshCount?.();
       setEntries(prev => [newEntry, ...prev]);
       onCreated?.(newEntry);
