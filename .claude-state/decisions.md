@@ -104,3 +104,12 @@ SUGGESTIONS (personal), FAMILY_SUGGESTIONS, BUSINESS_SUGGESTIONS arrays in `src/
 
 ## Onboarding: localStorage flag gates first-time wizard
 `localStorage.getItem("openbrain_onboarded")` — if absent, OnboardingModal shows on login. Set to "1" on completion. Auto-navigates to Fill Brain tab. `src/components/OnboardingModal.jsx`, wired in `src/OpenBrain.jsx`.
+
+## Personal brain: auto-created via Supabase trigger (not frontend)
+`supabase/migrations/003_personal_brain_trigger.sql` adds a trigger on `AFTER INSERT ON auth.users` that creates a "My Brain" personal brain for every new user. Chosen over frontend detection because it's atomic, works even if user closes tab mid-onboarding, and requires no race-condition handling. `api/brains.js` validTypes updated to include "personal".
+
+## Post-creation tip card: in-session only, not persisted
+After creating a family/business brain, `showBrainTip` state in OpenBrain shows `<BrainTipCard>` with brain-type-specific first-fill suggestions. Dismissed on × or "Start filling →". Not stored in localStorage — deliberate: if user creates a brain then leaves and returns, they shouldn't see it again. `src/components/BrainTipCard.jsx`, wired in `src/OpenBrain.jsx`.
+
+## BrainSwitcher double-create bug fixed
+CreateBrainModal already creates the brain via API and returns the full brain object to onCreate(brain, brainType). BrainSwitcher was passing this brain object as the `name` arg to useBrain.createBrain() — causing a second API call with name={object}. Fixed: BrainSwitcher.onCreate now calls onBrainCreated(brain) to refresh/switch, and onBrainTip(brain) to trigger tip card. No second create call.

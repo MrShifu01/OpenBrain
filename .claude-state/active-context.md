@@ -1,38 +1,30 @@
 # Active Context — 2026-04-03
-**Branch:** main | **Enhancement:** Phase 1+2 | **Project:** OpenBrain
+**Branch:** main | **Enhancement:** — | **Project:** OpenBrain
 
 ## Session Summary
-Built Phase 1 (Business Shared Brain) and Phase 2 (Platform Onboarding). Added brain types (family/business), multi-brain entry assignment via entry_brains junction table, brain-specific Fill Brain questions, Refine owner gate for shared brain members, 3-step onboarding wizard, and enhanced landing page.
+Designed and implemented brain onboarding improvements: a Supabase trigger that auto-creates a personal brain for every new user on signup, and a post-creation tip card that appears after creating a family or business brain. Also fixed a silent double-create bug in BrainSwitcher where the brain object was being passed as `name` to `useBrain.createBrain()`.
 
 ## Built This Session
-- `supabase/migrations/002_brain_types.sql` — type expansion to family/business, entry_brains junction, brain_activity, brain_settings, get_entries_for_brain RPC
-- `api/brains.js` — POST accepts {type: "family"|"business"}
-- `api/capture.js` — p_extra_brain_ids[] multi-brain capture → inserts entry_brains rows
-- `api/entries.js` — uses get_entries_for_brain RPC with direct-query fallback
-- `api/activity.js` — new activity log endpoint
-- `src/components/CreateBrainModal.jsx` — type selector cards (Family 🏠 / Business 🏪)
-- `src/components/BrainSwitcher.jsx` — type-aware icons 🧠/🏠/🏪
-- `src/components/OnboardingModal.jsx` — new 3-step first-login wizard
-- `src/views/SuggestionsView.jsx` — brain selector chips, per-brain question sets, per-brain localStorage keys
-- `src/views/RefineView.jsx` — owner gate: non-owners see locked message
-- `src/data/suggestions.js` — FAMILY_SUGGESTIONS + BUSINESS_SUGGESTIONS added
-- `src/hooks/useBrain.js` — createBrain(name, type)
-- `src/LoginScreen.jsx` — hero landing page with feature grid
-- `src/OpenBrain.jsx` — OnboardingModal, multi-brain QuickCapture chips, props wired to views
+- `supabase/migrations/003_personal_brain_trigger.sql` — trigger + function to auto-create "My Brain" on auth.users insert
+- `src/components/BrainTipCard.jsx` — new tip card with family/business-specific first-fill suggestions
+- `api/brains.js` — added "personal" to validTypes (line 73)
+- `src/components/BrainSwitcher.jsx` — fixed onCreate to correctly receive (brain, brainType), added onBrainTip prop
+- `src/OpenBrain.jsx` — added showBrainTip state, destructured refresh from useBrain, wired BrainTipCard render
+- `docs/superpowers/specs/2026-04-03-brain-onboarding-design.md` — design spec committed
 
 ## Current State
-- All code written and staged but NOT committed
-- migration 002 NOT yet applied to Supabase
-- migration 001 status still unknown — may not be applied
+- Session work committed and clean (2 commits ahead of origin/main, not yet pushed)
+- Uncommitted changes exist from PRIOR sessions: `api/update-entry.js`, `future-plans.md`, `src/components/OnboardingModal.jsx`, `src/views/SuggestionsView.jsx`, `supabase/migrations/001_brains.sql`
+- Untracked from prior sessions: `.smashOS/audits/`, `openbrain-fill-your-brain.md`, `openbrain-onboarding-30.md`
+- Migration 003 written but NOT yet applied to Supabase
 
 ## In-Flight Work
-- Commit pending for all session changes
-- migration 002 needs applying before brain type features work in production
+- Migration 003 must be applied in Supabase SQL editor before personal brain trigger is live
+- Prior session uncommitted files need review before staging (do not blindly stage)
 
 ## Known Issues
-- ⚠️ get_entries_for_brain uses DISTINCT ON in UNION — test in Supabase SQL editor; may need CTE rewrite
-- ⚠️ QuickCapture offline path omits p_brain_id (minor — stores locally)
-- ⚠️ migration 001 + 002 both need applying
+- ⚠️ Verify `"suggest"` is the correct view ID for Fill Brain in `src/OpenBrain.jsx` navViews — BrainTipCard "Start filling →" calls `setView("suggest")`
+- Prior sessions' uncommitted files (OnboardingModal.jsx, SuggestionsView.jsx, update-entry.js) need review
 
 ## Pipeline State
 - **Last pipeline:** feature — 2026-04-03
