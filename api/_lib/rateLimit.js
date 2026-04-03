@@ -1,3 +1,10 @@
+// SEC-3 AUDIT FINDING — IN-MEMORY RATE LIMITER DOES NOT WORK IN SERVERLESS
+// Each Vercel function instance has its own in-memory Map.
+// Distributing requests across instances completely bypasses rate limits.
+// TODO: Replace with Upstash Redis or @vercel/kv distributed rate limiting.
+// Install: npm install @upstash/ratelimit @upstash/redis
+// Until this is replaced, this rate limiter provides zero real protection.
+
 // Per-instance in-memory rate limiter (serverless: limits bursts within a single cold-start instance)
 const counts = new Map();
 
