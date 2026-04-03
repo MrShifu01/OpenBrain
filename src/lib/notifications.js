@@ -31,3 +31,12 @@ export function onToast(callback) {
   listeners.add(callback);
   return () => listeners.delete(callback);
 }
+
+/**
+ * ARCH-10: Centralized error handler.
+ * Replace with Sentry.captureException(err) when monitoring is provisioned.
+ */
+export function captureError(err, context = '') {
+  console.error(`[OpenBrain:${context}]`, err);
+  // TODO: Sentry.captureException(err, { extra: { context } });
+}

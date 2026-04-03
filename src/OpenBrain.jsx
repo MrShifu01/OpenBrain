@@ -9,7 +9,8 @@ import { useBrain as useBrainHook } from "./hooks/useBrain";
 import { useRole } from "./hooks/useRole";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { enqueue } from "./lib/offlineQueue";
-import { showError } from "./lib/notifications";
+import { showError, captureError } from "./lib/notifications";
+import { indexEntry, removeFromIndex, searchIndex } from "./lib/searchIndex";
 import { readEntriesCache, writeEntriesCache } from "./lib/entriesCache";
 import { PinGate, getStoredPinHash } from "./lib/pin";
 import BrainSwitcher from "./components/BrainSwitcher";
@@ -271,10 +272,12 @@ export default function OpenBrain() {
         if (Array.isArray(data) && data.length > 0) {
           setEntries(data);
           writeEntriesCache(data); // PERF-8: write to IDB (with localStorage fallback)
+          // ARCH-5: Build search index at load time — O(n) once, not on every filter
+          data.forEach(indexEntry);
         }
         setEntriesLoaded(true);
       })
-      .catch(() => setEntriesLoaded(true));
+      .catch(err => { captureError(err, 'fetchEntries'); setEntriesLoaded(true); });
   }, [activeBrain?.id]);
 
   // Proactive intelligence nudge — runs once per session after entries load
@@ -307,7 +310,15 @@ export default function OpenBrain() {
     let r = entries;
     if (workspace !== "all") r = r.filter(e => { const ws = inferWorkspace(e); return ws === workspace || ws === "both"; });
     if (typeFilter !== "all") r = r.filter(e => e.type === typeFilter);
-    if (search) { const q = search.toLowerCase(); r = r.filter(e => e.title.toLowerCase().includes(q) || (e.content || "").toLowerCase().includes(q) || e.tags?.some(t => t.includes(q)) || JSON.stringify(e.metadata).toLowerCase().includes(q)); }
+    if (search) {
+      // ARCH-5: Use pre-computed inverted index — O(k) lookup instead of O(n) full scan
+      const matchIds = searchIndex(search);
+      if (matchIds) {
+        r = r.filter(e => matchIds.has(e.id));
+      } else {
+        // Fallback: index returned null (empty query), no filter applied
+      }
+    }
     return r;
   }, [search, typeFilter, workspace, entries]);
 
@@ -318,7 +329,7 @@ export default function OpenBrain() {
     if (!pendingDeleteRef.current) return;
     const { id } = pendingDeleteRef.current;
     if (isOnlineRef.current) {
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => console.error('[OpenBrain:commitPendingDelete] Failed to delete entry', err));
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => captureError(err, 'commitPendingDelete'));
     } else {
       enqueue({ id: crypto.randomUUID(), url: "/api/delete-entry", method: "DELETE", body: JSON.stringify({ id }), created_at: new Date().toISOString() }).then(refreshCount);
     }
@@ -329,6 +340,7 @@ export default function OpenBrain() {
     const entry = entries.find(e => e.id === id);
     if (!entry) return;
     commitPendingDelete();
+    removeFromIndex(id); // ARCH-5: keep search index consistent
     setEntries(prev => prev.filter(e => e.id !== id));
     setSelected(null);
     // Deferred commit: actual DB delete fires only when toast expires.
@@ -359,7 +371,11 @@ export default function OpenBrain() {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error((data?.message || data?.error) ?? `HTTP ${res.status}`);
       if (Array.isArray(data) && data.length === 0) throw new Error(`No row matched id=${id}`);
-    } catch (e) { showError(`Save failed: ${e.message}`); setSaveError(`Save failed: ${e.message}`); setTimeout(() => setSaveError(null), 5000); return; }
+    } catch (e) { captureError(e, 'handleUpdate'); showError(`Save failed: ${e.message}`); setSaveError(`Save failed: ${e.message}`); setTimeout(() => setSaveError(null), 5000); return; }
+    // ARCH-5: Re-index the updated entry so search stays accurate
+    removeFromIndex(id);
+    const updated = { ...entries.find(e => e.id === id), ...changes };
+    indexEntry(updated);
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...changes } : e));
     setSelected(prev => prev?.id === id ? { ...prev, ...changes } : prev);
     if (previous) setLastAction({ type: "update", id, previous: { title: previous.title, content: previous.content, type: previous.type, tags: previous.tags, metadata: previous.metadata } });
@@ -374,13 +390,13 @@ export default function OpenBrain() {
     }
     if (lastAction.type === "update") {
       const { id, previous } = lastAction;
-      authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...previous }) }).catch(err => console.error('[OpenBrain:undo] Failed to update entry', err));
+      authFetch("/api/update-entry", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...previous }) }).catch(err => captureError(err, 'undo:update'));
       setEntries(prev => prev.map(e => e.id === id ? { ...e, ...previous } : e));
       setSelected(prev => prev?.id === id ? { ...prev, ...previous } : prev);
     }
     if (lastAction.type === "create") {
       const { id } = lastAction;
-      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => console.error('[OpenBrain:undo] Failed to delete created entry', err));
+      authFetch("/api/delete-entry", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) }).catch(err => captureError(err, 'undo:delete'));
       setEntries(prev => prev.filter(e => e.id !== id));
     }
     setLastAction(null);
