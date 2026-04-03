@@ -27,18 +27,30 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
           continue;
         }
         try {
-          const res = await authFetch(op.url, {
-            method: op.method,
-            headers: { 'Content-Type': 'application/json' },
-            body: op.body,
-          });
-          if (res.ok || res.status === 404) {
-            if (res.ok && op.method === 'POST' && op.tempId) {
-              const data = await res.json().catch(() => null);
-              if (data?.id) onEntryIdUpdate?.(op.tempId, data.id);
+          if (op.type === 'raw-capture') {
+            const parseRes = await authFetch('/api/anthropic', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(op.anthropicRequest) });
+            if (!parseRes.ok) continue; // keep in queue, retry later
+            const data = await parseRes.json().catch(() => null);
+            let parsed = {};
+            try { parsed = JSON.parse((data?.content?.[0]?.text || '{}').replace(/```json|```/g, '').trim()); } catch {}
+            if (!parsed.title) continue; // bad parse, keep in queue
+            const saveRes = await authFetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || '', p_type: parsed.type || 'note', p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
+            if (saveRes.ok) {
+              const result = await saveRes.json().catch(() => null);
+              if (result?.id && op.tempId) onEntryIdUpdate?.(op.tempId, result.id);
+              await remove(op.id);
+              setPendingCount(c => Math.max(0, c - 1));
             }
-            await remove(op.id);
-            setPendingCount(c => Math.max(0, c - 1));
+          } else {
+            const res = await authFetch(op.url, { method: op.method, headers: { 'Content-Type': 'application/json' }, body: op.body });
+            if (res.ok || res.status === 404) {
+              if (res.ok && op.method === 'POST' && op.tempId) {
+                const data = await res.json().catch(() => null);
+                if (data?.id) onEntryIdUpdate?.(op.tempId, data.id);
+              }
+              await remove(op.id);
+              setPendingCount(c => Math.max(0, c - 1));
+            }
           }
           // non-404 failure: leave in queue, continue to next op
         } catch {

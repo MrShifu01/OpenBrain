@@ -357,6 +357,17 @@ function QuickCapture({ apiKey, sbKey, entries, setEntries, links, addLinks, onC
   const capture = async () => {
     if (!text.trim()) return;
     const input = text.trim(); setText(""); setLoading(true); setStatus("thinking");
+    if (!isOnline) {
+      const tempId = Date.now().toString();
+      const newEntry = { id: tempId, title: input.slice(0, 60), content: input, type: "note", metadata: {}, pinned: false, importance: 0, tags: [], created_at: new Date().toISOString() };
+      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: MODEL, max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() });
+      refreshCount?.();
+      setEntries(prev => [newEntry, ...prev]);
+      onCreated?.(newEntry);
+      setStatus("saved-local");
+      setLoading(false); setTimeout(() => setStatus(null), 3000);
+      return;
+    }
     try {
       if (apiKey) {
         const res = await authFetch("/api/anthropic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: MODEL, max_tokens: 800, system: CAPTURE_SYSTEM, messages: [{ role: "user", content: input }] }) });
