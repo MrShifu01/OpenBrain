@@ -18,6 +18,7 @@ import {
   getUserApiKey,
   getOpenRouterKey,
   getOpenRouterModel,
+  getModelForTask,
 } from "./aiFetch";
 
 const ENDPOINT = {
@@ -26,14 +27,39 @@ const ENDPOINT = {
   openrouter:  "/api/openrouter",
 };
 
-export async function callAI({ messages, system, max_tokens, memoryGuide } = {}) {
+/**
+ * Convert Anthropic-format image blocks to OpenAI/OpenRouter format.
+ * Anthropic: { type:"image", source:{ type:"base64", media_type, data } }
+ * OpenAI:    { type:"image_url", image_url:{ url:"data:<mime>;base64,<data>" } }
+ * Anthropic format is the canonical form used throughout the codebase.
+ */
+function normalizeMessages(messages, provider) {
+  if (provider === "anthropic") return messages;
+  return messages.map((msg) => {
+    if (!Array.isArray(msg.content)) return msg;
+    return {
+      ...msg,
+      content: msg.content.map((block) => {
+        if (block.type === "image" && block.source?.type === "base64") {
+          return {
+            type: "image_url",
+            image_url: { url: `data:${block.source.media_type};base64,${block.source.data}` },
+          };
+        }
+        return block;
+      }),
+    };
+  });
+}
+
+export async function callAI({ messages, system, max_tokens, memoryGuide, task } = {}) {
   const provider = getUserProvider();
   const endpoint = ENDPOINT[provider] ?? ENDPOINT.anthropic;
 
-  // Pick model based on provider
+  // Pick model based on provider — task-specific model takes priority when set
   let model;
   if (provider === "openrouter") {
-    model = getOpenRouterModel() || "google/gemini-2.0-flash-exp:free";
+    model = (task ? getModelForTask(task) : null) || getOpenRouterModel() || "google/gemini-2.0-flash-exp:free";
   } else {
     model = getUserModel();
   }
@@ -61,7 +87,7 @@ export async function callAI({ messages, system, max_tokens, memoryGuide } = {})
     headers,
     body: JSON.stringify({
       model,
-      messages,
+      messages: normalizeMessages(messages, provider),
       system: fullSystem,
       max_tokens,
     }),

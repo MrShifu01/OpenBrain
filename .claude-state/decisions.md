@@ -113,3 +113,15 @@ After creating a family/business brain, `showBrainTip` state in OpenBrain shows 
 
 ## BrainSwitcher double-create bug fixed
 CreateBrainModal already creates the brain via API and returns the full brain object to onCreate(brain, brainType). BrainSwitcher was passing this brain object as the `name` arg to useBrain.createBrain() — causing a second API call with name={object}. Fixed: BrainSwitcher.onCreate now calls onBrainCreated(brain) to refresh/switch, and onBrainTip(brain) to trigger tip card. No second create call.
+
+## user_ai_settings table for edge function key access
+localStorage is not accessible in Supabase edge functions. Per-user OpenRouter key/model stored in `user_ai_settings` table (migration 006) so the Telegram bot can use each user's own credentials. App `saveOrKey`/`saveOrModel` upsert to DB on every change. Edge function falls back to shared `OPENROUTER_API_KEY` env var if user has no row.
+
+## Anthropic image block format is canonical; normalizeMessages() converts on send
+All image content blocks throughout the codebase use Anthropic format (`source.data`). `normalizeMessages()` in `src/lib/ai.js` converts to OpenAI format (`image_url.url`) at send time when provider is openrouter/openai. No call sites need to know about the difference.
+
+## All AI features route through callAI() — no more hardcoded /api/anthropic
+RefineView, SuggestionsView, and image upload now use `callAI()`. The `/api/anthropic` endpoint is no longer called directly from any view. Provider selection and key injection are handled centrally in `src/lib/ai.js`.
+
+## Per-task model selection: AI-models.md roadmap (not yet implemented)
+4-phase plan documented in `AI-models.md`. Phase 1: DB columns + helpers. Phase 2: task param on callAI(). Phase 3: settings UI. Phase 4: Voice/Whisper (separate API, deferred). Vision task uses OpenRouter modality filter (`text+image->text`) rather than a manual allowlist.

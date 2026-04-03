@@ -85,6 +85,44 @@ export function setOpenRouterModel(model) {
   else localStorage.removeItem(`openbrain_${uid}_openrouter_model`);
 }
 
+const TASK_COL = {
+  capture:   "model_capture",
+  questions: "model_questions",
+  vision:    "model_vision",
+  refine:    "model_refine",
+  chat:      "model_chat",
+};
+
+export function getModelForTask(task) {
+  const uid = getUserId();
+  if (!uid) return null;
+  return localStorage.getItem(`openbrain_${uid}_task_${task}`) || null;
+}
+
+export function setModelForTask(task, model) {
+  const uid = getUserId();
+  if (!uid) return;
+  const lsKey = `openbrain_${uid}_task_${task}`;
+  if (model) localStorage.setItem(lsKey, model);
+  else localStorage.removeItem(lsKey);
+  const col = TASK_COL[task];
+  if (!col) return;
+  supabase.from("user_ai_settings").upsert(
+    { user_id: uid, [col]: model || null, updated_at: new Date().toISOString() },
+    { onConflict: "user_id" }
+  );
+}
+
+export function loadTaskModels(userId, settingsRow) {
+  if (!userId || !settingsRow) return;
+  for (const [task, col] of Object.entries(TASK_COL)) {
+    const val = settingsRow[col];
+    const lsKey = `openbrain_${userId}_task_${task}`;
+    if (val) localStorage.setItem(lsKey, val);
+    else localStorage.removeItem(lsKey);
+  }
+}
+
 /**
  * Drop-in replacement for authFetch that adds X-User-Api-Key header
  * when the user has configured a BYO key.
