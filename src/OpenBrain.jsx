@@ -231,6 +231,7 @@ export default function OpenBrain() {
   const [navOpen, setNavOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [links, setLinks] = useState(LINKS);
+  const [graphError, setGraphError] = useState(null);
   const addLinks = (newLinks) => setLinks(prev => [...prev, ...newLinks]);
   const { canWrite, canInvite, canManageMembers, role: myRole } = useRole(activeBrain);
   const { t, isDark, toggleTheme } = useTheme();
@@ -280,13 +281,17 @@ export default function OpenBrain() {
       })
       .catch(err => { captureError(err, 'fetchEntries'); setEntriesLoaded(true); });
     // Load similarity graph links from embeddings
+    setGraphError(null);
     authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.2`)
       .then(async r => {
-        if (!r.ok) { console.error("[graph] API error:", r.status, await r.text().catch(() => "")); return null; }
+        if (!r.ok) { const err = await r.text().catch(() => r.status); setGraphError(`API ${r.status}: ${err.slice(0, 120)}`); return null; }
         return r.json();
       })
-      .then(data => { console.log("[graph] links:", data?.length ?? 0, data); if (Array.isArray(data) && data.length > 0) setLinks(data); })
-      .catch(e => console.error("[graph] fetch error:", e));
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) setLinks(data);
+        else if (data !== null) setGraphError(`0 links returned (${entries.length} entries)`);
+      })
+      .catch(e => setGraphError(e.message));
   }, [activeBrain?.id]);
 
   // Proactive intelligence nudge — runs once per session after entries load
@@ -683,7 +688,7 @@ export default function OpenBrain() {
         {view === "calendar" && <Suspense fallback={<Loader />}><CalendarView /></Suspense>}
         {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
-        {view === "graph" && <Suspense fallback={<Loader />}><p style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} entries={entries} links={links} /></Suspense>}
+        {view === "graph" && <Suspense fallback={<Loader />}><p style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} entries={entries} links={links} graphError={graphError} /></Suspense>}
 
         {view === "chat" && (
           <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", maxHeight: "calc(100dvh - 220px)" }}>
