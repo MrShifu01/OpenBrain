@@ -41,7 +41,7 @@ export default function LoginScreen() {
     const { error } = await supabase.auth.verifyOtp({
       email,
       token: otpCode.trim(),
-      type: "email",
+      type: "magiclink",
     });
     if (error) setError(error.message);
     // If successful, onAuthStateChange in App.jsx will pick up the session
