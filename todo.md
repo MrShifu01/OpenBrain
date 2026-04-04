@@ -1,1 +1,2 @@
 Get users to easily! link to telegram for their own openbrain chat
+Revoke leaked Telegram Bot Token (flagged by GitGuardian, commit d811ad2) — go to @BotFather /revoke, generate new token, update Supabase env vars (BOT_TOKEN / TELEGRAM_BOT_TOKEN)
