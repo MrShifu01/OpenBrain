@@ -215,6 +215,85 @@ export async function unlockVault(passphrase, saltHex, verifyToken) {
   }
 }
 
+// ─── Recovery key ────────────────────────────────────────────────────────────
+
+const RECOVERY_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid confusion
+
+/**
+ * Generates a human-readable recovery key like "BRAIN-KXMF-92PL-TQVW-7DJH".
+ * 5 groups × 4 chars = 20 chars from a 30-char alphabet ≈ 98 bits of entropy.
+ * @returns {string}
+ */
+export function generateRecoveryKey() {
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  const groups = [];
+  for (let g = 0; g < 5; g++) {
+    let chunk = "";
+    for (let i = 0; i < 4; i++) {
+      chunk += RECOVERY_CHARS[bytes[g * 4 + i] % RECOVERY_CHARS.length];
+    }
+    groups.push(chunk);
+  }
+  return groups.join("-");
+}
+
+/**
+ * Encrypts the vault CryptoKey with a recovery-key-derived AES key,
+ * producing a blob that can be stored on the server.
+ *
+ * @param {CryptoKey} vaultKey - the extractable vault key
+ * @param {string} recoveryKey - e.g. "KXMF-92PL-TQVW-7DJH-ABCD"
+ * @returns {Promise<string>} encrypted blob (salt + ciphertext)
+ */
+export async function encryptVaultKeyForRecovery(vaultKey, recoveryKey) {
+  // Export the raw vault key bytes
+  const rawKey = await crypto.subtle.exportKey("raw", vaultKey);
+  const rawKeyB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)));
+
+  // Derive an AES key from the recovery key
+  const recoverySalt = generateSalt();
+  const recoveryAesKey = await deriveKeyFromPassphrase(recoveryKey, recoverySalt);
+
+  // Encrypt the raw vault key with the recovery-derived key
+  const ciphertext = await encryptText(rawKeyB64, recoveryAesKey);
+
+  // Combine salt + ciphertext so we can re-derive on recovery
+  const saltHex = Array.from(recoverySalt).map(b => b.toString(16).padStart(2, "0")).join("");
+  return `${saltHex}:${ciphertext}`;
+}
+
+/**
+ * Decrypts a vault key from a recovery blob using the recovery key.
+ *
+ * @param {string} recoveryBlob - "saltHex:v1:iv:ciphertext" from server
+ * @param {string} recoveryKey - the user's recovery key string
+ * @returns {Promise<CryptoKey|null>} the vault CryptoKey, or null if wrong key
+ */
+export async function decryptVaultKeyFromRecovery(recoveryBlob, recoveryKey) {
+  try {
+    const firstColon = recoveryBlob.indexOf(":");
+    const saltHex = recoveryBlob.slice(0, firstColon);
+    const ciphertext = recoveryBlob.slice(firstColon + 1);
+
+    const saltBytes = new Uint8Array(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+    const recoveryAesKey = await deriveKeyFromPassphrase(recoveryKey, saltBytes);
+
+    const rawKeyB64 = await decryptText(ciphertext, recoveryAesKey);
+    const rawKeyBytes = Uint8Array.from(atob(rawKeyB64), c => c.charCodeAt(0));
+
+    // Re-import as an AES-GCM CryptoKey
+    return await crypto.subtle.importKey(
+      "raw",
+      rawKeyBytes,
+      { name: CIPHER, length: 256 },
+      true, // extractable (same as original)
+      ["encrypt", "decrypt"]
+    );
+  } catch {
+    return null; // wrong recovery key
+  }
+}
+
 // ─── Bulk helpers ─────────────────────────────────────────────────────────────
 
 /**

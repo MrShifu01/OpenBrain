@@ -1,6 +1,6 @@
 /**
- * GET  /api/vault — Fetch vault salt + verify token for the authenticated user.
- * POST /api/vault — Store vault salt + verify token (first-time setup only).
+ * GET  /api/vault — Fetch vault salt, verify token, and recovery blob.
+ * POST /api/vault — Store vault data (first-time setup only).
  */
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
@@ -17,22 +17,30 @@ export default async function handler(req, res) {
 
   if (req.method === "GET") {
     const r = await fetch(
-      `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token`,
+      `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob`,
       { headers: hdrs }
     );
     if (!r.ok) return res.status(502).json({ error: "Database error" });
     const rows = await r.json();
     if (rows.length === 0) return res.status(200).json({ exists: false });
-    return res.status(200).json({ exists: true, salt: rows[0].salt, verify_token: rows[0].verify_token });
+    return res.status(200).json({
+      exists: true,
+      salt: rows[0].salt,
+      verify_token: rows[0].verify_token,
+      recovery_blob: rows[0].recovery_blob,
+    });
   }
 
   if (req.method === "POST") {
-    const { salt, verify_token } = req.body || {};
+    const { salt, verify_token, recovery_blob } = req.body || {};
     if (!salt || typeof salt !== "string" || salt.length !== 32) {
       return res.status(400).json({ error: "Invalid salt (must be 32-char hex)" });
     }
     if (!verify_token || typeof verify_token !== "string") {
       return res.status(400).json({ error: "Missing verify_token" });
+    }
+    if (!recovery_blob || typeof recovery_blob !== "string") {
+      return res.status(400).json({ error: "Missing recovery_blob" });
     }
 
     // Prevent overwrite — vault can only be set up once
@@ -48,7 +56,7 @@ export default async function handler(req, res) {
     const r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
       method: "POST",
       headers: { ...hdrs, "Prefer": "return=minimal" },
-      body: JSON.stringify({ user_id: user.id, salt, verify_token }),
+      body: JSON.stringify({ user_id: user.id, salt, verify_token, recovery_blob }),
     });
     if (!r.ok) {
       const err = await r.text().catch(() => r.status);

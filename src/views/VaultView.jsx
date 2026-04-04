@@ -3,18 +3,24 @@ import PropTypes from "prop-types";
 import { useTheme } from "../ThemeContext";
 import { TC } from "../data/constants";
 import { authFetch } from "../lib/authFetch";
-import { setupVault, unlockVault, decryptEntry } from "../lib/crypto";
+import {
+  setupVault, unlockVault, decryptEntry,
+  generateRecoveryKey, encryptVaultKeyForRecovery, decryptVaultKeyFromRecovery,
+} from "../lib/crypto";
 
-/* ─── States: "loading" → "setup" | "locked" | "unlocked" ─── */
+/* ─── States: loading → setup → show-recovery → locked | recovery | unlocked ─── */
 
 export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock }) {
   const { t } = useTheme();
-  const [status, setStatus] = useState("loading"); // loading | setup | locked | unlocked
+  const [status, setStatus] = useState("loading");
   const [passphrase, setPassphrase] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [recoveryInput, setRecoveryInput] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [vaultData, setVaultData] = useState(null); // { salt, verify_token }
+  const [vaultData, setVaultData] = useState(null);
+  const [generatedRecoveryKey, setGeneratedRecoveryKey] = useState("");
+  const [recoveryCopied, setRecoveryCopied] = useState(false);
   const [decryptedSecrets, setDecryptedSecrets] = useState([]);
   const [revealedIds, setRevealedIds] = useState(new Set());
   const [copyMsg, setCopyMsg] = useState(null);
@@ -24,10 +30,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
 
   // Check vault status on mount
   useEffect(() => {
-    if (cryptoKey) {
-      setStatus("unlocked");
-      return;
-    }
+    if (cryptoKey) { setStatus("unlocked"); return; }
     authFetch("/api/vault")
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -50,12 +53,12 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
   }, [status, cryptoKey, secrets.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (status === "setup" || status === "locked") {
+    if (["setup", "locked", "recovery"].includes(status)) {
       setTimeout(() => inputRef.current?.focus(), 80);
     }
   }, [status]);
 
-  // ── Setup: create new vault ──
+  // ── Setup: create vault + generate recovery key ──
   const handleSetup = useCallback(async () => {
     if (passphrase.length < 8) { setError("Passphrase must be at least 8 characters"); return; }
     if (passphrase !== confirm) { setError("Passphrases don't match"); return; }
@@ -63,24 +66,32 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
     setError("");
     try {
       const { key, salt, verifyToken } = await setupVault(passphrase);
+
+      // Generate recovery key and encrypt vault key with it
+      const recoveryKey = generateRecoveryKey();
+      const recoveryBlob = await encryptVaultKeyForRecovery(key, recoveryKey);
+
       const res = await authFetch("/api/vault", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salt, verify_token: verifyToken }),
+        body: JSON.stringify({ salt, verify_token: verifyToken, recovery_blob: recoveryBlob }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || `HTTP ${res.status}`);
       }
+
+      // Show the recovery key before unlocking
+      setGeneratedRecoveryKey(recoveryKey);
       onVaultUnlock(key);
-      setStatus("unlocked");
+      setStatus("show-recovery");
     } catch (e) {
       setError(e.message);
     }
     setBusy(false);
   }, [passphrase, confirm, onVaultUnlock]);
 
-  // ── Unlock: derive key from passphrase ──
+  // ── Unlock with passphrase ──
   const handleUnlock = useCallback(async () => {
     if (!passphrase.trim()) return;
     setBusy(true);
@@ -95,6 +106,23 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
     }
     setBusy(false);
   }, [passphrase, vaultData, onVaultUnlock]);
+
+  // ── Unlock with recovery key ──
+  const handleRecoveryUnlock = useCallback(async () => {
+    const cleaned = recoveryInput.trim().toUpperCase();
+    if (!cleaned) return;
+    setBusy(true);
+    setError("");
+    try {
+      const key = await decryptVaultKeyFromRecovery(vaultData.recovery_blob, cleaned);
+      if (!key) { setError("Invalid recovery key"); setBusy(false); return; }
+      onVaultUnlock(key);
+      setStatus("unlocked");
+    } catch {
+      setError("Recovery failed — check your key and try again");
+    }
+    setBusy(false);
+  }, [recoveryInput, vaultData, onVaultUnlock]);
 
   const toggleReveal = (id) => {
     setRevealedIds(prev => {
@@ -124,7 +152,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
     );
   }
 
-  // ── Setup: first-time passphrase creation ──
+  // ── Setup: passphrase creation ──
   if (status === "setup") {
     return (
       <div style={{ padding: "20px", maxWidth: 400, margin: "0 auto" }}>
@@ -133,33 +161,17 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: t.text }}>Set up your Vault</h2>
           <p style={{ margin: "8px 0 0", fontSize: 13, color: t.textDim, lineHeight: 1.6 }}>
             Choose a passphrase to protect your passwords, credit cards, and sensitive data.
-            This passphrase is your <strong style={{ color: "#FF4757" }}>only way</strong> to recover secrets on a new device.
           </p>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
           <div>
             <label style={{ fontSize: 11, color: t.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Passphrase</label>
-            <input
-              ref={inputRef}
-              type="password"
-              value={passphrase}
-              onChange={e => { setPassphrase(e.target.value); setError(""); }}
-              onKeyDown={e => e.key === "Enter" && inputRef.current?.nextElementSibling?.nextElementSibling?.querySelector?.("input")?.focus()}
-              placeholder="At least 8 characters"
-              style={inp}
-            />
+            <input ref={inputRef} type="password" value={passphrase} onChange={e => { setPassphrase(e.target.value); setError(""); }} placeholder="At least 8 characters" style={inp} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: t.textMuted, textTransform: "uppercase", letterSpacing: 1, display: "block", marginBottom: 6 }}>Confirm passphrase</label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={e => { setConfirm(e.target.value); setError(""); }}
-              onKeyDown={e => e.key === "Enter" && handleSetup()}
-              placeholder="Enter again to confirm"
-              style={inp}
-            />
+            <input type="password" value={confirm} onChange={e => { setConfirm(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && handleSetup()} placeholder="Enter again to confirm" style={inp} />
           </div>
         </div>
 
@@ -168,12 +180,44 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
         <button onClick={handleSetup} disabled={busy || passphrase.length < 8} style={{ ...accentBtn, opacity: busy || passphrase.length < 8 ? 0.5 : 1 }}>
           {busy ? "Setting up..." : "Create Vault"}
         </button>
+      </div>
+    );
+  }
 
-        <div style={{ marginTop: 20, padding: "14px 16px", background: "#FF475710", border: "1px solid #FF475730", borderRadius: 12 }}>
-          <p style={{ margin: 0, fontSize: 11, color: "#FF6B81", lineHeight: 1.6 }}>
-            <strong>Important:</strong> There is no "forgot passphrase" option. If you lose this passphrase, your encrypted entries cannot be recovered. Write it down somewhere safe.
+  // ── Show recovery key (after setup, before unlocked) ──
+  if (status === "show-recovery") {
+    return (
+      <div style={{ padding: "20px", maxWidth: 440, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🗝</div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: t.text }}>Your Recovery Key</h2>
+          <p style={{ margin: "8px 0 0", fontSize: 13, color: t.textDim, lineHeight: 1.6 }}>
+            If you ever forget your passphrase, this key is the <strong style={{ color: "#FF4757" }}>only way</strong> to recover your secrets. Write it down and store it somewhere safe.
           </p>
         </div>
+
+        {/* Recovery key display */}
+        <div style={{ background: "#0f0f23", border: "2px solid #FF4757", borderRadius: 14, padding: "20px", textAlign: "center", marginBottom: 16 }}>
+          <p style={{ margin: 0, fontSize: 22, fontFamily: "monospace", fontWeight: 800, color: "#FF4757", letterSpacing: 3, lineHeight: 1.6, wordBreak: "break-all" }}>
+            {generatedRecoveryKey}
+          </p>
+        </div>
+
+        <button
+          onClick={() => { navigator.clipboard.writeText(generatedRecoveryKey); setRecoveryCopied(true); }}
+          style={{ width: "100%", padding: "12px", background: recoveryCopied ? "#4ECDC420" : "#FF475720", border: `1px solid ${recoveryCopied ? "#4ECDC440" : "#FF475740"}`, borderRadius: 10, color: recoveryCopied ? "#4ECDC4" : "#FF4757", fontSize: 13, fontWeight: 700, cursor: "pointer", marginBottom: 12, minHeight: 44 }}
+        >{recoveryCopied ? "Copied!" : "📋 Copy recovery key"}</button>
+
+        <div style={{ padding: "14px 16px", background: "#FF475710", border: "1px solid #FF475730", borderRadius: 12, marginBottom: 16 }}>
+          <p style={{ margin: 0, fontSize: 11, color: "#FF6B81", lineHeight: 1.6 }}>
+            <strong>Write this down now.</strong> This key will not be shown again. Without your passphrase or this recovery key, encrypted entries are permanently lost.
+          </p>
+        </div>
+
+        <button
+          onClick={() => { setGeneratedRecoveryKey(""); setStatus("unlocked"); }}
+          style={{ ...accentBtn }}
+        >I've saved my recovery key</button>
       </div>
     );
   }
@@ -206,11 +250,52 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
           {busy ? "Unlocking..." : "Unlock"}
         </button>
 
+        <button
+          onClick={() => { setError(""); setRecoveryInput(""); setStatus("recovery"); }}
+          style={{ width: "100%", marginTop: 12, padding: "10px", background: "none", border: "none", color: t.textDim, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+        >Forgot passphrase? Use recovery key</button>
+
         {secrets.length > 0 && (
-          <p style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: t.textDim }}>
+          <p style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: t.textDim }}>
             {secrets.length} encrypted {secrets.length === 1 ? "entry" : "entries"} waiting
           </p>
         )}
+      </div>
+    );
+  }
+
+  // ── Recovery: enter recovery key ──
+  if (status === "recovery") {
+    return (
+      <div style={{ padding: "20px", maxWidth: 400, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🗝</div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: t.text }}>Recovery Key</h2>
+          <p style={{ margin: "8px 0 0", fontSize: 13, color: t.textDim, lineHeight: 1.6 }}>
+            Enter the recovery key you saved when you set up your vault
+          </p>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={recoveryInput}
+          onChange={e => { setRecoveryInput(e.target.value.toUpperCase()); setError(""); }}
+          onKeyDown={e => e.key === "Enter" && handleRecoveryUnlock()}
+          placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+          style={{ ...inp, fontFamily: "monospace", fontSize: 16, letterSpacing: 2, textAlign: "center", marginBottom: 12 }}
+        />
+
+        {error && <p style={{ color: "#FF6B35", fontSize: 12, margin: "0 0 12px", textAlign: "center" }}>{error}</p>}
+
+        <button onClick={handleRecoveryUnlock} disabled={busy || !recoveryInput.trim()} style={{ ...accentBtn, opacity: busy || !recoveryInput.trim() ? 0.5 : 1 }}>
+          {busy ? "Recovering..." : "Unlock with recovery key"}
+        </button>
+
+        <button
+          onClick={() => { setError(""); setPassphrase(""); setStatus("locked"); }}
+          style={{ width: "100%", marginTop: 12, padding: "10px", background: "none", border: "none", color: t.textDim, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}
+        >Back to passphrase</button>
       </div>
     );
   }
@@ -220,15 +305,13 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
     <div style={{ padding: "0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: t.text }}>
-            🔐 Vault
-          </h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: t.text }}>🔐 Vault</h2>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: t.textDim }}>
             {decryptedSecrets.length} secret {decryptedSecrets.length === 1 ? "entry" : "entries"}
           </p>
         </div>
         <button
-          onClick={() => { setStatus("locked"); setPassphrase(""); setRevealedIds(new Set()); onVaultUnlock(null); }}
+          onClick={() => { setStatus("locked"); setPassphrase(""); setRecoveryInput(""); setRevealedIds(new Set()); onVaultUnlock(null); }}
           style={{ padding: "6px 14px", background: "#FF475720", border: "1px solid #FF475740", borderRadius: 8, color: "#FF4757", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
         >🔒 Lock</button>
       </div>
@@ -253,8 +336,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
             const revealed = revealedIds.has(e.id);
             const meta = Object.entries(e.metadata || {}).filter(([k]) => k !== "category" && k !== "status");
             return (
-              <div key={e.id} style={{ background: t.surface, border: `1px solid #FF475730`, borderRadius: 14, padding: "16px", overflow: "hidden" }}>
-                {/* Header */}
+              <div key={e.id} style={{ background: t.surface, border: "1px solid #FF475730", borderRadius: 14, padding: "16px", overflow: "hidden" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 18 }}>{TC.secret.i}</span>
@@ -266,7 +348,6 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
                   >{revealed ? "Hide" : "Reveal"}</button>
                 </div>
 
-                {/* Content */}
                 {revealed ? (
                   <div>
                     <div style={{ background: "#FF475710", border: "1px solid #FF475720", borderRadius: 8, padding: "12px", marginBottom: 8 }}>
