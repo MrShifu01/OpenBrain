@@ -21,22 +21,15 @@ export default function CalendarView() {
     const map = {};
     const addTo = (key, entry) => { if (!map[key]) map[key] = []; if (!map[key].find(e => e.id === entry.id)) map[key].push(entry); };
 
-    const DATE_KEYS = ["deadline","due_date","valid_to","valid_from","date","event_date","start_date","end_date","match_date","game_date","scheduled_date","appointment_date","event_start","expiry_date","expiry","renewal_date"];
-    const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-    const CONTENT_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/g;
-
+    // Only actionable date keys — excludes reference dates like date_of_birth, id_issue_date, etc.
+    const DATE_KEYS = ["deadline","due_date","valid_to","valid_from","event_date","start_date","end_date","match_date","game_date","scheduled_date","appointment_date","event_start","expiry_date","expiry","renewal_date"];
     // Explicit date fields — skip completed reminders
     entries.forEach(e => {
       if (e.type === "reminder" && e.metadata?.status === "done") return;
       const m = e.metadata || {};
       // Check all known date keys
       DATE_KEYS.forEach(k => { if (m[k]) addTo(String(m[k]).slice(0, 10), e); });
-      // Fallback: scan all metadata values for any YYYY-MM-DD shaped string
-      Object.values(m).forEach(v => { if (typeof v === "string" && DATE_RE.test(v)) addTo(v.slice(0, 10), e); });
-      // Fallback: scan title and content for YYYY-MM-DD dates
-      const text = `${e.title || ""} ${e.content || ""}`;
-      let match;
-      while ((match = CONTENT_DATE_RE.exec(text)) !== null) addTo(match[1], e);
+      // Note: removed generic metadata/content scan to avoid reference dates showing up
     });
 
     // Recurring day-of-week entries — show on every matching weekday in displayed month

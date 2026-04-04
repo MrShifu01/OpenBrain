@@ -18,7 +18,7 @@ EXTRACTION RULES:
   - metadata.expiry_date: for licence expiry, document expiry, subscription expiry (YYYY-MM-DD)
   - metadata.event_date: for events, appointments, matches, games (YYYY-MM-DD)
   - metadata.day_of_week: for recurring weekly events like "every Wednesday" → "wednesday"
-  - metadata.date: for any other specific date mentioned (YYYY-MM-DD)
+  - For reference/historical dates (date of birth, ID issue date, licence issue date, etc.), use a descriptive key like metadata.date_of_birth, metadata.issue_date, metadata.licence_date — NOT metadata.date. These are records, not deadlines.
 - If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
 - Title: max 60 chars
 - Content: 1-2 sentence description

@@ -3,9 +3,10 @@ import PropTypes from "prop-types";
 import { TC, fmtD } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 
+// Only actionable date keys — excludes reference dates like date_of_birth, id_issue_date, etc.
 const DATE_KEYS = [
   "deadline", "due_date", "valid_to", "expiry_date", "expiry",
-  "renewal_date", "event_date", "date", "start_date", "end_date",
+  "renewal_date", "event_date", "start_date", "end_date",
   "scheduled_date", "appointment_date", "event_start", "match_date", "game_date",
 ];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
@@ -17,11 +18,6 @@ function extractDates(entry) {
   // Explicit date fields
   DATE_KEYS.forEach(k => {
     if (m[k] && DATE_RE.test(String(m[k]))) dates.add(String(m[k]).slice(0, 10));
-  });
-
-  // Generic metadata scan
-  Object.values(m).forEach(v => {
-    if (typeof v === "string" && DATE_RE.test(v)) dates.add(v.slice(0, 10));
   });
 
   return [...dates];
