@@ -172,6 +172,7 @@ function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => onSelect(brain)}
       style={{
         display: "flex",
         alignItems: "center",
@@ -181,8 +182,7 @@ function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }
         gap: 8,
       }}
     >
-      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}
-        onClick={() => onSelect(brain)}>
+      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
         <span>{emoji}</span>
         <span style={{ fontSize: 13, color: active ? "#a5b4fc" : "#d4d4d8", fontWeight: active ? 600 : 400 }}>
           {brain.name}
