@@ -280,10 +280,13 @@ export default function OpenBrain() {
       })
       .catch(err => { captureError(err, 'fetchEntries'); setEntriesLoaded(true); });
     // Load similarity graph links from embeddings
-    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.35`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (Array.isArray(data) && data.length > 0) setLinks(data); })
-      .catch(() => {});
+    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.2`)
+      .then(async r => {
+        if (!r.ok) { console.error("[graph] API error:", r.status, await r.text().catch(() => "")); return null; }
+        return r.json();
+      })
+      .then(data => { console.log("[graph] links:", data?.length ?? 0, data); if (Array.isArray(data) && data.length > 0) setLinks(data); })
+      .catch(e => console.error("[graph] fetch error:", e));
   }, [activeBrain?.id]);
 
   // Proactive intelligence nudge — runs once per session after entries load

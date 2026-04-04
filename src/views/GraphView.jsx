@@ -28,7 +28,13 @@ export default function GraphView({ onSelect, entries = [], links = [] }) {
     };
     sim(); return () => cancelAnimationFrame(frameRef.current);
   }, [entries, links]);
-  return <canvas ref={ref} aria-label="Knowledge graph visualization" onClick={e=>{const r=ref.current.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;const n=nodesRef.current.find(n=>Math.hypot(n.x-x,n.y-y)<20);if(n)onSelect(entries.find(en=>en.id===n.id));}} style={{width:"100%",height:400,borderRadius:12,background:"#0d0d1a",cursor:"pointer"}} />;
+  return (
+    <div>
+      <canvas ref={ref} aria-label="Knowledge graph visualization" onClick={e=>{const r=ref.current.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;const n=nodesRef.current.find(n=>Math.hypot(n.x-x,n.y-y)<20);if(n)onSelect(entries.find(en=>en.id===n.id));}} style={{width:"100%",height:400,borderRadius:12,background:"#0d0d1a",cursor:"pointer"}} />
+      {links.length === 0 && <p style={{textAlign:"center",color:"#666",fontSize:12,marginTop:8}}>No connections found. Embed your entries in Settings to build the graph.</p>}
+      {links.length > 0 && <p style={{textAlign:"center",color:"#4ECDC4",fontSize:11,marginTop:4}}>{links.length} connections</p>}
+    </div>
+  );
 }
 
 GraphView.propTypes = {
