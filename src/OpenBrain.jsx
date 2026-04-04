@@ -451,7 +451,7 @@ export default function OpenBrain() {
       tags: ["reorder", "smash burger bar"]
     };
     try {
-      const res = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content, p_type: parsed.type, p_metadata: parsed.metadata, p_tags: parsed.tags }) });
+      const res = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content, p_type: parsed.type, p_metadata: parsed.metadata, p_tags: parsed.tags }) });
       const result = res.ok ? await res.json() : null;
       const newEntry = { id: result?.id || Date.now().toString(), ...parsed, pinned: false, importance: 1, created_at: new Date().toISOString() };
       setEntries(prev => [newEntry, ...prev]);
@@ -802,7 +802,7 @@ export default function OpenBrain() {
                     try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
                     if (parsed.title && activeBrain?.id) {
                       authFetch("/api/capture", {
-                        method: "POST", headers: { "Content-Type": "application/json" },
+                        method: "POST", headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
                         body: JSON.stringify({
                           p_title: parsed.title,
                           p_content: parsed.content || item.a,

@@ -1,6 +1,7 @@
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { checkBrainAccess } from "./_lib/checkBrainAccess.js";
+import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 
@@ -113,6 +114,24 @@ async function handleCapture(req, res) {
         },
         body: JSON.stringify(rows),
       }).catch(err => console.error('[capture:entry_brains] Failed to share entry to extra brains', err));
+    }
+  }
+
+  // Auto-embed: if embed headers are present, embed the new entry (fire-and-forget)
+  if (response.ok && data?.id) {
+    const embedProvider = (req.headers["x-embed-provider"] || "").toLowerCase();
+    const embedKey = (req.headers["x-embed-key"] || "").trim();
+    if (embedKey && ["openai", "google"].includes(embedProvider)) {
+      const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
+      generateEmbedding(buildEntryText(entryForEmbed), embedProvider, embedKey)
+        .then(embedding =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(data.id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json", "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY, "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Prefer": "return=minimal" },
+            body: JSON.stringify({ embedding: `[${embedding.join(",")}]`, embedded_at: new Date().toISOString(), embedding_provider: embedProvider }),
+          })
+        )
+        .catch(err => console.error("[capture:auto-embed]", err.message));
     }
   }
 

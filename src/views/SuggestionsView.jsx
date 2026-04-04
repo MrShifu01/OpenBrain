@@ -8,6 +8,7 @@ import { BUSINESS_SUGGESTIONS } from "../data/businessSuggestions";
 import { TC, PC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 import { PROMPTS } from "../config/prompts";
+import { getEmbedHeaders } from "../lib/aiFetch";
 
 /* ─── Brain-type → question set ─── */
 function getSuggestionsForType(type) {
@@ -216,7 +217,7 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       if (parsed.title) {
         const rpcRes = await authFetch("/api/capture", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
           body: JSON.stringify({
             p_title: parsed.title,
             p_content: parsed.content || a,

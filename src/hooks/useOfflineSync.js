@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getAll, remove, enqueue } from '../lib/offlineQueue';
 import { authFetch } from '../lib/authFetch';
+import { getEmbedHeaders } from '../lib/aiFetch';
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
 // PERF-10: Max retries before permanently dropping a failed operation.
@@ -58,7 +59,7 @@ export function useOfflineSync({ onEntryIdUpdate } = {}) {
             let parsed = {};
             try { parsed = JSON.parse((data?.content?.[0]?.text || '{}').replace(/```json|```/g, '').trim()); } catch {}
             if (!parsed.title) continue; // bad parse, keep in queue
-            const saveRes = await authFetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || '', p_type: parsed.type || 'note', p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
+            const saveRes = await authFetch('/api/capture', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(getEmbedHeaders() || {}) }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || '', p_type: parsed.type || 'note', p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [] }) });
             if (saveRes.ok) {
               const result = await saveRes.json().catch(() => null);
               if (result?.id && op.tempId) onEntryIdUpdate?.(op.tempId, result.id);

@@ -255,22 +255,14 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
           onCreated?.(newEntry);
           setStatus("saved-local");
         } else {
-          const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [], p_brain_id: primaryBrainId, p_extra_brain_ids: extraBrainIds }) });
+          const rpcRes = await authFetch("/api/capture", { method: "POST", headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) }, body: JSON.stringify({ p_title: parsed.title, p_content: parsed.content || "", p_type: parsed.type || "note", p_metadata: parsed.metadata || {}, p_tags: parsed.tags || [], p_brain_id: primaryBrainId, p_extra_brain_ids: extraBrainIds }) });
           if (rpcRes.ok) {
             const result = await rpcRes.json();
             const newEntry = { id: result?.id || Date.now().toString(), title: parsed.title, content: parsed.content || "", type: parsed.type || "note", metadata: parsed.metadata || {}, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
             setEntries(prev => [newEntry, ...prev]);
             onCreated?.(newEntry);
             setStatus("saved-db");
-            // Fire-and-forget embedding for the new entry (non-blocking)
-            const embedHeaders = getEmbedHeaders();
-            if (embedHeaders && result?.id) {
-              authFetch("/api/embed", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...embedHeaders },
-                body: JSON.stringify({ entry_id: result.id }),
-              }).catch(() => {}); // best-effort, never blocks
-            }
+            // Embedding now handled server-side in /api/capture
             // PERF-6: debounce findConnections by 5 s; skip during bulk import
             // (heuristic: if entries grew by more than 3 since last run, it's a bulk import)
             const currentLength = entries.length;
