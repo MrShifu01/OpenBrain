@@ -175,6 +175,46 @@ export function isEncrypted(str) {
   return typeof str === "string" && str.startsWith(CIPHERTEXT_PREFIX);
 }
 
+// ─── Vault helpers ───────────────────────────────────────────────────────────
+
+const VAULT_VERIFY_PLAINTEXT = "openbrain-vault-ok";
+
+/**
+ * Sets up a new vault: generates salt, derives key from passphrase,
+ * produces a verify_token to confirm correct passphrase on future unlocks.
+ *
+ * @param {string} passphrase
+ * @returns {Promise<{ key: CryptoKey, salt: string, verifyToken: string }>}
+ */
+export async function setupVault(passphrase) {
+  const saltBytes = generateSalt();
+  const key = await deriveKeyFromPassphrase(passphrase, saltBytes);
+  const verifyToken = await encryptText(VAULT_VERIFY_PLAINTEXT, key);
+  const saltHex = Array.from(saltBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+  return { key, salt: saltHex, verifyToken };
+}
+
+/**
+ * Unlocks an existing vault by deriving the key from passphrase + stored salt,
+ * then verifying the key against the stored verify_token.
+ *
+ * @param {string} passphrase
+ * @param {string} saltHex - 32-char hex string from server
+ * @param {string} verifyToken - encrypted verification string from server
+ * @returns {Promise<CryptoKey|null>} The derived key, or null if passphrase is wrong
+ */
+export async function unlockVault(passphrase, saltHex, verifyToken) {
+  const saltBytes = new Uint8Array(saltHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const key = await deriveKeyFromPassphrase(passphrase, saltBytes);
+  try {
+    const plain = await decryptText(verifyToken, key);
+    if (plain === VAULT_VERIFY_PLAINTEXT) return key;
+    return null;
+  } catch {
+    return null; // wrong passphrase — decryption fails
+  }
+}
+
 // ─── Bulk helpers ─────────────────────────────────────────────────────────────
 
 /**

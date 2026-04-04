@@ -4,7 +4,7 @@ import { TC } from "../data/constants";
 import { extractPhone, toWaUrl } from "../lib/phone";
 import { useTheme } from "../ThemeContext";
 
-export default function DetailModal({ entry, onClose, onDelete, onUpdate, onReorder, entries = [], links = [], canWrite = true, brains = [] }) {
+export default function DetailModal({ entry, onClose, onDelete, onUpdate, onReorder, entries = [], links = [], canWrite = true, brains = [], vaultUnlocked = false }) {
   const { t } = useTheme();
   if (!entry) return null;
   const confirmTimerRef = useRef(null);
@@ -200,9 +200,15 @@ export default function DetailModal({ entry, onClose, onDelete, onUpdate, onReor
           <div style={{ padding: '16px 16px' }}>
             {isSecret && !secretRevealed ? (
               <div style={{ textAlign: 'center', padding: '24px 16px' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🔐</div>
-                <p style={{ color: t.textDim, fontSize: 13, margin: '0 0 16px' }}>This entry is end-to-end encrypted</p>
-                <button onClick={() => setSecretRevealed(true)} style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #FF4757, #FF6B81)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 44 }}>Reveal content</button>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>{vaultUnlocked ? '🔐' : '🔒'}</div>
+                <p style={{ color: t.textDim, fontSize: 13, margin: '0 0 16px' }}>
+                  {vaultUnlocked ? 'This entry is end-to-end encrypted' : 'Unlock your Vault to view this secret'}
+                </p>
+                {vaultUnlocked ? (
+                  <button onClick={() => setSecretRevealed(true)} style={{ padding: '10px 24px', background: 'linear-gradient(135deg, #FF4757, #FF6B81)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', minHeight: 44 }}>Reveal content</button>
+                ) : (
+                  <p style={{ color: '#FF4757', fontSize: 12 }}>Go to the Vault tab and enter your passphrase</p>
+                )}
               </div>
             ) : (
               <>

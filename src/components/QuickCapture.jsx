@@ -76,7 +76,7 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
   );
 }
 
-export default function QuickCapture({ entries, setEntries, links, addLinks, onCreated, onUpdate, isOnline = true, refreshCount, brainId, brains = [], canWrite = true, cryptoKey = null }) {
+export default function QuickCapture({ entries, setEntries, links, addLinks, onCreated, onUpdate, isOnline = true, refreshCount, brainId, brains = [], canWrite = true, cryptoKey = null, onNavigate = null }) {
   const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -258,6 +258,11 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
         } else {
           // E2E: encrypt content & metadata for secret entries before sending to server
           const isSecret = (parsed.type || "note") === "secret";
+          if (isSecret && !cryptoKey) {
+            setStatus("vault-needed");
+            setLoading(false);
+            return;
+          }
           let serverContent = parsed.content || "";
           let serverMetadata = parsed.metadata || {};
           if (isSecret && cryptoKey) {
@@ -352,7 +357,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     setLoading(false); setTimeout(() => setStatus(null), 3000);
   };
 
-  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Image uploads need a connection", "img-too-large": "⚠️ Photo too large — try a smaller image" };
+  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Image uploads need a connection", "img-too-large": "⚠️ Photo too large — try a smaller image", "vault-needed": "🔐 Set up your Vault first to save secrets" };
 
   if (!canWrite) {
     return (
@@ -397,7 +402,10 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
         <button onClick={() => imgRef.current?.click()} disabled={loading} style={{ padding: "12px 14px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 12, color: loading ? t.textDim : "#4ECDC4", cursor: loading ? "default" : "pointer", fontSize: 16 }}>📷</button>
         <button onClick={capture} disabled={loading || !text.trim()} title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`} style={{ padding: "12px 18px", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 12, color: text.trim() && !loading ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 16 }}>+</button>
       </div>
-      {status && <p style={{ fontSize: 11, color: status.includes("error") ? "#FF6B35" : "#4ECDC4", margin: "6px 0 0 4px" }}>{statusMsg[status]}</p>}
+      {status && <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 4px" }}>
+        <p style={{ fontSize: 11, color: status === "vault-needed" ? "#FF4757" : status.includes("error") ? "#FF6B35" : "#4ECDC4", margin: 0 }}>{statusMsg[status]}</p>
+        {status === "vault-needed" && onNavigate && <button onClick={() => { onNavigate("vault"); setStatus(null); }} style={{ fontSize: 11, padding: "3px 10px", background: "#FF475720", border: "1px solid #FF475740", borderRadius: 6, color: "#FF4757", fontWeight: 600, cursor: "pointer" }}>Open Vault</button>}
+      </div>}
       {preview && <PreviewModal preview={preview} entries={entries} onSave={doSave} onUpdate={onUpdate} onCancel={() => setPreview(null)} />}
     </div>
   );

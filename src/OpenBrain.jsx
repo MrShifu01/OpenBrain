@@ -3,8 +3,8 @@ import { useTheme } from "./ThemeContext";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { authFetch } from "./lib/authFetch";
 import { callAI } from "./lib/ai";
-import { getEmbedHeaders, getUserProvider, getUserModel, getUserApiKey, getOpenRouterKey, getOpenRouterModel, getUserId } from "./lib/aiFetch";
-import { getOrCreateKey, encryptEntry, decryptEntry } from "./lib/crypto";
+import { getEmbedHeaders, getUserProvider, getUserModel, getUserApiKey, getOpenRouterKey, getOpenRouterModel } from "./lib/aiFetch";
+import { encryptEntry, decryptEntry } from "./lib/crypto";
 import { PROMPTS } from "./config/prompts";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain as useBrainHook } from "./hooks/useBrain";
@@ -32,6 +32,7 @@ const TodoView        = lazy(() => import("./views/TodoView"));
 const GraphView       = lazy(() => import("./views/GraphView"));
 const DetailModal     = lazy(() => import("./views/DetailModal"));
 const RefineView      = lazy(() => import("./views/RefineView"));
+const VaultView       = lazy(() => import("./views/VaultView"));
 
 function Loader() {
   const { t } = useTheme();
@@ -193,10 +194,18 @@ export default function OpenBrain() {
   const [entriesLoaded, setEntriesLoaded] = useState(false);
   const [cryptoKey, setCryptoKey] = useState(null);
 
-  // E2E: initialise device-bound AES-256-GCM key for secret entries
-  useEffect(() => {
-    const uid = getUserId();
-    if (uid) getOrCreateKey(uid).then(setCryptoKey).catch(err => console.error("[crypto:init]", err));
+  // Vault unlock callback — stores derived key in state for the session
+  const handleVaultUnlock = useCallback((key) => {
+    setCryptoKey(key);
+    // If key is set and we have entries, decrypt secret entries in-place
+    if (key) {
+      setEntries(prev => {
+        // Trigger async decrypt, will update state when done
+        Promise.all(prev.map(e => e.type === "secret" ? decryptEntry(e, key) : e))
+          .then(decrypted => setEntries(decrypted));
+        return prev;
+      });
+    }
   }, []);
 
   // PERF-8: On mount, upgrade the initial state from IndexedDB (richer than localStorage).
@@ -281,16 +290,13 @@ export default function OpenBrain() {
     const url = `/api/entries?brain_id=${encodeURIComponent(activeBrain.id)}`;
     authFetch(url)
       .then(r => r.ok ? r.json() : null)
-      .then(async (data) => {
+      .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          // E2E: decrypt secret entries client-side before storing in state
-          const decrypted = cryptoKey
-            ? await Promise.all(data.map(e => e.type === "secret" ? decryptEntry(e, cryptoKey) : e))
-            : data;
-          setEntries(decrypted);
-          writeEntriesCache(decrypted); // PERF-8: write to IDB (with localStorage fallback)
-          // ARCH-5: Build search index at load time — O(n) once, not on every filter
-          decrypted.forEach(indexEntry);
+          // Secret entries stay encrypted in state until vault is unlocked
+          setEntries(data);
+          writeEntriesCache(data); // PERF-8: write to IDB (with localStorage fallback)
+          // ARCH-5: Build search index at load time (skip secret entries — encrypted)
+          data.filter(e => e.type !== "secret").forEach(indexEntry);
         }
         setEntriesLoaded(true);
       })
@@ -551,6 +557,7 @@ export default function OpenBrain() {
     { id: "todos", l: "Todos", ic: "✓" },
     { id: "timeline", l: "Timeline", ic: "◔" },
     { id: "graph", l: "Graph", ic: "◉" },
+    { id: "vault", l: "Vault", ic: "🔐" },
     { id: "chat", l: "Ask", ic: "◈" },
     { id: "settings", l: "Settings", ic: "⚙" },
   ];
@@ -615,7 +622,7 @@ export default function OpenBrain() {
         </div>
       </div>
 
-      <QuickCapture entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} onUpdate={handleUpdate} brainId={activeBrain?.id} brains={brains} isOnline={isOnline} refreshCount={refreshCount} canWrite={canWrite} cryptoKey={cryptoKey} />
+      <QuickCapture entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} onCreated={handleCreated} onUpdate={handleUpdate} brainId={activeBrain?.id} brains={brains} isOnline={isOnline} refreshCount={refreshCount} canWrite={canWrite} cryptoKey={cryptoKey} onNavigate={setView} />
 
       {showBrainTip && (
         <BrainTipCard
@@ -678,7 +685,7 @@ export default function OpenBrain() {
           <div style={{ textAlign: "center", paddingTop: 40, color: t.textDim }}>
             <p style={{ fontSize: 13, marginBottom: 20 }}>Tap ☰ to navigate — or just start capturing above.</p>
             <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-              {[{ id: "grid", l: "Memory Grid", ic: "▦" }, { id: "suggest", l: "Fill Brain", ic: "✦" }, { id: "calendar", l: "Calendar", ic: "📅" }, { id: "chat", l: "Ask", ic: "◈" }].map(v => (
+              {[{ id: "grid", l: "Memory Grid", ic: "▦" }, { id: "suggest", l: "Fill Brain", ic: "✦" }, { id: "vault", l: "Vault", ic: "🔐" }, { id: "chat", l: "Ask", ic: "◈" }].map(v => (
                 <button key={v.id} onClick={() => setView(v.id)} style={{ padding: "10px 18px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMid, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{v.ic} {v.l}</button>
               ))}
             </div>
@@ -718,6 +725,7 @@ export default function OpenBrain() {
         {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
         {view === "graph" && <Suspense fallback={<Loader />}><p style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} entries={entries} links={links} graphError={graphError} /></Suspense>}
+        {view === "vault" && <Suspense fallback={<Loader />}><VaultView entries={entries} onSelect={setSelected} cryptoKey={cryptoKey} onVaultUnlock={handleVaultUnlock} /></Suspense>}
 
         {view === "chat" && (
           <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 220px)", maxHeight: "calc(100dvh - 220px)" }}>
@@ -763,6 +771,7 @@ export default function OpenBrain() {
           links={links}
           canWrite={canWrite}
           brains={brains}
+          vaultUnlocked={!!cryptoKey}
         />
       </Suspense>
 
