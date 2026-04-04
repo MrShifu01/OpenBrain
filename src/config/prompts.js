@@ -11,7 +11,13 @@ Format: {"title":"...","content":"...","type":"...","metadata":{},"tags":[],"wor
 TYPE RULES (pick the BEST match): person, contact, place, document, reminder, idea, decision, color, note
 
 EXTRACTION RULES:
-- Put phone numbers, dates, IDs into metadata
+- Put phone numbers, IDs into metadata
+- Dates: extract into specific metadata fields:
+  - metadata.due_date or metadata.deadline: for deadlines, expiry dates, due dates (YYYY-MM-DD)
+  - metadata.expiry_date: for licence expiry, document expiry, subscription expiry (YYYY-MM-DD)
+  - metadata.event_date: for events, appointments, matches, games (YYYY-MM-DD)
+  - metadata.day_of_week: for recurring weekly events like "every Wednesday" → "wednesday"
+  - metadata.date: for any other specific date mentioned (YYYY-MM-DD)
 - If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
 - Title: max 60 chars
 - Content: 1-2 sentence description
@@ -30,7 +36,7 @@ IMPORTANT: Do NOT suggest merging companies just because they have similar name 
   CHAT: `You are OpenBrain, the user's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n{{MEMORIES}}\n\nLINKS:\n{{LINKS}}`,
 
   /** Onboarding + SuggestionsView: parse a Q&A into a structured entry */
-  QA_PARSE: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"note|person|place|idea|contact|document|reminder|color|decision","metadata":{},"tags":[]}`,
+  QA_PARSE: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"note|person|place|idea|contact|document|reminder|color|decision","metadata":{},"tags":[]}\nFor dates use: metadata.due_date, metadata.expiry_date, metadata.event_date (YYYY-MM-DD), metadata.day_of_week for recurring ("wednesday").`,
 
   /** SuggestionsView: generate a gap-filling question for the brain */
   FILL_BRAIN: `You are helping someone build their {{BRAIN_CONTEXT}} called OpenBrain. Identify important information they should capture but haven't yet. Study the gaps — important facts, records, contacts, plans that are missing. Generate ONE specific, actionable question relevant to this brain type. Return ONLY valid JSON: {"q":"...","cat":"...","p":"high"|"medium"|"low"}`,

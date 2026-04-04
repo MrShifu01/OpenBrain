@@ -23,6 +23,7 @@ export default function CalendarView() {
 
     const DATE_KEYS = ["deadline","due_date","valid_to","valid_from","date","event_date","start_date","end_date","match_date","game_date","scheduled_date","appointment_date","event_start","expiry_date","expiry","renewal_date"];
     const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
+    const CONTENT_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/g;
 
     // Explicit date fields — skip completed reminders
     entries.forEach(e => {
@@ -32,11 +33,21 @@ export default function CalendarView() {
       DATE_KEYS.forEach(k => { if (m[k]) addTo(String(m[k]).slice(0, 10), e); });
       // Fallback: scan all metadata values for any YYYY-MM-DD shaped string
       Object.values(m).forEach(v => { if (typeof v === "string" && DATE_RE.test(v)) addTo(v.slice(0, 10), e); });
+      // Fallback: scan title and content for YYYY-MM-DD dates
+      const text = `${e.title || ""} ${e.content || ""}`;
+      let match;
+      while ((match = CONTENT_DATE_RE.exec(text)) !== null) addTo(match[1], e);
     });
 
     // Recurring day-of-week entries — show on every matching weekday in displayed month
     entries.forEach(e => {
-      const rawDay = (e.metadata?.day_of_week || e.metadata?.weekday || e.metadata?.recurring_day || "").toString().toLowerCase().trim();
+      let rawDay = (e.metadata?.day_of_week || e.metadata?.weekday || e.metadata?.recurring_day || "").toString().toLowerCase().trim();
+      // Fallback: scan title/content for "every <day>" pattern
+      if (!rawDay) {
+        const text = `${e.title || ""} ${e.content || ""}`.toLowerCase();
+        const dayMatch = text.match(/every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i);
+        if (dayMatch) rawDay = dayMatch[1];
+      }
       const dowIndex = DOW[rawDay];
       if (dowIndex === undefined) return;
       for (let d = 1; d <= new Date(year, mon + 1, 0).getDate(); d++) {
