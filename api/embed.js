@@ -115,8 +115,10 @@ export default async function handler(req, res) {
               embedded_at: new Date().toISOString(),
               embedding_provider: provider,
             }),
-          }).then(() => { processed++; })
-            .catch(e => { console.error("[embed:batch:patch]", entry.id, e.message); failed++; })
+          }).then(async r => {
+            if (r.ok) { processed++; }
+            else { const err = await r.text().catch(() => r.status); console.error("[embed:patch]", entry.id, r.status, err); failed++; }
+          }).catch(e => { console.error("[embed:batch:patch]", entry.id, e.message); failed++; })
         )
       );
     } catch (e) {

@@ -84,12 +84,21 @@ async function generateGoogleEmbedding(text, apiKey) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] } }),
+        body: JSON.stringify({
+          model: `models/${model}`,
+          content: { parts: [{ text }] },
+          outputDimensionality: 768,
+        }),
       }
     );
     if (res.ok) {
       const data = await res.json();
-      return data.embedding.values;
+      const values = data.embedding.values;
+      // Verify dimension matches our vector(768) column
+      if (values.length !== 768) {
+        throw new Error(`${model} returned ${values.length} dims, expected 768`);
+      }
+      return values;
     }
     if (res.status !== 404) {
       const err = await res.text().catch(() => res.status);
