@@ -5,8 +5,19 @@ const SB_URL = process.env.SUPABASE_URL;
 
 const ALLOWED_TYPES = ["note", "person", "place", "idea", "contact", "document", "reminder", "color", "decision"];
 
+// SEC-15: Whitelist allowed rel values
+const ALLOWED_RELS = ['related', 'mentions', 'links-to', 'contradicts'];
+
+// Dispatched via rewrite: /api/save-links → /api/capture?action=links
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  if (req.query.action === "links") return handleSaveLinks(req, res);
+  return handleCapture(req, res);
+}
+
+// ── POST /api/capture ──
+async function handleCapture(req, res) {
   if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
 
   const user = await verifyAuth(req);
@@ -110,9 +121,56 @@ export default async function handler(req, res) {
           "Prefer": "resolution=ignore-duplicates",
         },
         body: JSON.stringify(rows),
-      }).catch(err => console.error('[capture:entry_brains] Failed to share entry to extra brains', err)); // Non-fatal — fire and forget
+      }).catch(err => console.error('[capture:entry_brains] Failed to share entry to extra brains', err));
     }
   }
 
   res.status(response.status).json(data);
+}
+
+// ── POST /api/save-links (rewritten to /api/capture?action=links) ──
+async function handleSaveLinks(req, res) {
+  const user = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { links, brain_id } = req.body;
+  if (!Array.isArray(links)) return res.status(400).json({ error: "links must be an array" });
+
+  // Validate link structure and rel whitelist
+  const valid = links.filter(l => {
+    if (!l.from || !l.to || !l.rel) return false;
+    if (typeof l.from !== "string" || typeof l.to !== "string" || typeof l.rel !== "string") return false;
+    if (!ALLOWED_RELS.includes(l.rel)) return false;
+    return true;
+  });
+
+  if (valid.length === 0) {
+    const hasInvalidRel = links.some(l => l.rel && !ALLOWED_RELS.includes(l.rel));
+    if (hasInvalidRel) {
+      return res.status(400).json({ error: `rel must be one of: ${ALLOWED_RELS.join(', ')}` });
+    }
+    return res.status(400).json({ error: "No valid links" });
+  }
+
+  const response = await fetch(`${SB_URL}/rest/v1/rpc/save_links`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": process.env.SUPABASE_SERVICE_ROLE_KEY,
+      "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+    body: JSON.stringify({
+      p_user_id: user.id,
+      p_links: JSON.stringify(valid),
+      ...(brain_id && typeof brain_id === "string" ? { p_brain_id: brain_id } : {}),
+    }),
+  });
+
+  if (!response.ok) {
+    const err = await response.text().catch(() => "");
+    console.log(`[save-links] RPC not available: ${err}`);
+    return res.status(200).json({ ok: true, stored: "local-only", message: "Links saved locally. Create the save_links RPC in Supabase to enable server persistence." });
+  }
+
+  res.status(200).json({ ok: true, stored: "database", count: valid.length });
 }

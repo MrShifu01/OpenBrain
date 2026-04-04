@@ -1,7 +1,7 @@
 import { sendToUser } from "../_lib/sendPush.js";
 
-const SB_URL  = process.env.SUPABASE_URL;
-const SB_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SB_URL = process.env.SUPABASE_URL;
+const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const ANT_KEY = process.env.ANTHROPIC_API_KEY;
 const hdrs = () => ({
   "Content-Type": "application/json",
@@ -9,9 +9,13 @@ const hdrs = () => ({
   Authorization: `Bearer ${SB_KEY}`,
 });
 
+const DAYS = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 const EXPIRY_KEYWORDS = ["expir", "valid until", "renew", "passport", "licence", "insurance", "policy"];
 
-// Runs daily at 09:00 UTC — checks for upcoming document expiry dates
+// Consolidated cron handler — dispatched via vercel.json cron paths:
+//   /api/cron/push?action=daily
+//   /api/cron/push?action=nudge
+//   /api/cron/push?action=expiry
 export default async function handler(req, res) {
   // In production, only allow requests from Vercel cron runner
   if (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production') {
@@ -22,13 +26,100 @@ export default async function handler(req, res) {
   }
 
   // SEC-16 TODO: Upgrade to HMAC-signed request
-  // Current: Bearer token comparison (timing-attack vulnerable)
-  // Target: HMAC-SHA256 signature over timestamp + path, with 5-minute replay window
-  // See: https://vercel.com/docs/cron-jobs/manage-cron-jobs
   if (req.headers["authorization"] !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
+  const action = req.query.action;
+  if (action === "daily") return handleDaily(req, res);
+  if (action === "nudge") return handleNudge(req, res);
+  if (action === "expiry") return handleExpiry(req, res);
+  return res.status(400).json({ error: "Unknown action" });
+}
+
+// ── Daily capture prompt ──
+async function handleDaily(req, res) {
+  const nowUtc = new Date();
+  const r = await fetch(
+    `${SB_URL}/rest/v1/notification_prefs?daily_enabled=eq.true`,
+    { headers: hdrs() }
+  );
+  if (!r.ok) return res.status(502).json({ error: "Failed to fetch prefs" });
+
+  const prefs = await r.json();
+  let sent = 0;
+
+  for (const pref of prefs) {
+    let localHour = nowUtc.getUTCHours();
+    try {
+      const parts = new Intl.DateTimeFormat("en", {
+        timeZone: pref.daily_timezone || "UTC",
+        hour: "numeric",
+        hour12: false,
+      }).formatToParts(nowUtc);
+      localHour = parseInt(parts.find(p => p.type === "hour")?.value ?? localHour, 10);
+    } catch {}
+
+    const prefHour = parseInt((pref.daily_time || "20:00").split(":")[0], 10);
+    if (localHour !== prefHour) continue;
+
+    await sendToUser(pref.user_id, {
+      title: "OpenBrain",
+      body: "What's worth remembering today? Capture it in OpenBrain.",
+      url: "/",
+      icon: "/icons/icon-192.png",
+    });
+    sent++;
+  }
+
+  return res.status(200).json({ ok: true, sent });
+}
+
+// ── Fill Brain nudge ──
+async function handleNudge(req, res) {
+  const nowUtc = new Date();
+  const r = await fetch(
+    `${SB_URL}/rest/v1/notification_prefs?nudge_enabled=eq.true`,
+    { headers: hdrs() }
+  );
+  if (!r.ok) return res.status(502).json({ error: "Failed to fetch prefs" });
+
+  const prefs = await r.json();
+  let sent = 0;
+
+  for (const pref of prefs) {
+    let localHour = nowUtc.getUTCHours();
+    let localDay  = DAYS[nowUtc.getUTCDay()];
+    try {
+      const fmt = new Intl.DateTimeFormat("en", {
+        timeZone: pref.nudge_timezone || "UTC",
+        weekday: "long",
+        hour:    "numeric",
+        hour12:  false,
+      });
+      const parts = fmt.formatToParts(nowUtc);
+      localDay  = (parts.find(p => p.type === "weekday")?.value ?? "").toLowerCase();
+      localHour = parseInt(parts.find(p => p.type === "hour")?.value ?? localHour, 10);
+    } catch {}
+
+    const prefDay  = (pref.nudge_day  || "sunday").toLowerCase();
+    const prefHour = parseInt((pref.nudge_time || "10:00").split(":")[0], 10);
+    if (localDay !== prefDay || localHour !== prefHour) continue;
+
+    await sendToUser(pref.user_id, {
+      title: "OpenBrain — Fill Brain",
+      body: "You have questions waiting. Take a minute to fill your brain.",
+      url: "/",
+      icon: "/icons/icon-192.png",
+    });
+    sent++;
+  }
+
+  return res.status(200).json({ ok: true, sent });
+}
+
+// ── Expiry reminders ──
+async function handleExpiry(req, res) {
   const r = await fetch(
     `${SB_URL}/rest/v1/notification_prefs?expiry_enabled=eq.true`,
     { headers: hdrs() }
@@ -91,8 +182,6 @@ export default async function handler(req, res) {
 
       const expiryDate = new Date(date);
       if (isNaN(expiryDate.getTime())) continue;
-
-      const today = new Date(todayStr);
 
       for (const lead of leadDays) {
         const triggerDate = new Date(expiryDate);

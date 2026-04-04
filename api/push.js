@@ -15,7 +15,16 @@ const ALLOWED_FIELDS = [
   "expiry_enabled", "expiry_lead_days",
 ];
 
+// Dispatched via rewrites: /api/notification-prefs, /api/push-subscribe → /api/push?resource=X
 export default async function handler(req, res) {
+  const resource = req.query.resource;
+  if (resource === "subscribe") return handleSubscribe(req, res);
+  // Default: notification prefs
+  return handleNotificationPrefs(req, res);
+}
+
+// ── /api/notification-prefs (rewritten to /api/push?resource=prefs) ──
+async function handleNotificationPrefs(req, res) {
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
@@ -72,6 +81,57 @@ export default async function handler(req, res) {
     if (!r.ok) return res.status(502).json({ error: "Failed to save prefs" });
     const [row] = await r.json();
     return res.status(200).json(row);
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+// ── /api/push-subscribe (rewritten to /api/push?resource=subscribe) ──
+async function handleSubscribe(req, res) {
+  const user = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  // POST — store subscription
+  if (req.method === "POST") {
+    const { endpoint, keys, userAgent } = req.body;
+    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: "endpoint, keys.p256dh, and keys.auth required" });
+    }
+
+    // Validate endpoint is a valid HTTPS URL
+    let parsedEndpoint;
+    try {
+      parsedEndpoint = new URL(endpoint);
+    } catch {
+      return res.status(400).json({ error: "Invalid push endpoint" });
+    }
+    if (parsedEndpoint.protocol !== 'https:') {
+      return res.status(400).json({ error: "Push endpoint must be HTTPS" });
+    }
+    const r = await fetch(`${SB_URL}/rest/v1/push_subscriptions`, {
+      method: "POST",
+      headers: hdrs({ Prefer: "return=representation,resolution=merge-duplicates" }),
+      body: JSON.stringify({
+        user_id: user.id,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        user_agent: userAgent || null,
+      }),
+    });
+    if (!r.ok) return res.status(502).json({ error: "Failed to store subscription" });
+    return res.status(200).json({ ok: true });
+  }
+
+  // DELETE — remove subscription
+  if (req.method === "DELETE") {
+    const { endpoint } = req.body;
+    if (!endpoint) return res.status(400).json({ error: "endpoint required" });
+    await fetch(
+      `${SB_URL}/rest/v1/push_subscriptions?user_id=eq.${encodeURIComponent(user.id)}&endpoint=eq.${encodeURIComponent(endpoint)}`,
+      { method: "DELETE", headers: hdrs() }
+    );
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ error: "Method not allowed" });

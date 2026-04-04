@@ -1,13 +1,26 @@
 {
   "buildCommand": "npm run build",
   "crons": [
-    { "path": "/api/cron/push-daily",  "schedule": "0 8 * * *" },
-    { "path": "/api/cron/push-nudge",  "schedule": "0 10 * * *" },
-    { "path": "/api/cron/push-expiry", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/push?action=daily",  "schedule": "0 8 * * *" },
+    { "path": "/api/cron/push?action=nudge",   "schedule": "0 10 * * *" },
+    { "path": "/api/cron/push?action=expiry",  "schedule": "0 9 * * *" }
   ],
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    { "source": "/api/anthropic",        "destination": "/api/llm?provider=anthropic" },
+    { "source": "/api/openai",           "destination": "/api/llm?provider=openai" },
+    { "source": "/api/openrouter",       "destination": "/api/llm?provider=openrouter" },
+    { "source": "/api/delete-entry",     "destination": "/api/entries" },
+    { "source": "/api/update-entry",     "destination": "/api/entries" },
+    { "source": "/api/save-links",       "destination": "/api/capture?action=links" },
+    { "source": "/api/export",           "destination": "/api/transfer" },
+    { "source": "/api/import",           "destination": "/api/transfer" },
+    { "source": "/api/notification-prefs", "destination": "/api/push?resource=prefs" },
+    { "source": "/api/push-subscribe",   "destination": "/api/push?resource=subscribe" },
+    { "source": "/api/memory",           "destination": "/api/user-data?resource=memory" },
+    { "source": "/api/activity",         "destination": "/api/user-data?resource=activity" },
+    { "source": "/api/health",           "destination": "/api/user-data?resource=health" },
+    { "source": "/((?!api/).*)",         "destination": "/index.html" }
   ],
   "headers": [
     {
