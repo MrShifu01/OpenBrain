@@ -282,7 +282,7 @@ export default function OpenBrain() {
       .catch(err => { captureError(err, 'fetchEntries'); setEntriesLoaded(true); });
     // Load similarity graph links from embeddings
     setGraphError(null);
-    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.2`)
+    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.55`)
       .then(async r => {
         if (!r.ok) { const err = await r.text().catch(() => r.status); setGraphError(`API ${r.status}: ${err.slice(0, 120)}`); return null; }
         return r.json();
