@@ -22,8 +22,8 @@ export default function GraphView({ onSelect, entries = [], links = [] }) {
       links.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)||1,f=(d-120)*0.02;a.vx+=(dx/d)*f;a.vy+=(dy/d)*f;b.vx-=(dx/d)*f;b.vy-=(dy/d)*f;});
       nodes.forEach(n=>{n.vx*=0.85;n.vy*=0.85;n.x+=n.vx;n.y+=n.vy;n.x=Math.max(30,Math.min(w-30,n.x));n.y=Math.max(30,Math.min(h-30,n.y));});
       ctx.clearRect(0,0,w,h);
-      links.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle="#ffffff15";ctx.lineWidth=1;ctx.stroke();});
-      nodes.forEach(n=>{const cfg=TC[n.type]||TC.note,r=n.id==="80453a6d"?22:n.pinned?16:12;ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);ctx.fillStyle=cfg.c+"30";ctx.fill();ctx.strokeStyle=cfg.c+"80";ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle="#ddd";ctx.font=`${r>14?12:10}px system-ui`;ctx.textAlign="center";ctx.fillText(cfg.i,n.x,n.y+4);if(r>14){ctx.fillStyle="#aaa";ctx.font="9px system-ui";ctx.fillText(n.title.length>18?n.title.slice(0,18)+"…":n.title,n.x,n.y+r+14);}});
+      links.forEach(l=>{const a=nodes.find(n=>n.id===l.from),b=nodes.find(n=>n.id===l.to);if(!a||!b)return;const alpha=Math.round(Math.min(1,Math.max(0.1,(l.similarity||0.5)-0.2))*255).toString(16).padStart(2,"0");ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`#4ECDC4${alpha}`;ctx.lineWidth=1+(l.similarity||0)*2;ctx.stroke();});
+      nodes.forEach(n=>{const cfg=TC[n.type]||TC.note,r=n.pinned?16:12;ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);ctx.fillStyle=cfg.c+"30";ctx.fill();ctx.strokeStyle=cfg.c+"80";ctx.lineWidth=1.5;ctx.stroke();ctx.fillStyle="#ddd";ctx.font="10px system-ui";ctx.textAlign="center";ctx.fillText(cfg.i,n.x,n.y+4);ctx.fillStyle="#aaa";ctx.font="8px system-ui";const label=n.title?.length>20?n.title.slice(0,20)+"…":n.title||"";ctx.fillText(label,n.x,n.y+r+10);});
       frameRef.current=requestAnimationFrame(sim);
     };
     sim(); return () => cancelAnimationFrame(frameRef.current);

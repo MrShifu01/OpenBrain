@@ -279,6 +279,11 @@ export default function OpenBrain() {
         setEntriesLoaded(true);
       })
       .catch(err => { captureError(err, 'fetchEntries'); setEntriesLoaded(true); });
+    // Load similarity graph links from embeddings
+    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrain.id)}&threshold=0.35`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (Array.isArray(data) && data.length > 0) setLinks(data); })
+      .catch(() => {});
   }, [activeBrain?.id]);
 
   // Proactive intelligence nudge — runs once per session after entries load
