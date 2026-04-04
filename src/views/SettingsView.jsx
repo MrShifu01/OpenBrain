@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { authFetch } from "../lib/authFetch";
-import { aiFetch, getUserApiKey, getUserModel, setUserApiKey, setUserModel, getUserProvider, setUserProvider, getOpenRouterKey, setOpenRouterKey, getOpenRouterModel, setOpenRouterModel, getEmbedProvider, setEmbedProvider, getEmbedOpenAIKey, setEmbedOpenAIKey, getGeminiKey, setGeminiKey } from "../lib/aiFetch";
+import { aiFetch, getUserApiKey, getUserModel, setUserApiKey, setUserModel, getUserProvider, setUserProvider, getOpenRouterKey, setOpenRouterKey, getOpenRouterModel, setOpenRouterModel, getEmbedProvider, setEmbedProvider, getEmbedOpenAIKey, setEmbedOpenAIKey, getGeminiKey, setGeminiKey, getGroqKey, setGroqKey } from "../lib/aiFetch";
 import { callAI } from "../lib/ai";
 import { supabase } from "../lib/supabase";
 import NotificationSettings from "../components/NotificationSettings";
@@ -139,6 +139,9 @@ export default function SettingsView() {
   const [byoTestStatus, setByoTestStatus] = useState(null);
   const [pinSet, setPinSet] = useState(() => !!getStoredPinHash());
   const [showPinModal, setShowPinModal] = useState(false);
+  // Groq (voice transcription)
+  const [groqKeyVal, setGroqKeyVal] = useState(() => getGroqKey() || "");
+  const [showGroqKey, setShowGroqKey] = useState(false);
   // Embedding provider
   const [embedProvider, setEmbedProviderState] = useState(() => getEmbedProvider());
   const [embedOpenAIKey, setEmbedOpenAIKeyState] = useState(() => getEmbedOpenAIKey() || "");
@@ -409,6 +412,20 @@ export default function SettingsView() {
           </div>
         )}
         <p style={{ margin: "10px 0 0", fontSize: 10, color: t.textFaint }}>New entries are embedded automatically. Use "Embed all entries" to backfill existing ones or after switching providers.</p>
+      </div>
+
+      {/* Voice Transcription */}
+      <div style={{ background: t.surface, borderRadius: 14, padding: "20px 24px", marginBottom: 16, border: `1px solid ${t.border}` }}>
+        <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: t.textSoft }}>🎤 Voice Transcription</p>
+        <p style={{ margin: "0 0 14px", fontSize: 11, color: t.textDim }}>Powers the microphone button in Quick Capture. Uses Groq's Whisper (fast, free tier available). Without a key, falls back to browser speech recognition. <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ color: "#4ECDC4" }}>Get a free Groq key →</a></p>
+        <div>
+          <p style={{ margin: "0 0 6px", fontSize: 11, color: t.textDim, fontWeight: 600 }}>Groq API Key <span style={{ fontWeight: 400, color: t.textFaint }}>(whisper-large-v3-turbo)</span></p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input type={showGroqKey ? "text" : "password"} value={groqKeyVal} onChange={e => { setGroqKeyVal(e.target.value); setGroqKey(e.target.value); }} placeholder="gsk_..." style={{ flex: 1, padding: "9px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 13, fontFamily: "monospace", outline: "none" }} />
+            <button onClick={() => setShowGroqKey(s => !s)} style={{ padding: "9px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textDim, cursor: "pointer", fontSize: 12 }}>{showGroqKey ? "Hide" : "Show"}</button>
+          </div>
+          <p style={{ margin: "8px 0 0", fontSize: 10, color: t.textFaint }}>Also works with an OpenAI key (set above) — but Groq is faster and free.</p>
+        </div>
       </div>
 
       {/* Brain Members */}

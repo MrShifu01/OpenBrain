@@ -1,24 +1,29 @@
 /**
  * POST /api/transcribe
  *
- * Transcribes audio using OpenAI Whisper-1.
- * Requires the user's OpenAI API key (X-User-Api-Key header).
+ * Transcribes audio using OpenAI Whisper-1 or Groq whisper-large-v3-turbo.
+ *
+ * Headers:
+ *   X-User-Api-Key:  OpenAI key  (optional if Groq key provided)
+ *   X-Groq-Api-Key:  Groq key    (optional if OpenAI key provided)
  *
  * Body (JSON):
  *   audio:    string — base64-encoded audio (WebM/Opus, MP4, WAV, MP3, etc.)
  *   mimeType: string — MIME type of the audio (e.g. "audio/webm;codecs=opus")
  *   language: string? — BCP-47 language code hint (e.g. "en", "af"). Optional.
  *
+ * Priority: Groq key → OpenAI key (Groq is faster and has a free tier)
+ *
  * Response:
  *   { text: string }    — transcript on success
  *   { error: string }   — on failure
  *
- * Rate limit: 10 req/min (Whisper is expensive)
+ * Rate limit: 10 req/min
  */
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 
-const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24 MB (Whisper API limit is 25 MB)
+const MAX_AUDIO_BYTES = 24 * 1024 * 1024; // 24 MB
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -27,8 +32,12 @@ export default async function handler(req, res) {
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
-  const userKey = (req.headers["x-user-api-key"] || "").trim();
-  if (!userKey) return res.status(400).json({ error: "X-User-Api-Key header required (OpenAI key)" });
+  const groqKey = (req.headers["x-groq-api-key"] || "").trim();
+  const openAIKey = (req.headers["x-user-api-key"] || "").trim();
+
+  if (!groqKey && !openAIKey) {
+    return res.status(400).json({ error: "Provide a Groq or OpenAI API key for voice transcription" });
+  }
 
   const { audio, mimeType, language } = req.body;
 
@@ -51,6 +60,14 @@ export default async function handler(req, res) {
     return res.status(413).json({ error: "Audio too large (max 24 MB)" });
   }
 
+  // Pick provider: prefer Groq (faster, free tier)
+  const useGroq = !!groqKey;
+  const apiKey = useGroq ? groqKey : openAIKey;
+  const apiUrl = useGroq
+    ? "https://api.groq.com/openai/v1/audio/transcriptions"
+    : "https://api.openai.com/v1/audio/transcriptions";
+  const model = useGroq ? "whisper-large-v3-turbo" : "whisper-1";
+
   // Derive a filename extension from the MIME type so Whisper can detect format
   const ext = _mimeToExt(mimeType) || "webm";
 
@@ -58,7 +75,7 @@ export default async function handler(req, res) {
   const boundary = `----WebKitFormBoundary${Math.random().toString(36).slice(2)}`;
   const CRLF = "\r\n";
 
-  const modelField = `--${boundary}${CRLF}Content-Disposition: form-data; name="model"${CRLF}${CRLF}whisper-1`;
+  const modelField = `--${boundary}${CRLF}Content-Disposition: form-data; name="model"${CRLF}${CRLF}${model}`;
   const langField = language
     ? `${CRLF}--${boundary}${CRLF}Content-Disposition: form-data; name="language"${CRLF}${CRLF}${language}`
     : "";
@@ -84,26 +101,27 @@ export default async function handler(req, res) {
     offset += part.byteLength;
   }
 
+  const providerName = useGroq ? "Groq" : "OpenAI";
   let whisperRes;
   try {
-    whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    whisperRes = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${userKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": `multipart/form-data; boundary=${boundary}`,
       },
       body,
     });
   } catch (err) {
-    console.error("[transcribe] Whisper network error:", err.message);
-    return res.status(502).json({ error: "Failed to reach OpenAI Whisper API" });
+    console.error(`[transcribe] ${providerName} network error:`, err.message);
+    return res.status(502).json({ error: `Failed to reach ${providerName} transcription API` });
   }
 
   if (!whisperRes.ok) {
     const errText = await whisperRes.text();
-    console.error(`[transcribe] Whisper API error ${whisperRes.status}: ${errText}`);
+    console.error(`[transcribe] ${providerName} API error ${whisperRes.status}: ${errText}`);
     return res.status(whisperRes.status === 401 ? 401 : 502).json({
-      error: whisperRes.status === 401 ? "Invalid OpenAI API key" : "Whisper transcription failed",
+      error: whisperRes.status === 401 ? `Invalid ${providerName} API key` : "Transcription failed",
     });
   }
 

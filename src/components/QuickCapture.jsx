@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTheme } from "../ThemeContext";
 import { callAI } from "../lib/ai";
-import { aiFetch, getUserModel, getUserApiKey, getEmbedHeaders } from "../lib/aiFetch";
+import { aiFetch, getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiFetch";
 import { encryptEntry } from "../lib/crypto";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
@@ -167,10 +167,11 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     // If already using SpeechRecognition, stop
     if (listening) { recognitionRef.current?.stop(); return; }
 
+    const groqKey = getGroqKey();
     const openAIKey = getUserApiKey();
-    const hasWhisper = !!openAIKey;
+    const hasTranscription = !!groqKey || !!openAIKey;
 
-    if (!hasWhisper) {
+    if (!hasTranscription) {
       // Fall back to browser SpeechRecognition
       _startSpeechRecognitionFallback();
       return;
@@ -213,9 +214,12 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
             reader.readAsDataURL(blob);
           });
 
+          const transcribeHeaders = { "Content-Type": "application/json" };
+          if (groqKey) transcribeHeaders["X-Groq-Api-Key"] = groqKey;
+          if (openAIKey) transcribeHeaders["X-User-Api-Key"] = openAIKey;
           const transcribeRes = await authFetch("/api/transcribe", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "X-User-Api-Key": openAIKey },
+            headers: transcribeHeaders,
             body: JSON.stringify({ audio: base64, mimeType, language: "en" }),
           });
 

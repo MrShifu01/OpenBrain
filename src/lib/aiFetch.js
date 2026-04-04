@@ -88,6 +88,16 @@ export function setOpenRouterModel(model) {
   else localStorage.removeItem(`${P}openrouter_model`);
 }
 
+// ─── Groq (voice transcription) ───
+export function getGroqKey() {
+  return localStorage.getItem(`${P}groq_key`) || null;
+}
+
+export function setGroqKey(key) {
+  if (key) localStorage.setItem(`${P}groq_key`, key);
+  else localStorage.removeItem(`${P}groq_key`);
+}
+
 const TASK_COL = {
   capture:   "model_capture",
   questions: "model_questions",
