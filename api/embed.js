@@ -82,48 +82,49 @@ export default async function handler(req, res) {
     if (!access) return res.status(403).json({ error: "Forbidden" });
 
     // Fetch entries that need embedding (missing or stale provider)
+    // Limit to 5 per request to stay within Vercel Hobby 10s timeout
     const entriesRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&select=id,title,content,tags&or=(embedded_at.is.null,embedding_provider.neq.${encodeURIComponent(provider)})&limit=200`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&select=id,title,content,tags&or=(embedded_at.is.null,embedding_provider.neq.${encodeURIComponent(provider)})&limit=5`,
       { headers: SB_HEADERS }
     );
     if (!entriesRes.ok) return res.status(502).json({ error: "Database error" });
     const entries = await entriesRes.json();
-    if (!entries.length) return res.status(200).json({ processed: 0, skipped: 0 });
+    if (!entries.length) return res.status(200).json({ processed: 0, failed: 0, remaining: 0 });
 
-    // Process in chunks of 50
-    const CHUNK = 50;
+    // Count total remaining for progress tracking
+    const countRes = await fetch(
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&or=(embedded_at.is.null,embedding_provider.neq.${encodeURIComponent(provider)})&select=id`,
+      { headers: { ...SB_HEADERS, "Prefer": "count=exact" } }
+    );
+    const remaining = parseInt(countRes.headers.get("content-range")?.split("/")?.[1] || "0", 10);
+
     let processed = 0;
     let failed = 0;
+    const texts = entries.map(buildEntryText);
 
-    for (let i = 0; i < entries.length; i += CHUNK) {
-      const chunk = entries.slice(i, i + CHUNK);
-      const texts = chunk.map(buildEntryText);
+    try {
+      const embeddings = await generateEmbeddingsBatch(texts, provider, apiKey);
 
-      try {
-        const embeddings = await generateEmbeddingsBatch(texts, provider, apiKey);
-
-        // Parallel PATCH all entries in chunk
-        await Promise.all(
-          chunk.map((entry, idx) =>
-            fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
-              method: "PATCH",
-              headers: { ...SB_HEADERS, "Prefer": "return=minimal" },
-              body: JSON.stringify({
-                embedding: `[${embeddings[idx].join(",")}]`,
-                embedded_at: new Date().toISOString(),
-                embedding_provider: provider,
-              }),
-            }).catch(e => { console.error("[embed:batch:patch]", entry.id, e.message); failed++; })
-          )
-        );
-        processed += chunk.length - failed;
-      } catch (e) {
-        console.error("[embed:batch:chunk]", e.message);
-        failed += chunk.length;
-      }
+      await Promise.all(
+        entries.map((entry, idx) =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, "Prefer": "return=minimal" },
+            body: JSON.stringify({
+              embedding: `[${embeddings[idx].join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: provider,
+            }),
+          }).then(() => { processed++; })
+            .catch(e => { console.error("[embed:batch:patch]", entry.id, e.message); failed++; })
+        )
+      );
+    } catch (e) {
+      console.error("[embed:batch]", e.message);
+      return res.status(502).json({ error: e.message });
     }
 
-    return res.status(200).json({ processed, failed, total: entries.length });
+    return res.status(200).json({ processed, failed, remaining: remaining - processed });
   }
 
   return res.status(400).json({ error: "Provide either entry_id or { brain_id, batch: true }" });
