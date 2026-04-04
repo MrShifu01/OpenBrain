@@ -43,8 +43,9 @@ async function handleGet(req, res) {
     }
 
     // Fallback: direct query if RPC not yet available (pre-migration)
+    // Include entries with matching brain_id OR user's orphan entries (brain_id is null)
     const fallbackRes = await fetch(
-      `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&brain_id=eq.${encodeURIComponent(brain_id)}`,
+      `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&or=(brain_id.eq.${encodeURIComponent(brain_id)},and(user_id.eq.${encodeURIComponent(user.id)},brain_id.is.null))`,
       { headers: sbHdrs() }
     );
     const fallbackData = await fallbackRes.json();

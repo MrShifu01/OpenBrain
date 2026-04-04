@@ -28,16 +28,42 @@ export default async function handler(req, res) {
       `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
       { headers: hdrs() }
     );
+    if (!owned.ok) return res.status(502).json({ error: "Failed to fetch brains" });
+
+    let ownedData = await owned.json();
+
+    // Auto-create personal brain for existing users who predate the brain system
+    if (!ownedData.some(b => b.type === "personal")) {
+      const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
+        method: "POST",
+        headers: hdrs({ "Prefer": "return=representation" }),
+        body: JSON.stringify({ name: "My Brain", owner_id: user.id, type: "personal" }),
+      });
+      if (createRes.ok) {
+        const [newBrain] = await createRes.json();
+        // Also create brain_members row for the owner
+        await fetch(`${SB_URL}/rest/v1/brain_members`, {
+          method: "POST",
+          headers: hdrs({ "Prefer": "return=minimal" }),
+          body: JSON.stringify({ brain_id: newBrain.id, user_id: user.id, role: "owner" }),
+        }).catch(() => {});
+        // Assign any orphan entries (brain_id IS NULL) to this brain
+        await fetch(`${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=is.null`, {
+          method: "PATCH",
+          headers: hdrs({ "Prefer": "return=minimal" }),
+          body: JSON.stringify({ brain_id: newBrain.id }),
+        }).catch(() => {});
+        ownedData = [...ownedData, newBrain];
+        console.log(`[audit] AUTO-CREATE personal brain id=${newBrain.id} user=${user.id}`);
+      }
+    }
+
     // Brains user is a member of (but doesn't own)
     const memberOf = await fetch(
       `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=brain_id,role`,
       { headers: hdrs() }
     );
-
-    if (!owned.ok || !memberOf.ok) return res.status(502).json({ error: "Failed to fetch brains" });
-
-    const ownedData = await owned.json();
-    const memberData = await memberOf.json();
+    const memberData = memberOf.ok ? await memberOf.json() : [];
 
     // Fetch the actual brain records for memberships
     const memberBrainIds = memberData
