@@ -827,7 +827,7 @@ export default function OpenBrain() {
         {view === "suggest" && <Suspense fallback={<Loader />}><SuggestionsView entries={entries} setEntries={setEntries} activeBrain={activeBrain} brains={brains} /></Suspense>}
         {view === "refine" && <Suspense fallback={<Loader />}><RefineView entries={entries} setEntries={setEntries} links={links} addLinks={addLinks} activeBrain={activeBrain} brains={brains} onSwitchBrain={setActiveBrain} /></Suspense>}
         {view === "calendar" && <Suspense fallback={<Loader />}><CalendarView /></Suspense>}
-        {view === "todos" && <Suspense fallback={<Loader />}><TodoView /></Suspense>}
+        {view === "todos" && <Suspense fallback={<Loader />}><TodoView entries={entries} /></Suspense>}
         {view === "timeline" && <VirtualTimeline sorted={sortedTimeline} setSelected={setSelected} />}
         {view === "graph" && <Suspense fallback={<Loader />}><p style={{ fontSize: 12, color: "#666", marginBottom: 12 }}>Knowledge graph — click nodes to view</p><GraphView onSelect={setSelected} entries={entries} links={links} graphError={graphError} /></Suspense>}
         {view === "vault" && <Suspense fallback={<Loader />}><VaultView entries={entries} onSelect={setSelected} cryptoKey={cryptoKey} onVaultUnlock={handleVaultUnlock} /></Suspense>}
