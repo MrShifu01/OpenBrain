@@ -657,7 +657,7 @@ export default function OpenBrain() {
     <BrainContext.Provider value={brainValue}>
     <div style={{ minHeight: "100vh", background: t.bg, color: t.text, fontFamily: "'Söhne', system-ui, -apple-system, sans-serif", transition: "background 0.25s, color 0.25s", overflowX: "hidden" }}>
       <div style={{ padding: "16px 12px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "nowrap", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "nowrap" }}>
           <div style={{ width: 32, height: 32, minWidth: 32, borderRadius: 10, background: "linear-gradient(135deg, #4ECDC4, #45B7D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🧠</div>
           <div style={{ minWidth: 0 }}><h1 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: -0.5, whiteSpace: "nowrap" }}>OpenBrain</h1><p style={{ margin: 0, fontSize: 10, color: t.textDim }}>Your eternal memory</p></div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
