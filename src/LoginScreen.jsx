@@ -154,7 +154,8 @@ export default function LoginScreen() {
             <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
             <p style={{ color: "#4ECDC4", fontWeight: 700, marginBottom: 4, fontSize: 16 }}>Check your email</p>
             <p style={{ color: t.textMuted, fontSize: 13, lineHeight: 1.6, margin: "0 0 16px" }}>
-              Code sent to <strong style={{ color: t.text }}>{email}</strong>
+              We sent a sign-in email to <strong style={{ color: t.text }}>{email}</strong>.<br />
+              Enter the 6-digit code, or tap the magic link.
             </p>
 
             <form onSubmit={handleVerifyOtp}>
@@ -164,7 +165,7 @@ export default function LoginScreen() {
                 autoComplete="one-time-code"
                 value={otpCode}
                 onChange={e => setOtpCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-                placeholder="Enter 6-digit code"
+                placeholder="6-digit code"
                 autoFocus
                 style={{
                   ...inputStyle,
@@ -187,7 +188,7 @@ export default function LoginScreen() {
                   marginBottom: 12,
                 }}
               >
-                {verifying ? "Verifying…" : "Sign in"}
+                {verifying ? "Verifying…" : "Sign in with code"}
               </button>
             </form>
 
