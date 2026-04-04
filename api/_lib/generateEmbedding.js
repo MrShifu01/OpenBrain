@@ -76,18 +76,25 @@ async function generateOpenAIEmbedding(inputs, apiKey) {
 }
 
 async function generateGoogleEmbedding(text, apiKey) {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1/models/text-embedding-004:embedContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: { parts: [{ text }] } }),
+  // Try models in order: text-embedding-004, then gemini-embedding-001
+  const models = ["text-embedding-004", "gemini-embedding-001"];
+  for (const model of models) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: `models/${model}`, content: { parts: [{ text }] } }),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      return data.embedding.values;
     }
-  );
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.status);
-    throw new Error(`Google embedding error ${res.status}: ${err}`);
+    if (res.status !== 404) {
+      const err = await res.text().catch(() => res.status);
+      throw new Error(`Google embedding error ${res.status}: ${err}`);
+    }
   }
-  const data = await res.json();
-  return data.embedding.values;
+  throw new Error("No supported Google embedding model found (tried text-embedding-004, gemini-embedding-001)");
 }
