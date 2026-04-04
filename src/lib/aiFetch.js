@@ -10,15 +10,25 @@ import { authFetch } from "./authFetch";
 import { supabase } from "./supabase";
 import { MODEL as DEFAULT_MODEL } from "../data/constants";
 
+// Cache the user ID from Supabase auth — updated on every auth state change
+let _cachedUid = null;
+supabase.auth.onAuthStateChange((_event, session) => {
+  _cachedUid = session?.user?.id || null;
+});
+// Also try to load immediately from existing session
+supabase.auth.getSession().then(({ data }) => {
+  _cachedUid = data?.session?.user?.id || _cachedUid || null;
+});
+
 export function getUserId() {
+  if (_cachedUid) return _cachedUid;
+  // Fallback: parse localStorage for any Supabase auth token
   try {
-    // Supabase v2 uses "sb-<ref>-auth-token"; older versions use keys containing "supabase"
-    const key = Object.keys(localStorage).find(k =>
-      (k.includes("supabase") || k.startsWith("sb-")) && k.includes("auth-token")
-    );
+    const key = Object.keys(localStorage).find(k => k.endsWith("-auth-token"));
     if (key) {
       const data = JSON.parse(localStorage.getItem(key));
-      return data?.user?.id || null;
+      _cachedUid = data?.user?.id || null;
+      return _cachedUid;
     }
   } catch {}
   return null;
