@@ -4,7 +4,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { authFetch } from "./lib/authFetch";
 import { callAI } from "./lib/ai";
 import { getEmbedHeaders, getUserProvider, getUserModel, getUserApiKey, getOpenRouterKey, getOpenRouterModel } from "./lib/aiFetch";
-import { encryptEntry, decryptEntry } from "./lib/crypto";
+import { encryptEntry, decryptEntry, unlockVault, decryptVaultKeyFromRecovery } from "./lib/crypto";
 import { PROMPTS } from "./config/prompts";
 import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain as useBrainHook } from "./hooks/useBrain";
@@ -271,11 +271,25 @@ export default function OpenBrain() {
   const [pendingSecureMsg, setPendingSecureMsg] = useState(null);
   const [showPinGate, setShowPinGate] = useState(false);
   const [pinGateIsSetup, setPinGateIsSetup] = useState(false);
+  // Vault unlock modal state (triggered from chat when user asks about secrets)
+  const [vaultUnlockModal, setVaultUnlockModal] = useState(null); // { vaultData, pendingMsg }
+  const [vaultModalInput, setVaultModalInput] = useState("");
+  const [vaultModalMode, setVaultModalMode] = useState("passphrase"); // "passphrase" | "recovery"
+  const [vaultModalError, setVaultModalError] = useState("");
+  const [vaultModalBusy, setVaultModalBusy] = useState(false);
+  const [vaultExists, setVaultExists] = useState(false); // whether server has a vault for this user
   const [nudge, setNudge] = useState(() => sessionStorage.getItem("openbrain_nudge") || null);
   const [lastAction, setLastAction] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const pendingDeleteRef = useRef(null);
   const chatEndRef = useRef(null);
+
+  // Check if user has a vault set up (for chat unlock prompts)
+  useEffect(() => {
+    authFetch("/api/vault").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.exists) setVaultExists(true);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 200);
@@ -502,38 +516,31 @@ export default function OpenBrain() {
     }));
   }, [entries]);
 
-  const handleChat = async () => {
-    if (!chatInput.trim()) return;
-    const msg = chatInput.trim();
-    setChatInput("");
-    setChatMsgs(p => [...p, { role: "user", content: msg }]);
+  // Regex to detect when user is asking about vault-stored secrets
+  const SECRET_QUERY_RE = /\b(password|passcode|passphrase|credentials|login|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|credit\s*card|cvv|routing\s*number|secret|vault)\b/i;
+
+  // Core chat send logic — used by both handleChat and post-vault-unlock retry
+  const sendChat = useCallback(async (msg, overrideSecrets) => {
     setChatLoading(true);
     try {
-      // If vault is unlocked, include decrypted secret entries as extra context
-      const secrets = cryptoKey
+      const secrets = overrideSecrets || (cryptoKey
         ? entries.filter(e => e.type === "secret").map(e => ({ title: e.title, content: e.content?.slice(0, 500), tags: e.tags }))
-        : [];
+        : []);
 
       const embedHeaders = getEmbedHeaders();
       let data;
       if (embedHeaders && activeBrain?.id) {
-        // RAG path: retrieve relevant entries server-side, send conversation history
         const provider = getUserProvider();
         const genKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
         const model = provider === "openrouter" ? getOpenRouterModel() : getUserModel();
-        const history = chatMsgs.slice(-10); // last 10 turns
+        const history = chatMsgs.slice(-10);
         const res = await authFetch("/api/chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...embedHeaders,
-            ...(genKey ? { "X-User-Api-Key": genKey } : {}),
-          },
+          headers: { "Content-Type": "application/json", ...embedHeaders, ...(genKey ? { "X-User-Api-Key": genKey } : {}) },
           body: JSON.stringify({ message: msg, brain_id: activeBrain.id, history, provider, model, secrets }),
         });
         data = await res.json();
       } else {
-        // Fallback: existing top-100 context, no history — include decrypted secrets
         const contextWithSecrets = secrets.length ? [...chatContext, ...secrets.map(s => ({ ...s, type: "secret" }))] : chatContext;
         const res = await callAI({
           max_tokens: 1000,
@@ -553,6 +560,65 @@ export default function OpenBrain() {
       }
     } catch { setChatMsgs(p => [...p, { role: "assistant", content: "Connection error." }]); }
     setChatLoading(false);
+  }, [cryptoKey, entries, chatContext, links, chatMsgs, activeBrain]);
+
+  const handleChat = async () => {
+    if (!chatInput.trim()) return;
+    const msg = chatInput.trim();
+    setChatInput("");
+    setChatMsgs(p => [...p, { role: "user", content: msg }]);
+
+    // If the message asks about secrets and vault is locked, prompt to unlock first
+    if (!cryptoKey && vaultExists && SECRET_QUERY_RE.test(msg)) {
+      // Fetch vault data for unlock modal
+      try {
+        const r = await authFetch("/api/vault");
+        const vd = r.ok ? await r.json() : null;
+        if (vd?.exists) {
+          setVaultUnlockModal({ vaultData: vd, pendingMsg: msg });
+          setVaultModalInput("");
+          setVaultModalMode("passphrase");
+          setVaultModalError("");
+          setChatMsgs(p => [...p, { role: "assistant", content: "🔐 That looks like a question about your vault secrets. Please unlock your vault to continue." }]);
+          return;
+        }
+      } catch {}
+    }
+
+    await sendChat(msg);
+  };
+
+  // Handle vault unlock from the chat modal
+  const handleVaultModalUnlock = async () => {
+    if (!vaultUnlockModal || !vaultModalInput.trim()) return;
+    setVaultModalBusy(true);
+    setVaultModalError("");
+    const { vaultData, pendingMsg } = vaultUnlockModal;
+    try {
+      let key;
+      if (vaultModalMode === "passphrase") {
+        key = await unlockVault(vaultModalInput, vaultData.salt, vaultData.verify_token);
+      } else {
+        key = await decryptVaultKeyFromRecovery(vaultData.recovery_blob, vaultModalInput.trim().toUpperCase());
+      }
+      if (!key) {
+        setVaultModalError(vaultModalMode === "passphrase" ? "Wrong passphrase" : "Wrong recovery key");
+        setVaultModalBusy(false);
+        return;
+      }
+      // Unlock vault globally
+      handleVaultUnlock(key);
+      setVaultUnlockModal(null);
+      // Decrypt secrets and re-send the pending message
+      const decryptedEntries = await Promise.all(
+        entries.filter(e => e.type === "secret").map(e => decryptEntry(e, key))
+      );
+      const secrets = decryptedEntries.map(e => ({ title: e.title, content: e.content?.slice(0, 500), tags: e.tags }));
+      await sendChat(pendingMsg, secrets);
+    } catch {
+      setVaultModalError("Unlock failed");
+    }
+    setVaultModalBusy(false);
   };
 
   const navViews = [
@@ -748,6 +814,33 @@ export default function OpenBrain() {
                 </div>
               ))}
               {chatLoading && <div style={{ display: "flex" }}><div style={{ padding: "12px 16px", borderRadius: "16px 16px 16px 4px", background: t.surface, color: t.textDim }}>Thinking...</div></div>}
+              {/* Vault unlock prompt — shown inline when user asks about secrets */}
+              {vaultUnlockModal && (
+                <div style={{ margin: "12px 0", padding: 16, background: t.surface, border: `1px solid #FF475780`, borderRadius: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 20 }}>🔐</span>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: t.text }}>Unlock Vault</span>
+                    <button onClick={() => setVaultUnlockModal(null)} style={{ marginLeft: "auto", background: "none", border: "none", color: t.textFaint, fontSize: 16, cursor: "pointer" }}>✕</button>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+                    <button onClick={() => { setVaultModalMode("passphrase"); setVaultModalInput(""); setVaultModalError(""); }} style={{ padding: "4px 12px", borderRadius: 16, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: vaultModalMode === "passphrase" ? "#4ECDC4" : t.bg, color: vaultModalMode === "passphrase" ? "#0f0f23" : t.textMuted }}>Passphrase</button>
+                    <button onClick={() => { setVaultModalMode("recovery"); setVaultModalInput(""); setVaultModalError(""); }} style={{ padding: "4px 12px", borderRadius: 16, border: "none", fontSize: 11, fontWeight: 600, cursor: "pointer", background: vaultModalMode === "recovery" ? "#4ECDC4" : t.bg, color: vaultModalMode === "recovery" ? "#0f0f23" : t.textMuted }}>Recovery Key</button>
+                  </div>
+                  <input
+                    type={vaultModalMode === "passphrase" ? "password" : "text"}
+                    value={vaultModalInput}
+                    onChange={e => setVaultModalInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && handleVaultModalUnlock()}
+                    placeholder={vaultModalMode === "passphrase" ? "Enter vault passphrase..." : "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
+                    autoFocus
+                    style={{ width: "100%", boxSizing: "border-box", padding: "10px 14px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 14, outline: "none", fontFamily: vaultModalMode === "recovery" ? "monospace" : "inherit", marginBottom: 8 }}
+                  />
+                  {vaultModalError && <p style={{ color: "#FF4757", fontSize: 12, margin: "0 0 8px" }}>{vaultModalError}</p>}
+                  <button onClick={handleVaultModalUnlock} disabled={vaultModalBusy || !vaultModalInput.trim()} style={{ width: "100%", padding: "10px 0", background: "#4ECDC4", border: "none", borderRadius: 8, color: "#0f0f23", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: vaultModalBusy ? 0.5 : 1 }}>
+                    {vaultModalBusy ? "Unlocking..." : "Unlock & Answer"}
+                  </button>
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
             {/* Quick-ask chips */}
