@@ -288,8 +288,11 @@ export default function OpenBrain() {
         return r.json();
       })
       .then(data => {
-        if (Array.isArray(data) && data.length > 0) setLinks(data);
-        else if (data !== null) setGraphError(`0 links returned (${entries.length} entries)`);
+        if (!data) return;
+        const linkArr = Array.isArray(data) ? data : data.links || [];
+        const embedded = data.embedded ?? "?";
+        if (linkArr.length > 0) { setLinks(linkArr); setGraphError(null); }
+        else setGraphError(`0 links (${embedded} embedded / ${entries.length} entries)${data.message ? " — " + data.message : ""}`);
       })
       .catch(e => setGraphError(e.message));
   }, [activeBrain?.id]);

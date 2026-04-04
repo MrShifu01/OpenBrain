@@ -32,6 +32,17 @@ async function handleGraph(req, res) {
 
   const threshold = parseFloat(req.query.threshold) || 0.4;
 
+  // Check how many entries have embeddings
+  const countRes = await fetch(
+    `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&embedding=not.is.null&select=id`,
+    { headers: { ...hdrs(), "Prefer": "count=exact" } }
+  );
+  const embeddedCount = parseInt(countRes.headers.get("content-range")?.split("/")?.[1] || "0", 10);
+
+  if (embeddedCount < 2) {
+    return res.status(200).json({ links: [], embedded: embeddedCount, message: "Need at least 2 embedded entries" });
+  }
+
   const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/build_similarity_graph`, {
     method: "POST",
     headers: hdrs(),
@@ -41,11 +52,11 @@ async function handleGraph(req, res) {
   if (!rpcRes.ok) {
     const err = await rpcRes.text().catch(() => rpcRes.status);
     console.error("[graph:rpc]", err);
-    return res.status(502).json({ error: "Graph build failed" });
+    return res.status(502).json({ error: `Graph RPC failed: ${err.slice(0, 200)}` });
   }
 
   const links = await rpcRes.json();
-  return res.status(200).json(links);
+  return res.status(200).json({ links, embedded: embeddedCount });
 }
 
 // ── POST /api/search — semantic search ──
