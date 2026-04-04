@@ -120,10 +120,23 @@ export default function LoginScreen() {
           <div style={{ maxWidth: 360, margin: "0 auto", textAlign: "center" }}>
             <div style={{ fontSize: 32, marginBottom: 16 }}>📬</div>
             <p style={{ color: "#4ECDC4", fontWeight: 700, marginBottom: 8, fontSize: 16 }}>Check your email</p>
-            <p style={{ color: t.textMuted, fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+            <p style={{ color: t.textMuted, fontSize: 13, lineHeight: 1.6, margin: "0 0 16px" }}>
               Magic link sent to <strong style={{ color: t.text }}>{email}</strong>.<br />
               Click it to sign in — no password needed.
             </p>
+            <button
+              onClick={() => setSent(false)}
+              style={{
+                padding: "10px 24px",
+                background: t.surface,
+                border: `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: t.textMuted, fontSize: 13, fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Try again
+            </button>
           </div>
         )}
       </div>
