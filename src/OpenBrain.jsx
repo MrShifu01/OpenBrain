@@ -677,8 +677,7 @@ export default function OpenBrain() {
       <div style={{ padding: "12px 12px 0" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "nowrap" }}>
           <div
-            onClick={() => setNavOpen(o => !o)}
-            style={{ width: 34, height: 34, minWidth: 34, borderRadius: 10, background: "linear-gradient(135deg, #4ECDC4, #45B7D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, cursor: "pointer" }}
+            style={{ width: 34, height: 34, minWidth: 34, borderRadius: 10, background: "linear-gradient(135deg, #4ECDC4, #45B7D1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}
           >🧠</div>
           <div style={{ flex: 1, minWidth: 0 }}>
             {brains.length > 0 && (
