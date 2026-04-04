@@ -51,6 +51,7 @@ export default function LoginScreen() {
   const handleResend = async () => {
     setLoading(true);
     setError(null);
+    setOtpCode("");
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin },
