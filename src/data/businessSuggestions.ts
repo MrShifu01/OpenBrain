@@ -1,4 +1,6 @@
-export const BUSINESS_SUGGESTIONS = [
+import type { Suggestion } from '../types';
+
+export const BUSINESS_SUGGESTIONS: Suggestion[] = ([
   // ─── BUSINESS IDENTITY ───
   { q: "Registered business name and trading name (if different)?", cat: "🏢 Business", p: "high" },
   { q: "Business registration number (CIPC)?", cat: "🏢 Business", p: "high" },
@@ -84,7 +86,7 @@ export const BUSINESS_SUGGESTIONS = [
   { q: "Public liability insurance — policy number and cover amount?", cat: "📋 Insurance", p: "high" },
   { q: "Employer's liability insurance in place?", cat: "📋 Insurance", p: "high" },
 
-].sort((a, b) => {
-  const w = { high: 3, medium: 2, low: 1 };
+] as Suggestion[]).sort((a, b) => {
+  const w: Record<string, number> = { high: 3, medium: 2, low: 1 };
   return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;
 });

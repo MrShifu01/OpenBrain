@@ -1,7 +1,9 @@
+import type { Suggestion } from '../types';
+
 // ~1000 hardcoded questions covering every domain of life and business
 // Format: { q, cat, p } — p: "high" | "medium" | "low"
 
-export const SUGGESTIONS = [
+export const SUGGESTIONS: Suggestion[] = ([
   // ─── PERSONAL IDENTITY ───
   { q: "Full legal name — first, middle, last?", cat: "👤 Identity", p: "high" },
   { q: "ID number and date of issue?", cat: "👤 Identity", p: "high" },
@@ -320,7 +322,7 @@ export const SUGGESTIONS = [
   { q: "Social media handles — which platforms and what's the username?", cat: "📣 Marketing", p: "medium" },
   { q: "Google Business profile — verified and up to date?", cat: "📣 Marketing", p: "medium" },
 
-].sort((a, b) => {
-  const w = { high: 3, medium: 2, low: 1 };
+] as Suggestion[]).sort((a, b) => {
+  const w: Record<string, number> = { high: 3, medium: 2, low: 1 };
   return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;
 });

@@ -1,10 +1,6 @@
-/**
- * useRole — derive permission flags from a brain's myRole field.
- *
- * Usage:
- *   const { canWrite, canInvite, canManageMembers, role } = useRole(activeBrain);
- */
-export function useRole(brain) {
+import type { Brain, RolePermissions } from '../types';
+
+export function useRole(brain: Brain | null | undefined): RolePermissions {
   const role = brain?.myRole ?? "viewer";
   return {
     canWrite: role === "owner" || role === "member",

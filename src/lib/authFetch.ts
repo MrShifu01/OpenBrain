@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export async function authFetch(url, options = {}) {
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const { data: { session } } = await supabase.auth.getSession()
   return fetch(url, {
     ...options,

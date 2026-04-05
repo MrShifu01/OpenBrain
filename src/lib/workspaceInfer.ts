@@ -1,10 +1,6 @@
-/* ─── Workspace Inference ─── */
-/**
- * Infers the workspace context for an entry based on its tags and metadata.
- * @param {object} entry - The entry to classify.
- * @returns {string} One of "business", "personal", or "both".
- */
-export function inferWorkspace(entry) {
+import type { Entry, Workspace } from '../types';
+
+export function inferWorkspace(entry: Entry): Workspace {
   if (entry.metadata?.workspace) return entry.metadata.workspace;
   const tags = (entry.tags || []).map(t => t.toLowerCase());
   const bizKeywords = ["smash burger bar", "supplier", "contractor", "business", "restaurant", "bidfoods", "makro", "econofoods"];

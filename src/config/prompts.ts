@@ -3,7 +3,7 @@
  * Import from here — do NOT inline prompts in component files.
  */
 
-export const PROMPTS = {
+export const PROMPTS: Record<string, string> = {
   /** QuickCapture: classify & structure raw text into a typed entry */
   CAPTURE: `You classify and structure a raw text capture into an OpenBrain entry. Return ONLY valid JSON.
 Format: {"title":"...","content":"...","type":"...","metadata":{},"tags":[],"workspace":"business"|"personal"|"both"}

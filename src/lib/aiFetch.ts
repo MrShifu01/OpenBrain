@@ -1,32 +1,21 @@
-/**
- * aiFetch — wrapper around authFetch that injects the user's
- * BYO API key and preferred model when set.
- *
- * Usage:
- *   import { aiFetch, getUserModel } from "../lib/aiFetch";
- *   const res = await aiFetch("/api/anthropic", { method: "POST", body: JSON.stringify({ model: getUserModel(), ... }) });
- */
 import { authFetch } from "./authFetch";
 import { supabase } from "./supabase";
 import { MODEL as DEFAULT_MODEL } from "../data/constants";
 
-// Prefix for all settings keys — no user-ID scoping needed (single user per browser)
 const P = "openbrain_";
 
-export function getUserId() {
-  // Try Supabase auth session from localStorage
+export function getUserId(): string | null {
   try {
     const key = Object.keys(localStorage).find(k => k.endsWith("-auth-token"));
     if (key) {
-      const data = JSON.parse(localStorage.getItem(key));
+      const data = JSON.parse(localStorage.getItem(key)!);
       return data?.user?.id || null;
     }
-  } catch {}
+  } catch { /* ignore */ }
   return null;
 }
 
-// ─── Migrate old user-scoped keys to new unscoped format ───
-// Run once on load: if new keys don't exist but old user-scoped keys do, copy them over
+// Migrate old user-scoped keys to new unscoped format
 try {
   const uid = getUserId();
   if (uid) {
@@ -38,67 +27,66 @@ try {
       const oldKey = `openbrain_${uid}_${suffix}`;
       const newKey = `${P}${suffix}`;
       if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
-        localStorage.setItem(newKey, localStorage.getItem(oldKey));
+        localStorage.setItem(newKey, localStorage.getItem(oldKey)!);
       }
     }
   }
-} catch {}
+} catch { /* ignore */ }
 
-export function getUserApiKey() {
+export function getUserApiKey(): string | null {
   return localStorage.getItem(`${P}api_key`) || null;
 }
 
-export function setUserApiKey(key) {
+export function setUserApiKey(key: string | null): void {
   if (key) localStorage.setItem(`${P}api_key`, key);
   else localStorage.removeItem(`${P}api_key`);
 }
 
-export function getUserModel() {
+export function getUserModel(): string {
   return localStorage.getItem(`${P}model`) || DEFAULT_MODEL;
 }
 
-export function setUserModel(model) {
+export function setUserModel(model: string | null): void {
   if (model) localStorage.setItem(`${P}model`, model);
   else localStorage.removeItem(`${P}model`);
 }
 
-export function getUserProvider() {
+export function getUserProvider(): string {
   return localStorage.getItem(`${P}provider`) || "anthropic";
 }
 
-export function setUserProvider(provider) {
+export function setUserProvider(provider: string | null): void {
   localStorage.setItem(`${P}provider`, provider || "anthropic");
 }
 
-export function getOpenRouterKey() {
+export function getOpenRouterKey(): string | null {
   return localStorage.getItem(`${P}openrouter_key`) || null;
 }
 
-export function setOpenRouterKey(key) {
+export function setOpenRouterKey(key: string | null): void {
   if (key) localStorage.setItem(`${P}openrouter_key`, key);
   else localStorage.removeItem(`${P}openrouter_key`);
 }
 
-export function getOpenRouterModel() {
+export function getOpenRouterModel(): string | null {
   return localStorage.getItem(`${P}openrouter_model`) || null;
 }
 
-export function setOpenRouterModel(model) {
+export function setOpenRouterModel(model: string | null): void {
   if (model) localStorage.setItem(`${P}openrouter_model`, model);
   else localStorage.removeItem(`${P}openrouter_model`);
 }
 
-// ─── Groq (voice transcription) ───
-export function getGroqKey() {
+export function getGroqKey(): string | null {
   return localStorage.getItem(`${P}groq_key`) || null;
 }
 
-export function setGroqKey(key) {
+export function setGroqKey(key: string | null): void {
   if (key) localStorage.setItem(`${P}groq_key`, key);
   else localStorage.removeItem(`${P}groq_key`);
 }
 
-const TASK_COL = {
+const TASK_COL: Record<string, string> = {
   capture:   "model_capture",
   questions: "model_questions",
   vision:    "model_vision",
@@ -106,11 +94,11 @@ const TASK_COL = {
   chat:      "model_chat",
 };
 
-export function getModelForTask(task) {
+export function getModelForTask(task: string): string | null {
   return localStorage.getItem(`${P}task_${task}`) || null;
 }
 
-export function setModelForTask(task, model) {
+export function setModelForTask(task: string, model: string | null): void {
   const lsKey = `${P}task_${task}`;
   if (model) localStorage.setItem(lsKey, model);
   else localStorage.removeItem(lsKey);
@@ -125,7 +113,7 @@ export function setModelForTask(task, model) {
   }
 }
 
-export function loadTaskModels(userId, settingsRow) {
+export function loadTaskModels(_userId: string, settingsRow: Record<string, string | null> | null): void {
   if (!settingsRow) return;
   for (const [task, col] of Object.entries(TASK_COL)) {
     const val = settingsRow[col];
@@ -137,51 +125,45 @@ export function loadTaskModels(userId, settingsRow) {
 
 /* ─── Embedding Provider Settings ─── */
 
-export function getEmbedProvider() {
+export function getEmbedProvider(): string {
   return localStorage.getItem(`${P}embed_provider`) || "openai";
 }
 
-export function setEmbedProvider(p) {
+export function setEmbedProvider(p: string | null): void {
   localStorage.setItem(`${P}embed_provider`, p || "openai");
 }
 
-export function getEmbedOpenAIKey() {
+export function getEmbedOpenAIKey(): string | null {
   return localStorage.getItem(`${P}embed_openai_key`) || null;
 }
 
-export function setEmbedOpenAIKey(key) {
+export function setEmbedOpenAIKey(key: string | null): void {
   if (key) localStorage.setItem(`${P}embed_openai_key`, key);
   else localStorage.removeItem(`${P}embed_openai_key`);
 }
 
-export function getGeminiKey() {
+export function getGeminiKey(): string | null {
   return localStorage.getItem(`${P}gemini_key`) || null;
 }
 
-export function setGeminiKey(key) {
+export function setGeminiKey(key: string | null): void {
   if (key) localStorage.setItem(`${P}gemini_key`, key);
   else localStorage.removeItem(`${P}gemini_key`);
 }
 
-/** Returns the active embedding key for the currently selected embed provider. */
-export function getEmbedKey() {
+export function getEmbedKey(): string | null {
   const provider = getEmbedProvider();
   return provider === "google" ? getGeminiKey() : getEmbedOpenAIKey();
 }
 
-/** Build the embed headers to attach to /api/embed, /api/search, /api/chat requests. */
-export function getEmbedHeaders() {
+export function getEmbedHeaders(): { "X-Embed-Provider": string; "X-Embed-Key": string } | null {
   const provider = getEmbedProvider();
   const key = getEmbedKey();
   if (!key) return null;
   return { "X-Embed-Provider": provider, "X-Embed-Key": key };
 }
 
-/**
- * Drop-in replacement for authFetch that adds X-User-Api-Key header
- * when the user has configured a BYO key.
- */
-export async function aiFetch(url, options = {}) {
+export async function aiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const userKey = getUserApiKey();
   if (!userKey) return authFetch(url, options);
   return authFetch(url, {

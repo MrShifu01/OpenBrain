@@ -1,16 +1,3 @@
-/**
- * callAI — unified AI call that routes to the right endpoint based on
- * the user's configured provider (anthropic | openai | openrouter).
- *
- * Usage:
- *   import { callAI } from "../lib/ai";
- *   const res = await callAI({ messages, system, max_tokens: 600 });
- *   const data = await res.json();
- *   const text = data.content?.[0]?.text;
- *
- * All three endpoints normalize their response to Anthropic shape:
- *   { content: [{ type: "text", text: "..." }] }
- */
 import { authFetch } from "./authFetch";
 import {
   getUserProvider,
@@ -21,19 +8,33 @@ import {
   getModelForTask,
 } from "./aiFetch";
 
-const ENDPOINT = {
+interface AIMessage {
+  role: string;
+  content: string | AIContentBlock[];
+}
+
+interface AIContentBlock {
+  type: string;
+  text?: string;
+  source?: { type: string; media_type: string; data: string };
+  image_url?: { url: string };
+}
+
+export interface CallAIOptions {
+  messages?: AIMessage[];
+  system?: string;
+  max_tokens?: number;
+  memoryGuide?: string;
+  task?: string;
+}
+
+const ENDPOINT: Record<string, string> = {
   anthropic:   "/api/anthropic",
   openai:      "/api/openai",
   openrouter:  "/api/openrouter",
 };
 
-/**
- * Convert Anthropic-format image blocks to OpenAI/OpenRouter format.
- * Anthropic: { type:"image", source:{ type:"base64", media_type, data } }
- * OpenAI:    { type:"image_url", image_url:{ url:"data:<mime>;base64,<data>" } }
- * Anthropic format is the canonical form used throughout the codebase.
- */
-function normalizeMessages(messages, provider) {
+function normalizeMessages(messages: AIMessage[], provider: string): AIMessage[] {
   if (provider === "anthropic") return messages;
   return messages.map((msg) => {
     if (!Array.isArray(msg.content)) return msg;
@@ -52,32 +53,29 @@ function normalizeMessages(messages, provider) {
   });
 }
 
-export async function callAI({ messages, system, max_tokens, memoryGuide, task } = {}) {
+export async function callAI({ messages = [], system, max_tokens, memoryGuide, task }: CallAIOptions = {}): Promise<Response> {
   const provider = getUserProvider();
   const endpoint = ENDPOINT[provider] ?? ENDPOINT.anthropic;
 
-  // Pick model based on provider — task-specific model takes priority when set
-  let model;
+  let model: string;
   if (provider === "openrouter") {
     model = (task ? getModelForTask(task) : null) || getOpenRouterModel() || "google/gemini-2.0-flash-exp:free";
   } else {
     model = getUserModel();
   }
 
-  // Pick key based on provider
-  let userKey;
+  let userKey: string | null;
   if (provider === "openrouter") {
     userKey = getOpenRouterKey();
   } else {
     userKey = getUserApiKey();
   }
 
-  // Inject memory guide into system prompt if provided
   const fullSystem = memoryGuide
     ? `[Classification Guide]\n${memoryGuide}\n\n[Task]\n${system || ""}`
     : system;
 
-  const headers = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(userKey ? { "X-User-Api-Key": userKey } : {}),
   };

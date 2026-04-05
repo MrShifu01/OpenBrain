@@ -1,4 +1,6 @@
-export const FAMILY_SUGGESTIONS = [
+import type { Suggestion } from '../types';
+
+export const FAMILY_SUGGESTIONS: Suggestion[] = ([
   // ─── FAMILY MEMBERS ───
   { q: "Full names and dates of birth of all family members?", cat: "👨‍👩‍👧 Family", p: "high" },
   { q: "ID numbers for each family member?", cat: "👨‍👩‍👧 Family", p: "high" },
@@ -69,7 +71,7 @@ export const FAMILY_SUGGESTIONS = [
   { q: "Family cloud storage plan — provider and how much space left?", cat: "💻 Digital", p: "low" },
   { q: "Most important shared passwords (note: store securely)?", cat: "💻 Digital", p: "medium" },
 
-].sort((a, b) => {
-  const w = { high: 3, medium: 2, low: 1 };
+] as Suggestion[]).sort((a, b) => {
+  const w: Record<string, number> = { high: 3, medium: 2, low: 1 };
   return (w[b.p] || 0) - (w[a.p] || 0) + (Math.random() - 0.5) * 0.5;
 });

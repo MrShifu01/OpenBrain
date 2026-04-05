@@ -1,9 +1,10 @@
-/**
- * All AI model name lists used across OpenBrain.
- * Import from here — do NOT inline model arrays in component files.
- */
+export interface ModelLists {
+  ANTHROPIC: string[];
+  OPENAI: string[];
+  OPENROUTER: string[];
+}
 
-export const MODELS = {
+export const MODELS: ModelLists = {
   ANTHROPIC: [
     "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6",
