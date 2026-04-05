@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
 import { callAI } from "../lib/ai";
@@ -309,7 +308,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
               return (
                 <button key={b.id} onClick={() => onSwitchBrain(b)}
                   style={{ padding: "5px 12px", borderRadius: 20, border: active ? `1px solid ${t.accent}` : "1px solid #2a2a4a", background: active ? `${t.accent}20` : "#1a1a2e", color: active ? t.accent : "#888", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 5, minHeight: 44, minWidth: 44 }}>
-                  <span>{BRAIN_EMOJI[b.type] || "🧠"}</span>
+                  <span>{BRAIN_EMOJI[b.type || "personal"] || "🧠"}</span>
                   <span>{b.name}</span>
                 </button>
               );
@@ -318,7 +317,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
         )}
         {!isOwnerMultiBrain && activeBrain && (
           <span style={{ display: "inline-block", marginTop: 8, fontSize: 11, color: "#666", background: "#1a1a2e", border: "1px solid #2a2a4a", borderRadius: 20, padding: "4px 12px" }}>
-            {BRAIN_EMOJI[activeBrain.type] || "🧠"} {activeBrain.name}
+            {BRAIN_EMOJI[activeBrain.type || "personal"] || "🧠"} {activeBrain.name}
           </span>
         )}
       </div>

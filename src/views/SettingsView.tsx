@@ -62,7 +62,7 @@ function MemoryEditor({ activeBrain }: { activeBrain?: any }) {
   const [status, setStatus] = useState<string | null>(null);
   const MAX = 8000;
   useEffect(() => {
-    authFetch("/api/memory").then(r => r.ok ? r.json() : {}).then(d => setContent(d.content || "")).catch(err => console.error('[SettingsView:MemoryEditor] Failed to load memory content', err));
+    authFetch("/api/memory").then(r => r.ok ? r.json() : {}).then((d: any) => setContent(d.content || "")).catch(err => console.error('[SettingsView:MemoryEditor] Failed to load memory content', err));
   }, []);
   const save = async () => {
     setSaving(true);
