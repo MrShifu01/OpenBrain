@@ -52,6 +52,7 @@ Only identify these specific issues (nothing else):
 4. URL_FOUND — A full URL (https://...) clearly appears in content but metadata.url is missing.
 5. DATE_FOUND — A specific future deadline or due date is explicitly mentioned in content and not already in metadata.due_date. Only for actual deadlines, not historical dates.
 6. TITLE_POOR — Title is so vague it could describe anything (e.g. "Note", "Info", "Misc"). Very high bar — only if the title is genuinely useless.
+7. SPLIT_SUGGESTED — Entry content contains multiple clearly distinct topics, facts, or records that should each be their own entry. Example: a single entry containing a company registration number AND directors AND address should be split. A recipe collection crammed into one entry should be split. Only flag if there are 2+ clearly separable items. suggestedValue should be a short description of how to split (e.g. "Split into: CIPC number, directors, tax number").
 
 Hard rules:
 - Only suggest if confidence > 90%
@@ -59,9 +60,10 @@ Hard rules:
 - Skip entries that look complete and well-structured
 - For TYPE_MISMATCH: suggestedValue must be one of: note, reminder, document, contact, person, place, idea, color, decision, secret. Use "secret" for entries containing passwords, PINs, credit card numbers, bank details, or credentials
 - For DATE_FOUND: suggestedValue must be ISO date string YYYY-MM-DD
+- For SPLIT_SUGGESTED: suggestedValue is a brief description of the suggested split
 - Return ONLY a valid JSON array, no markdown, no explanation
 
-Schema: [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|PHONE_FOUND|EMAIL_FOUND|URL_FOUND|DATE_FOUND|TITLE_POOR","field":"type|metadata.phone|metadata.email|metadata.url|metadata.due_date|title","currentValue":"...","suggestedValue":"...","reason":"max 90 chars"}]
+Schema: [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|PHONE_FOUND|EMAIL_FOUND|URL_FOUND|DATE_FOUND|TITLE_POOR|SPLIT_SUGGESTED","field":"type|metadata.phone|metadata.email|metadata.url|metadata.due_date|title|content","currentValue":"...","suggestedValue":"...","reason":"max 90 chars"}]
 
 If nothing is wrong, return: []`,
 
@@ -94,6 +96,39 @@ Rules:
 Schema: [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"verb phrase","reason":"max 90 chars"}]
 
 If no pairs have a real relationship, return: []`,
+
+  /** File upload: split a document into multiple entries */
+  FILE_SPLIT: `You are an AI assistant that intelligently splits uploaded document content into separate, focused OpenBrain entries. Each entry should capture ONE distinct piece of information — do NOT create long monolithic entries.
+
+SPLITTING RULES:
+- Each distinct fact, record, contact, ID number, recipe, procedure, etc. gets its OWN entry
+- For company documents: split into separate entries for company name, registration number, tax number, each director, registered address, etc.
+- For recipe collections: each recipe gets its own entry
+- For contact lists: each contact gets their own entry
+- For mixed documents: each distinct topic or section gets its own entry
+- Title: max 60 chars, specific and descriptive
+- Content: concise 1-3 sentence description capturing the key info
+- Choose the BEST type: person, contact, place, document, reminder, idea, decision, color, note, secret
+
+TYPE RULES:
+- person: named individuals (directors, contacts, staff)
+- contact: business contacts with phone/email
+- document: registration numbers, tax numbers, IDs, licences
+- place: physical addresses, locations
+- reminder: deadlines, expiry dates
+- idea/decision/note: general info
+- secret: passwords, PINs, credentials
+
+EXTRACTION RULES:
+- Put phone numbers, email, URLs, dates into metadata fields
+- metadata.phone, metadata.email, metadata.url
+- metadata.due_date, metadata.expiry_date (YYYY-MM-DD)
+- metadata.price, metadata.unit for costs
+
+Return ONLY a valid JSON array:
+[{"title":"...","content":"...","type":"...","metadata":{},"tags":[]}]
+
+If the content is already a single focused topic, return it as a single entry. Never return an empty array — always extract at least one entry.`,
 
   /** connectionFinder.js: auto-link new entry to existing entries */
   CONNECTION_FINDER: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{"from":"...","to":"...","rel":"..."}]\n- If no connections: []`,

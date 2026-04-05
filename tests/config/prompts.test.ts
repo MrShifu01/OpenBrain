@@ -22,4 +22,14 @@ describe('prompts', () => {
     expect(PROMPTS.ENTRY_AUDIT).toContain('TYPE_MISMATCH');
     expect(PROMPTS.ENTRY_AUDIT).toContain('PHONE_FOUND');
   });
+
+  it('exports FILE_SPLIT prompt for multi-entry extraction', () => {
+    expect(PROMPTS.FILE_SPLIT).toBeDefined();
+    expect(PROMPTS.FILE_SPLIT).toContain('JSON');
+    expect(PROMPTS.FILE_SPLIT).toContain('title');
+  });
+
+  it('ENTRY_AUDIT includes SPLIT_SUGGESTED for long entries', () => {
+    expect(PROMPTS.ENTRY_AUDIT).toContain('SPLIT_SUGGESTED');
+  });
 });

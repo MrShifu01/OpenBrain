@@ -7,7 +7,8 @@ import { BUSINESS_SUGGESTIONS } from "../data/businessSuggestions";
 import { TC, PC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 import { PROMPTS } from "../config/prompts";
-import { getEmbedHeaders } from "../lib/aiFetch";
+import { aiFetch, getUserModel, getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiFetch";
+import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
 import type { Entry, Brain, Suggestion, Priority } from "../types";
 
 interface SuggestionsViewProps {
@@ -100,6 +101,11 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
   const [imgError, setImgError] = useState<string | null>(null);
   const [aiQuestion, setAiQuestion] = useState<AiQuestion | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [micError, setMicError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Answered tracking — shared key merges all brain types
   const answeredKey = "openbrain_answered_qs";
@@ -118,6 +124,7 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
   }, [selectedBrainIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const imgRef = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // Skipped onboarding questions — load once, stay at top of queue
   const [onboardingSkipped] = useState<Suggestion[]>(() => {
@@ -183,6 +190,7 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     e.target.value = "";
     if (file.size > 4 * 1024 * 1024) { setImgError("Photo too large — try a smaller image"); setTimeout(() => setImgError(null), 3000); return; }
     setImgLoading(true);
+    setImgError(null);
     try {
       const base64 = await new Promise<string>((res, rej) => {
         const reader = new FileReader();
@@ -190,10 +198,10 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
         reader.onerror = rej;
         reader.readAsDataURL(file);
       });
-      const apiRes = await authFetch("/api/anthropic", {
+      const apiRes = await aiFetch("/api/anthropic", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: MODEL, max_tokens: 600,
+          model: getUserModel(), max_tokens: 600,
           messages: [{ role: "user", content: [
             { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
             { type: "text", text: "Extract all text from this image relevant to the question. Output just the extracted content, clean and readable. If it's a document, card, or label — preserve structure. No commentary." }
@@ -202,12 +210,162 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       });
       const data = await apiRes.json();
       const extracted = data.content?.[0]?.text?.trim() || "";
-      if (extracted) setAnswer(extracted);
+      if (extracted) {
+        setAnswer(extracted);
+      } else {
+        setImgError("Could not extract text — try a clearer photo");
+        setTimeout(() => setImgError(null), 3000);
+      }
     } catch (err) {
       console.error(err);
+      setImgError("Photo upload failed — check your connection");
+      setTimeout(() => setImgError(null), 3000);
     }
     setImgLoading(false);
   };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (!isSupportedFile(file)) { setImgError("Unsupported file — use .txt, .md, .csv, .pdf, or .docx"); setTimeout(() => setImgError(null), 3000); return; }
+    if (file.size > 10 * 1024 * 1024) { setImgError("File too large — max 10MB"); setTimeout(() => setImgError(null), 3000); return; }
+    setImgLoading(true);
+    setImgError(null);
+    try {
+      let extractedText = "";
+      if (isTextFile(file)) {
+        extractedText = await readTextFile(file);
+      } else {
+        const { base64, mimeType } = await readFileAsBase64(file);
+        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        const contentBlock = isPdf
+          ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+          : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
+        const apiRes = await aiFetch("/api/anthropic", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: getUserModel(), max_tokens: 4000,
+            messages: [{ role: "user", content: [
+              contentBlock,
+              { type: "text", text: "Extract ALL text from this document relevant to the question. Preserve structure. No commentary." }
+            ]}]
+          })
+        });
+        const data = await apiRes.json();
+        extractedText = data.content?.[0]?.text?.trim() || "";
+      }
+      if (extractedText) {
+        setAnswer(extractedText);
+      } else {
+        setImgError("Could not extract text from file");
+        setTimeout(() => setImgError(null), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+      setImgError("File upload failed — check your connection");
+      setTimeout(() => setImgError(null), 3000);
+    }
+    setImgLoading(false);
+  };
+
+  const startVoice = useCallback(async () => {
+    // If already recording, stop
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+      return;
+    }
+    if (listening) { recognitionRef.current?.stop(); return; }
+
+    const groqKey = getGroqKey();
+    const openAIKey = getUserApiKey();
+    const hasTranscription = !!groqKey || !!openAIKey;
+
+    if (!hasTranscription) {
+      // Fall back to browser SpeechRecognition
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SR) { setMicError("Voice not supported in this browser"); setTimeout(() => setMicError(null), 3000); return; }
+      const recognition = new SR();
+      recognition.lang = "en-ZA";
+      recognition.interimResults = true;
+      recognition.continuous = false;
+      recognitionRef.current = recognition;
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join("");
+        setAnswer(transcript);
+      };
+      recognition.onend = () => { setListening(false); recognitionRef.current = null; };
+      recognition.onerror = () => { setListening(false); recognitionRef.current = null; };
+      recognition.start();
+      setListening(true);
+      return;
+    }
+
+    // Use MediaRecorder + Whisper/Groq
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let mimeType = "audio/mp4";
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
+      else if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
+
+      const recorder = new MediaRecorder(stream, mimeType !== "audio/mp4" ? { mimeType } : undefined);
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        setListening(false);
+        const actualMime = recorder.mimeType || mimeType;
+        const blob = new Blob(audioChunksRef.current, { type: actualMime });
+        audioChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        if (blob.size < 1000) return;
+
+        setImgLoading(true);
+        try {
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          const transcribeHeaders: Record<string, string> = { "Content-Type": "application/json" };
+          if (groqKey) transcribeHeaders["X-Groq-Api-Key"] = groqKey;
+          if (openAIKey) transcribeHeaders["X-User-Api-Key"] = openAIKey;
+          const transcribeRes = await authFetch("/api/transcribe", {
+            method: "POST",
+            headers: transcribeHeaders,
+            body: JSON.stringify({ audio: base64, mimeType: actualMime, language: "en" }),
+          });
+          if (transcribeRes.ok) {
+            const { text } = await transcribeRes.json();
+            if (text?.trim()) setAnswer(prev => prev ? `${prev} ${text.trim()}` : text.trim());
+          } else {
+            setMicError("Transcription failed — try again");
+            setTimeout(() => setMicError(null), 3000);
+          }
+        } catch (err) {
+          console.error("[Voice] error:", err);
+          setMicError("Voice error — check console");
+          setTimeout(() => setMicError(null), 3000);
+        }
+        setImgLoading(false);
+      };
+
+      recorder.start(1000);
+      setListening(true);
+    } catch (err: any) {
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        setMicError("Microphone access denied — check settings");
+        setTimeout(() => setMicError(null), 3000);
+      } else {
+        setMicError("Microphone not available");
+        setTimeout(() => setMicError(null), 3000);
+      }
+    }
+  }, [listening]);
 
   const next = useCallback((dir: string) => {
     setAnim(dir);
@@ -391,15 +549,19 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       ) : (
         <div>
           <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
+          <input type="file" accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" ref={fileRef} onChange={handleFileUpload} style={{ display: "none" }} />
           {imgError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 6px" }}>{imgError}</p>}
-          <textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="Type your answer..." autoFocus
-            style={{ width: "100%", boxSizing: "border-box", minHeight: 100, padding: "14px 16px", background: t.surface, border: "1px solid #4ECDC440", borderRadius: 12, color: t.textSoft, fontSize: 14, lineHeight: 1.6, outline: "none", resize: "vertical", fontFamily: "inherit", opacity: imgLoading ? 0.5 : 1 }} />
+          {micError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 6px" }}>{micError}</p>}
+          <textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder={listening ? "Listening..." : "Type your answer..."} autoFocus
+            style={{ width: "100%", boxSizing: "border-box", minHeight: 100, padding: "14px 16px", background: listening ? `${t.surface}` : t.surface, border: listening ? "1px solid #25D36640" : "1px solid #4ECDC440", borderRadius: 12, color: t.textSoft, fontSize: 14, lineHeight: 1.6, outline: "none", resize: "vertical", fontFamily: "inherit", opacity: imgLoading ? 0.5 : 1 }} />
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            <button onClick={() => { setShowInput(false); setAnswer(""); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+            <button onClick={() => { setShowInput(false); setAnswer(""); setListening(false); recognitionRef.current?.stop(); mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop(); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
             <button onClick={() => { setSkipped(s => s + 1); next("skip"); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: "#FF6B35", fontSize: 13, cursor: "pointer" }}>Skip</button>
+            <button onClick={startVoice} disabled={imgLoading || saving} title="Voice input" style={{ padding: 12, background: listening ? "#25D36620" : t.surface, border: listening ? "1px solid #25D36640" : `1px solid ${t.border}`, borderRadius: 10, color: listening ? "#25D366" : t.textMuted, cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>{listening ? "⏹" : "🎤"}</button>
             <button onClick={() => imgRef.current?.click()} disabled={imgLoading || saving} title="Upload photo" style={{ padding: 12, background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: imgLoading ? t.textDim : "#4ECDC4", cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📷</button>
+            <button onClick={() => fileRef.current?.click()} disabled={imgLoading || saving} title="Upload file (PDF, Word, MD, TXT)" style={{ padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: imgLoading ? t.textDim : t.textMuted, cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📄</button>
             <button onClick={handleSave} disabled={!answer.trim() || saving || imgLoading} style={{ flex: 2, padding: 12, background: answer.trim() && !imgLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim, fontSize: 13, fontWeight: 700, cursor: answer.trim() && !imgLoading ? "pointer" : "default" }}>
-              {saving ? "Saving..." : imgLoading ? "Reading photo..." : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
+              {saving ? "Saving..." : imgLoading ? "Processing..." : listening ? "Listening..." : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
             </button>
           </div>
         </div>

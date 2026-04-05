@@ -47,13 +47,14 @@ interface RefineViewProps {
 
 /* ─── Suggestion type metadata ─── */
 const LABELS = {
-  TYPE_MISMATCH:  { label: "Wrong type",      icon: "🔄", color: "#A29BFE" },
-  PHONE_FOUND:    { label: "Phone number",    icon: "📞", color: "#45B7D1" },
-  EMAIL_FOUND:    { label: "Email address",   icon: "✉️",  color: "#4ECDC4" },
-  URL_FOUND:      { label: "URL / link",      icon: "🔗", color: "#FFEAA7" },
-  DATE_FOUND:     { label: "Date / deadline", icon: "📅", color: "#FF6B35" },
-  TITLE_POOR:     { label: "Better title",    icon: "✏️",  color: "#DDA0DD" },
-  LINK_SUGGESTED: { label: "Relationship",    icon: "⟷",  color: "#96CEB4" },
+  TYPE_MISMATCH:    { label: "Wrong type",      icon: "🔄", color: "#A29BFE" },
+  PHONE_FOUND:      { label: "Phone number",    icon: "📞", color: "#45B7D1" },
+  EMAIL_FOUND:      { label: "Email address",   icon: "✉️",  color: "#4ECDC4" },
+  URL_FOUND:        { label: "URL / link",      icon: "🔗", color: "#FFEAA7" },
+  DATE_FOUND:       { label: "Date / deadline", icon: "📅", color: "#FF6B35" },
+  TITLE_POOR:       { label: "Better title",    icon: "✏️",  color: "#DDA0DD" },
+  SPLIT_SUGGESTED:  { label: "Split entry",     icon: "✂️",  color: "#E17055" },
+  LINK_SUGGESTED:   { label: "Relationship",    icon: "⟷",  color: "#96CEB4" },
 };
 
 

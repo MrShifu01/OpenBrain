@@ -10,6 +10,8 @@ import { enqueue } from "../lib/offlineQueue";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
+import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
+import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse } from "../lib/fileSplitter";
 
 const BRAIN_META_QC = {
   personal: { emoji: "🧠" },
@@ -86,7 +88,9 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
   const [listening, setListening] = useState(false);
   // Multi-brain: which brains to capture into (primary = first element)
   const [selectedBrainIds, setSelectedBrainIds] = useState(() => brainId ? [brainId] : []);
+  const [multiPreview, setMultiPreview] = useState(null); // array of parsed entries from file split
   const imgRef = useRef(null);
+  const fileRef = useRef(null);
   const recognitionRef = useRef(null);
   const connectionsTimerRef = useRef(null);
   const lastConnectionsLengthRef = useRef(entries ? entries.length : 0);
@@ -121,6 +125,116 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
       if (extracted) setText(extracted);
     } catch (err) { console.error(err); }
     setLoading(false); setStatus(null);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    e.target.value = "";
+    if (!isOnline) { setStatus("offline-image"); setTimeout(() => setStatus(null), 3000); return; }
+    if (!isSupportedFile(file)) { setStatus("unsupported-file"); setTimeout(() => setStatus(null), 3000); return; }
+    if (file.size > 10 * 1024 * 1024) { setStatus("file-too-large"); setTimeout(() => setStatus(null), 3000); return; }
+    setLoading(true); setStatus("reading-file");
+
+    try {
+      let extractedText = "";
+
+      if (isTextFile(file)) {
+        // Text files: read directly
+        extractedText = await readTextFile(file);
+      } else {
+        // PDF/DOCX: send to AI for text extraction
+        const { base64, mimeType } = await readFileAsBase64(file);
+        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        const contentBlock = isPdf
+          ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+          : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
+
+        const apiRes = await aiFetch("/api/anthropic", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: getUserModel(), max_tokens: 4000,
+            messages: [{ role: "user", content: [
+              contentBlock,
+              { type: "text", text: "Extract ALL text from this document. Preserve structure, headings, lists. Output just the extracted content, clean and readable. No commentary." }
+            ]}]
+          })
+        });
+        const data = await apiRes.json();
+        extractedText = data.content?.[0]?.text?.trim() || "";
+      }
+
+      if (!extractedText) {
+        setStatus("file-empty");
+        setTimeout(() => setStatus(null), 3000);
+        setLoading(false);
+        return;
+      }
+
+      // Check if content should be split into multiple entries
+      if (shouldSplitContent(extractedText)) {
+        setStatus("splitting");
+        const brainType = brains.find(b => b.id === primaryBrainId)?.type || "personal";
+        const splitRes = await callAI({
+          max_tokens: 4000,
+          system: PROMPTS.FILE_SPLIT,
+          messages: [{ role: "user", content: buildSplitPrompt(extractedText, brainType) }],
+        });
+        const splitData = await splitRes.json();
+        const raw = splitData.content?.[0]?.text || "[]";
+        const entries = parseAISplitResponse(raw);
+
+        if (entries.length > 1) {
+          // Show multi-entry preview
+          setLoading(false); setStatus(null);
+          setMultiPreview(entries);
+          return;
+        } else if (entries.length === 1) {
+          // Single entry — show normal preview
+          setLoading(false); setStatus(null);
+          setPreview({ ...entries[0], _raw: extractedText });
+          return;
+        }
+      }
+
+      // Fallback: use normal capture flow with extracted text
+      setText(extractedText);
+    } catch (err) {
+      console.error("[fileUpload] error:", err);
+      setStatus("error");
+    }
+    setLoading(false); setTimeout(() => setStatus(null), 3000);
+  };
+
+  const saveMultiEntries = async (entriesToSave) => {
+    setMultiPreview(null);
+    setLoading(true); setStatus("saving");
+    let savedCount = 0;
+    for (const parsed of entriesToSave) {
+      try {
+        const captureHeaders = { "Content-Type": "application/json", ...(parsed.type !== "secret" ? (getEmbedHeaders() || {}) : {}) };
+        const rpcRes = await authFetch("/api/capture", {
+          method: "POST", headers: captureHeaders,
+          body: JSON.stringify({
+            p_title: parsed.title,
+            p_content: parsed.content || "",
+            p_type: parsed.type || "note",
+            p_metadata: parsed.metadata || {},
+            p_tags: parsed.tags || [],
+            p_brain_id: primaryBrainId,
+            p_extra_brain_ids: extraBrainIds,
+          })
+        });
+        if (rpcRes.ok) {
+          const result = await rpcRes.json();
+          const newEntry = { id: result?.id || Date.now().toString() + savedCount, ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+          setEntries(prev => [newEntry, ...prev]);
+          onCreated?.(newEntry);
+          savedCount++;
+        }
+      } catch (err) { console.error("[multiSave] error:", err); }
+    }
+    setStatus(savedCount > 0 ? "saved-db" : "error");
+    setLoading(false); setTimeout(() => setStatus(null), 3000);
   };
 
   // Whisper recording state
@@ -375,7 +489,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     setLoading(false); setTimeout(() => setStatus(null), 3000);
   };
 
-  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Image uploads need a connection", "img-too-large": "⚠️ Photo too large — try a smaller image", "vault-needed": "🔐 Set up your Vault first to save secrets", "mic-denied": "🎤 Microphone access denied — check your browser/phone settings" };
+  const statusMsg = { thinking: "🤖 Parsing...", saving: "💾 Saving...", "saved-db": "✅ Saved & synced!", "saved-local": "📡 Saved — will sync when online", "saved-raw": "📝 Saved", error: "⚠️ Sync failed — queued for retry", "offline-image": "📵 Uploads need a connection", "img-too-large": "⚠️ Photo too large — try a smaller image", "file-too-large": "⚠️ File too large — max 10MB", "unsupported-file": "⚠️ Unsupported file type — use .txt, .md, .csv, .pdf, or .docx", "reading-file": "📄 Reading file...", splitting: "✂️ Splitting into entries...", "file-empty": "⚠️ Could not extract text from file", "vault-needed": "🔐 Set up your Vault first to save secrets", "mic-denied": "🎤 Microphone access denied — check your browser/phone settings" };
 
   if (!canWrite) {
     return (
@@ -390,6 +504,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
     <div style={{ padding: "0 12px 8px" }}>
       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
+        <input type="file" accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" ref={fileRef} onChange={handleFileUpload} style={{ display: "none" }} />
         <input
           value={text} onChange={e => setText(e.target.value)}
           onKeyDown={e => e.key === "Enter" && !e.shiftKey && capture()}
@@ -399,6 +514,7 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
         />
         <button onClick={startVoice} disabled={loading} title="Voice capture" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: listening ? "#25D36620" : t.surface, border: `1px solid ${listening ? "#25D36640" : t.border}`, borderRadius: 10, color: listening ? "#25D366" : t.textMuted, cursor: loading ? "default" : "pointer", fontSize: 16, padding: 0 }}>🎤</button>
         <button onClick={() => imgRef.current?.click()} disabled={loading} title="Photo capture" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: loading ? t.textDim : t.textMuted, cursor: loading ? "default" : "pointer", fontSize: 16, padding: 0 }}>📷</button>
+        <button onClick={() => fileRef.current?.click()} disabled={loading} title="Upload file (PDF, Word, MD, TXT)" style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: loading ? t.textDim : t.textMuted, cursor: loading ? "default" : "pointer", fontSize: 16, padding: 0 }}>📄</button>
         <button onClick={capture} disabled={loading || !text.trim()} title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`} style={{ width: 40, height: 40, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: text.trim() && !loading ? "#0f0f23" : t.textFaint, fontWeight: 700, cursor: text.trim() && !loading ? "pointer" : "default", fontSize: 18, padding: 0 }}>+</button>
       </div>
       {status && <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 4px" }}>
@@ -406,6 +522,41 @@ export default function QuickCapture({ entries, setEntries, links, addLinks, onC
         {status === "vault-needed" && onNavigate && <button onClick={() => { onNavigate("vault"); setStatus(null); }} style={{ fontSize: 11, padding: "3px 10px", background: "#FF475720", border: "1px solid #FF475740", borderRadius: 6, color: "#FF4757", fontWeight: 600, cursor: "pointer" }}>Open Vault</button>}
       </div>}
       {preview && <PreviewModal preview={preview} entries={entries} onSave={doSave} onUpdate={onUpdate} onCancel={() => setPreview(null)} />}
+      {multiPreview && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000CC", zIndex: 900, display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setMultiPreview(null)}>
+          <div style={{ background: t.surface2, borderRadius: "20px 20px 0 0", maxWidth: 600, width: "100%", padding: "24px 24px 36px", border: "1px solid #4ECDC440", maxHeight: "80vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: t.textSoft }}>✂️ {multiPreview.length} entries found in file</span>
+              <button onClick={() => setMultiPreview(null)} style={{ background: "none", border: "none", color: "#666", fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+            <p style={{ fontSize: 12, color: "#888", margin: "0 0 16px" }}>Review the entries extracted from your file. Remove any you don't want, then save all.</p>
+            {multiPreview.map((entry, i) => (
+              <div key={i} style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 10, padding: "12px 14px", marginBottom: 8, position: "relative" }}>
+                <button onClick={() => setMultiPreview(prev => prev.filter((_, j) => j !== i))} style={{ position: "absolute", top: 8, right: 8, background: "none", border: "none", color: "#FF6B35", fontSize: 14, cursor: "pointer", padding: 4 }} title="Remove">✕</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 14 }}>{TC[entry.type]?.i || "📝"}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: t.textSoft }}>{entry.title}</span>
+                  <span style={{ fontSize: 10, color: "#888", background: t.surface, padding: "1px 6px", borderRadius: 8 }}>{entry.type}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: 11, color: "#999", lineHeight: 1.4 }}>{(entry.content || "").slice(0, 150)}{(entry.content || "").length > 150 ? "…" : ""}</p>
+                {entry.tags?.length > 0 && (
+                  <div style={{ display: "flex", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+                    {entry.tags.map(tag => <span key={tag} style={{ fontSize: 9, background: "#4ECDC410", color: "#4ECDC4", padding: "1px 6px", borderRadius: 8 }}>{tag}</span>)}
+                  </div>
+                )}
+              </div>
+            ))}
+            <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
+              <button onClick={() => setMultiPreview(null)} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
+              <button
+                onClick={() => saveMultiEntries(multiPreview)}
+                disabled={multiPreview.length === 0}
+                style={{ flex: 2, padding: 12, background: multiPreview.length > 0 ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: multiPreview.length > 0 ? "#0f0f23" : t.textDim, fontSize: 13, fontWeight: 700, cursor: multiPreview.length > 0 ? "pointer" : "default" }}
+              >Save {multiPreview.length} entries to OpenBrain</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
