@@ -290,7 +290,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
     );
   }
 
-  const BRAIN_EMOJI = { personal: "🧠", business: "🏪", family: "🏠" };
+  const BRAIN_EMOJI: Record<string, string> = { personal: "🧠", business: "🏪", family: "🏠" };
   const isOwnerMultiBrain = isOwner && brains.length > 1;
 
   return (
@@ -431,7 +431,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
                     <div style={{ flex: 1, background: "#0f0f23", border: "1px solid #2a2a4a", borderRadius: 8, padding: "8px 12px" }}>
                       <div style={{ fontSize: 9, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>From</div>
                       <div style={{ fontSize: 11, color: "#ccc", fontWeight: 600 }}>
-                        {TC[entries.find(e => e.id === ls.fromId)?.type as string]?.i || "📝"} {ls.fromTitle}
+                        {(TC as Record<string, any>)[entries.find(e => e.id === ls.fromId)?.type || "note"]?.i || "📝"} {ls.fromTitle}
                       </div>
                     </div>
 
@@ -458,7 +458,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
                     <div style={{ flex: 1, background: "#0f0f23", border: "1px solid #2a2a4a", borderRadius: 8, padding: "8px 12px" }}>
                       <div style={{ fontSize: 9, color: "#555", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>To</div>
                       <div style={{ fontSize: 11, color: "#ccc", fontWeight: 600 }}>
-                        {TC[entries.find(e => e.id === ls.toId)?.type as string]?.i || "📝"} {ls.toTitle}
+                        {(TC as Record<string, any>)[entries.find(e => e.id === ls.toId)?.type || "note"]?.i || "📝"} {ls.toTitle}
                       </div>
                     </div>
                   </div>
@@ -486,7 +486,7 @@ export default function RefineView({ entries, setEntries, links, addLinks, activ
                 /* ── Entry-quality card ── */
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontSize: 14 }}>{TC[entries.find(e => e.id === es.entryId)?.type as string]?.i || "📝"}</span>
+                    <span style={{ fontSize: 14 }}>{(TC as Record<string, any>)[entries.find(e => e.id === es.entryId)?.type || "note"]?.i || "📝"}</span>
                     <span style={{ fontSize: 12, color: "#bbb", fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {es.entryTitle || entries.find(e => e.id === es.entryId)?.title || es.entryId}
                     </span>

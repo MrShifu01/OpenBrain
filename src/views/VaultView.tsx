@@ -62,7 +62,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
       setDecryptedSecrets([]);
       return;
     }
-    Promise.all(secrets.map(e => decryptEntry(e, cryptoKey)))
+    Promise.all(secrets.map(e => decryptEntry(e as any, cryptoKey)))
       .then((result: any[]) => setDecryptedSecrets(result))
       .catch(() => setDecryptedSecrets(secrets));
   }, [status, cryptoKey, secrets.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -112,7 +112,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
     setBusy(true);
     setError("");
     try {
-      const key = await unlockVault(passphrase, vaultData.salt, vaultData.verify_token);
+      const key = await unlockVault(passphrase, vaultData!.salt, vaultData!.verify_token);
       if (!key) { setError("Wrong passphrase"); setBusy(false); return; }
       onVaultUnlock(key);
       setStatus("unlocked");
