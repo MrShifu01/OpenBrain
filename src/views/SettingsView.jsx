@@ -41,37 +41,6 @@ function TelegramPanel({ activeBrain }) {
   );
 }
 
-/* ─── Memory Editor ─── */
-function MemoryEditor() {
-  const { t } = useTheme();
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState(null);
-  const MAX = 8000;
-  useEffect(() => {
-    authFetch("/api/memory").then(r => r.ok ? r.json() : {}).then(d => setContent(d.content || "")).catch(err => console.error('[SettingsView:MemoryEditor] Failed to load memory content', err));
-  }, []);
-  const save = async () => {
-    setSaving(true);
-    const res = await authFetch("/api/memory", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content }) });
-    setStatus(res.ok ? "saved" : "error");
-    setSaving(false);
-    setTimeout(() => setStatus(null), 3000);
-  };
-  return (
-    <div style={{ background: t.surface, borderRadius: 14, padding: "20px 24px", marginTop: 16, border: `1px solid ${t.border}` }}>
-      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: t.textSoft }}>🧠 AI Memory Guide</p>
-      <p style={{ margin: "0 0 10px", fontSize: 11, color: t.textDim }}>This Markdown guide is injected into every AI call so the model understands your context. Do not include passport numbers, IDs, or bank details.</p>
-      <textarea value={content} onChange={e => setContent(e.target.value.slice(0, MAX))} rows={8} style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, color: t.textSoft, fontSize: 12, fontFamily: "monospace", lineHeight: 1.6, outline: "none", resize: "vertical" }} placeholder={"# OpenBrain Classification Guide\n\n## Business Context\n- ...\n\n## Personal Context\n- ..."} />
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
-        <span style={{ fontSize: 11, color: content.length > MAX * 0.9 ? "#FF6B35" : t.textFaint }}>{content.length}/{MAX}</span>
-        <button onClick={save} disabled={saving} style={{ padding: "8px 16px", background: "#4ECDC420", border: "1px solid #4ECDC440", borderRadius: 8, color: "#4ECDC4", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-          {saving ? "Saving…" : status === "saved" ? "✓ Saved" : status === "error" ? "✗ Failed" : "Save"}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 /* ─── Export / Import Panel ─── */
 function ExportImportPanel({ activeBrain }) {
@@ -476,8 +445,7 @@ export default function SettingsView() {
       {/* Telegram */}
       {activeBrain && <TelegramPanel activeBrain={activeBrain} />}
 
-      {/* AI Memory Guide */}
-      <MemoryEditor activeBrain={activeBrain} />
+      {/* AI Memory Guide — now fully automatic via feedback learning */}
 
       {/* Export / Import */}
       {activeBrain && <ExportImportPanel activeBrain={activeBrain} />}
