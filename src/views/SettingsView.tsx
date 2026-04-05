@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { authFetch } from "../lib/authFetch";
