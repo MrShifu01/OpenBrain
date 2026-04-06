@@ -1100,11 +1100,11 @@ export default function OpenBrain() {
             />
           )}
 
-          <div className="p-3">
+          <div className="px-4 py-3">
             {view === "capture" && (
               <div className="pt-2">
                 <OnboardingChecklist activeBrain={activeBrain} onNavigate={setView} />
-                <div className="mt-3 grid grid-cols-2 gap-2.5">
+                <div className="mt-4 grid grid-cols-2 gap-3">
                   {[
                     { id: "grid", l: "Memory Grid", ic: "▦", desc: "Browse all memories" },
                     { id: "suggest", l: "Fill Brain", ic: "✦", desc: "Guided questions" },
@@ -1115,11 +1115,11 @@ export default function OpenBrain() {
                     <button
                       key={v.id}
                       onClick={() => setView(v.id)}
-                      className="bg-ob-surface border-ob-border cursor-pointer rounded-xl border px-4 py-4 text-left"
+                      className="bg-ob-surface border-ob-border cursor-pointer rounded-2xl border px-5 py-5 text-left"
                     >
-                      <div className="mb-1.5 text-lg">{v.ic}</div>
-                      <div className="text-ob-text text-[13px] font-semibold">{v.l}</div>
-                      <div className="text-ob-text-dim mt-0.5 text-[11px]">{v.desc}</div>
+                      <div className="mb-2 text-xl">{v.ic}</div>
+                      <div className="text-ob-text text-sm font-semibold">{v.l}</div>
+                      <div className="text-ob-text-dim mt-1 text-xs leading-relaxed">{v.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -1180,7 +1180,7 @@ export default function OpenBrain() {
                     );
                   })}
                 </div>
-                <div className="mb-4 grid grid-cols-[repeat(auto-fit,minmax(70px,1fr))] gap-2">
+                <div className="mb-5 grid grid-cols-4 gap-2.5">
                   {[
                     { l: "Memories", v: entries.length, c: "#4ECDC4" },
                     { l: "Pinned", v: entries.filter((e) => e.pinned).length, c: "#FFD700" },
@@ -1189,12 +1189,12 @@ export default function OpenBrain() {
                   ].map((s) => (
                     <div
                       key={s.l}
-                      className="bg-ob-surface border-ob-border rounded-[10px] border px-2 py-2.5 text-center"
+                      className="bg-ob-surface border-ob-border rounded-xl border px-3 py-3 text-center"
                     >
-                      <div className="text-[22px] font-extrabold" style={{ color: s.c }}>
+                      <div className="text-xl font-extrabold" style={{ color: s.c }}>
                         {s.v}
                       </div>
-                      <div className="text-ob-text-dim mt-0.5 text-[8px] tracking-[1px] uppercase">
+                      <div className="text-ob-text-dim mt-1 text-[9px] tracking-[0.5px] uppercase">
                         {s.l}
                       </div>
                     </div>

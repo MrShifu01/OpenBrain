@@ -20,7 +20,7 @@ export default function MobileHeader({
   children,
 }: MobileHeaderProps) {
   return (
-    <header className="bg-ob-bg flex items-center gap-2 px-3 py-2">
+    <header className="bg-ob-bg flex items-center gap-3 px-4 py-3">
       {/* Brain identity */}
       <div className="gradient-accent flex h-9 w-9 min-w-9 items-center justify-center rounded-[10px] text-base">
         {brainEmoji}

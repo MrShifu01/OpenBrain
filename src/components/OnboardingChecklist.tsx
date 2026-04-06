@@ -83,11 +83,11 @@ export default function OnboardingChecklist({
   const brainEmoji = brainType === "business" ? "🏪" : brainType === "family" ? "🏠" : "🧠";
 
   return (
-    <div className="bg-ob-surface border-ob-border mb-3 overflow-hidden rounded-[14px] border">
+    <div className="bg-ob-surface border-ob-border mb-4 overflow-hidden rounded-2xl border">
       {/* Compact header — always visible */}
       <div
         onClick={() => setExpanded((e) => !e)}
-        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-3"
+        className="flex cursor-pointer items-center gap-3 px-4 py-3.5"
       >
         <span className="text-sm">{brainEmoji}</span>
         <div className="min-w-0 flex-1">

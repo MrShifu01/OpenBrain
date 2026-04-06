@@ -221,9 +221,9 @@ function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
           : null;
 
   return (
-    <div className="bg-ob-surface border-ob-border mt-4 rounded-[14px] border px-6 py-5">
-      <p className="text-ob-text-soft m-0 mb-1 text-sm font-semibold">📦 Export / Import</p>
-      <p className="text-ob-text-dim m-0 mb-3.5 text-[11px]">
+    <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
+      <p className="text-ob-text m-0 mb-1 text-sm font-semibold">Export / Import</p>
+      <p className="text-ob-text-dim m-0 mb-4 text-xs leading-relaxed">
         Export all entries from <strong>{activeBrain.name}</strong> as JSON, or import from a
         previous export.
       </p>
@@ -548,16 +548,20 @@ export default function SettingsView() {
     }
     setTimeout(() => setTestStatus(null), 3000);
   };
-  const btn = "px-5 py-2.5 border-0 rounded-[10px] text-[13px] font-semibold cursor-pointer";
+  const btn = "px-5 py-2.5 border-0 rounded-xl text-[13px] font-semibold cursor-pointer";
   return (
-    <div>
-      <h2 className="text-ob-text m-0 mb-1 text-lg font-bold">Settings</h2>
-      <p className="text-ob-text-dim m-0 mb-6 text-xs">All API keys are managed server-side.</p>
-      <div className="bg-ob-surface border-ob-border mb-4 rounded-[14px] border px-6 py-5">
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-ob-text m-0 mb-0.5 text-xl font-bold">Settings</h2>
+        <p className="text-ob-text-dim m-0 text-xs">Manage your account and preferences</p>
+      </div>
+
+      {/* ── Account ── */}
+      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-ob-text-soft m-0 text-sm font-semibold">Signed in as</p>
-            <p className="text-ob-text-muted mt-1 mb-0 text-xs">{email}</p>
+            <p className="text-ob-text m-0 text-sm font-semibold">Account</p>
+            <p className="text-ob-text-muted mt-1.5 mb-0 text-xs">{email}</p>
           </div>
           <button
             onClick={() => supabase.auth.signOut()}
@@ -567,10 +571,12 @@ export default function SettingsView() {
           </button>
         </div>
       </div>
-      <div className="bg-ob-surface border-ob-border mb-4 rounded-[14px] border px-6 py-5">
-        <div className="flex items-center justify-between">
+
+      {/* ── Connection Status ── */}
+      <div className="bg-ob-surface border-ob-border space-y-0 rounded-2xl border">
+        <div className="flex items-center justify-between px-5 py-4">
           <div>
-            <p className="text-ob-text-soft m-0 text-sm font-semibold">Claude AI (Haiku)</p>
+            <p className="text-ob-text m-0 text-sm font-semibold">Claude AI (Haiku)</p>
             <p className="text-ob-text-dim mt-1 mb-0 text-[11px]">AI parsing and chat</p>
           </div>
           <button onClick={testAI} className={`${btn} bg-teal/10 text-teal`}>
@@ -583,11 +589,10 @@ export default function SettingsView() {
                   : "Test"}
           </button>
         </div>
-      </div>
-      <div className="bg-ob-surface border-ob-border mb-4 rounded-[14px] border px-6 py-5">
-        <div className="flex items-center justify-between">
+        <div className="border-ob-border border-t" />
+        <div className="flex items-center justify-between px-5 py-4">
           <div>
-            <p className="text-ob-text-soft m-0 text-sm font-semibold">Supabase Database</p>
+            <p className="text-ob-text m-0 text-sm font-semibold">Supabase Database</p>
             <p className="text-ob-text-dim mt-1 mb-0 text-[11px]">Memory storage</p>
           </div>
           <button onClick={testDB} className={`${btn} bg-teal/10 text-teal`}>
@@ -601,18 +606,19 @@ export default function SettingsView() {
           </button>
         </div>
       </div>
-      {/* Advanced toggle */}
+
+      {/* ── Advanced toggle ── */}
       <button
         onClick={() => setShowAdvanced((s) => !s)}
-        className="bg-ob-surface border-ob-border mb-4 flex w-full cursor-pointer items-center justify-between rounded-[14px] border px-6 py-4"
+        className="bg-ob-surface border-ob-border flex w-full cursor-pointer items-center justify-between rounded-2xl border px-5 py-4"
       >
         <div>
-          <p className="text-ob-text-soft m-0 text-sm font-semibold">⚡ Advanced Settings</p>
-          <p className="text-ob-text-dim m-0 mt-0.5 text-[11px]">
-            AI provider, embeddings, voice, Telegram, memory guide
+          <p className="text-ob-text m-0 text-sm font-semibold">Advanced Settings</p>
+          <p className="text-ob-text-dim m-0 mt-1 text-[11px]">
+            AI provider, embeddings, voice, Telegram
           </p>
         </div>
-        <span className="text-ob-text-muted text-lg">{showAdvanced ? "▾" : "▸"}</span>
+        <span className="text-ob-text-muted text-sm">{showAdvanced ? "▾" : "▸"}</span>
       </button>
 
       {showAdvanced && <>
@@ -1114,9 +1120,9 @@ export default function SettingsView() {
 
       {/* Brain Members */}
       {activeBrain && (
-        <div className="bg-ob-surface border-ob-border mb-4 rounded-[14px] border px-6 py-5">
-          <p className="text-ob-text-soft m-0 mb-1 text-sm font-semibold">
-            🧠 {activeBrain.name} — Members
+        <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
+          <p className="text-ob-text m-0 mb-3 text-sm font-semibold">
+            {activeBrain.name} — Members
           </p>
           {members.length > 0 && (
             <div className="mb-3.5">
@@ -1255,16 +1261,16 @@ export default function SettingsView() {
         </div>
       )}
 
-      <div className="bg-ob-surface border-ob-border rounded-[14px] border px-6 py-5">
+      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
         <NotificationSettings />
       </div>
 
       {/* Export / Import */}
       {activeBrain && <ExportImportPanel activeBrain={activeBrain} />}
 
-      <div className="bg-ob-surface border-ob-border mt-4 rounded-[14px] border px-6 py-5">
-        <p className="text-ob-text-soft m-0 mb-1 text-sm font-semibold">🔒 Security PIN</p>
-        <p className="text-ob-text-dim m-0 mb-3.5 text-[11px]">
+      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
+        <p className="text-ob-text m-0 mb-1 text-sm font-semibold">Security PIN</p>
+        <p className="text-ob-text-dim m-0 mb-4 text-xs leading-relaxed">
           {pinSet
             ? "PIN is active — sensitive AI responses require it before being revealed."
             : "No PIN set — AI responses with passwords or credentials are shown unguarded."}

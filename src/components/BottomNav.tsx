@@ -37,7 +37,7 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
             onClick={() => onNavigate(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            className={`flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 border-none bg-none px-1 py-2 transition-colors duration-150 ease-in-out [-webkit-tap-highlight-color:transparent] ${
+            className={`flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-none px-1 py-2.5 transition-colors duration-150 ease-in-out [-webkit-tap-highlight-color:transparent] ${
               isActive ? "text-ob-accent" : "text-ob-text-muted"
             }`}
           >

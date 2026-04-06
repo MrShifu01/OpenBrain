@@ -262,7 +262,7 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
     return (
       <div
         key={`${entry.id}-${dateStr}`}
-        className="bg-ob-surface border-ob-border mb-1.5 flex items-center gap-2.5 rounded-[10px] border px-3.5 py-2.5"
+        className="bg-ob-surface border-ob-border mb-2 flex items-center gap-3 rounded-xl border px-4 py-3"
       >
         <span className="shrink-0 text-base">{tc.i}</span>
         <div className="min-w-0 flex-1">
@@ -295,8 +295,8 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   ) {
     if (items.length === 0) return null;
     return (
-      <div className="mb-5">
-        <div className="mb-2 flex items-center gap-1.5">
+      <div className="mb-6">
+        <div className="mb-2.5 flex items-center gap-2">
           <span className="text-sm">{emoji}</span>
           <p
             className="m-0 text-xs font-bold tracking-[1px] uppercase"
