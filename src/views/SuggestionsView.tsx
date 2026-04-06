@@ -53,8 +53,6 @@ export default function SuggestionsView({
   activeBrain,
   brains,
 }: SuggestionsViewProps) {
-  const { t } = useTheme();
-
   // Multi-select: which brains to pull questions from (default = [activeBrain])
   const [selectedBrainIds, setSelectedBrainIds] = useState<string[]>(() =>
     activeBrain?.id ? [activeBrain.id] : [],
@@ -583,12 +581,12 @@ export default function SuggestionsView({
     <div>
       {/* Brain selector chips — multi-select */}
       {brains?.length > 0 && (
-        <div className="mb-4">
-          <p className="text-ob-text-dim m-0 mb-2 text-[10px] font-semibold tracking-wider uppercase">
+        <div>
+          <p>
             Fill which brain{brains.length > 1 ? "s" : ""}?
           </p>
           {brains.length > 1 ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div>
               {brains.map((b: Brain) => {
                 const bmt =
                   BRAIN_META[(b.type || "personal") as keyof typeof BRAIN_META] ||
@@ -598,39 +596,33 @@ export default function SuggestionsView({
                   <button
                     key={b.id}
                     onClick={() => toggleBrain(b.id)}
-                    className="flex cursor-pointer items-center gap-[5px] rounded-full px-3.5 py-1.5 text-xs font-semibold"
-                    style={{
-                      border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`,
-                      background: active ? "#4ECDC420" : t.surface,
-                      color: active ? "#4ECDC4" : t.textMuted,
-                    }}
                   >
                     <span>{bmt.emoji}</span>
                     <span>{b.name}</span>
                     {active && selectedBrainIds.length > 1 && selectedBrainIds[0] === b.id && (
-                      <span className="text-[9px] opacity-70">✓ saves here</span>
+                      <span>✓ saves here</span>
                     )}
                   </button>
                 );
               })}
             </div>
           ) : (
-            <span className="text-ob-text-mid bg-ob-surface border-ob-border rounded-full border px-3.5 py-1.5 text-xs font-semibold">
+            <span>
               {bm.emoji} {targetBrain?.name || bm.label}
             </span>
           )}
-          <p className="text-ob-text-dim mt-1.5 mb-0 text-[10px]">
+          <p>
             {selectedBrainIds.length > 1 ? (
               <>
                 Showing merged questions · saves go to{" "}
-                <strong className="text-ob-text-muted">
+                <strong>
                   {bm.emoji} {targetBrain?.name || bm.label}
                 </strong>
               </>
             ) : (
               <>
                 Showing questions for{" "}
-                <strong className="text-ob-text-muted">
+                <strong>
                   {bm.emoji} {targetBrain?.name || bm.label}
                 </strong>
               </>
@@ -639,60 +631,32 @@ export default function SuggestionsView({
         </div>
       )}
 
-      <div className="mb-5 flex gap-3">
+      <div>
         {[
-          { l: "Answered", v: answered, c: "#4ECDC4" },
-          { l: "Skipped", v: skipped, c: "#FF6B35" },
-          { l: "Remaining", v: Math.max(0, total - (idx % Math.max(total, 1))), c: "#A29BFE" },
+          { l: "Answered", v: answered },
+          { l: "Skipped", v: skipped },
+          { l: "Remaining", v: Math.max(0, total - (idx % Math.max(total, 1))) },
         ].map((s) => (
-          <div
-            key={s.l}
-            className="bg-ob-surface border-ob-border flex-1 rounded-[10px] border p-3 text-center"
-          >
-            <div className="text-[22px] font-extrabold" style={{ color: s.c }}>
-              {s.v}
-            </div>
-            <div className="text-ob-text-dim mt-0.5 text-[9px] tracking-wider uppercase">{s.l}</div>
+          <div key={s.l}>
+            <div>{s.v}</div>
+            <div>{s.l}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-ob-surface mb-5 h-[3px] overflow-hidden rounded">
+      <div>
         <div
-          className="h-full rounded"
           style={{
             width: `${Math.min(total > 0 ? ((answered + skipped) / total) * 100 : 0, 100)}%`,
-            background: "linear-gradient(90deg, #4ECDC4, #45B7D1)",
-            transition: "width 0.4s",
           }}
         />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 6,
-          overflowX: "auto",
-          marginBottom: 20,
-          paddingBottom: 4,
-          scrollbarWidth: "none",
-        }}
-      >
+      <div>
         <button
           onClick={() => {
             setFilterCat("all");
             setIdx(0);
-          }}
-          style={{
-            flexShrink: 0,
-            padding: "5px 12px",
-            borderRadius: 20,
-            border: "none",
-            fontSize: 10,
-            fontWeight: 600,
-            cursor: "pointer",
-            background: filterCat === "all" ? "#4ECDC4" : t.surface,
-            color: filterCat === "all" ? "#0f0f23" : t.textDim,
           }}
         >
           All
@@ -704,18 +668,6 @@ export default function SuggestionsView({
               setFilterCat(c);
               setIdx(0);
             }}
-            style={{
-              flexShrink: 0,
-              padding: "5px 12px",
-              borderRadius: 20,
-              border: "none",
-              fontSize: 10,
-              fontWeight: 600,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              background: filterCat === c ? "#4ECDC4" : t.surface,
-              color: filterCat === c ? "#0f0f23" : t.textDim,
-            }}
           >
             {c} ({n})
           </button>
@@ -723,143 +675,51 @@ export default function SuggestionsView({
       </div>
 
       {poolEmpty && (
-        <div
-          className="mb-4 rounded-xl px-4 py-3 text-center"
-          style={{ background: "#A29BFE15", border: "1px solid #A29BFE40" }}
-        >
-          <span className="text-purple text-[11px] font-semibold">
+        <div>
+          <span>
             ✨ All {answeredQs.size} static questions answered — AI is now driving
           </span>
         </div>
       )}
       {isAiSlot && aiLoading && (
-        <div
-          className="gradient-surface mb-4 rounded-2xl text-center"
-          style={{ border: "1px solid #A29BFE40", padding: "28px 24px" }}
-        >
-          <div className="mb-2 text-[22px]">✨</div>
-          <p className="text-purple m-0 text-sm">AI is generating a personalised question…</p>
+        <div>
+          <div>✨</div>
+          <p>AI is generating a personalised question…</p>
         </div>
       )}
       {current && !aiLoading && (
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${t.surface}, ${t.surface2})`,
-            border: isAiSlot ? "1px solid #A29BFE40" : `1px solid ${t.border}`,
-            borderRadius: 16,
-            padding: "28px 24px",
-            marginBottom: 16,
-            position: "relative",
-            overflow: "hidden",
-            transform:
-              anim === "skip" ? "translateX(-30px)" : anim === "save" ? "scale(0.95)" : "none",
-            opacity: anim ? 0.4 : 1,
-            transition: "all 0.2s",
-          }}
-        >
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 3,
-              background: `linear-gradient(90deg, ${pc.c}, transparent)`,
-            }}
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-            <span
-              style={{
-                fontSize: 10,
-                background: pc.bg,
-                color: pc.c,
-                padding: "3px 10px",
-                borderRadius: 20,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              {pc.l}
-            </span>
-            <span style={{ fontSize: 11, color: t.textDim }}>{current.cat}</span>
+        <div>
+          <div>
+            <span>{pc.l}</span>
+            <span>{current.cat}</span>
             {isAiSlot && (
-              <span
-                style={{
-                  fontSize: 9,
-                  background: "#A29BFE20",
-                  color: "#A29BFE",
-                  padding: "2px 8px",
-                  borderRadius: 20,
-                  fontWeight: 700,
-                }}
-              >
-                ✨ AI
-              </span>
+              <span>✨ AI</span>
             )}
             {!isAiSlot &&
               current &&
               onboardingSkipped.find((s: Suggestion) => s.q === current.q) && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    background: "#FF6B3520",
-                    color: "#FF6B35",
-                    padding: "2px 8px",
-                    borderRadius: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  ↩ From onboarding
-                </span>
+                <span>↩ From onboarding</span>
               )}
-            <span style={{ fontSize: 10, color: t.textDim, marginLeft: "auto" }}>
-              #{idx + 1}/{total}
-            </span>
+            <span>#{idx + 1}/{total}</span>
           </div>
-          <p style={{ fontSize: 18, color: t.text, lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
-            {current.q}
-          </p>
+          <p>{current.q}</p>
         </div>
       )}
 
       {!showInput ? (
-        <div style={{ display: "flex", gap: 10 }}>
+        <div>
           <button
             onClick={() => {
               setSkipped((s) => s + 1);
               next("skip");
             }}
             disabled={aiLoading}
-            style={{
-              flex: 1,
-              padding: 14,
-              background: t.surface,
-              border: `1px solid ${t.border}`,
-              borderRadius: 12,
-              color: aiLoading ? t.textDim : t.textMuted,
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: aiLoading ? "default" : "pointer",
-            }}
           >
             Skip →
           </button>
           <button
             onClick={() => setShowInput(true)}
             disabled={!current || aiLoading}
-            style={{
-              flex: 2,
-              padding: 14,
-              background:
-                current && !aiLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface,
-              border: "none",
-              borderRadius: 12,
-              color: current && !aiLoading ? "#0f0f23" : t.textDim,
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: current && !aiLoading ? "pointer" : "default",
-            }}
           >
             Answer this
           </button>
@@ -871,40 +731,22 @@ export default function SuggestionsView({
             accept="image/*"
             ref={imgRef}
             onChange={handleImageUpload}
-            className="hidden"
           />
           <input
             type="file"
             accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             ref={fileRef}
             onChange={handleFileUpload}
-            className="hidden"
           />
-          {imgError && <p className="text-orange m-0 mb-1.5 text-xs">{imgError}</p>}
-          {micError && <p className="text-orange m-0 mb-1.5 text-xs">{micError}</p>}
+          {imgError && <p>{imgError}</p>}
+          {micError && <p>{micError}</p>}
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
             placeholder={listening ? "Listening..." : "Type your answer..."}
             autoFocus
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              minHeight: 100,
-              padding: "14px 16px",
-              background: listening ? `${t.surface}` : t.surface,
-              border: listening ? "1px solid #25D36640" : "1px solid #4ECDC440",
-              borderRadius: 12,
-              color: t.textSoft,
-              fontSize: 14,
-              lineHeight: 1.6,
-              outline: "none",
-              resize: "vertical",
-              fontFamily: "inherit",
-              opacity: imgLoading ? 0.5 : 1,
-            }}
           />
-          <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <div>
             <button
               onClick={() => {
                 setShowInput(false);
@@ -912,16 +754,6 @@ export default function SuggestionsView({
                 setListening(false);
                 recognitionRef.current?.stop();
                 mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop();
-              }}
-              style={{
-                flex: 1,
-                padding: 12,
-                background: t.surface,
-                border: `1px solid ${t.border}`,
-                borderRadius: 10,
-                color: t.textMuted,
-                fontSize: 13,
-                cursor: "pointer",
               }}
             >
               Cancel
@@ -931,16 +763,6 @@ export default function SuggestionsView({
                 setSkipped((s) => s + 1);
                 next("skip");
               }}
-              style={{
-                flex: 1,
-                padding: 12,
-                background: t.surface,
-                border: `1px solid ${t.border}`,
-                borderRadius: 10,
-                color: "#FF6B35",
-                fontSize: 13,
-                cursor: "pointer",
-              }}
             >
               Skip
             </button>
@@ -948,15 +770,6 @@ export default function SuggestionsView({
               onClick={startVoice}
               disabled={imgLoading || saving}
               title="Voice input"
-              style={{
-                padding: 12,
-                background: listening ? "#25D36620" : t.surface,
-                border: listening ? "1px solid #25D36640" : `1px solid ${t.border}`,
-                borderRadius: 10,
-                color: listening ? "#25D366" : t.textMuted,
-                cursor: imgLoading || saving ? "default" : "pointer",
-                fontSize: 14,
-              }}
             >
               {listening ? "⏹" : "🎤"}
             </button>
@@ -964,15 +777,6 @@ export default function SuggestionsView({
               onClick={() => imgRef.current?.click()}
               disabled={imgLoading || saving}
               title="Upload photo"
-              style={{
-                padding: 12,
-                background: t.surface,
-                border: "1px solid #4ECDC440",
-                borderRadius: 10,
-                color: imgLoading ? t.textDim : "#4ECDC4",
-                cursor: imgLoading || saving ? "default" : "pointer",
-                fontSize: 14,
-              }}
             >
               📷
             </button>
@@ -980,35 +784,12 @@ export default function SuggestionsView({
               onClick={() => fileRef.current?.click()}
               disabled={imgLoading || saving}
               title="Upload file (PDF, Word, MD, TXT)"
-              style={{
-                padding: 12,
-                background: t.surface,
-                border: `1px solid ${t.border}`,
-                borderRadius: 10,
-                color: imgLoading ? t.textDim : t.textMuted,
-                cursor: imgLoading || saving ? "default" : "pointer",
-                fontSize: 14,
-              }}
             >
               📄
             </button>
             <button
               onClick={handleSave}
               disabled={!answer.trim() || saving || imgLoading}
-              style={{
-                flex: 2,
-                padding: 12,
-                background:
-                  answer.trim() && !imgLoading
-                    ? "linear-gradient(135deg, #4ECDC4, #45B7D1)"
-                    : t.surface,
-                border: "none",
-                borderRadius: 10,
-                color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: answer.trim() && !imgLoading ? "pointer" : "default",
-              }}
             >
               {saving
                 ? "Saving..."
@@ -1023,38 +804,30 @@ export default function SuggestionsView({
       )}
 
       {saved.length > 0 && (
-        <div className="mt-7">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-ob-text-dim m-0 text-[11px] font-semibold tracking-wider uppercase">
+        <div>
+          <div>
+            <p>
               This session ({saved.length})
             </p>
-            <button
-              onClick={copyAll}
-              className="bg-teal/10 text-teal cursor-pointer rounded-full border-0 px-3.5 py-1.5 text-[11px] font-bold"
-            >
+            <button onClick={copyAll}>
               📋 Copy All for Claude
             </button>
           </div>
           {saved.map((s, i) => (
-            <div
-              key={i}
-              className="bg-ob-surface border-ob-border mb-2 rounded-[10px] border px-4 py-3"
-            >
-              <div className="mb-1 flex items-center gap-2">
-                <span className="text-ob-text-dim text-[11px]">{s.cat}</span>
+            <div key={i}>
+              <div>
+                <span>{s.cat}</span>
                 {s.brain && (
-                  <span className="text-ob-text-dim text-[9px]">
+                  <span>
                     {BRAIN_META[(s.brain.type || "personal") as keyof typeof BRAIN_META]?.emoji}{" "}
                     {s.brain.name}
                   </span>
                 )}
                 {s.db && (
-                  <span className="bg-teal/10 text-teal rounded-full px-2 py-0.5 text-[9px] font-semibold">
-                    Saved to DB
-                  </span>
+                  <span>Saved to DB</span>
                 )}
               </div>
-              <p className="text-ob-text-mid m-0 text-[13px]">
+              <p>
                 {s.a.slice(0, 120)}
                 {s.a.length > 120 ? "…" : ""}
               </p>

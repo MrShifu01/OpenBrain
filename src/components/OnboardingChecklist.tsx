@@ -80,65 +80,49 @@ export default function OnboardingChecklist({
   }
 
   return (
-    <div className="bg-ob-surface border-ob-border mb-5 overflow-hidden rounded-2xl border">
+    <div>
       {/* Header — always visible */}
-      <button
-        onClick={() => setExpanded((e) => !e)}
-        className="flex w-full cursor-pointer items-center gap-3.5 border-none bg-transparent px-5 py-4 text-left"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal/10 text-sm">
-          <span className="text-teal">✦</span>
+      <button onClick={() => setExpanded((e) => !e)}>
+        <div>
+          <span>✦</span>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-ob-text m-0 text-[14px] font-semibold">
-            {questions.length} things to capture
-          </p>
-          <p className="text-ob-text-dim m-0 mt-0.5 text-[12px]">
-            {categories
-              .slice(0, 3)
-              .map(([cat]) => cat)
-              .join(" · ")}
+        <div>
+          <p>{questions.length} things to capture</p>
+          <p>
+            {categories.slice(0, 3).map(([cat]) => cat).join(" · ")}
             {categories.length > 3 && ` +${categories.length - 3}`}
           </p>
         </div>
-        <span className="text-ob-text-dim shrink-0 text-xs">{expanded ? "▲" : "▼"}</span>
+        <span>{expanded ? "▲" : "▼"}</span>
       </button>
 
       {/* Expanded categories */}
       {expanded && (
-        <div className="border-ob-border border-t px-2 py-2">
+        <div>
           {categories.map(([cat, items]) => (
             <div
               key={cat}
               onClick={() => onNavigate("suggest")}
-              className="flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-3 active:bg-ob-accent-light"
             >
-              <span className="text-ob-text flex-1 text-[13px] font-medium">
-                {cat} <span className="text-ob-text-dim">({items.length})</span>
+              <span>
+                {cat} <span>({items.length})</span>
               </span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   dismissCategory(cat);
                 }}
-                className="touch-target text-ob-text-faint flex cursor-pointer items-center justify-center border-none bg-transparent text-base leading-none"
               >
                 ×
               </button>
             </div>
           ))}
 
-          <div className="border-ob-border mt-1 flex gap-2.5 border-t px-3 pt-3 pb-2">
-            <button
-              onClick={() => onNavigate("suggest")}
-              className="gradient-accent flex-1 cursor-pointer rounded-xl border-none px-4 py-3 text-[13px] font-semibold text-white"
-            >
+          <div>
+            <button onClick={() => onNavigate("suggest")}>
               Fill Brain →
             </button>
-            <button
-              onClick={dismissAll}
-              className="border-ob-border text-ob-text-dim cursor-pointer rounded-xl border bg-transparent px-4 py-3 text-[12px]"
-            >
+            <button onClick={dismissAll}>
               Dismiss
             </button>
           </div>

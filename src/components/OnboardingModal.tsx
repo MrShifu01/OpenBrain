@@ -225,36 +225,29 @@ export default function OnboardingModal({ onComplete }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center overflow-y-auto bg-black/85 p-5">
-      <div className="bg-ob-surface2 border-ob-border m-auto box-border w-full max-w-[440px] rounded-[18px] border px-4 py-6 shadow-[0_24px_64px_rgba(0,0,0,0.7)]">
+    <div>
+      <div>
         {/* Progress dots */}
-        <div
-          className="mb-7 flex justify-center gap-1.5"
-          role="tablist"
-          aria-label="Onboarding progress"
-        >
+        <div role="tablist" aria-label="Onboarding progress">
           {STEPS.map((_, i) => (
             <div
               key={i}
               aria-label={`Step ${i + 1} of ${STEPS.length}`}
               role="tab"
               aria-selected={i === step}
-              className={`h-2 rounded transition-all duration-300 ${
-                i === step ? "bg-teal w-5" : i < step ? "bg-teal/50 w-2" : "bg-ob-surface w-2"
-              }`}
             />
           ))}
         </div>
 
-        <div className="mb-6 text-center">
-          <div className="mb-2.5 text-4xl">{step === START_STEP ? "🚀" : "🧠"}</div>
-          <h2 className="text-ob-text m-0 text-xl font-extrabold">{STEPS[step].title}</h2>
-          <p className="text-ob-text-dim mt-2 mb-0 text-[13px]">{STEPS[step].subtitle}</p>
+        <div>
+          <div>{step === START_STEP ? "🚀" : "🧠"}</div>
+          <h2>{STEPS[step].title}</h2>
+          <p>{STEPS[step].subtitle}</p>
         </div>
 
         {/* Step 0 — Use case selection */}
         {step === 0 && (
-          <div className="mb-6 flex flex-col gap-2.5">
+          <div>
             {USE_CASES.map((uc) => {
               const active = selected.includes(uc.id);
               return (
@@ -263,51 +256,33 @@ export default function OnboardingModal({ onComplete }) {
                   onClick={() => toggleUseCase(uc.id)}
                   role="checkbox"
                   aria-checked={active}
-                  className={`flex cursor-pointer items-center gap-3.5 rounded-xl px-4 py-3.5 text-left ${
-                    active
-                      ? "bg-teal/[0.08] border-teal/[0.37] border"
-                      : "bg-ob-surface border-ob-border border"
-                  }`}
                 >
-                  <span className="text-2xl">{uc.emoji}</span>
-                  <div className="flex-1">
-                    <div className={`text-sm font-bold ${active ? "text-teal" : "text-ob-text"}`}>
-                      {uc.label}
-                    </div>
-                    <div className="text-ob-text-dim mt-0.5 text-xs">{uc.desc}</div>
+                  <span>{uc.emoji}</span>
+                  <div>
+                    <div>{uc.label}</div>
+                    <div>{uc.desc}</div>
                   </div>
-                  <div
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] ${
-                      active
-                        ? "bg-teal border-none text-[#0f0f23]"
-                        : "border-ob-border border-2 bg-transparent"
-                    }`}
-                  >
+                  <div>
                     {active && "✓"}
                   </div>
                 </button>
               );
             })}
-            <p className="text-ob-text-faint mt-1 mb-0 text-center text-[11px]">
-              Select all that apply
-            </p>
+            <p>Select all that apply</p>
           </div>
         )}
 
         {/* Step 1 — Setup summary */}
         {step === 1 && (
-          <div className="mb-6">
+          <div>
             {selected.map((id) => {
               const uc = USE_CASES.find((u) => u.id === id);
               return (
-                <div
-                  key={id}
-                  className="bg-teal/[0.08] border-teal/[0.19] mb-2 flex items-center gap-3 rounded-[10px] border px-4 py-3"
-                >
-                  <span className="text-xl">{uc.emoji}</span>
+                <div key={id}>
+                  <span>{uc.emoji}</span>
                   <div>
-                    <div className="text-ob-text text-[13px] font-semibold">{uc.label} brain</div>
-                    <div className="text-ob-text-dim text-[11px]">
+                    <div>{uc.label} brain</div>
+                    <div>
                       {id === "personal" &&
                         "Fill Brain will show personal questions (identity, health, finance…)"}
                       {id === "family" && "Your family brain is ready for household & family data"}
@@ -315,13 +290,13 @@ export default function OnboardingModal({ onComplete }) {
                         "Your business brain will show supplier, staff & SOP questions"}
                     </div>
                   </div>
-                  <span className="text-teal ml-auto text-base">✓</span>
+                  <span>✓</span>
                 </div>
               );
             })}
-            <div className="bg-ob-surface border-ob-border mt-3.5 rounded-[10px] border px-4 py-3">
-              <p className="text-ob-text-dim m-0 text-xs leading-normal">
-                💡 <strong className="text-ob-text-muted">Tip:</strong> Use the brain switcher
+            <div>
+              <p>
+                💡 <strong>Tip:</strong> Use the brain switcher
                 (top-right) to switch between brains at any time. You can always create more brains
                 later.
               </p>
@@ -331,14 +306,14 @@ export default function OnboardingModal({ onComplete }) {
 
         {/* Step 2 — Ready to go */}
         {step === START_STEP && (
-          <div className="mb-6">
-            <div className="bg-teal/[0.08] border-teal/[0.19] mb-4 rounded-[10px] border px-4 py-3">
-              <p className="text-ob-text-dim m-0 text-xs leading-normal">
-                <strong className="text-teal">{skippedQs.length} guided questions</strong> are
+          <div>
+            <div>
+              <p>
+                <strong>{skippedQs.length} guided questions</strong> are
                 waiting in Fill Brain to help you build your memory.
               </p>
             </div>
-            <div className="flex flex-col gap-2.5">
+            <div>
               {[
                 {
                   ic: "\u2726",
@@ -353,22 +328,19 @@ export default function OnboardingModal({ onComplete }) {
                 },
                 { ic: "\u25C8", label: "Ask", desc: "Chat with AI about everything you've stored" },
               ].map((f) => (
-                <div
-                  key={f.label}
-                  className="bg-ob-surface border-ob-border flex items-center gap-3 rounded-[10px] border px-3.5 py-2.5"
-                >
-                  <span className="text-teal w-6 shrink-0 text-center text-base">{f.ic}</span>
+                <div key={f.label}>
+                  <span>{f.ic}</span>
                   <div>
-                    <div className="text-ob-text text-[13px] font-semibold">{f.label}</div>
-                    <div className="text-ob-text-dim text-[11px]">{f.desc}</div>
+                    <div>{f.label}</div>
+                    <div>{f.desc}</div>
                   </div>
                 </div>
               ))}
             </div>
             {needsIOSStep() && (
-              <div className="bg-ob-surface border-ob-border mt-3.5 rounded-[10px] border px-4 py-3">
-                <p className="text-ob-text-dim m-0 text-xs leading-normal">
-                  📱 <strong className="text-ob-text-muted">iPhone tip:</strong> Tap Share → "Add to
+              <div>
+                <p>
+                  📱 <strong>iPhone tip:</strong> Tap Share → "Add to
                   Home Screen" to enable push notifications.
                 </p>
               </div>
@@ -377,36 +349,24 @@ export default function OnboardingModal({ onComplete }) {
         )}
 
         {/* Navigation */}
-        <div className={`flex gap-2.5 ${step === 0 ? "justify-end" : "justify-between"}`}>
+        <div>
           {step > 0 && (
-            <button
-              onClick={() => setStep((s) => s - 1)}
-              className="bg-ob-surface border-ob-border text-ob-text-muted cursor-pointer rounded-xl border px-7 py-3 text-sm font-bold"
-            >
+            <button onClick={() => setStep((s) => s - 1)}>
               ← Back
             </button>
           )}
           {step === 0 && (
-            <button
-              onClick={() => setStep(1)}
-              className="gradient-accent cursor-pointer rounded-xl border-none px-7 py-3 text-sm font-bold text-[#0f0f23]"
-            >
+            <button onClick={() => setStep(1)}>
               Set up my brain →
             </button>
           )}
           {step === 1 && (
-            <button
-              onClick={() => setStep(START_STEP)}
-              className="gradient-accent cursor-pointer rounded-xl border-none px-7 py-3 text-sm font-bold text-[#0f0f23]"
-            >
+            <button onClick={() => setStep(START_STEP)}>
               Let's go →
             </button>
           )}
           {step === START_STEP && (
-            <button
-              onClick={handleComplete}
-              className="gradient-accent cursor-pointer rounded-xl border-none px-7 py-3 text-sm font-bold text-[#0f0f23]"
-            >
+            <button onClick={handleComplete}>
               Start capturing →
             </button>
           )}

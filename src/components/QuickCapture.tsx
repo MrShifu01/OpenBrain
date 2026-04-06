@@ -21,51 +21,28 @@ const BRAIN_META_QC = {
 };
 
 function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
-  const { t } = useTheme();
   const [title, setTitle] = useState(preview.title || "");
   const [type, setType] = useState(preview.type || "note");
   const [tags, setTags] = useState((preview.tags || []).join(", "));
-  const inp =
-    "w-full box-border px-3 py-2 bg-ob-bg border border-ob-accent-border rounded-lg text-ob-text-soft text-[13px] outline-none font-[inherit]";
   const dupes = useMemo(() => {
     if (!title.trim()) return [];
     return entries.filter((e) => scoreTitle(title, e.title) > 50).slice(0, 3);
   }, [title, entries]);
   return (
-    <div
-      className="fixed inset-0 z-[900] flex items-end justify-center bg-black/80"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-ob-surface2 border-ob-accent-border w-full max-w-[600px] rounded-t-[20px] border"
-        style={{ padding: "24px 24px 36px" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-ob-text-soft text-sm font-bold">Preview before saving</span>
-          <button
-            onClick={onCancel}
-            className="text-ob-text-faint cursor-pointer border-0 bg-transparent text-xl"
-          >
-            ✕
-          </button>
+    <div onClick={onCancel}>
+      <div onClick={(e) => e.stopPropagation()}>
+        <div>
+          <span>Preview before saving</span>
+          <button onClick={onCancel}>✕</button>
         </div>
-        <div className="flex flex-col gap-3">
+        <div>
           <div>
-            <label className="text-ob-text-dim mb-1 block text-[10px] tracking-widest uppercase">
-              Title
-            </label>
-            <input value={title} onChange={(e) => setTitle(e.target.value)} className={inp} />
+            <label>Title</label>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div>
-            <label className="text-ob-text-dim mb-1 block text-[10px] tracking-widest uppercase">
-              Type
-            </label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className={`${inp} cursor-pointer`}
-            >
+            <label>Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value)}>
               {Object.keys(TC).map((t) => (
                 <option key={t} value={t}>
                   {TC[t].i} {t}
@@ -74,45 +51,34 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
             </select>
           </div>
           <div>
-            <label className="text-ob-text-dim mb-1 block text-[10px] tracking-widest uppercase">
+            <label>
               Tags{" "}
-              <span className="text-ob-text-faint font-normal normal-case">(comma separated)</span>
+              <span>(comma separated)</span>
             </label>
             <input
               value={tags}
               onChange={(e) => setTags(e.target.value)}
-              className={inp}
               placeholder="tag1, tag2"
             />
           </div>
         </div>
         {dupes.length > 0 && (
-          <div
-            className="mt-3.5 rounded-[10px]"
-            style={{ padding: "10px 14px", background: "#FFEAA710", border: "1px solid #FFEAA730" }}
-          >
-            <p className="text-yellow m-0 mb-2 text-[11px] font-bold">
-              ⚠ Similar entries found — update one instead?
-            </p>
+          <div>
+            <p>⚠ Similar entries found — update one instead?</p>
             {dupes.map((d) => (
-              <div key={d.id} className="mb-1 flex items-center justify-between">
-                <span className="text-ob-text-mid text-xs">• {d.title}</span>
+              <div key={d.id}>
+                <span>• {d.title}</span>
                 <button
                   onClick={() => {
                     onUpdate(d.id, {
                       title: title.trim(),
                       type,
-                      tags: tags
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter(Boolean),
+                      tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
                       content: preview.content,
                       metadata: preview.metadata,
                     });
                     onCancel();
                   }}
-                  className="text-yellow cursor-pointer rounded-md px-2 py-[3px] text-[11px]"
-                  style={{ background: "#FFEAA720", border: "1px solid #FFEAA750" }}
                 >
                   Update this
                 </button>
@@ -120,32 +86,18 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
             ))}
           </div>
         )}
-        <div className="mt-5 flex gap-2.5">
-          <button
-            onClick={onCancel}
-            className="bg-ob-surface border-ob-border text-ob-text-muted flex-1 cursor-pointer rounded-[10px] border p-3 text-[13px]"
-          >
-            Cancel
-          </button>
+        <div>
+          <button onClick={onCancel}>Cancel</button>
           <button
             onClick={() =>
               onSave({
                 ...preview,
                 title: title.trim(),
                 type,
-                tags: tags
-                  .split(",")
-                  .map((tag) => tag.trim())
-                  .filter(Boolean),
+                tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
               })
             }
             disabled={!title.trim()}
-            className="flex-2 rounded-[10px] border-0 p-3 text-[13px] font-bold"
-            style={{
-              background: title.trim() ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : undefined,
-              color: title.trim() ? "#0f0f23" : undefined,
-              cursor: title.trim() ? "pointer" : "default",
-            }}
           >
             Save to OpenBrain
           </button>
@@ -170,7 +122,6 @@ export default function QuickCapture({
   cryptoKey = null,
   onNavigate = null,
 }) {
-  const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -888,31 +839,27 @@ export default function QuickCapture({
 
   if (!canWrite) {
     return (
-      <div className="bg-ob-surface border-ob-border mx-3 mb-3 flex items-center gap-2.5 rounded-xl border px-4 py-3">
-        <span className="text-lg">🔒</span>
-        <span className="text-ob-text-dim text-[13px]">
-          You have view-only access to this brain
-        </span>
+      <div>
+        <span>🔒</span>
+        <span>You have view-only access to this brain</span>
       </div>
     );
   }
 
   return (
-    <div className="px-3 pb-2">
-      <div className="flex items-center gap-1.5">
+    <div>
+      <div>
         <input
           type="file"
           accept="image/*"
           ref={imgRef}
           onChange={handleImageUpload}
-          className="hidden"
         />
         <input
           type="file"
           accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           ref={fileRef}
           onChange={handleFileUpload}
-          className="hidden"
         />
         <input
           value={text}
@@ -926,39 +873,11 @@ export default function QuickCapture({
                 ? "Processing..."
                 : "Quick capture — just type anything..."
           }
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: "10px 14px",
-            background: listening ? "#1a2e1a" : t.surface,
-            border: `1px solid ${listening ? "#25D36640" : t.border}`,
-            borderRadius: 10,
-            color: t.textSoft,
-            fontSize: 14,
-            outline: "none",
-            fontFamily: "inherit",
-            opacity: loading ? 0.5 : 1,
-          }}
         />
         <button
           onClick={startVoice}
           disabled={loading}
           title="Voice capture"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: listening ? "#25D36620" : t.surface,
-            border: `1px solid ${listening ? "#25D36640" : t.border}`,
-            borderRadius: 10,
-            color: listening ? "#25D366" : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
         >
           🎤
         </button>
@@ -966,21 +885,6 @@ export default function QuickCapture({
           onClick={() => imgRef.current?.click()}
           disabled={loading}
           title="Photo capture"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: t.surface,
-            border: `1px solid ${t.border}`,
-            borderRadius: 10,
-            color: loading ? t.textDim : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
         >
           📷
         </button>
@@ -988,21 +892,6 @@ export default function QuickCapture({
           onClick={() => fileRef.current?.click()}
           disabled={loading}
           title="Upload file (PDF, Word, MD, TXT)"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: t.surface,
-            border: `1px solid ${t.border}`,
-            borderRadius: 10,
-            color: loading ? t.textDim : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
         >
           📄
         </button>
@@ -1010,58 +899,18 @@ export default function QuickCapture({
           onClick={capture}
           disabled={loading || !text.trim()}
           title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`}
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface,
-            border: "none",
-            borderRadius: 10,
-            color: text.trim() && !loading ? "#0f0f23" : t.textFaint,
-            fontWeight: 700,
-            cursor: text.trim() && !loading ? "pointer" : "default",
-            fontSize: 18,
-            padding: 0,
-          }}
         >
           +
         </button>
       </div>
       {status && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 4px" }}>
-          <p
-            style={{
-              fontSize: 11,
-              color:
-                status === "vault-needed"
-                  ? "#FF4757"
-                  : status.includes("error")
-                    ? "#FF6B35"
-                    : "#4ECDC4",
-              margin: 0,
-            }}
-          >
-            {statusMsg[status]}
-          </p>
+        <div>
+          <p>{statusMsg[status]}</p>
           {status === "vault-needed" && onNavigate && (
             <button
               onClick={() => {
                 onNavigate("vault");
                 setStatus(null);
-              }}
-              style={{
-                fontSize: 11,
-                padding: "3px 10px",
-                background: "#FF475720",
-                border: "1px solid #FF475740",
-                borderRadius: 6,
-                color: "#FF4757",
-                fontWeight: 600,
-                cursor: "pointer",
               }}
             >
               Open Vault
@@ -1079,85 +928,46 @@ export default function QuickCapture({
         />
       )}
       {multiPreview && (
-        <div
-          className="fixed inset-0 z-[900] flex items-end justify-center bg-black/80"
-          onClick={() => setMultiPreview(null)}
-        >
-          <div
-            className="bg-ob-surface2 border-ob-accent-border max-h-[80vh] w-full max-w-[600px] overflow-y-auto rounded-t-[20px] border"
-            style={{ padding: "24px 24px 36px" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <span className="text-ob-text-soft text-sm font-bold">
-                ✂️ {multiPreview.length} entries found in file
-              </span>
-              <button
-                onClick={() => setMultiPreview(null)}
-                className="text-ob-text-faint cursor-pointer border-0 bg-transparent text-xl"
-              >
-                ✕
-              </button>
+        <div onClick={() => setMultiPreview(null)}>
+          <div onClick={(e) => e.stopPropagation()}>
+            <div>
+              <span>✂️ {multiPreview.length} entries found in file</span>
+              <button onClick={() => setMultiPreview(null)}>✕</button>
             </div>
-            <p className="text-ob-text-dim m-0 mb-4 text-xs">
+            <p>
               Review the entries extracted from your file. Remove any you don't want, then save all.
             </p>
             {multiPreview.map((entry, i) => (
-              <div
-                key={i}
-                className="bg-ob-bg border-ob-border relative mb-2 rounded-[10px] border px-3.5 py-3"
-              >
+              <div key={i}>
                 <button
                   onClick={() => setMultiPreview((prev) => prev.filter((_, j) => j !== i))}
-                  className="text-orange absolute top-2 right-2 cursor-pointer border-0 bg-transparent p-1 text-sm"
                   title="Remove"
                 >
                   ✕
                 </button>
-                <div className="mb-1 flex items-center gap-1.5">
-                  <span className="text-sm">{TC[entry.type]?.i || "📝"}</span>
-                  <span className="text-ob-text-soft text-xs font-bold">{entry.title}</span>
-                  <span className="text-ob-text-dim bg-ob-surface rounded-lg px-1.5 py-px text-[10px]">
-                    {entry.type}
-                  </span>
+                <div>
+                  <span>{TC[entry.type]?.i || "📝"}</span>
+                  <span>{entry.title}</span>
+                  <span>{entry.type}</span>
                 </div>
-                <p className="text-ob-text-muted m-0 text-[11px] leading-snug">
+                <p>
                   {(entry.content || "").slice(0, 150)}
                   {(entry.content || "").length > 150 ? "…" : ""}
                 </p>
                 {entry.tags?.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1">
+                  <div>
                     {entry.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="bg-teal/5 text-teal rounded-lg px-1.5 py-px text-[9px]"
-                      >
-                        {tag}
-                      </span>
+                      <span key={tag}>{tag}</span>
                     ))}
                   </div>
                 )}
               </div>
             ))}
-            <div className="mt-4 flex gap-2.5">
-              <button
-                onClick={() => setMultiPreview(null)}
-                className="bg-ob-surface border-ob-border text-ob-text-muted flex-1 cursor-pointer rounded-[10px] border p-3 text-[13px]"
-              >
-                Cancel
-              </button>
+            <div>
+              <button onClick={() => setMultiPreview(null)}>Cancel</button>
               <button
                 onClick={() => saveMultiEntries(multiPreview)}
                 disabled={multiPreview.length === 0}
-                className="flex-2 rounded-[10px] border-0 p-3 text-[13px] font-bold"
-                style={{
-                  background:
-                    multiPreview.length > 0
-                      ? "linear-gradient(135deg, #4ECDC4, #45B7D1)"
-                      : undefined,
-                  color: multiPreview.length > 0 ? "#0f0f23" : undefined,
-                  cursor: multiPreview.length > 0 ? "pointer" : "default",
-                }}
               >
                 Save {multiPreview.length} entries to OpenBrain
               </button>
