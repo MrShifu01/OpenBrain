@@ -248,6 +248,8 @@ export default function DetailModal({
       quickActions.push(
         <button
           key="copy-secret"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
+          style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.2)", color: "#adaaaa" }}
           onClick={() => {
             navigator.clipboard.writeText(entry.content || "").then(() => {
               setShareMsg("Copied to clipboard");
@@ -259,7 +261,7 @@ export default function DetailModal({
         </button>,
       );
       quickActions.push(
-        <button key="hide-secret" onClick={() => setSecretRevealed(false)}>
+        <button key="hide-secret" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.2)", color: "#adaaaa" }} onClick={() => setSecretRevealed(false)}>
           👁 Hide
         </button>,
       );
@@ -269,7 +271,7 @@ export default function DetailModal({
   // Share always available (but not for secret entries)
   if (!isSecret)
     quickActions.push(
-      <button key="share" onClick={handleShare}>
+      <button key="share" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.2)", color: "#adaaaa" }} onClick={handleShare}>
         📤 Share
       </button>,
     );

@@ -440,11 +440,11 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
 
   // ── Unlocked: show all secrets ──
   return (
-    <div>
-      <div>
+    <div className="px-4 py-4 space-y-4" style={{ background: "#0e0e0e", fontFamily: "'Manrope', sans-serif" }}>
+      <div className="flex items-center justify-between">
         <div>
-          <h2>🔐 Vault</h2>
-          <p>
+          <h2 className="text-lg font-bold text-white">🔐 Vault</h2>
+          <p className="text-xs" style={{ color: "#777" }}>
             {decryptedSecrets.length} secret {decryptedSecrets.length === 1 ? "entry" : "entries"}
           </p>
         </div>
@@ -456,59 +456,76 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
             setRevealedIds(new Set());
             onVaultUnlock(null);
           }}
+          className="rounded-xl px-3 py-1.5 text-xs font-medium border transition-colors hover:bg-white/5"
+          style={{ color: "#aaa", borderColor: "rgba(72,72,71,0.3)" }}
         >
           🔒 Lock
         </button>
       </div>
 
       {copyMsg && (
-        <div>
+        <div
+          className="rounded-xl px-3 py-2 text-xs text-center font-medium"
+          style={{ color: "#72eff5", background: "rgba(114,239,245,0.1)" }}
+        >
           {copyMsg}
         </div>
       )}
 
       {decryptedSecrets.length === 0 ? (
-        <div>
-          <div>🔐</div>
-          <p>No secrets yet</p>
-          <p>
+        <div className="flex flex-col items-center py-16 space-y-2">
+          <div className="text-4xl">🔐</div>
+          <p className="text-sm text-white">No secrets yet</p>
+          <p className="text-xs" style={{ color: "#777" }}>
             Capture a password, credit card, or PIN and it'll appear here
           </p>
         </div>
       ) : (
-        <div>
+        <div className="space-y-3">
           {decryptedSecrets.map((e) => {
             const revealed = revealedIds.has(e.id);
             const meta = Object.entries(e.metadata || {}).filter(
               ([k]) => k !== "category" && k !== "status",
             );
             return (
-              <div key={e.id}>
-                <div>
-                  <div>
-                    <span>{TC.secret.i}</span>
-                    <span>{e.title}</span>
+              <div
+                key={e.id}
+                className="rounded-2xl border overflow-hidden"
+                style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}
+              >
+                <div className="flex items-center justify-between p-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base">{TC.secret.i}</span>
+                    <span className="text-sm font-medium text-white truncate">{e.title}</span>
                   </div>
-                  <button onClick={() => toggleReveal(e.id)}>
+                  <button
+                    onClick={() => toggleReveal(e.id)}
+                    className="rounded-xl px-3 py-1 text-xs font-medium border shrink-0 transition-colors hover:bg-white/5"
+                    style={{ color: "#72eff5", borderColor: "rgba(114,239,245,0.2)" }}
+                  >
                     {revealed ? "Hide" : "Reveal"}
                   </button>
                 </div>
 
                 {revealed ? (
-                  <div>
-                    <div>
-                      <p>{e.content}</p>
+                  <div className="px-3 pb-3 space-y-3">
+                    <div
+                      className="rounded-xl p-3 border"
+                      style={{ background: "rgba(0,0,0,0.3)", borderColor: "rgba(72,72,71,0.15)" }}
+                    >
+                      <p className="text-sm font-mono text-white break-all">{e.content}</p>
                     </div>
                     {meta.length > 0 && (
-                      <div>
+                      <div className="space-y-1.5">
                         {meta.map(([k, v]) => (
-                          <div key={k}>
-                            <span>
+                          <div key={k} className="flex items-center gap-2 text-xs">
+                            <span className="shrink-0" style={{ color: "#777" }}>
                               {k.replace(/_/g, " ")}:
                             </span>
-                            <span>{String(v)}</span>
+                            <span className="text-white truncate">{String(v)}</span>
                             <button
                               onClick={() => copyToClipboard(String(v), `${k} copied`)}
+                              className="shrink-0 opacity-60 hover:opacity-100 transition-opacity"
                             >
                               📋
                             </button>
@@ -516,25 +533,35 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
                         ))}
                       </div>
                     )}
-                    <div>
+                    <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
                       <button
                         onClick={() => copyToClipboard(e.content || "", "Content copied")}
+                        className="rounded-xl px-3 py-1 text-xs border transition-colors hover:bg-white/5"
+                        style={{ color: "#aaa", borderColor: "rgba(72,72,71,0.3)" }}
                       >
                         📋 Copy content
                       </button>
-                      <button onClick={() => onSelect(e)}>
+                      <button
+                        onClick={() => onSelect(e)}
+                        className="rounded-xl px-3 py-1 text-xs border transition-colors hover:bg-white/5"
+                        style={{ color: "#aaa", borderColor: "rgba(72,72,71,0.3)" }}
+                      >
                         Edit
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <span>
+                  <div className="flex items-center gap-2 px-3 pb-3">
+                    <span className="text-sm tracking-widest" style={{ color: "#555" }}>
                       ••••••••••••
                     </span>
                     {(e.tags?.length ?? 0) > 0 &&
                       e.tags!.slice(0, 3).map((tag: string) => (
-                        <span key={tag}>
+                        <span
+                          key={tag}
+                          className="rounded-full px-2 py-0.5 text-[10px]"
+                          style={{ color: "#777", background: "rgba(72,72,71,0.3)" }}
+                        >
                           {tag}
                         </span>
                       ))}
