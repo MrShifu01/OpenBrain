@@ -28,7 +28,9 @@ WORKSPACE RULES:
 - personal: identity documents, health, medical, family, personal contacts
 - both: general reminders, ideas
 
-IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.`,
+IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.
+
+If EXISTING ENTRIES context is provided below the input, check if the new input is clearly an update to one of them (e.g. new phone number for an existing contact, updated address for a known place). If so, add "update_id":"<id of the existing entry>" to your JSON response. Only do this when you are very confident — when in doubt, omit update_id and let it be a new entry.`,
 
   /** OpenBrain.jsx nudge banner: generate proactive memory nudges */
   NUDGE: `You are OpenBrain, a proactive memory assistant. Given the user's recent entries, generate 1-2 short, specific, actionable nudges they should know right now. Examples: expiring documents, stale ideas, gaps in their business records, upcoming deadlines. Be concrete — mention entry names. Do NOT suggest merging companies just because they share a word in their name. Return plain text, 1-2 sentences max.`,
