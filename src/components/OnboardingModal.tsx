@@ -225,13 +225,28 @@ export default function OnboardingModal({ onComplete }) {
   }
 
   return (
-    <div>
-      <div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+    >
+      <div
+        className="relative w-full max-w-md rounded-2xl border p-6"
+        style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.2)" }}
+      >
         {/* Progress dots */}
-        <div role="tablist" aria-label="Onboarding progress">
+        <div className="mb-6 flex items-center justify-center gap-2" role="tablist" aria-label="Onboarding progress">
           {STEPS.map((_, i) => (
             <div
               key={i}
+              className="h-2 rounded-full transition-all duration-300"
+              style={{
+                width: i === step ? "2rem" : "0.5rem",
+                background: i === step
+                  ? "linear-gradient(135deg, #72eff5, #1fb1b7)"
+                  : i < step
+                    ? "#72eff5"
+                    : "rgba(72,72,71,0.4)",
+              }}
               aria-label={`Step ${i + 1} of ${STEPS.length}`}
               role="tab"
               aria-selected={i === step}
@@ -239,50 +254,78 @@ export default function OnboardingModal({ onComplete }) {
           ))}
         </div>
 
-        <div>
-          <div>{step === START_STEP ? "🚀" : "🧠"}</div>
-          <h2>{STEPS[step].title}</h2>
-          <p>{STEPS[step].subtitle}</p>
+        <div className="mb-6 text-center">
+          <div className="mb-3 text-4xl">{step === START_STEP ? "🚀" : "🧠"}</div>
+          <h2
+            className="mb-1 text-xl font-semibold text-white"
+            style={{ fontFamily: "'Manrope', sans-serif" }}
+          >
+            {STEPS[step].title}
+          </h2>
+          <p className="text-sm" style={{ color: "#aaa" }}>
+            {STEPS[step].subtitle}
+          </p>
         </div>
 
         {/* Step 0 — Use case selection */}
         {step === 0 && (
-          <div>
+          <div className="mb-6 flex flex-col gap-3">
             {USE_CASES.map((uc) => {
               const active = selected.includes(uc.id);
               return (
                 <button
                   key={uc.id}
+                  className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors duration-200"
+                  style={{
+                    background: active ? "rgba(114,239,245,0.06)" : "transparent",
+                    borderColor: active ? "rgba(114,239,245,0.4)" : "rgba(72,72,71,0.3)",
+                  }}
                   onClick={() => toggleUseCase(uc.id)}
                   role="checkbox"
                   aria-checked={active}
                 >
-                  <span>{uc.emoji}</span>
-                  <div>
-                    <div>{uc.label}</div>
-                    <div>{uc.desc}</div>
+                  <span className="text-2xl">{uc.emoji}</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">{uc.label}</div>
+                    <div className="text-xs" style={{ color: "#777" }}>{uc.desc}</div>
                   </div>
-                  <div>
+                  <div
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-bold"
+                    style={{
+                      borderColor: active ? "#72eff5" : "rgba(72,72,71,0.4)",
+                      background: active ? "#72eff5" : "transparent",
+                      color: active ? "#0a0a0a" : "transparent",
+                    }}
+                  >
                     {active && "✓"}
                   </div>
                 </button>
               );
             })}
-            <p>Select all that apply</p>
+            <p className="mt-1 text-center text-xs" style={{ color: "#777" }}>
+              Select all that apply
+            </p>
           </div>
         )}
 
         {/* Step 1 — Setup summary */}
         {step === 1 && (
-          <div>
+          <div className="mb-6 flex flex-col gap-3">
             {selected.map((id) => {
               const uc = USE_CASES.find((u) => u.id === id);
               return (
-                <div key={id}>
-                  <span>{uc.emoji}</span>
-                  <div>
-                    <div>{uc.label} brain</div>
-                    <div>
+                <div
+                  key={id}
+                  className="flex items-center gap-3 rounded-xl border px-4 py-3"
+                  style={{
+                    background: "rgba(114,239,245,0.04)",
+                    borderColor: "rgba(72,72,71,0.2)",
+                  }}
+                >
+                  <span className="text-2xl">{uc.emoji}</span>
+                  <div className="flex-1">
+                    <div className="text-sm font-medium text-white">{uc.label} brain</div>
+                    <div className="text-xs" style={{ color: "#777" }}>
                       {id === "personal" &&
                         "Fill Brain will show personal questions (identity, health, finance…)"}
                       {id === "family" && "Your family brain is ready for household & family data"}
@@ -290,13 +333,19 @@ export default function OnboardingModal({ onComplete }) {
                         "Your business brain will show supplier, staff & SOP questions"}
                     </div>
                   </div>
-                  <span>✓</span>
+                  <span className="text-sm font-bold" style={{ color: "#72eff5" }}>✓</span>
                 </div>
               );
             })}
-            <div>
-              <p>
-                💡 <strong>Tip:</strong> Use the brain switcher
+            <div
+              className="mt-2 rounded-xl border px-4 py-3"
+              style={{
+                background: "rgba(213,117,255,0.06)",
+                borderColor: "rgba(213,117,255,0.15)",
+              }}
+            >
+              <p className="text-xs" style={{ color: "#aaa" }}>
+                💡 <strong className="text-white">Tip:</strong> Use the brain switcher
                 (top-right) to switch between brains at any time. You can always create more brains
                 later.
               </p>
@@ -306,14 +355,20 @@ export default function OnboardingModal({ onComplete }) {
 
         {/* Step 2 — Ready to go */}
         {step === START_STEP && (
-          <div>
-            <div>
-              <p>
-                <strong>{skippedQs.length} guided questions</strong> are
+          <div className="mb-6">
+            <div
+              className="mb-4 rounded-xl border px-4 py-3"
+              style={{
+                background: "rgba(114,239,245,0.06)",
+                borderColor: "rgba(114,239,245,0.12)",
+              }}
+            >
+              <p className="text-sm" style={{ color: "#aaa" }}>
+                <strong className="text-white">{skippedQs.length} guided questions</strong> are
                 waiting in Fill Brain to help you build your memory.
               </p>
             </div>
-            <div>
+            <div className="flex flex-col gap-2.5">
               {[
                 {
                   ic: "\u2726",
@@ -328,19 +383,34 @@ export default function OnboardingModal({ onComplete }) {
                 },
                 { ic: "\u25C8", label: "Ask", desc: "Chat with AI about everything you've stored" },
               ].map((f) => (
-                <div key={f.label}>
-                  <span>{f.ic}</span>
+                <div
+                  key={f.label}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2"
+                  style={{ background: "rgba(72,72,71,0.1)" }}
+                >
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
+                    style={{ background: "rgba(114,239,245,0.1)", color: "#72eff5" }}
+                  >
+                    {f.ic}
+                  </span>
                   <div>
-                    <div>{f.label}</div>
-                    <div>{f.desc}</div>
+                    <div className="text-sm font-medium text-white">{f.label}</div>
+                    <div className="text-xs" style={{ color: "#777" }}>{f.desc}</div>
                   </div>
                 </div>
               ))}
             </div>
             {needsIOSStep() && (
-              <div>
-                <p>
-                  📱 <strong>iPhone tip:</strong> Tap Share → "Add to
+              <div
+                className="mt-4 rounded-xl border px-4 py-3"
+                style={{
+                  background: "rgba(213,117,255,0.06)",
+                  borderColor: "rgba(213,117,255,0.15)",
+                }}
+              >
+                <p className="text-xs" style={{ color: "#aaa" }}>
+                  📱 <strong className="text-white">iPhone tip:</strong> Tap Share → "Add to
                   Home Screen" to enable push notifications.
                 </p>
               </div>
@@ -349,24 +419,53 @@ export default function OnboardingModal({ onComplete }) {
         )}
 
         {/* Navigation */}
-        <div>
+        <div className="flex items-center gap-3">
           {step > 0 && (
-            <button onClick={() => setStep((s) => s - 1)}>
+            <button
+              className="rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors duration-200"
+              style={{
+                borderColor: "rgba(72,72,71,0.3)",
+                color: "#aaa",
+                background: "transparent",
+              }}
+              onClick={() => setStep((s) => s - 1)}
+            >
               ← Back
             </button>
           )}
           {step === 0 && (
-            <button onClick={() => setStep(1)}>
+            <button
+              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-90"
+              style={{
+                background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+                color: "#0a0a0a",
+              }}
+              onClick={() => setStep(1)}
+            >
               Set up my brain →
             </button>
           )}
           {step === 1 && (
-            <button onClick={() => setStep(START_STEP)}>
+            <button
+              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-90"
+              style={{
+                background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+                color: "#0a0a0a",
+              }}
+              onClick={() => setStep(START_STEP)}
+            >
               Let's go →
             </button>
           )}
           {step === START_STEP && (
-            <button onClick={handleComplete}>
+            <button
+              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-90"
+              style={{
+                background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+                color: "#0a0a0a",
+              }}
+              onClick={handleComplete}
+            >
               Start capturing →
             </button>
           )}

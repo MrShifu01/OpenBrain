@@ -338,13 +338,19 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   }
 
   return (
-    <div>
+    <div className="px-4 py-4 space-y-4" style={{ background: "#0e0e0e", minHeight: "100%" }}>
       <MiniCalendar dateMap={dateMap} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
 
       {/* Selected day detail */}
       {selectedDay && (
-        <div>
-          <p>
+        <div
+          className="rounded-2xl border p-4 space-y-3"
+          style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}
+        >
+          <p
+            className="text-sm font-semibold"
+            style={{ color: selEntries.length ? "#72eff5" : "#777", fontFamily: "'Manrope', sans-serif" }}
+          >
             {selEntries.length
               ? `${selEntries.length} item${selEntries.length > 1 ? "s" : ""} — ${selectedDay}`
               : `Nothing on ${selectedDay}`}
@@ -352,15 +358,28 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
           {selEntries.map((e) => {
             const cfg = TC[e.type] || TC.note;
             return (
-              <div key={e.id}>
-                <div>
-                  <span>{cfg.i}</span>
-                  <span>{e.type}</span>
+              <div
+                key={e.id}
+                className="flex items-start gap-3 rounded-xl border px-3 py-2"
+                style={{ background: "rgba(14,14,14,0.5)", borderColor: "rgba(72,72,71,0.15)" }}
+              >
+                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                  <span className="text-base">{cfg.i}</span>
+                  <span
+                    className="text-[10px] rounded-full px-2 py-0.5 font-medium capitalize"
+                    style={{ background: `${cfg.c}18`, color: cfg.c }}
+                  >
+                    {e.type}
+                  </span>
                 </div>
-                <p>{e.title}</p>
-                {e.content && (
-                  <p>{e.content.slice(0, 120)}</p>
-                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white truncate">{e.title}</p>
+                  {e.content && (
+                    <p className="text-xs mt-0.5 truncate" style={{ color: "#777" }}>
+                      {e.content.slice(0, 120)}
+                    </p>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -369,10 +388,15 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
 
       {/* Empty state */}
       {!selectedDay && total === 0 && (
-        <div>
-          <div>📋</div>
-          <p>All clear</p>
-          <p>
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="text-5xl mb-4">📋</div>
+          <p
+            className="text-lg font-semibold text-white mb-1"
+            style={{ fontFamily: "'Manrope', sans-serif" }}
+          >
+            All clear
+          </p>
+          <p className="text-sm max-w-xs" style={{ color: "#777" }}>
             No upcoming deadlines, events, or reminders this week.
             Entries with dates will show up here automatically.
           </p>
@@ -381,8 +405,8 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
 
       {!selectedDay && (
         <>
-          {renderSection("Overdue", "🔴", overdue, true, "#FF6B35")}
-          {renderSection("Today", "🟢", today, false, "#4ECDC4")}
+          {renderSection("Overdue", "🔴", overdue, true, "#ff6e84")}
+          {renderSection("Today", "🟢", today, false, "#72eff5")}
           {renderSection("Tomorrow", "🟡", tomorrow, false, "#FFEAA7")}
           {renderSection("This week", "📅", thisWeek, true)}
         </>
