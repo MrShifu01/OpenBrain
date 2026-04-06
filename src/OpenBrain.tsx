@@ -253,9 +253,10 @@ function VirtualGrid({ filtered, setSelected }) {
     return r;
   }, [filtered, COLS]);
   const listRef = useRef(null);
+  const ROW_GAP = 16;
   const virtualizer = useWindowVirtualizer({
     count: rows.length,
-    estimateSize: () => 190,
+    estimateSize: () => 190 + ROW_GAP,
     overscan: 4,
     scrollMargin: listRef.current?.offsetTop ?? 0,
   });
@@ -1122,42 +1123,79 @@ export default function OpenBrain() {
           )}
 
           {/* Slide-in nav panel */}
+          {/* Slide-out navigation drawer */}
           {navOpen && (
-            <div onClick={() => setNavOpen(false)}>
-              <div onClick={(e) => e.stopPropagation()}>
-                <div>
-                  <span>Navigation</span>
-                  <button onClick={() => setNavOpen(false)}>×</button>
+            <div
+              className="fixed inset-0 z-50 transition-opacity"
+              style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+              onClick={() => setNavOpen(false)}
+            >
+              <div
+                className="absolute right-0 top-0 h-full w-72 flex flex-col border-l overflow-y-auto"
+                style={{
+                  background: "#141414",
+                  borderColor: "rgba(72,72,71,0.15)",
+                  paddingTop: "max(16px, env(safe-area-inset-top))",
+                  paddingBottom: "max(16px, env(safe-area-inset-bottom))",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 pb-4 mb-2 border-b" style={{ borderColor: "rgba(72,72,71,0.15)" }}>
+                  <span className="text-sm font-bold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>Navigation</span>
+                  <button
+                    onClick={() => setNavOpen(false)}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-[#777] hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    ×
+                  </button>
                 </div>
-                <div />
-                <div>
-                  {[{ id: "capture", l: "Home", ic: "⌂" }, ...navViews].map((v) => (
-                    <button
-                      key={v.id}
-                      onClick={() => {
-                        setView(v.id);
-                        setNavOpen(false);
-                      }}
-                    >
-                      <span>{v.ic}</span>
-                      <span>{v.l}</span>
-                      {v.id === "suggest" && <span />}
-                    </button>
-                  ))}
+
+                {/* Nav items */}
+                <div className="flex-1 px-3 space-y-1">
+                  {[{ id: "capture", l: "Home", ic: "⌂" }, ...navViews].map((v) => {
+                    const isActive = view === v.id;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => {
+                          setView(v.id);
+                          setNavOpen(false);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors"
+                        style={{
+                          background: isActive ? "rgba(114,239,245,0.08)" : "transparent",
+                          color: isActive ? "#72eff5" : "#aaa",
+                        }}
+                      >
+                        <span className="w-6 text-center text-base">{v.ic}</span>
+                        <span className="text-sm font-medium">{v.l}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div>
+
+                {/* Add Brain button */}
+                <div className="px-3 pt-3 mt-2 border-t" style={{ borderColor: "rgba(72,72,71,0.15)" }}>
                   <button
                     onClick={() => {
                       setNavOpen(false);
                       setShowCreateBrain(true);
                     }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors hover:bg-white/5"
+                    style={{ color: "#d575ff" }}
                   >
-                    + Add Brain
+                    <span className="w-6 text-center text-base">+</span>
+                    <span className="text-sm font-medium">Add Brain</span>
                   </button>
                 </div>
-                <div>
-                  {entries.length} memories ·{" "}
-                  {pendingCount > 0 ? `${pendingCount} pending sync` : "synced"}
+
+                {/* Footer stats */}
+                <div className="px-5 pt-3 pb-2 mt-2 border-t" style={{ borderColor: "rgba(72,72,71,0.15)" }}>
+                  <p className="text-[11px] text-[#555]">
+                    {entries.length} memories ·{" "}
+                    {pendingCount > 0 ? `${pendingCount} pending sync` : "synced"}
+                  </p>
                 </div>
               </div>
             </div>
