@@ -39,6 +39,7 @@ import { EntriesContext } from "./context/EntriesContext";
 import { BrainContext } from "./context/BrainContext";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
+const RefineView = lazy(() => import("./views/RefineView"));
 const TodoView = lazy(() => import("./views/TodoView"));
 const DetailModal = lazy(() => import("./views/DetailModal"));
 const VaultView = lazy(() => import("./views/VaultView"));
@@ -918,6 +919,7 @@ export default function OpenBrain() {
   const navViews = [
     { id: "grid", l: "Grid", ic: "▦" },
     { id: "suggest", l: "Fill Brain", ic: "✦" },
+    { id: "refine", l: "Refine", ic: "✦" },
     { id: "todos", l: "Todos", ic: "✓" },
     { id: "timeline", l: "Timeline", ic: "◔" },
     { id: "vault", l: "Vault", ic: "🔐" },
@@ -1245,6 +1247,19 @@ export default function OpenBrain() {
                   setEntries={setEntries}
                   activeBrain={activeBrain}
                   brains={brains}
+                />
+              </Suspense>
+            )}
+            {view === "refine" && (
+              <Suspense fallback={<Loader />}>
+                <RefineView
+                  entries={entries}
+                  setEntries={setEntries}
+                  links={links}
+                  addLinks={addLinks}
+                  activeBrain={activeBrain}
+                  brains={brains}
+                  onSwitchBrain={setActiveBrain}
                 />
               </Suspense>
             )}
