@@ -47,7 +47,7 @@ const VaultView = lazy(() => import("./views/VaultView"));
 
 function Loader() {
   return (
-    <div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       <SkeletonCard count={3} />
     </div>
   );
@@ -64,21 +64,57 @@ function UndoToast({ action, onUndo, onDismiss }) {
     const tick = setInterval(() => {
       const p = Math.max(0, 100 - ((Date.now() - start) / duration) * 100);
       setPct(p);
-      if (p <= 0) {
-        clearInterval(tick);
-        onDismiss();
-      }
+      if (p <= 0) { clearInterval(tick); onDismiss(); }
     }, 80);
     return () => clearInterval(tick);
   }, []);
-  const label = { delete: "Entry deleted", update: "Entry updated", create: "Entry created" }[
-    action.type
-  ];
+  const label = { delete: "Entry deleted", update: "Entry updated", create: "Entry created" }[action.type];
+  const isDelete = action.type === "delete";
   return (
-    <div>
-      <span>{label}</span>
-      <button onClick={onUndo}>Undo</button>
-      <div style={{ width: `${pct}%` }} />
+    <div
+      role="alert"
+      className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-sm overflow-hidden rounded-2xl border"
+      style={{
+        background: "rgba(26,25,25,0.95)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
+        borderColor: isDelete ? "rgba(255,110,132,0.20)" : "rgba(114,239,245,0.15)",
+        boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+        animation: "slide-up 0.25s ease-out",
+      }}
+    >
+      <div className="flex items-center gap-3 px-4 py-3">
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
+          style={{ background: isDelete ? "rgba(255,110,132,0.1)" : "rgba(114,239,245,0.1)" }}
+        >
+          {isDelete ? "🗑" : "✓"}
+        </div>
+        <span className="flex-1 text-sm font-medium text-on-surface">{label}</span>
+        {action.type !== "create" && (
+          <button
+            onClick={onUndo}
+            className="text-primary text-xs font-bold uppercase tracking-widest hover:text-primary-dim transition-colors press-scale"
+          >
+            Undo
+          </button>
+        )}
+        <button onClick={onDismiss} className="text-on-surface-variant hover:text-on-surface transition-colors ml-1">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      {/* Progress bar */}
+      <div className="h-0.5 w-full" style={{ background: "rgba(72,72,71,0.2)" }}>
+        <div
+          className="h-full transition-none rounded-full"
+          style={{
+            width: `${pct}%`,
+            background: isDelete ? "#ff6e84" : "#72eff5",
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -89,10 +125,28 @@ function UndoToast({ action, onUndo, onDismiss }) {
 function NudgeBanner({ nudge, onDismiss }) {
   if (!nudge) return null;
   return (
-    <div>
-      <span>💡</span>
-      <p>{nudge}</p>
-      <button onClick={onDismiss}>✕</button>
+    <div
+      className="flex items-start gap-3 p-4 rounded-2xl mb-4 border"
+      style={{
+        background: "rgba(213,117,255,0.06)",
+        borderColor: "rgba(213,117,255,0.15)",
+      }}
+    >
+      <div
+        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+        style={{ background: "rgba(213,117,255,0.12)" }}
+      >
+        💡
+      </div>
+      <p className="flex-1 text-sm text-on-surface-variant leading-relaxed">{nudge}</p>
+      <button
+        onClick={onDismiss}
+        className="text-on-surface-variant/50 hover:text-on-surface transition-colors flex-shrink-0 mt-0.5 press-scale"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -109,36 +163,80 @@ function containsSensitiveContent(text) {
 /* ═══════════════════════════════════════════════════════════════
    ENTRY CARD
    ═══════════════════════════════════════════════════════════════ */
+const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
+  note:     { bg: "rgba(114,239,245,0.10)", text: "#72eff5" },
+  person:   { bg: "rgba(114,239,245,0.10)", text: "#72eff5" },
+  document: { bg: "rgba(213,117,255,0.10)", text: "#d575ff" },
+  secret:   { bg: "rgba(255,154,195,0.10)", text: "#ff9ac3" },
+  reminder: { bg: "rgba(255,110,132,0.10)", text: "#ff6e84" },
+  supplier: { bg: "rgba(213,117,255,0.10)", text: "#d575ff" },
+  default:  { bg: "rgba(114,239,245,0.10)", text: "#72eff5" },
+};
+
 const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
-  const { t, isDark } = useTheme();
   const cfg = TC[e.type] || TC.note;
   const imp = { 1: "Important", 2: "Critical" }[e.importance];
+  const colors = TYPE_COLORS[e.type] || TYPE_COLORS.default;
   return (
-    <div onClick={() => onSelect(e)}>
-      {e.pinned && <div />}
-      <div>
-        <span>{cfg.i}</span>
-        <span>{e.type}</span>
-        {e.pinned && <span>📌</span>}
-        {imp && <span>{imp}</span>}
+    <article
+      onClick={() => onSelect(e)}
+      className="group cursor-pointer rounded-3xl p-5 border transition-all duration-300 hover:-translate-y-0.5 press-scale"
+      style={{
+        background: "#1a1919",
+        borderColor: "rgba(72,72,71,0.05)",
+      }}
+      onMouseEnter={(el) => { (el.currentTarget as HTMLElement).style.borderColor = "rgba(114,239,245,0.15)"; (el.currentTarget as HTMLElement).style.background = "#1e1d1d"; }}
+      onMouseLeave={(el) => { (el.currentTarget as HTMLElement).style.borderColor = "rgba(72,72,71,0.05)"; (el.currentTarget as HTMLElement).style.background = "#1a1919"; }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0" style={{ background: colors.bg }}>
+            <span style={{ color: colors.text }}>{cfg.i}</span>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-on-surface-variant/60">{e.type}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {e.pinned && <span style={{ color: "#72eff5", fontSize: 12 }}>📌</span>}
+          {imp && (
+            <span
+              className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
+              style={{ background: imp === "Critical" ? "rgba(255,110,132,0.12)" : "rgba(255,154,195,0.10)", color: imp === "Critical" ? "#ff6e84" : "#ff9ac3" }}
+            >
+              {imp}
+            </span>
+          )}
+        </div>
       </div>
-      <h3>{e.title}</h3>
+
+      {/* Title */}
+      <h3 className="font-bold text-on-surface leading-tight tracking-tight line-clamp-2 mb-2 text-base" style={{ fontFamily: "'Manrope', sans-serif" }}>
+        {e.title}
+      </h3>
+
+      {/* Content */}
       {e.type === "secret" ? (
-        <p>Encrypted — tap to reveal</p>
-      ) : (
-        <p>{e.content}</p>
-      )}
+        <p className="text-sm text-on-surface-variant/60 italic mb-3">🔒 Encrypted — tap to reveal</p>
+      ) : e.content ? (
+        <p className="text-sm text-on-surface-variant line-clamp-2 mb-3 leading-relaxed">{e.content}</p>
+      ) : null}
+
+      {/* Tags */}
       {e.tags?.length > 0 && (
-        <div>
-          {e.tags.slice(0, 4).map((tag) => (
-            <span key={tag}>{tag}</span>
+        <div className="flex flex-wrap gap-1.5 mt-auto">
+          {e.tags.slice(0, 3).map((tag) => (
+            <span key={tag} className="text-[10px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full" style={{ background: "#262626", color: "#d575ff", border: "1px solid rgba(213,117,255,0.12)" }}>
+              #{tag}
+            </span>
           ))}
-          {e.tags.length > 4 && (
-            <span>+{e.tags.length - 4}</span>
+          {e.tags.length > 3 && (
+            <span className="text-[10px] text-on-surface-variant/50 px-1">+{e.tags.length - 3}</span>
           )}
         </div>
       )}
-    </div>
+    </article>
   );
 });
 
@@ -157,19 +255,24 @@ function VirtualGrid({ filtered, setSelected }) {
   const listRef = useRef(null);
   const virtualizer = useWindowVirtualizer({
     count: rows.length,
-    estimateSize: () => 172,
+    estimateSize: () => 190,
     overscan: 4,
     scrollMargin: listRef.current?.offsetTop ?? 0,
   });
   return (
     <div ref={listRef}>
-      <div style={{ height: virtualizer.getTotalSize() }}>
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((vRow) => (
           <div
             key={vRow.index}
             style={{
+              position: "absolute",
               top: vRow.start - virtualizer.options.scrollMargin,
+              left: 0,
+              right: 0,
+              display: "grid",
               gridTemplateColumns: `repeat(${COLS}, 1fr)`,
+              gap: "16px",
             }}
           >
             {rows[vRow.index].map((e) => (
@@ -194,23 +297,26 @@ function VirtualTimeline({ sorted, setSelected }) {
     scrollMargin: listRef.current?.offsetTop ?? 0,
   });
   return (
-    <div ref={listRef}>
-      <div />
-      <div style={{ height: virtualizer.getTotalSize() }}>
+    <div ref={listRef} className="relative">
+      <div className="absolute left-6 top-0 bottom-0 w-px" style={{ background: "rgba(72,72,71,0.15)" }} />
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((vItem) => {
           const e = sorted[vItem.index];
           const cfg = TC[e.type] || TC.note;
           return (
             <div
               key={e.id}
-              style={{ top: vItem.start - virtualizer.options.scrollMargin }}
+              style={{ position: "absolute", top: vItem.start - virtualizer.options.scrollMargin, left: 0, right: 0 }}
+              className="flex items-center gap-4 pl-4 pr-4 py-2.5 cursor-pointer group"
               onClick={() => setSelected(e)}
             >
-              <div />
-              <p>{fmtD(e.created_at)}</p>
-              <div>
-                <span>{cfg.i}</span>
-                <span>{e.title}</span>
+              <div className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center z-10" style={{ background: "#1a1919", border: "2px solid rgba(114,239,245,0.3)" }}>
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#72eff5" }} />
+              </div>
+              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-semibold flex-shrink-0 w-20">{fmtD(e.created_at)}</p>
+              <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl transition-colors group-hover:bg-surface-container">
+                <span className="text-sm flex-shrink-0">{cfg.i}</span>
+                <span className="text-sm text-on-surface truncate">{e.title}</span>
               </div>
             </div>
           );
@@ -901,15 +1007,18 @@ export default function OpenBrain() {
     [activeBrain, brains, refresh, canInvite, canManageMembers],
   );
 
-  // Show loading state while brains are being fetched to prevent read-only / onboarding flash
   if (brainsLoading) {
     return (
-      <div>
-        <div>🧠</div>
-        <p>Loading your brains...</p>
-        <div>
-          <div />
+      <div className="fixed inset-0 flex flex-col items-center justify-center bg-background">
+        <div className="synapse-bg" aria-hidden="true" />
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="text-4xl">🧠</div>
+          <p className="text-sm text-on-surface-variant uppercase tracking-[0.2em] font-semibold">Loading your brains...</p>
+          <div className="w-24 h-0.5 rounded-full overflow-hidden" style={{ background: "rgba(114,239,245,0.1)" }}>
+            <div className="h-full" style={{ background: "linear-gradient(90deg,#72eff5,#d575ff)", animation: "loading-bar 1.5s ease-in-out infinite" }} />
+          </div>
         </div>
+        <style>{`@keyframes loading-bar{0%{width:0%;margin-left:0%}50%{width:60%;margin-left:20%}100%{width:0%;margin-left:100%}}`}</style>
       </div>
     );
   }
@@ -948,7 +1057,8 @@ export default function OpenBrain() {
 
           <div>
           {/* Main content — pushed right of sidebar on desktop, below fixed header on mobile */}
-          <div>
+          {/* Main scroll area — offset from sidebar on desktop */}
+          <div className="min-h-dvh bg-background lg:ml-72">
 
           {/* Mobile header — hidden on desktop */}
           <MobileHeader
@@ -1065,119 +1175,125 @@ export default function OpenBrain() {
             />
           )}
 
-          <div>
+          <div className="px-4 sm:px-6 pt-4 pb-32 lg:pb-8 max-w-6xl mx-auto">
             {view === "capture" && (
-              <div>
+              <div className="space-y-5">
                 <OnboardingChecklist activeBrain={activeBrain} onNavigate={setView} />
 
-                {/* Quick stats bar */}
-                <div>
-                  <div>
-                    <span>{entries.length}</span>
-                    <span>memories</span>
+                {/* Stats */}
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-primary" style={{ fontFamily: "'Manrope', sans-serif" }}>{entries.length}</span>
+                    <span className="text-xs uppercase tracking-[0.15em] text-on-surface-variant/60 font-semibold">memories</span>
                   </div>
                   {links.length > 0 && (
-                    <span>{links.length} links</span>
+                    <span className="text-xs text-on-surface-variant/40">· {links.length} connections</span>
                   )}
                 </div>
 
-                {/* Primary action */}
-                <button onClick={() => setView("suggest")}>
-                  <span>✦</span>
-                  <div>
-                    <div>Fill Your Brain</div>
-                    <div>Answer guided questions to build your memory</div>
+                {/* Primary CTA */}
+                <button
+                  onClick={() => setView("suggest")}
+                  className="w-full flex items-center gap-4 p-5 rounded-3xl border press-scale transition-all group"
+                  style={{ background: "rgba(213,117,255,0.06)", borderColor: "rgba(213,117,255,0.15)" }}
+                  onMouseEnter={(el) => { (el.currentTarget as HTMLElement).style.borderColor = "rgba(213,117,255,0.30)"; }}
+                  onMouseLeave={(el) => { (el.currentTarget as HTMLElement).style.borderColor = "rgba(213,117,255,0.15)"; }}
+                >
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #d575ff, #9800d0)", boxShadow: "0 4px 24px rgba(213,117,255,0.25)" }}>
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                    </svg>
                   </div>
-                  <span>→</span>
+                  <div className="flex-1 text-left">
+                    <div className="font-bold text-on-surface mb-0.5" style={{ fontFamily: "'Manrope', sans-serif" }}>Fill Your Brain</div>
+                    <div className="text-sm text-on-surface-variant">Answer guided questions to build your memory</div>
+                  </div>
+                  <svg className="w-5 h-5 text-on-surface-variant group-hover:text-secondary transition-colors" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </button>
 
-                {/* Secondary actions */}
-                <div>
+                {/* Quick actions grid */}
+                <div className="grid grid-cols-2 gap-3">
                   {[
-                    { id: "grid", l: "Memory Grid", ic: "▦", desc: "Browse all" },
-                    { id: "chat", l: "Ask Brain", ic: "◈", desc: "Chat with your data" },
-                    { id: "todos", l: "Todos", ic: "✓", desc: "Deadlines & events" },
-                    { id: "vault", l: "Vault", ic: "🔐", desc: "Encrypted secrets" },
+                    { id: "grid",     l: "Memory Grid",  ic: "▦", desc: "Browse all entries",   color: "#72eff5" },
+                    { id: "chat",     l: "Ask Brain",    ic: "◈", desc: "Chat with your data",   color: "#d575ff" },
+                    { id: "todos",    l: "Todos",        ic: "✓", desc: "Deadlines & events",    color: "#72eff5" },
+                    { id: "vault",    l: "Vault",        ic: "🔐", desc: "Encrypted secrets",    color: "#ff9ac3" },
                   ].map((v) => (
-                    <button key={v.id} onClick={() => setView(v.id)}>
-                      <div>{v.ic}</div>
-                      <div>{v.l}</div>
-                      <div>{v.desc}</div>
+                    <button
+                      key={v.id}
+                      onClick={() => setView(v.id)}
+                      className="flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all press-scale text-left"
+                      style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.08)" }}
+                      onMouseEnter={(el) => { (el.currentTarget as HTMLElement).style.borderColor = `${v.color}30`; }}
+                      onMouseLeave={(el) => { (el.currentTarget as HTMLElement).style.borderColor = "rgba(72,72,71,0.08)"; }}
+                    >
+                      <div className="text-xl">{v.ic}</div>
+                      <div>
+                        <div className="text-sm font-bold text-on-surface" style={{ fontFamily: "'Manrope', sans-serif" }}>{v.l}</div>
+                        <div className="text-xs text-on-surface-variant/60 mt-0.5">{v.desc}</div>
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
             {view === "grid" && (
-              <div>
+              <div className="space-y-4">
                 {/* Search bar */}
-                <div>
-                  <span>⌕</span>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border" style={{ background: "rgba(26,25,25,0.8)", borderColor: "rgba(72,72,71,0.12)", backdropFilter: "blur(12px)" }}>
+                  <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                  </svg>
                   <input
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Search memories..."
+                    className="flex-1 bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant/40 text-sm"
+                    style={{ fontFamily: "'Inter', sans-serif" }}
                   />
                 </div>
 
-                {/* Workspace + type filters combined row */}
-                <div>
+                {/* Filters */}
+                <div className="flex flex-wrap gap-2">
                   {brains.some((b) => b.type === "business") && (
                     <>
-                      {[
-                        { ws: "all", label: "All" },
-                        { ws: "personal", label: "Personal" },
-                        { ws: "business", label: "Business" },
-                      ].map(({ ws, label }) => (
-                        <button
-                          key={ws}
-                          onClick={() => {
-                            setWorkspace(ws);
-                            localStorage.setItem("openbrain_workspace", ws);
-                          }}
-                        >
-                          {label}
-                        </button>
+                      {[{ ws: "all", label: "All" }, { ws: "personal", label: "Personal" }, { ws: "business", label: "Business" }].map(({ ws, label }) => (
+                        <button key={ws} onClick={() => { setWorkspace(ws); localStorage.setItem("openbrain_workspace", ws); }}
+                          className="text-xs font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full transition-all press-scale"
+                          style={{ background: workspace === ws ? "rgba(114,239,245,0.12)" : "#1a1919", color: workspace === ws ? "#72eff5" : "#adaaaa", border: `1px solid ${workspace === ws ? "rgba(114,239,245,0.25)" : "rgba(72,72,71,0.15)"}` }}
+                        >{label}</button>
                       ))}
-                      <div />
+                      <div className="w-px h-6 self-center" style={{ background: "rgba(72,72,71,0.2)" }} />
                     </>
                   )}
-                  <button onClick={() => setTypeFilter("all")}>
-                    All ({entries.length})
-                  </button>
+                  <button onClick={() => setTypeFilter("all")}
+                    className="text-xs font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full transition-all press-scale"
+                    style={{ background: typeFilter === "all" ? "rgba(114,239,245,0.12)" : "#1a1919", color: typeFilter === "all" ? "#72eff5" : "#adaaaa", border: `1px solid ${typeFilter === "all" ? "rgba(114,239,245,0.25)" : "rgba(72,72,71,0.15)"}` }}
+                  >All ({entries.length})</button>
                   {Object.entries(types).map(([typ, n]) => {
                     const c = TC[typ] || TC.note;
                     return (
-                      <button
-                        key={typ}
-                        onClick={() => setTypeFilter(typ)}
-                      >
-                        {c.i} {typ} ({n})
-                      </button>
+                      <button key={typ} onClick={() => setTypeFilter(typ)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all press-scale"
+                        style={{ background: typeFilter === typ ? "rgba(213,117,255,0.12)" : "#1a1919", color: typeFilter === typ ? "#d575ff" : "#adaaaa", border: `1px solid ${typeFilter === typ ? "rgba(213,117,255,0.20)" : "rgba(72,72,71,0.15)"}` }}
+                      >{c.i} {typ} ({n as number})</button>
                     );
                   })}
                 </div>
 
-                {/* Compact inline stats */}
-                <div>
-                  <span><strong>{entries.length}</strong> memories</span>
-                  <span>·</span>
-                  <span><strong>{Object.keys(types).length}</strong> types</span>
-                  <span>·</span>
-                  <span><strong>{links.length}</strong> links</span>
-                </div>
-
                 {!entriesLoaded ? (
-                  <div>
-                    <SkeletonCard count={4} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <SkeletonCard count={6} />
                   </div>
                 ) : filtered.length > 0 ? (
                   <VirtualGrid filtered={filtered} setSelected={setSelected} />
                 ) : (
-                  <div>
-                    <div>🔍</div>
-                    <p>No memories match</p>
-                    <p>Try a different search or filter</p>
+                  <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <div className="text-4xl opacity-40">🔍</div>
+                    <p className="font-bold text-on-surface" style={{ fontFamily: "'Manrope', sans-serif" }}>No memories match</p>
+                    <p className="text-sm text-on-surface-variant">Try a different search or filter</p>
                   </div>
                 )}
               </div>
@@ -1229,114 +1345,124 @@ export default function OpenBrain() {
             )}
 
             {view === "chat" && (
-              <div>
-                <div>
+              <div className="flex flex-col h-[calc(100dvh-180px)] lg:h-[calc(100dvh-80px)]">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto space-y-4 pb-4">
                   {chatMsgs.length === 0 && (
-                    <div>
-                      <div>◈</div>
-                      <p>Ask your brain anything</p>
-                      <p>
-                        Ask questions about your memories, get summaries, or find connections.
-                      </p>
+                    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #d575ff, #9800d0)", boxShadow: "0 4px 30px rgba(213,117,255,0.25)" }}>
+                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="font-bold text-on-surface text-lg mb-1" style={{ fontFamily: "'Manrope', sans-serif" }}>Ask your brain anything</p>
+                        <p className="text-sm text-on-surface-variant max-w-xs">Questions, summaries, connections — your knowledge at your fingertips.</p>
+                      </div>
                     </div>
                   )}
                   {chatMsgs.map((m, i) => (
-                    <div key={i}>
-                      <div>
+                    <div key={i} className={m.role === "user" ? "flex justify-end" : "flex gap-3 items-start"}>
+                      {m.role === "assistant" && (
+                        <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-1" style={{ background: "linear-gradient(135deg, #d575ff, #9800d0)", boxShadow: "0 2px 12px rgba(213,117,255,0.25)" }}>
+                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09z" />
+                          </svg>
+                        </div>
+                      )}
+                      <div
+                        className="max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                        style={m.role === "user"
+                          ? { background: "rgba(114,239,245,0.12)", border: "1px solid rgba(114,239,245,0.18)", color: "#ffffff", borderRadius: "1rem 1rem 2px 1rem" }
+                          : { background: "#1a1919", border: "1px solid rgba(72,72,71,0.08)", color: "#adaaaa", borderRadius: "2px 1rem 1rem 1rem" }
+                        }
+                      >
                         {m.role === "assistant"
                           ? m.content.split(PHONE_REGEX).map((part, pi) =>
-                              PHONE_REGEX.test(part) ? (
-                                <a key={pi} href={`tel:${part}`}>{part}</a>
-                              ) : (
-                                part
-                              ),
+                              PHONE_REGEX.test(part) ? <a key={pi} href={`tel:${part}`} className="text-primary underline">{part}</a> : part
                             )
                           : m.content}
                       </div>
                     </div>
                   ))}
                   {chatLoading && (
-                    <div>
-                      <div>Thinking...</div>
+                    <div className="flex gap-3 items-center">
+                      <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center animate-pulse" style={{ background: "linear-gradient(135deg, #d575ff, #9800d0)" }}>
+                        <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09z" />
+                        </svg>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-4 py-3 rounded-2xl" style={{ background: "#1a1919" }}>
+                        <span className="w-2 h-2 rounded-full bg-secondary animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-secondary animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 rounded-full bg-secondary animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
                     </div>
                   )}
-                  {/* Vault unlock prompt — shown inline when user asks about secrets */}
                   {vaultUnlockModal && (
-                    <div>
-                      <div>
-                        <span>🔐</span>
-                        <span>Unlock Vault</span>
-                        <button onClick={() => setVaultUnlockModal(null)}>✕</button>
-                      </div>
-                      <div>
-                        <button
-                          onClick={() => {
-                            setVaultModalMode("passphrase");
-                            setVaultModalInput("");
-                            setVaultModalError("");
-                          }}
-                        >
-                          Passphrase
-                        </button>
-                        <button
-                          onClick={() => {
-                            setVaultModalMode("recovery");
-                            setVaultModalInput("");
-                            setVaultModalError("");
-                          }}
-                        >
-                          Recovery Key
+                    <div className="p-4 rounded-2xl border" style={{ background: "rgba(255,154,195,0.06)", borderColor: "rgba(255,154,195,0.18)" }}>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-bold text-tertiary flex items-center gap-2" style={{ fontFamily: "'Manrope', sans-serif" }}>🔐 Unlock Vault</span>
+                        <button onClick={() => setVaultUnlockModal(null)} className="text-on-surface-variant hover:text-on-surface press-scale">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
-                      <input
-                        type={vaultModalMode === "passphrase" ? "password" : "text"}
-                        value={vaultModalInput}
+                      <div className="flex gap-2 mb-3">
+                        {["passphrase", "recovery"].map((mode) => (
+                          <button key={mode} onClick={() => { setVaultModalMode(mode); setVaultModalInput(""); setVaultModalError(""); }}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+                            style={{ background: vaultModalMode === mode ? "rgba(255,154,195,0.15)" : "#262626", color: vaultModalMode === mode ? "#ff9ac3" : "#adaaaa", border: `1px solid ${vaultModalMode === mode ? "rgba(255,154,195,0.25)" : "rgba(72,72,71,0.15)"}` }}
+                          >{mode === "passphrase" ? "Passphrase" : "Recovery Key"}</button>
+                        ))}
+                      </div>
+                      <input type={vaultModalMode === "passphrase" ? "password" : "text"} value={vaultModalInput}
                         onChange={(e) => setVaultModalInput(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleVaultModalUnlock()}
-                        placeholder={
-                          vaultModalMode === "passphrase"
-                            ? "Enter vault passphrase..."
-                            : "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
-                        }
+                        placeholder={vaultModalMode === "passphrase" ? "Enter vault passphrase..." : "XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"}
                         autoFocus
+                        className="w-full px-4 py-2.5 rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none mb-3 min-h-[44px]"
+                        style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.2)" }}
                       />
-                      {vaultModalError && (
-                        <p>{vaultModalError}</p>
-                      )}
-                      <button
-                        onClick={handleVaultModalUnlock}
-                        disabled={vaultModalBusy || !vaultModalInput.trim()}
-                      >
-                        {vaultModalBusy ? "Unlocking..." : "Unlock & Answer"}
-                      </button>
+                      {vaultModalError && <p className="text-xs text-error mb-2">{vaultModalError}</p>}
+                      <button onClick={handleVaultModalUnlock} disabled={vaultModalBusy || !vaultModalInput.trim()}
+                        className="w-full py-2.5 rounded-xl text-sm font-bold press-scale disabled:opacity-40"
+                        style={{ background: "linear-gradient(135deg, #ff9ac3, #ec77aa)", color: "#6b0c40" }}
+                      >{vaultModalBusy ? "Unlocking…" : "Unlock & Answer"}</button>
                     </div>
                   )}
                   <div ref={chatEndRef} />
                 </div>
-                {/* Quick-ask chips */}
-                <div>
-                  {CHAT_CHIPS.map((chip) => (
-                    <button
-                      key={chip.label}
-                      onClick={() => setChatInput(chip.text)}
+
+                {/* Input area */}
+                <div className="pt-3 border-t" style={{ borderColor: "rgba(72,72,71,0.10)" }}>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {CHAT_CHIPS.map((chip) => (
+                      <button key={chip.label} onClick={() => setChatInput(chip.text)}
+                        className="text-[10px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-full transition-all press-scale"
+                        style={{ background: "#1a1919", color: "#adaaaa", border: "1px solid rgba(72,72,71,0.15)" }}
+                        onMouseEnter={(el) => { (el.currentTarget as HTMLElement).style.color = "#d575ff"; (el.currentTarget as HTMLElement).style.borderColor = "rgba(213,117,255,0.20)"; }}
+                        onMouseLeave={(el) => { (el.currentTarget as HTMLElement).style.color = "#adaaaa"; (el.currentTarget as HTMLElement).style.borderColor = "rgba(72,72,71,0.15)"; }}
+                      >{chip.label}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={chatInput} onChange={(e) => setChatInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleChat()}
+                      placeholder="Ask about your memories…"
+                      className="flex-1 px-4 py-3 rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none min-h-[44px] transition-all"
+                      style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.20)", fontFamily: "'Inter', sans-serif" }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "rgba(114,239,245,0.4)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(72,72,71,0.20)"; }}
+                    />
+                    <button onClick={handleChat} disabled={chatLoading}
+                      className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center press-scale disabled:opacity-40"
+                      style={{ background: "linear-gradient(135deg, #72eff5, #1fb1b7)", boxShadow: "0 4px 24px rgba(114,239,245,0.20)", color: "#002829" }}
                     >
-                      {chip.label}
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                      </svg>
                     </button>
-                  ))}
-                </div>
-                <div>
-                  <input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleChat()}
-                    placeholder="Ask about your memories..."
-                  />
-                  <button
-                    onClick={handleChat}
-                    disabled={chatLoading}
-                  >
-                    →
-                  </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1371,9 +1497,12 @@ export default function OpenBrain() {
           )}
 
           {saveError && (
-            <div>
-              <span>⚠ {saveError}</span>
-              <button onClick={() => setSaveError(null)}>✕</button>
+            <div className="fixed top-4 right-4 z-[100] flex items-center gap-3 px-4 py-3 rounded-2xl border max-w-sm" style={{ background: "rgba(26,25,25,0.95)", backdropFilter: "blur(24px)", borderColor: "rgba(255,110,132,0.20)", boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}>
+              <svg className="w-4 h-4 text-error flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+              <span className="flex-1 text-sm text-on-surface">{saveError}</span>
+              <button onClick={() => setSaveError(null)} className="text-on-surface-variant hover:text-on-surface press-scale">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
           )}
 
