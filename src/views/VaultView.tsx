@@ -321,11 +321,11 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
   // ── Locked: passphrase entry ──
   if (status === "locked") {
     return (
-      <div>
-        <div>
-          <div>🔒</div>
-          <h2>Unlock Vault</h2>
-          <p>
+      <div className="flex flex-col items-center px-4 py-12 space-y-5" style={{ background: "#0e0e0e" }}>
+        <div className="text-center space-y-2">
+          <div className="text-4xl">🔒</div>
+          <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>Unlock Vault</h2>
+          <p className="text-sm" style={{ color: "#aaa" }}>
             Enter your vault passphrase to view secrets
           </p>
         </div>
@@ -340,13 +340,22 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
           }}
           onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
           placeholder="Vault passphrase"
+          className="w-full max-w-sm rounded-xl px-3 py-2.5 text-sm bg-transparent border outline-none transition-colors text-white placeholder:text-[#555]"
+          style={{ borderColor: "rgba(72,72,71,0.3)" }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(114,239,245,0.5)")}
+          onBlur={(e) => (e.target.style.borderColor = "rgba(72,72,71,0.3)")}
         />
 
-        {error && <p>{error}</p>}
+        {error && <p className="text-sm" style={{ color: "#ff6e84" }}>{error}</p>}
 
         <button
           onClick={handleUnlock}
           disabled={busy || !passphrase.trim()}
+          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+          style={{
+            background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+            color: "#0a0a0a",
+          }}
         >
           {busy ? "Unlocking..." : "Unlock"}
         </button>
@@ -357,12 +366,14 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
             setRecoveryInput("");
             setStatus("recovery");
           }}
+          className="text-xs transition-colors hover:underline"
+          style={{ color: "#777" }}
         >
           Forgot passphrase? Use recovery key
         </button>
 
         {secrets.length > 0 && (
-          <p>
+          <p className="text-xs" style={{ color: "#555" }}>
             {secrets.length} encrypted {secrets.length === 1 ? "entry" : "entries"} waiting
           </p>
         )}
@@ -373,11 +384,11 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
   // ── Recovery: enter recovery key ──
   if (status === "recovery") {
     return (
-      <div>
-        <div>
-          <div>🗝</div>
-          <h2>Recovery Key</h2>
-          <p>
+      <div className="flex flex-col items-center px-4 py-12 space-y-5" style={{ background: "#0e0e0e" }}>
+        <div className="text-center space-y-2">
+          <div className="text-4xl">🗝</div>
+          <h2 className="text-xl font-bold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>Recovery Key</h2>
+          <p className="text-sm" style={{ color: "#aaa" }}>
             Enter the recovery key you saved when you set up your vault
           </p>
         </div>
@@ -392,13 +403,22 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
           }}
           onKeyDown={(e) => e.key === "Enter" && handleRecoveryUnlock()}
           placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+          className="w-full max-w-sm rounded-xl px-3 py-2.5 text-sm bg-transparent border outline-none transition-colors text-white font-mono tracking-wider text-center placeholder:text-[#555]"
+          style={{ borderColor: "rgba(72,72,71,0.3)" }}
+          onFocus={(e) => (e.target.style.borderColor = "rgba(114,239,245,0.5)")}
+          onBlur={(e) => (e.target.style.borderColor = "rgba(72,72,71,0.3)")}
         />
 
-        {error && <p>{error}</p>}
+        {error && <p className="text-sm" style={{ color: "#ff6e84" }}>{error}</p>}
 
         <button
           onClick={handleRecoveryUnlock}
           disabled={busy || !recoveryInput.trim()}
+          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+          style={{
+            background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+            color: "#0a0a0a",
+          }}
         >
           {busy ? "Recovering..." : "Unlock with recovery key"}
         </button>
@@ -409,6 +429,8 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock 
             setPassphrase("");
             setStatus("locked");
           }}
+          className="text-xs transition-colors hover:underline"
+          style={{ color: "#777" }}
         >
           Back to passphrase
         </button>
