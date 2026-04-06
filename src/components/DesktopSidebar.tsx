@@ -1,4 +1,3 @@
-import { Brain, Sun, Moon, WifiOff, RefreshCw, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface NavView {
@@ -6,6 +5,22 @@ interface NavView {
   l: string;
   ic: string;
 }
+
+/* Material Symbol icon mapping */
+const ICON_MAP: Record<string, string> = {
+  capture:  "home",
+  grid:     "grid_view",
+  suggest:  "format_color_fill",
+  refine:   "auto_awesome",
+  todos:    "checklist",
+  timeline: "schedule",
+  vault:    "lock",
+  chat:     "chat_bubble",
+  settings: "settings",
+  suppliers:"inventory_2",
+};
+
+const CAPTURE_NAV: NavView = { id: "capture", l: "Home", ic: "⌂" };
 
 interface DesktopSidebarProps {
   activeBrainName: string;
@@ -21,10 +36,6 @@ interface DesktopSidebarProps {
   children?: ReactNode; // BrainSwitcher
 }
 
-const ALL_NAV: NavView[] = [
-  { id: "capture", l: "Home", ic: "⌂" },
-];
-
 export default function DesktopSidebar({
   activeBrainName,
   view,
@@ -38,94 +49,113 @@ export default function DesktopSidebar({
   navViews,
   children,
 }: DesktopSidebarProps) {
-  const allItems = [...ALL_NAV, ...navViews];
+  const allItems = [CAPTURE_NAV, ...navViews];
 
-  const surfaceBg = isDark ? "rgba(26,25,25,0.95)" : "rgba(255,255,255,0.95)";
-  const borderColor = isDark ? "rgba(72,72,71,0.18)" : "rgba(0,0,0,0.08)";
-  const textMuted = isDark ? "#777575" : "#9ca3af";
+  const sidebarBg    = isDark ? "#131313" : "#f5f5f5";
+  const borderColor  = isDark ? "rgba(72,72,71,0.18)" : "rgba(0,0,0,0.08)";
+  const textPrimary  = isDark ? "#ffffff" : "#1a1a1a";
+  const textVariant  = isDark ? "#adaaaa" : "#6b7280";
 
   return (
     <aside
-      className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-[800] w-[220px] select-none"
+      className="hidden md:flex flex-col fixed top-0 left-0 bottom-0 z-[800] w-[240px] select-none"
       style={{
-        background: surfaceBg,
+        background: sidebarBg,
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
         borderRight: `1px solid ${borderColor}`,
       }}
     >
-      {/* Brain identity */}
-      <div className="px-4 pt-5 pb-4" style={{ borderBottom: `1px solid ${borderColor}` }}>
-        <div className="flex items-center gap-2.5 mb-3">
-          <div
-            className="flex h-9 w-9 min-w-9 items-center justify-center rounded-xl flex-shrink-0"
-            style={{
-              background: "linear-gradient(135deg, rgba(114,239,245,0.15), rgba(139,92,246,0.15))",
-              border: "1px solid rgba(114,239,245,0.2)",
-            }}
+      {/* ── Header: brand + brain switcher ── */}
+      <div
+        className="px-5 pt-6 pb-4"
+        style={{ borderBottom: `1px solid ${borderColor}` }}
+      >
+        {/* Logo row */}
+        <div className="flex items-center gap-2.5 mb-4">
+          <span
+            className="material-symbols-outlined mat-filled"
+            style={{ fontSize: 30, color: "#72eff5" }}
           >
-            <Brain size={16} style={{ color: "#72eff5" }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div
-              className="text-sm font-bold truncate leading-tight"
-              style={{ fontFamily: "'Manrope', sans-serif", color: isDark ? "#fff" : "#1a1a1a" }}
-            >
-              {activeBrainName}
-            </div>
-            {(!isOnline || pendingCount > 0) && (
-              <div className="mt-0.5 flex items-center gap-1 text-[10px] font-medium">
-                {!isOnline ? (
-                  <>
-                    <WifiOff size={9} style={{ color: "#ff6e84" }} />
-                    <span style={{ color: "#ff6e84" }}>Offline</span>
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={9} style={{ color: "#72eff5" }} className="animate-spin" />
-                    <span style={{ color: "#72eff5" }}>{pendingCount} syncing</span>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+            psychology
+          </span>
+          <span
+            className="text-xl font-bold tracking-tight truncate"
+            style={{ fontFamily: "'Manrope', sans-serif", color: textPrimary }}
+          >
+            OpenBrain
+          </span>
         </div>
 
-        {/* Brain switcher injected here */}
+        {/* Brain name + status */}
+        <div className="flex items-center gap-2 mb-3">
+          <div
+            className="flex-1 min-w-0 text-[13px] font-medium truncate"
+            style={{ color: textVariant }}
+          >
+            {activeBrainName}
+          </div>
+          {!isOnline && (
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 14, color: "#ff6e84" }}
+            >
+              wifi_off
+            </span>
+          )}
+          {isOnline && pendingCount > 0 && (
+            <span
+              className="material-symbols-outlined animate-spin"
+              style={{ fontSize: 14, color: "#72eff5", animationDuration: "1.5s" }}
+            >
+              sync
+            </span>
+          )}
+        </div>
+
+        {/* Brain switcher */}
         {children}
       </div>
 
-      {/* Nav items */}
+      {/* ── Navigation items ── */}
       <nav className="flex-1 overflow-y-auto py-2 scrollbar-none">
         {allItems.map((item) => {
           const isActive = view === item.id;
+          const matIcon  = ICON_MAP[item.id] || "circle";
+
           return (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left cursor-pointer border-none bg-transparent transition-all duration-150 rounded-none"
+              aria-current={isActive ? "page" : undefined}
+              className="w-full flex items-center gap-3.5 px-5 py-3 text-left cursor-pointer border-none bg-transparent transition-all duration-150"
               style={{
                 background: isActive
-                  ? isDark
-                    ? "rgba(114,239,245,0.08)"
-                    : "rgba(8,145,178,0.07)"
+                  ? isDark ? "rgba(31,177,183,0.12)" : "rgba(8,145,178,0.08)"
                   : "transparent",
                 color: isActive
-                  ? isDark
-                    ? "#72eff5"
-                    : "#0891b2"
-                  : isDark
-                    ? "#adaaaa"
-                    : "#6b7280",
+                  ? isDark ? "#72eff5" : "#0891b2"
+                  : textVariant,
                 borderLeft: isActive
                   ? `2px solid ${isDark ? "#72eff5" : "#0891b2"}`
                   : "2px solid transparent",
               }}
             >
-              <span className="text-base w-5 text-center leading-none flex-shrink-0">{item.ic}</span>
+              <span
+                className="material-symbols-outlined flex-shrink-0"
+                style={{
+                  fontSize: 20,
+                  fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0",
+                }}
+              >
+                {matIcon}
+              </span>
               <span
                 className="text-[13px] leading-snug"
-                style={{ fontWeight: isActive ? 600 : 400 }}
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: isActive ? 600 : 400,
+                }}
               >
                 {item.l}
               </span>
@@ -140,36 +170,52 @@ export default function DesktopSidebar({
         })}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 pb-5 pt-3" style={{ borderTop: `1px solid ${borderColor}` }}>
+      {/* ── Footer ── */}
+      <div
+        className="px-4 pb-5 pt-4"
+        style={{ borderTop: `1px solid ${borderColor}` }}
+      >
+        {/* Add Brain button */}
         <button
           onClick={onShowCreateBrain}
-          className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-[12px] font-semibold cursor-pointer border mb-3 transition-opacity hover:opacity-80"
+          className="w-full flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 cursor-pointer border text-[12px] font-semibold mb-3 transition-opacity hover:opacity-80"
           style={{
-            background: isDark ? "rgba(124,143,240,0.08)" : "rgba(124,143,240,0.06)",
-            borderColor: "rgba(124,143,240,0.25)",
-            color: "#a5b4fc",
+            background: isDark ? "rgba(213,117,255,0.08)" : "rgba(147,51,234,0.06)",
+            borderColor: "rgba(213,117,255,0.25)",
+            color: "#d575ff",
+            fontFamily: "'Inter', sans-serif",
           }}
         >
-          <Plus size={13} />
+          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>add</span>
           Add Brain
         </button>
 
+        {/* Stats + theme toggle */}
         <div className="flex items-center justify-between">
-          <span className="text-[11px]" style={{ color: textMuted }}>
-            {entryCount} memories
+          <span
+            className="text-[11px]"
+            style={{ color: textVariant, fontFamily: "'Inter', sans-serif" }}
+          >
+            <span style={{ fontWeight: 600, color: isDark ? "#72eff5" : "#0891b2" }}>
+              {entryCount}
+            </span>
+            {" "}memories
           </span>
           <button
             onClick={onToggleTheme}
-            aria-label={isDark ? "Switch to light" : "Switch to dark"}
-            className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border transition-all hover:scale-105 active:scale-95"
+            aria-label="Toggle theme"
+            className="w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer border transition-all hover:scale-105 active:scale-95"
             style={{
               background: isDark ? "#262626" : "#f0f0f0",
               borderColor: isDark ? "rgba(72,72,71,0.3)" : "rgba(0,0,0,0.1)",
-              color: isDark ? "#adaaaa" : "#6b7280",
             }}
           >
-            {isDark ? <Sun size={13} /> : <Moon size={13} />}
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 15, color: textVariant }}
+            >
+              {isDark ? "light_mode" : "dark_mode"}
+            </span>
           </button>
         </div>
       </div>

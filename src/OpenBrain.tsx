@@ -86,7 +86,7 @@ function UndoToast({ action, onUndo, onDismiss }) {
       </button>
       <div
         className="absolute bottom-0 left-0 h-[2px] rounded-b-2xl transition-[width] duration-[80ms] ease-linear"
-        style={{ width: `${pct}%`, background: "linear-gradient(90deg, #72eff5, #8b5cf6)" }}
+        style={{ width: `${pct}%`, background: "linear-gradient(90deg, #72eff5, #d575ff)" }}
       />
     </div>
   );
@@ -130,19 +130,17 @@ const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
   return (
     <div
       onClick={() => onSelect(e)}
-      className="relative cursor-pointer overflow-hidden rounded-2xl border px-5 py-4 transition-all duration-300"
+      className="relative cursor-pointer overflow-hidden rounded-xl border px-5 py-4 transition-all duration-300 hover:bg-ob-surface-high"
       style={{
         background: isDark ? "#1a1919" : "#ffffff",
-        borderColor: e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)"),
+        borderColor: e.pinned ? cfg.c + "50" : (isDark ? "rgba(72,72,71,0.12)" : "rgba(0,0,0,0.07)"),
       }}
       onMouseEnter={(ev) => {
-        ev.currentTarget.style.borderColor = cfg.c + "80";
-        ev.currentTarget.style.transform = "translateY(-2px)";
-        ev.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.2), 0 0 12px ${cfg.c}18`;
+        ev.currentTarget.style.borderColor = cfg.c + "60";
+        ev.currentTarget.style.boxShadow = `0 4px 20px rgba(0,0,0,0.15)`;
       }}
       onMouseLeave={(ev) => {
-        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)");
-        ev.currentTarget.style.transform = "none";
+        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "50" : (isDark ? "rgba(72,72,71,0.12)" : "rgba(0,0,0,0.07)");
         ev.currentTarget.style.boxShadow = "none";
       }}
     >
@@ -965,7 +963,7 @@ export default function OpenBrain() {
   // Show loading state while brains are being fetched to prevent read-only / onboarding flash
   if (brainsLoading) {
     return (
-      <div className="bg-ob-bg flex min-h-screen flex-col items-center justify-center font-['Söhne',system-ui,-apple-system,sans-serif]">
+      <div className="bg-ob-bg flex min-h-screen flex-col items-center justify-center font-body">
         <div className="mb-4 text-5xl" style={{ animation: "ob-pulse 1.5s ease-in-out infinite" }}>
           🧠
         </div>
@@ -1016,9 +1014,9 @@ export default function OpenBrain() {
             )}
           </DesktopSidebar>
 
-          <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden font-['Söhne',system-ui,-apple-system,sans-serif] transition-[background,color] duration-[250ms]">
-          {/* Main content — pushed right of sidebar on desktop */}
-          <div className="pb-[80px] md:pb-8 md:pl-[220px]">
+          <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden font-body transition-[background,color] duration-[250ms]">
+          {/* Main content — pushed right of sidebar on desktop, below fixed header on mobile */}
+          <div className="pb-[80px] md:pb-8 md:pl-[240px] pt-[64px] md:pt-0">
 
           {/* Mobile header — hidden on desktop */}
           <MobileHeader
@@ -1085,7 +1083,7 @@ export default function OpenBrain() {
           {navOpen && (
             <div className="fixed inset-0 z-[1000] bg-black/40" onClick={() => setNavOpen(false)}>
               <div
-                className={`absolute top-0 right-0 bottom-0 flex w-[78vw] max-w-[280px] flex-col shadow-[-12px_0_40px_rgba(0,0,0,0.3)] ${isDark ? "bg-[#181822]" : "bg-[#f8f8ff]"}`}
+                className={`absolute top-0 right-0 bottom-0 flex w-[78vw] max-w-[280px] flex-col shadow-[-12px_0_40px_rgba(0,0,0,0.3)] ${isDark ? "bg-[#131313]" : "bg-[#f5f5f5]"}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -1187,11 +1185,11 @@ export default function OpenBrain() {
                     <button
                       key={v.id}
                       onClick={() => setView(v.id)}
-                      className="bg-ob-surface border-ob-border touch-target cursor-pointer rounded-2xl border px-5 py-5 text-left transition-transform duration-100 active:scale-[0.97]"
+                      className="bg-ob-surface border-ob-border touch-target cursor-pointer rounded-xl border px-5 py-5 text-left transition-all duration-200 active:scale-[0.97] hover:bg-ob-surface-high"
                     >
                       <div className="mb-2.5 text-2xl">{v.ic}</div>
-                      <div className="text-ob-text text-[14px] font-semibold">{v.l}</div>
-                      <div className="text-ob-text-dim mt-1 text-[12px] leading-relaxed">{v.desc}</div>
+                      <div className="text-ob-text text-[13px] font-semibold font-headline">{v.l}</div>
+                      <div className="text-ob-text-dim mt-1 text-[11px] leading-relaxed">{v.desc}</div>
                     </button>
                   ))}
                 </div>

@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Brain, Sun, Moon, WifiOff, RefreshCw } from "lucide-react";
 
 interface MobileHeaderProps {
   brainName: string;
@@ -21,65 +20,81 @@ export default function MobileHeader({
 }: MobileHeaderProps) {
   return (
     <header
-      className="md:hidden flex items-center gap-3 px-5 py-3"
+      className="md:hidden fixed top-0 left-0 right-0 z-[800] flex items-center justify-between px-6 py-4"
       style={{
-        background: isDark ? "rgba(14,14,14,0.8)" : "rgba(250,250,250,0.8)",
+        background: isDark ? "rgba(14,14,14,0.65)" : "rgba(250,250,250,0.75)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        borderBottom: isDark ? "1px solid rgba(72,72,71,0.12)" : "1px solid rgba(0,0,0,0.06)",
+        borderBottom: isDark ? "1px solid rgba(72,72,71,0.10)" : "1px solid rgba(0,0,0,0.05)",
       }}
     >
-      {/* Brain identity */}
-      <div
-        className="flex h-10 w-10 min-w-10 items-center justify-center rounded-xl"
-        style={{
-          background: "linear-gradient(135deg, rgba(114,239,245,0.15), rgba(139,92,246,0.15))",
-          border: "1px solid rgba(114,239,245,0.2)",
-        }}
-      >
-        <Brain size={18} style={{ color: "#72eff5" }} />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div
-          className="overflow-hidden text-sm font-bold text-ellipsis whitespace-nowrap"
-          style={{ fontFamily: "'Manrope', sans-serif", color: isDark ? "#ffffff" : "#1a1a1a" }}
+      {/* Left — logo */}
+      <div className="flex items-center gap-2.5">
+        <span
+          className="material-symbols-outlined mat-filled"
+          style={{ fontSize: 28, color: "#72eff5" }}
+        >
+          psychology
+        </span>
+        <h1
+          className="text-xl font-bold tracking-tight"
+          style={{
+            fontFamily: "'Manrope', sans-serif",
+            color: isDark ? "#ffffff" : "#1a1a1a",
+          }}
         >
           {brainName}
-        </div>
-        {(!isOnline || pendingCount > 0) && (
-          <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium">
-            {!isOnline ? (
-              <>
-                <WifiOff size={10} style={{ color: "#ff6e84" }} />
-                <span style={{ color: "#ff6e84" }}>Offline</span>
-              </>
-            ) : (
-              <>
-                <RefreshCw size={10} style={{ color: "#72eff5" }} className="animate-spin" />
-                <span style={{ color: "#72eff5" }}>{pendingCount} pending sync</span>
-              </>
-            )}
-          </div>
-        )}
+        </h1>
       </div>
 
-      {/* Injected content (BrainSwitcher) */}
-      {children}
+      {/* Status indicator */}
+      {(!isOnline || pendingCount > 0) && (
+        <div className="flex items-center gap-1.5 text-[11px] font-medium mx-auto">
+          {!isOnline ? (
+            <>
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: 14, color: "#ff6e84" }}
+              >
+                wifi_off
+              </span>
+              <span style={{ color: "#ff6e84", fontFamily: "'Inter', sans-serif" }}>Offline</span>
+            </>
+          ) : (
+            <>
+              <span
+                className="material-symbols-outlined animate-spin"
+                style={{ fontSize: 14, color: "#72eff5", animationDuration: "1.5s" }}
+              >
+                sync
+              </span>
+              <span style={{ color: "#72eff5", fontFamily: "'Inter', sans-serif" }}>
+                {pendingCount} syncing
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
-      {/* Theme toggle */}
-      <button
-        onClick={onToggleTheme}
-        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-        className="touch-target flex cursor-pointer items-center justify-center rounded-xl border transition-all duration-200 [-webkit-tap-highlight-color:transparent] hover:scale-105 active:scale-95"
-        style={{
-          background: isDark ? "#262626" : "#f0f0f0",
-          borderColor: isDark ? "rgba(72,72,71,0.3)" : "rgba(0,0,0,0.1)",
-          color: isDark ? "#adaaaa" : "#6b7280",
-        }}
-      >
-        {isDark ? <Sun size={17} /> : <Moon size={17} />}
-      </button>
+      {/* Right — brain switcher + theme toggle */}
+      <div className="flex items-center gap-2">
+        {children}
+        <button
+          onClick={onToggleTheme}
+          aria-label={isDark ? "Switch to light" : "Switch to dark"}
+          className="w-10 h-10 flex items-center justify-center rounded-full cursor-pointer border-none transition-colors duration-200"
+          style={{
+            background: isDark ? "rgba(38,38,38,0.8)" : "rgba(240,240,240,0.8)",
+          }}
+        >
+          <span
+            className="material-symbols-outlined"
+            style={{ fontSize: 20, color: isDark ? "#adaaaa" : "#6b7280" }}
+          >
+            {isDark ? "light_mode" : "dark_mode"}
+          </span>
+        </button>
+      </div>
     </header>
   );
 }
