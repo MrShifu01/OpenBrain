@@ -32,6 +32,7 @@ import QuickCapture from "./components/QuickCapture";
 import SupplierPanel from "./components/SupplierPanel";
 import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
+import DesktopSidebar from "./components/DesktopSidebar";
 import SkeletonCard from "./components/SkeletonCard";
 import SettingsView from "./views/SettingsView";
 import { inferWorkspace } from "./lib/workspaceInfer";
@@ -74,7 +75,7 @@ function UndoToast({ action, onUndo, onDismiss }) {
     action.type
   ];
   return (
-    <div className="fixed bottom-[80px] left-1/2 z-[2000] box-border flex max-w-[calc(100vw-32px)] min-w-[240px] -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: "rgba(38,38,38,0.85)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderColor: "rgba(114,239,245,0.2)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
+    <div className="fixed bottom-[80px] md:bottom-6 left-1/2 z-[2000] box-border flex max-w-[calc(100vw-32px)] min-w-[240px] -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: "rgba(38,38,38,0.85)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderColor: "rgba(114,239,245,0.2)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
       <span className="text-sm" style={{ color: "#adaaaa" }}>{label}</span>
       <button
         onClick={onUndo}
@@ -85,7 +86,7 @@ function UndoToast({ action, onUndo, onDismiss }) {
       </button>
       <div
         className="absolute bottom-0 left-0 h-[2px] rounded-b-2xl transition-[width] duration-[80ms] ease-linear"
-        style={{ width: `${pct}%`, background: "linear-gradient(90deg, #72eff5, #8b5cf6)" }}
+        style={{ width: `${pct}%`, background: "linear-gradient(90deg, #72eff5, #d575ff)" }}
       />
     </div>
   );
@@ -129,19 +130,17 @@ const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
   return (
     <div
       onClick={() => onSelect(e)}
-      className="relative cursor-pointer overflow-hidden rounded-2xl border px-5 py-4 transition-all duration-300"
+      className="relative cursor-pointer overflow-hidden rounded-xl border px-5 py-4 transition-all duration-300 hover:bg-ob-surface-high"
       style={{
         background: isDark ? "#1a1919" : "#ffffff",
-        borderColor: e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)"),
+        borderColor: e.pinned ? cfg.c + "50" : (isDark ? "rgba(72,72,71,0.12)" : "rgba(0,0,0,0.07)"),
       }}
       onMouseEnter={(ev) => {
-        ev.currentTarget.style.borderColor = cfg.c + "80";
-        ev.currentTarget.style.transform = "translateY(-2px)";
-        ev.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.2), 0 0 12px ${cfg.c}18`;
+        ev.currentTarget.style.borderColor = cfg.c + "60";
+        ev.currentTarget.style.boxShadow = `0 4px 20px rgba(0,0,0,0.15)`;
       }}
       onMouseLeave={(ev) => {
-        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)");
-        ev.currentTarget.style.transform = "none";
+        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "50" : (isDark ? "rgba(72,72,71,0.12)" : "rgba(0,0,0,0.07)");
         ev.currentTarget.style.boxShadow = "none";
       }}
     >
@@ -198,7 +197,9 @@ const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
    VIRTUALISED GRID
    ═══════════════════════════════════════════════════════════════ */
 function VirtualGrid({ filtered, setSelected }) {
-  const COLS = typeof window !== "undefined" && window.innerWidth >= 640 ? 2 : 1;
+  const COLS = typeof window !== "undefined"
+    ? window.innerWidth >= 1280 ? 3 : window.innerWidth >= 640 ? 2 : 1
+    : 1;
   const rows = useMemo(() => {
     const r = [];
     for (let i = 0; i < filtered.length; i += COLS) r.push(filtered.slice(i, i + COLS));
@@ -962,7 +963,7 @@ export default function OpenBrain() {
   // Show loading state while brains are being fetched to prevent read-only / onboarding flash
   if (brainsLoading) {
     return (
-      <div className="bg-ob-bg flex min-h-screen flex-col items-center justify-center font-['Söhne',system-ui,-apple-system,sans-serif]">
+      <div className="bg-ob-bg flex min-h-screen flex-col items-center justify-center font-body">
         <div className="mb-4 text-5xl" style={{ animation: "ob-pulse 1.5s ease-in-out infinite" }}>
           🧠
         </div>
@@ -984,7 +985,40 @@ export default function OpenBrain() {
   return (
     <EntriesContext.Provider value={entriesValue}>
       <BrainContext.Provider value={brainValue}>
-        <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden pb-[80px] font-['Söhne',system-ui,-apple-system,sans-serif] transition-[background,color] duration-[250ms]">
+        <>
+          {/* Desktop sidebar — fixed, outside overflow container */}
+          <DesktopSidebar
+            activeBrainName={activeBrain?.name || "OpenBrain"}
+            view={view}
+            onNavigate={(id) => { setView(id); setNavOpen(false); }}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+            isOnline={isOnline}
+            pendingCount={pendingCount}
+            entryCount={entries.length}
+            onShowCreateBrain={() => setShowCreateBrain(true)}
+            navViews={navViews}
+          >
+            {brains.length > 0 && (
+              <BrainSwitcher
+                brains={brains}
+                activeBrain={activeBrain}
+                onSwitch={setActiveBrain}
+                onBrainCreated={async (brain) => {
+                  await refresh();
+                  setActiveBrain(brain);
+                }}
+                onBrainDeleted={deleteBrain}
+                onBrainTip={(brain) => setShowBrainTip(brain)}
+              />
+            )}
+          </DesktopSidebar>
+
+          <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden font-body transition-[background,color] duration-[250ms]">
+          {/* Main content — pushed right of sidebar on desktop, below fixed header on mobile */}
+          <div className="pb-[80px] md:pb-8 md:pl-[240px] pt-[64px] md:pt-0">
+
+          {/* Mobile header — hidden on desktop */}
           <MobileHeader
             brainName={activeBrain?.name || "OpenBrain"}
             brainEmoji="🧠"
@@ -1049,7 +1083,7 @@ export default function OpenBrain() {
           {navOpen && (
             <div className="fixed inset-0 z-[1000] bg-black/40" onClick={() => setNavOpen(false)}>
               <div
-                className={`absolute top-0 right-0 bottom-0 flex w-[78vw] max-w-[280px] flex-col shadow-[-12px_0_40px_rgba(0,0,0,0.3)] ${isDark ? "bg-[#181822]" : "bg-[#f8f8ff]"}`}
+                className={`absolute top-0 right-0 bottom-0 flex w-[78vw] max-w-[280px] flex-col shadow-[-12px_0_40px_rgba(0,0,0,0.3)] ${isDark ? "bg-[#131313]" : "bg-[#f5f5f5]"}`}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -1111,7 +1145,7 @@ export default function OpenBrain() {
             />
           )}
 
-          <div className="animate-fade-in px-5 py-4">
+          <div className="animate-fade-in px-5 py-4 md:px-8 md:py-6 md:max-w-4xl md:mx-auto">
             {view === "capture" && (
               <div className="animate-fade-in pt-1">
                 <OnboardingChecklist activeBrain={activeBrain} onNavigate={setView} />
@@ -1141,7 +1175,7 @@ export default function OpenBrain() {
                 </button>
 
                 {/* Secondary actions — clean grid */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
                     { id: "grid", l: "Memory Grid", ic: "▦", desc: "Browse all" },
                     { id: "chat", l: "Ask Brain", ic: "◈", desc: "Chat with your data" },
@@ -1151,11 +1185,11 @@ export default function OpenBrain() {
                     <button
                       key={v.id}
                       onClick={() => setView(v.id)}
-                      className="bg-ob-surface border-ob-border touch-target cursor-pointer rounded-2xl border px-5 py-5 text-left transition-transform duration-100 active:scale-[0.97]"
+                      className="bg-ob-surface border-ob-border touch-target cursor-pointer rounded-xl border px-5 py-5 text-left transition-all duration-200 active:scale-[0.97] hover:bg-ob-surface-high"
                     >
                       <div className="mb-2.5 text-2xl">{v.ic}</div>
-                      <div className="text-ob-text text-[14px] font-semibold">{v.l}</div>
-                      <div className="text-ob-text-dim mt-1 text-[12px] leading-relaxed">{v.desc}</div>
+                      <div className="text-ob-text text-[13px] font-semibold font-headline">{v.l}</div>
+                      <div className="text-ob-text-dim mt-1 text-[11px] leading-relaxed">{v.desc}</div>
                     </button>
                   ))}
                 </div>
@@ -1291,7 +1325,7 @@ export default function OpenBrain() {
             )}
 
             {view === "chat" && (
-              <div className="animate-fade-in flex h-[calc(100vh-200px)] max-h-[calc(100dvh-200px)] flex-col">
+              <div className="animate-fade-in flex h-[calc(100dvh-180px)] md:h-[calc(100dvh-100px)] flex-col">
                 <div className="mb-3 flex-1 overflow-auto">
                   {chatMsgs.length === 0 && (
                     <div className="flex flex-col items-center justify-center pt-16 pb-8">
@@ -1578,7 +1612,10 @@ export default function OpenBrain() {
               }
             }}
           />
-        </div>
+
+          </div>{/* /main content wrapper */}
+          </div>{/* /bg-ob-bg */}
+        </>
       </BrainContext.Provider>
     </EntriesContext.Provider>
   );
