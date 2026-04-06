@@ -18,6 +18,19 @@ interface RawConnection {
   rel: string;
 }
 
+/** Simple fuzzy title similarity score 0–100 */
+export function scoreTitle(a: string, b: string): number {
+  if (!a || !b) return 0;
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  const na = norm(a);
+  const nb = norm(b);
+  if (na === nb) return 100;
+  const wordsA = new Set(na.split(/\s+/));
+  const wordsB = nb.split(/\s+/);
+  const shared = wordsB.filter((w) => wordsA.has(w)).length;
+  return Math.round((shared / Math.max(wordsA.size, wordsB.length)) * 100);
+}
+
 export async function findConnections(
   newEntry: Entry,
   existingEntries: Entry[],

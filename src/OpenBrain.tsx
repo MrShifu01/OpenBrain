@@ -74,17 +74,18 @@ function UndoToast({ action, onUndo, onDismiss }) {
     action.type
   ];
   return (
-    <div className="bg-ob-surface border-teal fixed bottom-6 left-1/2 z-[2000] box-border flex max-w-[calc(100vw-32px)] min-w-[240px] -translate-x-1/2 items-center gap-3 rounded-xl border px-4 py-3 shadow-[0_4px_20px_#0008]">
-      <span className="text-ob-text-mid text-sm">{label}</span>
+    <div className="fixed bottom-[80px] left-1/2 z-[2000] box-border flex max-w-[calc(100vw-32px)] min-w-[240px] -translate-x-1/2 items-center gap-3 rounded-2xl border px-4 py-3" style={{ background: "rgba(38,38,38,0.85)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", borderColor: "rgba(114,239,245,0.2)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
+      <span className="text-sm" style={{ color: "#adaaaa" }}>{label}</span>
       <button
         onClick={onUndo}
-        className="border-teal text-teal cursor-pointer rounded-lg border bg-transparent px-3.5 py-1 text-[13px] font-bold"
+        className="cursor-pointer rounded-lg border bg-transparent px-3.5 py-1 text-[13px] font-bold transition-opacity hover:opacity-80"
+        style={{ borderColor: "rgba(114,239,245,0.3)", color: "#72eff5" }}
       >
         Undo
       </button>
       <div
-        className="bg-teal absolute bottom-0 left-0 h-[3px] rounded-b-xl transition-[width] duration-[80ms] ease-linear"
-        style={{ width: `${pct}%` }}
+        className="absolute bottom-0 left-0 h-[2px] rounded-b-2xl transition-[width] duration-[80ms] ease-linear"
+        style={{ width: `${pct}%`, background: "linear-gradient(90deg, #72eff5, #8b5cf6)" }}
       />
     </div>
   );
@@ -128,15 +129,20 @@ const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
   return (
     <div
       onClick={() => onSelect(e)}
-      className="bg-ob-surface border-ob-border relative cursor-pointer overflow-hidden rounded-xl border px-5 py-4"
-      style={e.pinned ? { borderColor: cfg.c + "80" } : undefined}
+      className="relative cursor-pointer overflow-hidden rounded-2xl border px-5 py-4 transition-all duration-300"
+      style={{
+        background: isDark ? "#1a1919" : "#ffffff",
+        borderColor: e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)"),
+      }}
       onMouseEnter={(ev) => {
-        ev.currentTarget.style.borderColor = cfg.c;
+        ev.currentTarget.style.borderColor = cfg.c + "80";
         ev.currentTarget.style.transform = "translateY(-2px)";
+        ev.currentTarget.style.boxShadow = `0 8px 24px rgba(0,0,0,0.2), 0 0 12px ${cfg.c}18`;
       }}
       onMouseLeave={(ev) => {
-        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "80" : t.border;
+        ev.currentTarget.style.borderColor = e.pinned ? cfg.c + "60" : (isDark ? "rgba(72,72,71,0.15)" : "rgba(0,0,0,0.08)");
         ev.currentTarget.style.transform = "none";
+        ev.currentTarget.style.boxShadow = "none";
       }}
     >
       {e.pinned && (
