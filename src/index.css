@@ -113,9 +113,9 @@ body {
 @utility scrollbar-none {
   scrollbar-width: none;
   -ms-overflow-style: none;
-}
-@utility scrollbar-none::-webkit-scrollbar {
-  display: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* ─── Loading spinner animation ─── */

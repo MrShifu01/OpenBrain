@@ -3,7 +3,6 @@ import { authFetch } from "./authFetch";
 import { PROMPTS } from "../config/prompts";
 import { getEmbedHeaders } from "./aiFetch";
 import type { Entry, Link } from "../types";
-export { scoreTitle } from "./duplicateDetection";
 
 interface ConnectionCandidate {
   id: string;

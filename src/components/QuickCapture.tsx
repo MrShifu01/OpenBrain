@@ -1,7 +1,5 @@
 // @ts-nocheck
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import PropTypes from "prop-types";
-import { useTheme } from "../ThemeContext";
 import { callAI } from "../lib/ai";
 import { aiFetch, getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiFetch";
 import { encryptEntry } from "../lib/crypto";
@@ -25,7 +23,6 @@ const SENSITIVE_RE =
   /\b(password|passcode|passphrase|credentials|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|id\s*number|passport\s*number|secret\s*key|secret\s*word|pin\s*number|access\s*code|credit\s*card|cvv|api\s*key|private\s*key|2fa|backup\s*code)\b/i;
 
 function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
-  const { t } = useTheme();
   const [title, setTitle] = useState(preview.title || "");
   const [type, setType] = useState(preview.type || "note");
   const [tags, setTags] = useState((preview.tags || []).join(", "));
@@ -196,7 +193,6 @@ export default function QuickCapture({
   cryptoKey = null,
   onNavigate = null,
 }) {
-  const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -1139,6 +1135,7 @@ export default function QuickCapture({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && capture()}
           disabled={loading}
+          aria-label="Quick capture input"
           placeholder={
             listening
               ? "Listening..."
@@ -1146,124 +1143,71 @@ export default function QuickCapture({
                 ? "Processing..."
                 : "Quick capture — just type anything..."
           }
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: "10px 14px",
-            background: listening ? "#1a2e1a" : t.surface,
-            border: `1px solid ${listening ? "#25D36640" : t.border}`,
-            borderRadius: 10,
-            color: t.textSoft,
-            fontSize: 14,
-            outline: "none",
-            fontFamily: "inherit",
-            opacity: loading ? 0.5 : 1,
-          }}
+          className={`min-w-0 flex-1 rounded-[10px] border px-3.5 py-2.5 text-sm font-[inherit] text-ob-text-soft outline-none ${
+            listening
+              ? "border-whisper/25 bg-[#1a2e1a]"
+              : "border-ob-border bg-ob-surface"
+          } ${loading ? "opacity-50" : ""}`}
         />
         <button
           onClick={startVoice}
           disabled={loading}
+          aria-label="Voice capture"
           title="Voice capture"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: listening ? "#25D36620" : t.surface,
-            border: `1px solid ${listening ? "#25D36640" : t.border}`,
-            borderRadius: 10,
-            color: listening ? "#25D366" : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border p-0 text-base ${
+            listening
+              ? "border-whisper/25 bg-whisper/[0.12] text-whisper"
+              : "border-ob-border bg-ob-surface text-ob-text-muted"
+          } ${loading ? "cursor-default" : "cursor-pointer"}`}
         >
           🎤
         </button>
         <button
           onClick={() => imgRef.current?.click()}
           disabled={loading}
+          aria-label="Photo capture"
           title="Photo capture"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: t.surface,
-            border: `1px solid ${t.border}`,
-            borderRadius: 10,
-            color: loading ? t.textDim : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-ob-border bg-ob-surface p-0 text-base ${
+            loading ? "cursor-default text-ob-text-dim" : "cursor-pointer text-ob-text-muted"
+          }`}
         >
           📷
         </button>
         <button
           onClick={() => fileRef.current?.click()}
           disabled={loading}
+          aria-label="Upload files"
           title="Upload files (PDF, Word, MD, TXT, CSV — multi-select supported)"
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: t.surface,
-            border: `1px solid ${t.border}`,
-            borderRadius: 10,
-            color: loading ? t.textDim : t.textMuted,
-            cursor: loading ? "default" : "pointer",
-            fontSize: 16,
-            padding: 0,
-          }}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-ob-border bg-ob-surface p-0 text-base ${
+            loading ? "cursor-default text-ob-text-dim" : "cursor-pointer text-ob-text-muted"
+          }`}
         >
           📄
         </button>
         <button
           onClick={capture}
           disabled={loading || !text.trim()}
+          aria-label="Save entry"
           title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`}
-          style={{
-            width: 40,
-            height: 40,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background:
-              text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface,
-            border: "none",
-            borderRadius: 10,
-            color: text.trim() && !loading ? "#0f0f23" : t.textFaint,
-            fontWeight: 700,
-            cursor: text.trim() && !loading ? "pointer" : "default",
-            fontSize: 18,
-            padding: 0,
-          }}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border-none p-0 text-lg font-bold ${
+            text.trim() && !loading
+              ? "gradient-accent cursor-pointer text-[#0f0f23]"
+              : "bg-ob-surface cursor-default text-ob-text-faint"
+          }`}
         >
           +
         </button>
       </div>
       {status && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 4px" }}>
+        <div className="mt-1.5 ml-1 flex items-center gap-2">
           <p
-            style={{
-              fontSize: 11,
-              color:
-                status === "vault-needed"
-                  ? "#FF4757"
-                  : status.includes("error")
-                    ? "#FF6B35"
-                    : "#4ECDC4",
-              margin: 0,
-            }}
+            className={`m-0 text-[11px] ${
+              status === "vault-needed"
+                ? "text-red"
+                : status.includes("error")
+                  ? "text-orange"
+                  : "text-teal"
+            }`}
           >
             {statusMsg[status]}
           </p>
@@ -1273,16 +1217,7 @@ export default function QuickCapture({
                 onNavigate("vault");
                 setStatus(null);
               }}
-              style={{
-                fontSize: 11,
-                padding: "3px 10px",
-                background: "#FF475720",
-                border: "1px solid #FF475740",
-                borderRadius: 6,
-                color: "#FF4757",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="cursor-pointer rounded-md border border-red/25 bg-red/[0.12] px-2.5 py-0.5 text-[11px] font-semibold text-red"
             >
               Open Vault
             </button>
@@ -1494,16 +1429,3 @@ export default function QuickCapture({
   );
 }
 
-QuickCapture.propTypes = {
-  entries: PropTypes.array.isRequired,
-  setEntries: PropTypes.func.isRequired,
-  links: PropTypes.array,
-  addLinks: PropTypes.func,
-  onCreated: PropTypes.func,
-  onUpdate: PropTypes.func,
-  isOnline: PropTypes.bool,
-  refreshCount: PropTypes.func,
-  brainId: PropTypes.string,
-  brains: PropTypes.array,
-  canWrite: PropTypes.bool,
-};

@@ -14,7 +14,7 @@ export function getFileExtension(filename: string): string {
 }
 
 export function isSupportedFile(file: File): boolean {
-  return SUPPORTED_EXTENSIONS.includes(getFileExtension(file.name) as any);
+  return (SUPPORTED_EXTENSIONS as readonly string[]).includes(getFileExtension(file.name));
 }
 
 export function isTextFile(file: File): boolean {
