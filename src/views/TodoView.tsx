@@ -83,52 +83,46 @@ function MiniCalendar({
   const eventCount = Object.keys(dateMap).filter((k) => k.startsWith(`${year}-${String(mon + 1).padStart(2, "0")}`)).length;
 
   return (
-    <div className="bg-ob-surface border-ob-border mb-4 overflow-hidden rounded-2xl border">
+    <div>
       {/* Header toggle */}
       <button
         onClick={() => setExpanded((s) => !s)}
-        className="flex w-full cursor-pointer items-center justify-between border-none bg-transparent px-5 py-4"
       >
-        <div className="flex items-center gap-3">
-          <span className="text-base">📅</span>
+        <div>
+          <span>📅</span>
           <div>
-            <span className="text-ob-text text-[14px] font-semibold">{monthLabel}</span>
+            <span>{monthLabel}</span>
             {eventCount > 0 && (
-              <span className="text-ob-text-dim ml-2 text-[12px]">· {eventCount} days with events</span>
+              <span>· {eventCount} days with events</span>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div>
           {expanded && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon - 1, 1)); }}
-                className="touch-target text-ob-text-muted flex cursor-pointer items-center justify-center border-none bg-transparent text-sm"
               >←</button>
               <button
                 onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon + 1, 1)); }}
-                className="touch-target text-ob-text-muted flex cursor-pointer items-center justify-center border-none bg-transparent text-sm"
               >→</button>
             </>
           )}
-          <span className="text-ob-text-muted text-xs">{expanded ? "▾" : "▸"}</span>
+          <span>{expanded ? "▾" : "▸"}</span>
         </div>
       </button>
 
       {/* Calendar grid */}
       {expanded && (
-        <div className="px-3 pb-3">
-          <div className="mb-1 grid grid-cols-7">
+        <div>
+          <div>
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div
-                key={i}
-                className="text-ob-text-faint text-center text-[10px] font-bold"
-              >
+              <div key={i}>
                 {d}
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-0.5">
+          <div>
             {cells.map((day, i) => {
               if (!day) return <div key={`e${i}`} />;
               const key = dayKey(day);
@@ -139,21 +133,10 @@ function MiniCalendar({
                 <button
                   key={key}
                   onClick={() => onSelectDay(isSel ? null : key)}
-                  className={`relative flex h-9 cursor-pointer items-center justify-center rounded-lg border-none ${
-                    isSel
-                      ? "bg-teal"
-                      : isToday
-                        ? "bg-teal/[0.12]"
-                        : "bg-transparent"
-                  }`}
                 >
-                  <span
-                    className={`text-[12px] ${isToday ? "font-extrabold" : "font-normal"} ${isSel ? "text-white" : isToday ? "text-teal" : "text-ob-text-mid"}`}
-                  >
-                    {day}
-                  </span>
+                  <span>{day}</span>
                   {dots.length > 0 && !isSel && (
-                    <div className="absolute bottom-1 h-1 w-1 rounded-full bg-orange" />
+                    <div />
                   )}
                 </button>
               );
@@ -256,28 +239,16 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   function renderItem({ entry, dateStr }: TodoItem, showDate: boolean) {
     const tc = TC[entry.type] || TC.note;
     return (
-      <div
-        key={`${entry.id}-${dateStr}`}
-        className="bg-ob-surface border-ob-border mb-2.5 flex items-center gap-3.5 rounded-2xl border px-5 py-4"
-      >
-        <span className="shrink-0 text-lg">{tc.i}</span>
-        <div className="min-w-0 flex-1">
-          <p className="text-ob-text m-0 overflow-hidden text-[14px] font-semibold text-ellipsis whitespace-nowrap">
-            {entry.title}
-          </p>
+      <div key={`${entry.id}-${dateStr}`}>
+        <span>{tc.i}</span>
+        <div>
+          <p>{entry.title}</p>
           {entry.content && entry.content !== entry.title && (
-            <p className="text-ob-text-dim mt-0.5 mb-0 overflow-hidden text-[12px] text-ellipsis whitespace-nowrap">
-              {entry.content}
-            </p>
+            <p>{entry.content}</p>
           )}
         </div>
-        {showDate && <span className="text-ob-text-dim shrink-0 text-[11px]">{fmtD(dateStr)}</span>}
-        <span
-          className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold"
-          style={{ background: `${tc.c}20`, color: tc.c }}
-        >
-          {entry.type}
-        </span>
+        {showDate && <span>{fmtD(dateStr)}</span>}
+        <span>{entry.type}</span>
       </div>
     );
   }
@@ -291,17 +262,14 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   ) {
     if (items.length === 0) return null;
     return (
-      <div className="mb-7">
-        <div className="mb-3 flex items-center gap-2.5">
-          <span className="text-base">{emoji}</span>
-          <p
-            className="m-0 text-[13px] font-bold tracking-[0.5px] uppercase"
-            style={accentColor ? { color: accentColor } : undefined}
-          >
-            {!accentColor && <span className="text-ob-text-mid">{title}</span>}
+      <div>
+        <div>
+          <span>{emoji}</span>
+          <p>
+            {!accentColor && <span>{title}</span>}
             {accentColor && title}
           </p>
-          <span className="text-ob-text-dim text-[12px] font-normal">({items.length})</span>
+          <span>({items.length})</span>
         </div>
         {items.map((item) => renderItem(item, showDate))}
       </div>
@@ -309,13 +277,13 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   }
 
   return (
-    <div className="animate-fade-in">
+    <div>
       <MiniCalendar dateMap={dateMap} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
 
       {/* Selected day detail */}
       {selectedDay && (
-        <div className="mb-6">
-          <p className="text-ob-text-dim mb-3 text-[12px] font-semibold tracking-[1px] uppercase">
+        <div>
+          <p>
             {selEntries.length
               ? `${selEntries.length} item${selEntries.length > 1 ? "s" : ""} — ${selectedDay}`
               : `Nothing on ${selectedDay}`}
@@ -323,21 +291,14 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
           {selEntries.map((e) => {
             const cfg = TC[e.type] || TC.note;
             return (
-              <div
-                key={e.id}
-                className="bg-ob-surface border-ob-border mb-2.5 rounded-2xl border px-5 py-4"
-              >
-                <div className="mb-1.5 flex items-center gap-2">
-                  <span className="text-base">{cfg.i}</span>
-                  <span className="text-[11px] font-bold uppercase" style={{ color: cfg.c }}>
-                    {e.type}
-                  </span>
+              <div key={e.id}>
+                <div>
+                  <span>{cfg.i}</span>
+                  <span>{e.type}</span>
                 </div>
-                <p className="text-ob-text m-0 text-[14px] font-medium">{e.title}</p>
+                <p>{e.title}</p>
                 {e.content && (
-                  <p className="text-ob-text-dim mt-1.5 mb-0 text-[13px] leading-relaxed">
-                    {e.content.slice(0, 120)}
-                  </p>
+                  <p>{e.content.slice(0, 120)}</p>
                 )}
               </div>
             );
@@ -347,10 +308,10 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
 
       {/* Empty state */}
       {!selectedDay && total === 0 && (
-        <div className="pt-10 text-center">
-          <div className="mb-4 text-5xl">📋</div>
-          <p className="text-ob-text mb-1 text-base font-semibold">All clear</p>
-          <p className="text-ob-text-dim m-0 max-w-[260px] mx-auto text-[13px] leading-relaxed">
+        <div>
+          <div>📋</div>
+          <p>All clear</p>
+          <p>
             No upcoming deadlines, events, or reminders this week.
             Entries with dates will show up here automatically.
           </p>

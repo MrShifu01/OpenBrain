@@ -43,7 +43,6 @@ interface ORModel {
 
 /* ─── Telegram Panel ─── */
 function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
-  const { t } = useTheme();
   const [code, setCode] = useState(null);
   const [generating, setGenerating] = useState(false);
 
@@ -64,24 +63,23 @@ function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
   };
 
   return (
-    <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-      <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">Telegram</p>
-      <p className="text-ob-text-dim m-0 mb-4 text-[12px] leading-relaxed">
+    <div>
+      <p>Telegram</p>
+      <p>
         Connect Telegram to save entries by messaging the bot.
       </p>
       {code ? (
-        <div className="bg-ob-bg rounded-[10px] px-4 py-3">
-          <p className="text-ob-text-muted m-0 mb-1.5 text-xs">
+        <div>
+          <p>
             Send this code to <strong>@TheOneAndOnlyOpenBrainBot</strong> on Telegram:
           </p>
-          <p className="text-teal m-0 font-mono text-[22px] font-bold tracking-[4px]">{code}</p>
-          <p className="text-ob-text-faint mt-1.5 mb-0 text-[11px]">Expires in 10 minutes</p>
+          <p>{code}</p>
+          <p>Expires in 10 minutes</p>
         </div>
       ) : (
         <button
           onClick={generateCode}
           disabled={generating}
-          className="bg-teal/10 border-ob-accent-border text-teal cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold"
         >
           {generating ? "Generating…" : "Connect Telegram"}
         </button>
@@ -92,7 +90,6 @@ function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
 
 /* ─── Memory Editor ─── */
 function MemoryEditor({ activeBrain }: { activeBrain?: any }) {
-  const { t } = useTheme();
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
@@ -117,31 +114,26 @@ function MemoryEditor({ activeBrain }: { activeBrain?: any }) {
     setTimeout(() => setStatus(null), 3000);
   };
   return (
-    <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-      <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">AI Memory Guide</p>
-      <p className="text-ob-text-dim m-0 mb-3 text-[12px] leading-relaxed">
+    <div>
+      <p>AI Memory Guide</p>
+      <p>
         Markdown guide injected into every AI call for context. Do not include IDs or bank details.
       </p>
       <textarea
         value={content}
         onChange={(e) => setContent(e.target.value.slice(0, MAX))}
         rows={8}
-        className="bg-ob-bg border-ob-border text-ob-text-soft box-border w-full resize-y rounded-lg border px-3 py-2.5 font-mono text-xs leading-relaxed outline-none"
         placeholder={
           "# OpenBrain Classification Guide\n\n## Business Context\n- ...\n\n## Personal Context\n- ..."
         }
       />
-      <div className="mt-2 flex items-center justify-between">
-        <span
-          className="text-[11px]"
-          style={{ color: content.length > MAX * 0.9 ? "#FF6B35" : undefined }}
-        >
+      <div>
+        <span>
           {content.length}/{MAX}
         </span>
         <button
           onClick={save}
           disabled={saving}
-          className="bg-teal/10 border-ob-accent-border text-teal cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold"
         >
           {saving
             ? "Saving…"
@@ -158,7 +150,6 @@ function MemoryEditor({ activeBrain }: { activeBrain?: any }) {
 
 /* ─── Export / Import Panel ─── */
 function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
-  const { t } = useTheme();
   const [importing, setImporting] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -220,17 +211,14 @@ function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
           : null;
 
   return (
-    <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-      <p className="text-ob-text m-0 mb-1 text-sm font-semibold">Export / Import</p>
-      <p className="text-ob-text-dim m-0 mb-4 text-xs leading-relaxed">
+    <div>
+      <p>Export / Import</p>
+      <p>
         Export all entries from <strong>{activeBrain.name}</strong> as JSON, or import from a
         previous export.
       </p>
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={handleExport}
-          className="bg-teal/10 border-ob-accent-border text-teal cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold"
-        >
+      <div>
+        <button onClick={handleExport}>
           ⬇ Export Brain
         </button>
         <input
@@ -238,21 +226,16 @@ function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
           accept=".json"
           ref={fileRef}
           onChange={handleImportFile}
-          className="hidden"
         />
         <button
           onClick={() => fileRef.current?.click()}
           disabled={importing}
-          className="bg-ob-bg border-ob-border text-ob-text-muted cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold"
         >
           {importing ? "Importing…" : "⬆ Import"}
         </button>
       </div>
       {statusMsg && (
-        <p
-          className="mt-2 mb-0 text-xs"
-          style={{ color: statusMsg.startsWith("✓") ? "#4ECDC4" : "#FF6B35" }}
-        >
+        <p>
           {statusMsg}
         </p>
       )}
@@ -264,7 +247,6 @@ function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
    SETTINGS VIEW
    ═══════════════════════════════════════════════════════════════ */
 export default function SettingsView() {
-  const { t } = useTheme();
   const { activeBrain, canInvite, canManageMembers, refresh: onRefreshBrains } = useBrain();
   const [testStatus, setTestStatus] = useState<string | null>(null);
   const [email, setEmail] = useState("");
@@ -538,44 +520,36 @@ export default function SettingsView() {
     }
     setTimeout(() => setTestStatus(null), 3000);
   };
-  const btn = "touch-target flex items-center justify-center rounded-xl border-none px-5 text-[13px] font-semibold cursor-pointer";
-  const inputCls = "bg-ob-bg border-ob-border text-ob-text-soft box-border w-full rounded-xl border px-4 py-3 text-[13px] outline-none";
-  const inputMonoCls = `${inputCls} font-mono`;
-  const smallBtn = "bg-ob-bg border-ob-border text-ob-text-dim cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-medium";
-  const accentBtn = "bg-teal/10 border-teal/25 text-teal cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold";
 
   return (
-    <div className="animate-fade-in space-y-5 pb-4">
+    <div>
       {/* Header */}
-      <div className="mb-2">
-        <h2 className="text-ob-text m-0 text-[22px] font-bold">Settings</h2>
-        <p className="text-ob-text-dim m-0 mt-1 text-[13px]">Manage your account and preferences</p>
+      <div>
+        <h2>Settings</h2>
+        <p>Manage your account and preferences</p>
       </div>
 
       {/* ── Account ── */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-        <div className="flex items-center justify-between">
+      <div>
+        <div>
           <div>
-            <p className="text-ob-text m-0 text-[14px] font-semibold">Account</p>
-            <p className="text-ob-text-muted mt-1 mb-0 text-[13px]">{email}</p>
+            <p>Account</p>
+            <p>{email}</p>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className={`${btn} bg-orange/10 text-orange`}
-          >
+          <button onClick={() => supabase.auth.signOut()}>
             Sign out
           </button>
         </div>
       </div>
 
       {/* ── Connection Status ── */}
-      <div className="bg-ob-surface border-ob-border overflow-hidden rounded-2xl border">
-        <div className="flex items-center justify-between px-5 py-4">
+      <div>
+        <div>
           <div>
-            <p className="text-ob-text m-0 text-[14px] font-semibold">AI Status</p>
-            <p className="text-ob-text-dim mt-0.5 mb-0 text-[12px]">Claude AI (Haiku)</p>
+            <p>AI Status</p>
+            <p>Claude AI (Haiku)</p>
           </div>
-          <button onClick={testAI} className={`${btn} bg-teal/10 text-teal`}>
+          <button onClick={testAI}>
             {testStatus === "testing-ai"
               ? "Testing…"
               : testStatus === "ai-success"
@@ -585,13 +559,13 @@ export default function SettingsView() {
                   : "Test"}
           </button>
         </div>
-        <div className="border-ob-border mx-5 border-t" />
-        <div className="flex items-center justify-between px-5 py-4">
+        <div />
+        <div>
           <div>
-            <p className="text-ob-text m-0 text-[14px] font-semibold">Database</p>
-            <p className="text-ob-text-dim mt-0.5 mb-0 text-[12px]">Supabase</p>
+            <p>Database</p>
+            <p>Supabase</p>
           </div>
-          <button onClick={testDB} className={`${btn} bg-teal/10 text-teal`}>
+          <button onClick={testDB}>
             {testStatus === "testing"
               ? "Testing…"
               : testStatus === "success"
@@ -604,15 +578,15 @@ export default function SettingsView() {
       </div>
 
       {/* ── Security PIN ── */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-        <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">Security PIN</p>
-        <p className="text-ob-text-dim m-0 mb-4 text-[13px] leading-relaxed">
+      <div>
+        <p>Security PIN</p>
+        <p>
           {pinSet
             ? "PIN is active — sensitive AI responses are protected."
             : "No PIN set — credentials in AI responses are shown unguarded."}
         </p>
-        <div className="flex gap-3">
-          <button onClick={() => setShowPinModal(true)} className={accentBtn}>
+        <div>
+          <button onClick={() => setShowPinModal(true)}>
             {pinSet ? "Change PIN" : "Set PIN"}
           </button>
           {pinSet && (
@@ -621,7 +595,6 @@ export default function SettingsView() {
                 removePin();
                 setPinSet(false);
               }}
-              className="bg-orange/10 border-orange/25 text-orange cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold"
             >
               Remove
             </button>
@@ -630,7 +603,7 @@ export default function SettingsView() {
       </div>
 
       {/* ── Notifications ── */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
+      <div>
         <NotificationSettings />
       </div>
 
@@ -639,23 +612,18 @@ export default function SettingsView() {
 
       {/* ── Brain Members ── */}
       {activeBrain && (
-        <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-          <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">
+        <div>
+          <p>
             {activeBrain.name} — Members
           </p>
           {members.length > 0 && (
-            <div className="mb-4 mt-3">
+            <div>
               {members.map((m) => (
-                <div
-                  key={m.user_id}
-                  className="border-ob-border flex items-center gap-2 border-b py-3"
-                >
-                  <span className="text-ob-text-soft flex-1 font-mono text-[13px]">
+                <div key={m.user_id}>
+                  <span>
                     {m.user_id.slice(0, 8)}…
                   </span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${m.role === "member" ? "bg-teal/10 text-teal" : "bg-ob-bg text-ob-text-dim"}`}
-                  >
+                  <span>
                     {m.role}
                   </span>
                   {canManageMembers && (
@@ -663,15 +631,11 @@ export default function SettingsView() {
                       <select
                         value={m.role}
                         onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
-                        className="bg-ob-bg border-ob-border text-ob-text-soft cursor-pointer rounded-lg border px-2 py-1.5 text-[12px] outline-none"
                       >
                         <option value="member">Member</option>
                         <option value="viewer">Viewer</option>
                       </select>
-                      <button
-                        onClick={() => handleRemoveMember(m.user_id)}
-                        className="bg-orange/10 border-orange/25 text-orange cursor-pointer rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold"
-                      >
+                      <button onClick={() => handleRemoveMember(m.user_id)}>
                         Remove
                       </button>
                     </>
@@ -681,20 +645,18 @@ export default function SettingsView() {
             </div>
           )}
           {canInvite && (
-            <div className="mt-3">
-              <p className="text-ob-text-dim m-0 mb-2.5 text-[13px]">Invite someone to this brain</p>
-              <div className="flex flex-wrap gap-2.5">
+            <div>
+              <p>Invite someone to this brain</p>
+              <div>
                 <input
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="their@email.com"
                   type="email"
-                  className={`${inputCls} min-w-[140px] flex-[2]`}
                 />
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
-                  className="bg-ob-bg border-ob-border text-ob-text-soft cursor-pointer rounded-xl border px-3 py-3 text-[12px] outline-none"
                 >
                   <option value="member">Member</option>
                   <option value="viewer">Viewer</option>
@@ -702,7 +664,6 @@ export default function SettingsView() {
                 <button
                   onClick={handleInvite}
                   disabled={!inviteEmail.trim() || inviteStatus === "sending"}
-                  className={inviteEmail.trim() ? accentBtn : smallBtn}
                 >
                   {inviteStatus === "sending"
                     ? "…"
@@ -716,38 +677,34 @@ export default function SettingsView() {
             </div>
           )}
           {!canInvite && (
-            <p className="text-ob-text-dim m-0 mt-2 text-[12px]">Only the brain owner can invite members.</p>
+            <p>Only the brain owner can invite members.</p>
           )}
         </div>
       )}
 
       {/* ── Advanced toggle ── */}
-      <button
-        onClick={() => setShowAdvanced((s) => !s)}
-        className="bg-ob-surface border-ob-border touch-target flex w-full cursor-pointer items-center justify-between rounded-2xl border px-5"
-      >
-        <div className="text-left">
-          <p className="text-ob-text m-0 text-[14px] font-semibold">Advanced</p>
-          <p className="text-ob-text-dim m-0 mt-0.5 text-[12px]">
+      <button onClick={() => setShowAdvanced((s) => !s)}>
+        <div>
+          <p>Advanced</p>
+          <p>
             AI provider, embeddings, voice, Telegram
           </p>
         </div>
-        <span className="text-ob-text-muted text-sm">{showAdvanced ? "▾" : "▸"}</span>
+        <span>{showAdvanced ? "▾" : "▸"}</span>
       </button>
 
       {showAdvanced && <>
       {/* AI Provider / BYO Key */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-        <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">AI Provider</p>
-        <p className="text-ob-text-dim m-0 mb-4 text-[12px] leading-relaxed">
+      <div>
+        <p>AI Provider</p>
+        <p>
           Use your own API key — no OpenBrain credits deducted. Leave blank to use the shared key.
         </p>
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div>
           {["anthropic", "openrouter"].map((p) => (
             <button
               key={p}
               onClick={() => saveByoProvider(p)}
-              className={`cursor-pointer rounded-full border px-4 py-2.5 text-[12px] font-semibold ${byoProvider === p ? "border-teal bg-teal/10 text-teal" : "border-ob-border bg-ob-bg text-ob-text-dim"}`}
             >
               {p === "openrouter" ? "OpenRouter" : p.charAt(0).toUpperCase() + p.slice(1)}
             </button>
@@ -755,36 +712,33 @@ export default function SettingsView() {
         </div>
         {byoProvider === "openrouter" ? (
           <>
-            <p className="text-ob-text-dim m-0 mb-2 text-[12px] leading-relaxed">
+            <p>
               OpenRouter lets you use hundreds of models with one key.{" "}
               <a
                 href="https://openrouter.ai/keys"
                 target="_blank"
                 rel="noreferrer"
-                className="text-teal"
               >
                 Get a key →
               </a>
             </p>
-            <div className="mb-4">
-              <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">
+            <div>
+              <p>
                 OpenRouter API Key
               </p>
-              <div className="flex gap-2">
+              <div>
                 <input
                   type={showKey ? "text" : "password"}
                   value={orKey}
                   onChange={(e) => saveOrKey(e.target.value)}
                   placeholder="sk-or-..."
-                  className={`${inputMonoCls} flex-1`}
                 />
-                <button onClick={() => setShowKey((s) => !s)} className={smallBtn}>
+                <button onClick={() => setShowKey((s) => !s)}>
                   {showKey ? "Hide" : "Show"}
                 </button>
                 <button
                   onClick={testByoKey}
                   disabled={!orKey}
-                  className={orKey ? accentBtn : smallBtn}
                 >
                   {byoTestStatus === "testing"
                     ? "…"
@@ -797,10 +751,10 @@ export default function SettingsView() {
               </div>
             </div>
             <div>
-              <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">
+              <p>
                 Model{" "}
                 {orModels.length > 0 && (
-                  <span className="text-ob-text-faint font-normal">
+                  <span>
                     ({orModels.length} available)
                   </span>
                 )}
@@ -808,7 +762,6 @@ export default function SettingsView() {
               <select
                 value={orModel}
                 onChange={(e) => saveOrModel(e.target.value)}
-                className={`${inputCls} cursor-pointer`}
               >
                 {(orModels.length > 0
                   ? orModels.map((m) => ({
@@ -822,37 +775,34 @@ export default function SettingsView() {
                   </option>
                 ))}
               </select>
-              <p className="text-ob-text-faint mt-2 mb-0 text-[11px]">
+              <p>
                 Tip: choose a model with ZDR (zero data retention) for sensitive entries.
               </p>
             </div>
           </>
         ) : (
           <>
-            <div className="mb-4">
-              <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">API Key</p>
-              <div className="flex gap-2">
+            <div>
+              <p>API Key</p>
+              <div>
                 <input
                   type={showKey ? "text" : "password"}
                   value={byoKey}
                   onChange={(e) => saveByoKey(e.target.value)}
                   placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."}
-                  className={`${inputMonoCls} flex-1`}
                 />
-                <button onClick={() => setShowKey((s) => !s)} className={smallBtn}>
+                <button onClick={() => setShowKey((s) => !s)}>
                   {showKey ? "Hide" : "Show"}
                 </button>
                 <button
                   onClick={handleSaveKey}
                   disabled={!byoKey}
-                  className={keySaved ? "bg-green/10 border-green/25 text-green cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold" : byoKey ? accentBtn : smallBtn}
                 >
                   {keySaved ? "Saved!" : "Save"}
                 </button>
                 <button
                   onClick={testByoKey}
                   disabled={!byoKey}
-                  className={byoKey ? accentBtn : smallBtn}
                 >
                   {byoTestStatus === "testing"
                     ? "…"
@@ -865,11 +815,10 @@ export default function SettingsView() {
               </div>
             </div>
             <div>
-              <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">Model</p>
+              <p>Model</p>
               <select
                 value={byoModel}
                 onChange={(e) => saveByoModel(e.target.value)}
-                className={`${inputCls} cursor-pointer`}
               >
                 {modelOptions.map((m) => (
                   <option key={m} value={m}>
@@ -883,71 +832,67 @@ export default function SettingsView() {
       </div>
 
       {/* Embedding Provider */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-        <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">Semantic Search & RAG</p>
-        <p className="text-ob-text-dim m-0 mb-4 text-[12px] leading-relaxed">
+      <div>
+        <p>Semantic Search & RAG</p>
+        <p>
           Powers semantic search, RAG chat, and smarter connection discovery. Requires a separate
           embedding API key.
         </p>
-        <div className="mb-4 flex gap-2">
+        <div>
           {["openai", "google"].map((p) => (
             <button
               key={p}
               onClick={() => saveEmbedProvider(p)}
-              className={`cursor-pointer rounded-full border px-4 py-2.5 text-[12px] font-semibold ${embedProvider === p ? "border-purple bg-purple/10 text-purple" : "border-ob-border bg-ob-bg text-ob-text-dim"}`}
             >
               {p === "openai" ? "OpenAI" : "Google"}
             </button>
           ))}
         </div>
         {embedProvider === "openai" ? (
-          <div className="mb-3">
-            <p className="text-ob-text-dim m-0 mb-1.5 text-[11px] font-semibold">
+          <div>
+            <p>
               OpenAI API Key{" "}
-              <span className="text-ob-text-faint font-normal">(text-embedding-3-small)</span>
+              <span>(text-embedding-3-small)</span>
             </p>
-            <div className="flex gap-2">
+            <div>
               <input
                 type={showEmbedKey ? "text" : "password"}
                 value={embedOpenAIKey}
                 onChange={(e) => saveEmbedOpenAIKey(e.target.value)}
                 placeholder="sk-..."
-                className={`${inputMonoCls} flex-1`}
               />
-              <button onClick={() => setShowEmbedKey((s) => !s)} className={smallBtn}>
+              <button onClick={() => setShowEmbedKey((s) => !s)}>
                 {showEmbedKey ? "Hide" : "Show"}
               </button>
             </div>
           </div>
         ) : (
-          <div className="mb-4">
-            <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">
+          <div>
+            <p>
               Google Gemini API Key{" "}
-              <span className="text-ob-text-faint font-normal">(text-embedding-004)</span>
+              <span>(text-embedding-004)</span>
             </p>
-            <div className="flex gap-2">
+            <div>
               <input
                 type={showEmbedKey ? "text" : "password"}
                 value={geminiKey}
                 onChange={(e) => saveGeminiKey(e.target.value)}
                 placeholder="AIza..."
-                className={`${inputMonoCls} flex-1`}
               />
-              <button onClick={() => setShowEmbedKey((s) => !s)} className={smallBtn}>
+              <button onClick={() => setShowEmbedKey((s) => !s)}>
                 {showEmbedKey ? "Hide" : "Show"}
               </button>
             </div>
           </div>
         )}
         {activeBrain && (
-          <div className="flex flex-wrap items-center gap-3">
+          <div>
             <button
               onClick={() => handleReembed()}
               disabled={
                 embedStatus === "running" ||
                 !(embedProvider === "google" ? geminiKey : embedOpenAIKey)
               }
-              className={`${(embedProvider === "google" ? geminiKey : embedOpenAIKey) ? "bg-purple/10 border-purple/25 text-purple" : "bg-ob-bg border-ob-border text-ob-text-faint"} cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold`}
             >
               {embedStatus?.startsWith("running")
                 ? `Embedding…${embedStatus.includes(":") ? ` (${embedStatus.split(":")[1]})` : ""}`
@@ -959,12 +904,11 @@ export default function SettingsView() {
                 embedStatus?.startsWith("running") ||
                 !(embedProvider === "google" ? geminiKey : embedOpenAIKey)
               }
-              className={`${(embedProvider === "google" ? geminiKey : embedOpenAIKey) ? "bg-orange/10 border-orange/25 text-orange" : "bg-ob-bg border-ob-border text-ob-text-faint"} cursor-pointer rounded-xl border px-4 py-3 text-[12px] font-semibold`}
             >
               Re-embed all
             </button>
             {embedStatus && !embedStatus.startsWith("running") && (
-              <span className={`text-[12px] ${embedStatus.startsWith("error") ? "text-orange" : "text-purple"}`}>
+              <span>
                 {embedStatus.startsWith("error")
                   ? `✗ ${embedStatus.split(":").slice(1).join(":") || "Failed"}`
                   : (() => {
@@ -975,31 +919,30 @@ export default function SettingsView() {
             )}
           </div>
         )}
-        <p className="text-ob-text-faint mt-3 mb-0 text-[11px]">
+        <p>
           New entries are embedded automatically. Use "Embed all" to backfill or after switching providers.
         </p>
       </div>
 
       {/* Voice Transcription */}
-      <div className="bg-ob-surface border-ob-border rounded-2xl border px-5 py-5">
-        <p className="text-ob-text m-0 mb-1 text-[14px] font-semibold">Voice Transcription</p>
-        <p className="text-ob-text-dim m-0 mb-4 text-[12px] leading-relaxed">
+      <div>
+        <p>Voice Transcription</p>
+        <p>
           Powers the mic button in Quick Capture. Uses Groq Whisper (fast, free tier).{" "}
           <a
             href="https://console.groq.com/keys"
             target="_blank"
             rel="noreferrer"
-            className="text-teal"
           >
             Get a free key →
           </a>
         </p>
         <div>
-          <p className="text-ob-text-dim m-0 mb-2 text-[12px] font-semibold">
+          <p>
             Groq API Key{" "}
-            <span className="text-ob-text-faint font-normal">(whisper-large-v3-turbo)</span>
+            <span>(whisper-large-v3-turbo)</span>
           </p>
-          <div className="flex gap-2">
+          <div>
             <input
               type={showGroqKey ? "text" : "password"}
               value={groqKeyVal}
@@ -1008,13 +951,12 @@ export default function SettingsView() {
                 setGroqKey(e.target.value);
               }}
               placeholder="gsk_..."
-              className={`${inputMonoCls} flex-1`}
             />
-            <button onClick={() => setShowGroqKey((s) => !s)} className={smallBtn}>
+            <button onClick={() => setShowGroqKey((s) => !s)}>
               {showGroqKey ? "Hide" : "Show"}
             </button>
           </div>
-          <p className="text-ob-text-faint mt-2 mb-0 text-[10px]">
+          <p>
             Also works with an OpenAI key (set above) — but Groq is faster and free.
           </p>
         </div>
