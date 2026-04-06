@@ -1,15 +1,17 @@
 // @ts-nocheck
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import PropTypes from "prop-types";
+import { useTheme } from "../ThemeContext";
 import { callAI } from "../lib/ai";
 import { aiFetch, getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiFetch";
 import { encryptEntry } from "../lib/crypto";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
-import { findConnections } from "../lib/connectionFinder";
-import { findCandidateMatches } from "../lib/duplicateDetection";
+import { findConnections, scoreTitle } from "../lib/connectionFinder";
+import { recordDecision } from "../lib/learningEngine";
 import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
-import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64, isCsvFile, parseCsvTransactions } from "../lib/fileParser";
+import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
 import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse } from "../lib/fileSplitter";
 
 const BRAIN_META_QC = {
@@ -18,11 +20,8 @@ const BRAIN_META_QC = {
   business: { emoji: "🏪" },
 };
 
-// Detects sensitive content that should bypass AI
-const SENSITIVE_RE =
-  /\b(password|passcode|passphrase|credentials|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|id\s*number|passport\s*number|secret\s*key|secret\s*word|pin\s*number|access\s*code|credit\s*card|cvv|api\s*key|private\s*key|2fa|backup\s*code)\b/i;
-
 function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
+  const { t } = useTheme();
   const [title, setTitle] = useState(preview.title || "");
   const [type, setType] = useState(preview.type || "note");
   const [tags, setTags] = useState((preview.tags || []).join(", "));
@@ -30,12 +29,8 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
     "w-full box-border px-3 py-2 bg-ob-bg border border-ob-accent-border rounded-lg text-ob-text-soft text-[13px] outline-none font-[inherit]";
   const dupes = useMemo(() => {
     if (!title.trim()) return [];
-    return findCandidateMatches(
-      { title, content: preview.content, tags: preview.tags },
-      entries,
-      40,
-    );
-  }, [title, entries, preview.content, preview.tags]);
+    return entries.filter((e) => scoreTitle(title, e.title) > 50).slice(0, 3);
+  }, [title, entries]);
   return (
     <div
       className="fixed inset-0 z-[900] flex items-end justify-center bg-black/80"
@@ -93,54 +88,36 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
         </div>
         {dupes.length > 0 && (
           <div
-            className="mt-3.5 rounded-xl border border-[#FFEAA7]/30 bg-[#FFEAA7]/[0.08] p-3.5"
+            className="mt-3.5 rounded-[10px]"
+            style={{ padding: "10px 14px", background: "#FFEAA710", border: "1px solid #FFEAA730" }}
           >
-            <p className="text-yellow m-0 mb-1 text-[12px] font-bold">
-              Similar entries found — update instead?
+            <p className="text-yellow m-0 mb-2 text-[11px] font-bold">
+              ⚠ Similar entries found — update one instead?
             </p>
-            <p className="text-ob-text-dim m-0 mb-2.5 text-[11px]">
-              This might be an update to an existing entry. Tap "Update" to merge, or scroll down to save as new.
-            </p>
-            {dupes.map(({ entry: d, score }) => {
-              const isAISuggested = preview._suggestedUpdateId === d.id;
-              return (
-              <div key={d.id} className={`mb-2 flex items-center gap-2 rounded-lg px-3 py-2 ${isAISuggested ? "border-2 border-[#4ECDC4]/50 bg-[#4ECDC4]/[0.08]" : "border border-[#FFEAA7]/20 bg-[#FFEAA7]/[0.04]"}`}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{TC[d.type]?.i || "📝"}</span>
-                    <span className="text-ob-text-mid truncate text-[13px] font-semibold">{d.title}</span>
-                    {isAISuggested && (
-                      <span className="rounded-full bg-[#4ECDC4]/20 px-1.5 py-px text-[9px] font-bold text-[#4ECDC4]">AI suggested</span>
-                    )}
-                  </div>
-                  {d.content && (
-                    <p className="text-ob-text-dim m-0 mt-0.5 truncate text-[11px]">{d.content.slice(0, 80)}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={`text-[10px] ${isAISuggested ? "text-[#4ECDC4]" : "text-[#FFEAA7]"}`}>{score}% match</span>
-                  <button
-                    onClick={() => {
-                      onUpdate(d.id, {
-                        title: title.trim(),
-                        type,
-                        tags: tags
-                          .split(",")
-                          .map((t) => t.trim())
-                          .filter(Boolean),
-                        content: preview.content,
-                        metadata: preview.metadata,
-                      });
-                      onCancel();
-                    }}
-                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-[12px] font-bold ${isAISuggested ? "border border-[#4ECDC4]/50 bg-[#4ECDC4]/20 text-[#4ECDC4]" : "border border-[#FFEAA7]/50 bg-[#FFEAA7]/20 text-[#FFEAA7]"}`}
-                  >
-                    Update
-                  </button>
-                </div>
+            {dupes.map((d) => (
+              <div key={d.id} className="mb-1 flex items-center justify-between">
+                <span className="text-ob-text-mid text-xs">• {d.title}</span>
+                <button
+                  onClick={() => {
+                    onUpdate(d.id, {
+                      title: title.trim(),
+                      type,
+                      tags: tags
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter(Boolean),
+                      content: preview.content,
+                      metadata: preview.metadata,
+                    });
+                    onCancel();
+                  }}
+                  className="text-yellow cursor-pointer rounded-md px-2 py-[3px] text-[11px]"
+                  style={{ background: "#FFEAA720", border: "1px solid #FFEAA750" }}
+                >
+                  Update this
+                </button>
               </div>
-            );
-            })}
+            ))}
           </div>
         )}
         <div className="mt-5 flex gap-2.5">
@@ -193,6 +170,7 @@ export default function QuickCapture({
   cryptoKey = null,
   onNavigate = null,
 }) {
+  const { t } = useTheme();
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
@@ -201,10 +179,6 @@ export default function QuickCapture({
   // Multi-brain: which brains to capture into (primary = first element)
   const [selectedBrainIds, setSelectedBrainIds] = useState(() => (brainId ? [brainId] : []));
   const [multiPreview, setMultiPreview] = useState(null); // array of parsed entries from file split
-  const [directMode, setDirectMode] = useState(false); // bypass AI for secrets
-  const [directTitle, setDirectTitle] = useState("");
-  const [directTags, setDirectTags] = useState("");
-  const [fileProgress, setFileProgress] = useState(null); // { current, total, name }
   const imgRef = useRef(null);
   const fileRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -280,243 +254,113 @@ export default function QuickCapture({
     setStatus(null);
   };
 
-  // Process a single file and return extracted text
-  const extractFileText = async (file) => {
-    if (isTextFile(file)) {
-      return await readTextFile(file);
-    }
-    // PDF/DOCX: send to AI for text extraction
-    const { base64, mimeType } = await readFileAsBase64(file);
-    const isPdf = file.name.toLowerCase().endsWith(".pdf");
-    const contentBlock = isPdf
-      ? {
-          type: "document",
-          source: { type: "base64", media_type: "application/pdf", data: base64 },
-        }
-      : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
-
-    const apiRes = await aiFetch("/api/anthropic", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: getUserModel(),
-        max_tokens: 4000,
-        messages: [
-          {
-            role: "user",
-            content: [
-              contentBlock,
-              {
-                type: "text",
-                text: "Extract ALL text from this document. Preserve structure, headings, lists. Output just the extracted content, clean and readable. No commentary.",
-              },
-            ],
-          },
-        ],
-      }),
-    });
-    const data = await apiRes.json();
-    return data.content?.[0]?.text?.trim() || "";
-  };
-
-  // Process a single file through the split/capture pipeline, returning parsed entries
-  const processFileToEntries = async (file) => {
-    // CSV bank statement detection
-    if (isCsvFile(file)) {
-      const csvText = await readTextFile(file);
-      const transactions = parseCsvTransactions(csvText);
-      if (transactions.length > 0) {
-        // Convert transactions to entries — use AI to batch-categorize
-        const txSummary = transactions.slice(0, 50).map((tx) =>
-          `${tx.date} | ${tx.description} | ${tx.amount}`
-        ).join("\n");
-
-        try {
-          const catRes = await callAI({
-            system: `You categorize bank transactions. Given a list of transactions (date | description | amount), return a JSON array with one category per transaction. Categories: groceries, dining, transport, utilities, entertainment, health, shopping, salary, transfer, fees, insurance, rent, other. Return ONLY a JSON array of strings, same length as input. Example: ["groceries","dining","transport"]`,
-            max_tokens: 1000,
-            messages: [{ role: "user", content: txSummary }],
-          });
-          const catData = await catRes.json();
-          let categories = [];
-          try {
-            categories = JSON.parse((catData.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim());
-          } catch {}
-
-          return transactions.slice(0, 50).map((tx, i) => ({
-            title: tx.description.slice(0, 60) || `Transaction ${tx.date}`,
-            content: `${tx.date} — ${tx.description}. Amount: ${tx.amount}${tx.balance ? `. Balance: ${tx.balance}` : ""}`,
-            type: "note",
-            tags: [categories[i] || "uncategorized", "finance", "transaction"],
-            metadata: {
-              amount: tx.amount,
-              transaction_date: tx.date,
-              category: categories[i] || "uncategorized",
-            },
-          }));
-        } catch {
-          // Fallback: no AI categorization
-          return transactions.slice(0, 50).map((tx) => ({
-            title: tx.description.slice(0, 60) || `Transaction ${tx.date}`,
-            content: `${tx.date} — ${tx.description}. Amount: ${tx.amount}${tx.balance ? `. Balance: ${tx.balance}` : ""}`,
-            type: "note",
-            tags: ["finance", "transaction"],
-            metadata: { amount: tx.amount, transaction_date: tx.date },
-          }));
-        }
-      }
-      // Not a bank statement CSV — fall through to normal text processing
-    }
-
-    const extractedText = await extractFileText(file);
-    if (!extractedText) return [];
-
-    if (shouldSplitContent(extractedText)) {
-      const brainType = brains.find((b) => b.id === primaryBrainId)?.type || "personal";
-      const splitRes = await callAI({
-        max_tokens: 4000,
-        system: PROMPTS.FILE_SPLIT,
-        messages: [{ role: "user", content: buildSplitPrompt(extractedText, brainType) }],
-      });
-      const splitData = await splitRes.json();
-      const raw = splitData.content?.[0]?.text || "[]";
-      const parsedEntries = parseAISplitResponse(raw);
-      if (parsedEntries.length > 0) return parsedEntries;
-    }
-
-    // Single entry fallback: classify via AI
-    const res = await callAI({
-      system: PROMPTS.CAPTURE,
-      max_tokens: 800,
-      messages: [{ role: "user", content: extractedText }],
-    });
-    const data = await res.json();
-    try {
-      const parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
-      if (parsed.title) return [parsed];
-    } catch {}
-    return [{ title: file.name.replace(/\.[^.]+$/, ""), content: extractedText, type: "note", tags: [], metadata: {} }];
-  };
-
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     e.target.value = "";
-
     if (!isOnline) {
       setStatus("offline-image");
       setTimeout(() => setStatus(null), 3000);
       return;
     }
-
-    // Validate all files
-    const unsupported = files.filter((f) => !isSupportedFile(f));
-    if (unsupported.length === files.length) {
+    if (!isSupportedFile(file)) {
       setStatus("unsupported-file");
       setTimeout(() => setStatus(null), 3000);
       return;
     }
-    const tooLarge = files.filter((f) => f.size > 10 * 1024 * 1024);
-    if (tooLarge.length > 0) {
+    if (file.size > 10 * 1024 * 1024) {
       setStatus("file-too-large");
       setTimeout(() => setStatus(null), 3000);
       return;
     }
+    setLoading(true);
+    setStatus("reading-file");
 
-    const validFiles = files.filter((f) => isSupportedFile(f) && f.size <= 10 * 1024 * 1024);
+    try {
+      let extractedText = "";
 
-    // Single file: use original flow (show preview)
-    if (validFiles.length === 1) {
-      const file = validFiles[0];
-      setLoading(true);
-      setStatus("reading-file");
+      if (isTextFile(file)) {
+        // Text files: read directly
+        extractedText = await readTextFile(file);
+      } else {
+        // PDF/DOCX: send to AI for text extraction
+        const { base64, mimeType } = await readFileAsBase64(file);
+        const isPdf = file.name.toLowerCase().endsWith(".pdf");
+        const contentBlock = isPdf
+          ? {
+              type: "document",
+              source: { type: "base64", media_type: "application/pdf", data: base64 },
+            }
+          : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
 
-      // CSV bank statement: parse and show multi-entry preview
-      if (isCsvFile(file)) {
-        try {
-          const parsed = await processFileToEntries(file);
-          setLoading(false);
-          if (parsed.length > 0) {
-            setStatus(null);
-            setMultiPreview(parsed);
-          } else {
-            setStatus("file-empty");
-            setTimeout(() => setStatus(null), 3000);
-          }
-        } catch (err) {
-          console.error("[csvUpload] error:", err);
-          setStatus("error");
-          setLoading(false);
-          setTimeout(() => setStatus(null), 3000);
-        }
+        const apiRes = await aiFetch("/api/anthropic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: getUserModel(),
+            max_tokens: 4000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  contentBlock,
+                  {
+                    type: "text",
+                    text: "Extract ALL text from this document. Preserve structure, headings, lists. Output just the extracted content, clean and readable. No commentary.",
+                  },
+                ],
+              },
+            ],
+          }),
+        });
+        const data = await apiRes.json();
+        extractedText = data.content?.[0]?.text?.trim() || "";
+      }
+
+      if (!extractedText) {
+        setStatus("file-empty");
+        setTimeout(() => setStatus(null), 3000);
+        setLoading(false);
         return;
       }
 
-      try {
-        const extractedText = await extractFileText(file);
-        if (!extractedText) {
-          setStatus("file-empty");
-          setTimeout(() => setStatus(null), 3000);
+      // Check if content should be split into multiple entries
+      if (shouldSplitContent(extractedText)) {
+        setStatus("splitting");
+        const brainType = brains.find((b) => b.id === primaryBrainId)?.type || "personal";
+        const splitRes = await callAI({
+          max_tokens: 4000,
+          system: PROMPTS.FILE_SPLIT,
+          brainId: primaryBrainId,
+          messages: [{ role: "user", content: buildSplitPrompt(extractedText, brainType) }],
+        });
+        const splitData = await splitRes.json();
+        const raw = splitData.content?.[0]?.text || "[]";
+        const entries = parseAISplitResponse(raw);
+
+        if (entries.length > 1) {
+          // Show multi-entry preview
           setLoading(false);
+          setStatus(null);
+          setMultiPreview(entries);
+          return;
+        } else if (entries.length === 1) {
+          // Single entry — show normal preview
+          setLoading(false);
+          setStatus(null);
+          setPreview({ ...entries[0], _raw: extractedText });
           return;
         }
-        if (shouldSplitContent(extractedText)) {
-          setStatus("splitting");
-          const brainType = brains.find((b) => b.id === primaryBrainId)?.type || "personal";
-          const splitRes = await callAI({
-            max_tokens: 4000,
-            system: PROMPTS.FILE_SPLIT,
-            messages: [{ role: "user", content: buildSplitPrompt(extractedText, brainType) }],
-          });
-          const splitData = await splitRes.json();
-          const raw = splitData.content?.[0]?.text || "[]";
-          const parsedEntries = parseAISplitResponse(raw);
-          if (parsedEntries.length > 1) {
-            setLoading(false);
-            setStatus(null);
-            setMultiPreview(parsedEntries);
-            return;
-          } else if (parsedEntries.length === 1) {
-            setLoading(false);
-            setStatus(null);
-            setPreview({ ...parsedEntries[0], _raw: extractedText });
-            return;
-          }
-        }
-        setText(extractedText);
-      } catch (err) {
-        console.error("[fileUpload] error:", err);
-        setStatus("error");
       }
-      setLoading(false);
-      setTimeout(() => setStatus(null), 3000);
-      return;
-    }
 
-    // Multi-file: process sequentially, collect all parsed entries, show preview
-    setLoading(true);
-    const allEntries = [];
-    for (let i = 0; i < validFiles.length; i++) {
-      const file = validFiles[i];
-      setFileProgress({ current: i + 1, total: validFiles.length, name: file.name });
-      setStatus("reading-file");
-      try {
-        const parsed = await processFileToEntries(file);
-        allEntries.push(...parsed);
-      } catch (err) {
-        console.error(`[multiFileUpload] error on ${file.name}:`, err);
-      }
+      // Fallback: use normal capture flow with extracted text
+      setText(extractedText);
+    } catch (err) {
+      console.error("[fileUpload] error:", err);
+      setStatus("error");
     }
-    setFileProgress(null);
     setLoading(false);
-
-    if (allEntries.length > 0) {
-      setStatus(null);
-      setMultiPreview(allEntries);
-    } else {
-      setStatus("file-empty");
-      setTimeout(() => setStatus(null), 3000);
-    }
+    setTimeout(() => setStatus(null), 3000);
   };
 
   const saveMultiEntries = async (entriesToSave) => {
@@ -726,6 +570,29 @@ export default function QuickCapture({
 
   const doSave = useCallback(
     async (parsed) => {
+      // Track capture edits as learnings (compare AI original vs user's final)
+      if (preview && primaryBrainId) {
+        if (preview.type && parsed.type && preview.type !== parsed.type) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TYPE", action: "edit",
+            field: "type", originalValue: preview.type, finalValue: parsed.type,
+          });
+        }
+        if (preview.title && parsed.title && preview.title !== parsed.title) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TITLE", action: "edit",
+            field: "title", originalValue: preview.title, finalValue: parsed.title,
+          });
+        }
+        const origTags = (preview.tags || []).sort().join(",");
+        const finalTags = (parsed.tags || []).sort().join(",");
+        if (origTags !== finalTags) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TAGS", action: "edit",
+            field: "tags", originalValue: origTags, finalValue: finalTags,
+          });
+        }
+      }
       setPreview(null);
       setLoading(true);
       setStatus("saving");
@@ -935,21 +802,11 @@ export default function QuickCapture({
       return;
     }
     try {
-      // Build context of existing entries so AI can flag updates
-      const recentEntries = entries.slice(0, 30).map((e) => ({
-        id: e.id,
-        title: e.title,
-        type: e.type,
-        tags: e.tags?.slice(0, 5),
-      }));
-      const contextSuffix = recentEntries.length > 0
-        ? `\n\nEXISTING ENTRIES:\n${JSON.stringify(recentEntries)}`
-        : "";
-
       const res = await callAI({
         system: PROMPTS.CAPTURE,
         max_tokens: 800,
-        messages: [{ role: "user", content: input + contextSuffix }],
+        brainId: primaryBrainId,
+        messages: [{ role: "user", content: input }],
       });
       const data = await res.json();
       let parsed = {};
@@ -959,8 +816,7 @@ export default function QuickCapture({
       if (parsed.title) {
         setLoading(false);
         setStatus(null);
-        // If AI flagged an update_id, pre-select that entry in the preview
-        setPreview({ ...parsed, _raw: input, _suggestedUpdateId: parsed.update_id || null });
+        setPreview({ ...parsed, _raw: input });
         return;
       }
       const newEntry = {
@@ -1028,77 +884,6 @@ export default function QuickCapture({
     "file-empty": "⚠️ Could not extract text from file",
     "vault-needed": "🔐 Set up your Vault first to save secrets",
     "mic-denied": "🎤 Microphone access denied — check your browser/phone settings",
-    "direct-saved": "🛡️ Saved securely — AI never saw this data",
-  };
-
-  // Auto-detect sensitive input and suggest direct mode
-  const textLooksSensitive = SENSITIVE_RE.test(text);
-
-  const saveDirectEntry = async () => {
-    const title = directTitle.trim();
-    const content = text.trim();
-    if (!title) return;
-    setLoading(true);
-    setStatus("saving");
-    try {
-      const parsed = {
-        title,
-        content,
-        type: "secret",
-        tags: directTags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-        metadata: {},
-      };
-      // Encrypt locally — AI never sees this
-      if (!cryptoKey) {
-        setStatus("vault-needed");
-        setLoading(false);
-        return;
-      }
-      const encrypted = await encryptEntry(
-        { content: parsed.content, metadata: parsed.metadata },
-        cryptoKey,
-      );
-      const rpcRes = await authFetch("/api/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          p_title: parsed.title,
-          p_content: encrypted.content,
-          p_type: "secret",
-          p_metadata: encrypted.metadata,
-          p_tags: parsed.tags,
-          p_brain_id: primaryBrainId,
-          p_extra_brain_ids: extraBrainIds,
-        }),
-      });
-      if (rpcRes.ok) {
-        const result = await rpcRes.json();
-        const newEntry = {
-          id: result?.id || Date.now().toString(),
-          ...parsed,
-          pinned: false,
-          importance: 0,
-          created_at: new Date().toISOString(),
-        };
-        setEntries((prev) => [newEntry, ...prev]);
-        onCreated?.(newEntry);
-        setText("");
-        setDirectTitle("");
-        setDirectTags("");
-        setDirectMode(false);
-        setStatus("direct-saved");
-      } else {
-        setStatus("error");
-      }
-    } catch (e) {
-      console.error("[directSave]", e);
-      setStatus("error");
-    }
-    setLoading(false);
-    setTimeout(() => setStatus(null), 3000);
   };
 
   if (!canWrite) {
@@ -1125,7 +910,6 @@ export default function QuickCapture({
         <input
           type="file"
           accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          multiple
           ref={fileRef}
           onChange={handleFileUpload}
           className="hidden"
@@ -1135,7 +919,6 @@ export default function QuickCapture({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && capture()}
           disabled={loading}
-          aria-label="Quick capture input"
           placeholder={
             listening
               ? "Listening..."
@@ -1143,71 +926,124 @@ export default function QuickCapture({
                 ? "Processing..."
                 : "Quick capture — just type anything..."
           }
-          className={`min-w-0 flex-1 rounded-[10px] border px-3.5 py-2.5 text-sm font-[inherit] text-ob-text-soft outline-none ${
-            listening
-              ? "border-whisper/25 bg-[#1a2e1a]"
-              : "border-ob-border bg-ob-surface"
-          } ${loading ? "opacity-50" : ""}`}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: "10px 14px",
+            background: listening ? "#1a2e1a" : t.surface,
+            border: `1px solid ${listening ? "#25D36640" : t.border}`,
+            borderRadius: 10,
+            color: t.textSoft,
+            fontSize: 14,
+            outline: "none",
+            fontFamily: "inherit",
+            opacity: loading ? 0.5 : 1,
+          }}
         />
         <button
           onClick={startVoice}
           disabled={loading}
-          aria-label="Voice capture"
           title="Voice capture"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border p-0 text-base ${
-            listening
-              ? "border-whisper/25 bg-whisper/[0.12] text-whisper"
-              : "border-ob-border bg-ob-surface text-ob-text-muted"
-          } ${loading ? "cursor-default" : "cursor-pointer"}`}
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: listening ? "#25D36620" : t.surface,
+            border: `1px solid ${listening ? "#25D36640" : t.border}`,
+            borderRadius: 10,
+            color: listening ? "#25D366" : t.textMuted,
+            cursor: loading ? "default" : "pointer",
+            fontSize: 16,
+            padding: 0,
+          }}
         >
           🎤
         </button>
         <button
           onClick={() => imgRef.current?.click()}
           disabled={loading}
-          aria-label="Photo capture"
           title="Photo capture"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-ob-border bg-ob-surface p-0 text-base ${
-            loading ? "cursor-default text-ob-text-dim" : "cursor-pointer text-ob-text-muted"
-          }`}
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: t.surface,
+            border: `1px solid ${t.border}`,
+            borderRadius: 10,
+            color: loading ? t.textDim : t.textMuted,
+            cursor: loading ? "default" : "pointer",
+            fontSize: 16,
+            padding: 0,
+          }}
         >
           📷
         </button>
         <button
           onClick={() => fileRef.current?.click()}
           disabled={loading}
-          aria-label="Upload files"
-          title="Upload files (PDF, Word, MD, TXT, CSV — multi-select supported)"
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border border-ob-border bg-ob-surface p-0 text-base ${
-            loading ? "cursor-default text-ob-text-dim" : "cursor-pointer text-ob-text-muted"
-          }`}
+          title="Upload file (PDF, Word, MD, TXT)"
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: t.surface,
+            border: `1px solid ${t.border}`,
+            borderRadius: 10,
+            color: loading ? t.textDim : t.textMuted,
+            cursor: loading ? "default" : "pointer",
+            fontSize: 16,
+            padding: 0,
+          }}
         >
           📄
         </button>
         <button
           onClick={capture}
           disabled={loading || !text.trim()}
-          aria-label="Save entry"
           title={`Save to ${(BRAIN_META_QC[brains[0]?.type] || BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`}
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border-none p-0 text-lg font-bold ${
-            text.trim() && !loading
-              ? "gradient-accent cursor-pointer text-[#0f0f23]"
-              : "bg-ob-surface cursor-default text-ob-text-faint"
-          }`}
+          style={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background:
+              text.trim() && !loading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface,
+            border: "none",
+            borderRadius: 10,
+            color: text.trim() && !loading ? "#0f0f23" : t.textFaint,
+            fontWeight: 700,
+            cursor: text.trim() && !loading ? "pointer" : "default",
+            fontSize: 18,
+            padding: 0,
+          }}
         >
           +
         </button>
       </div>
       {status && (
-        <div className="mt-1.5 ml-1 flex items-center gap-2">
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 0 4px" }}>
           <p
-            className={`m-0 text-[11px] ${
-              status === "vault-needed"
-                ? "text-red"
-                : status.includes("error")
-                  ? "text-orange"
-                  : "text-teal"
-            }`}
+            style={{
+              fontSize: 11,
+              color:
+                status === "vault-needed"
+                  ? "#FF4757"
+                  : status.includes("error")
+                    ? "#FF6B35"
+                    : "#4ECDC4",
+              margin: 0,
+            }}
           >
             {statusMsg[status]}
           </p>
@@ -1217,115 +1053,19 @@ export default function QuickCapture({
                 onNavigate("vault");
                 setStatus(null);
               }}
-              className="cursor-pointer rounded-md border border-red/25 bg-red/[0.12] px-2.5 py-0.5 text-[11px] font-semibold text-red"
+              style={{
+                fontSize: 11,
+                padding: "3px 10px",
+                background: "#FF475720",
+                border: "1px solid #FF475740",
+                borderRadius: 6,
+                color: "#FF4757",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
             >
               Open Vault
             </button>
-          )}
-        </div>
-      )}
-      {/* Multi-file progress */}
-      {fileProgress && (
-        <div className="mx-0 mt-2 flex items-center gap-2 rounded-[10px] border border-[#4ECDC4]/30 bg-[#4ECDC4]/[0.08] px-3 py-2">
-          <span className="text-sm">📄</span>
-          <span className="text-[11px] text-[#4ECDC4]">
-            Processing file {fileProgress.current} of {fileProgress.total}
-          </span>
-          <span className="text-ob-text-dim truncate text-[11px]">{fileProgress.name}</span>
-        </div>
-      )}
-      {/* Sensitive content banner — suggest direct mode */}
-      {textLooksSensitive && !directMode && !loading && text.trim() && (
-        <div
-          className="mx-0 mt-2 flex items-center gap-2 rounded-[10px] border border-[#FF4757]/30 bg-[#FF4757]/[0.08] px-3 py-2"
-        >
-          <span className="text-sm">🛡️</span>
-          <span className="text-[11px] text-[#FF6B81]">
-            This looks sensitive. Save directly without AI?
-          </span>
-          <button
-            onClick={() => setDirectMode(true)}
-            className="ml-auto cursor-pointer rounded-md border border-[#FF4757]/40 bg-[#FF4757]/20 px-2.5 py-1 text-[11px] font-semibold text-[#FF4757]"
-          >
-            Direct Entry
-          </button>
-        </div>
-      )}
-      {/* Direct entry form — bypasses AI completely */}
-      {directMode && (
-        <div className="mt-2 rounded-xl border border-[#FF4757]/25 bg-[#FF4757]/[0.04] p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🛡️</span>
-              <span className="text-[12px] font-bold text-[#FF4757]">Direct Entry — AI bypassed</span>
-            </div>
-            <button
-              onClick={() => setDirectMode(false)}
-              className="text-ob-text-faint cursor-pointer border-none bg-transparent text-sm"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="text-ob-text-dim m-0 mb-3 text-[11px]">
-            This data stays on your device. It will be encrypted and saved without being sent to any AI.
-          </p>
-          <div className="flex flex-col gap-2.5">
-            <input
-              value={directTitle}
-              onChange={(e) => setDirectTitle(e.target.value)}
-              placeholder="Title (e.g. WiFi Password, Bank PIN)"
-              className="bg-ob-bg border-ob-border text-ob-text-soft box-border w-full rounded-lg border px-3 py-2 text-[13px] outline-none"
-            />
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Secret content (password, number, etc.)"
-              rows={3}
-              className="bg-ob-bg border-ob-border text-ob-text-soft box-border w-full resize-none rounded-lg border px-3 py-2 font-mono text-[13px] outline-none"
-            />
-            <input
-              value={directTags}
-              onChange={(e) => setDirectTags(e.target.value)}
-              placeholder="Tags (comma separated, e.g. wifi, home)"
-              className="bg-ob-bg border-ob-border text-ob-text-soft box-border w-full rounded-lg border px-3 py-2 text-[13px] outline-none"
-            />
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button
-              onClick={() => {
-                setDirectMode(false);
-                setDirectTitle("");
-                setDirectTags("");
-              }}
-              className="bg-ob-surface border-ob-border text-ob-text-muted flex-1 cursor-pointer rounded-[10px] border p-2.5 text-[13px]"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={saveDirectEntry}
-              disabled={loading || !directTitle.trim() || !cryptoKey}
-              className="flex-2 cursor-pointer rounded-[10px] border-0 p-2.5 text-[13px] font-bold"
-              style={{
-                background: directTitle.trim() && cryptoKey ? "linear-gradient(135deg, #FF4757, #FF6B81)" : undefined,
-                color: directTitle.trim() && cryptoKey ? "#fff" : undefined,
-                opacity: !directTitle.trim() || !cryptoKey ? 0.5 : 1,
-              }}
-            >
-              🔐 Save to Vault
-            </button>
-          </div>
-          {!cryptoKey && (
-            <p className="m-0 mt-2 text-[11px] text-[#FF4757]">
-              Unlock your vault first to save secrets.
-              {onNavigate && (
-                <button
-                  onClick={() => onNavigate("vault")}
-                  className="ml-1 cursor-pointer border-none bg-transparent text-[11px] font-semibold text-[#FF4757] underline"
-                >
-                  Open Vault
-                </button>
-              )}
-            </p>
           )}
         </div>
       )}
@@ -1429,3 +1169,16 @@ export default function QuickCapture({
   );
 }
 
+QuickCapture.propTypes = {
+  entries: PropTypes.array.isRequired,
+  setEntries: PropTypes.func.isRequired,
+  links: PropTypes.array,
+  addLinks: PropTypes.func,
+  onCreated: PropTypes.func,
+  onUpdate: PropTypes.func,
+  isOnline: PropTypes.bool,
+  refreshCount: PropTypes.func,
+  brainId: PropTypes.string,
+  brains: PropTypes.array,
+  canWrite: PropTypes.bool,
+};
