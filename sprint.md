@@ -1,275 +1,110 @@
-# OpenBrain Sprint — Outstanding Issues
+# OpenBrain Sprint Plan
 
-> Generated from GitHub Issues #6–#12 against the current codebase.
-> Each section maps an issue to concrete implementation tasks, files to touch, and estimated complexity.
-
----
-
-## Issue #9 — Adding Secrets (Bypass AI)
-
-**Goal:** When adding secrets (passwords, bank numbers, etc.), allow the user to bypass AI classification entirely so sensitive data never leaves the browser.
-
-### What exists today
-- `QuickCapture.tsx` sends raw text to the AI via `callAI()` with `PROMPTS.CAPTURE` to classify entries.
-- The `SENSITIVE_RE` regex in `OpenBrain.tsx:117` already detects sensitive keywords in *chat responses* — but there is **no bypass** during *capture*.
-- Vault encryption (`lib/crypto.ts`) encrypts entries *after* AI classification, meaning the plaintext still hits the LLM API.
-
-### Implementation plan
-1. **Add a "Direct Entry" toggle to `QuickCapture.tsx`**
-   - New state: `const [directMode, setDirectMode] = useState(false)`
-   - Auto-enable when `SENSITIVE_RE` matches the input text (reuse the regex from OpenBrain.tsx or extract to a shared util).
-   - When active, show a shield icon + "AI Bypass — data stays local" banner.
-
-2. **Direct entry form (no AI call)**
-   - Show manual fields: Title, Content (textarea), Type (pre-select "secret"), Tags.
-   - On save, build the entry object locally:
-     ```ts
-     { title, content, type: "secret", tags, metadata: {} }
-     ```
-   - Encrypt via `encryptEntry()` before calling `/api/capture`.
-   - Skip `findConnections()` and embedding — secret entries should never be embedded.
-
-3. **Files to modify**
-   - `src/components/QuickCapture.tsx` — add direct-mode UI + toggle logic
-   - `src/config/prompts.ts` — no changes needed
-   - `src/lib/crypto.ts` — no changes needed (already supports encrypt)
-
-4. **Complexity:** Low-Medium (~2–3 hours)
+> Ruthlessly prioritized. Only work that makes the app genuinely better for users.
 
 ---
 
-## Issue #10 — Smart Updates (AI Deduplication)
+## Sprint 1 — Secrets AI Bypass (#9)
 
-**Goal:** When a new entry is added, AI should determine whether it should update an existing entry or create a new one.
+**Why this matters:** Right now, when a user types "my WiFi password is hunter2", that plaintext gets sent to an external LLM API for classification *before* it gets encrypted. That's a real privacy hole. Users storing passwords and bank details need to trust that sensitive data never leaves their device.
 
-### What exists today
-- `lib/duplicateDetection.ts` has `scoreTitle()` and `findDuplicates()` — basic title similarity (word overlap).
-- `QuickCapture.tsx` `PreviewModal` already shows "Similar entries found — update one instead?" when `scoreTitle > 50`.
-- But this is purely title-based and only shown in the preview modal — the AI itself doesn't participate in the merge decision.
+**What to build:**
+- A "Direct Entry" mode in QuickCapture that skips the AI call entirely
+- Auto-detect sensitive input using the existing `SENSITIVE_RE` regex (already in `OpenBrain.tsx:117`) and suggest switching to direct mode
+- Manual form: Title, Content (textarea), Type (pre-select "secret"), Tags
+- Encrypt locally via `encryptEntry()` then save to `/api/capture` — no AI, no embedding, no connection finding
+- Clear visual indicator: "Data stays on your device" so users feel safe
 
-### Implementation plan
-1. **Enhance the capture prompt (`PROMPTS.CAPTURE`) to include existing entry context**
-   - When classifying, send the top 5 similar entries (by title score + embedding similarity if available) as context.
-   - Add to the prompt: "If this information clearly updates or replaces an existing entry, return `{\"action\":\"update\",\"update_id\":\"<entry_id>\", ...}` instead of creating new."
-   - New response schema adds optional `action` and `update_id` fields.
+**Files:** `src/components/QuickCapture.tsx`
 
-2. **Update `QuickCapture.tsx` capture flow**
-   - After AI returns, check for `action === "update"`.
-   - If update: pre-populate the PreviewModal with the merge suggestion, highlight what changed.
-   - User confirms or overrides (always user choice, never auto-merge).
-
-3. **Improve `duplicateDetection.ts`**
-   - Add content-level similarity (not just title): compare tags, metadata fields, and content snippets.
-   - Export a `findCandidates(newEntry, entries, limit)` function that returns the best matches with scores.
-
-4. **Files to modify**
-   - `src/config/prompts.ts` — extend `CAPTURE` prompt
-   - `src/lib/duplicateDetection.ts` — add content-aware scoring
-   - `src/components/QuickCapture.tsx` — handle `action:"update"` from AI, improve PreviewModal merge UX
-
-5. **Complexity:** Medium (~4–6 hours)
+**What NOT to do:** Don't over-design this. No new components, no new routes. It's a mode toggle inside the existing capture flow.
 
 ---
 
-## Issue #7 — Personal Finance Tracking
+## Sprint 2 — Smart Updates (#10)
 
-**Goal:** Upload bank statements (CSV/OFX), auto-categorize transactions via AI, query spending through chat, and visualize spending by category.
+**Why this matters:** Users add entries over time. "John the plumber" gets added in January, then in June the user types "John the plumber's new number is 082..." — that should update the existing entry, not create a duplicate.
 
-### What exists today
-- `lib/fileParser.ts` + `lib/fileSplitter.ts` handle file uploads (text, PDF, DOCX) and split into entries.
-- `QuickCapture.tsx` has file upload flow that parses documents into entries.
-- No finance-specific types, views, or parsers exist.
+**What already exists:** The `PreviewModal` in QuickCapture already detects similar titles via `scoreTitle()` and shows "Similar entries found — update one instead?" with an "Update this" button. This works. The issue is that it's easy to miss and only matches on titles.
 
-### Implementation plan
+**What to build:**
+- Make dupe detection more aggressive: also match on content overlap and shared tags, not just title words
+- When duplicates are found, make the merge suggestion more prominent — show it *before* the save button, not tucked away as a subtle warning
+- Show what will change: "Title: John the plumber → (same), Phone: (none) → 082..."
+- Let the AI include candidate match IDs in its classification response so it can flag "this looks like an update to entry X" — but the **user always decides**, never auto-merge
 
-#### Phase 1: CSV/OFX Parser
-1. **New file: `src/lib/financeParser.ts`**
-   - Parse CSV bank statements (detect common formats: date, description, amount, balance).
-   - Parse OFX/QFX files (XML-based, extract `<STMTTRN>` records).
-   - Return normalized array: `{ date, description, amount, balance?, raw }[]`
+**Files:** `src/lib/duplicateDetection.ts`, `src/components/QuickCapture.tsx`, `src/config/prompts.ts`
 
-2. **New entry type: `"transaction"`**
-   - Add to `EntryType` in `src/types.ts`.
-   - Add to `TC` in `src/data/constants.ts` (icon: "💳", color: green).
-   - Add to `ALLOWED_TYPES` in `api/capture.ts`.
-   - `EntryMetadata` additions: `amount?: string`, `transaction_date?: string`, `category?: string`, `account?: string`.
-
-#### Phase 2: AI Categorization
-3. **New prompt: `PROMPTS.FINANCE_CATEGORIZE` in `src/config/prompts.ts`**
-   - Takes batch of transactions, returns categories (groceries, dining, transport, entertainment, utilities, etc.).
-   - Maps each transaction to a category.
-
-4. **Batch capture flow in `QuickCapture.tsx`**
-   - Detect `.csv` / `.ofx` / `.qfx` files in `handleFileUpload`.
-   - Parse → AI categorize → create entries in bulk via `/api/capture`.
-
-#### Phase 3: Finance View
-5. **New view: `src/views/FinanceView.tsx`**
-   - Filter entries by `type === "transaction"`.
-   - Summary cards: total spent, top categories, monthly trend.
-   - Simple bar/pie chart using canvas or inline SVG (no new dependency).
-   - Category breakdown with drill-down.
-
-6. **Add "Finance" to navigation**
-   - `src/components/BottomNav.tsx` — add to More menu or as a nav item.
-   - `src/OpenBrain.tsx` — add `FinanceView` lazy import and routing.
-
-7. **Chat integration**
-   - Spending queries already work via the chat context (entries include transaction data).
-   - Enhance `PROMPTS.CHAT` with a note: "For transactions, summarize spending by category when asked."
-
-#### Files to create/modify
-- **Create:** `src/lib/financeParser.ts`, `src/views/FinanceView.tsx`
-- **Modify:** `src/types.ts`, `src/data/constants.ts`, `src/config/prompts.ts`, `src/components/QuickCapture.tsx`, `src/OpenBrain.tsx`, `src/components/BottomNav.tsx`, `api/capture.ts`
-
-#### Complexity: High (~10–16 hours)
+**What NOT to do:** Don't build a complex "content-aware scoring engine" or separate `findCandidates` abstraction. Improve `scoreTitle` to also check content/tags, make the UI more prominent, done. The AI suggestion is a hint, not a decision.
 
 ---
 
-## Issue #8 — Mass Search / Bulk Import
+## Sprint 3 — Multi-File Upload (#8, descoped)
 
-**Goal:** Access folders, repos, databases, Gmail, Chrome bookmarks, calendars, etc. to bulk-sort entries and speed up onboarding.
+**Why this matters:** Onboarding friction. Getting your first 50 entries into OpenBrain is tedious one file at a time. Users want to dump a folder of documents and have the app sort it out.
 
-### What exists today
-- File upload (single file at a time) in `QuickCapture.tsx`.
-- File parsing for `.txt`, `.csv`, `.json`, `.md`, `.pdf`, `.docx` in `lib/fileParser.ts`.
-- `lib/fileSplitter.ts` splits large documents into multiple entries via AI.
-- No multi-file or external service integration exists.
+**What to build:**
+- Add `multiple` attribute to the existing file input in QuickCapture
+- Process files sequentially through the existing parse → split → capture pipeline
+- Show progress: "Processing file 3 of 12..."
+- Add a drag-and-drop zone that accepts multiple files
 
-### Implementation plan
+**Files:** `src/components/QuickCapture.tsx`
 
-#### Phase 1: Bulk File Import (most feasible now)
-1. **Multi-file upload in `QuickCapture.tsx`**
-   - Change file input to `multiple` attribute.
-   - Process files in sequence, showing progress (e.g., "File 3 of 12...").
-   - Each file goes through the existing parse → split → capture pipeline.
-
-2. **Folder drop zone**
-   - Add drag-and-drop area that accepts folders (via `webkitdirectory` attribute).
-   - Recursively read files, filter to supported types, batch process.
-
-3. **New view: `src/views/ImportView.tsx`**
-   - Dedicated bulk import interface with progress tracking.
-   - Preview all parsed entries before bulk save.
-   - Category/type distribution summary.
-
-#### Phase 2: External Integrations (future — requires OAuth)
-4. **Google integration (Gmail, Calendar, Drive)**
-   - Requires Google OAuth consent screen + API credentials.
-   - New API endpoint: `api/integrations/google.ts`.
-   - Scope: read-only access to Gmail labels, Calendar events, Drive files.
-   - Each imported item becomes an entry via the existing capture pipeline.
-
-5. **Chrome bookmarks**
-   - Can be exported as HTML — parse via the existing file upload.
-   - Document this as a manual workflow in the onboarding.
-
-6. **GitHub repos**
-   - README/docs import via GitHub API (public repos only without auth).
-   - Could parse repo structure into entries.
-
-#### Phase 1 Files to create/modify
-- **Modify:** `src/components/QuickCapture.tsx` (multi-file + folder support)
-- **Create:** `src/views/ImportView.tsx`
-- **Modify:** `src/OpenBrain.tsx` (add ImportView routing)
-
-#### Complexity
-- Phase 1 (bulk file): Medium (~4–6 hours)
-- Phase 2 (external integrations): Very High (~40+ hours, requires OAuth infra)
+**What NOT to do:**
+- ~~New ImportView~~ — unnecessary. The capture flow already handles files. Just make it accept more than one.
+- ~~Folder upload via webkitdirectory~~ — inconsistent browser support, confusing UX.
+- ~~Gmail/Google/GitHub integrations~~ — this is months of OAuth infrastructure for something users can solve by exporting files manually. Not worth it now.
+- ~~Dedicated bulk import view with category distribution summary~~ — over-engineered. Users just want to drag files in.
 
 ---
 
-## Issue #12 — NateB OpenBrain Analysis (Master Roadmap)
+## Sprint 4 — Finance Tracking (#7, descoped)
 
-**Goal:** Create the foundational documentation and architecture for OpenBrain as a "Personal Intelligence Environment."
+**Honest take:** This is scope creep. OpenBrain is a personal knowledge/memory app, not a finance app. Building CSV parsers, OFX parsers, transaction categorization, and spending charts is building a second app inside the first one. Users who want finance tracking use YNAB, 22seven, or their bank's app.
 
-### What exists today
-- `README.md` — basic project readme.
-- Various planning docs: `future-plans.md`, `GAPS.md`, `AI-models.md`, `openbrain-fill-your-brain.md`, `openbrain-onboarding-30.md`.
-- `roadmap/` directory exists.
+**What's actually useful:** The ability to upload a CSV bank statement and have it turned into searchable entries so you can later ask "how much did I spend at Woolworths last month?" via chat.
 
-### Implementation plan
-1. **Create `docs/manifesto.md`**
-   - Codify the 5 strategic principles from the issue.
-   - Vision statement: "Intelligence compounds over time."
+**What to build (minimal):**
+- Detect CSV files in the existing file upload flow
+- Parse CSV rows into individual entries (use the existing `fileSplitter` AI prompt — it already handles splitting documents into entries)
+- AI categorizes each row using the existing `PROMPTS.CAPTURE` — no new prompt needed
+- Each transaction becomes a `note` entry with `metadata.amount`, `metadata.transaction_date`, and relevant tags
 
-2. **Create `docs/architecture.md`**
-   - Document the current layered architecture: Interface → Cognitive Engine → Memory System → Identity Layer → Model Abstraction.
-   - Map to existing code: React views → AI prompts/callAI → Supabase/entries → Brain context → provider abstraction.
+**Files:** `src/lib/fileParser.ts` (add CSV detection), `src/components/QuickCapture.tsx`
 
-3. **Create `docs/schemas/README.md`**
-   - Document the existing schemas: Entry, Brain, Link, EntryMetadata.
-   - Reference `src/types.ts` as the source of truth.
-
-4. **Update `roadmap/` directory**
-   - Create `roadmap/phase1-foundation.md` through `roadmap/phase5-frontier.md` based on the 5-phase plan.
-   - Cross-reference with existing issues.
-
-5. **Restructure folder for extensibility**
-   - Create placeholder directories: `docs/skills/`, `docs/recipes/`, `docs/extensions/`.
-
-#### Complexity: Low (~2–3 hours, documentation only)
+**What NOT to do:**
+- ~~New "transaction" entry type~~ — adds complexity across the entire stack (types, constants, API allowlist, views) for minimal benefit. A note with financial tags works fine.
+- ~~OFX/QFX parser~~ — obscure format, most banks export CSV. Build when someone actually asks for it.
+- ~~FinanceView with charts~~ — you're building a second app. The chat already answers spending questions from entry data.
+- ~~New navigation item~~ — the app already has 10 views in the nav. Adding more makes it harder to use, not easier.
 
 ---
 
-## Issue #11 — NotebookLM Research
+## Not Sprints — Reference Material
 
-**Goal:** Document AI trends research and produce a tailored report on 2026 SaaS/AI trends relevant to OpenBrain.
+### #12, #11, #6 — Research & Documentation
 
-### What exists today
-- `AI-models.md` — model configuration docs.
-- No dedicated research/reports directory.
+These three issues are not implementation work. They're research notes, vision documents, and reference links that the developer captured as issues. Writing manifesto docs, 5-phase roadmap files, AI trend reports, and OB1 comparison tables doesn't ship features or fix problems.
 
-### Implementation plan
-1. **Create `docs/research/ai-trends-2026.md`**
-   - Synthesize the 5 trends from the issue into a structured report.
-   - Map each trend to OpenBrain's architecture and roadmap.
+**What to do instead:** Close these as issues. Move the content into a `docs/notes/` folder as simple reference files if you want to keep them. Don't sprint on documentation that no user will ever see.
 
-2. **Create `docs/research/openbrain-positioning.md`**
-   - How OpenBrain addresses each trend:
-     - User-owned memory → Supabase + MCP architecture
-     - Production-ready infra → Vercel + offline-first PWA
-     - Agent web → Structured entries + embeddings
-     - MCP interoperability → Model-agnostic provider abstraction
-     - Trust barriers → Vault encryption + AI bypass mode (Issue #9)
-
-#### Complexity: Low (~1–2 hours, documentation only)
+The roadmap already lives in the issues themselves. The architecture is the code.
 
 ---
 
-## Issue #6 — NateB OpenBrain (What to Learn)
+## Summary
 
-**Goal:** Study the reference implementation at `github.com/NateBJones-Projects/OB1` and document learnings.
+| Sprint | Issue | What | Real Impact |
+|--------|-------|------|-------------|
+| **1** | #9 | Secrets bypass AI | Users can trust the app with passwords |
+| **2** | #10 | Better duplicate detection + merge UX | Fewer duplicate entries, cleaner brain |
+| **3** | #8 | Multi-file upload | Onboarding goes from 2 hours to 10 minutes |
+| **4** | #7 | CSV upload as entries | Financial data becomes searchable via chat |
+| — | #12,11,6 | Move to docs/notes, close issues | Keep the issue tracker clean |
 
-### Implementation plan
-1. **Create `docs/research/nateb-ob1-analysis.md`**
-   - Document key architectural patterns from the OB1 project.
-   - Identify features/patterns that could be adopted.
-   - Note differences in approach.
-
-2. **Create comparison table**
-   - Feature parity matrix: what OB1 has vs what OpenBrain has.
-   - Priority items to adopt.
-
-#### Complexity: Low (~1–2 hours, research + documentation)
-
----
-
-## Summary & Prioritization
-
-| Priority | Issue | Title | Type | Complexity | Impact |
-|----------|-------|-------|------|------------|--------|
-| **P0** | #9 | Secrets AI Bypass | Feature | Low-Med | High (security) |
-| **P0** | #10 | Smart Updates | Feature | Medium | High (UX) |
-| **P1** | #8 (Phase 1) | Bulk File Import | Feature | Medium | High (onboarding) |
-| **P1** | #7 | Finance Tracking | Feature | High | Medium (new module) |
-| **P2** | #12 | Master Roadmap Docs | Docs | Low | Medium (foundation) |
-| **P2** | #11 | AI Trends Research | Docs | Low | Low (internal) |
-| **P2** | #6 | OB1 Analysis | Research | Low | Low (learning) |
-
-### Recommended Sprint Order
-1. **#9** (Secrets bypass) — Quick win, high security value, unblocks trust
-2. **#10** (Smart updates) — Core UX improvement, builds on existing dupe detection
-3. **#8 Phase 1** (Bulk import) — Speeds up onboarding significantly
-4. **#7** (Finance) — New module, self-contained, can be built in parallel
-5. **#12, #11, #6** (Docs/Research) — Can be done anytime, no code dependencies
+### Principles applied
+- **If users won't notice it, don't build it.** Architecture docs, research reports, and empty placeholder directories are invisible to users.
+- **Extend what exists before building new.** The file upload flow, dupe detection, and capture pipeline already work. Improve them, don't replace them.
+- **Every new view/type/route has a maintenance cost.** FinanceView, ImportView, and transaction types all add permanent complexity. Only add them when the simpler approach proves insufficient.
+- **The AI is a helper, not a decision-maker.** For smart updates, the AI can suggest — the user decides. For secrets, the AI should get out of the way entirely.
