@@ -1449,7 +1449,7 @@ export default function OpenBrain() {
               onClose={() => setSelected(null)}
               onDelete={handleDelete}
               onUpdate={handleUpdate}
-              onReorder={handleReorder}
+
               entries={entries}
               links={links}
               canWrite={canWrite}
