@@ -49,7 +49,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const MORE_IDS = new Set(["refine", "todos", "timeline", "vault", "settings", "suppliers"]);
+const MORE_IDS = new Set(["refine", "todos", "timeline", "vault", "settings"]);
 
 interface BottomNavProps {
   activeView: string;

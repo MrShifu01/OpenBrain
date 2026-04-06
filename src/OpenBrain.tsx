@@ -29,7 +29,7 @@ import OnboardingModal from "./components/OnboardingModal";
 import BrainTipCard from "./components/BrainTipCard";
 import OnboardingChecklist from "./components/OnboardingChecklist";
 import QuickCapture from "./components/QuickCapture";
-import SupplierPanel from "./components/SupplierPanel";
+
 import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
 import DesktopSidebar from "./components/DesktopSidebar";
@@ -766,53 +766,6 @@ export default function OpenBrain() {
     setLastAction({ type: "create", id: newEntry.id });
   }, []);
 
-  // ─── Reorder / Renewal Reminder ───
-  const handleReorder = useCallback(async (supplier) => {
-    const due = new Date();
-    const isRenewal = supplier._renewalMode;
-    if (isRenewal) due.setMonth(due.getMonth() + 1);
-    else due.setDate(due.getDate() + 7);
-    const parsed = isRenewal
-      ? {
-          title: `Renew ${supplier.title}`,
-          content: `Set a renewal reminder for ${supplier.title}.`,
-          type: "reminder",
-          metadata: { status: "pending", due_date: due.toISOString().split("T")[0] },
-          tags: ["renewal", "admin"],
-        }
-      : {
-          title: `Reorder from ${supplier.title.split(" - ")[0]}`,
-          content: `Remember to place a reorder with ${supplier.title}.`,
-          type: "reminder",
-          metadata: { status: "pending", due_date: due.toISOString().split("T")[0] },
-          tags: ["reorder", "smash burger bar"],
-        };
-    try {
-      const res = await authFetch("/api/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
-        body: JSON.stringify({
-          p_title: parsed.title,
-          p_content: parsed.content,
-          p_type: parsed.type,
-          p_metadata: parsed.metadata,
-          p_tags: parsed.tags,
-        }),
-      });
-      const result = res.ok ? await res.json() : null;
-      const newEntry = {
-        id: result?.id || Date.now().toString(),
-        ...parsed,
-        pinned: false,
-        importance: 1,
-        created_at: new Date().toISOString(),
-      };
-      setEntries((prev) => [newEntry, ...prev]);
-      setLastAction({ type: "create", id: newEntry.id });
-    } catch {
-      /* silently fail */
-    }
-  }, []);
 
   // ─── Chat context memoization (PERF-3) ───
   const chatContext = useMemo(() => {
@@ -1321,9 +1274,7 @@ export default function OpenBrain() {
               </div>
             )}
 
-            {view === "suppliers" && (
-              <SupplierPanel entries={entries} onSelect={setSelected} onReorder={handleReorder} />
-            )}
+
             {view === "suggest" && (
               <Suspense fallback={<Loader />}>
                 <SuggestionsView
