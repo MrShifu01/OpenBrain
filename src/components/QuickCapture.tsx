@@ -8,6 +8,7 @@ import { encryptEntry } from "../lib/crypto";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
+import { recordDecision } from "../lib/learningEngine";
 import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
@@ -330,6 +331,7 @@ export default function QuickCapture({
         const splitRes = await callAI({
           max_tokens: 4000,
           system: PROMPTS.FILE_SPLIT,
+          brainId: primaryBrainId,
           messages: [{ role: "user", content: buildSplitPrompt(extractedText, brainType) }],
         });
         const splitData = await splitRes.json();
@@ -568,6 +570,29 @@ export default function QuickCapture({
 
   const doSave = useCallback(
     async (parsed) => {
+      // Track capture edits as learnings (compare AI original vs user's final)
+      if (preview && primaryBrainId) {
+        if (preview.type && parsed.type && preview.type !== parsed.type) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TYPE", action: "edit",
+            field: "type", originalValue: preview.type, finalValue: parsed.type,
+          });
+        }
+        if (preview.title && parsed.title && preview.title !== parsed.title) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TITLE", action: "edit",
+            field: "title", originalValue: preview.title, finalValue: parsed.title,
+          });
+        }
+        const origTags = (preview.tags || []).sort().join(",");
+        const finalTags = (parsed.tags || []).sort().join(",");
+        if (origTags !== finalTags) {
+          recordDecision(primaryBrainId, {
+            source: "capture", type: "CAPTURE_TAGS", action: "edit",
+            field: "tags", originalValue: origTags, finalValue: finalTags,
+          });
+        }
+      }
       setPreview(null);
       setLoading(true);
       setStatus("saving");
@@ -780,6 +805,7 @@ export default function QuickCapture({
       const res = await callAI({
         system: PROMPTS.CAPTURE,
         max_tokens: 800,
+        brainId: primaryBrainId,
         messages: [{ role: "user", content: input }],
       });
       const data = await res.json();

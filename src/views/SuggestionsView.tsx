@@ -201,6 +201,7 @@ export default function SuggestionsView({
     callAI({
       max_tokens: 200,
       system: PROMPTS.FILL_BRAIN.replace("{{BRAIN_CONTEXT}}", brainContext),
+      brainId: targetBrain?.id,
       messages: [
         {
           role: "user",
@@ -501,6 +502,7 @@ export default function SuggestionsView({
       const res = await callAI({
         max_tokens: 800,
         system: PROMPTS.QA_PARSE,
+        brainId: targetBrain?.id,
         messages: [{ role: "user", content: `Question: ${current!.q}\nAnswer: ${a}` }],
       });
       const data = await res.json();

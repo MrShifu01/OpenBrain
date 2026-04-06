@@ -4,6 +4,7 @@ import { callAI } from "../lib/ai";
 import { TC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 import { PROMPTS } from "../config/prompts";
+import { recordDecision, getDecisionCount } from "../lib/learningEngine";
 import type { Entry, Brain, Link } from "../types";
 
 interface EntrySuggestion {
@@ -86,7 +87,7 @@ export default function RefineView({
     const BATCH = 25;
     const entrySuggestions: RefineSuggestion[] = [];
 
-    /* Entry quality — batched */
+    /* Entry quality — batched (learnings auto-injected by callAI via brainId) */
     const batches = [];
     for (let i = 0; i < entries.length; i += BATCH) batches.push(entries.slice(i, i + BATCH));
 
@@ -104,6 +105,7 @@ export default function RefineView({
           const res = await callAI({
             max_tokens: 1500,
             system: PROMPTS.ENTRY_AUDIT,
+            brainId: activeBrain?.id,
             messages: [
               {
                 role: "user",
@@ -177,6 +179,7 @@ export default function RefineView({
             const res = await callAI({
               max_tokens: 1200,
               system: PROMPTS.LINK_DISCOVERY_PAIRS,
+              brainId: activeBrain?.id,
               messages: [
                 { role: "user", content: `CANDIDATE PAIRS:\n${JSON.stringify(candidates)}` },
               ],
@@ -215,6 +218,7 @@ export default function RefineView({
         const res = await callAI({
           max_tokens: 1200,
           system: PROMPTS.LINK_DISCOVERY,
+          brainId: activeBrain?.id,
           messages: [
             {
               role: "user",
@@ -251,6 +255,19 @@ export default function RefineView({
       const value = override ?? s.suggestedValue;
       const key = `entry:${s.entryId}:${s.field}`;
       setApplying((p) => new Set(p).add(key));
+
+      // Record learning
+      if (activeBrain?.id) {
+        recordDecision(activeBrain.id, {
+          source: "refine",
+          type: s.type,
+          action: override ? "edit" : "accept",
+          field: s.field,
+          originalValue: s.suggestedValue,
+          finalValue: value,
+          reason: s.reason,
+        });
+      }
 
       const entry = entries.find((e: Entry) => e.id === s.entryId);
       if (!entry) {
@@ -308,6 +325,18 @@ export default function RefineView({
       const key = `link:${s.fromId}:${s.toId}`;
       setApplying((p) => new Set(p).add(key));
 
+      // Record learning
+      if (activeBrain?.id) {
+        recordDecision(activeBrain.id, {
+          source: "refine",
+          type: "LINK_SUGGESTED",
+          action: relOverride ? "edit" : "accept",
+          originalValue: s.rel,
+          finalValue: rel,
+          reason: s.reason,
+        });
+      }
+
       const newLink = { from: s.fromId, to: s.toId, rel };
       try {
         await authFetch("/api/save-links", {
@@ -329,10 +358,21 @@ export default function RefineView({
     [addLinks],
   );
 
-  const reject = useCallback((key: string) => {
+  const reject = useCallback((key: string, s?: RefineSuggestion) => {
     setDismissed((p) => new Set(p).add(key));
     setEditingKey(null);
-  }, []);
+    // Record rejection learning
+    if (s && activeBrain?.id) {
+      recordDecision(activeBrain.id, {
+        source: "refine",
+        type: s.type,
+        action: "reject",
+        field: s.type === "LINK_SUGGESTED" ? undefined : (s as EntrySuggestion).field,
+        originalValue: s.type === "LINK_SUGGESTED" ? (s as LinkSuggestion).rel : (s as EntrySuggestion).suggestedValue,
+        reason: s.type === "LINK_SUGGESTED" ? (s as LinkSuggestion).reason : (s as EntrySuggestion).reason,
+      });
+    }
+  }, [activeBrain?.id]);
 
   /* ── Key helpers ── */
   const keyOf = (s: RefineSuggestion): string =>
@@ -384,6 +424,12 @@ export default function RefineView({
         <p className="text-ob-text-faint mt-1 mb-0 text-xs">
           AI skeptically audits every entry — and discovers missing relationships between them.
         </p>
+        {activeBrain?.id && getDecisionCount(activeBrain.id) > 0 && (
+          <div className="text-ob-text-dim mt-1.5 flex items-center gap-1.5 text-[10px]">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-teal-400" />
+            Learning from {getDecisionCount(activeBrain.id)} past decisions
+          </div>
+        )}
         {/* Brain selector — owners only, when multiple brains exist */}
         {isOwnerMultiBrain && onSwitchBrain && (
           <div className="mt-3 flex flex-wrap gap-1.5">
@@ -651,7 +697,7 @@ export default function RefineView({
                     ) : (
                       <>
                         <button
-                          onClick={() => reject(key)}
+                          onClick={() => reject(key, s)}
                           disabled={busy}
                           className="text-orange min-h-11 flex-1 cursor-pointer rounded-lg border-0 bg-[#252540] py-2 text-xs font-semibold"
                         >
@@ -788,7 +834,7 @@ export default function RefineView({
                     ) : (
                       <>
                         <button
-                          onClick={() => reject(key)}
+                          onClick={() => reject(key, s)}
                           disabled={busy}
                           className="text-orange min-h-11 flex-1 cursor-pointer rounded-lg border-0 bg-[#252540] py-2 text-xs font-semibold"
                         >

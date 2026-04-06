@@ -484,6 +484,7 @@ export default function OpenBrain() {
     callAI({
       max_tokens: 200,
       system: PROMPTS.NUDGE,
+      brainId: activeBrain?.id,
       messages: [
         {
           role: "user",
@@ -820,6 +821,7 @@ export default function OpenBrain() {
               "{{MEMORIES}}",
               JSON.stringify(contextWithSecrets),
             ).replace("{{LINKS}}", JSON.stringify(links)),
+            brainId: activeBrain?.id,
             messages: [{ role: "user", content: msg }],
           });
           data = await res.json();
@@ -1500,6 +1502,7 @@ export default function OpenBrain() {
                     callAI({
                       max_tokens: 800,
                       system: PROMPTS.QA_PARSE,
+                      brainId: activeBrain?.id,
                       messages: [
                         { role: "user", content: `Question: ${item.q}\nAnswer: ${item.a}` },
                       ],

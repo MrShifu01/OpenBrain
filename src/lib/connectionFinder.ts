@@ -82,6 +82,7 @@ export async function findConnections(
     const res = await callAI({
       max_tokens: 600,
       system: PROMPTS.CONNECTION_FINDER,
+      brainId,
       messages: [
         {
           role: "user",
