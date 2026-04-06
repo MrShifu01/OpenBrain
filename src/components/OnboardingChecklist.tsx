@@ -1,5 +1,4 @@
 import { useState, useMemo, type JSX } from "react";
-import { useTheme } from "../ThemeContext";
 import { SUGGESTIONS } from "../data/personalSuggestions";
 import { FAMILY_SUGGESTIONS } from "../data/familySuggestions";
 import { BUSINESS_SUGGESTIONS } from "../data/businessSuggestions";
@@ -15,11 +14,19 @@ function getSuggestions(type: string): Suggestion[] {
 }
 
 function getDismissed(): string[] {
-  try { return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]"); } catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(DISMISSED_KEY) || "[]");
+  } catch {
+    return [];
+  }
 }
 
 function getAnswered(): Set<string> {
-  try { return new Set<string>(JSON.parse(localStorage.getItem(ANSWERED_KEY) || "[]")); } catch { return new Set<string>(); }
+  try {
+    return new Set<string>(JSON.parse(localStorage.getItem(ANSWERED_KEY) || "[]"));
+  } catch {
+    return new Set<string>();
+  }
 }
 
 interface OnboardingChecklistProps {
@@ -27,8 +34,10 @@ interface OnboardingChecklistProps {
   onNavigate: (view: string) => void;
 }
 
-export default function OnboardingChecklist({ activeBrain, onNavigate }: OnboardingChecklistProps): JSX.Element | null {
-  const { t } = useTheme();
+export default function OnboardingChecklist({
+  activeBrain,
+  onNavigate,
+}: OnboardingChecklistProps): JSX.Element | null {
   const [dismissed, setDismissed] = useState<string[]>(getDismissed);
   const [expanded, setExpanded] = useState<boolean>(false);
 
@@ -37,119 +46,99 @@ export default function OnboardingChecklist({ activeBrain, onNavigate }: Onboard
 
   const questions = useMemo(() => {
     const all = getSuggestions(brainType);
-    return all.filter(s =>
-      s.p === "high" &&
-      !answered.has(s.q) &&
-      !dismissed.includes(s.q)
-    );
+    return all.filter((s) => s.p === "high" && !answered.has(s.q) && !dismissed.includes(s.q));
   }, [brainType, answered, dismissed]);
 
   // Group by category
   const categories = useMemo((): [string, Suggestion[]][] => {
     const cats: Record<string, Suggestion[]> = {};
-    questions.forEach(q => {
+    questions.forEach((q) => {
       if (!cats[q.cat]) cats[q.cat] = [];
       cats[q.cat].push(q);
     });
-    return (Object.entries(cats) as [string, Suggestion[]][]).sort((a, b) => b[1].length - a[1].length);
+    return (Object.entries(cats) as [string, Suggestion[]][]).sort(
+      (a, b) => b[1].length - a[1].length,
+    );
   }, [questions]);
 
   if (questions.length === 0) return null;
 
   function dismissAll(): void {
-    const next = [...dismissed, ...questions.map(s => s.q)];
+    const next = [...dismissed, ...questions.map((s) => s.q)];
     setDismissed(next);
-    try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch {}
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+    } catch {}
   }
 
   function dismissCategory(cat: string): void {
-    const catQs = questions.filter(q => q.cat === cat).map(q => q.q);
+    const catQs = questions.filter((q) => q.cat === cat).map((q) => q.q);
     const next = [...dismissed, ...catQs];
     setDismissed(next);
-    try { localStorage.setItem(DISMISSED_KEY, JSON.stringify(next)); } catch {}
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(next));
+    } catch {}
   }
 
   const brainEmoji = brainType === "business" ? "🏪" : brainType === "family" ? "🏠" : "🧠";
 
   return (
-    <div style={{
-      background: t.surface,
-      border: `1px solid ${t.border}`,
-      borderRadius: 14,
-      overflow: "hidden",
-      marginBottom: 12,
-    }}>
+    <div className="bg-ob-surface border-ob-border mb-3 overflow-hidden rounded-[14px] border">
       {/* Compact header — always visible */}
       <div
-        onClick={() => setExpanded(e => !e)}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "12px 14px",
-          cursor: "pointer",
-        }}
+        onClick={() => setExpanded((e) => !e)}
+        className="flex cursor-pointer items-center gap-2.5 px-3.5 py-3"
       >
-        <span style={{ fontSize: 14 }}>{brainEmoji}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: t.text }}>
+        <span className="text-sm">{brainEmoji}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-ob-text m-0 text-[13px] font-semibold">
             {questions.length} things to capture
           </p>
-          <p style={{ margin: 0, fontSize: 11, color: t.textDim }}>
-            {categories.slice(0, 3).map(([cat]) => cat).join(" · ")}
+          <p className="text-ob-text-dim m-0 text-[11px]">
+            {categories
+              .slice(0, 3)
+              .map(([cat]) => cat)
+              .join(" · ")}
             {categories.length > 3 && ` +${categories.length - 3}`}
           </p>
         </div>
-        <span style={{ fontSize: 10, color: t.textDim, flexShrink: 0 }}>{expanded ? "▲" : "▼"}</span>
+        <span className="text-ob-text-dim shrink-0 text-[10px]">{expanded ? "▲" : "▼"}</span>
       </div>
 
       {/* Expanded: show categories as compact rows */}
       {expanded && (
-        <div style={{ borderTop: `1px solid ${t.border}`, padding: "6px 0" }}>
+        <div className="border-ob-border border-t py-1.5">
           {categories.map(([cat, items]) => (
             <div
               key={cat}
               onClick={() => onNavigate("suggest")}
-              style={{
-                display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 14px",
-                cursor: "pointer",
-              }}
+              className="flex cursor-pointer items-center gap-2 px-3.5 py-2"
             >
-              <span style={{ fontSize: 11, color: t.textDim, flex: 1, fontWeight: 500 }}>
-                {cat} <span style={{ color: t.textFaint }}>({items.length})</span>
+              <span className="text-ob-text-dim flex-1 text-[11px] font-medium">
+                {cat} <span className="text-ob-text-faint">({items.length})</span>
               </span>
               <button
-                onClick={e => { e.stopPropagation(); dismissCategory(cat); }}
-                style={{ background: "none", border: "none", color: t.textFaint, fontSize: 13, cursor: "pointer", padding: "2px 4px", lineHeight: 1 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dismissCategory(cat);
+                }}
+                className="text-ob-text-faint cursor-pointer border-none bg-transparent px-1 py-0.5 text-[13px] leading-none"
               >
                 ×
               </button>
             </div>
           ))}
 
-          <div style={{ display: "flex", gap: 8, padding: "8px 14px 10px", borderTop: `1px solid ${t.border}`, marginTop: 4 }}>
+          <div className="border-ob-border mt-1 flex gap-2 border-t px-3.5 py-2 pb-2.5">
             <button
               onClick={() => onNavigate("suggest")}
-              style={{
-                flex: 1, padding: "8px 12px",
-                background: "rgba(78,205,196,0.1)",
-                border: "1px solid rgba(78,205,196,0.25)",
-                borderRadius: 8,
-                color: "#4ECDC4", fontSize: 12, fontWeight: 600,
-                cursor: "pointer",
-              }}
+              className="bg-teal/10 border-teal/25 text-teal flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs font-semibold"
             >
               Fill Brain →
             </button>
             <button
               onClick={dismissAll}
-              style={{
-                padding: "8px 12px",
-                background: "none",
-                border: `1px solid ${t.border}`,
-                borderRadius: 8,
-                color: t.textFaint, fontSize: 12,
-                cursor: "pointer",
-              }}
+              className="border-ob-border text-ob-text-faint cursor-pointer rounded-lg border bg-transparent px-3 py-2 text-xs"
             >
               Dismiss all
             </button>

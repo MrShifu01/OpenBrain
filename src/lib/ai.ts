@@ -29,9 +29,9 @@ export interface CallAIOptions {
 }
 
 const ENDPOINT: Record<string, string> = {
-  anthropic:   "/api/anthropic",
-  openai:      "/api/openai",
-  openrouter:  "/api/openrouter",
+  anthropic: "/api/anthropic",
+  openai: "/api/openai",
+  openrouter: "/api/openrouter",
 };
 
 function normalizeMessages(messages: AIMessage[], provider: string): AIMessage[] {
@@ -53,13 +53,22 @@ function normalizeMessages(messages: AIMessage[], provider: string): AIMessage[]
   });
 }
 
-export async function callAI({ messages = [], system, max_tokens, memoryGuide, task }: CallAIOptions = {}): Promise<Response> {
+export async function callAI({
+  messages = [],
+  system,
+  max_tokens,
+  memoryGuide,
+  task,
+}: CallAIOptions = {}): Promise<Response> {
   const provider = getUserProvider();
   const endpoint = ENDPOINT[provider] ?? ENDPOINT.anthropic;
 
   let model: string;
   if (provider === "openrouter") {
-    model = (task ? getModelForTask(task) : null) || getOpenRouterModel() || "google/gemini-2.0-flash-exp:free";
+    model =
+      (task ? getModelForTask(task) : null) ||
+      getOpenRouterModel() ||
+      "google/gemini-2.0-flash-exp:free";
   } else {
     model = getUserModel();
   }

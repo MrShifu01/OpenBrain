@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useTheme } from "../ThemeContext";
 
 interface MobileHeaderProps {
   brainName: string;
@@ -20,59 +19,22 @@ export default function MobileHeader({
   pendingCount,
   children,
 }: MobileHeaderProps) {
-  const { t } = useTheme();
-
   return (
-    <header
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 12px",
-        background: t.bg,
-      }}
-    >
+    <header className="bg-ob-bg flex items-center gap-2 px-3 py-2">
       {/* Brain identity */}
-      <div
-        style={{
-          width: 36,
-          height: 36,
-          minWidth: 36,
-          borderRadius: 10,
-          background: "linear-gradient(135deg, #4ECDC4, #45B7D1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 16,
-        }}
-      >
+      <div className="gradient-accent flex h-9 w-9 min-w-9 items-center justify-center rounded-[10px] text-base">
         {brainEmoji}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: t.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+      <div className="min-w-0 flex-1">
+        <div className="text-ob-text overflow-hidden text-[15px] font-bold text-ellipsis whitespace-nowrap">
           {brainName}
         </div>
         {(!isOnline || pendingCount > 0) && (
           <div
-            style={{
-              fontSize: 10,
-              color: !isOnline ? t.error : t.accent,
-              fontWeight: 600,
-            }}
+            className={`text-[10px] font-semibold ${!isOnline ? "text-ob-error" : "text-ob-accent"}`}
           >
-            {!isOnline
-              ? "Offline"
-              : `${pendingCount} pending sync`}
+            {!isOnline ? "Offline" : `${pendingCount} pending sync`}
           </div>
         )}
       </div>
@@ -84,22 +46,7 @@ export default function MobileHeader({
       <button
         onClick={onToggleTheme}
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-        style={{
-          width: 44,
-          height: 44,
-          minWidth: 44,
-          minHeight: 44,
-          borderRadius: 10,
-          border: `1px solid ${t.border}`,
-          background: t.surface,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 18,
-          padding: 0,
-          WebkitTapHighlightColor: "transparent",
-        }}
+        className="border-ob-border bg-ob-surface flex h-11 min-h-11 w-11 min-w-11 cursor-pointer items-center justify-center rounded-[10px] border p-0 text-lg [-webkit-tap-highlight-color:transparent]"
       >
         {isDark ? "\uD83C\uDF19" : "\u2600\uFE0F"}
       </button>

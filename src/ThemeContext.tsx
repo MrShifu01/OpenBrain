@@ -32,8 +32,8 @@ export const DARK: ThemeColors = {
   accent: "#4ECDC4",
   accentLight: "#4ECDC415",
   accentBorder: "#4ECDC440",
-  error: '#FF6B6B',
-  success: '#51CF66',
+  error: "#FF6B6B",
+  success: "#51CF66",
 };
 
 export const LIGHT: ThemeColors = {
@@ -50,8 +50,8 @@ export const LIGHT: ThemeColors = {
   accent: "#4ECDC4",
   accentLight: "#4ECDC415",
   accentBorder: "#4ECDC440",
-  error: '#FF6B6B',
-  success: '#51CF66',
+  error: "#FF6B6B",
+  success: "#51CF66",
 };
 
 interface ThemeContextValue {
@@ -60,7 +60,11 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const ThemeCtx = createContext<ThemeContextValue>({ t: DARK, isDark: true, toggleTheme: () => {} });
+const ThemeCtx = createContext<ThemeContextValue>({
+  t: DARK,
+  isDark: true,
+  toggleTheme: () => {},
+});
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
@@ -70,19 +74,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
-    document.body.style.background = isDark ? DARK.bg : LIGHT.bg;
-    document.body.style.color = isDark ? DARK.text : LIGHT.text;
     localStorage.setItem("openbrain_theme", isDark ? "dark" : "light");
   }, [isDark]);
 
-  const toggleTheme = () => setIsDark(d => !d);
+  const toggleTheme = () => setIsDark((d) => !d);
   const t = isDark ? DARK : LIGHT;
 
-  return (
-    <ThemeCtx.Provider value={{ t, isDark, toggleTheme }}>
-      {children}
-    </ThemeCtx.Provider>
-  );
+  return <ThemeCtx.Provider value={{ t, isDark, toggleTheme }}>{children}</ThemeCtx.Provider>;
 }
 
 export const useTheme = () => useContext(ThemeCtx);

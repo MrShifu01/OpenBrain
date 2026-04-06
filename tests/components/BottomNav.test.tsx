@@ -25,12 +25,11 @@ describe("BottomNav", () => {
     expect(screen.getByRole("button", { name: /more/i })).toBeInTheDocument();
   });
 
-  it("all touch targets are at least 48px tall", () => {
+  it("all touch targets have adequate min-height class for touch target", () => {
     const { container } = renderWithTheme(<BottomNav activeView="capture" onNavigate={vi.fn()} />);
     const buttons = container.querySelectorAll("button");
     buttons.forEach((btn) => {
-      const minHeight = parseInt(btn.style.minHeight, 10);
-      expect(minHeight).toBeGreaterThanOrEqual(48);
+      expect(btn.className).toMatch(/min-h-1[2-9]|min-h-[2-9]\d/);
     });
   });
 
@@ -57,8 +56,8 @@ describe("BottomNav", () => {
   it("is fixed to the bottom of the viewport", () => {
     const { container } = renderWithTheme(<BottomNav activeView="capture" onNavigate={vi.fn()} />);
     const nav = container.querySelector("nav");
-    expect(nav!.style.position).toBe("fixed");
-    expect(nav!.style.bottom).toBe("0px");
+    expect(nav!.className).toMatch(/fixed/);
+    expect(nav!.className).toMatch(/bottom-0/);
   });
 
   it("has a proper navigation landmark with accessible name", () => {

@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import { DARK, LIGHT } from "../../src/ThemeContext";
 
 function luminance(hex: string): number {
-  const rgb = hex.replace("#", "").match(/.{2}/g)!.map((c) => {
-    const v = parseInt(c, 16) / 255;
-    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  });
+  const rgb = hex
+    .replace("#", "")
+    .match(/.{2}/g)!
+    .map((c) => {
+      const v = parseInt(c, 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
   return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
 }
 

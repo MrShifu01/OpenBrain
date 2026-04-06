@@ -27,13 +27,11 @@ describe("MobileHeader", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
   });
 
-  it("all touch targets are at least 44px", () => {
+  it("all touch targets have min-h-11 class for 44px touch target", () => {
     const { container } = renderWithTheme(<MobileHeader {...defaultProps} />);
     const buttons = container.querySelectorAll("button");
     buttons.forEach((btn) => {
-      const minH = parseInt(btn.style.minHeight, 10) || parseInt(btn.style.height, 10);
-      const minW = parseInt(btn.style.minWidth, 10) || parseInt(btn.style.width, 10);
-      expect(Math.max(minH, minW)).toBeGreaterThanOrEqual(44);
+      expect(btn.className).toMatch(/min-h-11|min-w-11|w-11|h-11/);
     });
   });
 

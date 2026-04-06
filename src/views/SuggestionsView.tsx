@@ -43,22 +43,29 @@ function getSuggestionsForType(type: string | undefined): Suggestion[] {
 /* ─── Brain type label/icon ─── */
 const BRAIN_META = {
   personal: { emoji: "🧠", label: "Personal" },
-  family:   { emoji: "🏠", label: "Family" },
+  family: { emoji: "🏠", label: "Family" },
   business: { emoji: "🏪", label: "Business" },
 };
 
-export default function SuggestionsView({ entries, setEntries, activeBrain, brains }: SuggestionsViewProps) {
+export default function SuggestionsView({
+  entries,
+  setEntries,
+  activeBrain,
+  brains,
+}: SuggestionsViewProps) {
   const { t } = useTheme();
 
   // Multi-select: which brains to pull questions from (default = [activeBrain])
-  const [selectedBrainIds, setSelectedBrainIds] = useState<string[]>(() => activeBrain?.id ? [activeBrain.id] : []);
+  const [selectedBrainIds, setSelectedBrainIds] = useState<string[]>(() =>
+    activeBrain?.id ? [activeBrain.id] : [],
+  );
 
   const toggleBrain = (id: string) => {
-    setSelectedBrainIds(prev => {
+    setSelectedBrainIds((prev) => {
       if (prev.includes(id)) {
         // Don't allow deselecting the last brain
         if (prev.length === 1) return prev;
-        return prev.filter(x => x !== id);
+        return prev.filter((x) => x !== id);
       }
       return [...prev, id];
     });
@@ -79,7 +86,10 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     const merged: Suggestion[] = [];
     for (const b of selectedBrains) {
       for (const s of getSuggestionsForType(b?.type || "personal")) {
-        if (!seen.has(s.q)) { seen.add(s.q); merged.push(s); }
+        if (!seen.has(s.q)) {
+          seen.add(s.q);
+          merged.push(s);
+        }
       }
     }
     return merged;
@@ -110,8 +120,11 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
   // Answered tracking — shared key merges all brain types
   const answeredKey = "openbrain_answered_qs";
   const [answeredQs, setAnsweredQs] = useState<Set<string>>(() => {
-    try { return new Set<string>(JSON.parse(localStorage.getItem(answeredKey) || "[]")); }
-    catch { return new Set<string>(); }
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(answeredKey) || "[]"));
+    } catch {
+      return new Set<string>();
+    }
   });
 
   // Reset position when selected brains change
@@ -128,28 +141,37 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
 
   // Skipped onboarding questions — load once, stay at top of queue
   const [onboardingSkipped] = useState<Suggestion[]>(() => {
-    try { return JSON.parse(localStorage.getItem("openbrain_onboarding_skipped") || "[]"); }
-    catch { return []; }
+    try {
+      return JSON.parse(localStorage.getItem("openbrain_onboarding_skipped") || "[]");
+    } catch {
+      return [];
+    }
   });
 
   const position = answered + skipped;
   const cats = useMemo(() => {
     const c: Record<string, number> = {};
-    questionSet.forEach((s: Suggestion) => { c[s.cat] = (c[s.cat] || 0) + 1; });
-    onboardingSkipped.forEach((s: Suggestion) => { c[s.cat] = (c[s.cat] || 0) + 1; });
+    questionSet.forEach((s: Suggestion) => {
+      c[s.cat] = (c[s.cat] || 0) + 1;
+    });
+    onboardingSkipped.forEach((s: Suggestion) => {
+      c[s.cat] = (c[s.cat] || 0) + 1;
+    });
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
   }, [questionSet, onboardingSkipped]);
 
   const view = useMemo((): Suggestion[] => {
     // Skipped onboarding questions come first (if not yet answered and matching category filter)
-    const skippedPriority = onboardingSkipped.filter((s: Suggestion) =>
-      !answeredQs.has(s.q) &&
-      (filterCat === "all" || s.cat === filterCat)
+    const skippedPriority = onboardingSkipped.filter(
+      (s: Suggestion) => !answeredQs.has(s.q) && (filterCat === "all" || s.cat === filterCat),
     );
-    const base = filterCat === "all" ? questionSet : questionSet.filter((s: Suggestion) => s.cat === filterCat);
-    const rest = base.filter((s: Suggestion) =>
-      !answeredQs.has(s.q) &&
-      !skippedPriority.find((sp: Suggestion) => sp.q === s.q) // avoid duplicates if already in set
+    const base =
+      filterCat === "all"
+        ? questionSet
+        : questionSet.filter((s: Suggestion) => s.cat === filterCat);
+    const rest = base.filter(
+      (s: Suggestion) =>
+        !answeredQs.has(s.q) && !skippedPriority.find((sp: Suggestion) => sp.q === s.q), // avoid duplicates if already in set
     );
     return [...skippedPriority, ...rest];
   }, [filterCat, answeredQs, questionSet, onboardingSkipped]);
@@ -157,30 +179,61 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
   const total = view.length;
   const poolEmpty = total === 0;
   const isAiSlot = poolEmpty || position % 5 === 4;
-  const current: AiQuestion | Suggestion | null = isAiSlot ? (aiLoading ? null : aiQuestion) : view[idx % total];
+  const current: AiQuestion | Suggestion | null = isAiSlot
+    ? aiLoading
+      ? null
+      : aiQuestion
+    : view[idx % total];
 
   useEffect(() => {
     if (!isAiSlot || aiQuestion || aiLoading) return;
     setAiLoading(true);
-    const ctx = entries.slice(0, 30).map((e: Entry) => `- ${e.title}: ${(e.content || "").slice(0, 100)}`).join("\n");
-    const brainContext = brainType === "family"
-      ? "family shared knowledge base (household, family members, emergencies, finances)"
-      : brainType === "business"
-      ? "business knowledge base (suppliers, staff, SOPs, costs, licences, equipment)"
-      : "personal knowledge base";
+    const ctx = entries
+      .slice(0, 30)
+      .map((e: Entry) => `- ${e.title}: ${(e.content || "").slice(0, 100)}`)
+      .join("\n");
+    const brainContext =
+      brainType === "family"
+        ? "family shared knowledge base (household, family members, emergencies, finances)"
+        : brainType === "business"
+          ? "business knowledge base (suppliers, staff, SOPs, costs, licences, equipment)"
+          : "personal knowledge base";
     callAI({
       max_tokens: 200,
       system: PROMPTS.FILL_BRAIN.replace("{{BRAIN_CONTEXT}}", brainContext),
-      messages: [{ role: "user", content: `What they have captured so far:\n${ctx}\n\nWhat important gap should they fill next?` }]
+      messages: [
+        {
+          role: "user",
+          content: `What they have captured so far:\n${ctx}\n\nWhat important gap should they fill next?`,
+        },
+      ],
     })
-      .then(r => r.json())
-      .then(data => {
+      .then((r) => r.json())
+      .then((data) => {
         const raw = (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim();
         let parsed: any = {};
-        try { parsed = JSON.parse(raw); } catch {}
-        setAiQuestion(parsed.q ? { q: parsed.q, cat: parsed.cat || "✨ AI", p: parsed.p || "medium", ai: true } : { q: "What's one important thing you haven't captured yet?", cat: "✨ AI", p: "medium", ai: true });
+        try {
+          parsed = JSON.parse(raw);
+        } catch {}
+        setAiQuestion(
+          parsed.q
+            ? { q: parsed.q, cat: parsed.cat || "✨ AI", p: parsed.p || "medium", ai: true }
+            : {
+                q: "What's one important thing you haven't captured yet?",
+                cat: "✨ AI",
+                p: "medium",
+                ai: true,
+              },
+        );
       })
-      .catch(() => setAiQuestion({ q: "What's one important thing you haven't captured yet?", cat: "✨ AI", p: "medium", ai: true }))
+      .catch(() =>
+        setAiQuestion({
+          q: "What's one important thing you haven't captured yet?",
+          cat: "✨ AI",
+          p: "medium",
+          ai: true,
+        }),
+      )
       .finally(() => setAiLoading(false));
   }, [isAiSlot, aiQuestion, aiLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -188,7 +241,11 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    if (file.size > 4 * 1024 * 1024) { setImgError("Photo too large — try a smaller image"); setTimeout(() => setImgError(null), 3000); return; }
+    if (file.size > 4 * 1024 * 1024) {
+      setImgError("Photo too large — try a smaller image");
+      setTimeout(() => setImgError(null), 3000);
+      return;
+    }
     setImgLoading(true);
     setImgError(null);
     try {
@@ -199,14 +256,24 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
         reader.readAsDataURL(file);
       });
       const apiRes = await aiFetch("/api/anthropic", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: getUserModel(), max_tokens: 600,
-          messages: [{ role: "user", content: [
-            { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-            { type: "text", text: "Extract all text from this image relevant to the question. Output just the extracted content, clean and readable. If it's a document, card, or label — preserve structure. No commentary." }
-          ]}]
-        })
+          model: getUserModel(),
+          max_tokens: 600,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
+                {
+                  type: "text",
+                  text: "Extract all text from this image relevant to the question. Output just the extracted content, clean and readable. If it's a document, card, or label — preserve structure. No commentary.",
+                },
+              ],
+            },
+          ],
+        }),
       });
       const data = await apiRes.json();
       const extracted = data.content?.[0]?.text?.trim() || "";
@@ -228,8 +295,16 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    if (!isSupportedFile(file)) { setImgError("Unsupported file — use .txt, .md, .csv, .pdf, or .docx"); setTimeout(() => setImgError(null), 3000); return; }
-    if (file.size > 10 * 1024 * 1024) { setImgError("File too large — max 10MB"); setTimeout(() => setImgError(null), 3000); return; }
+    if (!isSupportedFile(file)) {
+      setImgError("Unsupported file — use .txt, .md, .csv, .pdf, or .docx");
+      setTimeout(() => setImgError(null), 3000);
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImgError("File too large — max 10MB");
+      setTimeout(() => setImgError(null), 3000);
+      return;
+    }
     setImgLoading(true);
     setImgError(null);
     try {
@@ -238,19 +313,32 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
         extractedText = await readTextFile(file);
       } else {
         const { base64, mimeType } = await readFileAsBase64(file);
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+        const isPdf = file.name.toLowerCase().endsWith(".pdf");
         const contentBlock = isPdf
-          ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } }
+          ? {
+              type: "document",
+              source: { type: "base64", media_type: "application/pdf", data: base64 },
+            }
           : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
         const apiRes = await aiFetch("/api/anthropic", {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: getUserModel(), max_tokens: 4000,
-            messages: [{ role: "user", content: [
-              contentBlock,
-              { type: "text", text: "Extract ALL text from this document relevant to the question. Preserve structure. No commentary." }
-            ]}]
-          })
+            model: getUserModel(),
+            max_tokens: 4000,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  contentBlock,
+                  {
+                    type: "text",
+                    text: "Extract ALL text from this document relevant to the question. Preserve structure. No commentary.",
+                  },
+                ],
+              },
+            ],
+          }),
         });
         const data = await apiRes.json();
         extractedText = data.content?.[0]?.text?.trim() || "";
@@ -275,7 +363,10 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       mediaRecorderRef.current.stop();
       return;
     }
-    if (listening) { recognitionRef.current?.stop(); return; }
+    if (listening) {
+      recognitionRef.current?.stop();
+      return;
+    }
 
     const groqKey = getGroqKey();
     const openAIKey = getUserApiKey();
@@ -284,18 +375,30 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     if (!hasTranscription) {
       // Fall back to browser SpeechRecognition
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SR) { setMicError("Voice not supported in this browser"); setTimeout(() => setMicError(null), 3000); return; }
+      if (!SR) {
+        setMicError("Voice not supported in this browser");
+        setTimeout(() => setMicError(null), 3000);
+        return;
+      }
       const recognition = new SR();
       recognition.lang = "en-ZA";
       recognition.interimResults = true;
       recognition.continuous = false;
       recognitionRef.current = recognition;
       recognition.onresult = (event: any) => {
-        const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join("");
+        const transcript = Array.from(event.results)
+          .map((r: any) => r[0].transcript)
+          .join("");
         setAnswer(transcript);
       };
-      recognition.onend = () => { setListening(false); recognitionRef.current = null; };
-      recognition.onerror = () => { setListening(false); recognitionRef.current = null; };
+      recognition.onend = () => {
+        setListening(false);
+        recognitionRef.current = null;
+      };
+      recognition.onerror = () => {
+        setListening(false);
+        recognitionRef.current = null;
+      };
       recognition.start();
       setListening(true);
       return;
@@ -305,17 +408,23 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       let mimeType = "audio/mp4";
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) mimeType = "audio/webm;codecs=opus";
+      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
+        mimeType = "audio/webm;codecs=opus";
       else if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
 
-      const recorder = new MediaRecorder(stream, mimeType !== "audio/mp4" ? { mimeType } : undefined);
+      const recorder = new MediaRecorder(
+        stream,
+        mimeType !== "audio/mp4" ? { mimeType } : undefined,
+      );
       audioChunksRef.current = [];
       mediaRecorderRef.current = recorder;
 
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
 
       recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach((t) => t.stop());
         setListening(false);
         const actualMime = recorder.mimeType || mimeType;
         const blob = new Blob(audioChunksRef.current, { type: actualMime });
@@ -341,7 +450,7 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
           });
           if (transcribeRes.ok) {
             const { text } = await transcribeRes.json();
-            if (text?.trim()) setAnswer(prev => prev ? `${prev} ${text.trim()}` : text.trim());
+            if (text?.trim()) setAnswer((prev) => (prev ? `${prev} ${text.trim()}` : text.trim()));
           } else {
             setMicError("Transcription failed — try again");
             setTimeout(() => setMicError(null), 3000);
@@ -367,19 +476,22 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     }
   }, [listening]);
 
-  const next = useCallback((dir: string) => {
-    setAnim(dir);
-    setTimeout(() => {
-      setAnswer("");
-      setShowInput(false);
-      setAnim("");
-      if (isAiSlot) {
-        setAiQuestion(null);
-      } else if (total > 0) {
-        setIdx(p => (p + 1) % total);
-      }
-    }, 200);
-  }, [isAiSlot, total]);
+  const next = useCallback(
+    (dir: string) => {
+      setAnim(dir);
+      setTimeout(() => {
+        setAnswer("");
+        setShowInput(false);
+        setAnim("");
+        if (isAiSlot) {
+          setAiQuestion(null);
+        } else if (total > 0) {
+          setIdx((p) => (p + 1) % total);
+        }
+      }, 200);
+    },
+    [isAiSlot, total],
+  );
 
   const handleSave = async () => {
     if (!answer.trim()) return;
@@ -389,11 +501,13 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
       const res = await callAI({
         max_tokens: 800,
         system: PROMPTS.QA_PARSE,
-        messages: [{ role: "user", content: `Question: ${current!.q}\nAnswer: ${a}` }]
+        messages: [{ role: "user", content: `Question: ${current!.q}\nAnswer: ${a}` }],
       });
       const data = await res.json();
       let parsed: any = {};
-      try { parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim()); } catch {}
+      try {
+        parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
+      } catch {}
       if (parsed.title) {
         const rpcRes = await authFetch("/api/capture", {
           method: "POST",
@@ -405,22 +519,37 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
             p_metadata: parsed.metadata || {},
             p_tags: parsed.tags || [],
             p_brain_id: targetBrain?.id,
-          })
+          }),
         });
         const savedToDB = rpcRes.ok;
-        const newEntry: Entry = { id: Date.now().toString(), ...parsed, pinned: false, importance: 0, tags: parsed.tags || [], created_at: new Date().toISOString() };
+        const newEntry: Entry = {
+          id: Date.now().toString(),
+          ...parsed,
+          pinned: false,
+          importance: 0,
+          tags: parsed.tags || [],
+          created_at: new Date().toISOString(),
+        };
         setEntries((prev: Entry[]) => [newEntry, ...prev]);
-        setSaved((prev: SavedItem[]) => [{ q: current!.q, a, cat: current!.cat, db: savedToDB, brain: targetBrain }, ...prev]);
+        setSaved((prev: SavedItem[]) => [
+          { q: current!.q, a, cat: current!.cat, db: savedToDB, brain: targetBrain },
+          ...prev,
+        ]);
       }
     } catch {
-      setSaved((prev: SavedItem[]) => [{ q: current!.q, a, cat: current!.cat, db: false, brain: targetBrain }, ...prev]);
+      setSaved((prev: SavedItem[]) => [
+        { q: current!.q, a, cat: current!.cat, db: false, brain: targetBrain },
+        ...prev,
+      ]);
     }
 
     if (!isAiSlot && current?.q) {
-      setAnsweredQs(prev => {
+      setAnsweredQs((prev) => {
         const updated = new Set(prev);
         updated.add(current.q);
-        try { localStorage.setItem(answeredKey, JSON.stringify([...updated])); } catch {}
+        try {
+          localStorage.setItem(answeredKey, JSON.stringify([...updated]));
+        } catch {}
         return updated;
       });
       // Remove from skipped onboarding list if it was there
@@ -432,13 +561,17 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     }
 
     setSaving(false);
-    setAnswered(n => n + 1);
+    setAnswered((n) => n + 1);
     next("save");
   };
 
   const copyAll = () => {
-    const text = saved.map((s: SavedItem) => `**${s.cat}**\nQ: ${s.q}\nA: ${s.a}`).join("\n\n---\n\n");
-    navigator.clipboard.writeText(text).catch(err => console.error('[SuggestionsView:copyAll] Failed to copy text', err));
+    const text = saved
+      .map((s: SavedItem) => `**${s.cat}**\nQ: ${s.q}\nA: ${s.a}`)
+      .join("\n\n---\n\n");
+    navigator.clipboard
+      .writeText(text)
+      .catch((err) => console.error("[SuggestionsView:copyAll] Failed to copy text", err));
   };
 
   const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
@@ -448,139 +581,481 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     <div>
       {/* Brain selector chips — multi-select */}
       {brains?.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 10, color: t.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1.2, margin: "0 0 8px" }}>
+        <div className="mb-4">
+          <p className="text-ob-text-dim m-0 mb-2 text-[10px] font-semibold tracking-wider uppercase">
             Fill which brain{brains.length > 1 ? "s" : ""}?
           </p>
           {brains.length > 1 ? (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            <div className="flex flex-wrap gap-1.5">
               {brains.map((b: Brain) => {
-                const bmt = BRAIN_META[(b.type || "personal") as keyof typeof BRAIN_META] || BRAIN_META.personal;
+                const bmt =
+                  BRAIN_META[(b.type || "personal") as keyof typeof BRAIN_META] ||
+                  BRAIN_META.personal;
                 const active = selectedBrainIds.includes(b.id);
                 return (
                   <button
                     key={b.id}
                     onClick={() => toggleBrain(b.id)}
+                    className="flex cursor-pointer items-center gap-[5px] rounded-full px-3.5 py-1.5 text-xs font-semibold"
                     style={{
-                      padding: "6px 14px",
-                      borderRadius: 20,
                       border: active ? "1px solid #4ECDC4" : `1px solid ${t.border}`,
                       background: active ? "#4ECDC420" : t.surface,
                       color: active ? "#4ECDC4" : t.textMuted,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 5,
                     }}
                   >
                     <span>{bmt.emoji}</span>
                     <span>{b.name}</span>
                     {active && selectedBrainIds.length > 1 && selectedBrainIds[0] === b.id && (
-                      <span style={{ fontSize: 9, opacity: 0.7 }}>✓ saves here</span>
+                      <span className="text-[9px] opacity-70">✓ saves here</span>
                     )}
                   </button>
                 );
               })}
             </div>
           ) : (
-            <span style={{ fontSize: 12, color: t.textMid, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 20, padding: "6px 14px", fontWeight: 600 }}>
+            <span className="text-ob-text-mid bg-ob-surface border-ob-border rounded-full border px-3.5 py-1.5 text-xs font-semibold">
               {bm.emoji} {targetBrain?.name || bm.label}
             </span>
           )}
-          <p style={{ fontSize: 10, color: t.textDim, margin: "6px 0 0" }}>
-            {selectedBrainIds.length > 1
-              ? <>Showing merged questions · saves go to <strong style={{ color: t.textMuted }}>{bm.emoji} {targetBrain?.name || bm.label}</strong></>
-              : <>Showing questions for <strong style={{ color: t.textMuted }}>{bm.emoji} {targetBrain?.name || bm.label}</strong></>
-            }
+          <p className="text-ob-text-dim mt-1.5 mb-0 text-[10px]">
+            {selectedBrainIds.length > 1 ? (
+              <>
+                Showing merged questions · saves go to{" "}
+                <strong className="text-ob-text-muted">
+                  {bm.emoji} {targetBrain?.name || bm.label}
+                </strong>
+              </>
+            ) : (
+              <>
+                Showing questions for{" "}
+                <strong className="text-ob-text-muted">
+                  {bm.emoji} {targetBrain?.name || bm.label}
+                </strong>
+              </>
+            )}
           </p>
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-        {[{ l: "Answered", v: answered, c: "#4ECDC4" }, { l: "Skipped", v: skipped, c: "#FF6B35" }, { l: "Remaining", v: Math.max(0, total - (idx % Math.max(total, 1))), c: "#A29BFE" }].map(s =>
-          <div key={s.l} style={{ flex: 1, background: t.surface, borderRadius: 10, padding: 12, textAlign: "center", border: `1px solid ${t.border}` }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: s.c }}>{s.v}</div>
-            <div style={{ fontSize: 9, color: t.textDim, textTransform: "uppercase", letterSpacing: 1.2, marginTop: 2 }}>{s.l}</div>
+      <div className="mb-5 flex gap-3">
+        {[
+          { l: "Answered", v: answered, c: "#4ECDC4" },
+          { l: "Skipped", v: skipped, c: "#FF6B35" },
+          { l: "Remaining", v: Math.max(0, total - (idx % Math.max(total, 1))), c: "#A29BFE" },
+        ].map((s) => (
+          <div
+            key={s.l}
+            className="bg-ob-surface border-ob-border flex-1 rounded-[10px] border p-3 text-center"
+          >
+            <div className="text-[22px] font-extrabold" style={{ color: s.c }}>
+              {s.v}
+            </div>
+            <div className="text-ob-text-dim mt-0.5 text-[9px] tracking-wider uppercase">{s.l}</div>
           </div>
-        )}
+        ))}
       </div>
 
-      <div style={{ height: 3, background: t.surface, borderRadius: 4, marginBottom: 20, overflow: "hidden" }}>
-        <div style={{ height: "100%", width: `${Math.min(total > 0 ? ((answered + skipped) / total) * 100 : 0, 100)}%`, background: "linear-gradient(90deg, #4ECDC4, #45B7D1)", transition: "width 0.4s", borderRadius: 4 }} />
+      <div className="bg-ob-surface mb-5 h-[3px] overflow-hidden rounded">
+        <div
+          className="h-full rounded"
+          style={{
+            width: `${Math.min(total > 0 ? ((answered + skipped) / total) * 100 : 0, 100)}%`,
+            background: "linear-gradient(90deg, #4ECDC4, #45B7D1)",
+            transition: "width 0.4s",
+          }}
+        />
       </div>
 
-      <div style={{ display: "flex", gap: 6, overflowX: "auto", marginBottom: 20, paddingBottom: 4, scrollbarWidth: "none" }}>
-        <button onClick={() => { setFilterCat("all"); setIdx(0); }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 20, border: "none", fontSize: 10, fontWeight: 600, cursor: "pointer", background: filterCat === "all" ? "#4ECDC4" : t.surface, color: filterCat === "all" ? "#0f0f23" : t.textDim }}>All</button>
-        {cats.map(([c, n]: [string, number]) => <button key={c} onClick={() => { setFilterCat(c); setIdx(0); }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 20, border: "none", fontSize: 10, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", background: filterCat === c ? "#4ECDC4" : t.surface, color: filterCat === c ? "#0f0f23" : t.textDim }}>{c} ({n})</button>)}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          overflowX: "auto",
+          marginBottom: 20,
+          paddingBottom: 4,
+          scrollbarWidth: "none",
+        }}
+      >
+        <button
+          onClick={() => {
+            setFilterCat("all");
+            setIdx(0);
+          }}
+          style={{
+            flexShrink: 0,
+            padding: "5px 12px",
+            borderRadius: 20,
+            border: "none",
+            fontSize: 10,
+            fontWeight: 600,
+            cursor: "pointer",
+            background: filterCat === "all" ? "#4ECDC4" : t.surface,
+            color: filterCat === "all" ? "#0f0f23" : t.textDim,
+          }}
+        >
+          All
+        </button>
+        {cats.map(([c, n]: [string, number]) => (
+          <button
+            key={c}
+            onClick={() => {
+              setFilterCat(c);
+              setIdx(0);
+            }}
+            style={{
+              flexShrink: 0,
+              padding: "5px 12px",
+              borderRadius: 20,
+              border: "none",
+              fontSize: 10,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              background: filterCat === c ? "#4ECDC4" : t.surface,
+              color: filterCat === c ? "#0f0f23" : t.textDim,
+            }}
+          >
+            {c} ({n})
+          </button>
+        ))}
       </div>
 
       {poolEmpty && (
-        <div style={{ background: "#A29BFE15", border: "1px solid #A29BFE40", borderRadius: 12, padding: "12px 16px", marginBottom: 16, textAlign: "center" }}>
-          <span style={{ fontSize: 11, color: "#A29BFE", fontWeight: 600 }}>✨ All {answeredQs.size} static questions answered — AI is now driving</span>
+        <div
+          className="mb-4 rounded-xl px-4 py-3 text-center"
+          style={{ background: "#A29BFE15", border: "1px solid #A29BFE40" }}
+        >
+          <span className="text-purple text-[11px] font-semibold">
+            ✨ All {answeredQs.size} static questions answered — AI is now driving
+          </span>
         </div>
       )}
       {isAiSlot && aiLoading && (
-        <div style={{ background: `linear-gradient(135deg, ${t.surface}, ${t.surface2})`, border: "1px solid #A29BFE40", borderRadius: 16, padding: "28px 24px", marginBottom: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 22, marginBottom: 8 }}>✨</div>
-          <p style={{ color: "#A29BFE", fontSize: 14, margin: 0 }}>AI is generating a personalised question…</p>
+        <div
+          className="gradient-surface mb-4 rounded-2xl text-center"
+          style={{ border: "1px solid #A29BFE40", padding: "28px 24px" }}
+        >
+          <div className="mb-2 text-[22px]">✨</div>
+          <p className="text-purple m-0 text-sm">AI is generating a personalised question…</p>
         </div>
       )}
-      {current && !aiLoading && <div style={{ background: `linear-gradient(135deg, ${t.surface}, ${t.surface2})`, border: isAiSlot ? "1px solid #A29BFE40" : `1px solid ${t.border}`, borderRadius: 16, padding: "28px 24px", marginBottom: 16, position: "relative", overflow: "hidden", transform: anim === "skip" ? "translateX(-30px)" : anim === "save" ? "scale(0.95)" : "none", opacity: anim ? 0.4 : 1, transition: "all 0.2s" }}>
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${pc.c}, transparent)` }} />
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
-          <span style={{ fontSize: 10, background: pc.bg, color: pc.c, padding: "3px 10px", borderRadius: 20, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{pc.l}</span>
-          <span style={{ fontSize: 11, color: t.textDim }}>{current.cat}</span>
-          {isAiSlot && <span style={{ fontSize: 9, background: "#A29BFE20", color: "#A29BFE", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>✨ AI</span>}
-          {!isAiSlot && current && onboardingSkipped.find((s: Suggestion) => s.q === current.q) && (
-            <span style={{ fontSize: 9, background: "#FF6B3520", color: "#FF6B35", padding: "2px 8px", borderRadius: 20, fontWeight: 700 }}>↩ From onboarding</span>
-          )}
-          <span style={{ fontSize: 10, color: t.textDim, marginLeft: "auto" }}>#{idx + 1}/{total}</span>
+      {current && !aiLoading && (
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${t.surface}, ${t.surface2})`,
+            border: isAiSlot ? "1px solid #A29BFE40" : `1px solid ${t.border}`,
+            borderRadius: 16,
+            padding: "28px 24px",
+            marginBottom: 16,
+            position: "relative",
+            overflow: "hidden",
+            transform:
+              anim === "skip" ? "translateX(-30px)" : anim === "save" ? "scale(0.95)" : "none",
+            opacity: anim ? 0.4 : 1,
+            transition: "all 0.2s",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: `linear-gradient(90deg, ${pc.c}, transparent)`,
+            }}
+          />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <span
+              style={{
+                fontSize: 10,
+                background: pc.bg,
+                color: pc.c,
+                padding: "3px 10px",
+                borderRadius: 20,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              {pc.l}
+            </span>
+            <span style={{ fontSize: 11, color: t.textDim }}>{current.cat}</span>
+            {isAiSlot && (
+              <span
+                style={{
+                  fontSize: 9,
+                  background: "#A29BFE20",
+                  color: "#A29BFE",
+                  padding: "2px 8px",
+                  borderRadius: 20,
+                  fontWeight: 700,
+                }}
+              >
+                ✨ AI
+              </span>
+            )}
+            {!isAiSlot &&
+              current &&
+              onboardingSkipped.find((s: Suggestion) => s.q === current.q) && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    background: "#FF6B3520",
+                    color: "#FF6B35",
+                    padding: "2px 8px",
+                    borderRadius: 20,
+                    fontWeight: 700,
+                  }}
+                >
+                  ↩ From onboarding
+                </span>
+              )}
+            <span style={{ fontSize: 10, color: t.textDim, marginLeft: "auto" }}>
+              #{idx + 1}/{total}
+            </span>
+          </div>
+          <p style={{ fontSize: 18, color: t.text, lineHeight: 1.6, margin: 0, fontWeight: 500 }}>
+            {current.q}
+          </p>
         </div>
-        <p style={{ fontSize: 18, color: t.text, lineHeight: 1.6, margin: 0, fontWeight: 500 }}>{current.q}</p>
-      </div>}
+      )}
 
       {!showInput ? (
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => { setSkipped(s => s + 1); next("skip"); }} disabled={aiLoading} style={{ flex: 1, padding: 14, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 12, color: aiLoading ? t.textDim : t.textMuted, fontSize: 14, fontWeight: 600, cursor: aiLoading ? "default" : "pointer" }}>Skip →</button>
-          <button onClick={() => setShowInput(true)} disabled={!current || aiLoading} style={{ flex: 2, padding: 14, background: current && !aiLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 12, color: current && !aiLoading ? "#0f0f23" : t.textDim, fontSize: 14, fontWeight: 700, cursor: current && !aiLoading ? "pointer" : "default" }}>Answer this</button>
+          <button
+            onClick={() => {
+              setSkipped((s) => s + 1);
+              next("skip");
+            }}
+            disabled={aiLoading}
+            style={{
+              flex: 1,
+              padding: 14,
+              background: t.surface,
+              border: `1px solid ${t.border}`,
+              borderRadius: 12,
+              color: aiLoading ? t.textDim : t.textMuted,
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: aiLoading ? "default" : "pointer",
+            }}
+          >
+            Skip →
+          </button>
+          <button
+            onClick={() => setShowInput(true)}
+            disabled={!current || aiLoading}
+            style={{
+              flex: 2,
+              padding: 14,
+              background:
+                current && !aiLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface,
+              border: "none",
+              borderRadius: 12,
+              color: current && !aiLoading ? "#0f0f23" : t.textDim,
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: current && !aiLoading ? "pointer" : "default",
+            }}
+          >
+            Answer this
+          </button>
         </div>
       ) : (
         <div>
-          <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} style={{ display: "none" }} />
-          <input type="file" accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" ref={fileRef} onChange={handleFileUpload} style={{ display: "none" }} />
-          {imgError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 6px" }}>{imgError}</p>}
-          {micError && <p style={{ fontSize: 12, color: "#FF6B35", margin: "0 0 6px" }}>{micError}</p>}
-          <textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder={listening ? "Listening..." : "Type your answer..."} autoFocus
-            style={{ width: "100%", boxSizing: "border-box", minHeight: 100, padding: "14px 16px", background: listening ? `${t.surface}` : t.surface, border: listening ? "1px solid #25D36640" : "1px solid #4ECDC440", borderRadius: 12, color: t.textSoft, fontSize: 14, lineHeight: 1.6, outline: "none", resize: "vertical", fontFamily: "inherit", opacity: imgLoading ? 0.5 : 1 }} />
+          <input
+            type="file"
+            accept="image/*"
+            ref={imgRef}
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <input
+            type="file"
+            accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ref={fileRef}
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          {imgError && <p className="text-orange m-0 mb-1.5 text-xs">{imgError}</p>}
+          {micError && <p className="text-orange m-0 mb-1.5 text-xs">{micError}</p>}
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={listening ? "Listening..." : "Type your answer..."}
+            autoFocus
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              minHeight: 100,
+              padding: "14px 16px",
+              background: listening ? `${t.surface}` : t.surface,
+              border: listening ? "1px solid #25D36640" : "1px solid #4ECDC440",
+              borderRadius: 12,
+              color: t.textSoft,
+              fontSize: 14,
+              lineHeight: 1.6,
+              outline: "none",
+              resize: "vertical",
+              fontFamily: "inherit",
+              opacity: imgLoading ? 0.5 : 1,
+            }}
+          />
           <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-            <button onClick={() => { setShowInput(false); setAnswer(""); setListening(false); recognitionRef.current?.stop(); mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop(); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 13, cursor: "pointer" }}>Cancel</button>
-            <button onClick={() => { setSkipped(s => s + 1); next("skip"); }} style={{ flex: 1, padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: "#FF6B35", fontSize: 13, cursor: "pointer" }}>Skip</button>
-            <button onClick={startVoice} disabled={imgLoading || saving} title="Voice input" style={{ padding: 12, background: listening ? "#25D36620" : t.surface, border: listening ? "1px solid #25D36640" : `1px solid ${t.border}`, borderRadius: 10, color: listening ? "#25D366" : t.textMuted, cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>{listening ? "⏹" : "🎤"}</button>
-            <button onClick={() => imgRef.current?.click()} disabled={imgLoading || saving} title="Upload photo" style={{ padding: 12, background: t.surface, border: "1px solid #4ECDC440", borderRadius: 10, color: imgLoading ? t.textDim : "#4ECDC4", cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📷</button>
-            <button onClick={() => fileRef.current?.click()} disabled={imgLoading || saving} title="Upload file (PDF, Word, MD, TXT)" style={{ padding: 12, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: imgLoading ? t.textDim : t.textMuted, cursor: imgLoading || saving ? "default" : "pointer", fontSize: 14 }}>📄</button>
-            <button onClick={handleSave} disabled={!answer.trim() || saving || imgLoading} style={{ flex: 2, padding: 12, background: answer.trim() && !imgLoading ? "linear-gradient(135deg, #4ECDC4, #45B7D1)" : t.surface, border: "none", borderRadius: 10, color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim, fontSize: 13, fontWeight: 700, cursor: answer.trim() && !imgLoading ? "pointer" : "default" }}>
-              {saving ? "Saving..." : imgLoading ? "Processing..." : listening ? "Listening..." : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
+            <button
+              onClick={() => {
+                setShowInput(false);
+                setAnswer("");
+                setListening(false);
+                recognitionRef.current?.stop();
+                mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop();
+              }}
+              style={{
+                flex: 1,
+                padding: 12,
+                background: t.surface,
+                border: `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: t.textMuted,
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setSkipped((s) => s + 1);
+                next("skip");
+              }}
+              style={{
+                flex: 1,
+                padding: 12,
+                background: t.surface,
+                border: `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: "#FF6B35",
+                fontSize: 13,
+                cursor: "pointer",
+              }}
+            >
+              Skip
+            </button>
+            <button
+              onClick={startVoice}
+              disabled={imgLoading || saving}
+              title="Voice input"
+              style={{
+                padding: 12,
+                background: listening ? "#25D36620" : t.surface,
+                border: listening ? "1px solid #25D36640" : `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: listening ? "#25D366" : t.textMuted,
+                cursor: imgLoading || saving ? "default" : "pointer",
+                fontSize: 14,
+              }}
+            >
+              {listening ? "⏹" : "🎤"}
+            </button>
+            <button
+              onClick={() => imgRef.current?.click()}
+              disabled={imgLoading || saving}
+              title="Upload photo"
+              style={{
+                padding: 12,
+                background: t.surface,
+                border: "1px solid #4ECDC440",
+                borderRadius: 10,
+                color: imgLoading ? t.textDim : "#4ECDC4",
+                cursor: imgLoading || saving ? "default" : "pointer",
+                fontSize: 14,
+              }}
+            >
+              📷
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={imgLoading || saving}
+              title="Upload file (PDF, Word, MD, TXT)"
+              style={{
+                padding: 12,
+                background: t.surface,
+                border: `1px solid ${t.border}`,
+                borderRadius: 10,
+                color: imgLoading ? t.textDim : t.textMuted,
+                cursor: imgLoading || saving ? "default" : "pointer",
+                fontSize: 14,
+              }}
+            >
+              📄
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!answer.trim() || saving || imgLoading}
+              style={{
+                flex: 2,
+                padding: 12,
+                background:
+                  answer.trim() && !imgLoading
+                    ? "linear-gradient(135deg, #4ECDC4, #45B7D1)"
+                    : t.surface,
+                border: "none",
+                borderRadius: 10,
+                color: answer.trim() && !imgLoading ? "#0f0f23" : t.textDim,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: answer.trim() && !imgLoading ? "pointer" : "default",
+              }}
+            >
+              {saving
+                ? "Saving..."
+                : imgLoading
+                  ? "Processing..."
+                  : listening
+                    ? "Listening..."
+                    : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
             </button>
           </div>
         </div>
       )}
 
       {saved.length > 0 && (
-        <div style={{ marginTop: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <p style={{ fontSize: 11, color: t.textDim, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1.2, margin: 0 }}>This session ({saved.length})</p>
-            <button onClick={copyAll} style={{ padding: "6px 14px", background: "#4ECDC420", border: "none", borderRadius: 20, color: "#4ECDC4", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>📋 Copy All for Claude</button>
+        <div className="mt-7">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-ob-text-dim m-0 text-[11px] font-semibold tracking-wider uppercase">
+              This session ({saved.length})
+            </p>
+            <button
+              onClick={copyAll}
+              className="bg-teal/10 text-teal cursor-pointer rounded-full border-0 px-3.5 py-1.5 text-[11px] font-bold"
+            >
+              📋 Copy All for Claude
+            </button>
           </div>
           {saved.map((s, i) => (
-            <div key={i} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 11, color: t.textDim }}>{s.cat}</span>
-                {s.brain && <span style={{ fontSize: 9, color: t.textDim }}>{BRAIN_META[(s.brain.type || "personal") as keyof typeof BRAIN_META]?.emoji} {s.brain.name}</span>}
-                {s.db && <span style={{ fontSize: 9, background: "#4ECDC420", color: "#4ECDC4", padding: "2px 8px", borderRadius: 20, fontWeight: 600 }}>Saved to DB</span>}
+            <div
+              key={i}
+              className="bg-ob-surface border-ob-border mb-2 rounded-[10px] border px-4 py-3"
+            >
+              <div className="mb-1 flex items-center gap-2">
+                <span className="text-ob-text-dim text-[11px]">{s.cat}</span>
+                {s.brain && (
+                  <span className="text-ob-text-dim text-[9px]">
+                    {BRAIN_META[(s.brain.type || "personal") as keyof typeof BRAIN_META]?.emoji}{" "}
+                    {s.brain.name}
+                  </span>
+                )}
+                {s.db && (
+                  <span className="bg-teal/10 text-teal rounded-full px-2 py-0.5 text-[9px] font-semibold">
+                    Saved to DB
+                  </span>
+                )}
               </div>
-              <p style={{ margin: 0, fontSize: 13, color: t.textMid }}>{s.a.slice(0, 120)}{s.a.length > 120 ? "…" : ""}</p>
+              <p className="text-ob-text-mid m-0 text-[13px]">
+                {s.a.slice(0, 120)}
+                {s.a.length > 120 ? "…" : ""}
+              </p>
             </div>
           ))}
         </div>
@@ -588,4 +1063,3 @@ export default function SuggestionsView({ entries, setEntries, activeBrain, brai
     </div>
   );
 }
-

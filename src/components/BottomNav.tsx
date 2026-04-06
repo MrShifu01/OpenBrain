@@ -8,10 +8,10 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: "capture", label: "Capture", icon: "+" },
-  { id: "grid", label: "Grid", icon: "\u25A6" },
-  { id: "suggest", label: "Fill Brain", icon: "\u2726" },
-  { id: "chat", label: "Ask", icon: "\u25C8" },
-  { id: "more", label: "More", icon: "\u2261" },
+  { id: "grid", label: "Grid", icon: "◦" },
+  { id: "suggest", label: "Fill Brain", icon: "✦" },
+  { id: "chat", label: "Ask", icon: "◈" },
+  { id: "more", label: "More", icon: "≡" },
 ];
 
 interface BottomNavProps {
@@ -20,28 +20,14 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
-  const { t, isDark } = useTheme();
+  const { isDark } = useTheme();
 
   return (
     <nav
       aria-label="Main navigation"
-      style={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        display: "flex",
-        justifyContent: "space-around",
-        alignItems: "center",
-        background: isDark
-          ? "rgba(15, 15, 35, 0.92)"
-          : "rgba(240, 240, 248, 0.92)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderTop: `1px solid ${t.border}`,
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        zIndex: 900,
-      }}
+      className={`border-ob-border fixed right-0 bottom-0 left-0 z-[900] flex items-center justify-around border-t pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-[20px] ${
+        isDark ? "bg-[rgba(15,15,35,0.92)]" : "bg-[rgba(240,240,248,0.92)]"
+      }`}
     >
       {NAV_ITEMS.map((item) => {
         const isActive = activeView === item.id;
@@ -51,38 +37,15 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
             onClick={() => onNavigate(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 2,
-              minHeight: 56,
-              padding: "8px 4px",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: isActive ? t.accent : t.textMuted,
-              transition: "color 0.15s ease",
-              WebkitTapHighlightColor: "transparent",
-            }}
+            className={`flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 border-none bg-none px-1 py-2 transition-colors duration-150 ease-in-out [-webkit-tap-highlight-color:transparent] ${
+              isActive ? "text-ob-accent" : "text-ob-text-muted"
+            }`}
           >
-            <span
-              style={{
-                fontSize: 20,
-                lineHeight: 1,
-                fontWeight: isActive ? 700 : 400,
-              }}
-            >
+            <span className={`text-xl leading-none ${isActive ? "font-bold" : "font-normal"}`}>
               {item.icon}
             </span>
             <span
-              style={{
-                fontSize: 10,
-                fontWeight: isActive ? 700 : 500,
-                letterSpacing: 0.3,
-              }}
+              className={`text-[10px] tracking-[0.3px] ${isActive ? "font-bold" : "font-medium"}`}
             >
               {item.label}
             </span>

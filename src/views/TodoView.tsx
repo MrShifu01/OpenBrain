@@ -1,12 +1,23 @@
 import { useMemo } from "react";
 import { TC, fmtD } from "../data/constants";
-import { useTheme } from "../ThemeContext";
 import type { Entry } from "../types";
 
 const DATE_KEYS = [
-  "deadline", "due_date", "valid_to", "expiry_date", "expiry",
-  "renewal_date", "event_date", "date", "start_date", "end_date",
-  "scheduled_date", "appointment_date", "event_start", "match_date", "game_date",
+  "deadline",
+  "due_date",
+  "valid_to",
+  "expiry_date",
+  "expiry",
+  "renewal_date",
+  "event_date",
+  "date",
+  "start_date",
+  "end_date",
+  "scheduled_date",
+  "appointment_date",
+  "event_start",
+  "match_date",
+  "game_date",
 ];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
 
@@ -15,12 +26,12 @@ function extractDates(entry: Entry): string[] {
   const dates = new Set<string>();
 
   // Explicit date fields
-  DATE_KEYS.forEach(k => {
+  DATE_KEYS.forEach((k) => {
     if (m[k] && DATE_RE.test(String(m[k]))) dates.add(String(m[k]).slice(0, 10));
   });
 
   // Generic metadata scan
-  Object.values(m).forEach(v => {
+  Object.values(m).forEach((v) => {
     if (typeof v === "string" && DATE_RE.test(v)) dates.add(v.slice(0, 10));
   });
 
@@ -41,8 +52,6 @@ interface TodoItem {
 }
 
 export default function TodoView({ entries = [] }: TodoViewProps) {
-  const { t } = useTheme();
-
   const { today, tomorrow, thisWeek, overdue } = useMemo(() => {
     const now = new Date();
     const todayKey = toDateKey(now);
@@ -61,12 +70,12 @@ export default function TodoView({ entries = [] }: TodoViewProps) {
     const thisWeek: TodoItem[] = []; // days after tomorrow through end of week
     const overdue: TodoItem[] = [];
 
-    entries.forEach(entry => {
+    entries.forEach((entry) => {
       // Skip completed reminders
       if (entry.type === "reminder" && entry.metadata?.status === "done") return;
 
       const dates = extractDates(entry);
-      dates.forEach(dateStr => {
+      dates.forEach((dateStr) => {
         const item = { entry, dateStr };
         if (dateStr === todayKey) {
           today.push(item);
@@ -95,53 +104,52 @@ export default function TodoView({ entries = [] }: TodoViewProps) {
     return (
       <div
         key={`${entry.id}-${dateStr}`}
-        style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 14px",
-          background: t.surface,
-          border: `1px solid ${t.border}`,
-          borderRadius: 10,
-          marginBottom: 6,
-        }}
+        className="bg-ob-surface border-ob-border mb-1.5 flex items-center gap-2.5 rounded-[10px] border px-3.5 py-2.5"
       >
-        <span style={{ fontSize: 16, flexShrink: 0 }}>{tc.i}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: t.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span className="shrink-0 text-base">{tc.i}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-ob-text m-0 overflow-hidden text-[13px] font-semibold text-ellipsis whitespace-nowrap">
             {entry.title}
           </p>
           {entry.content && entry.content !== entry.title && (
-            <p style={{ margin: "2px 0 0", fontSize: 11, color: t.textDim, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <p className="text-ob-text-dim mt-0.5 mb-0 overflow-hidden text-[11px] text-ellipsis whitespace-nowrap">
               {entry.content}
             </p>
           )}
         </div>
-        {showDate && (
-          <span style={{ fontSize: 10, color: t.textDim, flexShrink: 0 }}>
-            {fmtD(dateStr)}
-          </span>
-        )}
-        <span style={{
-          fontSize: 9, padding: "2px 8px", borderRadius: 20, fontWeight: 700, flexShrink: 0,
-          background: `${tc.c}20`, color: tc.c,
-        }}>
+        {showDate && <span className="text-ob-text-dim shrink-0 text-[10px]">{fmtD(dateStr)}</span>}
+        <span
+          className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold"
+          style={{ background: `${tc.c}20`, color: tc.c }}
+        >
           {entry.type}
         </span>
       </div>
     );
   }
 
-  function renderSection(title: string, emoji: string, items: TodoItem[], showDate: boolean, accentColor?: string) {
+  function renderSection(
+    title: string,
+    emoji: string,
+    items: TodoItem[],
+    showDate: boolean,
+    accentColor?: string,
+  ) {
     if (items.length === 0) return null;
     return (
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-          <span style={{ fontSize: 14 }}>{emoji}</span>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: accentColor || t.textMid, textTransform: "uppercase", letterSpacing: 1 }}>
-            {title}
+      <div className="mb-5">
+        <div className="mb-2 flex items-center gap-1.5">
+          <span className="text-sm">{emoji}</span>
+          <p
+            className="m-0 text-xs font-bold tracking-[1px] uppercase"
+            style={accentColor ? { color: accentColor } : undefined}
+          >
+            {!accentColor && <span className="text-ob-text-mid">{title}</span>}
+            {accentColor && title}
           </p>
-          <span style={{ fontSize: 11, color: t.textDim, fontWeight: 400 }}>({items.length})</span>
+          <span className="text-ob-text-dim text-[11px] font-normal">({items.length})</span>
         </div>
-        {items.map(item => renderItem(item, showDate))}
+        {items.map((item) => renderItem(item, showDate))}
       </div>
     );
   }
@@ -149,11 +157,12 @@ export default function TodoView({ entries = [] }: TodoViewProps) {
   return (
     <div>
       {total === 0 && (
-        <div style={{ textAlign: "center", paddingTop: 48 }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-          <p style={{ fontSize: 15, fontWeight: 600, color: t.text, marginBottom: 4 }}>All clear</p>
-          <p style={{ fontSize: 13, color: t.textDim, margin: 0, lineHeight: 1.6 }}>
-            No upcoming deadlines, events, or reminders this week.<br />
+        <div className="pt-12 text-center">
+          <div className="mb-3 text-[40px]">📋</div>
+          <p className="text-ob-text mb-1 text-[15px] font-semibold">All clear</p>
+          <p className="text-ob-text-dim m-0 text-[13px] leading-relaxed">
+            No upcoming deadlines, events, or reminders this week.
+            <br />
             Entries with dates will show up here automatically.
           </p>
         </div>
@@ -166,4 +175,3 @@ export default function TodoView({ entries = [] }: TodoViewProps) {
     </div>
   );
 }
-

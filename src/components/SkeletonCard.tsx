@@ -1,82 +1,38 @@
-import { useTheme } from "../ThemeContext";
-
-const SHIMMER_ANIMATION = "skeleton-shimmer 1.5s ease-in-out infinite";
+const SHIMMER_KEYFRAMES = `
+  @keyframes skeleton-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+`;
 
 function SingleSkeleton() {
-  const { t, isDark } = useTheme();
-  const baseColor = isDark ? "#2a2a4a" : "#e0dff0";
-  const shimmerColor = isDark ? "#3a3a5a" : "#d0cfe0";
-
   return (
     <div
       role="status"
       aria-label="Loading"
-      style={{
-        background: t.surface,
-        border: `1px solid ${t.border}`,
-        borderRadius: 12,
-        padding: "16px 20px",
-        overflow: "hidden",
-      }}
+      className="bg-ob-surface border-ob-border overflow-hidden rounded-xl border px-5 py-4"
     >
       {/* Title line */}
       <div
         data-testid="skeleton-line"
-        style={{
-          height: 14,
-          width: "60%",
-          borderRadius: 6,
-          background: `linear-gradient(90deg, ${baseColor} 25%, ${shimmerColor} 50%, ${baseColor} 75%)`,
-          backgroundSize: "200% 100%",
-          animation: SHIMMER_ANIMATION,
-          marginBottom: 12,
-        }}
+        className="bg-ob-border mb-3 h-3.5 w-[60%] animate-[skeleton-shimmer_1.5s_ease-in-out_infinite] rounded-md bg-[length:200%_100%]"
       />
       {/* Content line 1 */}
       <div
         data-testid="skeleton-line"
-        style={{
-          height: 10,
-          width: "90%",
-          borderRadius: 4,
-          background: `linear-gradient(90deg, ${baseColor} 25%, ${shimmerColor} 50%, ${baseColor} 75%)`,
-          backgroundSize: "200% 100%",
-          animation: SHIMMER_ANIMATION,
-          marginBottom: 8,
-        }}
+        className="bg-ob-border mb-2 h-2.5 w-[90%] animate-[skeleton-shimmer_1.5s_ease-in-out_infinite] rounded bg-[length:200%_100%]"
       />
       {/* Content line 2 */}
       <div
         data-testid="skeleton-line"
-        style={{
-          height: 10,
-          width: "75%",
-          borderRadius: 4,
-          background: `linear-gradient(90deg, ${baseColor} 25%, ${shimmerColor} 50%, ${baseColor} 75%)`,
-          backgroundSize: "200% 100%",
-          animation: SHIMMER_ANIMATION,
-          marginBottom: 8,
-        }}
+        className="bg-ob-border mb-2 h-2.5 w-[75%] animate-[skeleton-shimmer_1.5s_ease-in-out_infinite] rounded bg-[length:200%_100%]"
       />
       {/* Tags line */}
       <div
         data-testid="skeleton-line"
-        style={{
-          height: 8,
-          width: "40%",
-          borderRadius: 4,
-          background: `linear-gradient(90deg, ${baseColor} 25%, ${shimmerColor} 50%, ${baseColor} 75%)`,
-          backgroundSize: "200% 100%",
-          animation: SHIMMER_ANIMATION,
-          marginTop: 12,
-        }}
+        className="bg-ob-border mt-3 h-2 w-[40%] animate-[skeleton-shimmer_1.5s_ease-in-out_infinite] rounded bg-[length:200%_100%]"
       />
-      <style>{`
-        @keyframes skeleton-shimmer {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
-        }
-      `}</style>
+      <style>{SHIMMER_KEYFRAMES}</style>
     </div>
   );
 }

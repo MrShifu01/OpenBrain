@@ -16,7 +16,14 @@ interface BrainSwitcherProps {
   onBrainTip?: (brain: Brain) => void;
 }
 
-export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCreated, onBrainDeleted, onBrainTip }: BrainSwitcherProps): JSX.Element {
+export default function BrainSwitcher({
+  brains,
+  activeBrain,
+  onSwitch,
+  onBrainCreated,
+  onBrainDeleted,
+  onBrainTip,
+}: BrainSwitcherProps): JSX.Element {
   const [open, setOpen] = useState<boolean>(false);
   const [showCreate, setShowCreate] = useState<boolean>(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -33,13 +40,15 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
   // UX-4: Close dropdown on Escape key
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent): void => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    const handler = (e: KeyboardEvent): void => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [open]);
 
-  const personalBrains = brains.filter(b => b.type === "personal");
-  const sharedBrains = brains.filter(b => b.type !== "personal");
+  const personalBrains = brains.filter((b) => b.type === "personal");
+  const sharedBrains = brains.filter((b) => b.type !== "personal");
 
   function select(brain: Brain): void {
     onSwitch(brain);
@@ -47,59 +56,35 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
   }
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+    <div ref={ref} className="relative inline-block">
       {/* Trigger button */}
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={() => setOpen((o) => !o)}
         title="Switch brain"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "5px 10px",
-          background: "rgba(255,255,255,0.08)",
-          border: "1px solid rgba(255,255,255,0.15)",
-          borderRadius: 8,
-          color: "#e8e8e8",
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          maxWidth: 200,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
+        className="flex max-w-[200px] cursor-pointer items-center gap-1.5 overflow-hidden rounded-lg border border-white/15 bg-white/[0.08] px-2.5 py-[5px] text-[13px] font-medium text-ellipsis whitespace-nowrap text-[#e8e8e8]"
       >
-        <span style={{ fontSize: 15 }}>{activeBrain?.type === "personal" ? "🧠" : activeBrain?.type === "business" ? "🏪" : "🏠"}</span>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-          {activeBrain?.name || "Select Brain"}
+        <span className="text-[15px]">
+          {activeBrain?.type === "personal" ? "🧠" : activeBrain?.type === "business" ? "🏪" : "🏠"}
         </span>
-        {activeBrain?.myRole === "viewer" && <span style={{ fontSize: 9, color: "#888", background: "#88888820", borderRadius: 10, padding: "1px 6px" }}>view</span>}
-        <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }}>{open ? "▲" : "▼"}</span>
+        <span className="overflow-hidden text-ellipsis">{activeBrain?.name || "Select Brain"}</span>
+        {activeBrain?.myRole === "viewer" && (
+          <span className="rounded-[10px] bg-[#88888820] px-1.5 py-px text-[9px] text-[#888]">
+            view
+          </span>
+        )}
+        <span className="ml-0.5 text-[10px] opacity-60">{open ? "▲" : "▼"}</span>
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div style={{
-          position: "absolute",
-          top: "calc(100% + 6px)",
-          right: 0,
-          minWidth: 200,
-          maxWidth: "calc(100vw - 24px)",
-          background: "#1e1e2e",
-          border: "1px solid rgba(255,255,255,0.12)",
-          borderRadius: 10,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-          zIndex: 999,
-          overflow: "hidden",
-        }}>
+        <div className="absolute top-[calc(100%+6px)] right-0 z-[999] max-w-[calc(100vw-24px)] min-w-[200px] overflow-hidden rounded-[10px] border border-white/[0.12] bg-[#1e1e2e] shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           {/* Personal brains */}
           {personalBrains.length > 0 && (
-            <div style={{ padding: "6px 0 2px 12px", fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>
+            <div className="pt-1.5 pb-0.5 pl-3 text-[10px] tracking-[1px] text-[#888] uppercase">
               Personal
             </div>
           )}
-          {personalBrains.map(b => (
+          {personalBrains.map((b) => (
             <BrainItem
               key={b.id}
               brain={b}
@@ -111,11 +96,11 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
 
           {/* Shared brains */}
           {sharedBrains.length > 0 && (
-            <div style={{ padding: "8px 0 2px 12px", fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: 1 }}>
+            <div className="pt-2 pb-0.5 pl-3 text-[10px] tracking-[1px] text-[#888] uppercase">
               Shared
             </div>
           )}
-          {sharedBrains.map(b => (
+          {sharedBrains.map((b) => (
             <BrainItem
               key={b.id}
               brain={b}
@@ -124,28 +109,22 @@ export default function BrainSwitcher({ brains, activeBrain, onSwitch, onBrainCr
               emoji={b.type === "business" ? "🏪" : "🏠"}
               role={b.myRole}
               canDelete={b.myRole === "owner"}
-              onDelete={() => { onBrainDeleted(b.id); setOpen(false); }}
+              onDelete={() => {
+                onBrainDeleted(b.id);
+                setOpen(false);
+              }}
             />
           ))}
 
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", margin: "4px 0" }} />
+          <div className="my-1 border-t border-white/[0.08]" />
 
           {/* Create new shared brain */}
           <button
-            onClick={() => { setOpen(false); setShowCreate(true); }}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              padding: "9px 14px",
-              background: "none",
-              border: "none",
-              color: "#7c8ff0",
-              fontSize: 13,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
+            onClick={() => {
+              setOpen(false);
+              setShowCreate(true);
             }}
+            className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-[14px] py-[9px] text-left text-[13px] text-[#7c8ff0]"
           >
             <span>+</span> New shared brain
           </button>
@@ -176,7 +155,15 @@ interface BrainItemProps {
   onDelete?: () => void;
 }
 
-function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }: BrainItemProps): JSX.Element {
+function BrainItem({
+  brain,
+  active,
+  onSelect,
+  emoji,
+  role,
+  canDelete,
+  onDelete,
+}: BrainItemProps): JSX.Element {
   const [hovered, setHovered] = useState<boolean>(false);
 
   return (
@@ -184,36 +171,33 @@ function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => onSelect(brain)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        padding: "8px 14px",
-        background: active ? "rgba(124,143,240,0.15)" : hovered ? "rgba(255,255,255,0.04)" : "transparent",
-        cursor: "pointer",
-        gap: 8,
-      }}
+      className={`flex cursor-pointer items-center gap-2 px-[14px] py-2 ${
+        active ? "bg-[rgba(124,143,240,0.15)]" : hovered ? "bg-white/[0.04]" : "bg-transparent"
+      }`}
     >
-      <span style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
+      <span className="flex flex-1 items-center gap-2">
         <span>{emoji}</span>
-        <span style={{ fontSize: 13, color: active ? "#a5b4fc" : "#d4d4d8", fontWeight: active ? 600 : 400 }}>
+        <span
+          className={`text-[13px] ${active ? "font-semibold text-[#a5b4fc]" : "font-normal text-[#d4d4d8]"}`}
+        >
           {brain.name}
         </span>
         {role && role !== "owner" && (
-          <span style={{ fontSize: 10, color: "#666", background: "rgba(255,255,255,0.06)", borderRadius: 4, padding: "1px 5px" }}>
+          <span className="rounded bg-white/[0.06] px-[5px] py-px text-[10px] text-[#666]">
             {role}
           </span>
         )}
-        {active && <span style={{ marginLeft: "auto", fontSize: 12, color: "#7c8ff0" }}>✓</span>}
+        {active && <span className="ml-auto text-xs text-[#7c8ff0]">✓</span>}
       </span>
       {canDelete && hovered && (
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete?.();
+          }}
           title="Delete brain"
           aria-label="Delete brain"
-          style={{
-            background: "none", border: "none", color: "#f87171",
-            cursor: "pointer", fontSize: 13, padding: "0 2px", lineHeight: 1,
-          }}
+          className="cursor-pointer border-none bg-transparent px-0.5 py-0 text-[13px] leading-none text-red-400"
         >
           ×
         </button>

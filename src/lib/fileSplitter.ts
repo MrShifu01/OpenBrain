@@ -20,20 +20,20 @@ interface SplitEntry {
 export function shouldSplitContent(content: string): boolean {
   if (!content || content.length < 100) return false;
 
-  const lines = content.split('\n').filter(l => l.trim());
+  const lines = content.split("\n").filter((l) => l.trim());
   if (lines.length < 4) return false;
 
   // Check for structural indicators of multiple sections
   const sectionIndicators = [
-    /^#{1,3}\s/m,                    // Markdown headers
-    /^recipe\s*\d*\s*:/im,          // "Recipe 1:", "Recipe:"
-    /^\d+[.)]\s/m,                   // Numbered lists
-    /^[-•]\s/m,                      // Bullet lists
+    /^#{1,3}\s/m, // Markdown headers
+    /^recipe\s*\d*\s*:/im, // "Recipe 1:", "Recipe:"
+    /^\d+[.)]\s/m, // Numbered lists
+    /^[-•]\s/m, // Bullet lists
     /^(directors?|company|address|tax|registration)/im, // Document sections
-    /\n\n[A-Z][A-Za-z\s]+:\s*\n/,   // Section headers followed by content
+    /\n\n[A-Z][A-Za-z\s]+:\s*\n/, // Section headers followed by content
   ];
 
-  const matchCount = sectionIndicators.filter(re => re.test(content)).length;
+  const matchCount = sectionIndicators.filter((re) => re.test(content)).length;
 
   // Multiple section indicators + sufficient length = likely multi-entry content
   return matchCount >= 1 && content.length > 150;
@@ -51,10 +51,10 @@ export function buildSplitPrompt(content: string, brainType: string): string {
  */
 export function parseAISplitResponse(raw: string): SplitEntry[] {
   try {
-    const cleaned = raw.replace(/```json|```/g, '').trim();
+    const cleaned = raw.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(cleaned);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((e: any) => e && typeof e.title === 'string' && e.title.trim());
+    return parsed.filter((e: any) => e && typeof e.title === "string" && e.title.trim());
   } catch {
     return [];
   }

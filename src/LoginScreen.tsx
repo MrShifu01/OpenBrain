@@ -1,6 +1,5 @@
 import { useState, type JSX } from "react";
 import { supabase } from "./lib/supabase";
-import { useTheme } from "./ThemeContext";
 
 interface Feature {
   ic: string;
@@ -9,14 +8,29 @@ interface Feature {
 }
 
 const FEATURES: Feature[] = [
-  { ic: "🧠", label: "Personal brain", desc: "Identity, health, finances, documents — always findable" },
-  { ic: "🏠", label: "Family brain", desc: "Household info, kids' schools, emergency contacts — shared with the people that matter" },
-  { ic: "🏪", label: "Business brain", desc: "Suppliers, staff, SOPs, licences — your whole operation in one place" },
-  { ic: "✨", label: "AI that thinks for you", desc: "Classify, connect, remind, surface — not just store" },
+  {
+    ic: "🧠",
+    label: "Personal brain",
+    desc: "Identity, health, finances, documents — always findable",
+  },
+  {
+    ic: "🏠",
+    label: "Family brain",
+    desc: "Household info, kids' schools, emergency contacts — shared with the people that matter",
+  },
+  {
+    ic: "🏪",
+    label: "Business brain",
+    desc: "Suppliers, staff, SOPs, licences — your whole operation in one place",
+  },
+  {
+    ic: "✨",
+    label: "AI that thinks for you",
+    desc: "Classify, connect, remind, surface — not just store",
+  },
 ];
 
 export default function LoginScreen(): JSX.Element {
-  const { t } = useTheme();
   const [email, setEmail] = useState<string>("");
   const [sent, setSent] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -67,31 +81,23 @@ export default function LoginScreen(): JSX.Element {
     setLoading(false);
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "13px 16px", background: t.surface,
-    border: `1px solid ${t.border}`, borderRadius: 12, color: t.text,
-    fontSize: 15, outline: "none", boxSizing: "border-box",
-  };
+  const isDisabled = loading || !email;
+  const isOtpDisabled = verifying || otpCode.length < 6 || otpCode.length > 8;
 
   return (
-    <div style={{
-      minHeight: "100vh", background: t.bg, color: t.text,
-      fontFamily: "'Söhne', system-ui, -apple-system, sans-serif",
-    }}>
+    <div className="bg-ob-bg text-ob-text min-h-screen font-['Söhne',system-ui,-apple-system,sans-serif]">
       {/* Hero */}
-      <div style={{
-        maxWidth: 540, margin: "0 auto", padding: "60px 24px 0",
-        textAlign: "center",
-      }}>
-        <div style={{ fontSize: 52, marginBottom: 12 }}>🧠</div>
-        <h1 style={{ margin: "0 0 12px", fontSize: 36, fontWeight: 900, letterSpacing: -1, lineHeight: 1.1, color: t.text }}>
+      <div className="mx-auto max-w-[540px] px-6 pt-[60px] text-center">
+        <div className="mb-3 text-[52px]">🧠</div>
+        <h1 className="text-ob-text m-0 mb-3 text-4xl leading-tight font-black tracking-tight">
           OpenBrain
         </h1>
-        <p style={{ margin: "0 0 8px", fontSize: 18, color: "#4ECDC4", fontWeight: 600 }}>
+        <p className="text-teal m-0 mb-2 text-lg font-semibold">
           Your second brain — for you, your family, your business.
         </p>
-        <p style={{ margin: "0 0 32px", fontSize: 14, color: t.textDim, lineHeight: 1.6 }}>
-          Capture everything. Connect the dots. Ask anything.<br />
+        <p className="text-ob-text-dim m-0 mb-8 text-sm leading-relaxed">
+          Capture everything. Connect the dots. Ask anything.
+          <br />
           One AI-powered memory OS that grows with your life.
         </p>
 
@@ -99,25 +105,18 @@ export default function LoginScreen(): JSX.Element {
         {!showForm && !sent && (
           <button
             onClick={() => setShowForm(true)}
-            style={{
-              padding: "14px 36px",
-              background: "linear-gradient(135deg, #4ECDC4, #45B7D1)",
-              border: "none", borderRadius: 14,
-              color: "#0f0f23", fontSize: 16, fontWeight: 800,
-              cursor: "pointer", marginBottom: 10,
-              boxShadow: "0 4px 24px #4ECDC440",
-            }}
+            className="gradient-accent mb-2.5 cursor-pointer rounded-[14px] border-none px-9 py-3.5 text-base font-extrabold text-[#0f0f23] shadow-[0_4px_24px_rgba(78,205,196,0.25)]"
           >
             Start free →
           </button>
         )}
         {!showForm && !sent && (
-          <p style={{ fontSize: 12, color: t.textFaint, margin: 0 }}>No password needed — sign in with email</p>
+          <p className="text-ob-text-faint m-0 text-xs">No password needed — sign in with email</p>
         )}
 
         {/* Email form */}
         {showForm && !sent && (
-          <form onSubmit={handleSend} style={{ maxWidth: 360, margin: "0 auto" }}>
+          <form onSubmit={handleSend} className="mx-auto max-w-[360px]">
             <input
               type="email"
               value={email}
@@ -125,43 +124,40 @@ export default function LoginScreen(): JSX.Element {
               placeholder="your@email.com"
               required
               autoFocus
-              style={{ ...inputStyle, marginBottom: 10 }}
+              className="bg-ob-surface border-ob-border text-ob-text mb-2.5 box-border w-full rounded-xl border px-4 py-[13px] text-[15px] outline-none"
             />
-            {error && <p style={{ color: "#FF6B35", fontSize: 13, marginBottom: 10 }}>{error}</p>}
-            <div style={{ display: "flex", gap: 8 }}>
+            {error && <p className="text-orange mb-2.5 text-[13px]">{error}</p>}
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                style={{ flex: 1, padding: "12px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 10, color: t.textMuted, fontSize: 14, cursor: "pointer" }}
+                className="bg-ob-surface border-ob-border text-ob-text-muted flex-1 cursor-pointer rounded-[10px] border p-3 text-sm"
               >
                 Back
               </button>
               <button
                 type="submit"
-                disabled={loading || !email}
-                style={{
-                  flex: 2, padding: "12px",
-                  background: loading || !email ? t.surface : "linear-gradient(135deg, #4ECDC4, #45B7D1)",
-                  border: "none", borderRadius: 10,
-                  color: loading || !email ? t.textFaint : "#0f0f23",
-                  fontSize: 14, fontWeight: 700,
-                  cursor: loading || !email ? "default" : "pointer",
-                }}
+                disabled={isDisabled}
+                className={`flex-[2] rounded-[10px] border-none p-3 text-sm font-bold ${
+                  isDisabled
+                    ? "bg-ob-surface text-ob-text-faint cursor-default"
+                    : "gradient-accent cursor-pointer text-[#0f0f23]"
+                }`}
               >
                 {loading ? "Sending…" : "Send code"}
               </button>
             </div>
-            <p style={{ fontSize: 12, color: t.textFaint, marginTop: 8 }}>We'll email you a code to sign in</p>
+            <p className="text-ob-text-faint mt-2 text-xs">We'll email you a code to sign in</p>
           </form>
         )}
 
         {/* OTP verification */}
         {sent && (
-          <div style={{ maxWidth: 360, margin: "0 auto" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
-            <p style={{ color: "#4ECDC4", fontWeight: 700, marginBottom: 4, fontSize: 16 }}>Check your email</p>
-            <p style={{ color: t.textMuted, fontSize: 13, lineHeight: 1.6, margin: "0 0 16px" }}>
-              We sent a sign-in email to <strong style={{ color: t.text }}>{email}</strong>.<br />
+          <div className="mx-auto max-w-[360px]">
+            <div className="mb-3 text-[32px]">📬</div>
+            <p className="text-teal mb-1 text-base font-bold">Check your email</p>
+            <p className="text-ob-text-muted m-0 mb-4 text-[13px] leading-relaxed">
+              We sent a sign-in email to <strong className="text-ob-text">{email}</strong>.<br />
               Enter the code from the email, or tap the magic link.
             </p>
 
@@ -171,45 +167,42 @@ export default function LoginScreen(): JSX.Element {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={otpCode}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setOtpCode(e.target.value.replace(/[^0-9]/g, ""))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setOtpCode(e.target.value.replace(/[^0-9]/g, ""))
+                }
                 placeholder="Enter code"
                 autoFocus
-                style={{
-                  ...inputStyle,
-                  textAlign: "center", fontSize: 24, fontWeight: 700,
-                  letterSpacing: 8, fontFamily: "monospace",
-                  marginBottom: 10,
-                }}
+                className="bg-ob-surface border-ob-border text-ob-text mb-2.5 box-border w-full rounded-xl border px-4 py-[13px] text-center font-mono text-2xl font-bold tracking-[8px] outline-none"
               />
-              {error && <p style={{ color: "#FF6B35", fontSize: 13, marginBottom: 10 }}>{error}</p>}
+              {error && <p className="text-orange mb-2.5 text-[13px]">{error}</p>}
               <button
                 type="submit"
-                disabled={verifying || otpCode.length < 6 || otpCode.length > 8}
-                style={{
-                  width: "100%", padding: "12px",
-                  background: verifying || otpCode.length < 6 || otpCode.length > 8 ? t.surface : "linear-gradient(135deg, #4ECDC4, #45B7D1)",
-                  border: "none", borderRadius: 10,
-                  color: verifying || otpCode.length < 6 || otpCode.length > 8 ? t.textFaint : "#0f0f23",
-                  fontSize: 14, fontWeight: 700,
-                  cursor: verifying || otpCode.length < 6 || otpCode.length > 8 ? "default" : "pointer",
-                  marginBottom: 12,
-                }}
+                disabled={isOtpDisabled}
+                className={`mb-3 w-full rounded-[10px] border-none p-3 text-sm font-bold ${
+                  isOtpDisabled
+                    ? "bg-ob-surface text-ob-text-faint cursor-default"
+                    : "gradient-accent cursor-pointer text-[#0f0f23]"
+                }`}
               >
                 {verifying ? "Verifying…" : "Sign in with code"}
               </button>
             </form>
 
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <div className="flex justify-center gap-3">
               <button
                 onClick={handleResend}
                 disabled={loading}
-                style={{ background: "none", border: "none", color: "#4ECDC4", fontSize: 13, cursor: "pointer", padding: "4px 8px" }}
+                className="text-teal cursor-pointer border-none bg-transparent px-2 py-1 text-[13px]"
               >
                 {loading ? "Sending…" : "Resend code"}
               </button>
               <button
-                onClick={() => { setSent(false); setOtpCode(""); setError(null); }}
-                style={{ background: "none", border: "none", color: t.textFaint, fontSize: 13, cursor: "pointer", padding: "4px 8px" }}
+                onClick={() => {
+                  setSent(false);
+                  setOtpCode("");
+                  setError(null);
+                }}
+                className="text-ob-text-faint cursor-pointer border-none bg-transparent px-2 py-1 text-[13px]"
               >
                 Use different email
               </button>
@@ -219,24 +212,25 @@ export default function LoginScreen(): JSX.Element {
       </div>
 
       {/* Feature grid */}
-      <div style={{ maxWidth: 540, margin: "48px auto 0", padding: "0 24px 60px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: window.innerWidth < 400 ? "1fr" : "1fr 1fr", gap: 12 }}>
-          {FEATURES.map(f => (
-            <div key={f.label} style={{
-              background: t.surface,
-              border: `1px solid ${t.border}`,
-              borderRadius: 14, padding: "18px 16px",
-            }}>
-              <div style={{ fontSize: 24, marginBottom: 8 }}>{f.ic}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{f.label}</div>
-              <div style={{ fontSize: 12, color: t.textDim, lineHeight: 1.5 }}>{f.desc}</div>
+      <div className="mx-auto mt-12 max-w-[540px] px-6 pb-[60px]">
+        <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
+          {FEATURES.map((f) => (
+            <div
+              key={f.label}
+              className="bg-ob-surface border-ob-border rounded-[14px] border px-4 py-[18px]"
+            >
+              <div className="mb-2 text-2xl">{f.ic}</div>
+              <div className="text-ob-text mb-1 text-[13px] font-bold">{f.label}</div>
+              <div className="text-ob-text-dim text-xs leading-normal">{f.desc}</div>
             </div>
           ))}
         </div>
 
-        <div style={{ textAlign: "center", marginTop: 32, padding: "20px 24px", background: t.surface, border: `1px solid ${t.border}`, borderRadius: 14 }}>
-          <p style={{ margin: 0, fontSize: 13, color: t.textDim, lineHeight: 1.6 }}>
-            <strong style={{ color: t.textMuted }}>Your data is yours.</strong> Export everything, delete everything. No lock-in.<br />
+        <div className="bg-ob-surface border-ob-border mt-8 rounded-[14px] border px-6 py-5 text-center">
+          <p className="text-ob-text-dim m-0 text-[13px] leading-relaxed">
+            <strong className="text-ob-text-muted">Your data is yours.</strong> Export everything,
+            delete everything. No lock-in.
+            <br />
             Built on Supabase + Claude AI.
           </p>
         </div>
