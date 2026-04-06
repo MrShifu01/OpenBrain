@@ -432,17 +432,27 @@ export default function RefineView({
 
   if (isSharedBrain && !isOwner) {
     return (
-      <div>
-        <div>{brainEmoji}</div>
-        <h2>Refine — Owner Only</h2>
-        <p>
-          Only the owner of <strong>{activeBrain.name}</strong> can
-          run the Refine analysis.
-          <br />
-          Members can view and add entries, but AI auditing is reserved for the brain owner.
-        </p>
-        <div>
-          Ask the brain owner to run Refine and review the suggestions.
+      <div className="px-4 py-4 space-y-4" style={{ background: "#0e0e0e", minHeight: "100%" }}>
+        <div
+          className="rounded-2xl p-8 text-center space-y-3"
+          style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)", border: "1px solid rgba(72,72,71,0.2)" }}
+        >
+          <div className="text-4xl">{brainEmoji}</div>
+          <h2 className="text-xl font-semibold text-white" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            Refine — Owner Only
+          </h2>
+          <p style={{ color: "#aaa" }} className="text-sm leading-relaxed">
+            Only the owner of <strong className="text-white">{activeBrain.name}</strong> can
+            run the Refine analysis.
+            <br />
+            Members can view and add entries, but AI auditing is reserved for the brain owner.
+          </p>
+          <div
+            className="rounded-xl px-4 py-2 text-xs inline-block mt-2"
+            style={{ background: "rgba(114,239,245,0.08)", color: "#72eff5" }}
+          >
+            Ask the brain owner to run Refine and review the suggestions.
+          </div>
         </div>
       </div>
     );

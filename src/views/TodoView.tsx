@@ -83,46 +83,67 @@ function MiniCalendar({
   const eventCount = Object.keys(dateMap).filter((k) => k.startsWith(`${year}-${String(mon + 1).padStart(2, "0")}`)).length;
 
   return (
-    <div>
+    <div
+      className="rounded-2xl border overflow-hidden"
+      style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}
+    >
       {/* Header toggle */}
       <button
+        className="w-full flex items-center justify-between px-4 py-3 cursor-pointer"
         onClick={() => setExpanded((s) => !s)}
       >
-        <div>
-          <span>📅</span>
-          <div>
-            <span>{monthLabel}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xl">📅</span>
+          <div className="flex flex-col items-start">
+            <span
+              className="text-sm font-semibold text-white"
+              style={{ fontFamily: "'Manrope', sans-serif" }}
+            >
+              {monthLabel}
+            </span>
             {eventCount > 0 && (
-              <span>· {eventCount} days with events</span>
+              <span className="text-xs" style={{ color: "#777" }}>
+                · {eventCount} days with events
+              </span>
             )}
           </div>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           {expanded && (
             <>
               <button
+                className="w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold hover:opacity-80 transition-opacity"
+                style={{ color: "#72eff5", background: "rgba(114,239,245,0.1)" }}
                 onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon - 1, 1)); }}
               >←</button>
               <button
+                className="w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold hover:opacity-80 transition-opacity"
+                style={{ color: "#72eff5", background: "rgba(114,239,245,0.1)" }}
                 onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon + 1, 1)); }}
               >→</button>
             </>
           )}
-          <span>{expanded ? "▾" : "▸"}</span>
+          <span className="text-xs" style={{ color: "#555" }}>
+            {expanded ? "▾" : "▸"}
+          </span>
         </div>
       </button>
 
       {/* Calendar grid */}
       {expanded && (
-        <div>
-          <div>
+        <div className="px-3 pb-3">
+          <div className="grid grid-cols-7 gap-1 mb-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={i}>
+              <div
+                key={i}
+                className="text-center text-[10px] font-medium py-1"
+                style={{ color: "#555" }}
+              >
                 {d}
               </div>
             ))}
           </div>
-          <div>
+          <div className="grid grid-cols-7 gap-1">
             {cells.map((day, i) => {
               if (!day) return <div key={`e${i}`} />;
               const key = dayKey(day);
@@ -132,11 +153,22 @@ function MiniCalendar({
               return (
                 <button
                   key={key}
+                  className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-full text-xs transition-all ${
+                    isSel ? "text-black font-bold" : isToday ? "font-semibold" : ""
+                  }`}
+                  style={{
+                    background: isSel ? "#72eff5" : "transparent",
+                    color: isSel ? "#0e0e0e" : isToday ? "#72eff5" : "#aaa",
+                    boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px #72eff5" : "none",
+                  }}
                   onClick={() => onSelectDay(isSel ? null : key)}
                 >
                   <span>{day}</span>
                   {dots.length > 0 && !isSel && (
-                    <div />
+                    <div
+                      className="absolute bottom-0.5 w-1 h-1 rounded-full"
+                      style={{ background: "#d575ff" }}
+                    />
                   )}
                 </button>
               );
@@ -239,16 +271,34 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   function renderItem({ entry, dateStr }: TodoItem, showDate: boolean) {
     const tc = TC[entry.type] || TC.note;
     return (
-      <div key={`${entry.id}-${dateStr}`}>
-        <span>{tc.i}</span>
-        <div>
-          <p>{entry.title}</p>
+      <div
+        key={`${entry.id}-${dateStr}`}
+        className="flex items-start gap-3 rounded-2xl border px-4 py-3 mb-2"
+        style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}
+      >
+        <span className="text-lg mt-0.5">{tc.i}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white truncate">{entry.title}</p>
           {entry.content && entry.content !== entry.title && (
-            <p>{entry.content}</p>
+            <p className="text-xs mt-0.5 truncate" style={{ color: "#777" }}>
+              {entry.content}
+            </p>
           )}
         </div>
-        {showDate && <span>{fmtD(dateStr)}</span>}
-        <span>{entry.type}</span>
+        {showDate && (
+          <span
+            className="shrink-0 text-[10px] rounded-full px-2 py-0.5 font-medium"
+            style={{ background: "rgba(114,239,245,0.1)", color: "#72eff5" }}
+          >
+            {fmtD(dateStr)}
+          </span>
+        )}
+        <span
+          className="shrink-0 text-[10px] rounded-full px-2 py-0.5 font-medium capitalize"
+          style={{ background: `${tc.c}18`, color: tc.c }}
+        >
+          {entry.type}
+        </span>
       </div>
     );
   }
@@ -263,13 +313,24 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
     if (items.length === 0) return null;
     return (
       <div>
-        <div>
-          <span>{emoji}</span>
-          <p>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-base">{emoji}</span>
+          <p
+            className="text-sm font-semibold"
+            style={{
+              fontFamily: "'Manrope', sans-serif",
+              color: accentColor || "#aaa",
+            }}
+          >
             {!accentColor && <span>{title}</span>}
             {accentColor && title}
           </p>
-          <span>({items.length})</span>
+          <span
+            className="text-[10px] rounded-full px-2 py-0.5 font-medium"
+            style={{ background: "rgba(114,239,245,0.08)", color: "#777" }}
+          >
+            {items.length}
+          </span>
         </div>
         {items.map((item) => renderItem(item, showDate))}
       </div>

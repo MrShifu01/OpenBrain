@@ -81,7 +81,7 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
               key={item.id}
               onClick={() => onNavigate(item.id)}
               aria-label="Fill Brain"
-              className="-mt-5 flex flex-col items-center justify-center w-14 h-14 rounded-2xl press-scale text-on-primary-container"
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl press-scale text-on-primary-container"
               style={{
                 background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
                 boxShadow: "0 4px 24px rgba(114,239,245,0.30)",
