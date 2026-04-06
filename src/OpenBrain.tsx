@@ -39,6 +39,7 @@ import { EntriesContext } from "./context/EntriesContext";
 import { BrainContext } from "./context/BrainContext";
 
 const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
+const RefineView = lazy(() => import("./views/RefineView"));
 const TodoView = lazy(() => import("./views/TodoView"));
 const DetailModal = lazy(() => import("./views/DetailModal"));
 const VaultView = lazy(() => import("./views/VaultView"));
@@ -918,6 +919,7 @@ export default function OpenBrain() {
   const navViews = [
     { id: "grid", l: "Grid", ic: "▦" },
     { id: "suggest", l: "Fill Brain", ic: "✦" },
+    { id: "refine", l: "Refine", ic: "✦" },
     { id: "todos", l: "Todos", ic: "✓" },
     { id: "timeline", l: "Timeline", ic: "◔" },
     { id: "vault", l: "Vault", ic: "🔐" },
@@ -974,7 +976,7 @@ export default function OpenBrain() {
   return (
     <EntriesContext.Provider value={entriesValue}>
       <BrainContext.Provider value={brainValue}>
-        <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden pb-[72px] font-['Söhne',system-ui,-apple-system,sans-serif] transition-[background,color] duration-[250ms]">
+        <div className="bg-ob-bg text-ob-text min-h-screen overflow-x-hidden pb-[80px] font-['Söhne',system-ui,-apple-system,sans-serif] transition-[background,color] duration-[250ms]">
           <MobileHeader
             brainName={activeBrain?.name || "OpenBrain"}
             brainEmoji="🧠"
@@ -1037,50 +1039,51 @@ export default function OpenBrain() {
 
           {/* Slide-in nav panel */}
           {navOpen && (
-            <div className="fixed inset-0 z-[1000]" onClick={() => setNavOpen(false)}>
+            <div className="fixed inset-0 z-[1000] bg-black/40" onClick={() => setNavOpen(false)}>
               <div
-                className={`border-ob-border absolute top-0 right-0 bottom-0 flex w-[75vw] max-w-[260px] flex-col border-l py-5 shadow-[-8px_0_32px_rgba(0,0,0,0.4)] ${isDark ? "bg-[#16161e]" : "bg-[#f8f8ff]"}`}
+                className={`absolute top-0 right-0 bottom-0 flex w-[78vw] max-w-[280px] flex-col shadow-[-12px_0_40px_rgba(0,0,0,0.3)] ${isDark ? "bg-[#181822]" : "bg-[#f8f8ff]"}`}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="border-ob-border flex items-center justify-between border-b px-5 pb-4">
-                  <span className="text-ob-text-mid text-[13px] font-bold">Navigation</span>
+                <div className="flex items-center justify-between px-5 pt-5 pb-3">
+                  <span className="text-ob-text text-[15px] font-bold">Navigation</span>
                   <button
                     onClick={() => setNavOpen(false)}
-                    className="text-ob-text-dim cursor-pointer border-none bg-transparent text-lg leading-none"
+                    className="touch-target text-ob-text-dim flex cursor-pointer items-center justify-center border-none bg-transparent text-xl leading-none"
                   >
                     ×
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto py-2">
-                  {[{ id: "capture", l: "Capture", ic: "+" }, ...navViews].map((v) => (
+                <div className="border-ob-border border-b" />
+                <div className="flex-1 overflow-y-auto py-3">
+                  {[{ id: "capture", l: "Home", ic: "⌂" }, ...navViews].map((v) => (
                     <button
                       key={v.id}
                       onClick={() => {
                         setView(v.id);
                         setNavOpen(false);
                       }}
-                      className={`flex w-full cursor-pointer items-center gap-3 border-none px-5 py-3 text-left text-sm ${view === v.id ? (isDark ? "bg-teal/10" : "bg-teal/15") + " text-teal font-bold" : "text-ob-text bg-transparent font-normal"}`}
+                      className={`flex w-full cursor-pointer items-center gap-3.5 border-none px-5 py-3.5 text-left text-[14px] ${view === v.id ? (isDark ? "bg-teal/10" : "bg-teal/15") + " text-teal font-semibold" : "text-ob-text bg-transparent font-normal"}`}
                     >
-                      <span className="w-6 text-center text-base">{v.ic}</span>
+                      <span className="w-7 text-center text-lg">{v.ic}</span>
                       <span>{v.l}</span>
                       {v.id === "suggest" && (
-                        <span className="bg-orange ml-auto h-1.5 w-1.5 rounded-full" />
+                        <span className="bg-orange ml-auto h-2 w-2 rounded-full" />
                       )}
                     </button>
                   ))}
                 </div>
-                <div className="border-ob-border border-t px-4 py-2">
+                <div className="border-ob-border border-t px-5 py-3">
                   <button
                     onClick={() => {
                       setNavOpen(false);
                       setShowCreateBrain(true);
                     }}
-                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-[rgba(124,143,240,0.3)] bg-[rgba(124,143,240,0.1)] px-4 py-2.5 text-[13px] font-semibold text-[#a5b4fc]"
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-[rgba(124,143,240,0.25)] bg-[rgba(124,143,240,0.08)] px-4 py-3 text-[13px] font-semibold text-[#a5b4fc]"
                   >
-                    + Add Family or Business Brain
+                    + Add Brain
                   </button>
                 </div>
-                <div className="border-ob-border text-ob-text-dim border-t px-5 py-2 text-[11px]">
+                <div className="text-ob-text-dim px-5 py-3 text-[12px]">
                   {entries.length} memories ·{" "}
                   {pendingCount > 0 ? `${pendingCount} pending sync` : "synced"}
                 </div>
@@ -1100,69 +1103,97 @@ export default function OpenBrain() {
             />
           )}
 
-          <div className="px-4 py-3">
+          <div className="animate-fade-in px-5 py-4">
             {view === "capture" && (
-              <div className="pt-2">
+              <div className="animate-fade-in pt-1">
                 <OnboardingChecklist activeBrain={activeBrain} onNavigate={setView} />
-                <div className="mt-4 grid grid-cols-2 gap-3">
+
+                {/* Quick stats bar */}
+                <div className="mb-5 flex items-center gap-3">
+                  <div className="flex-1">
+                    <span className="text-ob-text text-2xl font-extrabold">{entries.length}</span>
+                    <span className="text-ob-text-muted ml-1.5 text-sm">memories</span>
+                  </div>
+                  {links.length > 0 && (
+                    <span className="text-ob-text-dim text-xs">{links.length} links</span>
+                  )}
+                </div>
+
+                {/* Primary action — larger, gradient */}
+                <button
+                  onClick={() => setView("suggest")}
+                  className="gradient-accent mb-4 flex w-full cursor-pointer items-center gap-4 rounded-2xl border-none px-6 py-5 text-left"
+                >
+                  <span className="text-2xl">✦</span>
+                  <div>
+                    <div className="text-[15px] font-bold text-white">Fill Your Brain</div>
+                    <div className="mt-0.5 text-[13px] text-white/70">Answer guided questions to build your memory</div>
+                  </div>
+                  <span className="ml-auto text-lg text-white/60">→</span>
+                </button>
+
+                {/* Secondary actions — clean grid */}
+                <div className="grid grid-cols-2 gap-3">
                   {[
-                    { id: "grid", l: "Memory Grid", ic: "▦", desc: "Browse all memories" },
-                    { id: "suggest", l: "Fill Brain", ic: "✦", desc: "Guided questions" },
-                    { id: "todos", l: "Todos", ic: "✓", desc: "Deadlines & calendar" },
-                    { id: "chat", l: "Ask", ic: "◈", desc: "Chat with your brain" },
+                    { id: "grid", l: "Memory Grid", ic: "▦", desc: "Browse all" },
+                    { id: "chat", l: "Ask Brain", ic: "◈", desc: "Chat with your data" },
+                    { id: "todos", l: "Todos", ic: "✓", desc: "Deadlines & events" },
                     { id: "vault", l: "Vault", ic: "🔐", desc: "Encrypted secrets" },
                   ].map((v) => (
                     <button
                       key={v.id}
                       onClick={() => setView(v.id)}
-                      className="bg-ob-surface border-ob-border cursor-pointer rounded-2xl border px-5 py-5 text-left"
+                      className="bg-ob-surface border-ob-border touch-target cursor-pointer rounded-2xl border px-5 py-5 text-left transition-transform duration-100 active:scale-[0.97]"
                     >
-                      <div className="mb-2 text-xl">{v.ic}</div>
-                      <div className="text-ob-text text-sm font-semibold">{v.l}</div>
-                      <div className="text-ob-text-dim mt-1 text-xs leading-relaxed">{v.desc}</div>
+                      <div className="mb-2.5 text-2xl">{v.ic}</div>
+                      <div className="text-ob-text text-[14px] font-semibold">{v.l}</div>
+                      <div className="text-ob-text-dim mt-1 text-[12px] leading-relaxed">{v.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
             {view === "grid" && (
-              <>
-                {/* Workspace toggle — only show business tab if user has a business brain */}
-                <div className="mb-3 flex gap-1.5">
-                  {[
-                    { ws: "all", label: "All" },
-                    { ws: "personal", label: "👤 Personal" },
-                    ...(brains.some((b) => b.type === "business")
-                      ? [{ ws: "business", label: "🏪 Business" }]
-                      : []),
-                  ].map(({ ws, label }) => (
-                    <button
-                      key={ws}
-                      onClick={() => {
-                        setWorkspace(ws);
-                        localStorage.setItem("openbrain_workspace", ws);
-                      }}
-                      className={`cursor-pointer rounded-full border-none px-3.5 py-[5px] text-[11px] font-semibold capitalize ${workspace === ws ? "bg-purple text-ob-bg" : "bg-ob-surface text-ob-text-muted"}`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
+              <div className="animate-fade-in">
+                {/* Search bar */}
                 <div className="relative mb-4">
-                  <span className="text-ob-text-faint absolute top-1/2 left-3.5 -translate-y-1/2">
+                  <span className="text-ob-text-faint absolute top-1/2 left-4 -translate-y-1/2 text-sm">
                     ⌕
                   </span>
                   <input
                     value={searchInput}
                     onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Search..."
-                    className="bg-ob-surface border-ob-border text-ob-text-soft box-border w-full rounded-[10px] border py-3 pr-4 pl-[38px] text-sm outline-none"
+                    placeholder="Search memories..."
+                    className="bg-ob-surface border-ob-border text-ob-text-soft box-border w-full rounded-xl border py-3.5 pr-4 pl-10 text-sm outline-none"
                   />
                 </div>
-                <div className="scrollbar-none mb-4 flex gap-1.5 overflow-x-auto">
+
+                {/* Workspace + type filters combined row */}
+                <div className="scrollbar-none mb-4 flex gap-2 overflow-x-auto pb-1">
+                  {brains.some((b) => b.type === "business") && (
+                    <>
+                      {[
+                        { ws: "all", label: "All" },
+                        { ws: "personal", label: "Personal" },
+                        { ws: "business", label: "Business" },
+                      ].map(({ ws, label }) => (
+                        <button
+                          key={ws}
+                          onClick={() => {
+                            setWorkspace(ws);
+                            localStorage.setItem("openbrain_workspace", ws);
+                          }}
+                          className={`shrink-0 cursor-pointer rounded-full border-none px-4 py-2 text-[12px] font-semibold ${workspace === ws ? "bg-purple text-white" : "bg-ob-surface text-ob-text-muted"}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <div className="border-ob-border mx-1 w-px shrink-0 self-stretch" />
+                    </>
+                  )}
                   <button
                     onClick={() => setTypeFilter("all")}
-                    className={`shrink-0 cursor-pointer rounded-full border-none px-3.5 py-1.5 text-[11px] font-semibold ${typeFilter === "all" ? "bg-teal text-ob-bg" : "bg-ob-surface text-ob-text-muted"}`}
+                    className={`shrink-0 cursor-pointer rounded-full border-none px-4 py-2 text-[12px] font-semibold ${typeFilter === "all" ? "bg-teal text-white" : "bg-ob-surface text-ob-text-muted"}`}
                   >
                     All ({entries.length})
                   </button>
@@ -1172,7 +1203,7 @@ export default function OpenBrain() {
                       <button
                         key={typ}
                         onClick={() => setTypeFilter(typ)}
-                        className={`shrink-0 cursor-pointer rounded-full border-none px-3.5 py-1.5 text-[11px] font-semibold ${typeFilter === typ ? "text-ob-bg" : "bg-ob-surface text-ob-text-muted"}`}
+                        className={`shrink-0 cursor-pointer rounded-full border-none px-4 py-2 text-[12px] font-semibold ${typeFilter === typ ? "text-white" : "bg-ob-surface text-ob-text-muted"}`}
                         style={typeFilter === typ ? { background: c.c } : undefined}
                       >
                         {c.i} {typ} ({n})
@@ -1180,26 +1211,16 @@ export default function OpenBrain() {
                     );
                   })}
                 </div>
-                <div className="mb-5 grid grid-cols-4 gap-2.5">
-                  {[
-                    { l: "Memories", v: entries.length, c: "#4ECDC4" },
-                    { l: "Pinned", v: entries.filter((e) => e.pinned).length, c: "#FFD700" },
-                    { l: "Types", v: Object.keys(types).length, c: "#A29BFE" },
-                    { l: "Links", v: links.length, c: "#FF6B35" },
-                  ].map((s) => (
-                    <div
-                      key={s.l}
-                      className="bg-ob-surface border-ob-border rounded-xl border px-3 py-3 text-center"
-                    >
-                      <div className="text-xl font-extrabold" style={{ color: s.c }}>
-                        {s.v}
-                      </div>
-                      <div className="text-ob-text-dim mt-1 text-[9px] tracking-[0.5px] uppercase">
-                        {s.l}
-                      </div>
-                    </div>
-                  ))}
+
+                {/* Compact inline stats */}
+                <div className="text-ob-text-dim mb-4 flex items-center gap-3 text-[12px]">
+                  <span><strong className="text-teal">{entries.length}</strong> memories</span>
+                  <span className="text-ob-border">·</span>
+                  <span><strong className="text-purple">{Object.keys(types).length}</strong> types</span>
+                  <span className="text-ob-border">·</span>
+                  <span><strong className="text-orange">{links.length}</strong> links</span>
                 </div>
+
                 {!entriesLoaded ? (
                   <div className="grid gap-3">
                     <SkeletonCard count={4} />
@@ -1207,9 +1228,13 @@ export default function OpenBrain() {
                 ) : filtered.length > 0 ? (
                   <VirtualGrid filtered={filtered} setSelected={setSelected} />
                 ) : (
-                  <p className="text-ob-text-dim mt-10 text-center">No memories match.</p>
+                  <div className="pt-12 text-center">
+                    <div className="mb-3 text-4xl">🔍</div>
+                    <p className="text-ob-text-mid text-sm font-medium">No memories match</p>
+                    <p className="text-ob-text-dim mt-1 text-xs">Try a different search or filter</p>
+                  </div>
                 )}
-              </>
+              </div>
             )}
 
             {view === "suppliers" && (
@@ -1222,6 +1247,19 @@ export default function OpenBrain() {
                   setEntries={setEntries}
                   activeBrain={activeBrain}
                   brains={brains}
+                />
+              </Suspense>
+            )}
+            {view === "refine" && (
+              <Suspense fallback={<Loader />}>
+                <RefineView
+                  entries={entries}
+                  setEntries={setEntries}
+                  links={links}
+                  addLinks={addLinks}
+                  activeBrain={activeBrain}
+                  brains={brains}
+                  onSwitchBrain={setActiveBrain}
                 />
               </Suspense>
             )}
@@ -1245,15 +1283,24 @@ export default function OpenBrain() {
             )}
 
             {view === "chat" && (
-              <div className="flex h-[calc(100vh-220px)] max-h-[calc(100dvh-220px)] flex-col">
+              <div className="animate-fade-in flex h-[calc(100vh-200px)] max-h-[calc(100dvh-200px)] flex-col">
                 <div className="mb-3 flex-1 overflow-auto">
+                  {chatMsgs.length === 0 && (
+                    <div className="flex flex-col items-center justify-center pt-16 pb-8">
+                      <div className="mb-4 text-5xl">◈</div>
+                      <p className="text-ob-text mb-1 text-base font-semibold">Ask your brain anything</p>
+                      <p className="text-ob-text-dim max-w-[260px] text-center text-[13px] leading-relaxed">
+                        Ask questions about your memories, get summaries, or find connections.
+                      </p>
+                    </div>
+                  )}
                   {chatMsgs.map((m, i) => (
                     <div
                       key={i}
                       className={`mb-3 flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`overflow-wrap-anywhere max-w-[85%] px-3.5 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap ${m.role === "user" ? "bg-teal text-ob-bg rounded-[16px_16px_4px_16px]" : "bg-ob-surface text-ob-text-mid rounded-[16px_16px_16px_4px]"}`}
+                        className={`overflow-wrap-anywhere max-w-[80%] px-4 py-3 text-[14px] leading-relaxed break-words whitespace-pre-wrap ${m.role === "user" ? "bg-teal text-white rounded-[18px_18px_4px_18px]" : "bg-ob-surface text-ob-text-mid rounded-[18px_18px_18px_4px]"}`}
                       >
                         {m.role === "assistant"
                           ? m.content.split(PHONE_REGEX).map((part, pi) =>
@@ -1343,29 +1390,29 @@ export default function OpenBrain() {
                   <div ref={chatEndRef} />
                 </div>
                 {/* Quick-ask chips */}
-                <div className="mb-2 flex flex-wrap gap-1.5">
+                <div className="scrollbar-none mb-2.5 flex gap-2 overflow-x-auto pb-0.5">
                   {CHAT_CHIPS.map((chip) => (
                     <button
                       key={chip.label}
                       onClick={() => setChatInput(chip.text)}
-                      className="border-ob-border bg-ob-surface text-ob-text-muted cursor-pointer rounded-full border px-3 py-[5px] text-[11px]"
+                      className="border-ob-border bg-ob-surface text-ob-text-muted shrink-0 cursor-pointer rounded-full border px-4 py-2.5 text-[12px] transition-colors active:bg-ob-accent-light"
                     >
                       {chip.label}
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2.5">
                   <input
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleChat()}
                     placeholder="Ask about your memories..."
-                    className="bg-ob-surface border-ob-border text-ob-text-soft flex-1 rounded-xl border px-4 py-3 text-sm outline-none"
+                    className="bg-ob-surface border-ob-border text-ob-text-soft flex-1 rounded-xl border px-4 py-3.5 text-[14px] outline-none"
                   />
                   <button
                     onClick={handleChat}
                     disabled={chatLoading}
-                    className={`bg-teal text-ob-bg cursor-pointer rounded-xl border-none px-5 py-3 font-bold ${chatLoading ? "opacity-50" : ""}`}
+                    className={`touch-target bg-teal cursor-pointer rounded-xl border-none px-5 text-base font-bold text-white ${chatLoading ? "opacity-50" : ""}`}
                   >
                     →
                   </button>

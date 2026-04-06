@@ -7,9 +7,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "capture", label: "Capture", icon: "+" },
+  { id: "capture", label: "Home", icon: "⌂" },
   { id: "grid", label: "Grid", icon: "◦" },
-  { id: "suggest", label: "Fill Brain", icon: "✦" },
+  { id: "suggest", label: "Fill", icon: "✦" },
   { id: "chat", label: "Ask", icon: "◈" },
   { id: "more", label: "More", icon: "≡" },
 ];
@@ -25,9 +25,12 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
   return (
     <nav
       aria-label="Main navigation"
-      className={`border-ob-border fixed right-0 bottom-0 left-0 z-[900] flex items-center justify-around border-t pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-[20px] ${
-        isDark ? "bg-[rgba(15,15,35,0.92)]" : "bg-[rgba(240,240,248,0.92)]"
+      className={`fixed right-0 bottom-0 left-0 z-[900] flex items-end justify-around border-t pb-[env(safe-area-inset-bottom,0px)] ${
+        isDark
+          ? "border-white/[0.06] bg-[rgba(18,18,24,0.88)]"
+          : "border-black/[0.06] bg-[rgba(244,244,250,0.88)]"
       }`}
+      style={{ backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)" }}
     >
       {NAV_ITEMS.map((item) => {
         const isActive = activeView === item.id;
@@ -37,15 +40,21 @@ export default function BottomNav({ activeView, onNavigate }: BottomNavProps) {
             onClick={() => onNavigate(item.id)}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
-            className={`flex min-h-14 flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-none px-1 py-2.5 transition-colors duration-150 ease-in-out [-webkit-tap-highlight-color:transparent] ${
-              isActive ? "text-ob-accent" : "text-ob-text-muted"
+            className={`touch-target flex flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 border-none bg-none px-1 pt-2.5 pb-2 transition-all duration-150 [-webkit-tap-highlight-color:transparent] ${
+              isActive ? "text-teal" : "text-ob-text-muted"
             }`}
           >
-            <span className={`text-xl leading-none ${isActive ? "font-bold" : "font-normal"}`}>
+            {/* Active indicator pill */}
+            <div
+              className={`mb-0.5 h-[3px] w-5 rounded-full transition-all duration-200 ${
+                isActive ? "bg-teal opacity-100" : "opacity-0"
+              }`}
+            />
+            <span className={`text-[18px] leading-none ${isActive ? "font-bold" : "font-normal"}`}>
               {item.icon}
             </span>
             <span
-              className={`text-[10px] tracking-[0.3px] ${isActive ? "font-bold" : "font-medium"}`}
+              className={`text-[10px] tracking-[0.2px] ${isActive ? "font-semibold" : "font-medium"}`}
             >
               {item.label}
             </span>

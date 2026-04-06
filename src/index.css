@@ -3,16 +3,16 @@
 /* ─── Theme CSS Custom Properties ─── */
 :root,
 html[data-theme="dark"] {
-  --color-bg: #0f0f23;
-  --color-surface: #1a1a2e;
-  --color-surface2: #16162a;
-  --color-border: #2a2a4a;
-  --color-text: #eaeaea;
-  --color-text-soft: #dddddd;
-  --color-text-mid: #bbbbbb;
-  --color-text-muted: #a0a0b8;
-  --color-text-dim: #9090a8;
-  --color-text-faint: #7a7a9a;
+  --color-bg: #121218;
+  --color-surface: #1c1c28;
+  --color-surface2: #181824;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-text: #f0f0f4;
+  --color-text-soft: #e0e0e8;
+  --color-text-mid: #c0c0cc;
+  --color-text-muted: #a0a0b4;
+  --color-text-dim: #8888a0;
+  --color-text-faint: #9090a8;
   --color-accent: #4ecdc4;
   --color-accent-light: rgba(78, 205, 196, 0.08);
   --color-accent-border: rgba(78, 205, 196, 0.25);
@@ -21,10 +21,10 @@ html[data-theme="dark"] {
 }
 
 html[data-theme="light"] {
-  --color-bg: #f0f0f8;
+  --color-bg: #f4f4fa;
   --color-surface: #ffffff;
-  --color-surface2: #f8f7ff;
-  --color-border: #e0dff0;
+  --color-surface2: #f8f8ff;
+  --color-border: rgba(0, 0, 0, 0.08);
   --color-text: #1a1a2e;
   --color-text-soft: #2a2a4a;
   --color-text-mid: #4a4a6a;
@@ -133,4 +133,61 @@ body {
   50% {
     opacity: 0.5;
   }
+}
+
+/* ─── Glass morphism utilities ─── */
+@utility glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+@utility glass-light {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ─── Focus-visible for accessibility ─── */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Smooth view transitions ─── */
+@utility animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility animate-slide-up {
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Minimum touch target helper ─── */
+@utility touch-target {
+  min-height: 48px;
+  min-width: 48px;
 }
