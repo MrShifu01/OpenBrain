@@ -183,33 +183,6 @@ async function handleVault(req: ApiRequest, res: ApiResponse): Promise<void> {
   return res.status(405).json({ error: "Method not allowed" });
 }
 
-// ── S3-6: DELETE /api/user-data?resource=account — export vault then delete all user data ──
-async function handleDeleteAccount(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (req.method !== "DELETE") return res.status(405).json({ error: "Method not allowed" });
-  if (!(await rateLimit(req, 3))) return res.status(429).json({ error: "Too many requests" });
-
-  const user: any = await verifyAuth(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-  // 1. Fetch vault entries first so user can download before deletion
-  const vaultRes = await fetch(
-    `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&select=id,title,content_encrypted,tags`,
-    { headers: hdrs() }
-  );
-  const vaultExport: any[] = vaultRes.ok ? await vaultRes.json() : [];
-
-  // 2. Delete user data across all relevant tables (best-effort)
-  const tables = ["vault_entries", "vault_keys", "entries", "brains", "user_memory", "user_ai_settings", "brain_activity", "audit_log"];
-  for (const table of tables) {
-    await fetch(
-      `${SB_URL}/rest/v1/${table}?user_id=eq.${encodeURIComponent(user.id)}`,
-      { method: "DELETE", headers: hdrs() }
-    ).catch(() => {});
-  }
-
-  return res.status(200).json({ deleted: true, vault_export: vaultExport });
-}
-
 // ── /api/pin (rewritten to /api/user-data?resource=pin) ──
 async function handlePin(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 10))) return void res.status(429).json({ error: "Too many requests" });
