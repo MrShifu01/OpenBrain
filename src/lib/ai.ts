@@ -84,7 +84,7 @@ export async function callAI({
     userKey = getUserApiKey();
   }
 
-  const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId });
+  const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId }) || undefined;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
