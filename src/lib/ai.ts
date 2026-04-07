@@ -61,13 +61,13 @@ export async function callAI({
   brainId,
 }: CallAIOptions = {}): Promise<Response> {
   const provider = getUserProvider();
-  const safeProvider = SUPPORTED_PROVIDERS.includes(provider as typeof SUPPORTED_PROVIDERS[number])
+  const safeProvider = (SUPPORTED_PROVIDERS as readonly string[]).includes(provider)
     ? provider
     : "anthropic";
   const endpoint = `/api/llm?provider=${safeProvider}`;
 
   let model: string;
-  if (provider === "openrouter") {
+  if (safeProvider === "openrouter") {
     model =
       (task ? getModelForTask(task) : null) ||
       getOpenRouterModel() ||
@@ -77,7 +77,7 @@ export async function callAI({
   }
 
   let userKey: string | null;
-  if (provider === "openrouter") {
+  if (safeProvider === "openrouter") {
     userKey = getOpenRouterKey();
   } else {
     userKey = getUserApiKey();
@@ -95,7 +95,7 @@ export async function callAI({
     headers,
     body: JSON.stringify({
       model,
-      messages: normalizeMessages(messages, provider),
+      messages: normalizeMessages(messages, safeProvider),
       system: fullSystem,
       max_tokens,
     }),

@@ -58,3 +58,19 @@ describe("callAI endpoint routing", () => {
     expect(url).toBe("/api/llm?provider=anthropic");
   });
 });
+
+describe("callAI message normalisation", () => {
+  it("unknown provider uses anthropic message format (no transformation)", async () => {
+    mockGetProvider.mockReturnValue("badprovider");
+    const imageMessage = {
+      role: "user",
+      content: [{ type: "image", source: { type: "base64", media_type: "image/png", data: "abc" } }],
+    };
+    await callAI({ messages: [imageMessage] });
+    // The body should contain the original Anthropic-style block, not the OpenAI url format
+    const body = JSON.parse(mockAuthFetch.mock.calls[0][1].body);
+    expect(body.messages[0].content[0].type).toBe("image");
+    expect(body.messages[0].content[0].source).toBeDefined();
+    expect(body.messages[0].content[0].image_url).toBeUndefined();
+  });
+});
