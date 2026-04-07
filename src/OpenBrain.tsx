@@ -259,6 +259,7 @@ function VirtualGrid({ filtered, setSelected }) {
     estimateSize: () => 190 + ROW_GAP,
     overscan: 4,
     scrollMargin: listRef.current?.offsetTop ?? 0,
+    measureElement: (el) => el.getBoundingClientRect().height,
   });
   return (
     <div ref={listRef}>
@@ -266,6 +267,8 @@ function VirtualGrid({ filtered, setSelected }) {
         {virtualizer.getVirtualItems().map((vRow) => (
           <div
             key={vRow.index}
+            data-index={vRow.index}
+            ref={virtualizer.measureElement}
             style={{
               position: "absolute",
               top: vRow.start - virtualizer.options.scrollMargin,
@@ -274,6 +277,7 @@ function VirtualGrid({ filtered, setSelected }) {
               display: "grid",
               gridTemplateColumns: `repeat(${COLS}, 1fr)`,
               gap: "16px",
+              paddingBottom: "16px",
             }}
           >
             {rows[vRow.index].map((e) => (

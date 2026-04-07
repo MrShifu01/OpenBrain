@@ -305,6 +305,8 @@ export default function SettingsView() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+  const [platformInviteEmail, setPlatformInviteEmail] = useState("");
+  const [platformInviteStatus, setPlatformInviteStatus] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || ""));
   }, []);
@@ -342,6 +344,29 @@ export default function SettingsView() {
     } catch {
       setInviteStatus("error");
       setTimeout(() => setInviteStatus(null), 3000);
+    }
+  };
+
+  const handlePlatformInvite = async () => {
+    if (!platformInviteEmail.trim()) return;
+    setPlatformInviteStatus("sending");
+    try {
+      const res = await authFetch("/api/brains?action=invite-platform", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: platformInviteEmail.trim() }),
+      });
+      if (res.ok) {
+        setPlatformInviteStatus("sent");
+        setPlatformInviteEmail("");
+        setTimeout(() => setPlatformInviteStatus(null), 3000);
+      } else {
+        setPlatformInviteStatus("error");
+        setTimeout(() => setPlatformInviteStatus(null), 3000);
+      }
+    } catch {
+      setPlatformInviteStatus("error");
+      setTimeout(() => setPlatformInviteStatus(null), 3000);
     }
   };
 
@@ -626,8 +651,8 @@ export default function SettingsView() {
       {/* ── Export / Import ── */}
       {activeBrain && <ExportImportPanel activeBrain={activeBrain} />}
 
-      {/* ── Brain Members ── */}
-      {activeBrain && (
+      {/* ── Brain Members (shared brains only) ── */}
+      {activeBrain && activeBrain.type !== "personal" && (
         <div className="rounded-2xl border p-4 space-y-3" style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}>
           <p className="text-sm font-semibold text-white">
             {activeBrain.name} — Members
@@ -669,7 +694,7 @@ export default function SettingsView() {
           {canInvite && (
             <div className="space-y-2 pt-2 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
               <p className="text-xs font-medium" style={{ color: "#777" }}>Invite someone to this brain</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
@@ -680,32 +705,34 @@ export default function SettingsView() {
                   onFocus={(e) => (e.target.style.borderColor = "rgba(114,239,245,0.5)")}
                   onBlur={(e) => (e.target.style.borderColor = "rgba(72,72,71,0.3)")}
                 />
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="rounded-xl px-2 py-2 text-xs bg-transparent border outline-none text-white"
-                  style={{ borderColor: "rgba(72,72,71,0.3)" }}
-                >
-                  <option value="member">Member</option>
-                  <option value="viewer">Viewer</option>
-                </select>
-                <button
-                  onClick={handleInvite}
-                  disabled={!inviteEmail.trim() || inviteStatus === "sending"}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                  style={{
-                    background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
-                    color: "#0a0a0a",
-                  }}
-                >
-                  {inviteStatus === "sending"
-                    ? "…"
-                    : inviteStatus === "sent"
-                      ? "✓ Sent"
-                      : inviteStatus === "error"
-                        ? "✗ Failed"
-                        : "Invite"}
-                </button>
+                <div className="flex gap-2">
+                  <select
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    className="flex-1 rounded-xl px-2 py-2 text-xs bg-transparent border outline-none text-white"
+                    style={{ borderColor: "rgba(72,72,71,0.3)" }}
+                  >
+                    <option value="member">Member</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                  <button
+                    onClick={handleInvite}
+                    disabled={!inviteEmail.trim() || inviteStatus === "sending"}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 whitespace-nowrap"
+                    style={{
+                      background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+                      color: "#0a0a0a",
+                    }}
+                  >
+                    {inviteStatus === "sending"
+                      ? "…"
+                      : inviteStatus === "sent"
+                        ? "✓ Sent"
+                        : inviteStatus === "error"
+                          ? "✗ Failed"
+                          : "Invite"}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -714,6 +741,43 @@ export default function SettingsView() {
           )}
         </div>
       )}
+
+      {/* ── Invite to OpenBrain platform ── */}
+      <div className="rounded-2xl border p-4 space-y-3" style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}>
+        <div>
+          <p className="text-sm font-semibold text-white">Invite to OpenBrain</p>
+          <p className="text-xs mt-0.5" style={{ color: "#777" }}>Send someone an invite to join the platform</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            value={platformInviteEmail}
+            onChange={(e) => setPlatformInviteEmail(e.target.value)}
+            placeholder="their@email.com"
+            type="email"
+            className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+            style={{ borderColor: "rgba(72,72,71,0.3)" }}
+            onFocus={(e) => (e.target.style.borderColor = "rgba(114,239,245,0.5)")}
+            onBlur={(e) => (e.target.style.borderColor = "rgba(72,72,71,0.3)")}
+          />
+          <button
+            onClick={handlePlatformInvite}
+            disabled={!platformInviteEmail.trim() || platformInviteStatus === "sending"}
+            className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40 whitespace-nowrap"
+            style={{
+              background: "linear-gradient(135deg, #72eff5, #1fb1b7)",
+              color: "#0a0a0a",
+            }}
+          >
+            {platformInviteStatus === "sending"
+              ? "…"
+              : platformInviteStatus === "sent"
+                ? "✓ Invite sent"
+                : platformInviteStatus === "error"
+                  ? "✗ Failed"
+                  : "Send invite"}
+          </button>
+        </div>
+      </div>
 
       {/* ── Advanced toggle ── */}
       <button
