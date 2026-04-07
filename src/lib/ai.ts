@@ -7,7 +7,7 @@ import {
   getOpenRouterModel,
   getModelForTask,
 } from "./aiSettings";
-import { getLearningsContext } from "./learningEngine";
+import { buildSystemPrompt } from "./systemPromptBuilder";
 
 interface AIMessage {
   role: string;
@@ -84,17 +84,7 @@ export async function callAI({
     userKey = getUserApiKey();
   }
 
-  // Build system prompt: base → memory guide → user learnings
-  let fullSystem = system || "";
-  if (memoryGuide) {
-    fullSystem = `[Classification Guide]\n${memoryGuide}\n\n[Task]\n${fullSystem}`;
-  }
-  if (brainId) {
-    const learnings = getLearningsContext(brainId);
-    if (learnings) {
-      fullSystem = `${fullSystem}\n\n--- USER LEARNING CONTEXT ---\nThis user's past decisions reveal preferences. Adapt your output accordingly:\n${learnings}\n--- END LEARNING CONTEXT ---`;
-    }
-  }
+  const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId });
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
