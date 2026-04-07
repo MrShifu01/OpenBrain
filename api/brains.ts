@@ -185,38 +185,55 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const inviteData = await inviteRes.json().catch(() => []);
     const invite = Array.isArray(inviteData) ? inviteData[0] : inviteData;
 
-    // Send email notification via Resend (fire-and-forget; non-fatal if unconfigured)
+    // Send email notification via Resend
     const resendKey = process.env.RESEND_API_KEY;
+    let emailSent = false;
+    let emailError: string | null = null;
     if (resendKey) {
       const appUrl = process.env.APP_URL
         || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://open-brain-ib4e.vercel.app");
+      const fromAddr = process.env.RESEND_FROM || "OpenBrain <onboarding@resend.dev>";
       const canonicalToken = invite?.token || token;
       const acceptUrl = `${appUrl}/?invite=${canonicalToken}`;
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
-        body: JSON.stringify({
-          from: "OpenBrain <noreply@openbrain.app>",
-          to: [email.trim().toLowerCase()],
-          subject: `You've been invited to join "${brainName}" on OpenBrain`,
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#111;color:#eee;border-radius:12px">
-              <h2 style="color:#72eff5;margin-top:0">OpenBrain</h2>
-              <p>You've been invited to collaborate on <strong>${brainName}</strong> as a <strong>${role}</strong>.</p>
-              <p style="margin:24px 0">
-                <a href="${acceptUrl}" style="background:#72eff5;color:#111;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">
-                  Accept Invite
-                </a>
-              </p>
-              <p style="color:#888;font-size:12px">Or copy this link: ${acceptUrl}</p>
-              <p style="color:#555;font-size:11px">If you didn't expect this, you can ignore this email.</p>
-            </div>`,
-        }),
-      }).catch((err) => console.error("[brains:invite] Resend error:", err.message));
+      try {
+        const emailRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${resendKey}` },
+          body: JSON.stringify({
+            from: fromAddr,
+            to: [email.trim().toLowerCase()],
+            subject: `You've been invited to join "${brainName}" on OpenBrain`,
+            html: `
+              <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#111;color:#eee;border-radius:12px">
+                <h2 style="color:#72eff5;margin-top:0">OpenBrain</h2>
+                <p>You've been invited to collaborate on <strong>${brainName}</strong> as a <strong>${role}</strong>.</p>
+                <p style="margin:24px 0">
+                  <a href="${acceptUrl}" style="background:#72eff5;color:#111;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">
+                    Accept Invite
+                  </a>
+                </p>
+                <p style="color:#888;font-size:12px">Or copy this link: ${acceptUrl}</p>
+                <p style="color:#555;font-size:11px">If you didn't expect this, you can ignore this email.</p>
+              </div>`,
+          }),
+        });
+        if (emailRes.ok) {
+          emailSent = true;
+        } else {
+          const errBody = await emailRes.text().catch(() => String(emailRes.status));
+          emailError = `Resend ${emailRes.status}: ${errBody}`;
+          console.error("[brains:invite] Resend failed:", emailError);
+        }
+      } catch (err: any) {
+        emailError = err.message;
+        console.error("[brains:invite] Resend network error:", emailError);
+      }
+    } else {
+      emailError = "RESEND_API_KEY not configured";
     }
 
-    console.log(`[audit] INVITE brain=${brain_id} email=${email} by=${user.id}`);
-    return res.status(200).json({ ok: true, invite });
+    console.log(`[audit] INVITE brain=${brain_id} email=${email} by=${user.id} emailSent=${emailSent}`);
+    return res.status(200).json({ ok: true, invite, emailSent, emailError });
   }
 
   // ── POST /api/brains?action=invite-platform — invite someone to sign up for OpenBrain ──

@@ -386,9 +386,15 @@ export default function SettingsView() {
         }),
       });
       if (res.ok) {
-        setInviteStatus("sent");
+        const data = await res.json().catch(() => ({}));
+        if (data.emailSent) {
+          setInviteStatus("sent");
+        } else {
+          // Invite record created but email failed — show the real reason
+          setInviteStatus(`email_failed:${data.emailError || "unknown error"}`);
+        }
         setInviteEmail("");
-        setTimeout(() => setInviteStatus(null), 3000);
+        setTimeout(() => setInviteStatus(null), 8000);
       } else {
         const errData = await res.json().catch(() => ({}));
         console.error("[invite] failed:", res.status, errData);
@@ -792,11 +798,16 @@ export default function SettingsView() {
                       ? "…"
                       : inviteStatus === "sent"
                         ? "✓ Sent"
-                        : inviteStatus === "error"
+                        : inviteStatus === "error" || inviteStatus?.startsWith("email_failed")
                           ? "✗ Failed"
                           : "Invite"}
                   </button>
                 </div>
+                {inviteStatus?.startsWith("email_failed:") && (
+                  <p className="text-[11px] mt-1.5" style={{ color: "#ef4444" }}>
+                    Invite saved but email failed: {inviteStatus.slice("email_failed:".length)}
+                  </p>
+                )}
               </div>
             </div>
           )}
