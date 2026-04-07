@@ -356,6 +356,7 @@ export default function SettingsView() {
   const [inviteLinkCopied, setInviteLinkCopied] = useState(false);
   const [platformInviteEmail, setPlatformInviteEmail] = useState("");
   const [platformInviteStatus, setPlatformInviteStatus] = useState<string | null>(null);
+  const [keySaveStatus, setKeySaveStatus] = useState<string | null>(null);
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || ""));
   }, []);
@@ -490,6 +491,11 @@ export default function SettingsView() {
     setOrKey(key);
     setOpenRouterKey(key || null);
     if (key) fetchOrModels(key);
+    setKeySaveStatus("saving");
+    setTimeout(() => {
+      setKeySaveStatus("saved");
+      setTimeout(() => setKeySaveStatus(null), 2000);
+    }, 300);
   };
   const saveOrModel = (m: string) => {
     setOrModel(m);
@@ -1009,6 +1015,11 @@ export default function SettingsView() {
                         : "Test"}
                 </button>
               </div>
+              {keySaveStatus && (
+                <p className="text-xs" style={{ color: keySaveStatus === "saving" ? "#aaa" : "#72eff5" }}>
+                  {keySaveStatus === "saving" ? "Saving…" : "✓ Saved"}
+                </p>
+              )}
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium" style={{ color: "#777" }}>
