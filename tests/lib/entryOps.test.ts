@@ -85,4 +85,20 @@ describe("saveEntry", () => {
     expect(writtenCache).toHaveLength(1);
     expect(writtenCache[0].title).toBe("Test entry");
   });
+
+  it("includes brainId in the queued operation body", async () => {
+    await saveEntry(baseEntry, { brainId: "brain-42" });
+    const op = mockEnqueue.mock.calls[0][0];
+    expect(op.body).toContain("brain-42");
+  });
+
+  it("queues the encrypted body (stored) not the plaintext entry", async () => {
+    const encryptedEntry = { ...baseEntry, content: "ENCRYPTED_CONTENT", title: "ENC_TITLE" };
+    mockEncrypt.mockReturnValue(encryptedEntry);
+    await saveEntry(baseEntry, { brainId: "brain-1", vaultKey: "vault-secret" });
+    const op = mockEnqueue.mock.calls[0][0];
+    expect(op.body).toContain("ENCRYPTED_CONTENT");
+    expect(op.body).toContain("ENC_TITLE");
+    expect(op.body).not.toContain("Hello"); // original plaintext content
+  });
 });
