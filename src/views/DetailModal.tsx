@@ -51,6 +51,10 @@ export default function DetailModal({
   const [editType, setEditType] = useState<string>(entry.type);
   const [editTags, setEditTags] = useState((entry.tags || []).join(", "));
   const [editBrainId, setEditBrainId] = useState(entry.brain_id || "");
+  // Extra brains: brains the entry is shared into via entry_brains junction (beyond primary)
+  const [extraBrainIds, setExtraBrainIds] = useState<string[]>([]); // server state (loaded on edit open)
+  const [editExtraBrainIds, setEditExtraBrainIds] = useState<string[]>([]); // in-progress edits
+  const [extraBrainsLoaded, setExtraBrainsLoaded] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [secretRevealed, setSecretRevealed] = useState(false);
   const isSecret = entry.type === "secret";
@@ -90,6 +94,22 @@ export default function DetailModal({
     return () => document.removeEventListener("keydown", handler);
   }, [editing, onClose]);
 
+  // Fetch extra brain assignments when edit mode opens
+  useEffect(() => {
+    if (!editing || extraBrainsLoaded || !entry.id) return;
+    fetch(`/api/entry-brains?entry_id=${encodeURIComponent(entry.id)}`, {
+      credentials: "include",
+    })
+      .then((r) => r.json())
+      .then((ids: string[]) => {
+        const clean = Array.isArray(ids) ? ids : [];
+        setExtraBrainIds(clean);
+        setEditExtraBrainIds(clean);
+        setExtraBrainsLoaded(true);
+      })
+      .catch(() => setExtraBrainsLoaded(true));
+  }, [editing, entry.id, extraBrainsLoaded]);
+
   const handleSave = async () => {
     setSaving(true);
     const tags = editTags
@@ -109,6 +129,33 @@ export default function DetailModal({
       onTypeIconChange?.(editType, icon);
     }
     await onUpdate?.(entry.id, changes);
+
+    // Sync extra brain assignments (entry_brains junction)
+    if (extraBrainsLoaded) {
+      const prevSet = new Set(extraBrainIds);
+      const nextSet = new Set(editExtraBrainIds);
+      const toAdd = [...nextSet].filter((id) => !prevSet.has(id));
+      const toRemove = [...prevSet].filter((id) => !nextSet.has(id));
+      await Promise.all([
+        ...toAdd.map((brain_id) =>
+          fetch("/api/entry-brains", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entry_id: entry.id, brain_id }),
+          }).catch(() => {}),
+        ),
+        ...toRemove.map((brain_id) =>
+          fetch(`/api/entry-brains?entry_id=${encodeURIComponent(entry.id)}&brain_id=${encodeURIComponent(brain_id)}`, {
+            method: "DELETE",
+            credentials: "include",
+          }).catch(() => {}),
+        ),
+      ]);
+      // Update local snapshot so subsequent saves diff correctly
+      setExtraBrainIds([...nextSet]);
+    }
+
     setSaving(false);
     setEditing(false);
   };
@@ -479,28 +526,56 @@ export default function DetailModal({
             {brains.length > 1 && (
               <div>
                 <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "#777" }}>
-                  Brain
+                  Brains <span className="normal-case tracking-normal text-on-surface-variant/50">(tap to add/remove)</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {brains.map((b) => {
                     const emoji = b.type === "family" ? "🏠" : b.type === "business" ? "🏪" : "🧠";
-                    const active = editBrainId === b.id;
+                    const isPrimary = editBrainId === b.id;
+                    const isExtra = editExtraBrainIds.includes(b.id);
+                    const isActive = isPrimary || isExtra;
                     return (
                       <button
                         key={b.id}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
+                        aria-label={`${isActive ? "Remove from" : "Add to"} ${b.name}`}
+                        aria-pressed={isActive}
+                        className="px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale flex items-center gap-1.5"
                         style={{
-                          background: active ? "rgba(114,239,245,0.1)" : "#262626",
-                          border: active ? "1px solid rgba(114,239,245,0.4)" : "1px solid rgba(72,72,71,0.2)",
-                          color: active ? "#72eff5" : "#adaaaa",
+                          background: isPrimary
+                            ? "rgba(114,239,245,0.12)"
+                            : isExtra
+                              ? "rgba(213,117,255,0.10)"
+                              : "#262626",
+                          border: isPrimary
+                            ? "1px solid rgba(114,239,245,0.45)"
+                            : isExtra
+                              ? "1px solid rgba(213,117,255,0.35)"
+                              : "1px solid rgba(72,72,71,0.2)",
+                          color: isPrimary ? "#72eff5" : isExtra ? "#d575ff" : "#adaaaa",
                         }}
-                        onClick={() => setEditBrainId(b.id)}
+                        onClick={() => {
+                          if (isPrimary) {
+                            // Can't deselect primary — switch primary to another already-selected brain
+                            // or do nothing (always need a primary)
+                            return;
+                          }
+                          if (isExtra) {
+                            setEditExtraBrainIds((prev) => prev.filter((id) => id !== b.id));
+                          } else {
+                            setEditExtraBrainIds((prev) => [...prev, b.id]);
+                          }
+                        }}
                       >
                         {emoji} {b.name}
+                        {isPrimary && <span className="text-[9px] opacity-60">primary</span>}
+                        {isExtra && <span className="text-[9px] opacity-60">✓</span>}
                       </button>
                     );
                   })}
                 </div>
+                {!extraBrainsLoaded && editing && (
+                  <p className="text-[10px] mt-1.5" style={{ color: "#555" }}>Loading brain assignments…</p>
+                )}
               </div>
             )}
             <div className="flex gap-3 pt-2">
