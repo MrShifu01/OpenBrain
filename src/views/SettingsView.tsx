@@ -888,11 +888,13 @@ export default function SettingsView() {
             <p className="text-xs" style={{ color: "#555" }}>Only the brain owner can invite members.</p>
           )}
         </div>
+      </>
       )}
 
-      {/* ── Invite to OpenBrain platform ── */}
+      {/* Remaining Brain Content */}
       {activeTab === "brain" && (
-      <>
+        <>
+      {/* ── Invite to OpenBrain platform ── */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}>
         <div>
           <p className="text-sm font-semibold text-white">Invite to OpenBrain</p>
