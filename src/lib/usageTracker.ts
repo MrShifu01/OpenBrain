@@ -1,4 +1,4 @@
-const STORAGE_KEY = "openbrain_usage";
+import { KEYS } from "./storageKeys";
 
 export interface UsageRecord {
   date: string; // YYYY-MM-DD
@@ -16,7 +16,7 @@ export interface MonthlySummary {
 
 function loadRecords(): UsageRecord[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(KEYS.USAGE);
     if (!raw) return [];
     return JSON.parse(raw) as UsageRecord[];
   } catch {
@@ -25,7 +25,7 @@ function loadRecords(): UsageRecord[] {
 }
 
 function saveRecords(records: UsageRecord[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  localStorage.setItem(KEYS.USAGE, JSON.stringify(records));
 }
 
 export function recordUsage(record: UsageRecord): void {
@@ -62,5 +62,5 @@ export function getMonthlyUsage(): MonthlySummary {
 }
 
 export function clearUsage(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(KEYS.USAGE);
 }

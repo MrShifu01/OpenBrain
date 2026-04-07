@@ -12,6 +12,7 @@ export const KEYS = {
   GEMINI_KEY:        `${P}gemini_key`,
   OFFLINE_QUEUE:     `${P}queue`,
   ENTRIES_CACHE:     `${P}entries`,
+  USAGE:             `${P}usage`,
   learningDecisions: (brainId: string) => `${P}learning_decisions:${brainId}`,
   learningSummary:   (brainId: string) => `${P}learning_summary:${brainId}`,
   taskModel:         (task: string)    => `${P}task_${task}`,

@@ -25,4 +25,8 @@ describe("KEYS", () => {
   it("ENTRIES_CACHE is the correct literal", () => {
     expect(KEYS.ENTRIES_CACHE).toBe("openbrain_entries");
   });
+
+  it("USAGE is the correct literal", () => {
+    expect(KEYS.USAGE).toBe("openbrain_usage");
+  });
 });
