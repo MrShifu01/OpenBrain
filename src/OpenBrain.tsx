@@ -27,7 +27,6 @@ import BrainSwitcher from "./components/BrainSwitcher";
 import CreateBrainModal from "./components/CreateBrainModal";
 import OnboardingModal from "./components/OnboardingModal";
 import BrainTipCard from "./components/BrainTipCard";
-import OnboardingChecklist from "./components/OnboardingChecklist";
 import QuickCapture from "./components/QuickCapture";
 
 import BottomNav from "./components/BottomNav";
@@ -1173,19 +1172,6 @@ export default function OpenBrain() {
           <div className="px-4 sm:px-6 pt-4 pb-32 lg:pb-8 max-w-6xl mx-auto">
             {view === "capture" && (
               <div className="space-y-5">
-                <OnboardingChecklist activeBrain={activeBrain} onNavigate={setView} />
-
-                {/* Stats */}
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold text-primary" style={{ fontFamily: "'Manrope', sans-serif" }}>{entries.length}</span>
-                    <span className="text-xs uppercase tracking-[0.15em] text-on-surface-variant/60 font-semibold">memories</span>
-                  </div>
-                  {links.length > 0 && (
-                    <span className="text-xs text-on-surface-variant/40">· {links.length} connections</span>
-                  )}
-                </div>
-
                 {/* Primary CTA */}
                 <button
                   onClick={() => setView("suggest")}
