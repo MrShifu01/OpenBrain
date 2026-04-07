@@ -162,6 +162,30 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return res.status(200).json({ ok: true, invite });
   }
 
+  // ── POST /api/brains?action=invite-platform — invite someone to sign up for OpenBrain ──
+  if (method === "POST" && action === "invite-platform") {
+    const { email } = req.body;
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email required" });
+    }
+    const invRes = await fetch(`${SB_URL}/auth/v1/invite`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SB_KEY!,
+        "Authorization": `Bearer ${SB_KEY}`,
+      },
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+    });
+    if (!invRes.ok) {
+      const detail = await invRes.text().catch(() => "");
+      console.error("[brains:invite-platform] Failed:", detail);
+      return res.status(502).json({ error: "Failed to send platform invite" });
+    }
+    console.log(`[audit] INVITE_PLATFORM email=${email} by=${user.id}`);
+    return res.status(200).json({ ok: true });
+  }
+
   // ── POST /api/brains?action=accept — accept an invite by token ──
   if (method === "POST" && action === "accept") {
     const { token } = req.body;
