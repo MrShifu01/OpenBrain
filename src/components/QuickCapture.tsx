@@ -12,7 +12,7 @@ import { recordDecision } from "../lib/learningEngine";
 import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
-import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse } from "../lib/fileSplitter";
+import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse, normaliseType } from "../lib/fileSplitter";
 
 const BRAIN_META_QC = {
   personal: { emoji: "🧠" },
@@ -360,7 +360,7 @@ export default function QuickCapture({
           body: JSON.stringify({
             p_title: parsed.title,
             p_content: parsed.content || "",
-            p_type: parsed.type || "note",
+            p_type: normaliseType(parsed.type),
             p_metadata: parsed.metadata || {},
             p_tags: parsed.tags || [],
             p_brain_id: primaryBrainId,
@@ -640,7 +640,7 @@ export default function QuickCapture({
               body: JSON.stringify({
                 p_title: parsed.title,
                 p_content: serverContent,
-                p_type: parsed.type || "note",
+                p_type: normaliseType(parsed.type),
                 p_metadata: serverMetadata,
                 p_tags: parsed.tags || [],
                 p_brain_id: primaryBrainId,
