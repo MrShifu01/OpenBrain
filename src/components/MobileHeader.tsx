@@ -44,7 +44,7 @@ export default function MobileHeader({
           className="font-bold text-on-surface text-base"
           style={{ fontFamily: "'Manrope', sans-serif" }}
         >
-          OB
+          Evermind
         </h1>
       </div>
 
