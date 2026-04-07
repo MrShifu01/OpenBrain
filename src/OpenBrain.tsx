@@ -807,6 +807,18 @@ export default function OpenBrain() {
           const genKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
           const model = provider === "openrouter" ? getOpenRouterModel() : getUserModel();
           const history = chatMsgs.slice(-10);
+          // Also send keyword-scored entries as a fallback for when no
+          // vector matches exist (i.e. entries haven't been embedded yet)
+          const keywordFallback = scoreEntriesForQuery(
+            entries.map((e) => ({
+              id: e.id,
+              title: e.title,
+              type: e.type,
+              tags: e.tags || [],
+              content: e.content ? e.content.slice(0, 200) : undefined,
+            })),
+            msg,
+          ).slice(0, 40);
           const res = await authFetch("/api/chat", {
             method: "POST",
             headers: {
@@ -821,6 +833,7 @@ export default function OpenBrain() {
               provider,
               model,
               secrets,
+              fallback_entries: keywordFallback,
             }),
           });
           data = await res.json();

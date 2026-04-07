@@ -63,7 +63,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const genKey = ((req.headers["x-user-api-key"] as string) || "").trim();
   if (!genKey) return res.status(400).json({ error: "X-User-Api-Key header required" });
 
-  const { message, brain_id, history = [], provider = "anthropic", model, secrets = [] } = req.body || {};
+  const { message, brain_id, history = [], provider = "anthropic", model, secrets = [], fallback_entries = [] } = req.body || {};
   if (!message || typeof message !== "string" || !message.trim()) return res.status(400).json({ error: "message required" });
   if (!brain_id || typeof brain_id !== "string") return res.status(400).json({ error: "brain_id required" });
 
@@ -91,8 +91,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     }),
   });
 
-  const retrievedEntries: any[] = rpcRes.ok ? await rpcRes.json() : [];
-  const sourceIds: string[] = retrievedEntries.map((e: any) => e.id);
+  let retrievedEntries: any[] = rpcRes.ok ? await rpcRes.json() : [];
+
+  // If vector search found nothing (entries not embedded yet), fall back to
+  // keyword-scored entries sent by the client
+  const usedFallback = retrievedEntries.length === 0 && Array.isArray(fallback_entries) && fallback_entries.length > 0;
+  if (usedFallback) {
+    retrievedEntries = (fallback_entries as any[])
+      .slice(0, 40)
+      .map((e: any) => ({ id: e.id, title: e.title, type: e.type, tags: e.tags, content: e.content }));
+  }
+
+  const sourceIds: string[] = usedFallback ? [] : retrievedEntries.map((e: any) => e.id);
 
   // 3. Fetch links for those entries only
   let relevantLinks: any[] = [];
