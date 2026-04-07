@@ -53,8 +53,8 @@ beforeEach(() => {
   });
 });
 
-describe("capture handler — type normalisation", () => {
-  it("accepts a valid type and passes it to Supabase", async () => {
+describe("capture handler — flexible types", () => {
+  it("passes known types through unchanged", async () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "Test", p_type: "document" } });
     const res = makeRes();
@@ -64,24 +64,31 @@ describe("capture handler — type normalisation", () => {
     expect(supabaseBody.p_type).toBe("document");
   });
 
-  it("normalises an AI-invented type ('company') to 'note' instead of 400ing", async () => {
+  it("passes AI-invented type 'company' through as-is", async () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "Smash Social Club", p_type: "company" } });
     const res = makeRes();
     await handler(req as any, res as any);
-    // Must NOT return 400
     expect(res.status).not.toHaveBeenCalledWith(400);
-    // Must normalise type to "note" before forwarding to Supabase
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-    expect(supabaseBody.p_type).toBe("note");
+    expect(supabaseBody.p_type).toBe("company");
   });
 
-  it("normalises 'director' type to 'note'", async () => {
+  it("passes AI-invented type 'supplier' through as-is", async () => {
     const handler = (await import("../../api/capture")).default;
-    const req = makeReq({ body: { p_title: "John Smith", p_type: "director" } });
+    const req = makeReq({ body: { p_title: "Fresh Meat Co", p_type: "supplier" } });
     const res = makeRes();
     await handler(req as any, res as any);
     expect(res.status).not.toHaveBeenCalledWith(400);
+    const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(supabaseBody.p_type).toBe("supplier");
+  });
+
+  it("defaults missing type to 'note'", async () => {
+    const handler = (await import("../../api/capture")).default;
+    const req = makeReq({ body: { p_title: "No type entry" } });
+    const res = makeRes();
+    await handler(req as any, res as any);
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(supabaseBody.p_type).toBe("note");
   });
