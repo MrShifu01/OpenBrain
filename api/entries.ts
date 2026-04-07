@@ -176,7 +176,6 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
 
     // Direct query: includes primary brain entries + shared entries from entry_brains
     const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${orFilter}${cursorFilter}`;
-    const directRes = await fetch(directUrl, { headers: sbHeadersNoContent() });
     const rows: any[] = await directRes.json();
     const hasMore = rows.length > limit;
     const results = hasMore ? rows.slice(0, limit) : rows;
