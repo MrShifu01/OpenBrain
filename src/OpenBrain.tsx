@@ -621,6 +621,8 @@ export default function OpenBrain() {
   const commitPendingDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return;
     const { id } = pendingDeleteRef.current;
+    // Immediately update cache to persist deletion
+    writeEntriesCache(entries);
     if (isOnlineRef.current) {
       authFetch("/api/delete-entry", {
         method: "DELETE",
@@ -637,7 +639,7 @@ export default function OpenBrain() {
       }).then(refreshCount);
     }
     pendingDeleteRef.current = null;
-  }, [refreshCount]);
+  }, [refreshCount, entries]);
 
   const handleDelete = useCallback(
     (id) => {
