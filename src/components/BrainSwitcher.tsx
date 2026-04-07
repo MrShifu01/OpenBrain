@@ -165,17 +165,11 @@ interface BrainItemProps {
 }
 
 function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }: BrainItemProps): JSX.Element {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <button
+      type="button"
       onClick={() => onSelect(brain)}
-      className={cn(
-        "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
-        hovered ? "bg-surface-container" : ""
-      )}
+      className="group w-full flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-surface-container text-left"
     >
       <span className="text-base">{emoji}</span>
       <span className="flex-1 text-sm text-on-surface font-medium truncate">{brain.name}</span>
@@ -189,18 +183,19 @@ function BrainItem({ brain, active, onSelect, emoji, role, canDelete, onDelete }
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
         </svg>
       )}
-      {canDelete && hovered && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+      {canDelete && (
+        <span
+          role="button"
           title="Delete brain"
           aria-label="Delete brain"
-          className="w-5 h-5 flex items-center justify-center rounded text-error hover:bg-error/10 transition-colors ml-1"
+          onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+          className="w-5 h-5 flex items-center justify-center rounded text-error opacity-0 group-hover:opacity-100 hover:bg-error/10 transition-all ml-1"
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
-        </button>
+        </span>
       )}
-    </div>
+    </button>
   );
 }
