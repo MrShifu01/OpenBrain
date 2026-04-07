@@ -393,11 +393,7 @@ export default function SettingsView() {
           const base = window.location.origin;
           setInviteLink(`${base}/?invite=${data.invite.token}`);
         }
-        if (data.emailSent) {
-          setInviteStatus("sent");
-        } else {
-          setInviteStatus("link_ready");
-        }
+        setInviteStatus(data.emailSent ? "sent" : "link_ready");
         setInviteEmail("");
         setTimeout(() => { setInviteStatus(null); setInviteLink(null); }, 30000);
       } else {
@@ -802,10 +798,10 @@ export default function SettingsView() {
                     {inviteStatus === "sending" ? "…" : inviteStatus === "sent" ? "✓ Sent" : inviteStatus === "error" ? "✗ Failed" : "Invite"}
                   </button>
                 </div>
-                {inviteStatus === "link_ready" && inviteLink && (
+                {(inviteStatus === "link_ready" || inviteStatus === "sent") && inviteLink && (
                   <div className="mt-2 space-y-1.5">
                     <p className="text-[11px]" style={{ color: "#aaa" }}>
-                      Email not configured — share this link directly:
+                      {inviteStatus === "sent" ? "Email sent — you can also share this link:" : "Share this invite link:"}
                     </p>
                     <div className="flex items-center gap-2">
                       <input
