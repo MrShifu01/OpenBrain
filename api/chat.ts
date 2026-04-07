@@ -66,6 +66,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!genKey) return res.status(400).json({ error: "X-User-Api-Key header required" });
 
   const { message, brain_id, brain_ids, history = [], provider = "anthropic", model, secrets = [], fallback_entries = [] } = req.body || {};
+
+  // S1-3: Vault secrets only allowed with Anthropic
+  if (Array.isArray(secrets) && secrets.length > 0 && provider !== "anthropic") {
+    return res.status(400).json({ error: "Vault content can only be used with Anthropic provider. Switch to Anthropic or remove vault secrets." });
+  }
   if (!message || typeof message !== "string" || !message.trim()) return res.status(400).json({ error: "message required" });
 
   // Determine which brains to search
