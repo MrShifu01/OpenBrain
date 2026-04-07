@@ -27,6 +27,15 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const brain_id = req.query.brain_id as string | undefined;
+  const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 100);
+  const cursor = req.query.cursor as string | undefined;
+  const trash = req.query.trash === "true";
+
+  // Build cursor + trash filters for direct REST queries
+  const cursorFilter = cursor ? `&created_at=lt.${encodeURIComponent(cursor)}` : "";
+  const deletedFilter = trash
+    ? "&deleted_at=not.is.null"
+    : "&deleted_at=is.null";
 
   if (brain_id) {
     // SEC-1: Verify the requesting user is a member or owner of this brain
@@ -34,35 +43,47 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
     if (!access) return res.status(403).json({ error: "Forbidden" });
 
     // Use RPC to get entries visible in this brain (primary + cross-brain shares)
-    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/get_entries_for_brain?select=${encodeURIComponent(ENTRY_FIELDS)}`, {
-      method: "POST",
-      headers: sbHdrsJson(),
-      body: JSON.stringify({ p_brain_id: brain_id }),
-    });
+    // RPC doesn't support cursor pagination, fall through to direct query when cursor is set
+    if (!cursor && !trash) {
+      const rpcRes = await fetch(
+        `${SB_URL}/rest/v1/rpc/get_entries_for_brain?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}`,
+        {
+          method: "POST",
+          headers: sbHdrsJson(),
+          body: JSON.stringify({ p_brain_id: brain_id }),
+        }
+      );
 
-    if (rpcRes.ok) {
-      const data: any = await rpcRes.json();
-      return res.status(200).json(data);
+      if (rpcRes.ok) {
+        const rows: any[] = await rpcRes.json();
+        const hasMore = rows.length > limit;
+        const results = hasMore ? rows.slice(0, limit) : rows;
+        const nextCursor = hasMore ? results[results.length - 1].created_at : null;
+        return res.status(200).json({ entries: results, nextCursor, hasMore });
+      }
     }
 
-    // Fallback: direct query if RPC not yet available (pre-migration)
-    // Include entries with matching brain_id OR user's orphan entries (brain_id is null)
-    const fallbackRes = await fetch(
-      `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&or=(brain_id.eq.${encodeURIComponent(brain_id)},and(user_id.eq.${encodeURIComponent(user.id)},brain_id.is.null))`,
-      { headers: sbHdrs() }
-    );
-    const fallbackData: any = await fallbackRes.json();
-    return res.status(fallbackRes.status).json(fallbackData);
+    // Fallback: direct query if RPC not yet available (pre-migration) or when cursor/trash params used
+    const fallbackUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}&or=(brain_id.eq.${encodeURIComponent(brain_id)},and(user_id.eq.${encodeURIComponent(user.id)},brain_id.is.null))${cursorFilter}`;
+    const fallbackRes = await fetch(fallbackUrl, { headers: sbHdrs() });
+    const rows: any[] = await fallbackRes.json();
+    const hasMore = rows.length > limit;
+    const results = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? results[results.length - 1].created_at : null;
+    return res.status(fallbackRes.status).json({ entries: results, nextCursor, hasMore });
   }
 
   // Fallback: user's own entries (pre-migration compatibility)
-  const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500&user_id=eq.${encodeURIComponent(user.id)}`;
+  const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}&user_id=eq.${encodeURIComponent(user.id)}${cursorFilter}`;
   const response = await fetch(url, { headers: sbHdrs() });
-  const data: any = await response.json();
-  res.status(response.status).json(data);
+  const rows: any[] = await response.json();
+  const hasMore = rows.length > limit;
+  const results = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? results[results.length - 1].created_at : null;
+  res.status(response.status).json({ entries: results, nextCursor, hasMore });
 }
 
-// ── DELETE /api/entries (was /api/delete-entry) ──
+// ── DELETE /api/entries (was /api/delete-entry) — soft delete ──
 async function handleDelete(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
 
@@ -85,12 +106,17 @@ async function handleDelete(req: ApiRequest, res: ApiResponse): Promise<void> {
   const access = await checkBrainAccess(user.id, entry.brain_id);
   if (!access) return res.status(403).json({ error: "Forbidden" });
 
+  // Soft delete: set deleted_at instead of hard deleting (recoverable within 30 days)
   const response = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-    { method: "DELETE", headers: sbHdrs() }
+    {
+      method: "PATCH",
+      headers: sbHdrsJson({ "Prefer": "return=minimal" }),
+      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+    }
   );
 
-  console.log(`[audit] DELETE entry id=${id} user=${user.id} ok=${response.ok}`);
+  console.log(`[audit] SOFT_DELETE entry id=${id} user=${user.id} ok=${response.ok}`);
 
   // SEC-14: Fire-and-forget audit log write to Supabase
   fetch(`${SB_URL}/rest/v1/audit_log`, {
@@ -113,6 +139,39 @@ async function handlePatch(req: ApiRequest, res: ApiResponse): Promise<void> {
 
   const user: any = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const action = req.query.action as string | undefined;
+
+  // ── PATCH ?action=restore — restore a soft-deleted entry ──
+  if (action === "restore") {
+    const { id } = req.body;
+    if (!id || typeof id !== "string" || id.length > 100) {
+      return res.status(400).json({ error: "Missing or invalid id" });
+    }
+
+    // SEC-1: Verify the requesting user is a member or owner of this entry's brain
+    const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`, {
+      headers: sbHdrs(),
+    });
+    if (!entryRes.ok) return res.status(502).json({ error: "Database error" });
+    const [entryData]: any[] = await entryRes.json();
+    if (!entryData) return res.status(404).json({ error: "Not found" });
+
+    const access = await checkBrainAccess(user.id, entryData.brain_id);
+    if (!access) return res.status(403).json({ error: "Forbidden" });
+
+    const response = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
+      {
+        method: "PATCH",
+        headers: sbHdrsJson({ "Prefer": "return=representation" }),
+        body: JSON.stringify({ deleted_at: null }),
+      }
+    );
+    console.log(`[audit] RESTORE entry id=${id} user=${user.id} ok=${response.ok}`);
+    const data: any = await response.json();
+    return res.status(response.ok ? 200 : 502).json(data);
+  }
 
   const { id, title, content, type, tags, metadata, brain_id } = req.body;
   if (!id || typeof id !== "string" || id.length > 100) {

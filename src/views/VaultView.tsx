@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { TC } from "../data/constants";
+import { TC, getTypeConfig } from "../data/constants";
 import { authFetch } from "../lib/authFetch";
 import {
   setupVault,
@@ -54,7 +54,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock,
   const [addError, setAddError] = useState("");
   const [addBusy, setAddBusy] = useState(false);
 
-  const secrets = entries.filter((e: Entry) => e.type === "secret");
+  const secrets = entries.filter((e: Entry) => e.type === "secret" || (e as any).encrypted === true);
 
   // Check vault status on mount
   useEffect(() => {
@@ -601,7 +601,7 @@ export default function VaultView({ entries, onSelect, cryptoKey, onVaultUnlock,
               >
                 <div className="flex items-center justify-between p-3">
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-base">{TC.secret.i}</span>
+                    <span className="text-base">{getTypeConfig(e.type).i}</span>
                     <span className="text-sm font-medium text-white truncate">{e.title}</span>
                   </div>
                   <button

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { TC, fmtD } from "../data/constants";
+import { TC, getTypeConfig, fmtD } from "../data/constants";
 import { useEntries } from "../context/EntriesContext";
 import type { Entry } from "../types";
 
@@ -269,7 +269,7 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
   const total = today.length + tomorrow.length + thisWeek.length + overdue.length;
 
   function renderItem({ entry, dateStr }: TodoItem, showDate: boolean) {
-    const tc = TC[entry.type] || TC.note;
+    const tc = getTypeConfig(entry.type);
     return (
       <div
         key={`${entry.id}-${dateStr}`}
@@ -356,7 +356,7 @@ export default function TodoView({ entries: propEntries }: TodoViewProps) {
               : `Nothing on ${selectedDay}`}
           </p>
           {selEntries.map((e) => {
-            const cfg = TC[e.type] || TC.note;
+            const cfg = getTypeConfig(e.type);
             return (
               <div
                 key={e.id}

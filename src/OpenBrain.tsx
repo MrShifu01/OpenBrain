@@ -16,7 +16,7 @@ import {
 } from "./lib/aiFetch";
 import { encryptEntry, decryptEntry, unlockVault, decryptVaultKeyFromRecovery } from "./lib/crypto";
 import { PROMPTS } from "./config/prompts";
-import { TC, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
+import { TC, getTypeConfig, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";
 import { useBrain as useBrainHook } from "./hooks/useBrain";
 import { useRole } from "./hooks/useRole";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -175,7 +175,7 @@ const TYPE_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 const EntryCard = memo(function EntryCard({ entry: e, onSelect }) {
-  const cfg = TC[e.type] || TC.note;
+  const cfg = getTypeConfig(e.type);
   const imp = { 1: "Important", 2: "Critical" }[e.importance];
   const colors = TYPE_COLORS[e.type] || TYPE_COLORS.default;
   return (
@@ -308,7 +308,7 @@ function VirtualTimeline({ sorted, setSelected }) {
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((vItem) => {
           const e = sorted[vItem.index];
-          const cfg = TC[e.type] || TC.note;
+          const cfg = getTypeConfig(e.type);
           return (
             <div
               key={e.id}
@@ -504,12 +504,14 @@ export default function OpenBrain() {
     authFetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        // Support both paginated { entries, nextCursor } and legacy plain array responses
+        const entries = Array.isArray(data) ? data : (data?.entries ?? []);
+        if (entries.length > 0) {
           // Secret entries stay encrypted in state until vault is unlocked
-          setEntries(data);
-          writeEntriesCache(data); // PERF-8: write to IDB (with localStorage fallback)
+          setEntries(entries);
+          writeEntriesCache(entries); // PERF-8: write to IDB (with localStorage fallback)
           // ARCH-5: Build search index at load time (skip secret entries — encrypted)
-          data.filter((e) => e.type !== "secret").forEach(indexEntry);
+          entries.filter((e) => e.type !== "secret").forEach(indexEntry);
         }
         setEntriesLoaded(true);
       })

@@ -2,8 +2,21 @@ import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { checkBrainAccess } from "./_lib/checkBrainAccess.js";
-import { randomBytes } from "crypto";
+import { randomBytes, scryptSync } from "crypto";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
+
+/**
+ * Verify a brain API key against its stored scrypt hash.
+ * Returns true if the key matches, false otherwise (never throws).
+ */
+export function verifyBrainApiKey(key: string, hash: string, salt: string): boolean {
+  try {
+    const derived = scryptSync(key, salt, 32).toString("hex");
+    return derived === hash;
+  } catch {
+    return false;
+  }
+}
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -370,16 +383,28 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     // Only owner can generate keys
     const ownerRes = await fetch(`${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id)}&owner_id=eq.${encodeURIComponent(user.id)}`, { headers: hdrs() });
     if (!(await ownerRes.json()).length) return res.status(403).json({ error: "Not the brain owner" });
-    // Generate a secure random key: ob_<32 hex chars>
-    const bytes = Array.from({ length: 32 }, () => Math.floor(Math.random() * 256));
-    const key = "ob_" + bytes.map(b => b.toString(16).padStart(2, "0")).join("");
+    // Generate a cryptographically secure random key: ob_<32 hex chars>
+    const key = "ob_" + randomBytes(32).toString("hex");
+    // Hash the key with scrypt before storing — plaintext is shown once and never stored alone
+    const salt = randomBytes(16).toString("hex");
+    const hash = scryptSync(key, salt, 32).toString("hex");
+    const prefix = key.slice(0, 10); // first 10 chars for identification
     const r = await fetch(`${SB_URL}/rest/v1/brain_api_keys`, {
       method: "POST",
       headers: hdrs({ "Prefer": "return=representation" }),
-      body: JSON.stringify({ brain_id, user_id: user.id, api_key: key, label: (label || "").slice(0, 100) || "Default" }),
+      body: JSON.stringify({
+        brain_id,
+        user_id: user.id,
+        api_key: key,           // kept for backward compat during transition
+        api_key_hash: hash,
+        api_key_salt: salt,
+        api_key_prefix: prefix,
+        label: (label || "").slice(0, 100) || "Default",
+      }),
     });
     if (!r.ok) return res.status(502).json({ error: "Failed to create API key" });
     const [created] = await r.json();
+    // Return plaintext key to UI — shown once, never stored in plaintext going forward
     return res.status(200).json({ id: created.id, api_key: key, label: created.label, created_at: created.created_at });
   }
 

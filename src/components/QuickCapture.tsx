@@ -9,7 +9,7 @@ import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { recordDecision } from "../lib/learningEngine";
-import { TC } from "../data/constants";
+import { TC, getTypeConfig } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
 import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse } from "../lib/fileSplitter";
@@ -63,7 +63,7 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
             >
               {Object.keys(TC).map((t) => (
                 <option key={t} value={t}>
-                  {TC[t].i} {t}
+                  {getTypeConfig(t).i} {t}
                 </option>
               ))}
             </select>
@@ -1061,7 +1061,7 @@ export default function QuickCapture({
                     ✕
                   </button>
                   <div className="flex items-center gap-2 mb-1">
-                    <span>{TC[entry.type]?.i || "📝"}</span>
+                    <span>{getTypeConfig(entry.type).i}</span>
                     <span className="text-sm font-semibold text-white truncate">{entry.title}</span>
                     <span className="text-[10px] uppercase tracking-wider text-[#777] ml-auto mr-6">{entry.type}</span>
                   </div>

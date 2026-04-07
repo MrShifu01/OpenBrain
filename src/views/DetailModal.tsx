@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { TC } from "../data/constants";
+import { TC, getTypeConfig } from "../data/constants";
 import { extractPhone, toWaUrl } from "../lib/phone";
 import type { Entry, Brain, EntryType } from "../types";
 
@@ -49,7 +49,7 @@ export default function DetailModal({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [secretRevealed, setSecretRevealed] = useState(false);
   const isSecret = entry.type === "secret";
-  const cfg = TC[editType as EntryType] || TC.note;
+  const cfg = getTypeConfig(editType);
   const related = links
     .filter((l) => l.from === entry.id || l.to === entry.id)
     .map((l) => ({
@@ -582,7 +582,7 @@ export default function DetailModal({
                         className="flex items-center gap-2 px-3 py-2 rounded-lg mb-1.5 text-xs"
                         style={{ background: "#262626" }}
                       >
-                        <span>{TC[r.other.type]?.i}</span>
+                        <span>{getTypeConfig(r.other.type).i}</span>
                         <span className="text-on-surface-variant/50">{r.dir}</span>
                         <span className="text-on-surface flex-1">{r.other.title}</span>
                         <span className="text-[10px] uppercase tracking-widest text-on-surface-variant/50">{r.rel}</span>
