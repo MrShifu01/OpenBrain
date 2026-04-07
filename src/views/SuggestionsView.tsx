@@ -8,7 +8,8 @@ import { PC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { aiFetch } from "../lib/aiFetch";
 import { getUserModel, getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiSettings";
-import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
+import { isSupportedFile, isTextFile, isDocxFile, readTextFile, readDocxFile, readFileAsBase64 } from "../lib/fileParser";
+import BulkUploadModal from "../components/BulkUploadModal";
 import type { Entry, Brain, Suggestion, Priority } from "../types";
 
 interface SuggestionsViewProps {
@@ -136,6 +137,8 @@ export default function SuggestionsView({
 
   const imgRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const bulkFileRef = useRef<HTMLInputElement>(null);
+  const [bulkFiles, setBulkFiles] = useState<File[] | null>(null);
 
   // Skipped onboarding questions — load once, stay at top of queue
   const [onboardingSkipped] = useState<Suggestion[]>(() => {
@@ -300,15 +303,10 @@ export default function SuggestionsView({
       let extractedText = "";
       if (isTextFile(file)) {
         extractedText = await readTextFile(file);
+      } else if (isDocxFile(file)) {
+        extractedText = await readDocxFile(file);
       } else {
-        const { base64, mimeType } = await readFileAsBase64(file);
-        const isPdf = file.name.toLowerCase().endsWith(".pdf");
-        const contentBlock = isPdf
-          ? {
-              type: "document",
-              source: { type: "base64", media_type: "application/pdf", data: base64 },
-            }
-          : { type: "image", source: { type: "base64", media_type: mimeType, data: base64 } };
+        const { base64 } = await readFileAsBase64(file);
         const apiRes = await aiFetch("/api/anthropic", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -319,7 +317,7 @@ export default function SuggestionsView({
               {
                 role: "user",
                 content: [
-                  contentBlock,
+                  { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
                   {
                     type: "text",
                     text: "Extract ALL text from this document relevant to the question. Preserve structure. No commentary.",
@@ -758,6 +756,18 @@ export default function SuggestionsView({
             onChange={handleFileUpload}
             className="hidden"
           />
+          <input
+            type="file"
+            multiple
+            accept=".txt,.md,.csv,.pdf,.docx,text/plain,text/markdown,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ref={bulkFileRef}
+            onChange={(e) => {
+              const files = e.target.files ? Array.from(e.target.files) : [];
+              e.target.value = "";
+              if (files.length > 0) setBulkFiles(files);
+            }}
+            className="hidden"
+          />
           {imgError && <p className="text-xs text-[#ff6e84]">{imgError}</p>}
           {micError && <p className="text-xs text-[#ff6e84]">{micError}</p>}
           <textarea
@@ -819,6 +829,14 @@ export default function SuggestionsView({
               >
                 📄
               </button>
+              <button
+                onClick={() => bulkFileRef.current?.click()}
+                disabled={imgLoading || saving}
+                title="Bulk upload multiple files"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors hover:bg-white/10 disabled:opacity-40"
+              >
+                📁
+              </button>
             </div>
           </div>
           <button
@@ -836,6 +854,18 @@ export default function SuggestionsView({
                   : `Save to ${bm.emoji} ${targetBrain?.name || bm.label}`}
           </button>
         </div>
+      )}
+
+      {/* Bulk upload modal */}
+      {bulkFiles && activeBrain && (
+        <BulkUploadModal
+          files={bulkFiles}
+          brainId={activeBrain.id}
+          brains={brains}
+          onCreated={(entry) => setEntries((prev) => [entry as Entry, ...prev])}
+          onDone={() => setBulkFiles(null)}
+          onCancel={() => setBulkFiles(null)}
+        />
       )}
 
       {/* Session history */}
