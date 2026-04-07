@@ -13,6 +13,7 @@ try {
       for (const suffix of [
         "api_key", "model", "provider", "openrouter_key",
         "openrouter_model", "embed_provider", "embed_openai_key", "gemini_key",
+        "groq_key",
       ]) {
         const oldKey = `openbrain_${uid}_${suffix}`;
         const newKey = `${P}${suffix}`;

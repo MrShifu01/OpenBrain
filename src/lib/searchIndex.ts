@@ -53,7 +53,7 @@ export async function semanticSearch(
   const { getEmbedHeaders } = await import("./aiSettings");
   const headers = embedHeaders ?? getEmbedHeaders();
 
-  if (isOnline && headers?.["x-embed-key"]) {
+  if (isOnline && (headers?.["X-Embed-Key"] || headers?.["x-embed-key"])) {
     try {
       const res = await fetch("/api/search", {
         method: "POST",

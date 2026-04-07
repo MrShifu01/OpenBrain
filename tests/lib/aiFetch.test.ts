@@ -151,3 +151,37 @@ describe("aiFetch settings", () => {
     expect(getModelForTask("capture")).toBeNull();
   });
 });
+
+describe("aiFetch function", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.resetModules();
+  });
+
+  it("calls authFetch without X-User-Api-Key header when no key is stored", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { aiFetch } = await import("../../src/lib/aiFetch");
+    // Ensure no key is stored
+    localStorage.clear();
+    await aiFetch("/api/test", { method: "POST" });
+
+    // authFetch calls fetch internally; check that no X-User-Api-Key was injected
+    const calledHeaders = mockFetch.mock.calls[0]?.[1]?.headers ?? {};
+    expect(calledHeaders["X-User-Api-Key"]).toBeUndefined();
+  });
+
+  it("injects X-User-Api-Key header when user key is stored", async () => {
+    const mockFetch = vi.fn().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const { setUserApiKey } = await import("../../src/lib/aiSettings");
+    const { aiFetch } = await import("../../src/lib/aiFetch");
+    setUserApiKey("sk-mykey");
+    await aiFetch("/api/test", { method: "POST" });
+
+    const calledHeaders = mockFetch.mock.calls[0]?.[1]?.headers ?? {};
+    expect(calledHeaders["X-User-Api-Key"]).toBe("sk-mykey");
+  });
+});
