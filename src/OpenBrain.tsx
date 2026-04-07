@@ -35,6 +35,7 @@ import QuickCapture from "./components/QuickCapture";
 import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
 import DesktopSidebar from "./components/DesktopSidebar";
+import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
 import SettingsView from "./views/SettingsView";
 import { inferWorkspace } from "./lib/workspaceInfer";
@@ -1010,6 +1011,8 @@ export default function OpenBrain() {
     }),
     [activeBrain, brains, refresh, canInvite, canManageMembers, deleteBrain],
   );
+
+  if (brainsLoading) return <LoadingScreen />;
 
   return (
     <EntriesContext.Provider value={entriesValue}>
