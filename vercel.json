@@ -3,7 +3,8 @@
   "crons": [
     { "path": "/api/cron/push?action=daily",  "schedule": "0 8 * * *" },
     { "path": "/api/cron/push?action=nudge",   "schedule": "0 10 * * *" },
-    { "path": "/api/cron/push?action=expiry",  "schedule": "0 9 * * *" }
+    { "path": "/api/cron/push?action=expiry",  "schedule": "0 9 * * *" },
+    { "path": "/api/cron/gap-analyst",          "schedule": "0 6 * * 0" }
   ],
   "outputDirectory": "dist",
   "rewrites": [

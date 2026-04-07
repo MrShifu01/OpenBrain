@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { loadPersistedTheme, persistTheme, resolveTheme } from "./lib/themeToggle";
 
 export interface ThemeColors {
   bg: string;
@@ -97,18 +98,18 @@ const ThemeCtx = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  // App is dark-mode only — inline styles use hardcoded dark colors
-  const [isDark] = useState(true);
+  const [isDark, setIsDark] = useState(() => resolveTheme(loadPersistedTheme()) === "dark");
 
   useEffect(() => {
     const root = document.documentElement;
-    root.setAttribute("data-theme", "dark");
-    root.classList.add("dark");
-    root.classList.remove("light");
-    localStorage.setItem("openbrain_theme", "dark");
-  }, []);
+    const theme = isDark ? "dark" : "light";
+    root.setAttribute("data-theme", theme);
+    root.classList.toggle("dark", isDark);
+    root.classList.toggle("light", !isDark);
+    persistTheme(theme);
+  }, [isDark]);
 
-  const toggleTheme = () => {}; // no-op — dark mode only
+  const toggleTheme = () => setIsDark((prev) => !prev);
   const t = isDark ? DARK : LIGHT;
 
   return <ThemeCtx.Provider value={{ t, isDark, toggleTheme }}>{children}</ThemeCtx.Provider>;

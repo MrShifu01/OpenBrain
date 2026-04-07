@@ -55,25 +55,34 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const access = await checkBrainAccess(user.id, entry.brain_id);
     if (!access) return res.status(403).json({ error: "Forbidden" });
 
-    try {
-      const embedding = await generateEmbedding(buildEntryText(entry), provider as "openai" | "google", apiKey);
-      await fetch(
-        `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}`,
-        {
-          method: "PATCH",
-          headers: { ...SB_HEADERS, "Prefer": "return=minimal" },
-          body: JSON.stringify({
-            embedding: `[${embedding.join(",")}]`,
-            embedded_at: new Date().toISOString(),
-            embedding_provider: provider,
-          }),
-        }
-      );
-      return res.status(200).json({ ok: true });
-    } catch (e: any) {
-      console.error("[embed:single]", e.message);
-      return res.status(502).json({ error: e.message });
+    // S3-5: retry with exponential backoff (max 3 attempts: 0s, 2s, 4s)
+    const MAX_ATTEMPTS = 3;
+    let lastErr: any;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (attempt > 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, attempt * 2000));
+      }
+      try {
+        const embedding = await generateEmbedding(buildEntryText(entry), provider as "openai" | "google", apiKey);
+        await fetch(
+          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}`,
+          {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, "Prefer": "return=minimal" },
+            body: JSON.stringify({
+              embedding: `[${embedding.join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: provider,
+            }),
+          }
+        );
+        return res.status(200).json({ ok: true });
+      } catch (e: any) {
+        lastErr = e;
+        console.error(`[embed:single] attempt ${attempt + 1} failed:`, e.message);
+      }
     }
+    return res.status(502).json({ error: lastErr?.message ?? "Embedding failed" });
   }
 
   // ── Batch mode ─────────────────────────────────────────────────

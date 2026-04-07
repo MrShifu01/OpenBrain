@@ -123,8 +123,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       allSemanticResults.push(...results.map((r) => ({ ...r, brain_id: bId })));
     }
   }
-  // Sort by similarity descending, take top 20
-  allSemanticResults.sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+  // S6-1: Re-rank by combined similarity + keyword overlap, take top 20
+  const _queryTokens = message.trim().toLowerCase().split(/\s+/).filter((t: string) => t.length > 2);
+  function _combinedScore(e: any): number {
+    const sim = e.similarity ?? 0;
+    if (!_queryTokens.length) return sim;
+    const text = `${e.title ?? ""} ${e.content ?? ""}`.toLowerCase();
+    const kw = _queryTokens.filter((t: string) => text.includes(t)).length / _queryTokens.length;
+    return sim * 0.7 + kw * 0.3;
+  }
+  allSemanticResults.sort((a, b) => _combinedScore(b) - _combinedScore(a));
   let retrievedEntries: any[] = allSemanticResults.slice(0, 20);
 
   // If vector search found nothing, fall back:
