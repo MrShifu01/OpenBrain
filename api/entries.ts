@@ -138,8 +138,21 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
     const access = await checkBrainAccess(user.id, brain_id);
     if (!access) return res.status(403).json({ error: "Forbidden" });
 
-    // Use RPC to get entries visible in this brain (primary + cross-brain shares)
-    // RPC doesn't support cursor pagination, fall through to direct query when cursor is set
+    // Fetch entry IDs shared into this brain via entry_brains junction table
+    const sharedRes = await fetch(
+      `${SB_URL}/rest/v1/entry_brains?brain_id=eq.${encodeURIComponent(brain_id)}&select=entry_id`,
+      { headers: sbHdrs() }
+    );
+    const sharedRows: any[] = sharedRes.ok ? await sharedRes.json() : [];
+    const sharedIds: string[] = sharedRows.map((r: any) => r.entry_id).filter(Boolean);
+
+    // Build OR filter: primary brain_id match OR shared via entry_brains
+    const sharedIdFilter = sharedIds.length > 0
+      ? `,id.in.(${sharedIds.map(encodeURIComponent).join(",")})`
+      : "";
+    const orFilter = `&or=(brain_id.eq.${encodeURIComponent(brain_id)}${sharedIdFilter})`;
+
+    // Try RPC first (no cursor, no trash) — it may already handle entry_brains via DB join
     if (!cursor && !trash) {
       const rpcRes = await fetch(
         `${SB_URL}/rest/v1/rpc/get_entries_for_brain?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}`,
@@ -151,22 +164,26 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
       );
 
       if (rpcRes.ok) {
-        const rows: any[] = await rpcRes.json();
-        const hasMore = rows.length > limit;
-        const results = hasMore ? rows.slice(0, limit) : rows;
-        const nextCursor = hasMore ? results[results.length - 1].created_at : null;
-        return res.status(200).json({ entries: results, nextCursor, hasMore });
+        const rpcRows: any[] = await rpcRes.json();
+        // If RPC returned results, use them; otherwise fall through to direct query
+        // (RPC may not include entry_brains entries if the function predates that feature)
+        if (rpcRows.length > 0 || sharedIds.length === 0) {
+          const hasMore = rpcRows.length > limit;
+          const results = hasMore ? rpcRows.slice(0, limit) : rpcRows;
+          const nextCursor = hasMore ? results[results.length - 1].created_at : null;
+          return res.status(200).json({ entries: results, nextCursor, hasMore });
+        }
       }
     }
 
-    // Fallback: direct query if RPC not yet available (pre-migration) or when cursor/trash params used
-    const fallbackUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}&or=(brain_id.eq.${encodeURIComponent(brain_id)},and(user_id.eq.${encodeURIComponent(user.id)},brain_id.is.null))${cursorFilter}`;
-    const fallbackRes = await fetch(fallbackUrl, { headers: sbHdrs() });
-    const rows: any[] = await fallbackRes.json();
+    // Direct query: includes primary brain entries + shared entries from entry_brains
+    const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${orFilter}${cursorFilter}`;
+    const directRes = await fetch(directUrl, { headers: sbHdrs() });
+    const rows: any[] = await directRes.json();
     const hasMore = rows.length > limit;
     const results = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore ? results[results.length - 1].created_at : null;
-    return res.status(fallbackRes.status).json({ entries: results, nextCursor, hasMore });
+    return res.status(directRes.status).json({ entries: results, nextCursor, hasMore });
   }
 
   // Fallback: user's own entries (pre-migration compatibility)
