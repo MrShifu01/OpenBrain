@@ -357,6 +357,7 @@ export default function SettingsView() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [platformInviteEmail, setPlatformInviteEmail] = useState("");
   const [platformInviteStatus, setPlatformInviteStatus] = useState<string | null>(null);
   useEffect(() => {
@@ -387,14 +388,18 @@ export default function SettingsView() {
       });
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Build the invite link from the token so user can share it manually
+        if (data.invite?.token) {
+          const base = window.location.origin;
+          setInviteLink(`${base}/?invite=${data.invite.token}`);
+        }
         if (data.emailSent) {
           setInviteStatus("sent");
         } else {
-          // Invite record created but email failed — show the real reason
-          setInviteStatus(`email_failed:${data.emailError || "unknown error"}`);
+          setInviteStatus("link_ready");
         }
         setInviteEmail("");
-        setTimeout(() => setInviteStatus(null), 8000);
+        setTimeout(() => { setInviteStatus(null); setInviteLink(null); }, 30000);
       } else {
         const errData = await res.json().catch(() => ({}));
         console.error("[invite] failed:", res.status, errData);
@@ -794,19 +799,31 @@ export default function SettingsView() {
                       color: "#0a0a0a",
                     }}
                   >
-                    {inviteStatus === "sending"
-                      ? "…"
-                      : inviteStatus === "sent"
-                        ? "✓ Sent"
-                        : inviteStatus === "error" || inviteStatus?.startsWith("email_failed")
-                          ? "✗ Failed"
-                          : "Invite"}
+                    {inviteStatus === "sending" ? "…" : inviteStatus === "sent" ? "✓ Sent" : inviteStatus === "error" ? "✗ Failed" : "Invite"}
                   </button>
                 </div>
-                {inviteStatus?.startsWith("email_failed:") && (
-                  <p className="text-[11px] mt-1.5" style={{ color: "#ef4444" }}>
-                    Invite saved but email failed: {inviteStatus.slice("email_failed:".length)}
-                  </p>
+                {inviteStatus === "link_ready" && inviteLink && (
+                  <div className="mt-2 space-y-1.5">
+                    <p className="text-[11px]" style={{ color: "#aaa" }}>
+                      Email not configured — share this link directly:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        readOnly
+                        value={inviteLink}
+                        className="flex-1 px-3 py-2 rounded-xl text-[11px] text-on-surface focus:outline-none"
+                        style={{ background: "#1a1919", border: "1px solid rgba(72,72,71,0.3)" }}
+                        onFocus={(e) => e.currentTarget.select()}
+                      />
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(inviteLink); }}
+                        className="px-3 py-2 rounded-xl text-[11px] font-semibold whitespace-nowrap"
+                        style={{ background: "rgba(114,239,245,0.12)", color: "#72eff5", border: "1px solid rgba(114,239,245,0.2)" }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
