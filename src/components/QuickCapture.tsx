@@ -1001,18 +1001,22 @@ export default function QuickCapture({
           onClick={() => setMultiPreview(null)}
         >
           <div
-            className="w-full max-w-lg max-h-[80vh] overflow-y-auto rounded-2xl border p-5"
-            style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.2)" }}
+            className="w-full max-w-lg flex flex-col rounded-2xl border"
+            style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.2)", maxHeight: "calc(100dvh - 140px)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-white">✂️ {multiPreview.length} entries found in file</span>
-              <button onClick={() => setMultiPreview(null)} className="text-[#777] hover:text-white text-lg">✕</button>
+            {/* Fixed header */}
+            <div className="px-5 pt-5 pb-3 flex-shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-white">✂️ {multiPreview.length} entries found in file</span>
+                <button onClick={() => setMultiPreview(null)} className="text-[#777] hover:text-white text-lg">✕</button>
+              </div>
+              <p className="text-xs text-[#777]">
+                Review the entries extracted from your file. Remove any you don't want, then save all.
+              </p>
             </div>
-            <p className="text-xs text-[#777] mb-4">
-              Review the entries extracted from your file. Remove any you don't want, then save all.
-            </p>
-            <div className="space-y-3">
+            {/* Scrollable entries list */}
+            <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-3">
               {multiPreview.map((entry, i) => (
                 <div
                   key={i}
@@ -1051,7 +1055,8 @@ export default function QuickCapture({
                 </div>
               ))}
             </div>
-            <div className="flex gap-3 mt-4">
+            {/* Fixed action buttons — always visible above bottom nav */}
+            <div className="flex gap-3 px-5 py-4 flex-shrink-0 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
               <button
                 onClick={() => setMultiPreview(null)}
                 className="flex-1 py-2.5 rounded-xl border text-sm text-[#aaa] transition-colors hover:bg-white/5"
