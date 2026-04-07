@@ -57,15 +57,6 @@ export default function SettingsView() {
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4">
-        {activeTab === "account" && <AccountTab email={email} />}
-        {activeTab === "intelligence" && <ProvidersTab activeBrain={activeBrain ?? undefined} />}
-        {activeTab === "brain" && activeBrain && (
-          <BrainTab
-            activeBrain={activeBrain}
-            canInvite={canInvite}
-            canManageMembers={canManageMembers}
-            onRefreshBrains={refresh}
           />
         )}
         {activeTab === "notifications" && <NotificationsTab />}
