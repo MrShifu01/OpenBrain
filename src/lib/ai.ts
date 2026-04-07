@@ -6,8 +6,8 @@ import {
   getOpenRouterKey,
   getOpenRouterModel,
   getModelForTask,
-} from "./aiFetch";
-import { getLearningsContext } from "./learningEngine";
+} from "./aiSettings";
+import { buildSystemPrompt } from "./systemPromptBuilder";
 
 interface AIMessage {
   role: string;
@@ -31,11 +31,7 @@ export interface CallAIOptions {
   brainId?: string;
 }
 
-const ENDPOINT: Record<string, string> = {
-  anthropic: "/api/anthropic",
-  openai: "/api/openai",
-  openrouter: "/api/openrouter",
-};
+const SUPPORTED_PROVIDERS = ["anthropic", "openai", "openrouter"] as const;
 
 function normalizeMessages(messages: AIMessage[], provider: string): AIMessage[] {
   if (provider === "anthropic") return messages;
@@ -65,10 +61,13 @@ export async function callAI({
   brainId,
 }: CallAIOptions = {}): Promise<Response> {
   const provider = getUserProvider();
-  const endpoint = ENDPOINT[provider] ?? ENDPOINT.anthropic;
+  const safeProvider = (SUPPORTED_PROVIDERS as readonly string[]).includes(provider)
+    ? provider
+    : "anthropic";
+  const endpoint = `/api/llm?provider=${safeProvider}`;
 
   let model: string;
-  if (provider === "openrouter") {
+  if (safeProvider === "openrouter") {
     model =
       (task ? getModelForTask(task) : null) ||
       getOpenRouterModel() ||
@@ -78,23 +77,13 @@ export async function callAI({
   }
 
   let userKey: string | null;
-  if (provider === "openrouter") {
+  if (safeProvider === "openrouter") {
     userKey = getOpenRouterKey();
   } else {
     userKey = getUserApiKey();
   }
 
-  // Build system prompt: base → memory guide → user learnings
-  let fullSystem = system || "";
-  if (memoryGuide) {
-    fullSystem = `[Classification Guide]\n${memoryGuide}\n\n[Task]\n${fullSystem}`;
-  }
-  if (brainId) {
-    const learnings = getLearningsContext(brainId);
-    if (learnings) {
-      fullSystem = `${fullSystem}\n\n--- USER LEARNING CONTEXT ---\nThis user's past decisions reveal preferences. Adapt your output accordingly:\n${learnings}\n--- END LEARNING CONTEXT ---`;
-    }
-  }
+  const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId }) || undefined;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -106,7 +95,7 @@ export async function callAI({
     headers,
     body: JSON.stringify({
       model,
-      messages: normalizeMessages(messages, provider),
+      messages: normalizeMessages(messages, safeProvider),
       system: fullSystem,
       max_tokens,
     }),

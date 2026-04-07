@@ -1,7 +1,7 @@
 import { callAI } from "./ai";
 import { authFetch } from "./authFetch";
 import { PROMPTS } from "../config/prompts";
-import { getEmbedHeaders } from "./aiFetch";
+import { getEmbedHeaders } from "./aiSettings";
 import type { Entry, Link } from "../types";
 
 interface ConnectionCandidate {

@@ -13,7 +13,7 @@ import {
   getUserApiKey,
   getOpenRouterKey,
   getOpenRouterModel,
-} from "./lib/aiFetch";
+} from "./lib/aiSettings";
 import { encryptEntry, decryptEntry, unlockVault, decryptVaultKeyFromRecovery } from "./lib/crypto";
 import { PROMPTS } from "./config/prompts";
 import { TC, getTypeConfig, fmtD, MODEL, INITIAL_ENTRIES, LINKS } from "./data/constants";

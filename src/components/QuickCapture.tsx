@@ -3,10 +3,12 @@ import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTheme } from "../ThemeContext";
 import { callAI } from "../lib/ai";
-import { aiFetch, getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiFetch";
+import { aiFetch } from "../lib/aiFetch";
+import { getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiSettings";
 import { encryptEntry } from "../lib/crypto";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
+import { saveEntry } from "../lib/entryOps";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { recordDecision } from "../lib/learningEngine";
 import { TC, getTypeConfig } from "../data/constants";
@@ -608,20 +610,7 @@ export default function QuickCapture({
               tags: parsed.tags || [],
               created_at: new Date().toISOString(),
             };
-            await enqueue({
-              id: crypto.randomUUID(),
-              url: "/api/capture",
-              method: "POST",
-              body: JSON.stringify({
-                p_title: parsed.title,
-                p_content: parsed.content || "",
-                p_type: parsed.type || "note",
-                p_metadata: parsed.metadata || {},
-                p_tags: parsed.tags || [],
-              }),
-              created_at: new Date().toISOString(),
-              tempId,
-            });
+            await saveEntry(newEntry, { brainId: primaryBrainId, vaultKey: null });
             refreshCount?.();
             setEntries((prev) => [newEntry, ...prev]);
             onCreated?.(newEntry);
@@ -728,20 +717,7 @@ export default function QuickCapture({
                 tags: parsed.tags || [],
                 created_at: new Date().toISOString(),
               };
-              await enqueue({
-                id: crypto.randomUUID(),
-                url: "/api/capture",
-                method: "POST",
-                body: JSON.stringify({
-                  p_title: parsed.title,
-                  p_content: parsed.content || "",
-                  p_type: parsed.type || "note",
-                  p_metadata: parsed.metadata || {},
-                  p_tags: parsed.tags || [],
-                }),
-                created_at: new Date().toISOString(),
-                tempId,
-              });
+              await saveEntry(newEntry, { brainId: primaryBrainId, vaultKey: cryptoKey ?? null });
               refreshCount?.();
               setEntries((prev) => [newEntry, ...prev]);
               onCreated?.(newEntry);

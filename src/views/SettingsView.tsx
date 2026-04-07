@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { authFetch } from "../lib/authFetch";
+import { aiFetch } from "../lib/aiFetch";
 import {
-  aiFetch,
   getUserApiKey,
   getUserModel,
   setUserApiKey,
@@ -21,9 +21,13 @@ import {
   setGeminiKey,
   getGroqKey,
   setGroqKey,
+<<<<<<< HEAD
   getModelForTask,
   setModelForTask,
 } from "../lib/aiFetch";
+=======
+} from "../lib/aiSettings";
+>>>>>>> arch/improvements
 import { callAI } from "../lib/ai";
 import { supabase } from "../lib/supabase";
 import NotificationSettings from "../components/NotificationSettings";
