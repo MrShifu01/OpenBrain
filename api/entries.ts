@@ -10,13 +10,109 @@ const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pi
 const sbHdrs = (): Record<string, string> => ({ "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}` });
 const sbHdrsJson = (extra: Record<string, string> = {}): Record<string, string> => ({ "Content-Type": "application/json", "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}`, ...extra });
 
-// Dispatched via rewrites: /api/delete-entry, /api/update-entry → /api/entries
+// Dispatched via rewrites:
+//   /api/delete-entry, /api/update-entry → /api/entries
+//   /api/entry-brains → /api/entries?resource=entry-brains
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
+  if (req.query.resource === "entry-brains") return handleEntryBrains(req, res);
   if (req.method === "GET") return handleGet(req, res);
   if (req.method === "DELETE") return handleDelete(req, res);
   if (req.method === "PATCH") return handlePatch(req, res);
   return res.status(405).json({ error: "Method not allowed" });
+}
+
+// ── /api/entry-brains (rewritten to /api/entries?resource=entry-brains) ──
+async function handleEntryBrains(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (req.method === "GET") return handleEntryBrainsGet(req, res);
+  if (req.method === "POST") return handleEntryBrainsPost(req, res);
+  if (req.method === "DELETE") return handleEntryBrainsDelete(req, res);
+  return res.status(405).json({ error: "Method not allowed" });
+}
+
+async function handleEntryBrainsGet(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (!(await rateLimit(req, 60))) return res.status(429).json({ error: "Too many requests" });
+  const user: any = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const entry_id = req.query.entry_id as string | undefined;
+  if (!entry_id || typeof entry_id !== "string" || entry_id.length > 100) {
+    return res.status(400).json({ error: "Missing or invalid entry_id" });
+  }
+
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entry_brains?entry_id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+    { headers: sbHdrs() },
+  );
+  if (!r.ok) return res.status(502).json({ error: "Database error" });
+  const rows: any[] = await r.json();
+  return res.status(200).json(rows.map((row) => row.brain_id));
+}
+
+async function handleEntryBrainsPost(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
+  const user: any = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const { entry_id, brain_id } = req.body;
+  if (
+    !entry_id || typeof entry_id !== "string" || entry_id.length > 100 ||
+    !brain_id  || typeof brain_id  !== "string" || brain_id.length  > 100
+  ) {
+    return res.status(400).json({ error: "Missing or invalid entry_id / brain_id" });
+  }
+
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+    { headers: sbHdrs() },
+  );
+  if (!entryRes.ok) return res.status(502).json({ error: "Database error" });
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) return res.status(404).json({ error: "Entry not found" });
+
+  const access = await checkBrainAccess(user.id, entry.brain_id);
+  if (!access) return res.status(403).json({ error: "Forbidden" });
+
+  const r = await fetch(`${SB_URL}/rest/v1/entry_brains`, {
+    method: "POST",
+    headers: sbHdrsJson({ Prefer: "resolution=ignore-duplicates,return=minimal" }),
+    body: JSON.stringify({ entry_id, brain_id }),
+  });
+  if (!r.ok) return res.status(502).json({ error: "Database error" });
+  return res.status(200).json({ ok: true });
+}
+
+async function handleEntryBrainsDelete(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
+  const user: any = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  const entry_id = req.query.entry_id as string | undefined;
+  const brain_id = req.query.brain_id as string | undefined;
+  if (
+    !entry_id || typeof entry_id !== "string" || entry_id.length > 100 ||
+    !brain_id  || typeof brain_id  !== "string" || brain_id.length  > 100
+  ) {
+    return res.status(400).json({ error: "Missing or invalid entry_id / brain_id" });
+  }
+
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+    { headers: sbHdrs() },
+  );
+  if (!entryRes.ok) return res.status(502).json({ error: "Database error" });
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) return res.status(404).json({ error: "Entry not found" });
+
+  const access = await checkBrainAccess(user.id, entry.brain_id);
+  if (!access) return res.status(403).json({ error: "Forbidden" });
+
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entry_brains?entry_id=eq.${encodeURIComponent(entry_id)}&brain_id=eq.${encodeURIComponent(brain_id)}`,
+    { method: "DELETE", headers: sbHdrs() },
+  );
+  if (!r.ok) return res.status(502).json({ error: "Database error" });
+  return res.status(200).json({ ok: true });
 }
 
 // ── GET /api/entries ──
