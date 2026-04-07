@@ -27,9 +27,6 @@ export default function SettingsView() {
     supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || ""));
   }, []);
 
-  const tabs = activeBrain?.myRole === "owner"
-    ? [...TAB_DEFS, { id: "danger" as TabId, label: "Danger", icon: "⚠️" }]
-    : TAB_DEFS;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--color-background)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
