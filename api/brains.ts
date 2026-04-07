@@ -427,7 +427,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   // ── GET /api/brains?action=api-keys&brain_id=... — list brain API keys ──
   if (method === "GET" && action === "api-keys") {
-    const brain_id = req.query.brain_id;
+    const brain_id = Array.isArray(req.query.brain_id) ? req.query.brain_id[0] : req.query.brain_id;
     if (!brain_id) return res.status(400).json({ error: "brain_id required" });
     const ownerRes = await fetch(`${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id)}&owner_id=eq.${encodeURIComponent(user.id)}`, { headers: hdrs() });
     if (!(await ownerRes.json()).length) return res.status(403).json({ error: "Not the brain owner" });
