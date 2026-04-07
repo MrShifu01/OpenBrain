@@ -2,13 +2,22 @@ import type { OfflineOp } from "../types";
 
 const DB_NAME = "openbrain-offline";
 const STORE = "queue";
-const DB_VERSION = 1;
+const FAILED_STORE = "failed_ops";
+const DB_VERSION = 2;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE, { keyPath: "id" });
+    req.onupgradeneeded = (event) => {
+      const db = req.result;
+      // Version 1: main queue store
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
+      // Version 2: failed ops store
+      if (!db.objectStoreNames.contains(FAILED_STORE)) {
+        db.createObjectStore(FAILED_STORE, { keyPath: "id" });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -97,4 +106,38 @@ export async function clear(): Promise<void> {
   } catch {
     localStorage.removeItem("openbrain_queue");
   }
+}
+
+// ── Failed ops store ──
+// Ops that exceeded MAX_RETRIES are moved here so they can be
+// displayed to the user and cleared manually instead of silently dropped.
+
+export async function putFailed(op: OfflineOp): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(FAILED_STORE, "readwrite");
+    tx.objectStore(FAILED_STORE).put(op);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getAllFailed(): Promise<OfflineOp[]> {
+  const db = await openDB();
+  return new Promise<OfflineOp[]>((resolve, reject) => {
+    const tx = db.transaction(FAILED_STORE, "readonly");
+    const req = tx.objectStore(FAILED_STORE).getAll();
+    req.onsuccess = () => resolve((req.result || []) as OfflineOp[]);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function clearFailed(): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(FAILED_STORE, "readwrite");
+    tx.objectStore(FAILED_STORE).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
 }

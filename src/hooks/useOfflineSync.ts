@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getAll, remove, enqueue } from "../lib/offlineQueue";
+import { getAll, remove, enqueue, putFailed, getAllFailed, clearFailed } from "../lib/offlineQueue";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiFetch";
 import type { OfflineOp } from "../types";
@@ -21,6 +21,7 @@ interface UseOfflineSyncOptions {
 export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) {
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
+  const [failedOps, setFailedOps] = useState<OfflineOp[]>([]);
   const drainingRef = useRef(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -58,11 +59,12 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
               const retryCount = (op.retryCount || 0) + 1;
               if (retryCount > MAX_RETRIES) {
                 console.error(
-                  "[offlineSync] Permanently dropping raw-capture op after max retries",
+                  "[offlineSync] Moving raw-capture op to failed store after max retries",
                   op.id,
                 );
                 await remove(op.id);
                 setPendingCount((c) => Math.max(0, c - 1));
+                await putFailed(op).then(() => getAllFailed().then(setFailedOps));
               } else {
                 await remove(op.id);
                 await enqueue({
@@ -104,11 +106,12 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
               const retryCount = (op.retryCount || 0) + 1;
               if (retryCount > MAX_RETRIES) {
                 console.error(
-                  "[offlineSync] Permanently dropping raw-capture save op after max retries",
+                  "[offlineSync] Moving raw-capture save op to failed store after max retries",
                   op.id,
                 );
                 await remove(op.id);
                 setPendingCount((c) => Math.max(0, c - 1));
+                await putFailed(op).then(() => getAllFailed().then(setFailedOps));
               } else {
                 await remove(op.id);
                 await enqueue({
@@ -135,12 +138,13 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
               const retryCount = (op.retryCount || 0) + 1;
               if (retryCount > MAX_RETRIES) {
                 console.error(
-                  "[offlineSync] Permanently dropping op after max retries",
+                  "[offlineSync] Moving op to failed store after max retries",
                   op.id,
                   op.url,
                 );
                 await remove(op.id);
                 setPendingCount((c) => Math.max(0, c - 1));
+                await putFailed(op).then(() => getAllFailed().then(setFailedOps));
               } else {
                 await remove(op.id);
                 await enqueue({
@@ -155,11 +159,12 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
           const retryCount = (op.retryCount || 0) + 1;
           if (retryCount > MAX_RETRIES) {
             console.error(
-              "[offlineSync] Permanently dropping op after max retries (network error)",
+              "[offlineSync] Moving op to failed store after max retries (network error)",
               op.id,
             );
             await remove(op.id);
             setPendingCount((c) => Math.max(0, c - 1));
+            await putFailed(op).then(() => getAllFailed().then(setFailedOps));
           } else {
             try {
               await remove(op.id);
@@ -182,6 +187,7 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
 
   useEffect(() => {
     refreshCount();
+    getAllFailed().then(setFailedOps);
   }, [refreshCount]);
 
   useEffect(() => {
@@ -198,5 +204,10 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
     };
   }, [drain]);
 
-  return { isOnline, pendingCount, sync: drain, refreshCount };
+  const clearFailedOps = useCallback(
+    () => clearFailed().then(() => setFailedOps([])),
+    [],
+  );
+
+  return { isOnline, pendingCount, sync: drain, refreshCount, failedOps, clearFailedOps };
 }
