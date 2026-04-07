@@ -105,6 +105,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   // 2. Retrieve top-20 relevant entries per brain, then merge by similarity
   const allSemanticResults: any[] = [];
   for (const bId of brainList) {
+    // S4-5: measure pgvector query time, warn if >500ms
+    const _vectorStart = Date.now();
     const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...SB_HEADERS },
@@ -114,6 +116,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         match_count: 20,
       }),
     });
+    const _vectorMs = Date.now() - _vectorStart;
+    if (_vectorMs > 500) console.warn(`[pgvector] match_entries took ${_vectorMs}ms for brain ${bId}`);
     if (rpcRes.ok) {
       const results: any[] = await rpcRes.json();
       allSemanticResults.push(...results.map((r) => ({ ...r, brain_id: bId })));

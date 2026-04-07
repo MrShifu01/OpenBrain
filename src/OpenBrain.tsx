@@ -102,7 +102,7 @@ export default function OpenBrain() {
   const { brains, activeBrain, setActiveBrain, createBrain, deleteBrain, refresh, loading: brainsLoading } =
     useBrainHook(useCallback(() => { setEntries([]); setLinks([]); setEntriesLoaded(false); }, []));
 
-  const { isOnline, pendingCount, sync, refreshCount } = useOfflineSync({
+  const { isOnline, pendingCount, sync, refreshCount, failedOps, clearFailedOps } = useOfflineSync({
     onEntryIdUpdate: useCallback((tempId: string, realId: string) => {
       setEntries((prev) => prev.map((e) => (e.id === tempId ? { ...e, id: realId } : e)));
     }, []),
@@ -243,6 +243,12 @@ export default function OpenBrain() {
 
               {showBrainTip && <BrainTipCard brain={showBrainTip} onDismiss={() => setShowBrainTip(null)} onFill={() => { setShowBrainTip(null); setView("suggest"); }} />}
               {view === "grid" && nudge && <NudgeBanner nudge={nudge} onDismiss={() => { setNudge(null); sessionStorage.removeItem("openbrain_nudge"); }} />}
+              {failedOps.length > 0 && (
+                <div className="mx-4 mt-2 p-3 rounded-2xl border flex items-center gap-3" style={{ background: "rgba(255,110,132,0.08)", borderColor: "rgba(255,110,132,0.2)" }}>
+                  <span className="text-sm text-error flex-1">{failedOps.length} operation{failedOps.length > 1 ? "s" : ""} failed to sync</span>
+                  <button onClick={() => clearFailedOps()} className="text-xs text-on-surface-variant hover:text-on-surface press-scale">Dismiss</button>
+                </div>
+              )}
 
               {showCreateBrain && (
                 <CreateBrainModal onClose={() => setShowCreateBrain(false)} onCreate={async (brain) => { await refresh(); setActiveBrain(brain); setShowBrainTip(brain); setShowCreateBrain(false); }} />
