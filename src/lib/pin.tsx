@@ -82,7 +82,7 @@ async function verifyPin(pin: string, stored?: string): Promise<boolean | null> 
   const [saltHex, hashHex] = s.split(":");
   const derivedHash = await _derivePbkdf2Hash(pin, saltHex);
 
-  // Server-side verification (primary when online)
+  // Server-side verification (primary and only method after S1-2)
   try {
     const r = await authFetch("/api/pin?action=verify", {
       method: "POST",
@@ -92,29 +92,29 @@ async function verifyPin(pin: string, stored?: string): Promise<boolean | null> 
     if (r.ok) {
       const data = await r.json();
       if (data.noPinSet) {
-        // No server record yet — fall back to localStorage comparison (existing user pre-migration)
+        // No server record yet — migration case for legacy users
         return derivedHash === hashHex;
       }
       return data.valid === true;
     }
   } catch {
-    // Network offline — fall through to localStorage fallback
+    // Network offline — cannot verify without server
+    return false;
   }
 
-  // Offline fallback: compare against localStorage hash
-  return derivedHash === hashHex;
+  return false;
 }
 
 async function storePin(pin: string): Promise<void> {
   const combined = await hashPin(pin); // "saltHex:hashHex"
-  localStorage.setItem(_pinKey(), combined);
-  // Push hash+salt to server for server-side verification (zero-knowledge: server never sees PIN)
+  // Only push hash+salt to server (zero-knowledge: server never sees PIN)
+  // localStorage copy removed — offline fallback handled by server returning noPinSet
   const [saltHex, hashHex] = combined.split(":");
-  authFetch("/api/pin?action=setup", {
+  await authFetch("/api/pin?action=setup", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ hash: hashHex, salt: saltHex }),
-  }).catch(() => {}); // Best-effort — localStorage is fallback if offline
+  });
 }
 
 export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) {
@@ -126,6 +126,7 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
   const [step, setStep] = useState<PinStep>(() => {
     if (isSetup) return "create";
     const stored = getStoredPinHash();
+    // Only show migrate step for legacy SHA-256 format (no colon separator)
     if (stored && !stored.includes(":")) return "migrate";
     return "enter";
   });

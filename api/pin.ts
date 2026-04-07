@@ -3,15 +3,16 @@ import { rateLimit } from "./_lib/rateLimit";
 import { applySecurityHeaders } from "./_lib/securityHeaders";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const supabase = require("@supabase/supabase-js").createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+function getSupabase() {
+  const { createClient } = require("@supabase/supabase-js");
+  return createClient(process.env.VITE_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applySecurityHeaders(res);
 
   const { action } = req.query as { action: string };
+  const supabase = getSupabase();
 
   if (action === "setup") {
     const auth = await verifyAuth(req);
