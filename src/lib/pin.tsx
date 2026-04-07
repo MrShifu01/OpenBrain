@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
 import { getUserId } from "./aiFetch";
+import { authFetch } from "./authFetch";
 
 type PinStep = "enter" | "create" | "confirm" | "migrate";
 
@@ -19,6 +20,8 @@ export function getStoredPinHash(): string | null {
 }
 export function removePin(): void {
   localStorage.removeItem(_pinKey());
+  // Best-effort server-side removal — fire and forget
+  authFetch("/api/pin?action=delete", { method: "DELETE" }).catch(() => {});
 }
 
 async function _legacyVerifyPin(pin: string, stored: string): Promise<boolean> {
@@ -52,11 +55,7 @@ async function hashPin(pin: string): Promise<string> {
   return saltHex + ":" + hashHex;
 }
 
-async function verifyPin(pin: string, stored?: string): Promise<boolean | null> {
-  const s = stored !== undefined ? stored : getStoredPinHash();
-  if (!s) return false;
-  if (!s.includes(":")) return null;
-  const [saltHex, hashHex] = s.split(":");
+async function _derivePbkdf2Hash(pin: string, saltHex: string): Promise<string> {
   const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -70,14 +69,52 @@ async function verifyPin(pin: string, stored?: string): Promise<boolean | null> 
     keyMaterial,
     256,
   );
-  const newHash = Array.from(new Uint8Array(bits))
+  return Array.from(new Uint8Array(bits))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
-  return newHash === hashHex;
+}
+
+async function verifyPin(pin: string, stored?: string): Promise<boolean | null> {
+  const s = stored !== undefined ? stored : getStoredPinHash();
+  if (!s) return false;
+  if (!s.includes(":")) return null; // legacy SHA-256 format — caller handles migrate step
+
+  const [saltHex, hashHex] = s.split(":");
+  const derivedHash = await _derivePbkdf2Hash(pin, saltHex);
+
+  // Server-side verification (primary when online)
+  try {
+    const r = await authFetch("/api/pin?action=verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hash: derivedHash }),
+    });
+    if (r.ok) {
+      const data = await r.json();
+      if (data.noPinSet) {
+        // No server record yet — fall back to localStorage comparison (existing user pre-migration)
+        return derivedHash === hashHex;
+      }
+      return data.valid === true;
+    }
+  } catch {
+    // Network offline — fall through to localStorage fallback
+  }
+
+  // Offline fallback: compare against localStorage hash
+  return derivedHash === hashHex;
 }
 
 async function storePin(pin: string): Promise<void> {
-  localStorage.setItem(_pinKey(), await hashPin(pin));
+  const combined = await hashPin(pin); // "saltHex:hashHex"
+  localStorage.setItem(_pinKey(), combined);
+  // Push hash+salt to server for server-side verification (zero-knowledge: server never sees PIN)
+  const [saltHex, hashHex] = combined.split(":");
+  authFetch("/api/pin?action=setup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ hash: hashHex, salt: saltHex }),
+  }).catch(() => {}); // Best-effort — localStorage is fallback if offline
 }
 
 export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) {
