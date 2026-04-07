@@ -30,7 +30,7 @@ import {
   getEmbedHeaders,
   getModelForTask,
   setModelForTask,
-} from "../../src/lib/aiFetch";
+} from "../../src/lib/aiSettings";
 
 describe("aiFetch settings", () => {
   beforeEach(() => {

@@ -9,8 +9,8 @@ vi.mock("../../src/lib/chatContext", () => ({
   scoreEntriesForQuery: vi.fn((entries: Entry[], _query: string) => [...entries]),
 }));
 
-// Mock aiFetch to control embed headers
-vi.mock("../../src/lib/aiFetch", () => ({
+// Mock aiSettings to control embed headers
+vi.mock("../../src/lib/aiSettings", () => ({
   getEmbedHeaders: vi.fn().mockReturnValue(null),
 }));
 

@@ -6,7 +6,7 @@ import {
   getOpenRouterKey,
   getOpenRouterModel,
   getModelForTask,
-} from "./aiFetch";
+} from "./aiSettings";
 import { getLearningsContext } from "./learningEngine";
 
 interface AIMessage {

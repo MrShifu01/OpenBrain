@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getAll, remove, enqueue, putFailed, getAllFailed, clearFailed } from "../lib/offlineQueue";
 import { authFetch } from "../lib/authFetch";
-import { getEmbedHeaders } from "../lib/aiFetch";
+import { getEmbedHeaders } from "../lib/aiSettings";
 import type { OfflineOp } from "../types";
 
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;

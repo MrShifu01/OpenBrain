@@ -7,7 +7,8 @@ import { BUSINESS_SUGGESTIONS } from "../data/businessSuggestions";
 import { TC, PC, MODEL } from "../data/constants";
 import { useTheme } from "../ThemeContext";
 import { PROMPTS } from "../config/prompts";
-import { aiFetch, getUserModel, getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiFetch";
+import { aiFetch } from "../lib/aiFetch";
+import { getUserModel, getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiSettings";
 import { isSupportedFile, isTextFile, readTextFile, readFileAsBase64 } from "../lib/fileParser";
 import type { Entry, Brain, Suggestion, Priority } from "../types";
 

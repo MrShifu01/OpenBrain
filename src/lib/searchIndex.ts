@@ -50,7 +50,7 @@ export async function semanticSearch(
   if (!query.trim()) return entries;
 
   // Lazy import to avoid loading browser-only supabase/auth at module init time
-  const { getEmbedHeaders } = await import("./aiFetch");
+  const { getEmbedHeaders } = await import("./aiSettings");
   const headers = embedHeaders ?? getEmbedHeaders();
 
   if (isOnline && headers?.["x-embed-key"]) {

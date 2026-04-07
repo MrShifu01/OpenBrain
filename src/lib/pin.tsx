@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../ThemeContext";
-import { getUserId } from "./aiFetch";
+import { getUserId } from "./aiSettings";
 
 type PinStep = "enter" | "create" | "confirm" | "migrate";
 
