@@ -172,7 +172,7 @@ export async function loadUserAISettings(userId: string): Promise<void> {
     .from("user_ai_settings")
     .select("*")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (data) {
     // Sensitive keys → memory
