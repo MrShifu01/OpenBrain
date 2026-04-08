@@ -1,9 +1,8 @@
 import { useState, useCallback, useRef } from "react";
 import { authFetch } from "../lib/authFetch";
-import { showError, captureError } from "../lib/notifications";
+import { showError, captureError, showToast } from "../lib/notifications";
 import { removeFromIndex, indexEntry } from "../lib/searchIndex";
 import { writeEntriesCache } from "../lib/entriesCache";
-import { enqueue } from "../lib/offlineQueue";
 import { encryptEntry } from "../lib/crypto";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import type { Entry } from "../types";
@@ -42,16 +41,10 @@ export function useEntryActions({
         body: JSON.stringify({ id }),
       }).catch((err) => captureError(err, "commitPendingDelete"));
     } else {
-      enqueue({
-        id: crypto.randomUUID(),
-        url: "/api/delete-entry",
-        method: "DELETE",
-        body: JSON.stringify({ id }),
-        created_at: new Date().toISOString(),
-      }).then(refreshCount);
+      showToast("You can't delete while offline.", "error");
     }
     pendingDeleteRef.current = null;
-  }, [refreshCount, entries, isOnlineRef]);
+  }, [entries, isOnlineRef]);
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -77,28 +70,7 @@ export function useEntryActions({
     async (id: string, changes: Partial<Entry>) => {
       const previous = entries.find((e) => e.id === id);
       if (!isOnline) {
-        await enqueue({
-          id: crypto.randomUUID(),
-          url: "/api/update-entry",
-          method: "PATCH",
-          body: JSON.stringify({ id, ...changes }),
-          created_at: new Date().toISOString(),
-        });
-        refreshCount();
-        setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...changes } : e)));
-        setSelected((prev: any) => (prev?.id === id ? { ...prev, ...changes } : prev));
-        if (previous)
-          setLastAction({
-            type: "update",
-            id,
-            previous: {
-              title: previous.title,
-              content: previous.content,
-              type: previous.type,
-              tags: previous.tags,
-              metadata: previous.metadata,
-            },
-          });
+        showToast("You can't save while offline.", "error");
         return;
       }
       const entryType = (changes as any).type || previous?.type;

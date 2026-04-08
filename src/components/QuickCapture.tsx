@@ -4,8 +4,7 @@ import { aiFetch } from "../lib/aiFetch";
 import { getUserModel, getUserApiKey, getGroqKey, getEmbedHeaders } from "../lib/aiSettings";
 import { encryptEntry } from "../lib/crypto";
 import { authFetch } from "../lib/authFetch";
-import { enqueue } from "../lib/offlineQueue";
-import { saveEntry } from "../lib/entryOps";
+import { showToast } from "../lib/notifications";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { recordDecision } from "../lib/learningEngine";
 import { TC, getTypeConfig } from "../data/constants";
@@ -114,12 +113,19 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
           <span id="qc-preview-title" className="text-sm font-semibold text-on-surface">Preview before saving</span>
           <button onClick={onCancel} aria-label="Close" className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
         </div>
-        <div className="space-y-3">
+        <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Title</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              name="entry-title"
+              type="text"
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
+              spellCheck={false}
               className="w-full rounded-xl border px-3 py-2.5 text-sm text-on-surface bg-transparent outline-none focus:border-[var(--color-primary)] transition-colors"
               style={{ borderColor: "var(--color-outline-variant)" }}
             />
@@ -152,11 +158,18 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
               value={tags}
               onChange={(e) => setTags(e.target.value)}
               placeholder="tag1, tag2"
+              name="entry-tags"
+              type="text"
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+              data-form-type="other"
+              spellCheck={false}
               className="w-full rounded-xl border px-3 py-2.5 text-sm text-on-surface bg-transparent outline-none placeholder:text-on-surface-variant/40 focus:border-[var(--color-primary)] transition-colors"
               style={{ borderColor: "var(--color-outline-variant)" }}
             />
           </div>
-        </div>
+        </form>
         {dupes.length > 0 && (
           <div className="mt-4 p-3 rounded-xl border" style={{ borderColor: "var(--color-primary-container)", background: "color-mix(in oklch, var(--color-primary) 6%, transparent)" }}>
             <p className="text-xs font-semibold mb-2 text-primary">⚠ Similar entries found — update one instead?</p>
@@ -670,24 +683,12 @@ export default function QuickCapture({
       try {
         if (parsed.title) {
           if (!isOnline) {
-            const tempId = Date.now().toString();
-            const newEntry = {
-              id: tempId,
-              title: parsed.title,
-              content: parsed.content || "",
-              type: parsed.type || "note",
-              metadata: parsed.metadata || {},
-              pinned: false,
-              importance: 0,
-              tags: parsed.tags || [],
-              created_at: new Date().toISOString(),
-            };
-            await saveEntry(newEntry, { brainId: primaryBrainId, vaultKey: null });
-            refreshCount?.();
-            setEntries((prev) => [newEntry, ...prev]);
-            onCreated?.(newEntry);
-            setStatus("saved-local");
-          } else {
+            showToast("You can't save while offline.", "error");
+            setStatus(null);
+            setLoading(false);
+            return;
+          }
+          {
             // E2E: encrypt content & metadata for secret entries before sending to server
             const isSecret = (parsed.type || "note") === "secret";
             if (isSecret && !cryptoKey) {
@@ -774,21 +775,8 @@ export default function QuickCapture({
                 }, 5000);
               }
             } else {
-              console.warn("[doSave] API returned non-ok, queuing for retry:", rpcRes.status);
-              const tempId = Date.now().toString();
-              const newEntry = {
-                id: tempId,
-                ...parsed,
-                pinned: false,
-                importance: 0,
-                tags: parsed.tags || [],
-                created_at: new Date().toISOString(),
-              };
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              await saveEntry(newEntry as Entry, { brainId: primaryBrainId, vaultKey: cryptoKey as any });
-              refreshCount?.();
-              setEntries((prev) => [newEntry as Entry, ...prev]);
-              onCreated?.(newEntry as Entry);
+              console.warn("[doSave] API returned non-ok:", rpcRes.status);
+              showToast("Failed to save entry. Please try again.", "error");
               setStatus("error");
             }
           }
@@ -820,26 +808,10 @@ export default function QuickCapture({
     setLoading(true);
     setStatus("thinking");
     if (!isOnline) {
-      const tempId = Date.now().toString();
-      const newEntry = {
-        id: tempId,
-        title: input.slice(0, 60),
-        content: input,
-        type: "note",
-        metadata: {},
-        pinned: false,
-        importance: 0,
-        tags: [],
-        created_at: new Date().toISOString(),
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: PROMPTS.CAPTURE, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() } as any);
-      refreshCount?.();
-      setEntries((prev) => [newEntry as Entry, ...prev]);
-      onCreated?.(newEntry as Entry);
-      setStatus("saved-local");
+      showToast("You can't save while offline.", "error");
+      setText(input);
       setLoading(false);
-      setTimeout(() => setStatus(null), 3000);
+      setStatus(null);
       return;
     }
     try {
@@ -875,24 +847,9 @@ export default function QuickCapture({
       onCreated?.(newEntry);
       setStatus("saved-raw");
     } catch (e) {
-      console.error("[capture] API error, queuing for retry:", e);
-      const tempId = Date.now().toString();
-      const newEntry = {
-        id: tempId,
-        title: input.slice(0, 60),
-        content: input,
-        type: "note",
-        metadata: {},
-        pinned: false,
-        importance: 0,
-        tags: [],
-        created_at: new Date().toISOString(),
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await enqueue({ id: crypto.randomUUID(), type: "raw-capture", anthropicRequest: { model: getUserModel(), max_tokens: 800, system: PROMPTS.CAPTURE, messages: [{ role: "user", content: input }] }, tempId, created_at: new Date().toISOString() } as any);
-      refreshCount?.();
-      setEntries((prev) => [newEntry, ...prev]);
-      onCreated?.(newEntry);
+      console.error("[capture] API error:", e);
+      showToast("Capture failed. Please try again.", "error");
+      setText(input);
       setStatus("error");
     }
     setLoading(false);
@@ -976,7 +933,13 @@ export default function QuickCapture({
                 ? "Processing..."
                 : "Quick capture — just type anything..."
           }
+          name="quick-capture"
+          type="text"
           autoComplete="off"
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-form-type="other"
+          spellCheck={false}
           className="flex-1 min-w-0 bg-transparent text-on-surface text-base outline-none placeholder:text-on-surface-variant/40 px-4 py-3"
         />
 
