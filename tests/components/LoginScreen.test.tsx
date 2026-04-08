@@ -26,6 +26,19 @@ async function renderLoginScreen() {
   return render(<LoginScreen />);
 }
 
+describe("LoginScreen — layout", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("renders a centered wrapper to constrain width on desktop", async () => {
+    const { default: LoginScreen } = await import("../../src/LoginScreen");
+    render(<LoginScreen />);
+    expect(document.querySelector('[data-testid="login-center-wrapper"]')).toBeInTheDocument();
+  });
+});
+
 describe("LoginScreen — error handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();

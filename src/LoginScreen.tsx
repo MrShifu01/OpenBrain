@@ -141,19 +141,25 @@ export default function LoginScreen(): JSX.Element {
         color: "var(--color-on-surface)",
         fontFamily: "'DM Sans', system-ui, sans-serif",
         display: "flex",
-        flexDirection: "column",
-        position: "relative",
-        overflowX: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "24px 16px",
+        boxSizing: "border-box",
       }}
     >
       {/* ── DESKTOP: two-column layout ── */}
       <div
+        data-testid="login-center-wrapper"
         className="login-two-col"
         style={{
-          flex: 1,
+          width: "100%",
+          maxWidth: 960,
           display: "flex",
           alignItems: "stretch",
-          minHeight: "100vh",
+          minHeight: 560,
+          border: "1px solid var(--color-outline-variant)",
+          borderRadius: 16,
+          overflow: "hidden",
         }}
       >
         {/* LEFT PANEL — branding + features */}
@@ -821,6 +827,8 @@ export default function LoginScreen(): JSX.Element {
           .login-two-col {
             flex-direction: column !important;
             min-height: auto !important;
+            border: none !important;
+            border-radius: 0 !important;
           }
           /* Form panel first on mobile — instant clarity */
           .login-two-col > div:last-child {
