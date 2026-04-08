@@ -41,6 +41,9 @@ export default function LoginScreen(): JSX.Element {
   const [showForm, setShowForm] = useState<boolean>(false);
   const [otpCode, setOtpCode] = useState<string>("");
   const [verifying, setVerifying] = useState<boolean>(false);
+  const [usePassword, setUsePassword] = useState<boolean>(false);
+  const [password, setPassword] = useState<string>("");
+  const [isSigningUp, setIsSigningUp] = useState<boolean>(true);
 
   const handleSend = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -81,8 +84,34 @@ export default function LoginScreen(): JSX.Element {
     setLoading(false);
   };
 
+  const handlePasswordSignUp = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
+  const handlePasswordSignIn = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (error) setError(error.message);
+    setLoading(false);
+  };
+
   const isDisabled = loading || !email;
   const isOtpDisabled = verifying || otpCode.length < 6 || otpCode.length > 8;
+  const isPasswordDisabled = loading || !email || password.length < 6;
+  const MIN_PASSWORD_LENGTH = 6;
 
   return (
     <div
@@ -217,7 +246,7 @@ export default function LoginScreen(): JSX.Element {
           <div style={{ width: "100%", maxWidth: 360 }}>
 
             {/* ── CTA (pre-form) ── */}
-            {!showForm && !sent && (
+            {!showForm && !sent && !usePassword && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <h2
                   style={{
@@ -232,7 +261,7 @@ export default function LoginScreen(): JSX.Element {
                   Welcome to Everion
                 </h2>
                 <p style={{ fontSize: 14, color: "var(--color-on-surface-variant)", margin: "0 0 8px" }}>
-                  No password needed — just your email.
+                  Choose how you'd like to sign in.
                 </p>
                 <button
                   onClick={() => setShowForm(true)}
@@ -255,13 +284,228 @@ export default function LoginScreen(): JSX.Element {
                     fontFamily: "'DM Sans', system-ui, sans-serif",
                   }}
                 >
-                  Start free
+                  Magic link
+                </button>
+                <button
+                  onClick={() => setUsePassword(true)}
+                  className="login-primary-btn"
+                  style={{
+                    width: "100%",
+                    height: 48,
+                    borderRadius: 10,
+                    border: "1px solid var(--color-outline-variant)",
+                    background: "transparent",
+                    color: "var(--color-on-surface)",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    transition: "background 150ms",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}
+                >
+                  Use password
                 </button>
               </div>
             )}
 
-            {/* ── Email form ── */}
-            {showForm && !sent && (
+            {/* ── Password form (signup/signin) ── */}
+            {usePassword && (
+              <>
+                <h2
+                  style={{
+                    fontFamily: "'Lora', Georgia, serif",
+                    fontSize: 22,
+                    fontWeight: 700,
+                    letterSpacing: "-0.02em",
+                    margin: "0 0 6px",
+                    color: "var(--color-on-surface)",
+                  }}
+                >
+                  {isSigningUp ? "Create account" : "Sign in"}
+                </h2>
+                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "0 0 20px" }}>
+                  {isSigningUp ? "Create your account with a password." : "Enter your email and password."}
+                </p>
+                <form
+                  onSubmit={isSigningUp ? handlePasswordSignUp : handlePasswordSignIn}
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                >
+                  <div>
+                    <label
+                      htmlFor="password-email"
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--color-on-surface-variant)",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Email address
+                    </label>
+                    <input
+                      id="password-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="neural@email.com"
+                      required
+                      autoFocus
+                      style={{
+                        width: "100%",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "var(--color-surface-container)",
+                        color: "var(--color-on-surface)",
+                        fontSize: 15,
+                        padding: "11px 14px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "border-color 150ms",
+                      }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="password-input"
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--color-on-surface-variant)",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Password {!isSigningUp && "(min. 6 characters)"}
+                    </label>
+                    <input
+                      id="password-input"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      minLength={MIN_PASSWORD_LENGTH}
+                      style={{
+                        width: "100%",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "var(--color-surface-container)",
+                        color: "var(--color-on-surface)",
+                        fontSize: 15,
+                        padding: "11px 14px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "border-color 150ms",
+                      }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                    />
+                  </div>
+
+                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
+
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => { setUsePassword(false); setPassword(""); setError(null); }}
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderRadius: 8,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "transparent",
+                        color: "var(--color-on-surface-variant)",
+                        fontSize: 14,
+                        cursor: "pointer",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "color 150ms",
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isPasswordDisabled}
+                      style={{
+                        flex: 2,
+                        height: 44,
+                        borderRadius: 8,
+                        border: "none",
+                        background: isPasswordDisabled
+                          ? "var(--color-surface-container-highest)"
+                          : "var(--color-primary)",
+                        color: isPasswordDisabled
+                          ? "var(--color-on-surface-variant)"
+                          : "var(--color-on-primary)",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: isPasswordDisabled ? "default" : "pointer",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "background 150ms",
+                        opacity: isPasswordDisabled ? 0.6 : 1,
+                      }}
+                    >
+                      {loading ? (isSigningUp ? "Creating…" : "Signing in…") : (isSigningUp ? "Create account" : "Sign in")}
+                    </button>
+                  </div>
+
+                  {isSigningUp && (
+                    <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "8px 0 0" }}>
+                      Already have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setIsSigningUp(false); setPassword(""); setError(null); }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--color-primary)",
+                          cursor: "pointer",
+                          fontSize: "inherit",
+                          fontWeight: 600,
+                          padding: 0,
+                        }}
+                      >
+                        Sign in
+                      </button>
+                    </p>
+                  )}
+
+                  {!isSigningUp && (
+                    <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "8px 0 0" }}>
+                      Don't have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setIsSigningUp(true); setPassword(""); setError(null); }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "var(--color-primary)",
+                          cursor: "pointer",
+                          fontSize: "inherit",
+                          fontWeight: 600,
+                          padding: 0,
+                        }}
+                      >
+                        Create account
+                      </button>
+                    </p>
+                  )}
+                </form>
+              </>
+            )}
+
+            {/* ── Email form (magic link) ── */}
+            {showForm && !sent && !usePassword && (
               <>
                 <h2
                   style={{
@@ -323,7 +567,7 @@ export default function LoginScreen(): JSX.Element {
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() => setShowForm(false)}
+                      onClick={() => { setShowForm(false); setPassword(""); setError(null); }}
                       style={{
                         flex: 1,
                         height: 44,
