@@ -121,21 +121,41 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
     }
   }
 
-  // Auto-embed: if embed headers are present, embed the new entry (fire-and-forget)
+  // Auto-embed: if embed headers are present, embed the new entry BEFORE responding.
+  // Must be awaited — on Vercel serverless, fire-and-forget promises are killed when
+  // the function returns (see https://vercel.com/docs/functions — use waitUntil or await).
+  // Previously this was .then()/.catch() which caused single-entry embeds to silently
+  // vanish while batch embed still worked.
   if (response.ok && data?.id) {
     const embedProvider = ((req.headers["x-embed-provider"] as string) || "").toLowerCase();
     const embedKey = ((req.headers["x-embed-key"] as string) || "").trim();
     if (embedKey && ["openai", "google"].includes(embedProvider)) {
       const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
-      generateEmbedding(buildEntryText(entryForEmbed), embedProvider as "openai" | "google", embedKey)
-        .then((embedding: number[]) =>
-          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(data.id)}`, {
+      try {
+        const embedding = await generateEmbedding(
+          buildEntryText(entryForEmbed),
+          embedProvider as "openai" | "google",
+          embedKey,
+        );
+        const patchRes = await fetch(
+          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(data.id)}`,
+          {
             method: "PATCH",
             headers: sbHeaders({ Prefer: "return=minimal" }),
-            body: JSON.stringify({ embedding: `[${embedding.join(",")}]`, embedded_at: new Date().toISOString(), embedding_provider: embedProvider }),
-          })
-        )
-        .catch((err: any) => console.error("[capture:auto-embed]", err.message));
+            body: JSON.stringify({
+              embedding: `[${embedding.join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: embedProvider,
+            }),
+          },
+        );
+        if (!patchRes.ok) {
+          const err = await patchRes.text().catch(() => String(patchRes.status));
+          console.error("[capture:auto-embed:patch]", patchRes.status, err);
+        }
+      } catch (err: any) {
+        console.error("[capture:auto-embed]", err?.message || err);
+      }
     }
   }
 
