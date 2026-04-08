@@ -38,7 +38,26 @@ export function filterByTier(models: ORModel[], tier: FilterTier): ORModel[] {
   return models.filter(m => getPriceTier(m.pricing) === tier);
 }
 
-export function modelLabel(m: ORModel): string {
+/** Best model per tier for knowledge capture, RAG chat, refinement, and vision tasks. */
+export const TIER_RECOMMENDED: Record<PriceTier, string> = {
+  free:     "google/gemini-2.0-flash-lite:free",  // fast, multimodal, already default
+  cheap:    "google/gemini-2.0-flash-001",         // ~$0.10/1M, excellent all-rounder
+  good:     "anthropic/claude-3.7-sonnet",         // best reasoning + instruction following
+  frontier: "anthropic/claude-opus-4",             // max quality for complex RAG & refinement
+};
+
+/** Moves the recommended model for the given tier to the front of the list. */
+export function sortWithRecommended(models: ORModel[], tier: FilterTier): ORModel[] {
+  if (tier === "all") return models;
+  const recId = TIER_RECOMMENDED[tier as PriceTier];
+  const idx = models.findIndex(m => m.id === recId);
+  if (idx <= 0) return models;
+  return [models[idx], ...models.slice(0, idx), ...models.slice(idx + 1)];
+}
+
+export function modelLabel(m: ORModel, recommendedId?: string): string {
   const cost = formatCost(m.pricing);
-  return cost ? `${m.name} — ${cost}` : m.name;
+  const costStr = cost ? ` — ${cost}` : "";
+  const recStr = m.id === recommendedId ? " (Recommended)" : "";
+  return `${m.name}${costStr}${recStr}`;
 }

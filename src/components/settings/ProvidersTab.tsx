@@ -15,7 +15,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import { MODELS } from "../../config/models";
 import { countEmbedMismatches } from "../../lib/embedMismatch";
-import { getPriceTier, filterByTier, modelLabel } from "../../lib/orModelFilter";
+import { getPriceTier, filterByTier, sortWithRecommended, modelLabel, TIER_RECOMMENDED } from "../../lib/orModelFilter";
 import type { ORModel, FilterTier } from "../../lib/orModelFilter";
 import type { Brain } from "../../types";
 
@@ -65,9 +65,11 @@ export default function ProvidersTab({ activeBrain }: Props) {
   const modelOptions = byoProvider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
 
   const filteredOrModels = useMemo(
-    () => filterByTier(orModels, orFilter),
+    () => sortWithRecommended(filterByTier(orModels, orFilter), orFilter),
     [orModels, orFilter],
   );
+
+  const recommendedId = orFilter !== "all" ? TIER_RECOMMENDED[orFilter] : undefined;
 
   useEffect(() => {
     if (byoProvider === "openrouter" && orKey) fetchOrModels(orKey);
@@ -293,7 +295,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 style={{ borderColor: "var(--color-outline-variant)" }}
               >
                 {(filteredOrModels.length > 0
-                  ? filteredOrModels.map(m => ({ id: m.id, label: modelLabel(m) }))
+                  ? filteredOrModels.map(m => ({ id: m.id, label: modelLabel(m, recommendedId) }))
                   : orModels.length === 0
                     ? OR_SHORTLIST.map(id => ({ id, label: id }))
                     : [{ id: orModel, label: orModel }]
@@ -328,7 +330,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                       <option value="default">Same as global default</option>
                       {filteredOrModels.map(m => (
                         <option key={m.id} value={m.id}>
-                          {modelLabel(m)} [{getPriceTier(m.pricing)}]
+                          {modelLabel(m, recommendedId)} [{getPriceTier(m.pricing)}]
                         </option>
                       ))}
                     </select>
@@ -351,7 +353,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                       .filter(m => m.modality?.includes?.("image") || m.architecture?.modality?.includes?.("image"))
                       .map(m => (
                         <option key={m.id} value={m.id}>
-                          {modelLabel(m)} [{getPriceTier(m.pricing)}]
+                          {modelLabel(m, recommendedId)} [{getPriceTier(m.pricing)}]
                         </option>
                       ))}
                   </select>

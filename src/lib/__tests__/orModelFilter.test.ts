@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPriceTier, formatCost, filterByTier } from "../orModelFilter";
+import { getPriceTier, formatCost, filterByTier, sortWithRecommended, modelLabel, TIER_RECOMMENDED } from "../orModelFilter";
 import type { ORModel } from "../orModelFilter";
 
 const free: ORModel = { id: "google/gemini-flash:free", name: "Gemini Flash Free", pricing: { prompt: "0" } };
@@ -82,5 +82,48 @@ describe("filterByTier", () => {
     expect(result).toHaveLength(2);
     expect(result.map(m => m.id)).toContain("claude-opus");
     expect(result.map(m => m.id)).toContain("unknown");
+  });
+});
+
+describe("sortWithRecommended", () => {
+  const rec = TIER_RECOMMENDED.free;
+  const recModel: ORModel = { id: rec, name: "Rec Model", pricing: { prompt: "0" } };
+  const other1: ORModel = { id: "other-1", name: "Other 1", pricing: { prompt: "0" } };
+  const other2: ORModel = { id: "other-2", name: "Other 2", pricing: { prompt: "0" } };
+
+  it("puts recommended model first", () => {
+    const result = sortWithRecommended([other1, other2, recModel], "free");
+    expect(result[0].id).toBe(rec);
+  });
+
+  it("preserves order of remaining models", () => {
+    const result = sortWithRecommended([other1, recModel, other2], "free");
+    expect(result.map(m => m.id)).toEqual([rec, other1.id, other2.id]);
+  });
+
+  it("returns list unchanged when recommended not present", () => {
+    const result = sortWithRecommended([other1, other2], "free");
+    expect(result).toEqual([other1, other2]);
+  });
+
+  it("returns list unchanged for 'all' tier", () => {
+    const result = sortWithRecommended([other1, recModel, other2], "all");
+    expect(result.map(m => m.id)).toEqual([other1.id, recModel.id, other2.id]);
+  });
+});
+
+describe("modelLabel", () => {
+  const m: ORModel = { id: "test/model", name: "Test Model", pricing: { prompt: "0.0000025" } };
+
+  it("includes cost in label", () => {
+    expect(modelLabel(m)).toBe("Test Model — $2.50/1M");
+  });
+
+  it("appends (Recommended) when id matches recommendedId", () => {
+    expect(modelLabel(m, "test/model")).toBe("Test Model — $2.50/1M (Recommended)");
+  });
+
+  it("does not append (Recommended) when id differs", () => {
+    expect(modelLabel(m, "other/model")).toBe("Test Model — $2.50/1M");
   });
 });
