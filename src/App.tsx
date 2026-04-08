@@ -59,8 +59,14 @@ export default function App(): JSX.Element {
       });
       return;
     }
+    const loadSettings = (userId: string) =>
+      Promise.race([
+        loadUserAISettings(userId),
+        new Promise<void>(resolve => setTimeout(resolve, 3000)),
+      ]).catch(() => {});
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user?.id) await loadUserAISettings(session.user.id).catch(() => {});
+      if (session?.user?.id) await loadSettings(session.user.id);
       setSession(session);
     }).catch(async () => {
       // Corrupted/malformed token in localStorage — clear it and send to login
@@ -70,7 +76,7 @@ export default function App(): JSX.Element {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_e, session) => {
-      if (session?.user?.id) await loadUserAISettings(session.user.id).catch(() => {});
+      if (session?.user?.id) await loadSettings(session.user.id);
       setSession(session);
     });
     return () => subscription.unsubscribe();
