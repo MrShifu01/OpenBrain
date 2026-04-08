@@ -1,7 +1,6 @@
 import { useMemo, useRef, memo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { TC, fmtD } from "../data/constants";
-import { resolveIcon } from "../lib/typeIcons";
+import { fmtD } from "../data/constants";
 import type { Entry } from "../types";
 
 // All colors reference CSS variables so they respond correctly to light/dark mode.
@@ -28,7 +27,6 @@ const EntryCard = memo(function EntryCard({
   onPin?: (e: Entry) => void;
   onDelete?: (e: Entry) => void;
 }) {
-  const cfg = { ...(TC[e.type] || TC.note), i: resolveIcon(e.type, typeIcons) };
   const importance = (e as any).importance as number;
   const imp = ({ 1: "Important", 2: "Critical" } as Record<number, string>)[importance];
   const isPinned = !!(e as any).pinned;
@@ -47,13 +45,10 @@ const EntryCard = memo(function EntryCard({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-            style={{ background: colors.bg }}
+          <p
+            className="text-xs font-medium px-2 py-0.5 rounded-lg"
+            style={{ background: colors.bg, color: colors.text }}
           >
-            <span style={{ color: colors.text }}>{cfg.i}</span>
-          </div>
-          <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
             {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
           </p>
         </div>
@@ -240,7 +235,6 @@ export function VirtualTimeline({
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((vItem) => {
           const e = sorted[vItem.index];
-          const cfg = { ...(TC[e.type] || TC.note), i: resolveIcon(e.type, typeIcons) };
           return (
             <button
               key={e.id}
@@ -265,7 +259,6 @@ export function VirtualTimeline({
                 {fmtD(e.created_at)}
               </p>
               <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl transition-colors group-hover:bg-surface-container">
-                <span className="text-sm flex-shrink-0">{cfg.i}</span>
                 <span className="text-sm text-on-surface truncate">{e.title}</span>
               </div>
             </button>

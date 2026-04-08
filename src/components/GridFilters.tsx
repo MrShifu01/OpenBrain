@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
 import { TC } from "../data/constants";
-import { resolveIcon } from "../lib/typeIcons";
 import type { DateFilter, SortOrder, EntryFilterState } from "../lib/entryFilters";
 
 const DATE_OPTIONS: { id: DateFilter; label: string }[] = [
@@ -145,7 +144,7 @@ export default function GridFilters({
         <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
           {filters.type !== "all" && (
             <ActivePill
-              label={`${resolveIcon(filters.type, typeIcons)} ${filters.type}`}
+              label={filters.type.charAt(0).toUpperCase() + filters.type.slice(1)}
               onClear={() => set({ type: "all" })}
             />
           )}
@@ -197,11 +196,9 @@ export default function GridFilters({
                   All types
                 </Chip>
                 {typeList.map((t) => {
-                  const icon = resolveIcon(t, typeIcons);
                   const label = t.charAt(0).toUpperCase() + t.slice(1);
                   return (
                     <Chip key={t} active={filters.type === t} onClick={() => set({ type: t })}>
-                      <span aria-hidden>{icon}</span>
                       {label}
                     </Chip>
                   );

@@ -7,7 +7,7 @@ import { authFetch } from "../lib/authFetch";
 import { showToast } from "../lib/notifications";
 import { findConnections, scoreTitle } from "../lib/connectionFinder";
 import { recordDecision } from "../lib/learningEngine";
-import { TC, getTypeConfig } from "../data/constants";
+import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { registerTypeIcon, pickDefaultIcon } from "../lib/typeIcons";
 import { isSupportedFile, isTextFile, isDocxFile, isExcelFile, readTextFile, readDocxFile, readExcelFile, readFileAsBase64, ACCEPT_STRING } from "../lib/fileParser";
@@ -141,7 +141,7 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
               >
                 {Object.keys(TC).map((t) => (
                   <option key={t} value={t}>
-                    {getTypeConfig(t).i} {t}
+                    {t}
                   </option>
                 ))}
               </select>
@@ -1147,7 +1147,6 @@ export default function QuickCapture({
                     ✕
                   </button>
                   <div className="flex items-center gap-2 mb-1">
-                    <span>{getTypeConfig(entry.type ?? "note").i}</span>
                     <span className="text-sm font-semibold text-on-surface truncate">{entry.title}</span>
                     <span className="text-[10px] uppercase tracking-wider text-on-surface-variant ml-auto mr-6">{entry.type}</span>
                   </div>

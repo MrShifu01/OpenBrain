@@ -8,17 +8,21 @@ export const PROMPTS: Record<string, string> = {
   CAPTURE: `You classify and structure a raw text capture into an OpenBrain entry. Return ONLY valid JSON.
 Format: {"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"business"|"personal"|"both"}
 
-TYPE RULES: Choose the most descriptive single-word type. Never default to "note" when a better type exists. Be specific:
+TYPE RULES: You MUST choose the most semantically specific type. "note" is the absolute last resort — only use it when the content is literally an unstructured personal memo with no other category. "reminder" is ONLY for time-sensitive deadlines or scheduled events with a specific date/time. Do NOT default to either.
 - Contains ingredients + cooking steps → "recipe"
-- A single ingredient → "ingredient"
-- A named person → "person" or their role ("director", "employee", "supplier")
-- A business → "company" or "supplier"
-- A financial transaction → "transaction"
-- A physical place/address → "place"
-- A vehicle → "vehicle"
-- A legal/official document → "document", "contract", or "certificate"
-- A deadline/event → "reminder"
-- IMPORTANT: Use type "secret" (and ONLY "secret") for passwords, PINs, credit card numbers, bank account details, security codes, API keys, private keys, 2FA backup codes, or any sensitive credentials
+- A single ingredient or food item → "ingredient"
+- A named individual person → "person" (or their specific role: "director", "employee", "contractor")
+- A business or organisation → "company" or "supplier"
+- A financial transaction, payment, or purchase → "transaction"
+- A bank account or financial summary → "account"
+- A physical place, address, or location → "place"
+- A vehicle (car, truck, boat) → "vehicle"
+- Any official or formal document → "document", "contract", or "certificate"
+- A property or real estate asset → "property"
+- A procedure, SOP, or how-to guide → "procedure"
+- A time-sensitive deadline WITH a specific date → "reminder" (do NOT use reminder for general tasks without a date)
+- IMPORTANT: Use type "secret" ONLY for passwords, PINs, credit card numbers, bank accounts, API keys, private keys, or any sensitive credentials
+- "note" ONLY if none of the above apply — it must be a free-form personal memo with no identifiable category
 
 ICON RULES: Choose ONE emoji that best represents the type — not the specific entry, the whole category. Examples: recipe→🍳, supplier→📦, vehicle→🚗, person→👤, contract→📋. All entries of the same type must share the same emoji — be consistent.
 
@@ -48,7 +52,7 @@ IMPORTANT: Do NOT suggest merging companies just because they have similar name 
   CHAT: `You are OpenBrain, the user's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n{{MEMORIES}}\n\nLINKS:\n{{LINKS}}`,
 
   /** Onboarding + SuggestionsView: parse a Q&A into a structured entry */
-  QA_PARSE: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"...","metadata":{},"tags":[]}\nChoose the most descriptive single-word type — be specific (e.g. "supplier", "employee", "recipe", "vehicle") rather than generic "note". Use type "secret" for passwords, PINs, credit card numbers, bank details, security codes, API keys, or any sensitive credentials.\nFor dates use: metadata.due_date, metadata.expiry_date, metadata.event_date (YYYY-MM-DD), metadata.day_of_week for recurring ("wednesday").`,
+  QA_PARSE: `Parse this Q&A into a structured entry. Return ONLY valid JSON:\n{"title":"...","content":"...","type":"...","metadata":{},"tags":[]}\nChoose the most semantically specific type — "note" is last resort for unstructured memos only, "reminder" only for time-sensitive items with a specific date. Be specific: "supplier", "employee", "recipe", "vehicle", "person", "place", "company", "transaction", "document", "contract", "certificate". Use "secret" for passwords, PINs, credit card numbers, bank details, API keys, or sensitive credentials.\nFor dates use: metadata.due_date, metadata.expiry_date, metadata.event_date (YYYY-MM-DD), metadata.day_of_week for recurring ("wednesday").`,
 
   /** SuggestionsView: generate a gap-filling question for the brain */
   FILL_BRAIN: `You are helping someone build their {{BRAIN_CONTEXT}} called OpenBrain. Identify important information they should capture but haven't yet. Study the gaps — important facts, records, contacts, plans that are missing. Generate ONE specific, actionable question relevant to this brain type. Return ONLY valid JSON: {"q":"...","cat":"...","p":"high"|"medium"|"low"}`,
