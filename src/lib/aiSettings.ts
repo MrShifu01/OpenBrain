@@ -2,11 +2,20 @@ import { supabase } from "./supabase";
 import { MODEL as DEFAULT_MODEL } from "../data/constants";
 import { KEYS } from "./storageKeys";
 
-// ── Key migration (run once at module init) ──
+// ── In-memory store for sensitive API keys ──
+// Keys never touch localStorage; live only in this module's memory.
+const _keys: Record<string, string | null> = {};
+
+/** Clear in-memory key store. For tests only. */
+export function _resetForTests(): void {
+  for (const k of Object.keys(_keys)) delete _keys[k];
+}
+
+// ── Key migration: uid-prefixed → unprefixed (run once at module init) ──
 try {
-  const key = Object.keys(localStorage).find((k) => k.endsWith("-auth-token"));
-  if (key) {
-    const data = JSON.parse(localStorage.getItem(key)!);
+  const authTokenKey = Object.keys(localStorage).find((k) => k.endsWith("-auth-token"));
+  if (authTokenKey) {
+    const data = JSON.parse(localStorage.getItem(authTokenKey)!);
     const uid: string | null = data?.user?.id || null;
     if (uid) {
       for (const suffix of [
@@ -23,6 +32,15 @@ try {
     }
   }
 } catch { /* ignore */ }
+
+// ── Sensitive key names (localStorage entries to clear on migration) ──
+const SENSITIVE_LS_KEYS = [
+  KEYS.AI_API_KEY,
+  KEYS.OPENROUTER_KEY,
+  KEYS.GROQ_KEY,
+  KEYS.EMBED_OPENAI_KEY,
+  KEYS.GEMINI_KEY,
+] as const;
 
 export function getUserId(): string | null {
   try {
@@ -49,11 +67,10 @@ function syncToSupabase(fields: Record<string, string | null>): void {
 
 // ── Primary AI provider ──
 export function getUserApiKey(): string | null {
-  return localStorage.getItem(KEYS.AI_API_KEY) || null;
+  return _keys[KEYS.AI_API_KEY] ?? null;
 }
 export function setUserApiKey(key: string | null): void {
-  if (key) localStorage.setItem(KEYS.AI_API_KEY, key);
-  else localStorage.removeItem(KEYS.AI_API_KEY);
+  _keys[KEYS.AI_API_KEY] = key || null;
   syncToSupabase({ api_key: key || null });
 }
 
@@ -76,11 +93,10 @@ export function setUserProvider(provider: string | null): void {
 
 // ── OpenRouter ──
 export function getOpenRouterKey(): string | null {
-  return localStorage.getItem(KEYS.OPENROUTER_KEY) || null;
+  return _keys[KEYS.OPENROUTER_KEY] ?? null;
 }
 export function setOpenRouterKey(key: string | null): void {
-  if (key) localStorage.setItem(KEYS.OPENROUTER_KEY, key);
-  else localStorage.removeItem(KEYS.OPENROUTER_KEY);
+  _keys[KEYS.OPENROUTER_KEY] = key || null;
   syncToSupabase({ openrouter_key: key || null });
 }
 
@@ -95,11 +111,10 @@ export function setOpenRouterModel(model: string | null): void {
 
 // ── Groq ──
 export function getGroqKey(): string | null {
-  return localStorage.getItem(KEYS.GROQ_KEY) || null;
+  return _keys[KEYS.GROQ_KEY] ?? null;
 }
 export function setGroqKey(key: string | null): void {
-  if (key) localStorage.setItem(KEYS.GROQ_KEY, key);
-  else localStorage.removeItem(KEYS.GROQ_KEY);
+  _keys[KEYS.GROQ_KEY] = key || null;
   syncToSupabase({ groq_key: key || null });
 }
 
@@ -124,7 +139,7 @@ export function setModelForTask(task: string, model: string | null): void {
   syncToSupabase({ [col]: model || null });
 }
 
-// ── Load all settings from Supabase into localStorage cache ──
+// ── Load all settings from Supabase into memory / localStorage ──
 export async function loadUserAISettings(userId: string): Promise<void> {
   const { data } = await supabase
     .from("user_ai_settings")
@@ -132,39 +147,38 @@ export async function loadUserAISettings(userId: string): Promise<void> {
     .eq("user_id", userId)
     .single();
 
-  if (!data) return;
+  if (data) {
+    // Sensitive keys → memory
+    _keys[KEYS.AI_API_KEY]      = data.api_key ?? null;
+    _keys[KEYS.OPENROUTER_KEY]  = data.openrouter_key ?? null;
+    _keys[KEYS.GROQ_KEY]        = data.groq_key ?? null;
+    _keys[KEYS.EMBED_OPENAI_KEY] = data.embed_openai_key ?? null;
+    _keys[KEYS.GEMINI_KEY]      = data.gemini_key ?? null;
 
-  const set = (lsKey: string, val: string | null | undefined) => {
-    if (val) localStorage.setItem(lsKey, val);
-    else localStorage.removeItem(lsKey);
-  };
+    // Non-sensitive settings → localStorage
+    const set = (lsKey: string, val: string | null | undefined) => {
+      if (val) localStorage.setItem(lsKey, val);
+      else localStorage.removeItem(lsKey);
+    };
+    set(KEYS.AI_MODEL, data.ai_model);
+    set(KEYS.AI_PROVIDER, data.ai_provider);
+    set(KEYS.OPENROUTER_MODEL, data.openrouter_model);
+    set(KEYS.EMBED_PROVIDER, data.embed_provider);
 
-  set(KEYS.AI_API_KEY, data.api_key);
-  set(KEYS.AI_MODEL, data.ai_model);
-  set(KEYS.AI_PROVIDER, data.ai_provider);
-  set(KEYS.OPENROUTER_KEY, data.openrouter_key);
-  set(KEYS.OPENROUTER_MODEL, data.openrouter_model);
-  set(KEYS.GROQ_KEY, data.groq_key);
-  set(KEYS.EMBED_PROVIDER, data.embed_provider);
-  set(KEYS.EMBED_OPENAI_KEY, data.embed_openai_key);
-  set(KEYS.GEMINI_KEY, data.gemini_key);
-
-  for (const [task, col] of Object.entries(TASK_COL)) {
-    set(KEYS.taskModel(task), data[col]);
+    for (const [task, col] of Object.entries(TASK_COL)) {
+      set(KEYS.taskModel(task), data[col]);
+    }
+  } else {
+    // No Supabase record: migrate any localStorage keys to memory
+    for (const lsKey of SENSITIVE_LS_KEYS) {
+      const val = localStorage.getItem(lsKey);
+      if (val) _keys[lsKey] = val;
+    }
   }
-}
 
-/** @deprecated Use loadUserAISettings instead */
-export function loadTaskModels(
-  _userId: string,
-  settingsRow: Record<string, string | null> | null,
-): void {
-  if (!settingsRow) return;
-  for (const [task, col] of Object.entries(TASK_COL)) {
-    const val = settingsRow[col];
-    const lsKey = KEYS.taskModel(task);
-    if (val) localStorage.setItem(lsKey, val);
-    else localStorage.removeItem(lsKey);
+  // Always clear sensitive key values from localStorage
+  for (const lsKey of SENSITIVE_LS_KEYS) {
+    localStorage.removeItem(lsKey);
   }
 }
 
@@ -178,20 +192,18 @@ export function setEmbedProvider(p: string | null): void {
 }
 
 export function getEmbedOpenAIKey(): string | null {
-  return localStorage.getItem(KEYS.EMBED_OPENAI_KEY) || null;
+  return _keys[KEYS.EMBED_OPENAI_KEY] ?? null;
 }
 export function setEmbedOpenAIKey(key: string | null): void {
-  if (key) localStorage.setItem(KEYS.EMBED_OPENAI_KEY, key);
-  else localStorage.removeItem(KEYS.EMBED_OPENAI_KEY);
+  _keys[KEYS.EMBED_OPENAI_KEY] = key || null;
   syncToSupabase({ embed_openai_key: key || null });
 }
 
 export function getGeminiKey(): string | null {
-  return localStorage.getItem(KEYS.GEMINI_KEY) || null;
+  return _keys[KEYS.GEMINI_KEY] ?? null;
 }
 export function setGeminiKey(key: string | null): void {
-  if (key) localStorage.setItem(KEYS.GEMINI_KEY, key);
-  else localStorage.removeItem(KEYS.GEMINI_KEY);
+  _keys[KEYS.GEMINI_KEY] = key || null;
   syncToSupabase({ gemini_key: key || null });
 }
 

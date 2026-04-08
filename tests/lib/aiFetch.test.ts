@@ -30,11 +30,13 @@ import {
   getEmbedHeaders,
   getModelForTask,
   setModelForTask,
+  _resetForTests,
 } from "../../src/lib/aiSettings";
 
 describe("aiFetch settings", () => {
   beforeEach(() => {
     localStorage.clear();
+    _resetForTests();
   });
 
   it("getUserApiKey returns null by default", () => {

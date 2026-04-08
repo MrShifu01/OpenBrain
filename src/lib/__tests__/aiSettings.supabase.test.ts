@@ -24,6 +24,7 @@ import {
   setOpenRouterModel, getOpenRouterModel,
   setEmbedProvider, getEmbedProvider,
   loadUserAISettings,
+  _resetForTests,
 } from "../aiSettings";
 
 const AUTH_KEY = "sb-test-auth-token";
@@ -31,6 +32,7 @@ const USER_ID = "uid-123";
 
 beforeEach(() => {
   localStorage.clear();
+  _resetForTests();
   localStorage.setItem(AUTH_KEY, JSON.stringify({ user: { id: USER_ID } }));
   mockFrom.mockClear();
   mockUpsert.mockClear();
