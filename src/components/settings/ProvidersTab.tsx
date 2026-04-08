@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { authFetch } from "../../lib/authFetch";
 import {
   getUserApiKey, setUserApiKey,
@@ -15,21 +15,17 @@ import {
 import { supabase } from "../../lib/supabase";
 import { MODELS } from "../../config/models";
 import { countEmbedMismatches } from "../../lib/embedMismatch";
+import { getPriceTier, filterByTier, modelLabel } from "../../lib/orModelFilter";
+import type { ORModel, FilterTier } from "../../lib/orModelFilter";
 import type { Brain } from "../../types";
 
-interface ORModel {
-  id: string;
-  name: string;
-  pricing?: { prompt?: string };
-}
-
-function priceTier(pricing?: { prompt?: string }): { label: string; color: string } {
-  const p = parseFloat(pricing?.prompt ?? "1");
-  if (p === 0) return { label: "Free", color: "var(--color-secondary)" };
-  if (p < 0.000001) return { label: "Cheap", color: "var(--color-secondary)" };
-  if (p < 0.000010) return { label: "Normal", color: "var(--color-on-surface-variant)" };
-  return { label: "Expensive", color: "var(--color-error)" };
-}
+const TIER_OPTIONS: { value: FilterTier; label: string }[] = [
+  { value: "all",      label: "All" },
+  { value: "free",     label: "Free" },
+  { value: "cheap",    label: "Cheap" },
+  { value: "good",     label: "Good" },
+  { value: "frontier", label: "Frontier" },
+];
 
 interface Props {
   activeBrain?: Brain;
@@ -42,6 +38,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
   const [orKey, setOrKey] = useState(() => getOpenRouterKey() || "");
   const [orModel, setOrModel] = useState(() => getOpenRouterModel() || "google/gemini-2.0-flash-lite:free");
   const [orModels, setOrModels] = useState<ORModel[]>([]);
+  const [orFilter, setOrFilter] = useState<FilterTier>("all");
   const [showKey, setShowKey] = useState(false);
   const [byoTestStatus, setByoTestStatus] = useState<string | null>(null);
   const [keySaved, setKeySaved] = useState(false);
@@ -67,8 +64,13 @@ export default function ProvidersTab({ activeBrain }: Props) {
   const OR_SHORTLIST = MODELS.OPENROUTER;
   const modelOptions = byoProvider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
 
+  const filteredOrModels = useMemo(
+    () => filterByTier(orModels, orFilter),
+    [orModels, orFilter],
+  );
+
   const fetchOrModels = async (key: string) => {
-    const cached = sessionStorage.getItem("openbrain_or_models");
+    const cached = sessionStorage.getItem("openbrain_or_models_v2");
     if (cached) {
       try { setOrModels(JSON.parse(cached)); return; } catch {}
     }
@@ -82,9 +84,11 @@ export default function ProvidersTab({ activeBrain }: Props) {
           id: m.id,
           name: m.name || m.id,
           pricing: m.pricing,
+          architecture: m.architecture,
+          modality: m.modality,
         }));
         setOrModels(models);
-        sessionStorage.setItem("openbrain_or_models", JSON.stringify(models));
+        sessionStorage.setItem("openbrain_or_models_v2", JSON.stringify(models));
       }
     } catch {}
   };
@@ -254,26 +258,51 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 </p>
               )}
             </div>
-            <div className="space-y-1">
-              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-                Model {orModels.length > 0 && <span style={{ color: "var(--color-outline)" }}>({orModels.length} available)</span>}
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
+                  Model{orModels.length > 0 && <span style={{ color: "var(--color-outline)" }}> ({filteredOrModels.length}/{orModels.length})</span>}
+                </p>
+                {orModels.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    {TIER_OPTIONS.map(t => (
+                      <button
+                        key={t.value}
+                        onClick={() => setOrFilter(t.value)}
+                        className="rounded-lg px-2 py-0.5 text-[10px] font-medium border transition-colors"
+                        style={{
+                          background: orFilter === t.value ? "var(--color-primary)" : "transparent",
+                          color: orFilter === t.value ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
+                          borderColor: orFilter === t.value ? "transparent" : "var(--color-outline-variant)",
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <select
                 value={orModel}
                 onChange={e => { setOrModel(e.target.value); setOpenRouterModel(e.target.value); }}
                 className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface"
                 style={{ borderColor: "var(--color-outline-variant)" }}
               >
-                {(orModels.length > 0
-                  ? orModels.map(m => ({ id: m.id, label: `${m.name}${m.pricing?.prompt ? ` — $${(+m.pricing.prompt * 1e6).toFixed(2)}/1M` : ""}` }))
-                  : OR_SHORTLIST.map(id => ({ id, label: id }))
+                {(filteredOrModels.length > 0
+                  ? filteredOrModels.map(m => ({ id: m.id, label: modelLabel(m) }))
+                  : orModels.length === 0
+                    ? OR_SHORTLIST.map(id => ({ id, label: id }))
+                    : [{ id: orModel, label: orModel }]
                 ).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
               <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>Tip: choose a model with ZDR (zero data retention) for sensitive entries.</p>
             </div>
             {orModels.length > 0 && (
               <div className="space-y-3 pt-2 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
-                <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>Per-task models</p>
+                <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface-variant)" }}>
+                  Per-task models
+                  <span className="font-normal ml-1" style={{ color: "var(--color-outline)" }}>(filter above applies)</span>
+                </p>
                 {([
                   ["Entry capture", "capture"],
                   ["Fill Brain questions", "questions"],
@@ -293,10 +322,11 @@ export default function ProvidersTab({ activeBrain }: Props) {
                       style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                     >
                       <option value="default">Same as global default</option>
-                      {orModels.map(m => {
-                        const tier = priceTier(m.pricing);
-                        return <option key={m.id} value={m.id}>{m.name ?? m.id} [{tier.label}]</option>;
-                      })}
+                      {filteredOrModels.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {modelLabel(m)} [{getPriceTier(m.pricing)}]
+                        </option>
+                      ))}
                     </select>
                   </div>
                 ))}
@@ -313,9 +343,13 @@ export default function ProvidersTab({ activeBrain }: Props) {
                     style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                   >
                     <option value="default">Same as global default</option>
-                    {orModels
-                      .filter(m => (m as any).modality?.includes?.("image") || (m as any).architecture?.modality?.includes?.("image"))
-                      .map(m => { const tier = priceTier(m.pricing); return <option key={m.id} value={m.id}>{m.name ?? m.id} [{tier.label}]</option>; })}
+                    {filteredOrModels
+                      .filter(m => m.modality?.includes?.("image") || m.architecture?.modality?.includes?.("image"))
+                      .map(m => (
+                        <option key={m.id} value={m.id}>
+                          {modelLabel(m)} [{getPriceTier(m.pricing)}]
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
