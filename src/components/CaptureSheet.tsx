@@ -250,7 +250,7 @@ export default function CaptureSheet({
         role="dialog"
         aria-modal="true"
         aria-label="New entry"
-        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t px-5 pt-3 pb-10"
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl border-t px-5 pt-3 pb-10 lg:bottom-6 lg:left-1/2 lg:-translate-x-1/2 lg:right-auto lg:w-full lg:max-w-lg lg:rounded-3xl"
         style={{
           background: "var(--color-surface-container-low)",
           borderColor: "var(--color-outline-variant)",

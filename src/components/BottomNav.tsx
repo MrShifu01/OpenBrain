@@ -82,7 +82,7 @@ export default function BottomNav({ activeView, onNavigate, onCapture }: BottomN
               key={item.id}
               onClick={onCapture}
               aria-label="New entry"
-              className="flex flex-col items-center justify-center w-14 h-14 rounded-2xl press-scale transition-colors duration-150"
+              className="flex flex-col items-center justify-center w-14 h-14 rounded-full press-scale transition-colors duration-150"
               style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
               {item.icon}

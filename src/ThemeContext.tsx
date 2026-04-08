@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { loadPersistedTheme, persistTheme, resolveTheme } from "./lib/themeToggle";
 
 export interface ThemeColors {
   bg: string;
@@ -96,29 +97,15 @@ const ThemeCtx = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(() => {
-    try {
-      const saved = localStorage.getItem("openbrain_theme");
-      return saved !== "light"; // default to dark
-    } catch {
-      return true;
-    }
-  });
+  const [isDark, setIsDark] = useState(() => resolveTheme(loadPersistedTheme()) === "dark");
 
   useEffect(() => {
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add("dark");
-      root.classList.remove("light");
-      root.style.colorScheme = "dark";
-    } else {
-      root.classList.remove("dark");
-      root.classList.add("light");
-      root.style.colorScheme = "light";
-    }
-    try {
-      localStorage.setItem("openbrain_theme", isDark ? "dark" : "light");
-    } catch {}
+    const theme = isDark ? "dark" : "light";
+    root.setAttribute("data-theme", theme);
+    root.classList.toggle("dark", isDark);
+    root.classList.toggle("light", !isDark);
+    persistTheme(theme);
   }, [isDark]);
 
   const toggleTheme = () => setIsDark((prev) => !prev);

@@ -29,6 +29,7 @@ import { MODELS } from "../config/models";
 import { useBrain } from "../context/BrainContext";
 import type { Brain } from "../types";
 import TrashView from "./TrashView";
+import { countEmbedMismatches } from "../lib/embedMismatch";
 
 function priceTier(pricing?: { prompt?: string }): { label: string; color: string } {
   const p = parseFloat(pricing?.prompt ?? "1");
@@ -332,7 +333,7 @@ export default function SettingsView() {
   // Advanced section toggle
   const [showAdvanced, setShowAdvanced] = useState(false);
   // Embed mismatch warning
-  const [, setEmbedMismatchCount] = useState(0);
+  const [embedMismatchCount, setEmbedMismatchCount] = useState(0);
   const [pendingEmbedProvider, setPendingEmbedProvider] = useState<string | null>(null);
   // Per-task model overrides
   const [taskModels, setTaskModels] = useState<Record<string, string | null>>(() => {
@@ -349,6 +350,7 @@ export default function SettingsView() {
   const [deleteBrainError, setDeleteBrainError] = useState<string | null>(null);
   // Brain members
   const [members, setMembers] = useState<BrainMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<Array<{ id: string; email: string; role: string; created_at: string }>>([]);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteStatus, setInviteStatus] = useState<string | null>(null);
@@ -368,6 +370,10 @@ export default function SettingsView() {
       .catch((err) =>
         console.error("[SettingsView:BrainMembers] Failed to fetch brain members", err),
       );
+    authFetch(`/api/brains?action=pending-invites&brain_id=${activeBrain.id}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setPendingInvites)
+      .catch(() => {});
   }, [activeBrain?.id]);
 
   const handleInvite = async () => {
@@ -511,9 +517,18 @@ export default function SettingsView() {
       saveEmbedProvider(p);
       return;
     }
-    // Show warning when switching providers — entries with old embeddings will be mismatched
+    // Show warning when switching providers — fetch actual count of mismatched entries
     setPendingEmbedProvider(p);
-    setEmbedMismatchCount(1); // conservative: at least some entries may be embedded
+    if (activeBrain?.id) {
+      authFetch(`/api/entries?brain_id=${activeBrain.id}&select=id,embedding_provider&limit=500`)
+        .then((r) => r.ok ? r.json() : [])
+        .then((rows: Array<{ id: string; embedding_provider?: string | null }>) => {
+          setEmbedMismatchCount(countEmbedMismatches(rows, p));
+        })
+        .catch(() => setEmbedMismatchCount(1));
+    } else {
+      setEmbedMismatchCount(0);
+    }
   };
   const saveEmbedOpenAIKey = (k: string) => {
     setEmbedOpenAIKeyState(k);
@@ -804,6 +819,32 @@ export default function SettingsView() {
                         Remove
                       </button>
                     </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {canInvite && pendingInvites.length > 0 && (
+            <div className="space-y-1 pt-2 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
+              <p className="text-xs font-medium" style={{ color: "#777" }}>Pending invites</p>
+              {pendingInvites.map((inv) => (
+                <div key={inv.id} className="flex items-center gap-2 text-xs">
+                  <span style={{ color: "#aaa" }}>{inv.email}</span>
+                  <span className="rounded-full px-2 py-0.5" style={{ color: "#888", background: "rgba(128,128,128,0.1)" }}>{inv.role}</span>
+                  {canManageMembers && (
+                    <button
+                      onClick={() =>
+                        authFetch("/api/brains?action=revoke-invite", {
+                          method: "DELETE",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ brain_id: activeBrain?.id, invite_id: inv.id }),
+                        }).then(() => setPendingInvites((p) => p.filter((i) => i.id !== inv.id)))
+                      }
+                      className="text-xs transition-colors hover:underline"
+                      style={{ color: "#ff6e84" }}
+                    >
+                      Revoke
+                    </button>
                   )}
                 </div>
               ))}
@@ -1205,7 +1246,9 @@ export default function SettingsView() {
         {pendingEmbedProvider && (
           <div className="rounded-xl p-3 text-xs space-y-2" style={{ background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.3)" }}>
             <p style={{ color: "#FF6B35" }}>
-              Switching providers may make search inconsistent until you re-embed. Existing embeddings were created with a different provider.
+              {embedMismatchCount > 0
+                ? `${embedMismatchCount} entr${embedMismatchCount === 1 ? "y has" : "ies have"} embeddings from a different provider. Search will be inconsistent until you re-embed.`
+                : "Switching providers may make search inconsistent until you re-embed."}
             </p>
             <div className="flex gap-2">
               <button onClick={() => { saveEmbedProvider(pendingEmbedProvider!); setPendingEmbedProvider(null); }}

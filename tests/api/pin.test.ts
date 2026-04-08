@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+// Set env vars for Supabase client initialization
+process.env.VITE_SUPABASE_URL = "https://mock.supabase.co";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
+
 vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
 vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));

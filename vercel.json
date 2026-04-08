@@ -3,7 +3,8 @@
   "crons": [
     { "path": "/api/cron/push?action=daily",  "schedule": "0 8 * * *" },
     { "path": "/api/cron/push?action=nudge",   "schedule": "0 10 * * *" },
-    { "path": "/api/cron/push?action=expiry",  "schedule": "0 9 * * *" }
+    { "path": "/api/cron/push?action=expiry",  "schedule": "0 9 * * *" },
+    { "path": "/api/cron/gap-analyst",          "schedule": "0 6 * * 0" }
   ],
   "outputDirectory": "dist",
   "rewrites": [
@@ -30,6 +31,7 @@
     {
       "source": "/(.*)",
       "headers": [
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.resend.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "X-XSS-Protection", "value": "1; mode=block" },

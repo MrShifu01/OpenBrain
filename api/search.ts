@@ -16,6 +16,12 @@ const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const THRESHOLD = parseFloat(process.env.SEARCH_THRESHOLD ?? "0.3");
 const hdrs = (): Record<string, string> => ({ "Content-Type": "application/json", "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}` });
 
+// S4-4: 5-minute in-memory cache for semantic search (per brain per query)
+const _cache = new Map<string, { r: unknown; ts: number }>();
+const _TTL = 5 * 60 * 1000;
+function _getCached(k: string) { const e = _cache.get(k); return e && Date.now() - e.ts < _TTL ? e.r : null; }
+function _setCache(k: string, r: unknown) { _cache.set(k, { r, ts: Date.now() }); }
+
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
   if (req.method === "GET") return handleGraph(req, res);
@@ -88,6 +94,11 @@ async function handleSearch(req: ApiRequest, res: ApiResponse): Promise<void> {
 
   const matchCount = Math.min(Number(limit) || 20, 50);
 
+  // S4-4: check cache
+  const cacheKey = `${brain_id}:${query.trim().toLowerCase()}`;
+  const cached = _getCached(cacheKey);
+  if (cached) return res.status(200).json(cached);
+
   try {
     const embedding = await generateEmbedding(
       query.trim(),
@@ -109,7 +120,9 @@ async function handleSearch(req: ApiRequest, res: ApiResponse): Promise<void> {
 
     const rows: any[] = await rpcRes.json();
     const results = rows.filter((r) => (r.similarity ?? 0) >= THRESHOLD);
-    return res.status(200).json({ results, fallback: false });
+    const payload = { results, fallback: false };
+    _setCache(cacheKey, payload);
+    return res.status(200).json(payload);
   } catch {
     return res.status(200).json({ fallback: true });
   }

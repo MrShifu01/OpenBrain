@@ -66,6 +66,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!genKey) return res.status(400).json({ error: "X-User-Api-Key header required" });
 
   const { message, brain_id, brain_ids, history = [], provider = "anthropic", model, secrets = [], fallback_entries = [] } = req.body || {};
+
+  // S1-3: Vault secrets only allowed with Anthropic
+  if (Array.isArray(secrets) && secrets.length > 0 && provider !== "anthropic") {
+    return res.status(400).json({ error: "Vault content can only be used with Anthropic provider. Switch to Anthropic or remove vault secrets." });
+  }
   if (!message || typeof message !== "string" || !message.trim()) return res.status(400).json({ error: "message required" });
 
   // Determine which brains to search
@@ -100,6 +105,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   // 2. Retrieve top-20 relevant entries per brain, then merge by similarity
   const allSemanticResults: any[] = [];
   for (const bId of brainList) {
+    // S4-5: measure pgvector query time, warn if >500ms
+    const _vectorStart = Date.now();
     const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...SB_HEADERS },
@@ -109,13 +116,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         match_count: 20,
       }),
     });
+    const _vectorMs = Date.now() - _vectorStart;
+    if (_vectorMs > 500) console.warn(`[pgvector] match_entries took ${_vectorMs}ms for brain ${bId}`);
     if (rpcRes.ok) {
       const results: any[] = await rpcRes.json();
       allSemanticResults.push(...results.map((r) => ({ ...r, brain_id: bId })));
     }
   }
-  // Sort by similarity descending, take top 20
-  allSemanticResults.sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+  // S6-1: Re-rank by combined similarity + keyword overlap, take top 20
+  const _queryTokens = message.trim().toLowerCase().split(/\s+/).filter((t: string) => t.length > 2);
+  function _combinedScore(e: any): number {
+    const sim = e.similarity ?? 0;
+    if (!_queryTokens.length) return sim;
+    const text = `${e.title ?? ""} ${e.content ?? ""}`.toLowerCase();
+    const kw = _queryTokens.filter((t: string) => text.includes(t)).length / _queryTokens.length;
+    return sim * 0.7 + kw * 0.3;
+  }
+  allSemanticResults.sort((a, b) => _combinedScore(b) - _combinedScore(a));
   let retrievedEntries: any[] = allSemanticResults.slice(0, 20);
 
   // If vector search found nothing, fall back:

@@ -314,6 +314,36 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return res.status(membersRes.status).json(await membersRes.json());
   }
 
+  // ── S5-1: GET /api/brains?action=pending-invites&brain_id=… ──
+  if (method === "GET" && action === "pending-invites") {
+    const { brain_id } = req.query;
+    if (!brain_id) return res.status(400).json({ error: "brain_id required" });
+
+    const brainAccess = await checkBrainAccess(user.id, brain_id as string);
+    if (!brainAccess) return res.status(403).json({ error: "Not a brain member" });
+
+    const invitesRes = await fetch(
+      `${SB_URL}/rest/v1/brain_invites?brain_id=eq.${encodeURIComponent(brain_id as string)}&accepted=is.null&select=id,email,role,created_at&order=created_at.asc`,
+      { headers: hdrs() }
+    );
+    return res.status(invitesRes.ok ? 200 : 502).json(invitesRes.ok ? await invitesRes.json() : { error: "Database error" });
+  }
+
+  // ── S5-1: DELETE /api/brains?action=revoke-invite — revoke a pending invite ──
+  if (method === "DELETE" && action === "revoke-invite") {
+    const { brain_id, invite_id } = req.body;
+    if (!brain_id || !invite_id) return res.status(400).json({ error: "brain_id and invite_id required" });
+
+    const brainAccess = await checkBrainAccess(user.id, brain_id as string);
+    if (!brainAccess) return res.status(403).json({ error: "Not a brain member" });
+
+    await fetch(
+      `${SB_URL}/rest/v1/brain_invites?id=eq.${encodeURIComponent(invite_id)}&brain_id=eq.${encodeURIComponent(brain_id)}`,
+      { method: "DELETE", headers: hdrs() }
+    );
+    return res.status(200).json({ ok: true });
+  }
+
   // ── PATCH /api/brains?action=member-role — change a member's role ──
   if (method === "PATCH" && action === "member-role") {
     const { brain_id, user_id: targetUserId, role } = req.body;

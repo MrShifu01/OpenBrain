@@ -60,6 +60,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (messages.length > 50) {
     return res.status(400).json({ error: "Too many messages" });
   }
+
+  // S1-5: Validate each message has only role (user/assistant) and string content
+  for (const msg of messages) {
+    if (!msg || typeof msg !== "object") {
+      return res.status(400).json({ error: "Invalid message format" });
+    }
+    if (!["user", "assistant"].includes(msg.role)) {
+      return res.status(400).json({ error: "Message role must be 'user' or 'assistant'" });
+    }
+    if (typeof msg.content !== "string") {
+      // Reject image blocks, tool_use blocks, arrays, etc.
+      return res.status(400).json({ error: "Message content must be plain text strings only" });
+    }
+  }
   if (max_tokens !== undefined && (typeof max_tokens !== "number" || max_tokens < 1 || max_tokens > 4096)) {
     return res.status(400).json({ error: "Invalid max_tokens" });
   }

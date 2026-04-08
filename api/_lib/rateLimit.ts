@@ -58,11 +58,11 @@ async function _upstashLimited(ip: string, windowMs: number, limit: number): Pro
 }
 
 function _getIp(req: ApiRequest): string {
-  return (
-    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ||
-    req.socket?.remoteAddress ||
-    "unknown"
-  );
+  // S1-6: Use LAST IP in x-forwarded-for chain (closest verified hop from Vercel edge).
+  // First hop is user-controlled and spoof-able. x-real-ip is harder to forge.
+  const forwarded = (req.headers["x-forwarded-for"] as string | undefined);
+  const lastForwarded = forwarded?.split(",").pop()?.trim();
+  return lastForwarded || (req.headers["x-real-ip"] as string | undefined) || req.socket?.remoteAddress || "unknown";
 }
 
 /**
