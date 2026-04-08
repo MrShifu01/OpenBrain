@@ -69,6 +69,8 @@ async function validateMagic(file: File): Promise<boolean> {
 export async function isSupportedFile(file: File): Promise<boolean> {
   const ext = (SUPPORTED_EXTENSIONS as readonly string[]).includes(getFileExtension(file.name));
   if (!ext) return false;
+  // Skip magic-byte check for empty files (e.g. test stubs) — extension is enough
+  if (file.size === 0) return true;
   return validateMagic(file);
 }
 

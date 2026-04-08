@@ -23,30 +23,30 @@ function makeHmac(secret: string): string {
 
 describe("verifyCronHmac", () => {
   it("returns true for a valid HMAC signature matching today's UTC date", async () => {
-    const { verifyCronHmac } = await import("../../api/cron/push");
+    const { verifyCronHmac } = await import("../../api/_lib/cronAuth");
     const secret = "test-secret";
     const header = makeHmac(secret);
     expect(verifyCronHmac(header, secret)).toBe(true);
   });
 
   it("returns false for a tampered signature", async () => {
-    const { verifyCronHmac } = await import("../../api/cron/push");
+    const { verifyCronHmac } = await import("../../api/_lib/cronAuth");
     expect(verifyCronHmac("HMAC tampered123", "test-secret")).toBe(false);
   });
 
   it("returns false for empty string", async () => {
-    const { verifyCronHmac } = await import("../../api/cron/push");
+    const { verifyCronHmac } = await import("../../api/_lib/cronAuth");
     expect(verifyCronHmac("", "test-secret")).toBe(false);
   });
 
   it("returns false when secret is wrong", async () => {
-    const { verifyCronHmac } = await import("../../api/cron/push");
+    const { verifyCronHmac } = await import("../../api/_lib/cronAuth");
     const header = makeHmac("correct-secret");
     expect(verifyCronHmac(header, "wrong-secret")).toBe(false);
   });
 
   it("is sensitive to date — a signature from yesterday fails", async () => {
-    const { verifyCronHmac } = await import("../../api/cron/push");
+    const { verifyCronHmac } = await import("../../api/_lib/cronAuth");
     const secret = "test-secret";
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     const oldHmac = crypto.createHmac("sha256", secret).update(yesterday).digest("hex");

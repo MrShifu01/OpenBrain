@@ -77,4 +77,13 @@ describe("gap analyst cron (S6-3)", () => {
     await handler(req as any, res as any);
     expect(res.status).toHaveBeenCalledWith(403);
   });
+
+  it("rejects requests without valid HMAC in non-cron context", async () => {
+    process.env.CRON_SECRET = "test-secret";
+    const handler = (await import("../../api/cron/gap-analyst")).default;
+    const req = makeReq({ headers: { authorization: "Bearer wrong-secret" } });
+    const res = makeRes();
+    await handler(req as any, res as any);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
 });

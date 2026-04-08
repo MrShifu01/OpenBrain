@@ -42,17 +42,17 @@ describe("fileParser", () => {
   });
 
   describe("isSupportedFile", () => {
-    it("returns true for supported text files", () => {
+    it("returns true for supported text files", async () => {
       expect(await isSupportedFile(makeFile("notes.txt", "hello", "text/plain"))).toBe(true);
       expect(await isSupportedFile(makeFile("readme.md", "# Hi", "text/markdown"))).toBe(true);
       expect(await isSupportedFile(makeFile("data.csv", "a,b", "text/csv"))).toBe(true);
     });
 
-    it("returns true for PDF files", () => {
+    it("returns true for PDF files", async () => {
       expect(await isSupportedFile(makeFile("doc.pdf", "", "application/pdf"))).toBe(true);
     });
 
-    it("returns true for DOCX files", () => {
+    it("returns true for DOCX files", async () => {
       expect(
         await isSupportedFile(
           makeFile(
@@ -64,7 +64,7 @@ describe("fileParser", () => {
       ).toBe(true);
     });
 
-    it("returns false for unsupported files", () => {
+    it("returns false for unsupported files", async () => {
       expect(await isSupportedFile(makeFile("photo.jpg", "", "image/jpeg"))).toBe(false);
       expect(await isSupportedFile(makeFile("video.mp4", "", "video/mp4"))).toBe(false);
       expect(await isSupportedFile(makeFile("app.exe", "", "application/octet-stream"))).toBe(false);
