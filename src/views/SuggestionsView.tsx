@@ -54,47 +54,13 @@ export default function SuggestionsView({
   activeBrain,
   brains,
 }: SuggestionsViewProps) {
-  // Multi-select: which brains to pull questions from (default = [activeBrain])
-  const [selectedBrainIds, setSelectedBrainIds] = useState<string[]>(() =>
-    activeBrain?.id ? [activeBrain.id] : [],
-  );
+  // Always follow the active brain from the brain switcher
+  const targetBrain = activeBrain;
 
-  const toggleBrain = (id: string) => {
-    setSelectedBrainIds((prev) => {
-      if (prev.includes(id)) {
-        // Don't allow deselecting the last brain
-        if (prev.length === 1) return prev;
-        return prev.filter((x) => x !== id);
-      }
-      return [...prev, id];
-    });
-  };
-
-  // First selected brain = save target
-  const targetBrain = useMemo((): Brain | null => {
-    if (!brains?.length) return activeBrain;
-    return brains.find((b: Brain) => b.id === selectedBrainIds[0]) || activeBrain;
-  }, [selectedBrainIds, brains, activeBrain]);
-
-  // Merged & deduplicated question set from all selected brain types
   const questionSet = useMemo((): Suggestion[] => {
-    const selectedBrains = brains?.length
-      ? brains.filter((b: Brain) => selectedBrainIds.includes(b.id))
-      : [activeBrain];
-    const seen = new Set<string>();
-    const merged: Suggestion[] = [];
-    for (const b of selectedBrains) {
-      for (const s of getSuggestionsForType(b?.type || "personal")) {
-        if (!seen.has(s.q)) {
-          seen.add(s.q);
-          merged.push(s);
-        }
-      }
-    }
-    return merged;
-  }, [selectedBrainIds, brains, activeBrain]);
+    return getSuggestionsForType(activeBrain?.type || "personal");
+  }, [activeBrain?.type]);
 
-  // brainType used only for AI context — use first selected brain's type
   const brainType = targetBrain?.type || "personal";
 
   const [idx, setIdx] = useState(0);
@@ -127,14 +93,14 @@ export default function SuggestionsView({
     }
   });
 
-  // Reset position when selected brains change
+  // Reset when active brain changes
   useEffect(() => {
     setIdx(0);
     setFilterCat("all");
     setAiQuestion(null);
     setAnswered(0);
     setSkipped(0);
-  }, [selectedBrainIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeBrain?.id]);
 
   const imgRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -611,60 +577,12 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
 
   return (
     <div className="px-4 py-4 space-y-4">
-      {/* Brain selector chips — multi-select */}
-      {brains?.length > 0 && (
+      {/* Active brain indicator */}
+      {targetBrain && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant mb-2">
-            Fill which brain{brains.length > 1 ? "s" : ""}?
-          </p>
-          {brains.length > 1 ? (
-            <div className="flex flex-wrap gap-2 mb-2">
-              {brains.map((b: Brain) => {
-                const bmt =
-                  BRAIN_META[(b.type || "personal") as keyof typeof BRAIN_META] ||
-                  BRAIN_META.personal;
-                const active = selectedBrainIds.includes(b.id);
-                return (
-                  <button
-                    key={b.id}
-                    onClick={() => toggleBrain(b.id)}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 border text-xs font-medium transition-colors"
-                    style={{
-                      background: active ? "var(--color-primary-container)" : "var(--color-surface-container)",
-                      borderColor: active ? "var(--color-primary)" : "var(--color-outline-variant)",
-                      color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-                    }}
-                  >
-                    <span>{bmt.emoji}</span>
-                    <span>{b.name}</span>
-                    {active && selectedBrainIds.length > 1 && selectedBrainIds[0] === b.id && (
-                      <span className="text-[10px] ml-1" style={{ color: "var(--color-primary)" }}>✓ saves here</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <span className="text-sm text-on-surface">
-              {bm.emoji} {targetBrain?.name || bm.label}
-            </span>
-          )}
-          <p className="text-xs text-on-surface-variant mt-1">
-            {selectedBrainIds.length > 1 ? (
-              <>
-                Showing merged questions · saves go to{" "}
-                <strong className="text-on-surface">
-                  {bm.emoji} {targetBrain?.name || bm.label}
-                </strong>
-              </>
-            ) : (
-              <>
-                Showing questions for{" "}
-                <strong className="text-on-surface">
-                  {bm.emoji} {targetBrain?.name || bm.label}
-                </strong>
-              </>
-            )}
+          <p className="text-xs text-on-surface-variant">
+            Showing questions for{" "}
+            <strong className="text-on-surface">{bm.emoji} {targetBrain.name}</strong>
           </p>
         </div>
       )}
