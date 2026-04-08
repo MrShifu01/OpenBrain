@@ -129,7 +129,7 @@ async function handleImport(req: ApiRequest, res: ApiResponse): Promise<void> {
 }
 
 // S3-2: GET /api/transfer?scope=full — exports ALL brains + entries + links
-async function handleFullExport(req: ApiRequest, res: ApiResponse, user: any): Promise<void> {
+async function handleFullExport(_req: ApiRequest, res: ApiResponse, user: any): Promise<void> {
   const brainsRes = await fetch(`${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`, { headers: hdrs() });
   if (!brainsRes.ok) return res.status(502).json({ error: "Failed to fetch brains" });
   const brains: any[] = await brainsRes.json();
