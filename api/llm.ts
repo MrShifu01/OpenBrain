@@ -143,6 +143,7 @@ async function handleOpenAI(_req: ApiRequest, res: ApiResponse, { model, message
     return res.status(200).json({
       content: [{ type: "text", text: data.choices[0].message.content }],
       model: safeModel,
+      usage: data.usage,
     });
   }
 
@@ -189,6 +190,7 @@ async function handleOpenRouter(_req: ApiRequest, res: ApiResponse, { model, mes
     return res.status(200).json({
       content: [{ type: "text", text: data.choices[0].message.content }],
       model: data.model || safeModel,
+      usage: data.usage,
     });
   }
 
