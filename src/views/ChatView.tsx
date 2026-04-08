@@ -81,7 +81,7 @@ export default function ChatView({
   );
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-180px)] lg:h-[calc(100dvh-80px)]">
+    <div className="flex flex-col h-[calc(100dvh-320px)] lg:h-[calc(100dvh-80px)]">
       {/* ── Message thread ── */}
       <div
         role="log"
@@ -91,7 +91,7 @@ export default function ChatView({
       >
         <div className="lg:max-w-2xl lg:mx-auto space-y-6 pt-2">
           {chatMsgs.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 px-2 gap-8">
+            <div className="flex flex-col items-center justify-center py-6 px-2 gap-6">
               {/* Heading */}
               <div className="text-center">
                 <p

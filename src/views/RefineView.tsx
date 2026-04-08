@@ -465,7 +465,6 @@ export default function RefineView({
   }
 
   const BRAIN_EMOJI: Record<string, string> = { personal: "🧠", business: "🏪", family: "🏠" };
-  const isOwnerMultiBrain = isOwner && brains.length > 1;
 
   return (
     <div className="px-4 py-4 space-y-4" style={{ background: "var(--color-background)", minHeight: "100%" }}>
@@ -489,36 +488,10 @@ export default function RefineView({
             Learning from {getDecisionCount(activeBrain.id)} past decisions
           </div>
         )}
-        {/* Brain selector — owners only, when multiple brains exist */}
-        {isOwnerMultiBrain && onSwitchBrain && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {brains.map((b) => {
-              const active = b.id === activeBrain?.id;
-              return (
-                <button
-                  key={b.id}
-                  onClick={() => onSwitchBrain(b)}
-                  className="rounded-full px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-all"
-                  style={{
-                    background: active ? "var(--color-primary-container)" : "var(--color-surface-container)",
-                    border: active ? "1px solid var(--color-primary)" : "1px solid var(--color-outline-variant)",
-                    color: active ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-                  }}
-                >
-                  <span>{BRAIN_EMOJI[b.type || "personal"] || "🧠"}</span>
-                  <span>{b.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {!isOwnerMultiBrain && activeBrain && (
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs"
-            style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
-          >
-            {BRAIN_EMOJI[activeBrain.type || "personal"] || "🧠"} {activeBrain.name}
-          </span>
+        {activeBrain && (
+          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            Analysing <strong className="text-on-surface">{BRAIN_EMOJI[activeBrain.type || "personal"] || "🧠"} {activeBrain.name}</strong>
+          </p>
         )}
       </div>
 
