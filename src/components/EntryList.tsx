@@ -54,7 +54,7 @@ const EntryCard = memo(function EntryCard({
             <span style={{ color: colors.text }}>{cfg.i}</span>
           </div>
           <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-            {e.type}
+            {e.type.charAt(0).toUpperCase() + e.type.slice(1)}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -95,7 +95,7 @@ const EntryCard = memo(function EntryCard({
                 color: "var(--color-secondary)",
               }}
             >
-              #{tag}
+              {tag}
             </span>
           ))}
           {(e as any).tags.length > 3 && (
@@ -109,7 +109,7 @@ const EntryCard = memo(function EntryCard({
       {/* Quick actions — subtle at rest, vivid on hover */}
       {(onPin || onDelete) && (
         <div
-          className="flex items-center gap-1 mt-3 pt-2.5 border-t opacity-40 group-hover:opacity-100 transition-opacity duration-150"
+          className="flex items-center gap-1 mt-3 pt-2.5 border-t opacity-60 group-hover:opacity-100 transition-opacity duration-150"
           style={{ borderColor: "var(--color-outline-variant)" }}
         >
           {onPin && (
@@ -261,7 +261,7 @@ export function VirtualTimeline({
               >
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-primary)" }} />
               </div>
-              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-semibold flex-shrink-0 w-20">
+              <p className="text-xs uppercase tracking-widest text-on-surface-variant/50 font-semibold flex-shrink-0 w-20">
                 {fmtD(e.created_at)}
               </p>
               <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl transition-colors group-hover:bg-surface-container">

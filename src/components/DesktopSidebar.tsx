@@ -165,7 +165,7 @@ export default function DesktopSidebar({
           Everion
         </h1>
         <p className="text-xs text-on-surface-variant/50 mt-0.5">
-          Own Your Intelligence
+          Your thinking, preserved.
         </p>
       </div>
 

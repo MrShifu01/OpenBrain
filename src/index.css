@@ -24,12 +24,12 @@
   --color-on-primary:                  oklch(12% 0.05 75);
   --color-on-primary-container:        oklch(86% 0.07 75);
 
-  /* Secondary — Calm Slate Blue (#5D6D7E) */
-  --color-secondary:                   oklch(60% 0.045 225);
-  --color-secondary-dim:               oklch(53% 0.045 225);
-  --color-secondary-container:         oklch(22% 0.025 225);
-  --color-on-secondary:                oklch(12% 0.02 225);
-  --color-on-secondary-container:      oklch(85% 0.04 225);
+  /* Secondary — Warm Stone (same 75° hue as amber, very low chroma — recedes without competing) */
+  --color-secondary:                   oklch(58% 0.022 75);
+  --color-secondary-dim:               oklch(51% 0.022 75);
+  --color-secondary-container:         oklch(22% 0.015 75);
+  --color-on-secondary:                oklch(12% 0.010 75);
+  --color-on-secondary-container:      oklch(85% 0.018 75);
 
   /* Semantic — Error */
   --color-error:                       oklch(62% 0.18 25);
@@ -213,12 +213,12 @@ html:not(.dark) {
   --color-on-primary:                  oklch(100% 0 0);
   --color-on-primary-container:        oklch(26% 0.07 75);
 
-  /* Secondary — Calm Slate Blue, WCAG AA on white */
-  --color-secondary:                   oklch(40% 0.04 225);
-  --color-secondary-dim:               oklch(34% 0.04 225);
-  --color-secondary-container:         oklch(92% 0.025 225);
+  /* Secondary — Warm Stone (same 75° hue as amber, very low chroma — recedes without competing) */
+  --color-secondary:                   oklch(42% 0.022 75);
+  --color-secondary-dim:               oklch(36% 0.022 75);
+  --color-secondary-container:         oklch(92% 0.012 75);
   --color-on-secondary:                oklch(100% 0 0);
-  --color-on-secondary-container:      oklch(22% 0.04 225);
+  --color-on-secondary-container:      oklch(22% 0.018 75);
 
   /* Error */
   --color-error:                       oklch(50% 0.18 25);
