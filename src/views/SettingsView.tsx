@@ -2,19 +2,17 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useBrain } from "../context/BrainContext";
 import AccountTab from "../components/settings/AccountTab";
-import AITab from "../components/settings/AITab";
 import ProvidersTab from "../components/settings/ProvidersTab";
 import BrainTab from "../components/settings/BrainTab";
 import NotificationsTab from "../components/settings/NotificationsTab";
 import StorageTab from "../components/settings/StorageTab";
 import DangerTab from "../components/settings/DangerTab";
 
-type TabId = "account" | "ai" | "providers" | "brain" | "notifications" | "storage" | "danger";
+type TabId = "account" | "intelligence" | "brain" | "notifications" | "storage" | "danger";
 
 const TAB_DEFS = [
   { id: "account" as TabId,       label: "Account",       icon: "👤" },
-  { id: "ai" as TabId,            label: "AI Settings",   icon: "🧠" },
-  { id: "providers" as TabId,     label: "Providers",     icon: "⚙️" },
+  { id: "intelligence" as TabId,  label: "Intelligence",  icon: "🧠" },
   { id: "brain" as TabId,         label: "Brain",         icon: "🎯" },
   { id: "notifications" as TabId, label: "Notifications", icon: "🔔" },
   { id: "storage" as TabId,       label: "Storage",       icon: "💾" },
@@ -22,7 +20,7 @@ const TAB_DEFS = [
 
 export default function SettingsView() {
   const { activeBrain, canInvite, canManageMembers, refresh, deleteBrain } = useBrain();
-  const [activeTab, setActiveTab] = useState<TabId>("account");
+  const [activeTab, setActiveTab] = useState<TabId>("intelligence");
   const [email, setEmail] = useState("");
 
   useEffect(() => {
@@ -61,8 +59,7 @@ export default function SettingsView() {
 
       <div className="px-4 py-4 space-y-4">
         {activeTab === "account" && <AccountTab email={email} />}
-        {activeTab === "ai" && <AITab />}
-        {activeTab === "providers" && <ProvidersTab activeBrain={activeBrain ?? undefined} />}
+        {activeTab === "intelligence" && <ProvidersTab activeBrain={activeBrain ?? undefined} />}
         {activeTab === "brain" && activeBrain && (
           <BrainTab
             activeBrain={activeBrain}

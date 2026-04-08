@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
+import { callAI } from "../../lib/ai";
 import {
   getUserApiKey, setUserApiKey,
   getUserModel, setUserModel,
@@ -59,10 +60,19 @@ export default function ProvidersTab({ activeBrain }: Props) {
     return result;
   });
 
+  const [aiTestStatus, setAiTestStatus] = useState<string | null>(null);
+  const [dbTestStatus, setDbTestStatus] = useState<string | null>(null);
+
   const ANTHROPIC_MODELS = MODELS.ANTHROPIC;
   const OPENAI_MODELS = MODELS.OPENAI;
   const OR_SHORTLIST = MODELS.OPENROUTER;
   const modelOptions = byoProvider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
+
+  const globalModelDisplay = byoProvider === "openrouter"
+    ? `OpenRouter · ${orModel}`
+    : byoProvider === "openai"
+    ? `OpenAI · ${byoModel}`
+    : `Anthropic · ${byoModel}`;
 
   const filteredOrModels = useMemo(
     () => sortWithRecommended(filterByTier(orModels, orFilter), orFilter),
@@ -513,6 +523,56 @@ export default function ProvidersTab({ activeBrain }: Props) {
             </button>
           </div>
           <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>Also works with an OpenAI key (set above) — but Groq is faster and free.</p>
+        </div>
+      </div>
+
+      {/* System Health */}
+      <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
+        <p className="text-sm font-semibold text-on-surface">System Health</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-on-surface">AI</p>
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{globalModelDisplay}</p>
+          </div>
+          <button
+            onClick={async () => {
+              setAiTestStatus("testing");
+              try {
+                const res = await callAI({ max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] });
+                setAiTestStatus(res.ok ? "ok" : "fail");
+              } catch {
+                setAiTestStatus("fail");
+              }
+              setTimeout(() => setAiTestStatus(null), 3000);
+            }}
+            className="rounded-xl px-3 py-1.5 text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
+          >
+            {aiTestStatus === "testing" ? "Testing…" : aiTestStatus === "ok" ? "✓ Connected" : aiTestStatus === "fail" ? "✗ Failed" : "Test"}
+          </button>
+        </div>
+        <div className="border-t" style={{ borderColor: "var(--color-outline-variant)" }} />
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-on-surface">Database</p>
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Supabase</p>
+          </div>
+          <button
+            onClick={async () => {
+              setDbTestStatus("testing");
+              try {
+                const res = await authFetch("/api/health");
+                setDbTestStatus(res.ok ? "ok" : "fail");
+              } catch {
+                setDbTestStatus("fail");
+              }
+              setTimeout(() => setDbTestStatus(null), 3000);
+            }}
+            className="rounded-xl px-3 py-1.5 text-xs font-medium border transition-colors hover:bg-white/5"
+            style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
+          >
+            {dbTestStatus === "testing" ? "Testing…" : dbTestStatus === "ok" ? "✓ Connected" : dbTestStatus === "fail" ? "✗ Failed" : "Test"}
+          </button>
         </div>
       </div>
     </>
