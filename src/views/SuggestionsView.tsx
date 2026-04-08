@@ -606,16 +606,7 @@ export default function SuggestionsView({
     next("save");
   };
 
-  const copyAll = () => {
-    const text = saved
-      .map((s: SavedItem) => `**${s.cat}**\nQ: ${s.q}\nA: ${s.a}`)
-      .join("\n\n---\n\n");
-    navigator.clipboard
-      .writeText(text)
-      .catch((err) => console.error("[SuggestionsView:copyAll] Failed to copy text", err));
-  };
-
-  const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
+const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
   const bm = BRAIN_META[brainType as keyof typeof BRAIN_META] || BRAIN_META.personal;
 
   return (
@@ -929,17 +920,10 @@ export default function SuggestionsView({
       {/* Session history */}
       {saved.length > 0 && (
         <div className="mt-4">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center mb-3">
             <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest">
               This session ({saved.length})
             </p>
-            <button
-              onClick={copyAll}
-              className="text-[10px] font-semibold px-2.5 py-1 rounded-lg transition-colors hover:bg-white/5"
-              style={{ color: "var(--color-primary)" }}
-            >
-              📋 Copy All
-            </button>
           </div>
           <div className="space-y-2">
             {saved.map((s, i) => (

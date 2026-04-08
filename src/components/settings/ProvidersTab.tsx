@@ -392,8 +392,8 @@ export default function ProvidersTab({ activeBrain }: Props) {
                   ["Refine collection", "refine"],
                   ["Brain chat", "chat"],
                 ] as [string, string][]).map(([label, task]) => (
-                  <div key={task} className="flex items-center gap-2">
-                    <span className="text-xs w-36 shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
+                  <div key={task} className="flex flex-col gap-1">
+                    <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
                     <select
                       value={taskModels[task] ?? "default"}
                       onChange={e => {
@@ -401,7 +401,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                         setModelForTask(task, v);
                         setTaskModels(prev => ({ ...prev, [task]: v }));
                       }}
-                      className="flex-1 rounded-lg px-2 text-xs"
+                      className="w-full rounded-lg px-2 text-xs"
                       style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                     >
                       <option value="default">Same as global default</option>
@@ -413,8 +413,8 @@ export default function ProvidersTab({ activeBrain }: Props) {
                     </select>
                   </div>
                 ))}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs w-36 shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>Image reading</span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Image reading</span>
                   <select
                     value={taskModels["vision"] ?? "default"}
                     onChange={e => {
@@ -422,7 +422,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                       setModelForTask("vision", v);
                       setTaskModels(prev => ({ ...prev, vision: v }));
                     }}
-                    className="flex-1 rounded-lg px-2 text-xs"
+                    className="w-full rounded-lg px-2 text-xs"
                     style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                   >
                     <option value="default">Same as global default</option>
