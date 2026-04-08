@@ -12,4 +12,5 @@ export {
   getGeminiKey, setGeminiKey,
   getEmbedKey,
   loadTaskModels,
+  loadUserAISettings,
 } from "./aiSettings";

@@ -58,11 +58,8 @@ const NAV_VIEWS = [
   { id: "grid", l: "Grid", ic: "▦" },
   { id: "suggest", l: "Fill Brain", ic: "✦" },
   { id: "refine", l: "Refine", ic: "✦" },
-  { id: "todos", l: "Todos", ic: "✓" },
-  { id: "timeline", l: "Timeline", ic: "◔" },
   { id: "vault", l: "Vault", ic: "🔐" },
   { id: "chat", l: "Ask", ic: "◈" },
-  { id: "settings", l: "Settings", ic: "⚙" },
 ];
 
 export default function OpenBrain() {
@@ -132,6 +129,7 @@ export default function OpenBrain() {
   const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem("openbrain_onboarded"));
   const [showBrainTip, setShowBrainTip] = useState<Brain | null>(null);
   const [showCreateBrain, setShowCreateBrain] = useState(false);
+  const [showCapture, setShowCapture] = useState(false);
   const [vaultExists, setVaultExists] = useState(false);
 
   useEffect(() => {
@@ -258,12 +256,12 @@ export default function OpenBrain() {
               <div className="px-4 sm:px-6 pt-4 pb-32 lg:pb-8 max-w-6xl mx-auto">
                 {view === "grid" && (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border" style={{ background: "rgba(26,25,25,0.8)", borderColor: "rgba(72,72,71,0.12)" }}>
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border" style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}>
                       <svg className="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
                       <input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search memories..." className="flex-1 bg-transparent border-none outline-none text-on-surface placeholder:text-on-surface-variant/40 text-sm" />
                     </div>
                     {!entriesLoaded ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"><SkeletonCard count={6} /></div>
-                      : filtered.length > 0 ? <VirtualGrid filtered={filtered} setSelected={setSelected} typeIcons={typeIcons} />
+                      : filtered.length > 0 ? <VirtualGrid filtered={filtered} setSelected={setSelected} typeIcons={typeIcons} onPin={(e) => handleUpdate(e.id, { pinned: !e.pinned })} onDelete={(e) => handleDelete(e.id)} />
                       : <div className="flex flex-col items-center justify-center py-20 gap-3"><div className="text-4xl opacity-40">🔍</div><p className="font-bold text-on-surface">No memories match</p></div>}
                   </div>
                 )}
@@ -280,15 +278,15 @@ export default function OpenBrain() {
                 {view === "settings" && <SettingsView />}
                 {view === "capture" && (
                   <div className="space-y-5">
-                    <button onClick={() => setView("suggest")} className="w-full flex items-center gap-4 p-5 rounded-3xl border press-scale transition-all group" style={{ background: "rgba(213,117,255,0.06)", borderColor: "rgba(213,117,255,0.15)" }}>
-                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "linear-gradient(135deg, #d575ff, #9800d0)" }}>
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                    <button onClick={() => setView("suggest")} className="w-full flex items-center gap-4 p-5 rounded-3xl border press-scale transition-all group" style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}>
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--color-primary-container)" }}>
+                        <svg className="w-6 h-6" style={{ color: "var(--color-primary)" }} fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                       </div>
                       <div className="flex-1 text-left"><div className="font-bold text-on-surface mb-0.5">Fill Your Brain</div><div className="text-sm text-on-surface-variant">Answer guided questions to build your memory</div></div>
                     </button>
                     <div className="grid grid-cols-2 gap-3">
-                      {[{ id: "grid", l: "Memory Grid", ic: "▦", color: "#72eff5" }, { id: "chat", l: "Ask Brain", ic: "◈", color: "#d575ff" }, { id: "todos", l: "Todos", ic: "✓", color: "#72eff5" }, { id: "vault", l: "Vault", ic: "🔐", color: "#ff9ac3" }].map((v) => (
-                        <button key={v.id} onClick={() => setView(v.id)} className="flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all press-scale text-left" style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.08)" }}>
+                      {[{ id: "grid", l: "Memory Grid", ic: "▦" }, { id: "chat", l: "Ask Brain", ic: "◈" }, { id: "refine", l: "Refine", ic: "✦" }, { id: "vault", l: "Vault", ic: "🔐" }].map((v) => (
+                        <button key={v.id} onClick={() => setView(v.id)} className="flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all press-scale text-left" style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}>
                           <div className="text-xl">{v.ic}</div>
                           <div className="text-sm font-bold text-on-surface">{v.l}</div>
                         </button>
@@ -346,7 +344,18 @@ export default function OpenBrain() {
                 }} />
               )}
 
-              <BottomNav activeView={view} onNavigate={(id) => { if (id === "more") { setNavOpen((o) => !o); } else { setView(id); setNavOpen(false); } }} />
+              <CaptureSheet
+                isOpen={showCapture}
+                onClose={() => setShowCapture(false)}
+                onCreated={handleCreated}
+                brainId={activeBrain?.id}
+                isOnline={isOnline}
+              />
+              <BottomNav
+                activeView={view}
+                onNavigate={(id) => { if (id === "more") { setNavOpen((o) => !o); } else { setView(id); setNavOpen(false); } }}
+                onCapture={() => setShowCapture(true)}
+              />
             </div>
           </div>
         </>

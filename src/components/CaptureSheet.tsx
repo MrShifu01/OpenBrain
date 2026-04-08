@@ -82,7 +82,7 @@ function PreviewModal({
 
         <div className="space-y-3">
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant mb-1.5">Title</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Title</label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -91,7 +91,7 @@ function PreviewModal({
             />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold uppercase tracking-widest text-on-surface-variant mb-1.5">Tags</label>
+            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Tags</label>
             <input
               value={tags}
               onChange={(e) => setTags(e.target.value)}
@@ -271,7 +271,7 @@ export default function CaptureSheet({
     } catch {
       setStatus("error");
       setLoading(false);
-      setTimeout(() => setStatus(null), 3000);
+      setText(input); // restore so user can retry or edit
     }
   }, [text, brainId, isOnline, doSave]);
 
@@ -349,12 +349,23 @@ export default function CaptureSheet({
 
         {/* Status */}
         {status && (
-          <p
-            className="text-xs mt-1 mb-2"
-            style={{ color: status === "error" ? "var(--color-error)" : status === "saved" ? "var(--color-secondary)" : "var(--color-primary)" }}
-          >
-            {statusLabel[status] ?? status}
-          </p>
+          <div className="flex items-center gap-2 mt-1 mb-2">
+            <p
+              className="text-xs"
+              style={{ color: status === "error" ? "var(--color-error)" : status === "saved" ? "var(--color-secondary)" : "var(--color-primary)" }}
+            >
+              {statusLabel[status] ?? status}
+            </p>
+            {status === "error" && (
+              <button
+                onClick={capture}
+                className="text-xs font-semibold underline press-scale"
+                style={{ color: "var(--color-primary)" }}
+              >
+                Try again
+              </button>
+            )}
+          </div>
         )}
 
         {/* Action row */}

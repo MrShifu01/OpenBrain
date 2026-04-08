@@ -140,8 +140,8 @@ export default function DesktopSidebar({
           >
             Everion
           </h1>
-          <p className="text-[10px] uppercase tracking-[0.2em] text-on-surface-variant/60 mt-0.5">
-            Second brain
+          <p className="text-xs text-on-surface-variant/50 mt-0.5">
+            second brain
           </p>
         </div>
         <button
@@ -211,16 +211,19 @@ export default function DesktopSidebar({
               className="w-1.5 h-1.5 rounded-full"
               style={{ background: isOnline ? "var(--color-secondary)" : "var(--color-error)" }}
             />
-            <span className="text-[10px] uppercase tracking-[0.15em] text-on-surface-variant/50">
+            <span className="text-xs text-on-surface-variant/50">
               {isOnline ? (pendingCount > 0 ? `${pendingCount} syncing` : `${entryCount} memories`) : "Offline"}
             </span>
           </div>
           <button
             onClick={onShowCreateBrain}
             aria-label="Create new brain"
-            className="text-[10px] uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors press-scale font-semibold min-h-[44px] flex items-center"
+            className="flex items-center gap-1.5 text-xs font-medium text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all press-scale min-h-[44px] px-2.5 rounded-lg"
           >
-            + Brain
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            New brain
           </button>
         </div>
       </div>

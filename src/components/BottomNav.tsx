@@ -49,7 +49,7 @@ const NAV_ITEMS = [
   },
 ];
 
-const MORE_IDS = new Set(["refine", "todos", "timeline", "vault", "settings"]);
+const MORE_IDS = new Set(["refine", "vault", "settings"]);
 
 interface BottomNavProps {
   activeView: string;
@@ -105,7 +105,7 @@ export default function BottomNav({ activeView, onNavigate, onCapture }: BottomN
             style={isActive ? { background: "var(--color-primary-container)" } : undefined}
           >
             {item.icon}
-            <span className="text-[9px] uppercase tracking-widest font-semibold">{item.label}</span>
+            <span className="text-[10px] font-medium">{item.label}</span>
           </button>
         );
       })}

@@ -19,34 +19,39 @@ const EntryCard = memo(function EntryCard({
   entry: e,
   onSelect,
   typeIcons = {},
+  onPin,
+  onDelete,
 }: {
   entry: Entry;
   onSelect: (e: Entry) => void;
   typeIcons?: Record<string, string>;
+  onPin?: (e: Entry) => void;
+  onDelete?: (e: Entry) => void;
 }) {
   const cfg = { ...(TC[e.type] || TC.note), i: resolveIcon(e.type, typeIcons) };
-  const imp = ({ 1: "Important", 2: "Critical" } as Record<number, string>)[(e as any).importance];
+  const importance = (e as any).importance as number;
+  const imp = ({ 1: "Important", 2: "Critical" } as Record<number, string>)[importance];
+  const isPinned = !!(e as any).pinned;
+  const isCritical = importance === 2;
   const colors = TYPE_THEME[e.type] || TYPE_THEME.default;
+
+  // Left accent border communicates importance tier
+  const leftBorderColor = isCritical
+    ? "var(--color-error)"
+    : isPinned
+    ? "var(--color-primary)"
+    : "transparent";
+
   return (
     <article
-      role="button"
       tabIndex={0}
       onClick={() => onSelect(e)}
       onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onSelect(e); } }}
       aria-label={e.title}
-      className="group cursor-pointer rounded-2xl p-5 border transition-all duration-200 hover:-translate-y-0.5 press-scale"
-      style={{
-        background: "var(--color-surface-container-low)",
-        borderColor: "var(--color-outline-variant)",
-      }}
-      onMouseEnter={(el) => {
-        (el.currentTarget as HTMLElement).style.background = "var(--color-surface-container)";
-        (el.currentTarget as HTMLElement).style.borderColor = "var(--color-outline)";
-      }}
-      onMouseLeave={(el) => {
-        (el.currentTarget as HTMLElement).style.background = "var(--color-surface-container-low)";
-        (el.currentTarget as HTMLElement).style.borderColor = "var(--color-outline-variant)";
-      }}
+      {...(isPinned ? { "data-pinned": "true" } : {})}
+      {...(importance > 0 ? { "data-importance": String(importance) } : {})}
+      className={`entry-card${isCritical ? " entry-card--critical" : isPinned ? " entry-card--pinned" : ""} group cursor-pointer rounded-2xl p-5 border-r border-t border-b border-l-4 transition-all duration-200 hover:-translate-y-0.5 press-scale`}
+      style={{ borderLeftColor: leftBorderColor }}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2.5">
@@ -56,7 +61,7 @@ const EntryCard = memo(function EntryCard({
           >
             <span style={{ color: colors.text }}>{cfg.i}</span>
           </div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: "var(--color-on-surface-variant)" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
             {e.type}
           </p>
         </div>
@@ -64,7 +69,7 @@ const EntryCard = memo(function EntryCard({
           {(e as any).pinned && <span style={{ color: "var(--color-primary)", fontSize: 12 }}>📌</span>}
           {imp && (
             <span
-              className="text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full"
+              className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{
                 background: imp === "Critical"
                   ? "color-mix(in oklch, var(--color-error) 14%, var(--color-surface-container))"
@@ -92,7 +97,7 @@ const EntryCard = memo(function EntryCard({
           {(e as any).tags.slice(0, 3).map((tag: string) => (
             <span
               key={tag}
-              className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full"
+              className="text-xs font-medium px-2 py-0.5 rounded-full"
               style={{
                 background: "var(--color-secondary-container)",
                 color: "var(--color-secondary)",
@@ -102,9 +107,44 @@ const EntryCard = memo(function EntryCard({
             </span>
           ))}
           {(e as any).tags.length > 3 && (
-            <span className="text-[10px] px-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <span className="text-xs px-1" style={{ color: "var(--color-on-surface-variant)" }}>
               +{(e as any).tags.length - 3}
             </span>
+          )}
+        </div>
+      )}
+
+      {/* Quick actions — subtle at rest, vivid on hover */}
+      {(onPin || onDelete) && (
+        <div
+          className="flex items-center gap-1 mt-3 pt-2.5 border-t opacity-40 group-hover:opacity-100 transition-opacity duration-150"
+          style={{ borderColor: "var(--color-outline-variant)" }}
+        >
+          {onPin && (
+            <button
+              onClick={(ev) => { ev.stopPropagation(); onPin(e); }}
+              aria-label={isPinned ? "Unpin" : "Pin"}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors hover:bg-surface-container-high press-scale"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+              </svg>
+              {isPinned ? "Unpin" : "Pin"}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+              aria-label="Delete"
+              className="entry-card__delete flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors press-scale ml-auto"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+              Delete
+            </button>
           )}
         </div>
       )}
@@ -116,10 +156,14 @@ export function VirtualGrid({
   filtered,
   setSelected,
   typeIcons = {},
+  onPin,
+  onDelete,
 }: {
   filtered: Entry[];
   setSelected: (e: Entry) => void;
   typeIcons?: Record<string, string>;
+  onPin?: (e: Entry) => void;
+  onDelete?: (e: Entry) => void;
 }) {
   const [COLS, setCOLS] = useState(() =>
     typeof window !== "undefined"
@@ -127,11 +171,15 @@ export function VirtualGrid({
       : 1
   );
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
     function update() {
-      setCOLS(window.innerWidth >= 1280 ? 3 : window.innerWidth >= 640 ? 2 : 1);
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        setCOLS(window.innerWidth >= 1280 ? 3 : window.innerWidth >= 640 ? 2 : 1);
+      }, 100);
     }
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    return () => { window.removeEventListener("resize", update); clearTimeout(timer); };
   }, []);
   const rows = useMemo(() => {
     const r: Entry[][] = [];
@@ -167,7 +215,7 @@ export function VirtualGrid({
             }}
           >
             {rows[vRow.index].map((e) => (
-              <EntryCard key={e.id} entry={e} onSelect={setSelected} typeIcons={typeIcons} />
+              <EntryCard key={e.id} entry={e} onSelect={setSelected} typeIcons={typeIcons} onPin={onPin} onDelete={onDelete} />
             ))}
           </div>
         ))}
@@ -203,10 +251,8 @@ export function VirtualTimeline({
           const e = sorted[vItem.index];
           const cfg = { ...(TC[e.type] || TC.note), i: resolveIcon(e.type, typeIcons) };
           return (
-            <div
+            <button
               key={e.id}
-              role="button"
-              tabIndex={0}
               aria-label={e.title}
               style={{
                 position: "absolute",
@@ -214,7 +260,7 @@ export function VirtualTimeline({
                 left: 0,
                 right: 0,
               }}
-              className="flex items-center gap-4 pl-4 pr-4 py-2.5 cursor-pointer group"
+              className="flex items-center gap-4 pl-4 pr-4 py-2.5 cursor-pointer group w-full text-left bg-transparent border-0 appearance-none"
               onClick={() => setSelected(e)}
               onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); setSelected(e); } }}
             >
@@ -231,7 +277,7 @@ export function VirtualTimeline({
                 <span className="text-sm flex-shrink-0">{cfg.i}</span>
                 <span className="text-sm text-on-surface truncate">{e.title}</span>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

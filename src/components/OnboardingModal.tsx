@@ -156,8 +156,13 @@ export const ONBOARDING_QUESTIONS = [
 
 const ALL_STEPS = [
   {
+    id: "trust",
+    title: "Your second brain, privately.",
+    subtitle: "Everything you store is encrypted. Only you can read it.",
+  },
+  {
     id: "purpose",
-    title: "What will you use OpenBrain for?",
+    title: "What will you use Everion for?",
     subtitle: "We'll set up the right brain for you.",
   },
   {
@@ -206,18 +211,29 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [selected, setSelected] = useState(["personal"]);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Focus trap: keep focus inside the dialog
+  // Move focus to first interactive element whenever the step changes
   useEffect(() => {
     const el = dialogRef.current;
     if (!el) return;
-    const focusable = el.querySelectorAll<HTMLElement>(
+    const first = el.querySelector<HTMLElement>(
       'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
     first?.focus();
+  }, [step]);
+
+  // Focus trap: keep focus inside the dialog — recomputes focusable elements on each Tab
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
     function trap(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        el!.querySelectorAll<HTMLElement>(
+          'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((node) => !node.hasAttribute("disabled"));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
       if (e.shiftKey) {
         if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
       } else {
@@ -226,7 +242,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
     }
     el.addEventListener("keydown", trap);
     return () => el.removeEventListener("keydown", trap);
-  }, [step]);
+  }, []);
 
   const STEPS = ALL_STEPS;
   const START_STEP = STEPS.length - 1;
@@ -237,7 +253,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
     ONBOARDING_QUESTIONS.map((q) => ({ q: q.q, cat: q.cat, p: q.p })),
   );
 
-  function toggleUseCase(id) {
+  function toggleUseCase(id: string) {
     setSelected((prev) =>
       prev.includes(id) ? (prev.length > 1 ? prev.filter((x) => x !== id) : prev) : [...prev, id],
     );
@@ -288,7 +304,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
           <h2
             id="onboarding-title"
             className="mb-1 text-xl font-semibold text-on-surface"
-            style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+            style={{ fontFamily: "'Lora', Georgia, serif" }}
           >
             {STEPS[step].title}
           </h2>
@@ -297,8 +313,57 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
           </p>
         </div>
 
-        {/* Step 0 — Use case selection */}
+        {/* Step 0 — Trust intro */}
         {step === 0 && (
+          <div className="mb-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
+              {[
+                {
+                  icon: (
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  ),
+                  label: "End-to-end encrypted",
+                  desc: "Your vault key never leaves your device.",
+                },
+                {
+                  icon: (
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    </svg>
+                  ),
+                  label: "Works offline",
+                  desc: "Your data is cached locally first, synced when ready.",
+                },
+                {
+                  icon: (
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ),
+                  label: "Your data, always",
+                  desc: "Export or delete everything at any time, no questions asked.",
+                },
+              ].map(({ icon, label, desc }) => (
+                <div
+                  key={label}
+                  className="flex items-start gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: "var(--color-surface-container-low)" }}
+                >
+                  <span style={{ color: "var(--color-primary)", marginTop: "1px" }}>{icon}</span>
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">{label}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 1 — Use case selection */}
+        {step === 1 && (
           <div className="mb-6 flex flex-col gap-3">
             {USE_CASES.map((uc) => {
               const active = selected.includes(uc.id);
@@ -337,8 +402,8 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
           </div>
         )}
 
-        {/* Step 1 — Setup summary */}
-        {step === 1 && (
+        {/* Step 2 — Setup summary */}
+        {step === 2 && (
           <div className="mb-6 flex flex-col gap-3">
             {selected.map((id) => {
               const uc = USE_CASES.find((u) => u.id === id);
@@ -382,7 +447,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
           </div>
         )}
 
-        {/* Step 2 — Ready to go */}
+        {/* Step 3 — Ready to go */}
         {step === START_STEP && (
           <div className="mb-6">
             <div
@@ -444,10 +509,22 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
               }}
               onClick={() => setStep(1)}
             >
-              Set up my brain →
+              Get started
             </button>
           )}
           {step === 1 && (
+            <button
+              className="ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-90"
+              style={{
+                background: "var(--color-primary)",
+                color: "var(--color-on-primary)",
+              }}
+              onClick={() => setStep(2)}
+            >
+              Set up my brain →
+            </button>
+          )}
+          {step === 2 && (
             <button
               className="ml-auto rounded-xl px-5 py-2.5 text-sm font-semibold transition-opacity duration-200 hover:opacity-90"
               style={{

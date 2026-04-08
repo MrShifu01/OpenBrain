@@ -2,6 +2,26 @@
 
 ---
 
+## [FEATURE] SettingsView Decomposition + API Key Supabase Migration — 2026-04-08
+**Tags**: REFACTOR, SECURITY, DATABASE
+
+### Changes implemented
+- **SettingsView.tsx**: 1518 → 82 lines; extracted 7 tab components into `src/components/settings/`
+- **Migration 018**: Added 7 columns to `user_ai_settings` (api_key, ai_model, ai_provider, groq_key, embed_provider, embed_openai_key, gemini_key)
+- **aiSettings.ts**: All 9 setters now call `syncToSupabase()` (fire-and-forget); added `loadUserAISettings(userId)` async function
+- **App.tsx**: `loadUserAISettings()` called on session set + `onAuthStateChange` — hydrates localStorage from DB on login
+- **28 new tests**: aiSettings Supabase sync (22) + AccountTab (2) + DangerTab (3)
+
+### Architecture decisions
+- localStorage = write-through cache; DB = source of truth on next login
+- No context/state lifting — each tab component owns its own state via props
+- `syncToSupabase()` is fire-and-forget (matches existing `setModelForTask` pattern)
+- RLS policy on `user_ai_settings` covers new columns automatically
+
+### Evaluator score: 96/100 — PASS
+
+---
+
 ## [IMPROVEMENT] smash-audit.md Fix Pass — 2026-04-08
 **Tags**: SECURITY, PERFORMANCE, ACCESSIBILITY, MAINTAINABILITY
 

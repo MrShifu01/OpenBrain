@@ -303,6 +303,38 @@ select option:hover {
   color: var(--color-primary);
 }
 
+/* ── EntryCard hover — CSS-native, no JS DOM mutation ── */
+.entry-card {
+  background: var(--entry-card-bg, var(--color-surface-container-low));
+  border-top-color: var(--color-outline-variant);
+  border-right-color: var(--color-outline-variant);
+  border-bottom-color: var(--color-outline-variant);
+}
+.entry-card:hover,
+.entry-card:focus-visible {
+  background: var(--color-surface-container);
+  border-top-color: var(--color-outline);
+  border-right-color: var(--color-outline);
+  border-bottom-color: var(--color-outline);
+}
+.entry-card--critical {
+  --entry-card-bg: color-mix(in oklch, var(--color-error) 5%, var(--color-surface-container-low));
+}
+.entry-card--critical:hover,
+.entry-card--critical:focus-visible {
+  background: color-mix(in oklch, var(--color-error) 8%, var(--color-surface-container));
+}
+.entry-card--pinned {
+  --entry-card-bg: var(--color-surface-container);
+}
+
+/* Delete button hover — CSS-native */
+.entry-card__delete:hover,
+.entry-card__delete:focus-visible {
+  color: var(--color-error) !important;
+  background: color-mix(in oklch, var(--color-error) 10%, transparent);
+}
+
 /* Scrollbar hide utility */
 .scrollbar-hide {
   -ms-overflow-style: none;

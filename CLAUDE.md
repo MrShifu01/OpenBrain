@@ -2,6 +2,8 @@
 
 ## Development Practices
 
+Always use caveman mode with the skill /caveman
+
 ### Test-Driven Development (TDD)
 
 All code work on this project must follow red-green TDD:

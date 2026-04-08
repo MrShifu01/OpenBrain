@@ -1,5 +1,6 @@
 import { useState, useEffect, type JSX } from "react";
 import { supabase } from "./lib/supabase";
+import { loadUserAISettings } from "./lib/aiSettings";
 import OpenBrain from "./OpenBrain";
 import LoginScreen from "./LoginScreen";
 import ErrorBoundary from "./ErrorBoundary";
@@ -54,10 +55,16 @@ export default function App(): JSX.Element {
       });
       return;
     }
-    supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user?.id) loadUserAISettings(session.user.id).catch(() => {});
+    });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, session) => setSession(session));
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      setSession(session);
+      if (session?.user?.id) loadUserAISettings(session.user.id).catch(() => {});
+    });
     return () => subscription.unsubscribe();
   }, []);
 
