@@ -13,6 +13,7 @@ import {
   getGeminiKey, setGeminiKey,
   getModelForTask, setModelForTask,
   persistKeyToDb,
+  isAISettingsLoaded,
 } from "../../lib/aiSettings";
 import { supabase } from "../../lib/supabase";
 import { MODELS } from "../../config/models";
@@ -88,6 +89,28 @@ export default function ProvidersTab({ activeBrain }: Props) {
 
   useEffect(() => {
     if (byoProvider === "openrouter" && orKey) fetchOrModels(orKey);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Re-hydrate local state from aiSettings once Supabase load completes.
+  // Without this, keys typed then refreshed appear lost because the component
+  // mounted before loadUserAISettings() populated the in-memory key store.
+  useEffect(() => {
+    const sync = () => {
+      setByoKey(getUserApiKey() || "");
+      setByoProvider(getUserProvider());
+      setByoModel(getUserModel());
+      const or = getOpenRouterKey() || "";
+      setOrKey(or);
+      setOrModel(getOpenRouterModel() || "google/gemini-2.0-flash-lite:free");
+      setGroqKeyVal(getGroqKey() || "");
+      setEmbedProviderState(getEmbedProvider());
+      setEmbedOpenAIKeyState(getEmbedOpenAIKey() || "");
+      setGeminiKeyState(getGeminiKey() || "");
+      if (or && getUserProvider() === "openrouter") fetchOrModels(or);
+    };
+    if (isAISettingsLoaded()) sync();
+    window.addEventListener("aiSettingsLoaded", sync);
+    return () => window.removeEventListener("aiSettingsLoaded", sync);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrModels = async (key: string) => {
@@ -256,7 +279,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
           Use your own API key — no Everion credits deducted. Leave blank to use the shared key.
         </p>
         <div className="flex items-center gap-2">
-          {["anthropic", "openrouter"].map((p) => (
+          {["openrouter"].map((p) => (
             <button
               key={p}
               onClick={() => saveByoProvider(p)}
@@ -463,7 +486,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
           Powers semantic search, RAG chat, and smarter connection discovery. Requires a separate embedding API key.
         </p>
         <div className="flex items-center gap-2">
-          {["openai", "google"].map(p => (
+          {["google"].map(p => (
             <button
               key={p}
               onClick={() => handleEmbedProviderClick(p)}

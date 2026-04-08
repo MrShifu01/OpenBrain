@@ -6,6 +6,10 @@ import { KEYS } from "./storageKeys";
 // Keys never touch localStorage; live only in this module's memory.
 const _keys: Record<string, string | null> = {};
 
+// ── Hydration signal: set true after loadUserAISettings completes ──
+let _loaded = false;
+export function isAISettingsLoaded(): boolean { return _loaded; }
+
 // ── Cached user ID set at login — used by syncToSupabase ──
 let _cachedUserId: string | null = null;
 
@@ -110,11 +114,14 @@ export function setUserModel(model: string | null): void {
 }
 
 export function getUserProvider(): string {
-  return localStorage.getItem(KEYS.AI_PROVIDER) || "anthropic";
+  const stored = localStorage.getItem(KEYS.AI_PROVIDER);
+  // Anthropic has been removed as a user-selectable provider.
+  if (!stored || stored === "anthropic") return "openrouter";
+  return stored;
 }
 export function setUserProvider(provider: string | null): void {
-  localStorage.setItem(KEYS.AI_PROVIDER, provider || "anthropic");
-  syncToSupabase({ ai_provider: provider || "anthropic" });
+  localStorage.setItem(KEYS.AI_PROVIDER, provider || "openrouter");
+  syncToSupabase({ ai_provider: provider || "openrouter" });
 }
 
 // ── OpenRouter ──
@@ -221,15 +228,21 @@ export async function loadUserAISettings(userId: string): Promise<void> {
   for (const lsKey of SENSITIVE_LS_KEYS) {
     localStorage.removeItem(lsKey);
   }
+
+  _loaded = true;
+  try { window.dispatchEvent(new CustomEvent("aiSettingsLoaded")); } catch { /* non-browser */ }
 }
 
 // ── Embedding settings ──
 export function getEmbedProvider(): string {
-  return localStorage.getItem(KEYS.EMBED_PROVIDER) || "openai";
+  const stored = localStorage.getItem(KEYS.EMBED_PROVIDER);
+  // OpenAI has been removed as an embedding provider option.
+  if (!stored || stored === "openai") return "google";
+  return stored;
 }
 export function setEmbedProvider(p: string | null): void {
-  localStorage.setItem(KEYS.EMBED_PROVIDER, p || "openai");
-  syncToSupabase({ embed_provider: p || "openai" });
+  localStorage.setItem(KEYS.EMBED_PROVIDER, p || "google");
+  syncToSupabase({ embed_provider: p || "google" });
 }
 
 export function getEmbedOpenAIKey(): string | null {
