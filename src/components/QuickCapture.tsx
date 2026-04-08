@@ -985,6 +985,7 @@ export default function QuickCapture({
                 ? "Processing..."
                 : "Quick capture — just type anything..."
           }
+          autoComplete="off"
           className="flex-1 min-w-0 bg-transparent text-on-surface text-base outline-none placeholder:text-on-surface-variant/40 px-4 py-3"
         />
 
