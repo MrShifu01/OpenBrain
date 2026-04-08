@@ -78,11 +78,9 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
       <div
         className="relative w-full max-w-md rounded-3xl p-7 border"
         style={{
-          background: "rgba(26,25,25,0.95)",
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
-          borderColor: "rgba(72,72,71,0.12)",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px var(--color-primary-container)",
+          background: "var(--color-surface)",
+          borderColor: "var(--color-outline-variant)",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
           animation: "zoom-in-95 0.2s ease-out",
         }}
       >
@@ -100,7 +98,7 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
         <h3
           id="create-brain-title"
           className="text-xl font-bold text-on-surface mb-6"
-          style={{ fontFamily: "'Manrope', sans-serif" }}
+          style={{ fontFamily: "'Lora', Georgia, serif" }}
         >
           Create shared brain
         </h3>
@@ -124,7 +122,7 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
                 )}
               >
                 <span className="text-2xl">{bt.emoji}</span>
-                <span className="text-sm font-semibold text-on-surface" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <span className="text-sm font-semibold text-on-surface">
                   {bt.label}
                 </span>
                 <span className="text-[11px] text-on-surface-variant leading-tight">{bt.desc}</span>
@@ -146,12 +144,12 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
             placeholder={brainType === "business" ? "e.g. Smash Burger Bar" : "e.g. Stander Family"}
             className="w-full px-4 py-3 rounded-xl text-on-surface placeholder:text-on-surface-variant/40 text-sm min-h-[44px] transition-all focus:outline-none"
             style={{
-              background: "#262626",
-              border: "1px solid rgba(72,72,71,0.20)",
+              background: "var(--color-surface-container)",
+              border: "1px solid var(--color-outline-variant)",
               fontFamily: "'Inter', sans-serif",
             }}
             onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)"; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(72,72,71,0.20)"; e.currentTarget.style.boxShadow = "none"; }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; e.currentTarget.style.boxShadow = "none"; }}
           />
         </div>
 
@@ -172,13 +170,13 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
                 border: "1px solid rgba(72,72,71,0.20)",
               }}
               onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = "rgba(72,72,71,0.20)"; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
             />
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
               className="px-3 rounded-xl text-sm focus:outline-none cursor-pointer"
-              style={{ background: "#262626", border: "1px solid rgba(72,72,71,0.20)", color: "var(--color-on-surface-variant)" }}
+              style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
             >
               <option value="member">Member</option>
               <option value="viewer">Viewer</option>
@@ -195,7 +193,7 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
           {pendingInvites.length > 0 && (
             <div className="mt-2 space-y-1.5">
               {pendingInvites.map((inv) => (
-                <div key={inv.email} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "#262626" }}>
+                <div key={inv.email} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: "var(--color-surface-container)" }}>
                   <span className="flex-1 text-xs text-on-surface">{inv.email}</span>
                   <span className="text-[10px] uppercase tracking-widest text-on-surface-variant/60">{inv.role}</span>
                   <button
@@ -232,7 +230,7 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
             onClick={onClose}
             disabled={loading}
             className="flex-1 py-3 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-all press-scale disabled:opacity-40"
-            style={{ border: "1px solid rgba(72,72,71,0.20)" }}
+            style={{ border: "1px solid var(--color-outline-variant)" }}
           >
             Cancel
           </button>
@@ -242,9 +240,7 @@ export default function CreateBrainModal({ onClose, onCreate }: CreateBrainModal
             className="flex-2 flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold press-scale disabled:opacity-40 disabled:cursor-not-allowed text-on-primary-container"
             style={{
               background: loading || !name.trim() ? "var(--color-surface-container-highest)" : "var(--color-primary)",
-              color: loading || !name.trim() ? "#777575" : "var(--color-on-primary)",
-              fontFamily: "'Manrope', sans-serif",
-              boxShadow: !loading && name.trim() ? "0 4px 24px var(--color-primary-container)" : "none",
+              color: loading || !name.trim() ? "var(--color-on-surface-variant)" : "var(--color-on-primary)",
             }}
           >
             {loading ? (

@@ -34,23 +34,50 @@ function PreviewModal({
 }) {
   const [title, setTitle] = useState(preview.title || "");
   const [tags, setTags] = useState((preview.tags || []).join(", "));
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    function trap(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, []);
 
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.65)" }}
+      style={{ background: "var(--color-scrim)" }}
       onClick={onCancel}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cs-preview-title"
         className="w-full max-w-md rounded-2xl border p-5"
         style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-semibold text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+          <span id="cs-preview-title" className="text-sm font-semibold text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>
             Before saving
           </span>
-          <button onClick={onCancel} className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
+          <button onClick={onCancel} aria-label="Close" className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
         </div>
 
         <div className="space-y-3">
@@ -116,6 +143,7 @@ export default function CaptureSheet({
   const [status, setStatus] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedEntry | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   // Auto-focus on open; reset on close
   useEffect(() => {
@@ -126,6 +154,27 @@ export default function CaptureSheet({
       setStatus(null);
       setPreview(null);
     }
+  }, [isOpen]);
+
+  // Focus trap for sheet
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el || !isOpen) return;
+    function trap(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const focusable = el!.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
   }, [isOpen]);
 
   // Close on Escape
@@ -240,13 +289,14 @@ export default function CaptureSheet({
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-50"
-        style={{ background: "rgba(0,0,0,0.5)" }}
+        style={{ background: "var(--color-scrim)" }}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Sheet */}
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label="New entry"
@@ -274,7 +324,8 @@ export default function CaptureSheet({
           </h2>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface transition-colors"
+            aria-label="Close"
+            className="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -323,9 +374,9 @@ export default function CaptureSheet({
           >
             {loading ? (
               <span className="flex gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.3s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.15s]" />
-                <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
               </span>
             ) : (
               "Save"

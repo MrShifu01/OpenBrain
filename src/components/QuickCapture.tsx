@@ -1,6 +1,5 @@
 // @ts-nocheck
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
-import PropTypes from "prop-types";
 import { useTheme } from "../ThemeContext";
 import { callAI } from "../lib/ai";
 import { aiFetch } from "../lib/aiFetch";
@@ -28,24 +27,52 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }) {
   const [title, setTitle] = useState(preview.title || "");
   const [type, setType] = useState(preview.type || "note");
   const [tags, setTags] = useState((preview.tags || []).join(", "));
+  const modalRef = useRef(null);
   const dupes = useMemo(() => {
     if (!title.trim()) return [];
     return entries.filter((e) => scoreTitle(title, e.title) > 50).slice(0, 3);
   }, [title, entries]);
+
+  // Focus trap
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    function trap(e) {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.65)" }}
+      style={{ background: "var(--color-scrim)" }}
       onClick={onCancel}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qc-preview-title"
         className="w-full max-w-md rounded-2xl border p-5"
         style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-semibold text-on-surface">Preview before saving</span>
-          <button onClick={onCancel} className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
+          <span id="qc-preview-title" className="text-sm font-semibold text-on-surface">Preview before saving</span>
+          <button onClick={onCancel} aria-label="Close" className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
         </div>
         <div className="space-y-3">
           <div>
@@ -943,6 +970,7 @@ export default function QuickCapture({
             onClick={startVoice}
             disabled={loading}
             title="Voice capture"
+            aria-label="Voice capture"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors hover:bg-white/10 disabled:opacity-40"
             style={listening ? { background: "color-mix(in oklch, var(--color-error) 12%, transparent)" } : undefined}
           >
@@ -952,6 +980,7 @@ export default function QuickCapture({
             onClick={() => imgRef.current?.click()}
             disabled={loading}
             title="Photo capture"
+            aria-label="Photo capture"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors hover:bg-white/10 disabled:opacity-40"
           >
             📷
@@ -959,7 +988,8 @@ export default function QuickCapture({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={loading}
-            title="Upload file (PDF, Word, MD, TXT)"
+            title="Upload file"
+            aria-label="Upload file (PDF, Word, MD, TXT)"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors hover:bg-white/10 disabled:opacity-40"
           >
             📄
@@ -967,7 +997,8 @@ export default function QuickCapture({
           <button
             onClick={() => bulkFileRef.current?.click()}
             disabled={loading}
-            title="Bulk upload multiple files"
+            title="Bulk upload"
+            aria-label="Bulk upload multiple files"
             className="w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors hover:bg-white/10 disabled:opacity-40"
           >
             📁
@@ -1132,17 +1163,3 @@ export default function QuickCapture({
     </div>
   );
 }
-
-QuickCapture.propTypes = {
-  entries: PropTypes.array.isRequired,
-  setEntries: PropTypes.func.isRequired,
-  links: PropTypes.array,
-  addLinks: PropTypes.func,
-  onCreated: PropTypes.func,
-  onUpdate: PropTypes.func,
-  isOnline: PropTypes.bool,
-  refreshCount: PropTypes.func,
-  brainId: PropTypes.string,
-  brains: PropTypes.array,
-  canWrite: PropTypes.bool,
-};

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 interface OnboardingModalProps {
   onComplete: (selected: string[], answered: never[], skipped: { q: string; cat: string; p: string }[]) => void;
@@ -204,6 +204,29 @@ const USE_CASES = [
 export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   const [step, setStep] = useState(0);
   const [selected, setSelected] = useState(["personal"]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap: keep focus inside the dialog
+  useEffect(() => {
+    const el = dialogRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    first?.focus();
+    function trap(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    }
+    el.addEventListener("keydown", trap);
+    return () => el.removeEventListener("keydown", trap);
+  }, [step]);
 
   const STEPS = ALL_STEPS;
   const START_STEP = STEPS.length - 1;
@@ -230,37 +253,41 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+      style={{ background: "var(--color-scrim)" }}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
         className="relative w-full max-w-md rounded-2xl border p-6"
         style={{ background: "var(--color-surface)", borderColor: "var(--color-outline-variant)" }}
       >
         {/* Progress dots */}
-        <div className="mb-6 flex items-center justify-center gap-2" role="tablist" aria-label="Onboarding progress">
+        <div
+          className="mb-6 flex items-center justify-center gap-2"
+          role="progressbar"
+          aria-valuenow={step + 1}
+          aria-valuemax={STEPS.length}
+          aria-label="Onboarding progress"
+        >
           {STEPS.map((_, i) => (
             <div
               key={i}
+              aria-hidden="true"
               className="h-2 rounded-full transition-all duration-300"
               style={{
                 width: i === step ? "2rem" : "0.5rem",
-                background: i === step
-                  ? "var(--color-primary)"
-                  : i < step
-                    ? "var(--color-primary)"
-                    : "var(--color-outline-variant)",
+                background: i <= step ? "var(--color-primary)" : "var(--color-outline-variant)",
               }}
-              aria-label={`Step ${i + 1} of ${STEPS.length}`}
-              role="tab"
-              aria-selected={i === step}
             />
           ))}
         </div>
 
         <div className="mb-6 text-center">
-          <div className="mb-3 text-4xl">{step === START_STEP ? "🚀" : "🧠"}</div>
           <h2
-            className="mb-1 text-xl font-semibold text-white"
+            id="onboarding-title"
+            className="mb-1 text-xl font-semibold text-on-surface"
             style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
           >
             {STEPS[step].title}
@@ -284,12 +311,11 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                     borderColor: active ? "var(--color-primary)" : "var(--color-outline-variant)",
                   }}
                   onClick={() => toggleUseCase(uc.id)}
-                  role="checkbox"
-                  aria-checked={active}
+                  aria-pressed={active}
                 >
                   <span className="text-2xl">{uc.emoji}</span>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-white">{uc.label}</div>
+                    <div className="text-sm font-medium text-on-surface">{uc.label}</div>
                     <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{uc.desc}</div>
                   </div>
                   <div
@@ -327,7 +353,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 >
                   <span className="text-2xl">{uc.emoji}</span>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-white">{uc.label} brain</div>
+                    <div className="text-sm font-medium text-on-surface">{uc.label} brain</div>
                     <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                       {id === "personal" &&
                         "Fill Brain will show personal questions (identity, health, finance…)"}
@@ -348,7 +374,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
               }}
             >
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                💡 <strong className="text-white">Tip:</strong> Use the brain switcher
+                💡 <strong className="text-on-surface">Tip:</strong> Use the brain switcher
                 (top-right) to switch between brains at any time. You can always create more brains
                 later.
               </p>
@@ -367,43 +393,16 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
               }}
             >
               <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-                <strong className="text-white">{skippedQs.length} guided questions</strong> are
+                <strong className="text-on-surface">{skippedQs.length} guided questions</strong> are
                 waiting in Fill Brain to help you build your memory.
               </p>
             </div>
-            <div className="flex flex-col gap-2.5">
-              {[
-                {
-                  ic: "\u2726",
-                  label: "Fill Brain",
-                  desc: "Answer guided questions to build your memory",
-                },
-                { ic: "+", label: "Quick Capture", desc: "Type anything — AI will structure it" },
-                {
-                  ic: "\u25C7",
-                  label: "Refine",
-                  desc: "AI audits entries and finds missing connections",
-                },
-                { ic: "\u25C8", label: "Ask", desc: "Chat with AI about everything you've stored" },
-              ].map((f) => (
-                <div
-                  key={f.label}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2"
-                  style={{ background: "var(--color-surface-container)" }}
-                >
-                  <span
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold"
-                    style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
-                  >
-                    {f.ic}
-                  </span>
-                  <div>
-                    <div className="text-sm font-medium text-white">{f.label}</div>
-                    <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{f.desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ul className="flex flex-col gap-1.5 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Fill Brain</strong> — answer guided questions to build your memory</li>
+              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Quick Capture</strong> — type anything; AI structures it for you</li>
+              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Refine</strong> — AI audits entries and surfaces missing connections</li>
+              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Ask</strong> — chat with AI about everything you've stored</li>
+            </ul>
             {needsIOSStep() && (
               <div
                 className="mt-4 rounded-xl border px-4 py-3"
@@ -413,7 +412,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 }}
               >
                 <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                  📱 <strong className="text-white">iPhone tip:</strong> Tap Share → "Add to
+                  📱 <strong className="text-on-surface">iPhone tip:</strong> Tap Share → "Add to
                   Home Screen" to enable push notifications.
                 </p>
               </div>

@@ -44,6 +44,9 @@
   --color-outline:                     oklch(38% 0.006 60);
   --color-outline-variant:             oklch(24% 0.006 60);
 
+  /* Scrim — modal backdrop (warm dark, adapts to light mode below) */
+  --color-scrim:                       oklch(12% 0.009 60 / 0.65);
+
   /* Typography */
   --font-family-headline: 'Lora', Georgia, serif;
   --font-family-body:     'DM Sans', system-ui, sans-serif;
@@ -226,6 +229,9 @@ html:not(.dark) {
   --color-outline:                     oklch(62% 0.008 60);
   --color-outline-variant:             oklch(82% 0.007 75);
 
+  /* Scrim — lighter overlay for warm cream light mode */
+  --color-scrim:                       oklch(20% 0.005 60 / 0.5);
+
   /* Shadows — soft for light mode */
   --shadow-sm:   0 1px 3px oklch(50% 0.005 60 / 0.10), 0 1px 2px oklch(50% 0.005 60 / 0.06);
   --shadow-md:   0 4px 12px oklch(50% 0.005 60 / 0.12), 0 2px 4px oklch(50% 0.005 60 / 0.06);
@@ -262,6 +268,18 @@ input[type="checkbox"],
 input[type="radio"] {
   min-height: 44px;
 }
+
+/* Typing indicator dots — used in chat and capture loading states */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: typing-dot 1.2s ease-in-out infinite;
+  opacity: 0.25;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.30s; }
 
 /* ── Select dropdown styling — theme-aware ── */
 select {

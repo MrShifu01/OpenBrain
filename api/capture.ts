@@ -157,6 +157,7 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
 
 // ── POST /api/save-links (rewritten to /api/capture?action=links) ──
 async function handleSaveLinks(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
   const user: any = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 

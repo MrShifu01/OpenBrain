@@ -4,12 +4,15 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import "./index.css";
 import App from "./App";
 import { ThemeProvider } from "./ThemeContext";
+import ErrorBoundary from "./ErrorBoundary";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <ThemeProvider>
-      <App />
-      <SpeedInsights />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <App />
+        <SpeedInsights />
+      </ThemeProvider>
+    </ErrorBoundary>
   </StrictMode>,
 );

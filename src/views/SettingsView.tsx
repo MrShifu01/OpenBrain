@@ -33,10 +33,10 @@ import { countEmbedMismatches } from "../lib/embedMismatch";
 
 function priceTier(pricing?: { prompt?: string }): { label: string; color: string } {
   const p = parseFloat(pricing?.prompt ?? "1");
-  if (p === 0) return { label: "Free", color: "#22c55e" };
-  if (p < 0.000001) return { label: "Cheap", color: "#4ECDC4" };
-  if (p < 0.000010) return { label: "Normal", color: "#888" };
-  return { label: "Expensive", color: "#FF6B35" };
+  if (p === 0) return { label: "Free", color: "var(--color-secondary)" };
+  if (p < 0.000001) return { label: "Cheap", color: "var(--color-secondary)" };
+  if (p < 0.000010) return { label: "Normal", color: "var(--color-on-surface-variant)" };
+  return { label: "Expensive", color: "var(--color-error)" };
 }
 
 function UsagePanel() {
@@ -47,16 +47,16 @@ function UsagePanel() {
 
   return (
     <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-white">Usage this month</p>
+      <p className="text-sm font-semibold text-on-surface">Usage this month</p>
       <div className="space-y-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-        <p>Input tokens: <span className="text-white">{usage.inputTokens.toLocaleString()}</span></p>
-        <p>Output tokens: <span className="text-white">{usage.outputTokens.toLocaleString()}</span></p>
-        <p>Est. cost: <span className="text-white">${usage.estimatedUsd.toFixed(4)}</span> <span style={{ color: "#555" }}>(estimate only)</span></p>
+        <p>Input tokens: <span className="text-on-surface">{usage.inputTokens.toLocaleString()}</span></p>
+        <p>Output tokens: <span className="text-on-surface">{usage.outputTokens.toLocaleString()}</span></p>
+        <p>Est. cost: <span className="text-on-surface">${usage.estimatedUsd.toFixed(4)}</span> <span style={{ color: "var(--color-outline)" }}>(estimate only)</span></p>
       </div>
       <button
         onClick={() => { import("../lib/usageTracker").then(m => { m.clearUsage(); setUsage({ inputTokens: 0, outputTokens: 0, estimatedUsd: 0 }); }); }}
         className="rounded-lg px-3 text-xs"
-        style={{ color: "#888", border: "1px solid var(--color-outline-variant)", minHeight: 36 }}
+        style={{ color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)", minHeight: 44 }}
       >
         Clear history
       </button>
@@ -79,9 +79,11 @@ interface ORModel {
 function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
   const [code, setCode] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const generateCode = async () => {
     setGenerating(true);
+    setCodeError(null);
     try {
       const res = await authFetch("/api/brains?action=telegram-code", {
         method: "POST",
@@ -91,37 +93,46 @@ function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
       if (res.ok) {
         const d = await res.json();
         setCode(d.code);
+      } else {
+        setCodeError("Failed to generate code. Please try again.");
       }
-    } catch {}
+    } catch {
+      setCodeError("Network error. Check your connection and try again.");
+    }
     setGenerating(false);
   };
 
   return (
     <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-white">Telegram</p>
+      <p className="text-sm font-semibold text-on-surface">Telegram</p>
       <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
         Connect Telegram to save entries by messaging the bot.
       </p>
       {code ? (
         <div className="space-y-2">
           <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            Send this code to <strong className="text-white">@TheOneAndOnlyOpenBrainBot</strong> on Telegram:
+            Send this code to <strong className="text-on-surface">@TheOneAndOnlyOpenBrainBot</strong> on Telegram:
           </p>
           <p className="text-lg font-mono font-bold tracking-widest text-center py-2" style={{ color: "var(--color-primary)" }}>{code}</p>
-          <p className="text-[10px] text-center" style={{ color: "#555" }}>Expires in 10 minutes</p>
+          <p className="text-[10px] text-center" style={{ color: "var(--color-outline)" }}>Expires in 10 minutes</p>
         </div>
       ) : (
-        <button
-          onClick={generateCode}
-          disabled={generating}
-          className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-          style={{
-            background: "var(--color-primary)",
-            color: "var(--color-on-primary)",
-          }}
-        >
-          {generating ? "Generating…" : "Connect Telegram"}
-        </button>
+        <>
+          <button
+            onClick={generateCode}
+            disabled={generating}
+            className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+            style={{
+              background: "var(--color-primary)",
+              color: "var(--color-on-primary)",
+            }}
+          >
+            {generating ? "Generating…" : "Connect Telegram"}
+          </button>
+          {codeError && (
+            <p className="text-xs mt-1" style={{ color: "var(--color-error)" }}>{codeError}</p>
+          )}
+        </>
       )}
     </div>
   );
@@ -154,7 +165,7 @@ function MemoryEditor({ activeBrain: _activeBrain }: { activeBrain?: any }) {
   };
   return (
     <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-white">AI Memory Guide</p>
+      <p className="text-sm font-semibold text-on-surface">AI Memory Guide</p>
       <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
         Markdown guide injected into every AI call for context. Do not include IDs or bank details.
       </p>
@@ -165,13 +176,13 @@ function MemoryEditor({ activeBrain: _activeBrain }: { activeBrain?: any }) {
         placeholder={
           "# OpenBrain Classification Guide\n\n## Business Context\n- ...\n\n## Personal Context\n- ..."
         }
-        className="w-full rounded-xl px-3 py-2.5 text-xs bg-transparent border outline-none text-white placeholder:text-[#555] resize-y"
+        className="w-full rounded-xl px-3 py-2.5 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40 resize-y"
         style={{ borderColor: "var(--color-outline-variant)" }}
         onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
         onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
       />
       <div className="flex items-center justify-between">
-        <span className="text-[10px]" style={{ color: "#555" }}>
+        <span className="text-[10px]" style={{ color: "var(--color-outline)" }}>
           {content.length}/{MAX}
         </span>
         <button
@@ -260,9 +271,9 @@ function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
 
   return (
     <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-white">Export / Import</p>
+      <p className="text-sm font-semibold text-on-surface">Export / Import</p>
       <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-        Export all entries from <strong className="text-white">{activeBrain.name}</strong> as JSON, or import from a
+        Export all entries from <strong className="text-on-surface">{activeBrain.name}</strong> as JSON, or import from a
         previous export.
       </p>
       <div className="flex items-center gap-2">
@@ -674,11 +685,11 @@ export default function SettingsView() {
   ] as const;
 
   return (
-    <div className="min-h-screen" style={{ background: "#0e0e0e", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    <div className="min-h-screen" style={{ background: "var(--color-background)", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* Header */}
       <div className="px-4 pt-4 pb-2 border-b" style={{ borderColor: "var(--color-outline-variant)" }}>
-        <h2 className="text-2xl font-bold text-white mb-1">Settings</h2>
-        <p className="text-sm" style={{ color: "#777" }}>Manage your account and preferences</p>
+        <h2 className="text-2xl font-bold text-on-surface mb-1">Settings</h2>
+        <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>Manage your account and preferences</p>
       </div>
 
       {/* Tab Navigation */}
@@ -690,7 +701,7 @@ export default function SettingsView() {
               onClick={() => setActiveTab(tab.id)}
               className="px-4 py-3 text-sm font-medium whitespace-nowrap transition-all relative group"
               style={{
-                color: activeTab === tab.id ? "#fff" : "#777",
+                color: activeTab === tab.id ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
                 borderBottom: activeTab === tab.id ? "2px solid var(--color-primary)" : "2px solid transparent",
               }}
             >
@@ -709,7 +720,7 @@ export default function SettingsView() {
           <div className="rounded-2xl border p-4" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">Account</p>
+                <p className="text-sm font-semibold text-on-surface">Account</p>
                 <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{email}</p>
               </div>
               <button
@@ -730,8 +741,8 @@ export default function SettingsView() {
           <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">AI Status</p>
-                <p className="text-xs" style={{ color: "#777" }}>Claude AI (Haiku)</p>
+                <p className="text-sm font-semibold text-on-surface">AI Status</p>
+                <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Claude AI (Haiku)</p>
               </div>
               <button
                 onClick={testAI}
@@ -750,8 +761,8 @@ export default function SettingsView() {
             <div className="border-t" style={{ borderColor: "var(--color-outline-variant)" }} />
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-white">Database</p>
-                <p className="text-xs" style={{ color: "#777" }}>Supabase</p>
+                <p className="text-sm font-semibold text-on-surface">Database</p>
+                <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Supabase</p>
               </div>
               <button
                 onClick={testDB}
@@ -787,7 +798,7 @@ export default function SettingsView() {
       {/* ── Brain Members (shared brains only) ── */}
       {activeBrain && activeBrain.type !== "personal" && (
         <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-on-surface">
             {activeBrain.name} — Members
           </p>
           {members.length > 0 && (
@@ -805,7 +816,7 @@ export default function SettingsView() {
                       <select
                         value={m.role}
                         onChange={(e) => handleRoleChange(m.user_id, e.target.value)}
-                        className="rounded-xl px-2 py-1 text-xs bg-transparent border outline-none text-white"
+                        className="rounded-xl px-2 py-1 text-xs bg-transparent border outline-none text-on-surface"
                         style={{ borderColor: "var(--color-outline-variant)" }}
                       >
                         <option value="member">Member</option>
@@ -826,11 +837,11 @@ export default function SettingsView() {
           )}
           {canInvite && pendingInvites.length > 0 && (
             <div className="space-y-1 pt-2 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
-              <p className="text-xs font-medium" style={{ color: "#777" }}>Pending invites</p>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Pending invites</p>
               {pendingInvites.map((inv) => (
                 <div key={inv.id} className="flex items-center gap-2 text-xs">
-                  <span style={{ color: "#aaa" }}>{inv.email}</span>
-                  <span className="rounded-full px-2 py-0.5" style={{ color: "#888", background: "rgba(128,128,128,0.1)" }}>{inv.role}</span>
+                  <span style={{ color: "var(--color-on-surface-variant)" }}>{inv.email}</span>
+                  <span className="rounded-full px-2 py-0.5" style={{ color: "var(--color-on-surface-variant)", background: "rgba(128,128,128,0.1)" }}>{inv.role}</span>
                   {canManageMembers && (
                     <button
                       onClick={() =>
@@ -841,7 +852,7 @@ export default function SettingsView() {
                         }).then(() => setPendingInvites((p) => p.filter((i) => i.id !== inv.id)))
                       }
                       className="text-xs transition-colors hover:underline"
-                      style={{ color: "#ff6e84" }}
+                      style={{ color: "var(--color-error)" }}
                     >
                       Revoke
                     </button>
@@ -852,14 +863,14 @@ export default function SettingsView() {
           )}
           {canInvite && (
             <div className="space-y-2 pt-2 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
-              <p className="text-xs font-medium" style={{ color: "#777" }}>Invite someone to this brain</p>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Invite someone to this brain</p>
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="their@email.com"
                   type="email"
-                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
                   onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -868,7 +879,7 @@ export default function SettingsView() {
                   <select
                     value={inviteRole}
                     onChange={(e) => setInviteRole(e.target.value)}
-                    className="flex-1 rounded-xl px-2 py-2 text-xs bg-transparent border outline-none text-white"
+                    className="flex-1 rounded-xl px-2 py-2 text-xs bg-transparent border outline-none text-on-surface"
                     style={{ borderColor: "var(--color-outline-variant)" }}
                   >
                     <option value="member">Member</option>
@@ -896,7 +907,7 @@ export default function SettingsView() {
                         readOnly
                         value={inviteLink}
                         className="flex-1 px-3 py-2 rounded-xl text-[11px] text-on-surface focus:outline-none"
-                        style={{ background: "#1a1919", border: "1px solid var(--color-outline-variant)" }}
+                        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
                         onFocus={(e) => e.currentTarget.select()}
                       />
                       <button
@@ -932,7 +943,7 @@ export default function SettingsView() {
             </div>
           )}
           {!canInvite && (
-            <p className="text-xs" style={{ color: "#555" }}>Only the brain owner can invite members.</p>
+            <p className="text-xs" style={{ color: "var(--color-outline)" }}>Only the brain owner can invite members.</p>
           )}
         </div>
       )}
@@ -940,8 +951,8 @@ export default function SettingsView() {
       {/* ── Invite to OpenBrain platform ── */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
         <div>
-          <p className="text-sm font-semibold text-white">Invite to OpenBrain</p>
-          <p className="text-xs mt-0.5" style={{ color: "#777" }}>Send someone an invite to join the platform</p>
+          <p className="text-sm font-semibold text-on-surface">Invite to OpenBrain</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>Send someone an invite to join the platform</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
@@ -949,7 +960,7 @@ export default function SettingsView() {
             onChange={(e) => setPlatformInviteEmail(e.target.value)}
             placeholder="their@email.com"
             type="email"
-            className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+            className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
             style={{ borderColor: "var(--color-outline-variant)" }}
             onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
             onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -987,7 +998,7 @@ export default function SettingsView() {
       <>
       {/* AI Provider / BYO Key */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-white">AI Provider</p>
+        <p className="text-sm font-semibold text-on-surface">AI Provider</p>
         <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
           Use your own API key — no OpenBrain credits deducted. Leave blank to use the shared key.
         </p>
@@ -1009,7 +1020,7 @@ export default function SettingsView() {
         </div>
         {byoProvider === "openrouter" ? (
           <>
-            <p className="text-xs" style={{ color: "#777" }}>
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
               OpenRouter lets you use hundreds of models with one key.{" "}
               <a
                 href="https://openrouter.ai/keys"
@@ -1021,7 +1032,7 @@ export default function SettingsView() {
               </a>
             </p>
             <div className="space-y-1">
-              <p className="text-xs font-medium" style={{ color: "#777" }}>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
                 OpenRouter API Key
               </p>
               <div className="flex items-center gap-2">
@@ -1030,7 +1041,7 @@ export default function SettingsView() {
                   value={orKey}
                   onChange={(e) => saveOrKey(e.target.value)}
                   placeholder="sk-or-..."
-                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
                   onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -1038,7 +1049,7 @@ export default function SettingsView() {
                 <button
                   onClick={() => setShowKey((s) => !s)}
                   className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5"
-                  style={{ color: "#777", borderColor: "var(--color-outline-variant)" }}
+                  style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
                 >
                   {showKey ? "Hide" : "Show"}
                 </button>
@@ -1064,10 +1075,10 @@ export default function SettingsView() {
               )}
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium" style={{ color: "#777" }}>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
                 Model{" "}
                 {orModels.length > 0 && (
-                  <span style={{ color: "#555" }}>
+                  <span style={{ color: "var(--color-outline)" }}>
                     ({orModels.length} available)
                   </span>
                 )}
@@ -1075,7 +1086,7 @@ export default function SettingsView() {
               <select
                 value={orModel}
                 onChange={(e) => saveOrModel(e.target.value)}
-                className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white"
+                className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface"
                 style={{ borderColor: "var(--color-outline-variant)" }}
               >
                 {(orModels.length > 0
@@ -1090,7 +1101,7 @@ export default function SettingsView() {
                   </option>
                 ))}
               </select>
-              <p className="text-[10px]" style={{ color: "#555" }}>
+              <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
                 Tip: choose a model with ZDR (zero data retention) for sensitive entries.
               </p>
             </div>
@@ -1113,7 +1124,7 @@ export default function SettingsView() {
                         setTaskModels(prev => ({ ...prev, [task]: v === "default" ? null : v }));
                       }}
                       className="flex-1 rounded-lg px-2 text-xs"
-                      style={{ background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid var(--color-outline-variant)", height: 44 }}
+                      style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                     >
                       <option value="default">Same as global default</option>
                       {orModels.map(m => {
@@ -1138,7 +1149,7 @@ export default function SettingsView() {
                       setTaskModels(prev => ({ ...prev, vision: v === "default" ? null : v }));
                     }}
                     className="flex-1 rounded-lg px-2 text-xs"
-                    style={{ background: "rgba(255,255,255,0.05)", color: "#fff", border: "1px solid var(--color-outline-variant)", height: 44 }}
+                    style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-outline-variant)", height: 44 }}
                   >
                     <option value="default">Same as global default</option>
                     {orModels
@@ -1155,14 +1166,14 @@ export default function SettingsView() {
         ) : (
           <>
             <div className="space-y-1">
-              <p className="text-xs font-medium" style={{ color: "#777" }}>API Key</p>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>API Key</p>
               <div className="flex items-center gap-2">
                 <input
                   type={showKey ? "text" : "password"}
                   value={byoKey}
                   onChange={(e) => saveByoKey(e.target.value)}
                   placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."}
-                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
                   onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
                   onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -1170,7 +1181,7 @@ export default function SettingsView() {
                 <button
                   onClick={() => setShowKey((s) => !s)}
                   className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5"
-                  style={{ color: "#777", borderColor: "var(--color-outline-variant)" }}
+                  style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
                 >
                   {showKey ? "Hide" : "Show"}
                 </button>
@@ -1202,11 +1213,11 @@ export default function SettingsView() {
               </div>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium" style={{ color: "#777" }}>Model</p>
+              <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Model</p>
               <select
                 value={byoModel}
                 onChange={(e) => saveByoModel(e.target.value)}
-                className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white"
+                className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface"
                 style={{ borderColor: "var(--color-outline-variant)" }}
               >
                 {modelOptions.map((m) => (
@@ -1222,7 +1233,7 @@ export default function SettingsView() {
 
       {/* Embedding Provider */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-white">Semantic Search & RAG</p>
+        <p className="text-sm font-semibold text-on-surface">Semantic Search & RAG</p>
         <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
           Powers semantic search, RAG chat, and smarter connection discovery. Requires a separate
           embedding API key.
@@ -1244,19 +1255,19 @@ export default function SettingsView() {
           ))}
         </div>
         {pendingEmbedProvider && (
-          <div className="rounded-xl p-3 text-xs space-y-2" style={{ background: "rgba(255,107,53,0.1)", border: "1px solid rgba(255,107,53,0.3)" }}>
-            <p style={{ color: "#FF6B35" }}>
+          <div className="rounded-xl p-3 text-xs space-y-2" style={{ background: "color-mix(in oklch, var(--color-error) 8%, var(--color-surface-container))", border: "1px solid color-mix(in oklch, var(--color-error) 25%, transparent)" }}>
+            <p style={{ color: "var(--color-error)" }}>
               {embedMismatchCount > 0
                 ? `${embedMismatchCount} entr${embedMismatchCount === 1 ? "y has" : "ies have"} embeddings from a different provider. Search will be inconsistent until you re-embed.`
                 : "Switching providers may make search inconsistent until you re-embed."}
             </p>
             <div className="flex gap-2">
               <button onClick={() => { saveEmbedProvider(pendingEmbedProvider!); setPendingEmbedProvider(null); }}
-                className="rounded-lg px-3 text-xs font-semibold" style={{ background: "rgba(255,107,53,0.2)", color: "#FF6B35", minHeight: 36 }}>
+                className="rounded-lg px-3 text-xs font-semibold" style={{ background: "color-mix(in oklch, var(--color-error) 15%, var(--color-surface-container))", color: "var(--color-error)", minHeight: 36 }}>
                 Switch anyway
               </button>
               <button onClick={() => setPendingEmbedProvider(null)}
-                className="rounded-lg px-3 text-xs" style={{ color: "#888", minHeight: 36 }}>
+                className="rounded-lg px-3 text-xs" style={{ color: "var(--color-on-surface-variant)", minHeight: 36 }}>
                 Cancel
               </button>
             </div>
@@ -1264,9 +1275,9 @@ export default function SettingsView() {
         )}
         {embedProvider === "openai" ? (
           <div className="space-y-1">
-            <p className="text-xs font-medium" style={{ color: "#777" }}>
+            <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
               OpenAI API Key{" "}
-              <span style={{ color: "#555" }}>(text-embedding-3-small)</span>
+              <span style={{ color: "var(--color-outline)" }}>(text-embedding-3-small)</span>
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -1274,7 +1285,7 @@ export default function SettingsView() {
                 value={embedOpenAIKey}
                 onChange={(e) => saveEmbedOpenAIKey(e.target.value)}
                 placeholder="sk-..."
-                className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+                className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                 style={{ borderColor: "var(--color-outline-variant)" }}
                 onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -1282,7 +1293,7 @@ export default function SettingsView() {
               <button
                 onClick={() => setShowEmbedKey((s) => !s)}
                 className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5"
-                style={{ color: "#777", borderColor: "var(--color-outline-variant)" }}
+                style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
               >
                 {showEmbedKey ? "Hide" : "Show"}
               </button>
@@ -1290,9 +1301,9 @@ export default function SettingsView() {
           </div>
         ) : (
           <div className="space-y-1">
-            <p className="text-xs font-medium" style={{ color: "#777" }}>
+            <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
               Google Gemini API Key{" "}
-              <span style={{ color: "#555" }}>(text-embedding-004)</span>
+              <span style={{ color: "var(--color-outline)" }}>(text-embedding-004)</span>
             </p>
             <div className="flex items-center gap-2">
               <input
@@ -1300,7 +1311,7 @@ export default function SettingsView() {
                 value={geminiKey}
                 onChange={(e) => saveGeminiKey(e.target.value)}
                 placeholder="AIza..."
-                className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+                className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                 style={{ borderColor: "var(--color-outline-variant)" }}
                 onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
                 onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -1308,7 +1319,7 @@ export default function SettingsView() {
               <button
                 onClick={() => setShowEmbedKey((s) => !s)}
                 className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5"
-                style={{ color: "#777", borderColor: "var(--color-outline-variant)" }}
+                style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
               >
                 {showEmbedKey ? "Hide" : "Show"}
               </button>
@@ -1356,14 +1367,14 @@ export default function SettingsView() {
             )}
           </div>
         )}
-        <p className="text-[10px]" style={{ color: "#555" }}>
+        <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
           New entries are embedded automatically. Use "Embed all" to backfill or after switching providers.
         </p>
       </div>
 
       {/* Voice Transcription */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-white">Voice Transcription</p>
+        <p className="text-sm font-semibold text-on-surface">Voice Transcription</p>
         <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
           Powers the mic button in Quick Capture. Uses Groq Whisper (fast, free tier).{" "}
           <a
@@ -1376,9 +1387,9 @@ export default function SettingsView() {
           </a>
         </p>
         <div className="space-y-1">
-          <p className="text-xs font-medium" style={{ color: "#777" }}>
+          <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
             Groq API Key{" "}
-            <span style={{ color: "#555" }}>(whisper-large-v3-turbo)</span>
+            <span style={{ color: "var(--color-outline)" }}>(whisper-large-v3-turbo)</span>
           </p>
           <div className="flex items-center gap-2">
             <input
@@ -1389,7 +1400,7 @@ export default function SettingsView() {
                 setGroqKey(e.target.value);
               }}
               placeholder="gsk_..."
-              className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-white placeholder:text-[#555]"
+              className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
               style={{ borderColor: "var(--color-outline-variant)" }}
               onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
@@ -1397,12 +1408,12 @@ export default function SettingsView() {
             <button
               onClick={() => setShowGroqKey((s) => !s)}
               className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5"
-              style={{ color: "#777", borderColor: "var(--color-outline-variant)" }}
+              style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
             >
               {showGroqKey ? "Hide" : "Show"}
             </button>
           </div>
-          <p className="text-[10px]" style={{ color: "#555" }}>
+          <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
             Also works with an OpenAI key (set above) — but Groq is faster and free.
           </p>
         </div>
@@ -1419,11 +1430,11 @@ export default function SettingsView() {
 
       {/* ─── Data & Storage ─── */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-white">Data & Storage</p>
+        <p className="text-sm font-semibold text-on-surface">Data & Storage</p>
         <button
           onClick={() => setShowTrash(s => !s)}
           className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-          style={{ background: "rgba(255,71,87,0.1)", color: "#FF4757", minHeight: 44 }}
+          style={{ background: "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))", color: "var(--color-error)", minHeight: 44 }}
         >
           {showTrash ? "Hide Trash" : "View Trash"}
         </button>
@@ -1436,7 +1447,7 @@ export default function SettingsView() {
 
       {/* ─── Onboarding ─── */}
       <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-white">Help & Onboarding</p>
+        <p className="text-sm font-semibold text-on-surface">Help & Onboarding</p>
         <button
           onClick={() => {
             localStorage.removeItem("openbrain_onboarded");
@@ -1456,15 +1467,15 @@ export default function SettingsView() {
         <>
         <div className="rounded-2xl border p-4 space-y-3" style={{ background: "rgba(220,38,38,0.05)", borderColor: "rgba(220,38,38,0.2)" }}>
           <div>
-            <p className="text-sm font-semibold" style={{ color: "#ef4444" }}>Danger Zone</p>
-            <p className="text-xs mt-0.5" style={{ color: "#777" }}>Irreversible actions. Proceed with care.</p>
+            <p className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>Danger Zone</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>Irreversible actions. Proceed with care.</p>
           </div>
           <div className="space-y-2">
             <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-              Delete brain <strong className="text-white">{activeBrain.name}</strong> and all its entries permanently. This cannot be undone.
+              Delete brain <strong className="text-on-surface">{activeBrain.name}</strong> and all its entries permanently. This cannot be undone.
             </p>
             {deleteBrainError && (
-              <p className="text-xs" style={{ color: "#ef4444" }}>{deleteBrainError}</p>
+              <p className="text-xs" style={{ color: "var(--color-error)" }}>{deleteBrainError}</p>
             )}
             <button
               disabled={deletingBrain}
@@ -1486,9 +1497,11 @@ export default function SettingsView() {
               }}
               className="rounded-xl px-4 py-2 text-xs font-bold transition-all disabled:opacity-40"
               style={{
-                background: confirmDeleteBrain ? "rgba(220,38,38,0.25)" : "rgba(220,38,38,0.1)",
-                color: confirmDeleteBrain ? "#fca5a5" : "#ef4444",
-                border: "1px solid rgba(220,38,38,0.3)",
+                background: confirmDeleteBrain
+                  ? "color-mix(in oklch, var(--color-error) 25%, var(--color-surface-container))"
+                  : "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))",
+                color: "var(--color-error)",
+                border: "1px solid color-mix(in oklch, var(--color-error) 30%, transparent)",
                 minHeight: 44,
               }}
             >

@@ -103,26 +103,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   }
 
   // 2. Retrieve top-20 relevant entries per brain, then merge by similarity
-  const allSemanticResults: any[] = [];
-  for (const bId of brainList) {
-    // S4-5: measure pgvector query time, warn if >500ms
-    const _vectorStart = Date.now();
-    const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...SB_HEADERS },
-      body: JSON.stringify({
-        query_embedding: `[${queryEmbedding.join(",")}]`,
-        p_brain_id: bId,
-        match_count: 20,
-      }),
-    });
-    const _vectorMs = Date.now() - _vectorStart;
-    if (_vectorMs > 500) console.warn(`[pgvector] match_entries took ${_vectorMs}ms for brain ${bId}`);
-    if (rpcRes.ok) {
+  const brainFetches = await Promise.all(
+    brainList.map(async (bId) => {
+      // S4-5: measure pgvector query time, warn if >500ms
+      const _vectorStart = Date.now();
+      const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...SB_HEADERS },
+        body: JSON.stringify({
+          query_embedding: `[${queryEmbedding.join(",")}]`,
+          p_brain_id: bId,
+          match_count: 20,
+        }),
+      });
+      const _vectorMs = Date.now() - _vectorStart;
+      if (_vectorMs > 500) console.warn(`[pgvector] match_entries took ${_vectorMs}ms for brain ${bId}`);
+      if (!rpcRes.ok) return [];
       const results: any[] = await rpcRes.json();
-      allSemanticResults.push(...results.map((r) => ({ ...r, brain_id: bId })));
-    }
-  }
+      return results.map((r) => ({ ...r, brain_id: bId }));
+    })
+  );
+  const allSemanticResults: any[] = brainFetches.flat();
   // S6-1: Re-rank by combined similarity + keyword overlap, take top 20
   const _queryTokens = message.trim().toLowerCase().split(/\s+/).filter((t: string) => t.length > 2);
   function _combinedScore(e: any): number {

@@ -61,17 +61,17 @@ export default function BrainSwitcher({
         title="Switch brain"
         className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all press-scale"
         style={{
-          background: "rgba(213,117,255,0.08)",
-          border: "1px solid rgba(213,117,255,0.12)",
+          background: "var(--color-surface-container)",
+          border: "1px solid var(--color-outline-variant)",
         }}
       >
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0"
-          style={{ background: "linear-gradient(135deg, rgba(213,117,255,0.2), rgba(152,0,208,0.2))" }}
+          style={{ background: "var(--color-surface-container-high)" }}
         >
           {emoji}
         </div>
-        <span className="flex-1 text-left text-on-surface font-semibold text-sm truncate" style={{ fontFamily: "'Manrope', sans-serif" }}>
+        <span className="flex-1 text-left text-on-surface font-semibold text-sm truncate">
           {activeBrain?.name || "Select Brain"}
         </span>
         {activeBrain?.myRole === "viewer" && (
@@ -92,11 +92,9 @@ export default function BrainSwitcher({
         <div
           className="absolute top-full left-0 mt-2 w-64 z-50 rounded-2xl py-2 border"
           style={{
-            background: "rgba(26,25,25,0.95)",
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            borderColor: "rgba(72,72,71,0.12)",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(114,239,245,0.05)",
+            background: "var(--color-surface)",
+            borderColor: "var(--color-outline-variant)",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
             animation: "zoom-in-95 0.15s ease-out",
           }}
         >
@@ -121,12 +119,11 @@ export default function BrainSwitcher({
             />
           ))}
 
-          <div className="mx-3 my-2 border-t" style={{ borderColor: "rgba(72,72,71,0.12)" }} />
+          <div className="mx-3 my-2 border-t" style={{ borderColor: "var(--color-outline-variant)" }} />
 
           <button
             onClick={() => { setOpen(false); setShowCreate(true); }}
             className="w-full flex items-center gap-3 px-4 py-2.5 text-primary hover:bg-surface-container transition-colors text-sm font-semibold"
-            style={{ fontFamily: "'Manrope', sans-serif" }}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

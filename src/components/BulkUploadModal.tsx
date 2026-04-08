@@ -38,11 +38,11 @@ const STATUS_LABEL: Record<FileStatus, string> = {
 };
 
 const STATUS_COLOR: Record<FileStatus, string> = {
-  pending: "#555",
+  pending: "var(--color-on-surface-variant)",
   reading: "var(--color-primary)",
   splitting: "var(--color-primary)",
   saving: "var(--color-primary)",
-  done: "#4ade80",
+  done: "var(--color-secondary)",
   error: "var(--color-error)",
 };
 
@@ -232,35 +232,35 @@ export default function BulkUploadModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.75)" }}
     >
       <div
         className="w-full max-w-lg flex flex-col rounded-2xl border"
-        style={{ background: "#1a1919", borderColor: "rgba(72,72,71,0.2)", maxHeight: "80vh" }}
+        style={{ background: "var(--color-surface)", borderColor: "var(--color-outline-variant)", maxHeight: "80vh" }}
       >
         {/* Header */}
         <div className="px-5 pt-5 pb-3 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-semibold text-white">
+            <span className="text-sm font-semibold text-on-surface">
               📁 Bulk Upload — {files.length} file{files.length !== 1 ? "s" : ""}
             </span>
             {isDone && (
-              <span className="text-xs font-semibold" style={{ color: "#4ade80" }}>
+              <span className="text-xs font-semibold" style={{ color: "var(--color-secondary)" }}>
                 {totalSaved} entries saved
               </span>
             )}
           </div>
           {/* Progress bar */}
-          <div className="h-1 rounded-full mt-3 overflow-hidden" style={{ background: "rgba(72,72,71,0.3)" }}>
+          <div className="h-1 rounded-full mt-3 overflow-hidden" style={{ background: "var(--color-outline-variant)" }}>
             <div
-              className="h-full rounded-full transition-all duration-300"
+              className="h-full w-full rounded-full transition-transform duration-300 origin-left"
               style={{
-                width: `${progress * 100}%`,
-                background: isDone ? "#4ade80" : "var(--color-primary)",
+                transform: `scaleX(${progress})`,
+                background: isDone ? "var(--color-secondary)" : "var(--color-primary)",
               }}
             />
           </div>
-          <p className="text-xs mt-2" style={{ color: "#555" }}>
+          <p className="text-xs mt-2 text-on-surface-variant">
             {isDone ? "All done!" : `${completedCount} of ${files.length} processed`}
           </p>
         </div>
@@ -271,7 +271,7 @@ export default function BulkUploadModal({
             <div
               key={i}
               className="flex items-center gap-3 rounded-xl border px-3 py-2.5"
-              style={{ background: "rgba(38,38,38,0.6)", borderColor: "rgba(72,72,71,0.2)" }}
+              style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
             >
               {/* Icon */}
               <span className="text-base flex-shrink-0">
@@ -280,12 +280,12 @@ export default function BulkUploadModal({
 
               {/* File info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{item.file.name}</p>
+                <p className="text-sm text-on-surface truncate">{item.file.name}</p>
                 {item.status === "error" && item.errorMsg && (
                   <p className="text-[11px] mt-0.5" style={{ color: "var(--color-error)" }}>{item.errorMsg}</p>
                 )}
                 {item.status === "done" && item.entriesCount !== undefined && (
-                  <p className="text-[11px] mt-0.5" style={{ color: "#4ade80" }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: "var(--color-secondary)" }}>
                     {item.entriesCount} entr{item.entriesCount !== 1 ? "ies" : "y"} saved
                   </p>
                 )}
@@ -297,7 +297,7 @@ export default function BulkUploadModal({
                 style={{ color: STATUS_COLOR[item.status] }}
               >
                 {item.status === "pending" && !isDone ? (
-                  <span style={{ color: "#555" }}>·  ·  ·</span>
+                  <span className="text-on-surface-variant">·  ·  ·</span>
                 ) : (
                   STATUS_LABEL[item.status]
                 )}
@@ -307,14 +307,14 @@ export default function BulkUploadModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 flex-shrink-0 border-t" style={{ borderColor: "rgba(72,72,71,0.2)" }}>
+        <div className="px-5 py-4 flex-shrink-0 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
           <button
             onClick={() => {
               cancelledRef.current = true;
               onCancel();
             }}
-            className="w-full py-2.5 rounded-xl border text-sm transition-colors hover:bg-white/5"
-            style={{ borderColor: "rgba(72,72,71,0.3)", color: isDone ? "#aaa" : "#777" }}
+            className="w-full py-2.5 rounded-xl border text-sm transition-colors hover:bg-surface-container text-on-surface-variant"
+            style={{ borderColor: "var(--color-outline-variant)" }}
           >
             {isDone ? "Close" : "Cancel"}
           </button>

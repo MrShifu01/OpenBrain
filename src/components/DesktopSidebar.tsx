@@ -217,7 +217,8 @@ export default function DesktopSidebar({
           </div>
           <button
             onClick={onShowCreateBrain}
-            className="text-[10px] uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors press-scale font-semibold min-h-0"
+            aria-label="Create new brain"
+            className="text-[10px] uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors press-scale font-semibold min-h-[44px] flex items-center"
           >
             + Brain
           </button>

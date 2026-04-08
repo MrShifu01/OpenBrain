@@ -13,8 +13,8 @@ export default defineConfig({
       filename: 'sw.js',
       registerType: 'autoUpdate',
       manifest: {
-        name: 'OpenBrain',
-        short_name: 'OpenBrain',
+        name: 'Everion',
+        short_name: 'Everion',
         description: "Chris's personal memory & knowledge OS",
         theme_color: '#0f0f23',
         background_color: '#0f0f23',
