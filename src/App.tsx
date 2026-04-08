@@ -55,15 +55,15 @@ export default function App(): JSX.Element {
       });
       return;
     }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user?.id) await loadUserAISettings(session.user.id).catch(() => {});
       setSession(session);
-      if (session?.user?.id) loadUserAISettings(session.user.id).catch(() => {});
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, session) => {
+    } = supabase.auth.onAuthStateChange(async (_e, session) => {
+      if (session?.user?.id) await loadUserAISettings(session.user.id).catch(() => {});
       setSession(session);
-      if (session?.user?.id) loadUserAISettings(session.user.id).catch(() => {});
     });
     return () => subscription.unsubscribe();
   }, []);
