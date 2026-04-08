@@ -122,9 +122,18 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
               }
             }
           } else {
+            let extraHeaders: Record<string, string> = {};
+            if (op.url === "/api/capture" && op.method === "POST") {
+              try {
+                const bodyParsed = JSON.parse(op.body || "{}");
+                if (bodyParsed.p_type !== "secret") {
+                  extraHeaders = getEmbedHeaders() || {};
+                }
+              } catch { /* ignore malformed body */ }
+            }
             const res = await authFetch(op.url, {
               method: op.method,
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...extraHeaders },
               body: op.body,
             });
             if (res.ok || res.status === 404) {
