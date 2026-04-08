@@ -39,8 +39,9 @@ export default function CaptureSheet({
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewTags, setPreviewTags] = useState("");
 
-  // Drag-to-close
+  // Drag-to-close + entrance animation
   const [dragY, setDragY] = useState(0);
+  const [visible, setVisible] = useState(false);
 
   // Voice
   const [listening, setListening] = useState(false);
@@ -56,8 +57,13 @@ export default function CaptureSheet({
 
   useEffect(() => {
     if (isOpen) {
-      requestAnimationFrame(() => requestAnimationFrame(() => textareaRef.current?.focus()));
+      // One RAF gives browser a frame to paint translateY(100%) before transitioning to 0
+      requestAnimationFrame(() => {
+        setVisible(true);
+        requestAnimationFrame(() => textareaRef.current?.focus());
+      });
     } else {
+      setVisible(false);
       setText("");
       setStatus(null);
       setErrorDetail(null);
@@ -83,7 +89,14 @@ export default function CaptureSheet({
       if (dy > 0) { e.preventDefault(); setDragY(dy); }
     };
     const onEnd = () => {
-      setDragY((prev) => { if (prev > 80) onClose(); return 0; });
+      setDragY((prev) => {
+        if (prev > 80) {
+          // animate out fully before calling onClose
+          setVisible(false);
+          setTimeout(onClose, 280);
+        }
+        return 0;
+      });
     };
     handle.addEventListener("touchstart", onStart, { passive: true });
     handle.addEventListener("touchmove", onMove, { passive: false });
@@ -354,7 +367,8 @@ export default function CaptureSheet({
     }
   }, [stopRecording]);
 
-  if (!isOpen) return null;
+  // Keep mounted so CSS transition plays; hide from a11y when closed
+  if (!isOpen && !visible) return null;
 
   const statusLabel: Record<string, string> = {
     thinking: "Reading your entry…",
@@ -368,7 +382,11 @@ export default function CaptureSheet({
     <>
       <div
         className="fixed inset-0 z-50"
-        style={{ background: "var(--color-scrim)" }}
+        style={{
+          background: "var(--color-scrim)",
+          opacity: visible ? Math.max(0, 1 - dragY / 350) : 0,
+          transition: dragY > 0 ? "none" : "opacity 0.32s ease",
+        }}
         onClick={preview ? undefined : onClose}
         aria-hidden="true"
       />
@@ -383,10 +401,9 @@ export default function CaptureSheet({
           background: "var(--color-surface-container-low)",
           borderColor: "var(--color-outline-variant)",
           boxShadow: "var(--shadow-lg)",
-          animation: dragY > 0 ? "none" : "slide-in-from-bottom 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragY > 0 ? "none" : "transform 0.2s ease",
-          paddingBottom: "max(2.5rem, env(safe-area-inset-bottom))",
+          transform: dragY > 0 ? `translateY(${dragY}px)` : visible ? "translateY(0)" : "translateY(100%)",
+          transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+          paddingBottom: "calc(env(safe-area-inset-bottom) + 90px)",
         }}
       >
         {/* Hidden file inputs */}
