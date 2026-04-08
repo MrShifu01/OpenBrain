@@ -303,26 +303,28 @@ export default function ProvidersTab({ activeBrain }: Props) {
             </p>
             <div className="space-y-1">
               <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>OpenRouter API Key</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2">
                 <input
                   type={showKey ? "text" : "password"} autoComplete="new-password"
                   value={orKey}
                   onChange={e => { setOrKey(e.target.value); setKeySaveStatus(null); }}
                   placeholder="sk-or-..."
-                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
+                  className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
                   onFocus={e => (e.target.style.borderColor = "var(--color-primary)")}
                   onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")}
                 />
-                <button onClick={() => setShowKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-                  {showKey ? "Hide" : "Show"}
-                </button>
-                <button onClick={saveOrKey} disabled={!orKey || keySaveStatus === "saving"} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: keySaveStatus === "error" ? "var(--color-error)" : "var(--color-primary)", color: "var(--color-on-primary)" }}>
-                  {keySaveStatus === "saving" ? "…" : keySaveStatus === "saved" ? "Saved!" : keySaveStatus === "error" ? "DB Error" : "Save"}
-                </button>
-                <button onClick={testByoKey} disabled={!orKey} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-                  {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "timeout" ? "Timeout" : byoTestStatus === "fail" ? "✗" : "Test"}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowKey(s => !s)} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                    {showKey ? "Hide" : "Show"}
+                  </button>
+                  <button onClick={saveOrKey} disabled={!orKey || keySaveStatus === "saving"} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: keySaveStatus === "error" ? "var(--color-error)" : "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                    {keySaveStatus === "saving" ? "…" : keySaveStatus === "saved" ? "Saved!" : keySaveStatus === "error" ? "DB Error" : "Save"}
+                  </button>
+                  <button onClick={testByoKey} disabled={!orKey} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                    {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "timeout" ? "Timeout" : byoTestStatus === "fail" ? "✗" : "Test"}
+                  </button>
+                </div>
               </div>
               {byoTestError && (
                 <p className="text-[11px] mt-1" style={{ color: "var(--color-error)" }}>✗ {byoTestError}</p>
@@ -442,26 +444,28 @@ export default function ProvidersTab({ activeBrain }: Props) {
           <>
             <div className="space-y-1">
               <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>API Key</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2">
                 <input
                   type={showKey ? "text" : "password"} autoComplete="new-password"
                   value={byoKey}
                   onChange={e => { setByoKey(e.target.value); setKeySaved(false); }}
                   placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."}
-                  className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
+                  className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
                   onFocus={e => (e.target.style.borderColor = "var(--color-primary)")}
                   onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")}
                 />
-                <button onClick={() => setShowKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-                  {showKey ? "Hide" : "Show"}
-                </button>
-                <button onClick={handleSaveKey} disabled={!byoKey} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
-                  {keySaved ? "Saved!" : "Save"}
-                </button>
-                <button onClick={testByoKey} disabled={!byoKey} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-                  {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "fail" ? "✗" : "Test"}
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowKey(s => !s)} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                    {showKey ? "Hide" : "Show"}
+                  </button>
+                  <button onClick={handleSaveKey} disabled={!byoKey} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                    {keySaved ? "Saved!" : "Save"}
+                  </button>
+                  <button onClick={testByoKey} disabled={!byoKey} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                    {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "fail" ? "✗" : "Test"}
+                  </button>
+                </div>
               </div>
             </div>
             <div className="space-y-1">
@@ -521,10 +525,12 @@ export default function ProvidersTab({ activeBrain }: Props) {
         {embedProvider === "openai" ? (
           <div className="space-y-1">
             <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>OpenAI API Key <span style={{ color: "var(--color-outline)" }}>(text-embedding-3-small)</span></p>
-            <div className="flex items-center gap-2">
-              <input type={showEmbedKey ? "text" : "password"} autoComplete="new-password" value={embedOpenAIKey} onChange={e => { setEmbedOpenAIKeyState(e.target.value); setEmbedKeySaved(false); }} placeholder="sk-..." className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40" style={{ borderColor: "var(--color-outline-variant)" }} onFocus={e => (e.target.style.borderColor = "var(--color-primary)")} onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")} />
-              <button onClick={() => setShowEmbedKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>{showEmbedKey ? "Hide" : "Show"}</button>
-              <button onClick={async () => { setEmbedOpenAIKey(embedOpenAIKey || null); setEmbedKeySaved(true); const { error } = await persistKeyToDb({ embed_openai_key: embedOpenAIKey || null }); if (error) { console.error("[saveEmbedOpenAI]", error); setEmbedKeySaved(false); } else { setTimeout(() => setEmbedKeySaved(false), 2000); } }} disabled={!embedOpenAIKey} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>{embedKeySaved ? "Saved!" : "Save"}</button>
+            <div className="flex flex-col gap-2">
+              <input type={showEmbedKey ? "text" : "password"} autoComplete="new-password" value={embedOpenAIKey} onChange={e => { setEmbedOpenAIKeyState(e.target.value); setEmbedKeySaved(false); }} placeholder="sk-..." className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40" style={{ borderColor: "var(--color-outline-variant)" }} onFocus={e => (e.target.style.borderColor = "var(--color-primary)")} onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")} />
+              <div className="flex gap-2">
+                <button onClick={() => setShowEmbedKey(s => !s)} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>{showEmbedKey ? "Hide" : "Show"}</button>
+                <button onClick={async () => { setEmbedOpenAIKey(embedOpenAIKey || null); setEmbedKeySaved(true); const { error } = await persistKeyToDb({ embed_openai_key: embedOpenAIKey || null }); if (error) { console.error("[saveEmbedOpenAI]", error); setEmbedKeySaved(false); } else { setTimeout(() => setEmbedKeySaved(false), 2000); } }} disabled={!embedOpenAIKey} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>{embedKeySaved ? "Saved!" : "Save"}</button>
+              </div>
             </div>
           </div>
         ) : (
@@ -533,10 +539,12 @@ export default function ProvidersTab({ activeBrain }: Props) {
               Google Gemini API Key <span style={{ color: "var(--color-outline)" }}>(text-embedding-004)</span>{" "}
               <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)" }}>Get key →</a>
             </p>
-            <div className="flex items-center gap-2">
-              <input type={showEmbedKey ? "text" : "password"} autoComplete="new-password" value={geminiKey} onChange={e => { setGeminiKeyState(e.target.value); setEmbedKeySaved(false); }} placeholder="AIza..." className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40" style={{ borderColor: "var(--color-outline-variant)" }} onFocus={e => (e.target.style.borderColor = "var(--color-primary)")} onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")} />
-              <button onClick={() => setShowEmbedKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>{showEmbedKey ? "Hide" : "Show"}</button>
-              <button onClick={async () => { setGeminiKey(geminiKey || null); setEmbedKeySaved(true); const { error } = await persistKeyToDb({ gemini_key: geminiKey || null }); if (error) { console.error("[saveGemini]", error); setEmbedKeySaved(false); } else { setTimeout(() => setEmbedKeySaved(false), 2000); } }} disabled={!geminiKey} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>{embedKeySaved ? "Saved!" : "Save"}</button>
+            <div className="flex flex-col gap-2">
+              <input type={showEmbedKey ? "text" : "password"} autoComplete="new-password" value={geminiKey} onChange={e => { setGeminiKeyState(e.target.value); setEmbedKeySaved(false); }} placeholder="AIza..." className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40" style={{ borderColor: "var(--color-outline-variant)" }} onFocus={e => (e.target.style.borderColor = "var(--color-primary)")} onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")} />
+              <div className="flex gap-2">
+                <button onClick={() => setShowEmbedKey(s => !s)} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>{showEmbedKey ? "Hide" : "Show"}</button>
+                <button onClick={async () => { setGeminiKey(geminiKey || null); setEmbedKeySaved(true); const { error } = await persistKeyToDb({ gemini_key: geminiKey || null }); if (error) { console.error("[saveGemini]", error); setEmbedKeySaved(false); } else { setTimeout(() => setEmbedKeySaved(false), 2000); } }} disabled={!geminiKey} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>{embedKeySaved ? "Saved!" : "Save"}</button>
+              </div>
             </div>
           </div>
         )}
@@ -579,23 +587,25 @@ export default function ProvidersTab({ activeBrain }: Props) {
         </p>
         <div className="space-y-1">
           <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>Groq API Key <span style={{ color: "var(--color-outline)" }}>(whisper-large-v3-turbo)</span></p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2">
             <input
               type={showGroqKey ? "text" : "password"} autoComplete="new-password"
               value={groqKeyVal}
               onChange={e => { setGroqKeyVal(e.target.value); setGroqKeySaved(false); }}
               placeholder="gsk_..."
-              className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
+              className="w-full rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
               style={{ borderColor: "var(--color-outline-variant)" }}
               onFocus={e => (e.target.style.borderColor = "var(--color-primary)")}
               onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")}
             />
-            <button onClick={() => setShowGroqKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-              {showGroqKey ? "Hide" : "Show"}
-            </button>
-            <button onClick={async () => { setGroqKey(groqKeyVal || null); setGroqKeySaved(true); const { error } = await persistKeyToDb({ groq_key: groqKeyVal || null }); if (error) { console.error("[saveGroq]", error); setGroqKeySaved(false); } else { setTimeout(() => setGroqKeySaved(false), 2000); } }} disabled={!groqKeyVal} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
-              {groqKeySaved ? "Saved!" : "Save"}
-            </button>
+            <div className="flex gap-2">
+              <button onClick={() => setShowGroqKey(s => !s)} className="rounded-xl px-3 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                {showGroqKey ? "Hide" : "Show"}
+              </button>
+              <button onClick={async () => { setGroqKey(groqKeyVal || null); setGroqKeySaved(true); const { error } = await persistKeyToDb({ groq_key: groqKeyVal || null }); if (error) { console.error("[saveGroq]", error); setGroqKeySaved(false); } else { setTimeout(() => setGroqKeySaved(false), 2000); } }} disabled={!groqKeyVal} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                {groqKeySaved ? "Saved!" : "Save"}
+              </button>
+            </div>
           </div>
           <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>Also works with an OpenAI key (set above) — but Groq is faster and free.</p>
         </div>
