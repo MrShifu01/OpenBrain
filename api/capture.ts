@@ -141,6 +141,8 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
   // the function returns (see https://vercel.com/docs/functions — use waitUntil or await).
   // Previously this was .then()/.catch() which caused single-entry embeds to silently
   // vanish while batch embed still worked.
+  let embedError: string | null = null;
+
   if (response.ok && data?.id) {
     const embedProvider = ((req.headers["x-embed-provider"] as string) || "").toLowerCase();
     const embedKey = ((req.headers["x-embed-key"] as string) || "").trim();
@@ -165,16 +167,18 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
           },
         );
         if (!patchRes.ok) {
-          const err = await patchRes.text().catch(() => String(patchRes.status));
-          console.error("[capture:auto-embed:patch]", patchRes.status, err);
+          const body = await patchRes.text().catch(() => String(patchRes.status));
+          embedError = `[embed:patch] HTTP ${patchRes.status} — ${body}`;
+          console.error(embedError);
         }
       } catch (err: any) {
-        console.error("[capture:auto-embed]", err?.message || err);
+        embedError = `[embed] ${err?.message || String(err)}`;
+        console.error(embedError);
       }
     }
   }
 
-  res.status(response.status).json(data);
+  res.status(response.status).json({ ...data, embed_error: embedError });
 }
 
 // ── POST /api/save-links (rewritten to /api/capture?action=links) ──

@@ -746,7 +746,12 @@ export default function QuickCapture({
               };
               setEntries((prev) => [newEntry as Entry, ...prev]);
               onCreated?.(newEntry as Entry);
-              setStatus("saved-db");
+              if (result?.embed_error) {
+                setErrorDetail(result.embed_error);
+                setStatus("error");
+              } else {
+                setStatus("saved-db");
+              }
               // PERF-6: debounce findConnections by 5 s; skip during bulk import
               // (heuristic: if entries grew by more than 3 since last run, it's a bulk import)
               const currentLength = entries.length;
@@ -878,7 +883,12 @@ export default function QuickCapture({
         };
         setEntries((prev) => [newEntry as Entry, ...prev]);
         onCreated?.(newEntry as Entry);
-        setStatus("saved-db");
+        if (result?.embed_error) {
+          setErrorDetail(result.embed_error);
+          setStatus("error");
+        } else {
+          setStatus("saved-db");
+        }
       } else {
         const errBody = await rpcRes.text().catch(() => "(no body)");
         const errMsg = `[capture:raw] HTTP ${rpcRes.status} — ${errBody}`;
