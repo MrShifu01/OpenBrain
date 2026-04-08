@@ -106,6 +106,7 @@ export default function SuggestionsView({
   const [filterCat, setFilterCat] = useState("all");
   const [, setAnim] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [imgLoading, setImgLoading] = useState(false);
   const [imgError, setImgError] = useState<string | null>(null);
   const [aiQuestion, setAiQuestion] = useState<AiQuestion | null>(null);
@@ -486,47 +487,97 @@ export default function SuggestionsView({
     if (!answer.trim()) return;
     const a = answer.trim();
     setSaving(true);
+    setSaveError(null);
     try {
-      const res = await callAI({
-        max_tokens: 800,
-        system: PROMPTS.QA_PARSE,
-        brainId: targetBrain?.id,
-        messages: [{ role: "user", content: `Question: ${current!.q}\nAnswer: ${a}` }],
-      });
-      const data = await res.json();
+      // Step 1: AI classification
+      let aiRes: Response;
+      try {
+        aiRes = await callAI({
+          max_tokens: 800,
+          system: PROMPTS.QA_PARSE,
+          brainId: targetBrain?.id,
+          messages: [{ role: "user", content: `Question: ${current!.q}\nAnswer: ${a}` }],
+        });
+      } catch (err: any) {
+        const msg = `[QA_PARSE:ai] ${err?.message || String(err)}`;
+        console.error(msg);
+        setSaveError(msg);
+        setSaving(false);
+        return;
+      }
+
+      const aiData = await aiRes.json();
       let parsed: any = {};
       try {
-        parsed = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
-      } catch {}
-      if (parsed.title) {
-        const rpcRes = await authFetch("/api/capture", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
-          body: JSON.stringify({
-            p_title: parsed.title,
-            p_content: parsed.content || a,
-            p_type: parsed.type || "note",
-            p_metadata: parsed.metadata || {},
-            p_tags: parsed.tags || [],
-            p_brain_id: targetBrain?.id,
-          }),
-        });
-        const savedToDB = rpcRes.ok;
-        const newEntry: Entry = {
-          id: Date.now().toString(),
-          ...parsed,
-          pinned: false,
-          importance: 0,
-          tags: parsed.tags || [],
-          created_at: new Date().toISOString(),
-        };
-        setEntries((prev: Entry[]) => [newEntry, ...prev]);
+        parsed = JSON.parse((aiData.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
+      } catch (err: any) {
+        const msg = `[QA_PARSE:json] ${err?.message || String(err)} — raw: ${(aiData.content?.[0]?.text || "").slice(0, 200)}`;
+        console.error(msg);
+        setSaveError(msg);
+        setSaving(false);
+        return;
+      }
+
+      // Fall back to raw answer if AI produced no title
+      if (!parsed.title) {
+        parsed.title = a.slice(0, 60);
+        parsed.content = parsed.content || a;
+        parsed.type = parsed.type || "note";
+      }
+
+      // Step 2: Save to DB with embed headers
+      const rpcRes = await authFetch("/api/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
+        body: JSON.stringify({
+          p_title: parsed.title,
+          p_content: parsed.content || a,
+          p_type: parsed.type || "note",
+          p_metadata: parsed.metadata || {},
+          p_tags: parsed.tags || [],
+          p_brain_id: targetBrain?.id,
+        }),
+      });
+
+      if (!rpcRes.ok) {
+        const errBody = await rpcRes.text().catch(() => "(no body)");
+        const msg = `[capture] HTTP ${rpcRes.status} — ${errBody}`;
+        console.error(msg);
+        setSaveError(msg);
         setSaved((prev: SavedItem[]) => [
-          { q: current!.q, a, cat: current!.cat, db: savedToDB, brain: targetBrain },
+          { q: current!.q, a, cat: current!.cat, db: false, brain: targetBrain },
           ...prev,
         ]);
+        setSaving(false);
+        return;
       }
-    } catch {
+
+      // Step 3: Check for embed errors
+      let captureData: any = {};
+      try { captureData = await rpcRes.json(); } catch {}
+      if (captureData.embed_error) {
+        const msg = `[embed] ${captureData.embed_error}`;
+        console.error(msg);
+        setSaveError(msg);
+      }
+
+      const newEntry: Entry = {
+        id: captureData.id || String(Date.now()),
+        ...parsed,
+        pinned: false,
+        importance: 0,
+        tags: parsed.tags || [],
+        created_at: new Date().toISOString(),
+      };
+      setEntries((prev: Entry[]) => [newEntry, ...prev]);
+      setSaved((prev: SavedItem[]) => [
+        { q: current!.q, a, cat: current!.cat, db: true, brain: targetBrain },
+        ...prev,
+      ]);
+    } catch (err: any) {
+      const msg = `[handleSave] ${err?.message || String(err)}`;
+      console.error(msg);
+      setSaveError(msg);
       setSaved((prev: SavedItem[]) => [
         { q: current!.q, a, cat: current!.cat, db: false, brain: targetBrain },
         ...prev,
@@ -772,6 +823,11 @@ export default function SuggestionsView({
           />
           {imgError && <p className="text-xs text-error">{imgError}</p>}
           {micError && <p className="text-xs text-error">{micError}</p>}
+          {saveError && (
+            <p className="text-xs font-mono break-all" style={{ color: "var(--color-error)" }}>
+              {saveError}
+            </p>
+          )}
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
