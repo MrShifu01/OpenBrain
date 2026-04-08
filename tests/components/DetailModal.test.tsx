@@ -1,4 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
+
+vi.mock("../../src/lib/supabase", () => ({
+  supabase: {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    upsert: vi.fn().mockResolvedValue({ error: null }),
+  },
+}));
+
 import { render } from "@testing-library/react";
 import DetailModal from "../../src/views/DetailModal";
 import { ThemeProvider } from "../../src/ThemeContext";

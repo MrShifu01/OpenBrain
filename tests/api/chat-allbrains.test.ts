@@ -18,6 +18,9 @@ vi.mock("../../api/_lib/generateEmbedding.js", () => ({
   generateEmbedding: vi.fn().mockResolvedValue(new Array(1536).fill(0.1)),
   buildEntryText: vi.fn().mockReturnValue("text"),
 }));
+vi.mock("../../api/_lib/securityHeaders.js", () => ({
+  applySecurityHeaders: vi.fn(),
+}));
 
 const BRAIN_A = "aaaaaaaa-0000-0000-0000-000000000001";
 const BRAIN_B = "aaaaaaaa-0000-0000-0000-000000000002";
@@ -26,6 +29,7 @@ function makeRes() {
   const res: any = {};
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
+  res.setHeader = vi.fn();
   return res;
 }
 
@@ -49,6 +53,9 @@ describe("api/chat — cross-brain (brain_ids)", () => {
     vi.mock("../../api/_lib/generateEmbedding.js", () => ({
       generateEmbedding: vi.fn().mockResolvedValue(new Array(1536).fill(0.1)),
       buildEntryText: vi.fn().mockReturnValue("text"),
+    }));
+    vi.mock("../../api/_lib/securityHeaders.js", () => ({
+      applySecurityHeaders: vi.fn(),
     }));
 
     process.env.SUPABASE_URL = "https://sb.example.com";

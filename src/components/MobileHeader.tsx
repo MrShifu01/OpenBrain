@@ -45,7 +45,7 @@ export default function MobileHeader({
           className="font-bold text-primary text-base"
           style={{ fontFamily: "'Lora', Georgia, serif" }}
         >
-          Everion
+          EV
         </h1>
       </div>
 

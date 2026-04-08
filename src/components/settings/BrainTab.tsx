@@ -2,62 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { authFetch } from "../../lib/authFetch";
 import type { Brain } from "../../types";
 
-// ── Telegram Panel ──────────────────────────────────────────────
-function TelegramPanel({ activeBrain }: { activeBrain: Brain }) {
-  const [code, setCode] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [codeError, setCodeError] = useState<string | null>(null);
-
-  const generateCode = async () => {
-    setGenerating(true);
-    setCodeError(null);
-    try {
-      const res = await authFetch("/api/brains?action=telegram-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brain_id: activeBrain.id }),
-      });
-      if (res.ok) {
-        const d = await res.json();
-        setCode(d.code);
-      } else {
-        setCodeError("Failed to generate code. Please try again.");
-      }
-    } catch {
-      setCodeError("Network error. Check your connection and try again.");
-    }
-    setGenerating(false);
-  };
-
-  return (
-    <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-on-surface">Telegram</p>
-      <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Connect Telegram to save entries by messaging the bot.</p>
-      {code ? (
-        <div className="space-y-2">
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            Send this code to <strong className="text-on-surface">@TheOneAndOnlyOpenBrainBot</strong> on Telegram:
-          </p>
-          <p className="text-lg font-mono font-bold tracking-widest text-center py-2" style={{ color: "var(--color-primary)" }}>{code}</p>
-          <p className="text-[10px] text-center" style={{ color: "var(--color-outline)" }}>Expires in 10 minutes</p>
-        </div>
-      ) : (
-        <>
-          <button
-            onClick={generateCode}
-            disabled={generating}
-            className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-          >
-            {generating ? "Generating…" : "Connect Telegram"}
-          </button>
-          {codeError && <p className="text-xs mt-1" style={{ color: "var(--color-error)" }}>{codeError}</p>}
-        </>
-      )}
-    </div>
-  );
-}
-
 // ── Memory Editor ──────────────────────────────────────────────
 function MemoryEditor() {
   const [content, setContent] = useState("");
@@ -386,7 +330,6 @@ export default function BrainTab({ activeBrain, canInvite, canManageMembers, onR
         </div>
       </div>
 
-      <TelegramPanel activeBrain={activeBrain} />
     </>
   );
 }

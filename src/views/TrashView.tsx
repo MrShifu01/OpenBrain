@@ -59,12 +59,12 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
   };
 
   const restoreAll = async () => {
-    for (const entry of entries) await restore(entry);
+    await Promise.all(entries.map(restore));
   };
 
   const emptyTrash = async () => {
     if (!confirm("Permanently delete all trashed entries? This cannot be undone.")) return;
-    for (const entry of entries) await deletePermanently(entry);
+    await Promise.all(entries.map(deletePermanently));
   };
 
   if (loading) return <div className="flex items-center justify-center h-40 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>Loading trash...</div>;
@@ -75,10 +75,10 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
         <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Trash</p>
         {entries.length > 0 && (
           <div className="flex gap-2">
-            <button onClick={restoreAll} className="rounded-lg px-3 text-xs" style={{ background: "var(--color-primary-container)", color: "var(--color-primary)", minHeight: 36 }}>
+            <button onClick={restoreAll} className="rounded-lg px-3 text-xs" style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}>
               Restore all
             </button>
-            <button onClick={emptyTrash} className="rounded-lg px-3 text-xs" style={{ background: "color-mix(in oklch, var(--color-error) 15%, transparent)", color: "var(--color-error)", minHeight: 36 }}>
+            <button onClick={emptyTrash} className="rounded-lg px-3 text-xs" style={{ background: "color-mix(in oklch, var(--color-error) 15%, transparent)", color: "var(--color-error)" }}>
               Empty trash
             </button>
           </div>
@@ -92,24 +92,25 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
         {entries.map(entry => {
           const tc = getTypeConfig(entry.type);
           const deleted = (entry as any).deleted_at;
+          const age = deleted ? daysAgo(deleted) : null;
           return (
             <div key={entry.id} className="py-3 flex items-center gap-3">
               <span className="text-lg">{tc.i}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm truncate" style={{ color: "var(--color-on-surface)" }}>{entry.title}</p>
                 <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Deleted {deleted ? `${daysAgo(deleted)} day${daysAgo(deleted) !== 1 ? "s" : ""} ago` : "recently"}
+                  Deleted {age !== null ? `${age} day${age !== 1 ? "s" : ""} ago` : "recently"}
                 </p>
               </div>
               <div className="flex gap-2">
                 <button onClick={() => restore(entry)} disabled={busy === entry.id}
                   className="rounded-lg px-3 text-xs disabled:opacity-40"
-                  style={{ background: "var(--color-primary-container)", color: "var(--color-primary)", minHeight: 36 }}>
+                  style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}>
                   Restore
                 </button>
                 <button onClick={() => deletePermanently(entry)} disabled={busy === entry.id}
                   className="rounded-lg px-3 text-xs disabled:opacity-40"
-                  style={{ background: "color-mix(in oklch, var(--color-error) 10%, transparent)", color: "var(--color-error)", minHeight: 36 }}>
+                  style={{ background: "color-mix(in oklch, var(--color-error) 10%, transparent)", color: "var(--color-error)" }}>
                   Delete
                 </button>
               </div>

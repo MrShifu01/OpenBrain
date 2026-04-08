@@ -1,7 +1,9 @@
 /**
- * Tests for LoginScreen error handling
- * - "Database error saving new user" (Supabase trigger failure) shows a friendly message
- * - Generic errors still show their message
+ * Tests for LoginScreen
+ * - Error handling: "Database error saving new user" shows friendly message
+ * - Generic errors pass through unchanged
+ * - Sent state shown on success
+ * - No hardcoded color values (CSS vars only)
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -85,5 +87,55 @@ describe("LoginScreen — error handling", () => {
     await waitFor(() => {
       expect(screen.getByText(/check your email/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe("LoginScreen — no hardcoded colors", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("uses CSS variables not hardcoded oklch values in inline styles", async () => {
+    const { default: LoginScreen } = await import("../../src/LoginScreen");
+    const { container } = render(<LoginScreen />);
+
+    // Walk all elements checking inline styles for raw oklch() values
+    const allElements = container.querySelectorAll("*");
+    const violations: string[] = [];
+    allElements.forEach((el) => {
+      const style = (el as HTMLElement).getAttribute("style") || "";
+      if (/oklch\(/.test(style)) {
+        violations.push(`${el.tagName}: ${style.slice(0, 80)}`);
+      }
+    });
+
+    expect(violations).toHaveLength(0);
+  });
+});
+
+describe("LoginScreen — copy hygiene", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("does not render trust badge chips (redundant with privacy note)", async () => {
+    const { default: LoginScreen } = await import("../../src/LoginScreen");
+    render(<LoginScreen />);
+
+    // These badges duplicated the left-panel privacy note
+    expect(screen.queryByText("End-to-end encrypted")).not.toBeInTheDocument();
+    expect(screen.queryByText("No lock-in")).not.toBeInTheDocument();
+    expect(screen.queryByText("Export anytime")).not.toBeInTheDocument();
+  });
+
+  it("feature list has 3 or fewer items", async () => {
+    const { default: LoginScreen } = await import("../../src/LoginScreen");
+    const { container } = render(<LoginScreen />);
+    // Feature items each have a label div with font-weight 600
+    // We check the FEATURES constant by looking for the list container's children
+    const featureItems = container.querySelectorAll(".login-feature-item");
+    expect(featureItems.length).toBeLessThanOrEqual(3);
   });
 });

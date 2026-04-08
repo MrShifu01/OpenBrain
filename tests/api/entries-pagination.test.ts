@@ -129,8 +129,10 @@ describe("api/entries — pagination", () => {
     const res = makeRes();
     await handler(req, res);
 
-    // Verify the fetch URL contains the cursor filter
-    const fetchUrl = fetchSpy.mock.calls[0][0] as string;
-    expect(fetchUrl).toContain(encodeURIComponent(cursor));
+    // Verify that some fetch URL contains the cursor filter
+    const hasCursor = fetchSpy.mock.calls.some(([url]: [string]) =>
+      url.includes(encodeURIComponent(cursor))
+    );
+    expect(hasCursor).toBe(true);
   });
 });

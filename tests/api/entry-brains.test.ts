@@ -18,6 +18,7 @@ function makeRes() {
   const res: any = {};
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
+  res.setHeader = vi.fn();
   return res;
 }
 
@@ -31,6 +32,9 @@ vi.mock("../../api/_lib/rateLimit.js", () => ({
 
 vi.mock("../../api/_lib/checkBrainAccess.js", () => ({
   checkBrainAccess: vi.fn().mockResolvedValue(true),
+}));
+vi.mock("../../api/_lib/securityHeaders.js", () => ({
+  applySecurityHeaders: vi.fn(),
 }));
 
 const mockFetch = vi.fn();

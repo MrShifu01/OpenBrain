@@ -1,52 +1,30 @@
 import { useState, type JSX } from "react";
 import { supabase } from "./lib/supabase";
-import { Brain, Cpu, Network, Shield, ArrowRight, RefreshCw, Mail } from "lucide-react";
+import { Brain, RefreshCw } from "lucide-react";
 
 interface Feature {
-  Icon: React.ElementType;
+  emoji: string;
   label: string;
   desc: string;
 }
 
 const FEATURES: Feature[] = [
   {
-    Icon: Brain,
+    emoji: "🧠",
     label: "Personal brain",
     desc: "Identity, health, finances, documents — always findable",
   },
   {
-    Icon: Network,
+    emoji: "👨‍👩‍👧",
     label: "Family brain",
     desc: "Household info, kids' schools, emergency contacts — shared with the people that matter",
   },
   {
-    Icon: Cpu,
+    emoji: "🏢",
     label: "Business brain",
     desc: "Suppliers, staff, SOPs, licences — your whole operation in one place",
   },
-  {
-    Icon: Shield,
-    label: "Private by design",
-    desc: "Classify, connect, remind, surface — not just store",
-  },
 ];
-
-const C = {
-  bg:          "oklch(10% 0.004 230)",
-  surface:     "oklch(16% 0.005 230)",
-  container:   "oklch(20% 0.006 230)",
-  highest:     "oklch(24% 0.006 230)",
-  border:      "oklch(22% 0.006 230)",
-  borderFaint: "oklch(16% 0.005 230)",
-  text:        "oklch(96% 0.003 230)",
-  textMuted:   "oklch(66% 0.007 225)",
-  textFaint:   "oklch(48% 0.007 225)",
-  primary:     "oklch(68% 0.09 75)",
-  primaryDim:  "oklch(60% 0.09 75)",
-  primaryBg:   "oklch(24% 0.05 75)",
-  primaryText: "oklch(12% 0.05 75)",
-  error:       "oklch(62% 0.18 25)",
-};
 
 function toFriendlyError(msg: string): string {
   if (msg.toLowerCase().includes("database error saving new user")) {
@@ -111,8 +89,8 @@ export default function LoginScreen(): JSX.Element {
       style={{
         minHeight: "100vh",
         width: "100%",
-        background: C.bg,
-        color: C.text,
+        background: "var(--color-background)",
+        color: "var(--color-on-surface)",
         fontFamily: "'DM Sans', system-ui, sans-serif",
         display: "flex",
         flexDirection: "column",
@@ -138,7 +116,7 @@ export default function LoginScreen(): JSX.Element {
             flexDirection: "column",
             justifyContent: "center",
             padding: "clamp(40px, 6vw, 80px) clamp(32px, 5vw, 72px)",
-            borderRight: `1px solid ${C.border}`,
+            borderRight: "1px solid var(--color-outline-variant)",
           }}
         >
           {/* Logo + Brand */}
@@ -151,12 +129,13 @@ export default function LoginScreen(): JSX.Element {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: C.primaryBg,
-                border: `1px solid ${C.border}`,
+                background: "var(--color-primary-container)",
+                border: "1px solid var(--color-outline-variant)",
                 marginBottom: 24,
               }}
+              aria-hidden="true"
             >
-              <Brain size={24} style={{ color: C.primary }} />
+              <Brain size={24} style={{ color: "var(--color-primary)" }} />
             </div>
 
             <h1
@@ -167,23 +146,24 @@ export default function LoginScreen(): JSX.Element {
                 letterSpacing: "-0.02em",
                 margin: "0 0 12px",
                 lineHeight: 1.1,
-                color: C.text,
+                color: "var(--color-on-surface)",
               }}
             >
               Everion
             </h1>
 
-            <p style={{ fontSize: 16, fontWeight: 500, color: C.primary, margin: "0 0 8px" }}>
+            <p style={{ fontSize: 16, fontWeight: 500, color: "var(--color-primary)", margin: "0 0 8px" }}>
               Your second brain — for you, your family, your business.
             </p>
-            <p style={{ fontSize: 14, lineHeight: 1.7, color: C.textMuted, margin: 0, maxWidth: 440 }}>
+            <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--color-on-surface-variant)", margin: 0, maxWidth: 440 }}>
               Capture everything. Connect the dots. Ask anything.
               One AI-powered memory system that grows with your life.
             </p>
           </div>
 
-          {/* Feature list */}
+          {/* Feature list — hidden on mobile */}
           <div
+            className="login-feature-list"
             style={{
               display: "flex",
               flexDirection: "column",
@@ -194,40 +174,31 @@ export default function LoginScreen(): JSX.Element {
             {FEATURES.map((f) => (
               <div
                 key={f.label}
+                className="login-feature-item"
                 style={{
                   display: "flex",
                   alignItems: "flex-start",
                   gap: 14,
                 }}
               >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: C.primaryBg,
-                    border: `1px solid ${C.border}`,
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
+                <span
+                  style={{ fontSize: 18, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+                  aria-hidden="true"
                 >
-                  <f.Icon size={15} style={{ color: C.primary }} />
-                </div>
+                  {f.emoji}
+                </span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-on-surface)", marginBottom: 2 }}>
                     {f.label}
                   </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.55, color: C.textMuted }}>{f.desc}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-on-surface-variant)" }}>{f.desc}</div>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Privacy note */}
-          <p style={{ marginTop: 32, fontSize: 12, color: C.textFaint, maxWidth: 440 }}>
+          {/* Privacy note — hidden on mobile */}
+          <p className="login-privacy-note" style={{ marginTop: 32, fontSize: 12, color: "var(--color-on-surface-variant)", maxWidth: 440, opacity: 0.7 }}>
             Your data is yours. Export everything, delete everything. No lock-in.
           </p>
         </div>
@@ -245,54 +216,34 @@ export default function LoginScreen(): JSX.Element {
         >
           <div style={{ width: "100%", maxWidth: 360 }}>
 
-            {/* Form header */}
-            {!sent && (
-              <div style={{ marginBottom: 28 }}>
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: C.container,
-                    border: `1px solid ${C.border}`,
-                    marginBottom: 20,
-                  }}
-                >
-                  <Mail size={20} style={{ color: C.textMuted }} />
-                </div>
+            {/* ── CTA (pre-form) ── */}
+            {!showForm && !sent && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <h2
                   style={{
                     fontFamily: "'Lora', Georgia, serif",
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: "-0.02em",
-                    margin: "0 0 6px",
-                    color: C.text,
+                    margin: "0 0 4px",
+                    color: "var(--color-on-surface)",
                   }}
                 >
-                  {showForm ? "Sign in" : "Welcome to Everion"}
+                  Welcome to Everion
                 </h2>
-                <p style={{ fontSize: 13, color: C.textMuted, margin: 0 }}>
-                  {showForm ? "Enter your email and we'll send a sign-in link" : "No password needed"}
+                <p style={{ fontSize: 14, color: "var(--color-on-surface-variant)", margin: "0 0 8px" }}>
+                  No password needed — just your email.
                 </p>
-              </div>
-            )}
-
-            {/* ── CTA (pre-form) ── */}
-            {!showForm && !sent && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <button
                   onClick={() => setShowForm(true)}
+                  className="login-primary-btn"
                   style={{
                     width: "100%",
                     height: 48,
                     borderRadius: 10,
                     border: "none",
-                    background: C.primary,
-                    color: C.primaryText,
+                    background: "var(--color-primary)",
+                    color: "var(--color-on-primary)",
                     fontSize: 15,
                     fontWeight: 600,
                     cursor: "pointer",
@@ -300,151 +251,141 @@ export default function LoginScreen(): JSX.Element {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    transition: "background 0.15s",
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.primaryDim; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = C.primary; }}
-                >
-                  Get started
-                  <ArrowRight size={16} />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowForm(true)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: C.primary,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    textAlign: "center",
-                    padding: "4px 0",
+                    transition: "background 150ms",
                     fontFamily: "'DM Sans', system-ui, sans-serif",
                   }}
                 >
-                  Already have an account? Sign in
+                  Start free
                 </button>
               </div>
             )}
 
             {/* ── Email form ── */}
             {showForm && !sent && (
-              <form onSubmit={handleSend} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <div>
-                  <label
-                    htmlFor="login-email"
-                    style={{
-                      display: "block",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: C.textMuted,
-                      marginBottom: 6,
-                    }}
-                  >
-                    Email address
-                  </label>
-                  <input
-                    id="login-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    required
-                    autoFocus
-                    style={{
-                      width: "100%",
-                      borderRadius: 8,
-                      border: `1px solid ${C.border}`,
-                      background: C.container,
-                      color: C.text,
-                      fontSize: 15,
-                      padding: "11px 14px",
-                      outline: "none",
-                      boxSizing: "border-box",
-                      fontFamily: "'DM Sans', system-ui, sans-serif",
-                      transition: "border-color 0.15s",
-                    }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = C.primary; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }}
-                  />
-                </div>
+              <>
+                <h2
+                  style={{
+                    fontFamily: "'Lora', Georgia, serif",
+                    fontSize: 22,
+                    fontWeight: 700,
+                    letterSpacing: "-0.02em",
+                    margin: "0 0 6px",
+                    color: "var(--color-on-surface)",
+                  }}
+                >
+                  Sign in
+                </h2>
+                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "0 0 20px" }}>
+                  Enter your email and we'll send an access code.
+                </p>
+                <form onSubmit={handleSend} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div>
+                    <label
+                      htmlFor="login-email"
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--color-on-surface-variant)",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Email address
+                    </label>
+                    <input
+                      id="login-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="neural@email.com"
+                      required
+                      autoFocus
+                      style={{
+                        width: "100%",
+                        borderRadius: 8,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "var(--color-surface-container)",
+                        color: "var(--color-on-surface)",
+                        fontSize: 15,
+                        padding: "11px 14px",
+                        outline: "none",
+                        boxSizing: "border-box",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "border-color 150ms",
+                      }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                    />
+                  </div>
 
-                {error && <p style={{ color: C.error, fontSize: 13, margin: 0 }}>{error}</p>}
+                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
 
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    style={{
-                      flex: 1,
-                      height: 44,
-                      borderRadius: 8,
-                      border: `1px solid ${C.border}`,
-                      background: "transparent",
-                      color: C.textMuted,
-                      fontSize: 14,
-                      cursor: "pointer",
-                      fontFamily: "'DM Sans', system-ui, sans-serif",
-                      transition: "color 0.15s",
-                    }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isDisabled}
-                    style={{
-                      flex: 2,
-                      height: 44,
-                      borderRadius: 8,
-                      border: "none",
-                      background: isDisabled ? C.highest : C.primary,
-                      color: isDisabled ? C.textFaint : C.primaryText,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: isDisabled ? "default" : "pointer",
-                      fontFamily: "'DM Sans', system-ui, sans-serif",
-                      transition: "background 0.15s",
-                    }}
-                  >
-                    {loading ? "Sending…" : "Send sign-in link"}
-                  </button>
-                </div>
-              </form>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      style={{
+                        flex: 1,
+                        height: 44,
+                        borderRadius: 8,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "transparent",
+                        color: "var(--color-on-surface-variant)",
+                        fontSize: 14,
+                        cursor: "pointer",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "color 150ms",
+                      }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isDisabled}
+                      style={{
+                        flex: 2,
+                        height: 44,
+                        borderRadius: 8,
+                        border: "none",
+                        background: isDisabled
+                          ? "var(--color-surface-container-highest)"
+                          : "var(--color-primary)",
+                        color: isDisabled
+                          ? "var(--color-on-surface-variant)"
+                          : "var(--color-on-primary)",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        cursor: isDisabled ? "default" : "pointer",
+                        fontFamily: "'DM Sans', system-ui, sans-serif",
+                        transition: "background 150ms",
+                        opacity: isDisabled ? 0.6 : 1,
+                      }}
+                    >
+                      {loading ? "Sending…" : "Send access code"}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
 
             {/* ── OTP verification ── */}
             {sent && (
               <div>
-                <div
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 10,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: C.primaryBg,
-                    border: `1px solid ${C.border}`,
-                    marginBottom: 20,
-                  }}
-                >
-                  <RefreshCw size={22} style={{ color: C.primary }} />
-                </div>
                 <h2
                   style={{
                     fontFamily: "'Lora', Georgia, serif",
-                    fontSize: 20,
+                    fontSize: 22,
                     fontWeight: 700,
-                    color: C.text,
+                    color: "var(--color-on-surface)",
                     margin: "0 0 8px",
                   }}
                 >
                   Check your email
                 </h2>
-                <p style={{ fontSize: 13, color: C.textMuted, lineHeight: 1.6, margin: "0 0 24px" }}>
-                  Sent to <strong style={{ color: C.text }}>{email}</strong>.<br />
+                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6, margin: "0 0 8px" }}>
+                  Sent to <strong style={{ color: "var(--color-on-surface)" }}>{email}</strong>.
+                </p>
+                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6, margin: "0 0 24px" }}>
                   Enter the code or tap the sign-in link.
                 </p>
 
@@ -456,7 +397,7 @@ export default function LoginScreen(): JSX.Element {
                         display: "block",
                         fontSize: 12,
                         fontWeight: 500,
-                        color: C.textMuted,
+                        color: "var(--color-on-surface-variant)",
                         marginBottom: 6,
                       }}
                     >
@@ -474,9 +415,9 @@ export default function LoginScreen(): JSX.Element {
                       style={{
                         width: "100%",
                         borderRadius: 8,
-                        border: `1px solid ${C.border}`,
-                        background: C.container,
-                        color: C.text,
+                        border: "1px solid var(--color-outline-variant)",
+                        background: "var(--color-surface-container)",
+                        color: "var(--color-on-surface)",
                         fontSize: 28,
                         fontWeight: 700,
                         padding: "12px 14px",
@@ -486,14 +427,14 @@ export default function LoginScreen(): JSX.Element {
                         fontFamily: "'DM Sans', system-ui, sans-serif",
                         fontVariantNumeric: "tabular-nums",
                         boxSizing: "border-box",
-                        transition: "border-color 0.15s",
+                        transition: "border-color 150ms",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = C.primary; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = C.border; }}
+                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
                     />
                   </div>
 
-                  {error && <p style={{ color: C.error, fontSize: 13, margin: 0 }}>{error}</p>}
+                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
 
                   <button
                     type="submit"
@@ -503,13 +444,18 @@ export default function LoginScreen(): JSX.Element {
                       height: 48,
                       borderRadius: 8,
                       border: "none",
-                      background: isOtpDisabled ? C.highest : C.primary,
-                      color: isOtpDisabled ? C.textFaint : C.primaryText,
+                      background: isOtpDisabled
+                        ? "var(--color-surface-container-highest)"
+                        : "var(--color-primary)",
+                      color: isOtpDisabled
+                        ? "var(--color-on-surface-variant)"
+                        : "var(--color-on-primary)",
                       fontSize: 14,
                       fontWeight: 600,
                       cursor: isOtpDisabled ? "default" : "pointer",
                       fontFamily: "'DM Sans', system-ui, sans-serif",
-                      transition: "background 0.15s",
+                      transition: "background 150ms",
+                      opacity: isOtpDisabled ? 0.6 : 1,
                     }}
                   >
                     {verifying ? "Signing in…" : "Sign in"}
@@ -523,11 +469,10 @@ export default function LoginScreen(): JSX.Element {
                     style={{
                       background: "none",
                       border: "none",
-                      color: C.primary,
+                      color: "var(--color-primary)",
                       fontSize: 13,
                       cursor: "pointer",
                       padding: "10px 12px",
-                      minHeight: 44,
                     }}
                   >
                     {loading ? "Sending…" : "Resend code"}
@@ -537,57 +482,52 @@ export default function LoginScreen(): JSX.Element {
                     style={{
                       background: "none",
                       border: "none",
-                      color: C.textMuted,
+                      color: "var(--color-on-surface-variant)",
                       fontSize: 13,
                       cursor: "pointer",
                       padding: "10px 12px",
-                      minHeight: 44,
                     }}
                   >
                     Use different email
                   </button>
                 </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16 }}>
+                  <RefreshCw size={14} style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }} aria-hidden="true" />
+                  <p style={{ fontSize: 12, color: "var(--color-on-surface-variant)", margin: 0, opacity: 0.7 }}>
+                    Link expires in 60 minutes.
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Trust line */}
-            {!sent && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  gap: 20,
-                  marginTop: 28,
-                  paddingTop: 20,
-                  borderTop: `1px solid ${C.borderFaint}`,
-                }}
-              >
-                {["End-to-end encrypted", "No lock-in", "Export anytime"].map((badge) => (
-                  <span key={badge} style={{ fontSize: 11, color: C.textFaint }}>
-                    {badge}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
       <style>{`
+        .login-primary-btn:hover {
+          background: var(--color-primary-dim) !important;
+        }
         @media (max-width: 768px) {
           .login-two-col {
             flex-direction: column !important;
             min-height: auto !important;
           }
-          .login-two-col > div:first-child {
-            border-right: none !important;
-            border-bottom: 1px solid oklch(22% 0.006 230) !important;
-            padding: 40px 24px !important;
-          }
+          /* Form panel first on mobile — instant clarity */
           .login-two-col > div:last-child {
+            order: -1;
             width: 100% !important;
             padding: 36px 24px !important;
           }
+          .login-two-col > div:first-child {
+            border-right: none !important;
+            border-bottom: 1px solid var(--color-outline-variant) !important;
+            padding: 32px 24px !important;
+          }
+          /* Hide feature list on mobile — just show brand headline */
+          .login-feature-list { display: none !important; }
+          .login-privacy-note { display: none !important; }
         }
       `}</style>
     </div>

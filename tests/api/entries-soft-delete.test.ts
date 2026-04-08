@@ -102,13 +102,19 @@ describe("api/entries — soft delete", () => {
   it("GET excludes soft-deleted entries (deleted_at=is.null in fallback path or RPC used)", async () => {
     // When RPC fails, the fallback direct query must include deleted_at=is.null
     fetchSpy
-      // First call: RPC fails, triggers fallback
+      // First call: entry_brains (shared entries lookup)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue([]),
+        status: 200,
+      })
+      // Second call: RPC fails, triggers fallback
       .mockResolvedValueOnce({
         ok: false,
         json: vi.fn().mockResolvedValue([]),
         status: 500,
       })
-      // Second call: fallback direct query
+      // Third call: fallback direct query with deleted_at=is.null
       .mockResolvedValueOnce({
         ok: true,
         json: vi.fn().mockResolvedValue([]),

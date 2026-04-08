@@ -2,6 +2,54 @@
 
 ---
 
+## [AUDIT] Full App Audit — 2026-04-08 (pass 2)
+**Tags**: AUDIT
+
+### Overall Score: 75/100 — C+
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 72 |
+| Performance | 80 |
+| Architecture | 80 |
+| Code Quality / Types | 65 |
+| UX / UI | 76 |
+| Maintainability | 70 |
+| User Perspective | 78 |
+
+### Progress since prior audit (74/100)
+- ✓ SettingsView.tsx decomposed 1505 → 79 lines
+- ✓ PIN upgraded to PBKDF2 100k iterations + server-side zero-knowledge verify
+- ✓ x-forwarded-for reads last (edge-verified) hop
+- ✓ failedOps surfaced in UI (no longer silent)
+- ✓ @ts-nocheck reduced from 3 files → 1 (entryOps.ts only)
+- ✓ ErrorBoundary wired to app root
+- ✓ handleSaveLinks rate-limited
+
+### CRITICAL & HIGH Findings
+
+**[CRITICAL]** Leaked Telegram Bot Token in commit `d811ad2` — still NOT revoked. Manual: @BotFather `/revoke`.
+
+**[HIGH]** 42 of 977 tests failing — CI broken. Root causes: (1) mock missing `res.setHeader` in API tests, (2) contrast test uses hex parser on oklch values → NaN, (3) LoadingScreen/MobileHeader tests reference "OpenBrain" brand copy.
+
+**[HIGH]** CSP missing `font-src https://fonts.googleapis.com https://fonts.gstatic.com` — Google Fonts loaded but not allowed by CSP. — `vercel.json:30`, `index.html:11-15`
+
+**[HIGH]** README is Vite scaffold boilerplate — no project docs. — `README.md`
+
+**[HIGH]** No error monitoring (Sentry or equivalent) — production errors invisible. — `src/ErrorBoundary.tsx:26`
+
+**[HIGH]** User AI provider keys in localStorage (XSS-accessible). — `src/lib/aiSettings.ts`
+
+### Top 5 Actions
+1. [CRITICAL] Revoke leaked Telegram Bot Token via @BotFather
+2. [HIGH] Fix 42 failing tests (mock setHeader + oklch contrast parser + brand copy)
+3. [HIGH] Add font-src to CSP in vercel.json
+4. [HIGH] Replace README with real project documentation
+5. [MEDIUM] Migrate AI keys from localStorage to encrypted server-side storage
+
+---
+
 ## [IMPROVEMENT] Audit Fix Pass — 12→~17/20 — 2026-04-08
 **Tags**: A11Y, THEMING, PERFORMANCE, ANTI-PATTERN
 

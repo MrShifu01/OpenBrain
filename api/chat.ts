@@ -228,7 +228,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       const oaiMessages = [{ role: "system", content: system }, ...messages];
       llmRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${genKey}`, "HTTP-Referer": "https://openbrain.app" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${genKey}`, "HTTP-Referer": "https://everionmind.com" },
         body: JSON.stringify({ model: model || "google/gemini-2.0-flash-exp:free", max_tokens: 1000, messages: oaiMessages }),
       });
       if (!llmRes.ok) return res.status(llmRes.status).json(await llmRes.json());

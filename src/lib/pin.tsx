@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useTheme } from "../ThemeContext";
 import { getUserId } from "./aiSettings";
 import { authFetch } from "./authFetch";
 
@@ -108,7 +107,6 @@ async function verifyPin(pin: string, stored?: string): Promise<boolean | null> 
 async function storePin(pin: string): Promise<void> {
   const combined = await hashPin(pin); // "saltHex:hashHex"
   // Only push hash+salt to server (zero-knowledge: server never sees PIN)
-  // localStorage copy removed — offline fallback handled by server returning noPinSet
   const [saltHex, hashHex] = combined.split(":");
   await authFetch("/api/pin?action=setup", {
     method: "POST",
@@ -118,7 +116,6 @@ async function storePin(pin: string): Promise<void> {
 }
 
 export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) {
-  useTheme();
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [shake, setShake] = useState(false);
@@ -126,18 +123,26 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
   const [step, setStep] = useState<PinStep>(() => {
     if (isSetup) return "create";
     const stored = getStoredPinHash();
-    // Only show migrate step for legacy SHA-256 format (no colon separator)
     if (stored && !stored.includes(":")) return "migrate";
     return "enter";
   });
   const inputRef = useRef<HTMLInputElement>(null);
+  const shakeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
   useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 50);
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
   }, [step]);
 
+  // Cleanup shake timer on unmount
+  useEffect(() => {
+    return () => clearTimeout(shakeTimer.current);
+  }, []);
+
   const doShake = () => {
+    clearTimeout(shakeTimer.current);
     setShake(true);
-    setTimeout(() => setShake(false), 380);
+    shakeTimer.current = setTimeout(() => setShake(false), 380);
   };
 
   const handleSubmit = async () => {
@@ -181,6 +186,26 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
     }
   };
 
+  // Focus trap: keep Tab within the dialog
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape") { onCancel(); return; }
+    if (e.key !== "Tab") return;
+    const dialog = e.currentTarget;
+    const focusable = Array.from(
+      dialog.querySelectorAll<HTMLElement>(
+        'button, input, [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter((el) => !el.hasAttribute("disabled"));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  };
+
   const titles: Record<PinStep, string> = {
     enter: "Sensitive Info",
     create: "Set Security PIN",
@@ -203,22 +228,51 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
   return (
     <>
       <style>{`@keyframes pinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/[0.72] backdrop-blur-[4px]"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onCancel();
-        }}
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
+        style={{ background: "var(--color-scrim)" }}
+        onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
       >
+        {/* Dialog */}
         <div
-          className={`bg-ob-surface border-ob-border box-border w-full max-w-[300px] rounded-[20px] border px-5 py-6 ${shake ? "animate-[pinShake_0.38s_ease]" : ""}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-dialog-title"
+          onKeyDown={handleKeyDown}
+          className={`box-border w-full max-w-[300px] rounded-[20px] border px-5 py-6 ${shake ? "animate-[pinShake_0.38s_ease]" : ""}`}
+          style={{
+            background: "var(--color-surface-container-low)",
+            borderColor: "var(--color-outline-variant)",
+          }}
         >
           <div className="mb-[22px] text-center">
-            <div className="mb-2 text-[30px]">🔒</div>
-            <h3 className="text-ob-text m-0 text-[17px] font-bold">{titles[step]}</h3>
-            <p className="text-ob-text-dim mt-1.5 mb-0 text-xs">{subs[step]}</p>
+            <div className="mb-2 text-[30px]" aria-hidden="true">🔒</div>
+            <h3
+              id="pin-dialog-title"
+              className="m-0 text-[17px] font-bold"
+              style={{ color: "var(--color-on-surface)" }}
+            >
+              {titles[step]}
+            </h3>
+            <p
+              className="mt-1.5 mb-0 text-xs"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
+              {subs[step]}
+            </p>
           </div>
+
+          {/* Visually hidden label for PIN input */}
+          <label
+            htmlFor="pin-input"
+            className="sr-only"
+          >
+            {subs[step]}
+          </label>
           <input
             ref={inputRef}
+            id="pin-input"
             type="password"
             inputMode="numeric"
             maxLength={4}
@@ -233,20 +287,64 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
               if (e.key === "Enter") handleSubmit();
             }}
             placeholder="• • • •"
-            className={`bg-ob-bg w-full border p-3.5 ${error ? "border-orange" : "border-ob-border"} text-ob-text-soft box-border rounded-xl text-center font-mono text-[22px] tracking-[10px] outline-none`}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              borderRadius: "0.75rem",
+              border: `1px solid ${error ? "var(--color-error)" : "var(--color-outline-variant)"}`,
+              background: "var(--color-surface-dim)",
+              color: "var(--color-on-surface)",
+              padding: "0.875rem",
+              textAlign: "center",
+              fontFamily: "monospace",
+              fontSize: "1.375rem",
+              letterSpacing: "10px",
+              outline: "none",
+            }}
           />
-          {error && <p className="text-orange mt-2 mb-0 text-center text-[11px]">{error}</p>}
+
+          {/* Always-rendered alert container — aria-live announces errors as they appear */}
+          <p
+            role="alert"
+            aria-live="polite"
+            className="mt-2 mb-0 text-center text-[11px]"
+            style={{
+              color: "var(--color-error)",
+              minHeight: "1em",
+            }}
+          >
+            {error}
+          </p>
+
           <div className="mt-4 flex gap-2">
             <button
               onClick={onCancel}
-              className="bg-ob-bg border-ob-border text-ob-text-dim flex-1 cursor-pointer rounded-[10px] border p-[11px] text-[13px]"
+              style={{
+                flex: 1,
+                cursor: "pointer",
+                borderRadius: 10,
+                border: "1px solid var(--color-outline-variant)",
+                background: "var(--color-surface-dim)",
+                color: "var(--color-on-surface-variant)",
+                padding: 11,
+                fontSize: 13,
+              }}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 cursor-pointer rounded-[10px] border-none p-[11px] text-[13px] font-bold"
-              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+              style={{
+                flex: 1,
+                cursor: "pointer",
+                borderRadius: 10,
+                border: "none",
+                padding: 11,
+                fontSize: 13,
+                fontWeight: 700,
+                background: "var(--color-primary)",
+                color: "var(--color-on-primary)",
+              }}
             >
               {btnLabel[step]}
             </button>
