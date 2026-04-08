@@ -11,7 +11,7 @@ interface ThemeContextValue {
 }
 
 const ThemeCtx = createContext<ThemeContextValue>({
-  isDark: true,
+  isDark: false,
   toggleTheme: () => {},
 });
 

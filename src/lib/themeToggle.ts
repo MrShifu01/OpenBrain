@@ -17,6 +17,6 @@ export function persistTheme(theme: Theme): void {
 }
 
 export function resolveTheme(stored: string | null): Theme {
-  if (stored === "light") return "light";
-  return "dark";
+  if (stored === "dark") return "dark";
+  return "light";
 }
