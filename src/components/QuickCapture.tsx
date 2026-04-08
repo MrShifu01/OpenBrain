@@ -724,17 +724,8 @@ export default function QuickCapture({
             });
             if (rpcRes.ok) {
               const result = await rpcRes.json();
-              // Client-side embed: fire immediately after capture succeeds
-              if (result?.id && !isSecret) {
-                const embedHeaders = getEmbedHeaders();
-                if (embedHeaders) {
-                  authFetch("/api/embed", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", ...embedHeaders },
-                    body: JSON.stringify({ entry_id: result.id }),
-                  }).catch(() => {});
-                }
-              }
+              // Server-side auto-embed now runs (awaited) inside /api/capture when the
+              // X-Embed-* headers are present. No client-side follow-up needed.
               const savedType = parsed.type || "note";
               const savedIcon = parsed.icon || pickDefaultIcon(savedType);
               registerTypeIcon(primaryBrainId, savedType, savedIcon);

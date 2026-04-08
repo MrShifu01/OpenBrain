@@ -150,37 +150,17 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
       : "";
     const orFilter = `&or=(brain_id.eq.${encodeURIComponent(brain_id)}${sharedIdFilter})`;
 
-    // Try RPC first (no cursor, no trash) — it may already handle entry_brains via DB join
-    if (!cursor && !trash) {
-      const rpcRes = await fetch(
-        `${SB_URL}/rest/v1/rpc/get_entries_for_brain?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}`,
-        {
-          method: "POST",
-          headers: sbHeaders(),
-          body: JSON.stringify({ p_brain_id: brain_id }),
-        }
-      );
-
-      if (rpcRes.ok) {
-        const rpcRows: any[] = await rpcRes.json();
-        // If RPC returned results, use them; otherwise fall through to direct query
-        // (RPC may not include entry_brains entries if the function predates that feature)
-        if (rpcRows.length > 0 || sharedIds.length === 0) {
-          const hasMore = rpcRows.length > limit;
-          const results = hasMore ? rpcRows.slice(0, limit) : rpcRows;
-          const nextCursor = hasMore ? results[results.length - 1].created_at : null;
-          return res.status(200).json({ entries: results, nextCursor, hasMore });
-        }
-      }
-    }
-
-    // Direct query: includes primary brain entries + shared entries from entry_brains
+    // Direct query: includes primary brain entries + shared entries from entry_brains.
+    // Uses PostgREST directly so we always get the deleted_at filter applied — the
+    // get_entries_for_brain RPC did not filter soft-deletes, causing ghost-return.
     const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${orFilter}${cursorFilter}`;
+    const directRes = await fetch(directUrl, { headers: sbHeadersNoContent() });
+    if (!directRes.ok) return res.status(502).json({ error: "Database error" });
     const rows: any[] = await directRes.json();
     const hasMore = rows.length > limit;
     const results = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore ? results[results.length - 1].created_at : null;
-    return res.status(directRes.status).json({ entries: results, nextCursor, hasMore });
+    return res.status(200).json({ entries: results, nextCursor, hasMore });
   }
 
   // Fallback: user's own entries (pre-migration compatibility)
