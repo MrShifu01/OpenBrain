@@ -125,9 +125,10 @@ export default function ProvidersTab({ activeBrain }: Props) {
         : byoProvider === "openrouter" ? "/api/openrouter"
         : "/api/anthropic";
       const model = byoProvider === "openrouter" ? orModel : byoModel;
-      const { data: { session } } = await supabase.auth.getSession();
-      const authH: Record<string, string> = session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const sessionRes = await supabase.auth.getSession();
+      const accessToken = sessionRes.data?.session?.access_token;
+      const authH: Record<string, string> = accessToken
+        ? { Authorization: `Bearer ${accessToken}` } : {};
       const res = await fetch(endpoint, {
         method: "POST",
         signal: controller.signal,
