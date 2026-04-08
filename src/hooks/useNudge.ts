@@ -1,13 +1,65 @@
 import { useState, useEffect } from "react";
 import { callAI } from "../lib/ai";
 import { extractNudgeText } from "../lib/extractNudgeText";
-import { PROMPTS } from "../config/prompts";
 import type { Entry, Brain } from "../types";
 
 interface UseNudgeParams {
   entriesLoaded: boolean;
   entries: Entry[];
   activeBrain: Brain | null;
+}
+
+// Date fields to check for upcoming deadlines/expiry, in priority order
+const DATE_FIELDS: Array<{ key: string; label: string }> = [
+  { key: "due_date",              label: "renewal due" },
+  { key: "expiry_date",          label: "expires" },
+  { key: "valid_to",             label: "valid until" },
+  { key: "valid_until",          label: "valid until" },
+  { key: "renewal_date",         label: "renewal" },
+  { key: "deadline",             label: "deadline" },
+  { key: "warranty_expiration",  label: "warranty expires" },
+];
+
+// Detect upcoming date-based issues within the next 180 days
+function detectExpirations(entries: Entry[]): string[] {
+  const now = new Date();
+  const findings: string[] = [];
+
+  for (const e of entries) {
+    const meta = (e.metadata || {}) as Record<string, any>;
+    for (const { key, label } of DATE_FIELDS) {
+      const dateStr = meta[key];
+      if (!dateStr) continue;
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) continue;
+      const daysUntil = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil > 0 && daysUntil <= 180) {
+        findings.push(
+          `"${e.title}" — ${label} in ${daysUntil} day${daysUntil === 1 ? "" : "s"} (${dateStr})`,
+        );
+        break; // one finding per entry
+      }
+    }
+  }
+
+  return findings;
+}
+
+// Detect entries that look incomplete (gap)
+function detectGaps(entries: Entry[]): string[] {
+  const gaps: string[] = [];
+  const gapTypes = ["person", "document", "contract", "certificate", "company", "supplier"];
+
+  for (const e of entries) {
+    if (!gapTypes.includes(e.type ?? "")) continue;
+    const hasContent = e.content && e.content.trim().length > 10;
+    const hasMeta = Object.keys(e.metadata || {}).length > 0;
+    if (!hasContent && !hasMeta) {
+      gaps.push(`"${e.title}" (${e.type}) — no details captured yet`);
+    }
+  }
+
+  return gaps;
 }
 
 export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams) {
@@ -18,85 +70,66 @@ export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams
   useEffect(() => {
     if (!entriesLoaded || sessionStorage.getItem("openbrain_nudge") !== null) return;
 
-    const recent = entries.slice(0, 30).map((e) => ({
-      id: e.id,
-      title: e.title,
-      type: e.type,
-      tags: e.tags,
-      metadata: e.metadata,
-      created_at: e.created_at,
-    }));
+    const recent = entries.slice(0, 50);
 
-    // Detect potential duplicates
-    const titlesByDate: Record<string, typeof recent> = {};
-    for (const e of recent) {
-      const dateKey = e.created_at?.slice(0, 10) || "unknown";
-      titlesByDate[dateKey] = titlesByDate[dateKey] || [];
-      titlesByDate[dateKey].push(e);
-    }
-    const duplicates: string[] = [];
-    for (const dayEntries of Object.values(titlesByDate)) {
-      const byTitle: Record<string, typeof recent> = {};
-      for (const e of dayEntries) {
-        byTitle[e.title] = byTitle[e.title] || [];
-        byTitle[e.title].push(e);
-      }
-      for (const sameTitle of Object.values(byTitle)) {
-        if (sameTitle.length > 1 && new Set(sameTitle.map((x) => x.type)).size > 1) {
-          duplicates.push(
-            `"${sameTitle[0].title}" appears as both ${sameTitle.map((x) => x.type).join(" and ")} on same day`,
-          );
-        }
-      }
+    // Deterministic detection — no AI involved
+    const expirations = detectExpirations(recent);
+    const gaps = detectGaps(recent);
+
+    // Pick up to 2 most actionable findings
+    const candidates = [...expirations.slice(0, 2), ...gaps.slice(0, 1)].slice(0, 2);
+
+    if (candidates.length === 0) {
+      // Nothing actionable found — skip nudge
+      sessionStorage.setItem("openbrain_nudge", "");
+      return;
     }
 
-    // Detect upcoming expirations (within 90 days)
-    const now = new Date();
-    const expirations: string[] = [];
-    for (const e of recent) {
-      const meta = e.metadata || {};
-      const dateFields = [
-        { key: "expiry_date", label: "expires" },
-        { key: "warranty_expiration", label: "warranty expires" },
-        { key: "due_date", label: "due" },
-      ];
-      for (const { key, label } of dateFields) {
-        const dateStr = (meta as any)[key];
-        if (dateStr) {
-          const date = new Date(dateStr);
-          const daysUntil = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          if (daysUntil > 0 && daysUntil <= 90) {
-            expirations.push(`${e.title} ${label} in ${daysUntil} days`);
-          }
-        }
-      }
-    }
+    // Ask AI to turn the findings into 1-2 friendly, actionable sentences
+    // We pass ONLY the curated findings, not raw entry JSON
+    const findingsText = candidates.map((c, i) => `${i + 1}. ${c}`).join("\n");
 
-    const gaps = [...duplicates.slice(0, 1), ...expirations.slice(0, 1)];
-    const gapContext = gaps.length ? `\n\nDetected gaps: ${gaps.join("; ")}` : "";
+    const systemPrompt = [
+      "You are a helpful assistant. Turn the following findings into 1-2 short, friendly, actionable sentences for the user.",
+      "Rules:",
+      "- Output ONLY the nudge sentence(s). No JSON. No lists. No metadata. No extra explanation.",
+      "- Each sentence should tell the user what to do and when.",
+      "- Maximum 2 sentences. Natural language only.",
+      "- Do not repeat the raw data — rephrase it naturally.",
+      "- Do not output anything that looks like code, keys, or template text.",
+    ].join("\n");
 
     callAI({
-      max_tokens: 200,
-      system: PROMPTS.NUDGE,
+      max_tokens: 120,
+      system: systemPrompt,
       brainId: activeBrain?.id,
       messages: [
         {
           role: "user",
-          content: `My recent memories:\n${JSON.stringify(recent)}\n\nWhat should I know right now?${gapContext}`,
+          content: `Findings:\n${findingsText}`,
         },
       ],
     })
-      .then((r: any) => r.json())
-      .then((data: any) => {
+      .then((r) => r.json())
+      .then((data) => {
         const text = extractNudgeText(data);
         if (text) {
           setNudge(text);
           sessionStorage.setItem("openbrain_nudge", text);
         } else {
-          sessionStorage.setItem("openbrain_nudge", "");
+          // AI gave garbage — fall back to a simple deterministic nudge
+          const fallback = candidates[0]
+            .replace(/^"/, "").replace(/".*$/, "").trim(); // just the title
+          const fallbackMsg = expirations.length > 0
+            ? `Action needed: ${candidates[0]}.`
+            : `Gap: ${candidates[0]}.`;
+          setNudge(fallbackMsg);
+          sessionStorage.setItem("openbrain_nudge", fallbackMsg);
         }
       })
-      .catch(() => sessionStorage.setItem("openbrain_nudge", ""));
+      .catch(() => {
+        sessionStorage.setItem("openbrain_nudge", "");
+      });
   }, [entriesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return { nudge, setNudge };

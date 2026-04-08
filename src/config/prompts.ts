@@ -41,8 +41,8 @@ WORKSPACE RULES:
 
 IMPORTANT: Do NOT suggest merging companies just because they have similar name prefixes. Each business is distinct.`,
 
-  /** OpenBrain.jsx nudge banner: generate proactive memory nudges */
-  NUDGE: `You are OpenBrain, a proactive memory assistant. Given the user's recent entries, generate 1-2 short, specific, actionable nudges they should know right now. Examples: expiring documents, stale ideas, gaps in their business records, upcoming deadlines. Be concrete — mention entry names. Do NOT suggest merging companies just because they share a word in their name. Return plain text, 1-2 sentences max.`,
+  /** OpenBrain nudge banner: turn pre-detected findings into friendly sentences */
+  NUDGE: `Turn the provided findings into 1-2 short, friendly, actionable sentences. Output ONLY natural language sentences — no JSON, no metadata keys, no lists, no template text. Maximum 2 sentences. Tell the user what to do and when. Do not repeat raw data verbatim.`,
 
   /** OpenBrain.jsx chat: memory assistant chat */
   CHAT: `You are OpenBrain, the user's memory assistant. Be concise. When you mention a phone number, format it clearly. If the answer contains a phone number, put it on its own line.\n\nMEMORIES:\n{{MEMORIES}}\n\nLINKS:\n{{LINKS}}`,
