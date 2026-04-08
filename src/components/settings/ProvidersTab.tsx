@@ -116,6 +116,8 @@ export default function ProvidersTab({ activeBrain }: Props) {
     const key = byoProvider === "openrouter" ? orKey : byoKey;
     if (!key) return;
     setByoTestStatus("testing");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     try {
       const endpoint =
         byoProvider === "openai" ? "/api/openai"
@@ -127,12 +129,15 @@ export default function ProvidersTab({ activeBrain }: Props) {
         ? { Authorization: `Bearer ${session.access_token}` } : {};
       const res = await fetch(endpoint, {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json", "X-User-Api-Key": key, ...authH },
         body: JSON.stringify({ model, max_tokens: 10, messages: [{ role: "user", content: "Say ok" }] }),
       });
       setByoTestStatus(res.ok ? "ok" : "fail");
-    } catch {
-      setByoTestStatus("fail");
+    } catch (e: any) {
+      setByoTestStatus(e?.name === "AbortError" ? "timeout" : "fail");
+    } finally {
+      clearTimeout(timeout);
     }
     setTimeout(() => setByoTestStatus(null), 3000);
   };
@@ -157,12 +162,14 @@ export default function ProvidersTab({ activeBrain }: Props) {
     }
   };
 
-  const saveOrKey = (key: string) => {
-    setOrKey(key);
-    setOpenRouterKey(key || null);
-    if (key) fetchOrModels(key);
-    setKeySaveStatus("saving");
-    setTimeout(() => { setKeySaveStatus("saved"); setTimeout(() => setKeySaveStatus(null), 2000); }, 300);
+  const saveOrKey = () => {
+    setOpenRouterKey(orKey || null);
+    if (orKey) fetchOrModels(orKey);
+    // Auto-switch provider to openrouter so callAI() uses the correct key
+    setByoProvider("openrouter");
+    setUserProvider("openrouter");
+    setKeySaveStatus("saved");
+    setTimeout(() => setKeySaveStatus(null), 2000);
   };
 
   const saveEmbedProvider = (p: string) => {
@@ -257,7 +264,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 <input
                   type={showKey ? "text" : "password"} autoComplete="new-password"
                   value={orKey}
-                  onChange={e => saveOrKey(e.target.value)}
+                  onChange={e => { setOrKey(e.target.value); setKeySaveStatus(null); }}
                   placeholder="sk-or-..."
                   className="flex-1 rounded-xl px-3 py-2 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40"
                   style={{ borderColor: "var(--color-outline-variant)" }}
@@ -267,15 +274,13 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 <button onClick={() => setShowKey(s => !s)} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
                   {showKey ? "Hide" : "Show"}
                 </button>
+                <button onClick={saveOrKey} disabled={!orKey} className="rounded-xl px-2 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                  {keySaveStatus === "saved" ? "Saved!" : "Save"}
+                </button>
                 <button onClick={testByoKey} disabled={!orKey} className="rounded-xl px-2 py-2 text-xs border transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
-                  {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "fail" ? "✗" : "Test"}
+                  {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "timeout" ? "Timeout" : byoTestStatus === "fail" ? "✗" : "Test"}
                 </button>
               </div>
-              {keySaveStatus && (
-                <p className="text-xs" style={{ color: keySaveStatus === "saving" ? "var(--color-on-surface-variant)" : "var(--color-primary)" }}>
-                  {keySaveStatus === "saving" ? "Saving…" : "✓ Saved"}
-                </p>
-              )}
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -314,6 +319,16 @@ export default function ProvidersTab({ activeBrain }: Props) {
                     : [{ id: orModel, label: orModel }]
                 ).map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
+              {orFilter !== "all" && recommendedId && (
+                <p className="text-[10px]" style={{ color: "var(--color-primary)" }}>
+                  Recommended for Everion: <strong>{recommendedId}</strong>
+                </p>
+              )}
+              {orFilter === "all" && (
+                <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
+                  Tip: filter by tier to see the recommended model for each price range. Free tier: <strong>google/gemini-2.0-flash-lite:free</strong>.
+                </p>
+              )}
               <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>Tip: choose a model with ZDR (zero data retention) for sensitive entries.</p>
             </div>
             {orModels.length > 0 && (
