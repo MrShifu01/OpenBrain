@@ -6,6 +6,6 @@ Responses must be brutally concise. One sentence where possible. No preamble, no
 
 ## Development Practices
 
-Always work on and push to `main` branch directly.
+ALWAYS commit and push directly to `main`. Never create feature branches, never use preview branches. Every push must go to `main` → Vercel production. No exceptions.
 
 Always use caveman mode with the skill /caveman
