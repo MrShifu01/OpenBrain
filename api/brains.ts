@@ -204,16 +204,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             to: [email.trim().toLowerCase()],
             subject: `You've been invited to join "${brainName}" on Everion`,
             html: `
-              <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px;background:#111;color:#eee;border-radius:12px">
-                <h2 style="color:#72eff5;margin-top:0">Everion</h2>
-                <p>You've been invited to collaborate on <strong>${brainName}</strong> as a <strong>${role}</strong>.</p>
+              <div style="font-family:'DM Sans',sans-serif;max-width:480px;margin:auto;padding:32px;background:#111;color:#eee;border-radius:12px">
+                <h2 style="color:#72eff5;margin-top:0;font-family:Georgia,serif">Everion</h2>
+                <p style="font-size:15px;line-height:1.6">You've been invited to collaborate on <strong>${brainName}</strong> as a <strong>${role}</strong>.</p>
                 <p style="margin:24px 0">
-                  <a href="${acceptUrl}" style="background:#72eff5;color:#111;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block">
+                  <a href="${acceptUrl}" style="background:#72eff5;color:#111;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:bold;display:inline-block;font-size:15px">
                     Accept Invite
                   </a>
                 </p>
                 <p style="color:#888;font-size:12px">Or copy this link: ${acceptUrl}</p>
-                <p style="color:#555;font-size:11px">If you didn't expect this, you can ignore this email.</p>
+                <p style="color:#555;font-size:11px">If you didn't expect this, you can safely ignore it.</p>
               </div>`,
           }),
         });
