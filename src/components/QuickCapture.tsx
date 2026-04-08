@@ -243,6 +243,8 @@ export default function QuickCapture({
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<CaptureStatus | null>(null);
+  // Holds the full technical error string so it stays visible until the next save attempt.
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [preview, setPreview] = useState<ParsedEntry | null>(null);
   const [listening, setListening] = useState(false);
   // Multi-brain: which brains to capture into (primary = first element)
@@ -679,6 +681,7 @@ export default function QuickCapture({
       }
       setPreview(null);
       setLoading(true);
+      setErrorDetail(null);
       setStatus("saving");
       try {
         if (parsed.title) {
@@ -775,18 +778,24 @@ export default function QuickCapture({
                 }, 5000);
               }
             } else {
-              console.warn("[doSave] API returned non-ok:", rpcRes.status);
-              showToast("Failed to save entry. Please try again.", "error");
+              const errBody = await rpcRes.text().catch(() => "(no body)");
+              const errMsg = `[doSave] HTTP ${rpcRes.status} — ${errBody}`;
+              console.error(errMsg);
+              setErrorDetail(errMsg);
               setStatus("error");
             }
           }
         }
-      } catch (e) {
-        console.error(e);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        const errMsg = `[doSave] exception: ${msg}`;
+        console.error(errMsg);
+        setErrorDetail(errMsg);
         setStatus("error");
       }
       setLoading(false);
-      setTimeout(() => setStatus(null), 3000);
+      // Errors stay visible until the next save attempt; only clear success states.
+      setTimeout(() => setStatus((s) => s !== "error" ? null : s), 3000);
     },
     [
       entries,
@@ -806,6 +815,7 @@ export default function QuickCapture({
     const input = text.trim();
     setText("");
     setLoading(true);
+    setErrorDetail(null);
     setStatus("thinking");
     if (!isOnline) {
       showToast("You can't save while offline.", "error");
@@ -870,18 +880,23 @@ export default function QuickCapture({
         onCreated?.(newEntry as Entry);
         setStatus("saved-db");
       } else {
-        showToast("Failed to save entry. Please try again.", "error");
+        const errBody = await rpcRes.text().catch(() => "(no body)");
+        const errMsg = `[capture:raw] HTTP ${rpcRes.status} — ${errBody}`;
+        console.error(errMsg);
+        setErrorDetail(errMsg);
         setText(input);
         setStatus("error");
       }
     } catch (e) {
-      console.error("[capture] API error:", e);
-      showToast("Capture failed. Please try again.", "error");
+      const msg = e instanceof Error ? e.message : String(e);
+      const errMsg = `[capture] exception: ${msg}`;
+      console.error(errMsg);
+      setErrorDetail(errMsg);
       setText(input);
       setStatus("error");
     }
     setLoading(false);
-    setTimeout(() => setStatus(null), 3000);
+    setTimeout(() => setStatus((s) => s !== "error" ? null : s), 3000);
   };
 
   const statusMsg = {
@@ -1028,8 +1043,8 @@ export default function QuickCapture({
       {/* Status message */}
       {status && (
         <div className="mt-2 px-1">
-          <p className="text-xs" style={{ color: status === "error" || status.includes("large") || status.includes("unsupported") ? "var(--color-error)" : "var(--color-primary)" }}>
-            {status ? statusMsg[status] : null}
+          <p className="text-xs font-mono break-all" style={{ color: status === "error" || status.includes("large") || status.includes("unsupported") ? "var(--color-error)" : "var(--color-primary)" }}>
+            {status === "error" && errorDetail ? errorDetail : (status ? statusMsg[status] : null)}
           </p>
           {status === "vault-needed" && onNavigate && (
             <button
