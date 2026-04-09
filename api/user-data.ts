@@ -122,19 +122,21 @@ async function handleHealth(req: ApiRequest, res: ApiResponse): Promise<void> {
     db = r.ok;
   } catch { db = false; }
 
-  // Test Gemini — minimal generateContent call
+  // Test Gemini — list models endpoint (lightweight key validation, also confirms gemma-4-31b-it available)
   let gemini = false;
+  let geminiModel = "";
   if (GEMINI_API_KEY) {
     try {
       const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-          body: JSON.stringify({ model: "gemma-4-31b-it", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
-        }
+        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(GEMINI_API_KEY)}&pageSize=200`
       );
-      gemini = r.ok;
+      if (r.ok) {
+        const data: any = await r.json();
+        const models: string[] = (data.models || []).map((m: any) => m.name as string);
+        const found = models.find(n => n.includes("gemma-4-31b") || n.includes("gemma-4"));
+        gemini = true;
+        geminiModel = found ? found.replace("models/", "") : "key valid (gemma-4-31b-it not listed)";
+      }
     } catch { gemini = false; }
   }
 
@@ -149,7 +151,7 @@ async function handleHealth(req: ApiRequest, res: ApiResponse): Promise<void> {
     } catch { groq = false; }
   }
 
-  res.status(200).json({ db, gemini, groq });
+  res.status(200).json({ db, gemini, geminiModel, groq });
 }
 
 // ── /api/vault (rewritten to /api/user-data?resource=vault) ──

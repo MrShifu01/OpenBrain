@@ -6,6 +6,7 @@ type Status = "idle" | "loading" | "ok" | "fail";
 interface HealthResult {
   db: boolean;
   gemini: boolean;
+  geminiModel?: string;
   groq: boolean;
 }
 
@@ -25,6 +26,7 @@ const label = (s: Status) => {
 
 export default function ProvidersTab() {
   const [gemini, setGemini] = useState<Status>("idle");
+  const [geminiModel, setGeminiModel] = useState("");
   const [groq, setGroq] = useState<Status>("idle");
   const [db, setDb] = useState<Status>("idle");
   const [testing, setTesting] = useState(false);
@@ -39,6 +41,7 @@ export default function ProvidersTab() {
       if (res.ok) {
         const data: HealthResult = await res.json();
         setGemini(data.gemini ? "ok" : "fail");
+        setGeminiModel(data.geminiModel || "");
         setGroq(data.groq ? "ok" : "fail");
         setDb(data.db ? "ok" : "fail");
       } else {
@@ -50,10 +53,10 @@ export default function ProvidersTab() {
     setTesting(false);
   }
 
-  const cards: { key: keyof HealthResult; title: string; desc: string; status: Status }[] = [
-    { key: "gemini", title: "Gemini AI", desc: "gemma-4-31b-it · text-embedding-004", status: gemini },
-    { key: "groq",   title: "Groq Voice", desc: "whisper-large-v3-turbo", status: groq },
-    { key: "db",     title: "Database", desc: "Supabase", status: db },
+  const cards: { title: string; desc: string; status: Status }[] = [
+    { title: "Gemini AI", desc: geminiModel || "gemma-4-31b-it · text-embedding-004", status: gemini },
+    { title: "Groq Voice", desc: "whisper-large-v3-turbo", status: groq },
+    { title: "Database",   desc: "Supabase", status: db },
   ];
 
   return (
