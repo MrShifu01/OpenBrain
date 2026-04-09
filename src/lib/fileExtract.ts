@@ -3,7 +3,7 @@
 async function extractPdf(buffer: ArrayBuffer): Promise<string> {
   const [pdfjsLib, { default: workerUrl }] = await Promise.all([
     import("pdfjs-dist"),
-    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+    import("./pdfWorkerUrl"),
   ]);
   pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl as string;
   const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
