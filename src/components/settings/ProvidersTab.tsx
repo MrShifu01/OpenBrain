@@ -262,18 +262,15 @@ export default function ProvidersTab({ activeBrain }: Props) {
     }
   };
 
-  const handleReembedWithConfig = async (provider: string, key: string, model: string | null, force = true) => {
-    if (!activeBrain?.id || !key) return;
+  const runEmbedLoop = async (embedHeaders: Record<string, string>, force: boolean) => {
+    if (!activeBrain?.id) return;
     setEmbedStatus("running");
     let totalProcessed = 0, totalFailed = 0;
+    const RATE_LIMIT_PAUSE_MS = 8000;
+    const MAX_RATE_RETRIES = 5;
     try {
+      let rateRetries = 0;
       for (let i = 0; i < 100; i++) {
-        const embedHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-          "X-Embed-Provider": provider,
-          "X-Embed-Key": key,
-        };
-        if (model) embedHeaders["X-Embed-Model"] = model;
         const res = await authFetch("/api/embed", {
           method: "POST",
           headers: embedHeaders,
@@ -281,9 +278,21 @@ export default function ProvidersTab({ activeBrain }: Props) {
         });
         if (!res.ok) {
           const errData = await res.json().catch(() => null);
-          if (totalProcessed === 0) { setEmbedStatus(`error:${errData?.error || res.status}`); setTimeout(() => setEmbedStatus(null), 10000); return; }
+          if (res.status === 429 && rateRetries < MAX_RATE_RETRIES) {
+            rateRetries++;
+            setEmbedStatus(`running:${totalProcessed} (rate limited, pausing…)`);
+            await new Promise((r) => setTimeout(r, RATE_LIMIT_PAUSE_MS));
+            i--; // retry same batch
+            continue;
+          }
+          if (totalProcessed === 0) {
+            setEmbedStatus(`error:${errData?.error || res.status}`);
+            setTimeout(() => setEmbedStatus(null), 10000);
+            return;
+          }
           break;
         }
+        rateRetries = 0;
         const data = await res.json();
         totalProcessed += data.processed;
         totalFailed += data.failed ?? 0;
@@ -297,52 +306,29 @@ export default function ProvidersTab({ activeBrain }: Props) {
     setTimeout(() => setEmbedStatus(null), 10000);
   };
 
-  const handleReembed = async (force = false) => {
-    if (!activeBrain?.id) return;
+  const handleReembedWithConfig = (provider: string, key: string, model: string | null, force = true) => {
+    if (!key) return;
+    const embedHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Embed-Provider": provider,
+      "X-Embed-Key": key,
+    };
+    if (model) embedHeaders["X-Embed-Model"] = model;
+    runEmbedLoop(embedHeaders, force);
+  };
+
+  const handleReembed = (force = false) => {
     const key = embedProvider === "google" ? geminiKey
       : embedProvider === "openrouter" ? orKey
       : embedOpenAIKey;
     if (!key) return;
-    setEmbedStatus("running");
-    let totalProcessed = 0,
-      totalFailed = 0;
-    try {
-      for (let i = 0; i < 100; i++) {
-        const embedHeaders: Record<string, string> = {
-          "Content-Type": "application/json",
-          "X-Embed-Provider": embedProvider,
-          "X-Embed-Key": key,
-        };
-        if (embedProvider === "openrouter") embedHeaders["X-Embed-Model"] = getEmbedOrModel();
-        const res = await authFetch("/api/embed", {
-          method: "POST",
-          headers: embedHeaders,
-          body: JSON.stringify({ brain_id: activeBrain.id, batch: true, force }),
-        });
-        if (!res.ok) {
-          const errData = await res.json().catch(() => null);
-          if (totalProcessed === 0) {
-            setEmbedStatus(`error:${errData?.error || res.status}`);
-            setTimeout(() => setEmbedStatus(null), 10000);
-            return;
-          }
-          break;
-        }
-        const data = await res.json();
-        totalProcessed += data.processed;
-        totalFailed += data.failed ?? 0;
-        setEmbedStatus(`running:${totalProcessed}`);
-        if ((data.remaining ?? 0) <= 0) break;
-      }
-      setEmbedStatus(`done:${totalProcessed}:${totalFailed}`);
-    } catch (e: any) {
-      setEmbedStatus(
-        totalProcessed === 0
-          ? `error:${e.message || "Network error"}`
-          : `done:${totalProcessed}:${totalFailed}`,
-      );
-    }
-    setTimeout(() => setEmbedStatus(null), 10000);
+    const embedHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+      "X-Embed-Provider": embedProvider,
+      "X-Embed-Key": key,
+    };
+    if (embedProvider === "openrouter") embedHeaders["X-Embed-Model"] = getEmbedOrModel();
+    runEmbedLoop(embedHeaders, force);
   };
 
   const [simpleMode, setSimpleMode] = useState(() => getSimpleMode());
