@@ -79,9 +79,13 @@ export function useCaptureSheetParse({
       setStatus("saving");
       setErrorDetail(null);
       try {
+        const embedHeaders = getEmbedHeaders();
+        console.log("[capture:embed] headers →", embedHeaders
+          ? { provider: embedHeaders["X-Embed-Provider"], model: embedHeaders["X-Embed-Model"] ?? "(default)", hasKey: !!embedHeaders["X-Embed-Key"] }
+          : "none — embedding will be skipped");
         const res = await authFetch("/api/capture", {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
+          headers: { "Content-Type": "application/json", ...(embedHeaders || {}) },
           body: JSON.stringify({
             p_title: parsed.title,
             p_content: parsed.content || "",
@@ -93,7 +97,11 @@ export function useCaptureSheetParse({
         });
         if (res.ok) {
           const result = await res.json();
-          if (result.embed_error) console.error("[useCaptureSheetParse:embed]", result.embed_error);
+          if (result.embed_error) {
+            console.error("[capture:embed] failed →", result.embed_error);
+          } else {
+            console.log("[capture:embed] success");
+          }
           const newEntry: Entry = {
             id: result?.id || Date.now().toString(),
             title: parsed.title,
