@@ -262,7 +262,9 @@ export function useCaptureSheetParse({
 
   const handleDocFiles = useCallback(
     async (files: FileList, appendText: (extracted: string) => void) => {
+      console.log("[handleDocFiles] called, count:", files.length);
       for (const file of Array.from(files)) {
+        console.log("[handleDocFiles] processing:", file.name, file.type, file.size);
         if (file.type.startsWith("image/")) {
           await handleImageFile(file, appendText);
           continue;

@@ -222,9 +222,13 @@ export default function CaptureSheet({
           multiple
           className="hidden"
           onChange={(e) => {
+            console.log("[docInput] onChange fired, files:", e.target.files?.length);
             const files = e.target.files;
+            if (files?.length) {
+              handleDocFiles(files, (extracted) => setText((prev) => (prev ? `${prev}\n${extracted}` : extracted)))
+                .catch((err) => console.error("[docInput] unhandled:", err));
+            }
             e.target.value = "";
-            if (files?.length) handleDocFiles(files, (extracted) => setText((prev) => (prev ? `${prev}\n${extracted}` : extracted)));
           }}
         />
 
