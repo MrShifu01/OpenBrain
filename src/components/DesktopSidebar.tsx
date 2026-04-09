@@ -60,6 +60,7 @@ interface DesktopSidebarProps {
   activeBrainName: string;
   view: string;
   onNavigate: (id: string) => void;
+  onCapture: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
   isOnline: boolean;
@@ -121,6 +122,7 @@ export default function DesktopSidebar({
   activeBrainName: _activeBrainName,
   view,
   onNavigate,
+  onCapture,
   isDark,
   onToggleTheme,
   isOnline,
@@ -160,7 +162,7 @@ export default function DesktopSidebar({
 
       {/* ── New Entry CTA ── */}
       <button
-        onClick={() => onNavigate("capture")}
+        onClick={onCapture}
         className="press-scale text-on-primary bg-primary hover:bg-primary-dim mx-2 mt-1 mb-8 flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors duration-150"
       >
         <svg

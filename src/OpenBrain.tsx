@@ -317,6 +317,7 @@ export default function OpenBrain() {
               setView(id);
               setNavOpen(false);
             }}
+            onCapture={() => setShowCapture(true)}
             isDark={isDark}
             onToggleTheme={toggleTheme}
             isOnline={isOnline}
@@ -340,7 +341,7 @@ export default function OpenBrain() {
           </DesktopSidebar>
 
           <div className="w-full overflow-x-hidden">
-            <div className="bg-background min-h-dvh lg:ml-72">
+            <div className="bg-background min-h-dvh lg:ml-72 lg:max-w-[calc(75vw)]">
               <MobileHeader
                 brainName={activeBrain?.name || "Everion"}
                 brainEmoji="🧠"
