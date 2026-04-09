@@ -74,7 +74,11 @@ export function useChat({
           (cryptoKey
             ? entries
                 .filter((e) => e.type === "secret")
-                .map((e) => ({ title: e.title, content: (e.content as any)?.slice(0, 500), tags: e.tags }))
+                .map((e) => ({
+                  title: e.title,
+                  content: (e.content as any)?.slice(0, 500),
+                  tags: e.tags,
+                }))
             : []);
 
         const embedHeaders = getEmbedHeaders();
@@ -134,10 +138,10 @@ export function useChat({
             : relevantEntries;
           const res = await callAI({
             max_tokens: 1000,
-            system: PROMPTS.CHAT.replace("{{MEMORIES}}", JSON.stringify(contextWithSecrets)).replace(
-              "{{LINKS}}",
-              JSON.stringify(links),
-            ),
+            system: PROMPTS.CHAT.replace(
+              "{{MEMORIES}}",
+              JSON.stringify(contextWithSecrets),
+            ).replace("{{LINKS}}", JSON.stringify(links)),
             brainId: activeBrain?.id,
             messages: [{ role: "user", content: msg }],
           });

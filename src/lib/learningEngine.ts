@@ -17,11 +17,11 @@ const SUMMARIZE_EVERY = 10;
 /* ─── Types ─── */
 
 export type DecisionSource =
-  | "refine"       // Refine audit suggestions
-  | "capture"      // QuickCapture classification edits
-  | "connection"   // Auto-link accept/remove
-  | "suggestion"   // Fill-brain Q&A edits
-  | "chat";        // Chat feedback (future)
+  | "refine" // Refine audit suggestions
+  | "capture" // QuickCapture classification edits
+  | "connection" // Auto-link accept/remove
+  | "suggestion" // Fill-brain Q&A edits
+  | "chat"; // Chat feedback (future)
 
 export interface LearningDecision {
   /** Which feature produced this decision */
@@ -58,7 +58,9 @@ function writeDecisions(brainId: string, decisions: LearningDecision[]): void {
   try {
     const trimmed = decisions.slice(-MAX_RAW_DECISIONS);
     sessionStorage.setItem(KEYS.learningDecisions(brainId), JSON.stringify(trimmed));
-  } catch { /* quota exceeded — degrade gracefully */ }
+  } catch {
+    /* quota exceeded — degrade gracefully */
+  }
 }
 
 function readLearnings(brainId: string): string {
@@ -73,16 +75,15 @@ function readLearnings(brainId: string): string {
 function writeLearnings(brainId: string, text: string): void {
   try {
     sessionStorage.setItem(KEYS.learningSummary(brainId), text);
-  } catch { /* quota exceeded */ }
+  } catch {
+    /* quota exceeded */
+  }
 }
 
 /* ─── Public API ─── */
 
 /** Record any user decision from any feature. */
-export function recordDecision(
-  brainId: string,
-  decision: Omit<LearningDecision, "ts">,
-): void {
+export function recordDecision(brainId: string, decision: Omit<LearningDecision, "ts">): void {
   const decisions = readDecisions(brainId);
   decisions.push({ ...decision, ts: new Date().toISOString() });
   writeDecisions(brainId, decisions);
@@ -140,13 +141,19 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
 
     const rejectRate = Math.round((counts.reject / total) * 100);
     if (rejectRate >= 60) {
-      lines.push(`- User rejects ${type} suggestions ${rejectRate}% of the time. Be much more conservative with ${type}.`);
+      lines.push(
+        `- User rejects ${type} suggestions ${rejectRate}% of the time. Be much more conservative with ${type}.`,
+      );
     } else if (rejectRate >= 40) {
-      lines.push(`- User rejects ${type} suggestions ${rejectRate}% of the time. Raise your confidence threshold for ${type}.`);
+      lines.push(
+        `- User rejects ${type} suggestions ${rejectRate}% of the time. Raise your confidence threshold for ${type}.`,
+      );
     }
 
     if (counts.edit > 0 && counts.edit >= total * 0.3) {
-      lines.push(`- User frequently edits ${type} suggestions (${counts.edit}/${total}). Suggestions are directionally correct but need refinement.`);
+      lines.push(
+        `- User frequently edits ${type} suggestions (${counts.edit}/${total}). Suggestions are directionally correct but need refinement.`,
+      );
     }
   }
 
@@ -154,14 +161,18 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
   for (const [toType, fromTypes] of Object.entries(acceptedTypes)) {
     if (fromTypes.length >= 2) {
       const unique = [...new Set(fromTypes)];
-      lines.push(`- User confirmed entries typed as "${unique.join('", "')}" should often be "${toType}".`);
+      lines.push(
+        `- User confirmed entries typed as "${unique.join('", "')}" should often be "${toType}".`,
+      );
     }
   }
 
   /* ── Capture-specific learnings ── */
   const captureDecs = bySource["capture"] || [];
   if (captureDecs.length >= 3) {
-    const typeEdits = captureDecs.filter((d) => d.field === "type" && d.originalValue && d.finalValue);
+    const typeEdits = captureDecs.filter(
+      (d) => d.field === "type" && d.originalValue && d.finalValue,
+    );
     if (typeEdits.length >= 2) {
       const corrections: Record<string, string[]> = {};
       for (const d of typeEdits) {
@@ -172,19 +183,25 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
       for (const [from, tos] of Object.entries(corrections)) {
         const mostCommon = mode(tos);
         if (mostCommon) {
-          lines.push(`- When classifying captures, AI often says "${from}" but user changes to "${mostCommon}". Prefer "${mostCommon}" in these cases.`);
+          lines.push(
+            `- When classifying captures, AI often says "${from}" but user changes to "${mostCommon}". Prefer "${mostCommon}" in these cases.`,
+          );
         }
       }
     }
 
     const titleEdits = captureDecs.filter((d) => d.field === "title").length;
     if (titleEdits >= 3) {
-      lines.push(`- User frequently edits AI-generated titles (${titleEdits}x). Generate more specific, concise titles.`);
+      lines.push(
+        `- User frequently edits AI-generated titles (${titleEdits}x). Generate more specific, concise titles.`,
+      );
     }
 
     const tagEdits = captureDecs.filter((d) => d.field === "tags").length;
     if (tagEdits >= 3) {
-      lines.push(`- User frequently modifies tags (${tagEdits}x). Be more careful with tag suggestions.`);
+      lines.push(
+        `- User frequently modifies tags (${tagEdits}x). Be more careful with tag suggestions.`,
+      );
     }
   }
 
@@ -194,14 +211,18 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
     const rejected = connDecs.filter((d) => d.action === "reject");
     const accepted = connDecs.filter((d) => d.action === "accept");
     if (rejected.length > accepted.length) {
-      lines.push(`- User rejects most auto-suggested connections (${rejected.length}/${connDecs.length}). Only suggest very high-confidence links.`);
+      lines.push(
+        `- User rejects most auto-suggested connections (${rejected.length}/${connDecs.length}). Only suggest very high-confidence links.`,
+      );
     }
     // Track rejected relationship types
     const rejectedRels = rejected.map((d) => d.originalValue).filter(Boolean);
     if (rejectedRels.length >= 3) {
       const topRejected = mode(rejectedRels as string[]);
       if (topRejected) {
-        lines.push(`- Most rejected connection type: "${topRejected}". Avoid suggesting this relationship.`);
+        lines.push(
+          `- Most rejected connection type: "${topRejected}". Avoid suggesting this relationship.`,
+        );
       }
     }
   }
@@ -211,16 +232,21 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
     if (reasons.length >= 3) {
       const wordFreq: Record<string, number> = {};
       reasons.forEach((r) =>
-        r.toLowerCase().split(/\s+/).forEach((w) => {
-          if (w.length > 3) wordFreq[w] = (wordFreq[w] || 0) + 1;
-        }),
+        r
+          .toLowerCase()
+          .split(/\s+/)
+          .forEach((w) => {
+            if (w.length > 3) wordFreq[w] = (wordFreq[w] || 0) + 1;
+          }),
       );
       const topWords = Object.entries(wordFreq)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3)
         .map(([w]) => w);
       if (topWords.length > 0) {
-        lines.push(`- When rejecting ${type}, common themes: ${topWords.join(", ")}. Avoid suggestions related to these.`);
+        lines.push(
+          `- When rejecting ${type}, common themes: ${topWords.join(", ")}. Avoid suggestions related to these.`,
+        );
       }
     }
   }
@@ -228,10 +254,10 @@ function summarizeLearnings(brainId: string, decisions?: LearningDecision[]): vo
   /* ── Recent edit patterns (last 5 as examples) ── */
   const recentEdits = editPatterns.slice(-5);
   if (recentEdits.length >= 2) {
-    const examples = recentEdits
-      .map((e) => `${e.type}: "${e.from}" → "${e.to}"`)
-      .join("; ");
-    lines.push(`- Recent user edits: ${examples}. Adapt suggestions to match this user's preferred style.`);
+    const examples = recentEdits.map((e) => `${e.type}: "${e.from}" → "${e.to}"`).join("; ");
+    lines.push(
+      `- Recent user edits: ${examples}. Adapt suggestions to match this user's preferred style.`,
+    );
   }
 
   /* ── Header stats ── */
@@ -278,7 +304,10 @@ function mode(arr: string[]): string | null {
   let best: string | null = null;
   let bestCount = 0;
   for (const [v, c] of Object.entries(freq)) {
-    if (c > bestCount) { best = v; bestCount = c; }
+    if (c > bestCount) {
+      best = v;
+      bestCount = c;
+    }
   }
   return bestCount >= 2 ? best : null;
 }

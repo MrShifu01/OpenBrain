@@ -129,7 +129,9 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
                 if (bodyParsed.p_type !== "secret") {
                   extraHeaders = getEmbedHeaders() || {};
                 }
-              } catch { /* ignore malformed body */ }
+              } catch {
+                /* ignore malformed body */
+              }
             }
             const res = await authFetch(op.url, {
               method: op.method,
@@ -213,10 +215,7 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
     };
   }, [drain]);
 
-  const clearFailedOps = useCallback(
-    () => clearFailed().then(() => setFailedOps([])),
-    [],
-  );
+  const clearFailedOps = useCallback(() => clearFailed().then(() => setFailedOps([])), []);
 
   return { isOnline, pendingCount, sync: drain, refreshCount, failedOps, clearFailedOps };
 }

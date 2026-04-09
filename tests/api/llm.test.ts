@@ -66,7 +66,7 @@ describe("api/llm — transcribe action", () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining("Groq or OpenAI") })
+      expect.objectContaining({ error: expect.stringContaining("Groq or OpenAI") }),
     );
   });
 
@@ -80,7 +80,7 @@ describe("api/llm — transcribe action", () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining("audio") })
+      expect.objectContaining({ error: expect.stringContaining("audio") }),
     );
   });
 
@@ -94,7 +94,7 @@ describe("api/llm — transcribe action", () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining("mimeType") })
+      expect.objectContaining({ error: expect.stringContaining("mimeType") }),
     );
   });
 

@@ -34,7 +34,7 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
   return (
     <div
       role="alert"
-      className="fixed bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90vw] max-w-sm overflow-hidden rounded-2xl border"
+      className="fixed bottom-24 left-1/2 z-50 w-[90vw] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border lg:bottom-6"
       style={{
         background: "var(--color-surface-container-high)",
         borderColor: isDelete
@@ -46,7 +46,7 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
     >
       <div className="flex items-center gap-3 px-4 py-3">
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
+          className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg text-sm"
           style={{
             background: isDelete
               ? "color-mix(in oklch, var(--color-error) 10%, transparent)"
@@ -55,11 +55,11 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
         >
           {isDelete ? "🗑" : "✓"}
         </div>
-        <span className="flex-1 text-sm font-medium text-on-surface">{label}</span>
+        <span className="text-on-surface flex-1 text-sm font-medium">{label}</span>
         {action.type !== "create" && (
           <button
             onClick={onUndo}
-            className="text-primary text-xs font-bold uppercase tracking-widest hover:text-primary-dim transition-colors press-scale"
+            className="text-primary hover:text-primary-dim press-scale text-xs font-bold tracking-widest uppercase transition-colors"
           >
             Undo
           </button>
@@ -67,11 +67,11 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
         <button
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="text-on-surface-variant hover:text-on-surface transition-colors ml-1"
+          className="text-on-surface-variant hover:text-on-surface ml-1 transition-colors"
         >
           <svg
             aria-hidden="true"
-            className="w-4 h-4"
+            className="h-4 w-4"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -83,7 +83,7 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
       </div>
       <div className="h-0.5 w-full" style={{ background: "var(--color-outline-variant)" }}>
         <div
-          className="h-full transition-none rounded-full"
+          className="h-full rounded-full transition-none"
           style={{
             width: `${pct}%`,
             background: isDelete ? "var(--color-error)" : "var(--color-primary)",

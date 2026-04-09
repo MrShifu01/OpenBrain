@@ -12,14 +12,25 @@ export function scoreTitle(a: string, b: string): number {
 }
 
 /** Score how similar two entries are, considering title, content, and tags */
-export function scoreEntry(incoming: { title: string; content?: string; tags?: string[] }, existing: Entry): number {
+export function scoreEntry(
+  incoming: { title: string; content?: string; tags?: string[] },
+  existing: Entry,
+): number {
   const titleScore = scoreTitle(incoming.title, existing.title);
 
   // Content overlap: check if key phrases from incoming appear in existing
   let contentScore = 0;
   if (incoming.content && existing.content) {
-    const inWords = new Set(incoming.content.toLowerCase().split(/\W+/).filter((w) => w.length > 3));
-    const exWords = existing.content.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    const inWords = new Set(
+      incoming.content
+        .toLowerCase()
+        .split(/\W+/)
+        .filter((w) => w.length > 3),
+    );
+    const exWords = existing.content
+      .toLowerCase()
+      .split(/\W+/)
+      .filter((w) => w.length > 3);
     if (inWords.size > 0 && exWords.length > 0) {
       const hits = exWords.filter((w) => inWords.has(w)).length;
       contentScore = Math.round((hits / Math.max(inWords.size, exWords.length, 1)) * 100);

@@ -19,7 +19,6 @@ function getHashTokens(): { access_token: string; refresh_token: string } | null
   return null;
 }
 
-
 export default function App(): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
@@ -41,7 +40,10 @@ export default function App(): JSX.Element {
       .then((data) => {
         if (data.ok) setInviteMsg("You've joined the brain! Refreshing…");
         else setInviteMsg(data.error || "Invite link invalid or already used.");
-        setTimeout(() => { setInviteMsg(null); window.location.reload(); }, 2500);
+        setTimeout(() => {
+          setInviteMsg(null);
+          window.location.reload();
+        }, 2500);
       })
       .catch(() => setInviteMsg("Failed to accept invite. Please try again."));
   }, [session]);
@@ -49,30 +51,36 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const tokens = getHashTokens();
     if (tokens) {
-      supabase.auth.setSession(tokens).then(({ data: { session } }) => {
-        setSession(session);
-        window.history.replaceState(null, "", window.location.pathname);
-      }).catch(async () => {
-        await supabase.auth.signOut().catch(() => {});
-        setSession(null);
-        window.history.replaceState(null, "", window.location.pathname);
-      });
+      supabase.auth
+        .setSession(tokens)
+        .then(({ data: { session } }) => {
+          setSession(session);
+          window.history.replaceState(null, "", window.location.pathname);
+        })
+        .catch(async () => {
+          await supabase.auth.signOut().catch(() => {});
+          setSession(null);
+          window.history.replaceState(null, "", window.location.pathname);
+        });
       return;
     }
     const loadSettings = (userId: string) =>
       Promise.race([
         loadUserAISettings(userId),
-        new Promise<void>(resolve => setTimeout(resolve, 3000)),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
       ]).catch(() => {});
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user?.id) await loadSettings(session.user.id);
-      setSession(session);
-    }).catch(async () => {
-      // Corrupted/malformed token in localStorage — clear it and send to login
-      await supabase.auth.signOut().catch(() => {});
-      setSession(null);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data: { session } }) => {
+        if (session?.user?.id) await loadSettings(session.user.id);
+        setSession(session);
+      })
+      .catch(async () => {
+        // Corrupted/malformed token in localStorage — clear it and send to login
+        await supabase.auth.signOut().catch(() => {});
+        setSession(null);
+      });
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_e, session) => {
@@ -82,16 +90,18 @@ export default function App(): JSX.Element {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (session === undefined) return (
-    <ThemeProvider>
-      <LoadingScreen />
-    </ThemeProvider>
-  );
-  if (!session) return (
-    <ThemeProvider>
-      <LoginScreen />
-    </ThemeProvider>
-  );
+  if (session === undefined)
+    return (
+      <ThemeProvider>
+        <LoadingScreen />
+      </ThemeProvider>
+    );
+  if (!session)
+    return (
+      <ThemeProvider>
+        <LoginScreen />
+      </ThemeProvider>
+    );
   return (
     <ThemeProvider>
       <ErrorBoundary>
@@ -99,10 +109,18 @@ export default function App(): JSX.Element {
           {inviteMsg && (
             <div
               style={{
-                position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999,
-                background: "var(--color-surface)", borderBottom: "1px solid var(--color-primary-container)",
-                color: "var(--color-primary)", textAlign: "center", padding: "14px 16px",
-                fontSize: "14px", fontFamily: "'DM Sans', system-ui, sans-serif",
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 9999,
+                background: "var(--color-surface)",
+                borderBottom: "1px solid var(--color-primary-container)",
+                color: "var(--color-primary)",
+                textAlign: "center",
+                padding: "14px 16px",
+                fontSize: "14px",
+                fontFamily: "'DM Sans', system-ui, sans-serif",
               }}
             >
               {inviteMsg}

@@ -52,7 +52,10 @@ vi.mock("../../api/_lib/generateEmbedding.js", () => ({
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
-vi.stubGlobal("setTimeout", (fn: () => void, _ms: number) => { fn(); return 0; });
+vi.stubGlobal("setTimeout", (fn: () => void, _ms: number) => {
+  fn();
+  return 0;
+});
 
 beforeEach(() => {
   vi.resetModules();
@@ -63,7 +66,9 @@ beforeEach(() => {
   mockFetch.mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => [{ id: "entry-abc", title: "T", content: "C", tags: [], brain_id: "brain-1" }],
+    json: async () => [
+      { id: "entry-abc", title: "T", content: "C", tags: [], brain_id: "brain-1" },
+    ],
     text: async () => "",
     headers: { get: () => "0/1" },
   });

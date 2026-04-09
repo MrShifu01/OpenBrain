@@ -7,9 +7,27 @@ import { describe, it, expect } from "vitest";
 import { rerankEntries } from "../../src/lib/semanticRerank";
 
 const entries = [
-  { id: "a", title: "Smash Burger Recipe", content: "beef patty", similarity: 0.6, created_at: "2026-01-01T00:00:00Z" },
-  { id: "b", title: "Staff Training Guide", content: "training schedule", similarity: 0.55, created_at: "2026-03-01T00:00:00Z" },
-  { id: "c", title: "Smash Burger Secret Sauce", content: "sauce recipe burger", similarity: 0.7, created_at: "2026-01-15T00:00:00Z" },
+  {
+    id: "a",
+    title: "Smash Burger Recipe",
+    content: "beef patty",
+    similarity: 0.6,
+    created_at: "2026-01-01T00:00:00Z",
+  },
+  {
+    id: "b",
+    title: "Staff Training Guide",
+    content: "training schedule",
+    similarity: 0.55,
+    created_at: "2026-03-01T00:00:00Z",
+  },
+  {
+    id: "c",
+    title: "Smash Burger Secret Sauce",
+    content: "sauce recipe burger",
+    similarity: 0.7,
+    created_at: "2026-01-15T00:00:00Z",
+  },
 ];
 
 describe("rerankEntries (S6-1)", () => {

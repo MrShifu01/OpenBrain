@@ -105,8 +105,8 @@ describe("DELETE /api/brains?action=revoke-invite (S5-1)", () => {
 
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
     // Verify DELETE was called against brain_invites
-    const deleteCall = mockFetch.mock.calls.find(([url]: any[]) =>
-      url.includes("brain_invites") && url.includes("inv-1")
+    const deleteCall = mockFetch.mock.calls.find(
+      ([url]: any[]) => url.includes("brain_invites") && url.includes("inv-1"),
     );
     expect(deleteCall).toBeDefined();
   });

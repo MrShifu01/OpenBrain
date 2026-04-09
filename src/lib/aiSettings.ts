@@ -8,7 +8,9 @@ const _keys: Record<string, string | null> = {};
 
 // ── Hydration signal: set true after loadUserAISettings completes ──
 let _loaded = false;
-export function isAISettingsLoaded(): boolean { return _loaded; }
+export function isAISettingsLoaded(): boolean {
+  return _loaded;
+}
 
 // ── Cached user ID set at login — used by syncToSupabase ──
 let _cachedUserId: string | null = null;
@@ -33,8 +35,14 @@ try {
     const uid: string | null = data?.user?.id || null;
     if (uid) {
       for (const suffix of [
-        "api_key", "model", "provider", "openrouter_key",
-        "openrouter_model", "embed_provider", "embed_openai_key", "gemini_key",
+        "api_key",
+        "model",
+        "provider",
+        "openrouter_key",
+        "openrouter_model",
+        "embed_provider",
+        "embed_openai_key",
+        "gemini_key",
         "groq_key",
       ]) {
         const oldKey = `openbrain_${uid}_${suffix}`;
@@ -45,7 +53,9 @@ try {
       }
     }
   }
-} catch { /* ignore */ }
+} catch {
+  /* ignore */
+}
 
 // ── Sensitive key names (localStorage entries to clear on migration) ──
 const SENSITIVE_LS_KEYS = [
@@ -63,7 +73,9 @@ export function getUserId(): string | null {
       const data = JSON.parse(localStorage.getItem(key)!);
       return data?.user?.id || null;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
@@ -83,7 +95,9 @@ function syncToSupabase(fields: Record<string, string | null>): void {
 }
 
 // ── Awaitable save — use in Save buttons to surface DB errors to the user ──
-export async function persistKeyToDb(fields: Record<string, string | null>): Promise<{ error: string | null }> {
+export async function persistKeyToDb(
+  fields: Record<string, string | null>,
+): Promise<{ error: string | null }> {
   const uid = _cachedUserId || getUserId();
   if (!uid) return { error: "Not authenticated — please sign in again." };
   const { error } = await supabase
@@ -197,11 +211,11 @@ export async function loadUserAISettings(userId: string): Promise<void> {
 
   if (data) {
     // Sensitive keys → memory
-    _keys[KEYS.AI_API_KEY]      = data.api_key ?? null;
-    _keys[KEYS.OPENROUTER_KEY]  = data.openrouter_key ?? null;
-    _keys[KEYS.GROQ_KEY]        = data.groq_key ?? null;
+    _keys[KEYS.AI_API_KEY] = data.api_key ?? null;
+    _keys[KEYS.OPENROUTER_KEY] = data.openrouter_key ?? null;
+    _keys[KEYS.GROQ_KEY] = data.groq_key ?? null;
     _keys[KEYS.EMBED_OPENAI_KEY] = data.embed_openai_key ?? null;
-    _keys[KEYS.GEMINI_KEY]      = data.gemini_key ?? null;
+    _keys[KEYS.GEMINI_KEY] = data.gemini_key ?? null;
 
     // Non-sensitive settings → localStorage
     const set = (lsKey: string, val: string | null | undefined) => {
@@ -230,7 +244,11 @@ export async function loadUserAISettings(userId: string): Promise<void> {
   }
 
   _loaded = true;
-  try { window.dispatchEvent(new CustomEvent("aiSettingsLoaded")); } catch { /* non-browser */ }
+  try {
+    window.dispatchEvent(new CustomEvent("aiSettingsLoaded"));
+  } catch {
+    /* non-browser */
+  }
 }
 
 // ── Embedding settings ──

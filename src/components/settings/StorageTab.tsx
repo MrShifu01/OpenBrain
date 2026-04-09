@@ -3,7 +3,9 @@ import TrashView from "../../views/TrashView";
 import type { Brain } from "../../types";
 import { KEYS } from "../../lib/storageKeys";
 
-function fmt(n: number) { return n.toLocaleString(); }
+function fmt(n: number) {
+  return n.toLocaleString();
+}
 function fmtBytes(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -41,18 +43,22 @@ function Row({ name, value, sub }: { name: string; value: string; sub?: string |
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <p className="text-xs font-semibold" style={{ color: "var(--color-outline)" }}>{title}</p>
+      <p className="text-xs font-semibold" style={{ color: "var(--color-outline)" }}>
+        {title}
+      </p>
       {children}
     </div>
   );
 }
 
 function UsagePanel() {
-  const [bd, setBd] = useState<Awaited<ReturnType<typeof import("../../lib/usageTracker").getMonthlyBreakdown>> | null>(null);
+  const [bd, setBd] = useState<Awaited<
+    ReturnType<typeof import("../../lib/usageTracker").getMonthlyBreakdown>
+  > | null>(null);
   const [entryCount, setEntryCount] = useState<number>(0);
 
   useEffect(() => {
-    import("../../lib/usageTracker").then(m => setBd(m.getMonthlyBreakdown()));
+    import("../../lib/usageTracker").then((m) => setBd(m.getMonthlyBreakdown()));
 
     // Estimate Supabase data from cached entries
     try {
@@ -72,18 +78,28 @@ function UsagePanel() {
   const embProviders = bd ? Object.keys(bd.embedding.byProvider) : [];
 
   return (
-    <div className="rounded-2xl border p-4 space-y-4" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+    <div
+      className="space-y-4 rounded-2xl border p-4"
+      style={{
+        background: "var(--color-surface-container)",
+        borderColor: "var(--color-outline-variant)",
+      }}
+    >
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-on-surface">Usage this month</p>
+        <p className="text-on-surface text-sm font-semibold">Usage this month</p>
         <button
           onClick={() => {
-            import("../../lib/usageTracker").then(m => {
+            import("../../lib/usageTracker").then((m) => {
               m.clearUsage();
               setBd(m.getMonthlyBreakdown());
             });
           }}
           className="rounded-lg px-2 text-xs"
-          style={{ color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)", minHeight: 32 }}
+          style={{
+            color: "var(--color-on-surface-variant)",
+            border: "1px solid var(--color-outline-variant)",
+            minHeight: 32,
+          }}
         >
           Clear
         </button>
@@ -95,7 +111,7 @@ function UsagePanel() {
           <Section title="LLM tokens">
             <Row name="Input" value={fmt(bd.llm.inputTokens)} />
             <Row name="Output" value={fmt(bd.llm.outputTokens)} />
-            {providers.map(p => {
+            {providers.map((p) => {
               const s = bd.llm.byProvider[p];
               const cost = fmtUsd(s.estimatedUsd);
               return (
@@ -117,7 +133,7 @@ function UsagePanel() {
             <Section title="Voice transcription">
               <Row name="Sessions" value={fmt(bd.transcription.calls)} />
               <Row name="Audio processed" value={fmtBytes(bd.transcription.audioBytes)} />
-              {txProviders.map(p => {
+              {txProviders.map((p) => {
                 const s = bd.transcription.byProvider[p];
                 const cost = fmtUsd(s.estimatedUsd);
                 return (
@@ -130,7 +146,11 @@ function UsagePanel() {
                 );
               })}
               {fmtUsd(bd.transcription.estimatedUsd) && (
-                <Row name="Est. cost" value={fmtUsd(bd.transcription.estimatedUsd)!} sub="(estimate only)" />
+                <Row
+                  name="Est. cost"
+                  value={fmtUsd(bd.transcription.estimatedUsd)!}
+                  sub="(estimate only)"
+                />
               )}
             </Section>
           )}
@@ -139,8 +159,13 @@ function UsagePanel() {
           {(bd.embedding.calls > 0 || embProviders.length > 0) && (
             <Section title="Embeddings">
               <Row name="Total calls" value={fmt(bd.embedding.calls)} />
-              {embProviders.map(p => (
-                <Row key={p} name={`  ${label(p)}`} value={`${fmt(bd.embedding.byProvider[p].calls)} calls`} sub="(free tier / low cost)" />
+              {embProviders.map((p) => (
+                <Row
+                  key={p}
+                  name={`  ${label(p)}`}
+                  value={`${fmt(bd.embedding.byProvider[p].calls)} calls`}
+                  sub="(free tier / low cost)"
+                />
               ))}
             </Section>
           )}
@@ -167,12 +192,23 @@ export default function StorageTab({ activeBrain }: Props) {
     <>
       <UsagePanel />
 
-      <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-on-surface">Data & Storage</p>
+      <div
+        className="space-y-3 rounded-2xl border p-4"
+        style={{
+          background: "var(--color-surface-container-high)",
+          borderColor: "var(--color-outline-variant)",
+        }}
+      >
+        <p className="text-on-surface text-sm font-semibold">Data & Storage</p>
         <button
-          onClick={() => setShowTrash(s => !s)}
+          onClick={() => setShowTrash((s) => !s)}
           className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-          style={{ background: "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))", color: "var(--color-error)", minHeight: 44 }}
+          style={{
+            background:
+              "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))",
+            color: "var(--color-error)",
+            minHeight: 44,
+          }}
         >
           {showTrash ? "Hide Trash" : "View Trash"}
         </button>
@@ -183,15 +219,25 @@ export default function StorageTab({ activeBrain }: Props) {
         )}
       </div>
 
-      <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-        <p className="text-sm font-semibold text-on-surface">Help & Onboarding</p>
+      <div
+        className="space-y-3 rounded-2xl border p-4"
+        style={{
+          background: "var(--color-surface-container-high)",
+          borderColor: "var(--color-outline-variant)",
+        }}
+      >
+        <p className="text-on-surface text-sm font-semibold">Help & Onboarding</p>
         <button
           onClick={() => {
             localStorage.removeItem("openbrain_onboarded");
             window.dispatchEvent(new CustomEvent("openbrain:restart-onboarding"));
           }}
           className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90"
-          style={{ background: "var(--color-primary-container)", color: "var(--color-primary)", minHeight: 44 }}
+          style={{
+            background: "var(--color-primary-container)",
+            color: "var(--color-primary)",
+            minHeight: 44,
+          }}
         >
           Restart Onboarding
         </button>

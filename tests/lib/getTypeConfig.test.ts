@@ -4,11 +4,31 @@ import { TC } from "../../src/data/constants";
 // Import after writing the function
 import { getTypeConfig } from "../../src/data/constants";
 
-const TYPE_COLOURS = ["#9B59B6","#E67E22","#27AE60","#2980B9","#E74C3C","#16A085","#8E44AD","#D35400"];
+const TYPE_COLOURS = [
+  "#9B59B6",
+  "#E67E22",
+  "#27AE60",
+  "#2980B9",
+  "#E74C3C",
+  "#16A085",
+  "#8E44AD",
+  "#D35400",
+];
 
 describe("getTypeConfig", () => {
   it("returns the exact TC entry for known types", () => {
-    const knownTypes = ["note", "secret", "person", "reminder", "document", "contact", "place", "idea", "color", "decision"];
+    const knownTypes = [
+      "note",
+      "secret",
+      "person",
+      "reminder",
+      "document",
+      "contact",
+      "place",
+      "idea",
+      "color",
+      "decision",
+    ];
     for (const type of knownTypes) {
       const result = getTypeConfig(type);
       expect(result).toEqual(TC[type]);

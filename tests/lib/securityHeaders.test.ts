@@ -27,7 +27,10 @@ describe("applySecurityHeaders", () => {
     const { applySecurityHeaders } = await import("../../api/_lib/securityHeaders");
     const res = makeRes();
     applySecurityHeaders(res as any);
-    expect(res.setHeader).toHaveBeenCalledWith("Referrer-Policy", "strict-origin-when-cross-origin");
+    expect(res.setHeader).toHaveBeenCalledWith(
+      "Referrer-Policy",
+      "strict-origin-when-cross-origin",
+    );
   });
 
   it("sets X-Permitted-Cross-Domain-Policies: none", async () => {

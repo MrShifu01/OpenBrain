@@ -8,9 +8,7 @@
 export function extractNudgeText(data: any): string | null {
   if (!data?.content?.length) return null;
 
-  const textBlock = data.content.find(
-    (b: any) => b.type === "text" && typeof b.text === "string",
-  );
+  const textBlock = data.content.find((b: any) => b.type === "text" && typeof b.text === "string");
   if (!textBlock) return null;
 
   const cleaned = textBlock.text
@@ -30,13 +28,13 @@ export function extractNudgeText(data: any): string | null {
   if (cleaned.length < 15) return null;
 
   // Reject if it looks like raw metadata (e.g. "Tuesday0", "key: value", ISO dates alone)
-  if (/^\w+\d+$/.test(cleaned)) return null;          // e.g. "Tuesday0"
+  if (/^\w+\d+$/.test(cleaned)) return null; // e.g. "Tuesday0"
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return null; // bare ISO date
 
   // Reject lines that look like key:value metadata dumps
   const lines = cleaned.split("\n").filter(Boolean);
-  const metadataLineCount = lines.filter((l: string) =>
-    /^[\w_]+:\s/.test(l) && l.split(":").length === 2,
+  const metadataLineCount = lines.filter(
+    (l: string) => /^[\w_]+:\s/.test(l) && l.split(":").length === 2,
   ).length;
   if (metadataLineCount > lines.length / 2) return null;
 

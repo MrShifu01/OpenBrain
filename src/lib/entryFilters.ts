@@ -4,7 +4,7 @@ export type DateFilter = "all" | "today" | "week" | "month";
 export type SortOrder = "newest" | "oldest" | "pinned";
 
 export interface EntryFilterState {
-  type: string;       // "all" or a specific type string
+  type: string; // "all" or a specific type string
   date: DateFilter;
   sort: SortOrder;
 }
@@ -54,9 +54,13 @@ export function applyEntryFilters(entries: Entry[], filters: EntryFilterState): 
 
   // ── Sort ──
   if (filters.sort === "newest") {
-    result.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+    result.sort(
+      (a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime(),
+    );
   } else if (filters.sort === "oldest") {
-    result.sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
+    result.sort(
+      (a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime(),
+    );
   } else if (filters.sort === "pinned") {
     result.sort((a, b) => {
       const pa = a.pinned ? 1 : 0;

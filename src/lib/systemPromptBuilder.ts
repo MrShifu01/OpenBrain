@@ -8,7 +8,12 @@ export interface SystemPromptOptions {
   withLearnings?: boolean;
 }
 
-export function buildSystemPrompt({ base = "", memoryGuide, brainId, withLearnings = false }: SystemPromptOptions): string {
+export function buildSystemPrompt({
+  base = "",
+  memoryGuide,
+  brainId,
+  withLearnings = false,
+}: SystemPromptOptions): string {
   let prompt = base;
 
   if (memoryGuide) {

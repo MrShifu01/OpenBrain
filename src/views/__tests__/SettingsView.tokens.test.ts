@@ -2,10 +2,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, it, expect } from "vitest";
 
-const src = readFileSync(
-  resolve(__dirname, "../SettingsView.tsx"),
-  "utf-8"
-);
+const src = readFileSync(resolve(__dirname, "../SettingsView.tsx"), "utf-8");
 
 describe("SettingsView — tab contrast", () => {
   it("active tab uses --color-primary for text, not --color-on-primary", () => {

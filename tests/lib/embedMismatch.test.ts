@@ -10,7 +10,7 @@ describe("embed provider mismatch", () => {
     ];
     const newProvider = "google";
     const embeddedWithOld = entries.filter(
-      e => e.embedding_provider && e.embedding_provider !== newProvider
+      (e) => e.embedding_provider && e.embedding_provider !== newProvider,
     ).length;
     expect(embeddedWithOld).toBe(2);
   });
@@ -18,7 +18,7 @@ describe("embed provider mismatch", () => {
     const entries = [{ id: "1", embedding_provider: "openai" }];
     const newProvider = "openai";
     const mismatched = entries.filter(
-      e => e.embedding_provider && e.embedding_provider !== newProvider
+      (e) => e.embedding_provider && e.embedding_provider !== newProvider,
     ).length;
     expect(mismatched).toBe(0);
   });

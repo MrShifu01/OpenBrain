@@ -17,7 +17,7 @@ export default function LoadingScreen(): JSX.Element {
 
         {/* Loading bar — transform-only, ease-out-expo */}
         <div
-          className="w-28 h-px rounded-full overflow-hidden"
+          className="h-px w-28 overflow-hidden rounded-full"
           style={{ background: "var(--color-outline-variant)" }}
         >
           <div

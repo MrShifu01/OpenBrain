@@ -27,8 +27,20 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
 const CONTENT_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/g;
 
 const DOW: Record<string, number> = {
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
-  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+  sun: 0,
+  mon: 1,
+  tue: 2,
+  wed: 3,
+  thu: 4,
+  fri: 5,
+  sat: 6,
 };
 
 function extractDates(entry: Entry): string[] {
@@ -81,16 +93,21 @@ function MiniCalendar({
   const dayKey = (d: number) =>
     `${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  const eventCount = Object.keys(dateMap).filter((k) => k.startsWith(`${year}-${String(mon + 1).padStart(2, "0")}`)).length;
+  const eventCount = Object.keys(dateMap).filter((k) =>
+    k.startsWith(`${year}-${String(mon + 1).padStart(2, "0")}`),
+  ).length;
 
   return (
     <div
-      className="rounded-2xl border overflow-hidden"
-      style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
+      className="overflow-hidden rounded-2xl border"
+      style={{
+        background: "var(--color-surface-container)",
+        borderColor: "var(--color-outline-variant)",
+      }}
     >
       {/* Header toggle */}
       <button
-        className="w-full flex items-center justify-between px-4 py-3 cursor-pointer"
+        className="flex w-full cursor-pointer items-center justify-between px-4 py-3"
         onClick={() => setExpanded((s) => !s)}
       >
         <div className="flex items-center gap-3">
@@ -113,15 +130,31 @@ function MiniCalendar({
           {expanded && (
             <>
               <button
-                className="w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold hover:opacity-80 transition-opacity"
-                style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
-                onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon - 1, 1)); }}
-              >←</button>
+                className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-80"
+                style={{
+                  color: "var(--color-primary)",
+                  background: "var(--color-primary-container)",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMonth(new Date(year, mon - 1, 1));
+                }}
+              >
+                ←
+              </button>
               <button
-                className="w-7 h-7 flex items-center justify-center rounded-full text-sm font-bold hover:opacity-80 transition-opacity"
-                style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
-                onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon + 1, 1)); }}
-              >→</button>
+                className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-80"
+                style={{
+                  color: "var(--color-primary)",
+                  background: "var(--color-primary-container)",
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMonth(new Date(year, mon + 1, 1));
+                }}
+              >
+                →
+              </button>
             </>
           )}
           <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
@@ -133,11 +166,11 @@ function MiniCalendar({
       {/* Calendar grid */}
       {expanded && (
         <div className="px-3 pb-3">
-          <div className="grid grid-cols-7 gap-1 mb-1">
+          <div className="mb-1 grid grid-cols-7 gap-1">
             {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
               <div
                 key={i}
-                className="text-center text-[10px] font-medium py-1"
+                className="py-1 text-center text-[10px] font-medium"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 {d}
@@ -154,20 +187,25 @@ function MiniCalendar({
               return (
                 <button
                   key={key}
-                  className={`relative w-full aspect-square flex flex-col items-center justify-center rounded-full text-xs transition-all ${
-                    isSel ? "text-black font-bold" : isToday ? "font-semibold" : ""
+                  className={`relative flex aspect-square w-full flex-col items-center justify-center rounded-full text-xs transition-all ${
+                    isSel ? "font-bold text-black" : isToday ? "font-semibold" : ""
                   }`}
                   style={{
                     background: isSel ? "var(--color-primary)" : "transparent",
-                    color: isSel ? "var(--color-on-primary)" : isToday ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-                    boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px var(--color-primary)" : "none",
+                    color: isSel
+                      ? "var(--color-on-primary)"
+                      : isToday
+                        ? "var(--color-primary)"
+                        : "var(--color-on-surface-variant)",
+                    boxShadow:
+                      isToday && !isSel ? "inset 0 0 0 1.5px var(--color-primary)" : "none",
                   }}
                   onClick={() => onSelectDay(isSel ? null : key)}
                 >
                   <span>{day}</span>
                   {dots.length > 0 && !isSel && (
                     <div
-                      className="absolute bottom-0.5 w-1 h-1 rounded-full"
+                      className="absolute bottom-0.5 h-1 w-1 rounded-full"
                       style={{ background: "var(--color-secondary)" }}
                     />
                   )}
@@ -274,29 +312,31 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
     const tc = TC[entry.type] || TC.note;
     const icon = resolveIcon(entry.type, typeIcons);
     return (
-      <div
-        key={`${entry.id}-${dateStr}`}
-        className="flex items-start gap-3 py-3"
-      >
-        <span className="text-lg mt-0.5">{icon}</span>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-[var(--color-on-surface)] truncate">{entry.title}</p>
+      <div key={`${entry.id}-${dateStr}`} className="flex items-start gap-3 py-3">
+        <span className="mt-0.5 text-lg">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-[var(--color-on-surface)]">
+            {entry.title}
+          </p>
           {entry.content && entry.content !== entry.title && (
-            <p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-on-surface-variant)" }}>
+            <p
+              className="mt-0.5 truncate text-xs"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               {entry.content}
             </p>
           )}
         </div>
         {showDate && (
           <span
-            className="shrink-0 text-[10px] rounded-full px-2 py-0.5 font-medium"
+            className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
             style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
           >
             {fmtD(dateStr)}
           </span>
         )}
         <span
-          className="shrink-0 text-[10px] rounded-full px-2 py-0.5 font-medium capitalize"
+          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize"
           style={{ background: `${tc.c}18`, color: tc.c }}
         >
           {entry.type}
@@ -315,10 +355,10 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
     if (items.length === 0) return null;
     return (
       <div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="mb-3 flex items-center gap-2">
           <span className="text-sm leading-none">{emoji}</span>
           <p
-            className="text-[10px] uppercase tracking-[0.14em] font-semibold"
+            className="text-[10px] font-semibold tracking-[0.14em] uppercase"
             style={{
               fontFamily: "'DM Sans', system-ui, sans-serif",
               color: accentColor || "var(--color-on-surface-variant)",
@@ -327,8 +367,11 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
             {title}
           </p>
           <span
-            className="text-[10px] rounded-full px-2 py-0.5 font-medium"
-            style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{
+              background: "var(--color-primary-container)",
+              color: "var(--color-on-surface-variant)",
+            }}
           >
             {items.length}
           </span>
@@ -347,12 +390,18 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
       {/* Selected day detail */}
       {selectedDay && (
         <div
-          className="mt-4 rounded-2xl border p-4 space-y-3"
-          style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
+          className="mt-4 space-y-3 rounded-2xl border p-4"
+          style={{
+            background: "var(--color-surface-container)",
+            borderColor: "var(--color-outline-variant)",
+          }}
         >
           <p
             className="text-sm font-semibold"
-            style={{ color: selEntries.length ? "var(--color-primary)" : "var(--color-on-surface-variant)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
+            style={{
+              color: selEntries.length ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
           >
             {selEntries.length
               ? `${selEntries.length} item${selEntries.length > 1 ? "s" : ""} — ${selectedDay}`
@@ -365,21 +414,27 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
               <div
                 key={e.id}
                 className="flex items-start gap-3 rounded-xl border px-3 py-2"
-                style={{ background: "var(--color-surface-dim)", borderColor: "var(--color-outline-variant)" }}
+                style={{
+                  background: "var(--color-surface-dim)",
+                  borderColor: "var(--color-outline-variant)",
+                }}
               >
-                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
                   <span className="text-base">{eIcon}</span>
                   <span
-                    className="text-[10px] rounded-full px-2 py-0.5 font-medium capitalize"
+                    className="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize"
                     style={{ background: `${cfg.c}18`, color: cfg.c }}
                   >
                     {e.type}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-on-surface truncate">{e.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-on-surface truncate text-sm">{e.title}</p>
                   {e.content && (
-                    <p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-on-surface-variant)" }}>
+                    <p
+                      className="mt-0.5 truncate text-xs"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
                       {e.content.slice(0, 120)}
                     </p>
                   )}
@@ -393,16 +448,16 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
       {/* Empty state */}
       {!selectedDay && total === 0 && (
         <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
-          <div className="text-5xl mb-4">📋</div>
+          <div className="mb-4 text-5xl">📋</div>
           <p
-            className="text-lg font-semibold text-on-surface mb-1"
+            className="text-on-surface mb-1 text-lg font-semibold"
             style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
           >
             All clear
           </p>
-          <p className="text-sm max-w-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            No upcoming deadlines, events, or reminders this week.
-            Entries with dates will show up here automatically.
+          <p className="max-w-xs text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+            No upcoming deadlines, events, or reminders this week. Entries with dates will show up
+            here automatically.
           </p>
         </div>
       )}

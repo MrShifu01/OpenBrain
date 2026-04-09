@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { chunkEntries, buildBatchQueue } from "../../src/lib/batchEmbed";
 describe("batchEmbed (S7-3)", () => {
-  const entries = Array.from({length: 12}, (_, i) => ({ id: `e${i}`, title: `E${i}`, content: "" }));
+  const entries = Array.from({ length: 12 }, (_, i) => ({
+    id: `e${i}`,
+    title: `E${i}`,
+    content: "",
+  }));
   it("chunkEntries splits into batches of given size", () => {
     const chunks = chunkEntries(entries, 5);
     expect(chunks[0]).toHaveLength(5);

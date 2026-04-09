@@ -189,21 +189,28 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
 
   // Focus trap: keep Tab within the dialog
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") { onCancel(); return; }
+    if (e.key === "Escape") {
+      onCancel();
+      return;
+    }
     if (e.key !== "Tab") return;
     const dialog = e.currentTarget;
     const focusable = Array.from(
-      dialog.querySelectorAll<HTMLElement>(
-        'button, input, [tabindex]:not([tabindex="-1"])'
-      )
+      dialog.querySelectorAll<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])'),
     ).filter((el) => !el.hasAttribute("disabled"));
     if (!focusable.length) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
     if (e.shiftKey) {
-      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+      if (document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      }
     } else {
-      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+      if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
   };
 
@@ -233,7 +240,9 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ background: "var(--color-scrim)" }}
-        onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onCancel();
+        }}
       >
         {/* Dialog */}
         <div
@@ -248,7 +257,9 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
           }}
         >
           <div className="mb-[22px] text-center">
-            <div className="mb-2 text-[30px]" aria-hidden="true">🔒</div>
+            <div className="mb-2 text-[30px]" aria-hidden="true">
+              🔒
+            </div>
             <h3
               id="pin-dialog-title"
               className="m-0 text-[17px] font-bold"
@@ -256,19 +267,13 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
             >
               {titles[step]}
             </h3>
-            <p
-              className="mt-1.5 mb-0 text-xs"
-              style={{ color: "var(--color-on-surface-variant)" }}
-            >
+            <p className="mt-1.5 mb-0 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
               {subs[step]}
             </p>
           </div>
 
           {/* Visually hidden label for PIN input */}
-          <label
-            htmlFor="pin-input"
-            className="sr-only"
-          >
+          <label htmlFor="pin-input" className="sr-only">
             {subs[step]}
           </label>
           <input

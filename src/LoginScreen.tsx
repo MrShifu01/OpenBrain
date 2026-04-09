@@ -206,12 +206,27 @@ export default function LoginScreen(): JSX.Element {
               Everion
             </h1>
 
-            <p style={{ fontSize: 16, fontWeight: 500, color: "var(--color-primary)", margin: "0 0 8px" }}>
+            <p
+              style={{
+                fontSize: 16,
+                fontWeight: 500,
+                color: "var(--color-primary)",
+                margin: "0 0 8px",
+              }}
+            >
               Your second brain — for you, your family, your business.
             </p>
-            <p style={{ fontSize: 14, lineHeight: 1.7, color: "var(--color-on-surface-variant)", margin: 0, maxWidth: 440 }}>
-              Capture everything. Connect the dots. Ask anything.
-              One AI-powered memory system that grows with your life.
+            <p
+              style={{
+                fontSize: 14,
+                lineHeight: 1.7,
+                color: "var(--color-on-surface-variant)",
+                margin: 0,
+                maxWidth: 440,
+              }}
+            >
+              Capture everything. Connect the dots. Ask anything. One AI-powered memory system that
+              grows with your life.
             </p>
           </div>
 
@@ -242,17 +257,41 @@ export default function LoginScreen(): JSX.Element {
                   {f.emoji}
                 </span>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-on-surface)", marginBottom: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "var(--color-on-surface)",
+                      marginBottom: 2,
+                    }}
+                  >
                     {f.label}
                   </div>
-                  <div style={{ fontSize: 13, lineHeight: 1.55, color: "var(--color-on-surface-variant)" }}>{f.desc}</div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      lineHeight: 1.55,
+                      color: "var(--color-on-surface-variant)",
+                    }}
+                  >
+                    {f.desc}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           {/* Privacy note — hidden on mobile */}
-          <p className="login-privacy-note" style={{ marginTop: 32, fontSize: 12, color: "var(--color-on-surface-variant)", maxWidth: 440, opacity: 0.7 }}>
+          <p
+            className="login-privacy-note"
+            style={{
+              marginTop: 32,
+              fontSize: 12,
+              color: "var(--color-on-surface-variant)",
+              maxWidth: 440,
+              opacity: 0.7,
+            }}
+          >
             Your data is yours. Export everything, delete everything. No lock-in.
           </p>
         </div>
@@ -269,7 +308,6 @@ export default function LoginScreen(): JSX.Element {
           }}
         >
           <div style={{ width: "100%", maxWidth: 360 }}>
-
             {/* ── CTA (pre-form) ── */}
             {!showForm && !sent && !usePassword && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -285,7 +323,13 @@ export default function LoginScreen(): JSX.Element {
                 >
                   Welcome to Everion
                 </h2>
-                <p style={{ fontSize: 14, color: "var(--color-on-surface-variant)", margin: "0 0 8px" }}>
+                <p
+                  style={{
+                    fontSize: 14,
+                    color: "var(--color-on-surface-variant)",
+                    margin: "0 0 8px",
+                  }}
+                >
                   Choose how you'd like to sign in.
                 </p>
                 <button
@@ -352,8 +396,16 @@ export default function LoginScreen(): JSX.Element {
                 >
                   {isSigningUp ? "Create account" : "Sign in"}
                 </h2>
-                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "0 0 20px" }}>
-                  {isSigningUp ? "Create your account with a password." : "Enter your email and password."}
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface-variant)",
+                    margin: "0 0 20px",
+                  }}
+                >
+                  {isSigningUp
+                    ? "Create your account with a password."
+                    : "Enter your email and password."}
                 </p>
                 <form
                   onSubmit={isSigningUp ? handlePasswordSignUp : handlePasswordSignIn}
@@ -393,8 +445,12 @@ export default function LoginScreen(): JSX.Element {
                         fontFamily: "'DM Sans', system-ui, sans-serif",
                         transition: "border-color 150ms",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-primary)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                      }}
                     />
                   </div>
 
@@ -432,17 +488,32 @@ export default function LoginScreen(): JSX.Element {
                         fontFamily: "'DM Sans', system-ui, sans-serif",
                         transition: "border-color 150ms",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-primary)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                      }}
                     />
                   </div>
 
-                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
+                  {error && (
+                    <p
+                      role="alert"
+                      style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}
+                    >
+                      {error}
+                    </p>
+                  )}
 
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() => { setUsePassword(false); setPassword(""); setError(null); }}
+                      onClick={() => {
+                        setUsePassword(false);
+                        setPassword("");
+                        setError(null);
+                      }}
                       style={{
                         flex: 1,
                         height: 44,
@@ -480,16 +551,32 @@ export default function LoginScreen(): JSX.Element {
                         opacity: isPasswordDisabled ? 0.6 : 1,
                       }}
                     >
-                      {loading ? (isSigningUp ? "Creating…" : "Signing in…") : (isSigningUp ? "Create account" : "Sign in")}
+                      {loading
+                        ? isSigningUp
+                          ? "Creating…"
+                          : "Signing in…"
+                        : isSigningUp
+                          ? "Create account"
+                          : "Sign in"}
                     </button>
                   </div>
 
                   {isSigningUp && (
-                    <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "8px 0 0" }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "var(--color-on-surface-variant)",
+                        margin: "8px 0 0",
+                      }}
+                    >
                       Already have an account?{" "}
                       <button
                         type="button"
-                        onClick={() => { setIsSigningUp(false); setPassword(""); setError(null); }}
+                        onClick={() => {
+                          setIsSigningUp(false);
+                          setPassword("");
+                          setError(null);
+                        }}
                         style={{
                           background: "none",
                           border: "none",
@@ -506,11 +593,21 @@ export default function LoginScreen(): JSX.Element {
                   )}
 
                   {!isSigningUp && (
-                    <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "8px 0 0" }}>
+                    <p
+                      style={{
+                        fontSize: 13,
+                        color: "var(--color-on-surface-variant)",
+                        margin: "8px 0 0",
+                      }}
+                    >
                       Don't have an account?{" "}
                       <button
                         type="button"
-                        onClick={() => { setIsSigningUp(true); setPassword(""); setError(null); }}
+                        onClick={() => {
+                          setIsSigningUp(true);
+                          setPassword("");
+                          setError(null);
+                        }}
                         style={{
                           background: "none",
                           border: "none",
@@ -544,8 +641,16 @@ export default function LoginScreen(): JSX.Element {
                 >
                   Account created! 🎉
                 </h2>
-                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6, margin: "0 0 24px" }}>
-                  Your account has been created successfully. You can now sign in with your email and password.
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface-variant)",
+                    lineHeight: 1.6,
+                    margin: "0 0 24px",
+                  }}
+                >
+                  Your account has been created successfully. You can now sign in with your email
+                  and password.
                 </p>
                 <button
                   onClick={() => {
@@ -589,10 +694,19 @@ export default function LoginScreen(): JSX.Element {
                 >
                   Sign in
                 </h2>
-                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", margin: "0 0 20px" }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface-variant)",
+                    margin: "0 0 20px",
+                  }}
+                >
                   Enter your email and we'll send an access code.
                 </p>
-                <form onSubmit={handleSend} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <form
+                  onSubmit={handleSend}
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                >
                   <div>
                     <label
                       htmlFor="login-email"
@@ -627,17 +741,32 @@ export default function LoginScreen(): JSX.Element {
                         fontFamily: "'DM Sans', system-ui, sans-serif",
                         transition: "border-color 150ms",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-primary)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                      }}
                     />
                   </div>
 
-                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
+                  {error && (
+                    <p
+                      role="alert"
+                      style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}
+                    >
+                      {error}
+                    </p>
+                  )}
 
                   <div style={{ display: "flex", gap: 8 }}>
                     <button
                       type="button"
-                      onClick={() => { setShowForm(false); setPassword(""); setError(null); }}
+                      onClick={() => {
+                        setShowForm(false);
+                        setPassword("");
+                        setError(null);
+                      }}
                       style={{
                         flex: 1,
                         height: 44,
@@ -696,14 +825,31 @@ export default function LoginScreen(): JSX.Element {
                 >
                   Check your email
                 </h2>
-                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6, margin: "0 0 8px" }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface-variant)",
+                    lineHeight: 1.6,
+                    margin: "0 0 8px",
+                  }}
+                >
                   Sent to <strong style={{ color: "var(--color-on-surface)" }}>{email}</strong>.
                 </p>
-                <p style={{ fontSize: 13, color: "var(--color-on-surface-variant)", lineHeight: 1.6, margin: "0 0 24px" }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "var(--color-on-surface-variant)",
+                    lineHeight: 1.6,
+                    margin: "0 0 24px",
+                  }}
+                >
                   Enter the code or tap the sign-in link.
                 </p>
 
-                <form onSubmit={handleVerifyOtp} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <form
+                  onSubmit={handleVerifyOtp}
+                  style={{ display: "flex", flexDirection: "column", gap: 12 }}
+                >
                   <div>
                     <label
                       htmlFor="otp-code"
@@ -743,12 +889,23 @@ export default function LoginScreen(): JSX.Element {
                         boxSizing: "border-box",
                         transition: "border-color 150ms",
                       }}
-                      onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; }}
-                      onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-primary)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                      }}
                     />
                   </div>
 
-                  {error && <p role="alert" style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}>{error}</p>}
+                  {error && (
+                    <p
+                      role="alert"
+                      style={{ color: "var(--color-error)", fontSize: 13, margin: 0 }}
+                    >
+                      {error}
+                    </p>
+                  )}
 
                   <button
                     type="submit"
@@ -792,7 +949,11 @@ export default function LoginScreen(): JSX.Element {
                     {loading ? "Sending…" : "Resend code"}
                   </button>
                   <button
-                    onClick={() => { setSent(false); setOtpCode(""); setError(null); }}
+                    onClick={() => {
+                      setSent(false);
+                      setOtpCode("");
+                      setError(null);
+                    }}
                     style={{
                       background: "none",
                       border: "none",
@@ -807,14 +968,24 @@ export default function LoginScreen(): JSX.Element {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16 }}>
-                  <RefreshCw size={14} style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }} aria-hidden="true" />
-                  <p style={{ fontSize: 12, color: "var(--color-on-surface-variant)", margin: 0, opacity: 0.7 }}>
+                  <RefreshCw
+                    size={14}
+                    style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}
+                    aria-hidden="true"
+                  />
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: "var(--color-on-surface-variant)",
+                      margin: 0,
+                      opacity: 0.7,
+                    }}
+                  >
                     Link expires in 60 minutes.
                   </p>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </div>

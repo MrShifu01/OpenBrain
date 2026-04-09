@@ -17,8 +17,20 @@ vi.mock("../../api/_lib/checkBrainAccess.js", () => ({
 const BRAIN_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
 const FALLBACK_ENTRIES = [
-  { id: "r1", title: "Chilli Spice Mix", type: "note", tags: ["recipe", "spice"], content: "cumin, coriander" },
-  { id: "r2", title: "Beef Burger Recipe", type: "recipe", tags: ["recipe"], content: "beef patty" },
+  {
+    id: "r1",
+    title: "Chilli Spice Mix",
+    type: "note",
+    tags: ["recipe", "spice"],
+    content: "cumin, coriander",
+  },
+  {
+    id: "r2",
+    title: "Beef Burger Recipe",
+    type: "recipe",
+    tags: ["recipe"],
+    content: "beef patty",
+  },
 ];
 
 function makeReq(overrides: Record<string, any> = {}) {
@@ -93,7 +105,9 @@ describe("api/chat — fallback_entries", () => {
           ok: true,
           json: () =>
             Promise.resolve({
-              content: [{ type: "text", text: "You have 2 recipes: Chilli Spice Mix and Beef Burger." }],
+              content: [
+                { type: "text", text: "You have 2 recipes: Chilli Spice Mix and Beef Burger." },
+              ],
             }),
         });
       }
@@ -128,7 +142,14 @@ describe("api/chat — fallback_entries", () => {
           ok: true,
           json: () =>
             Promise.resolve([
-              { id: "sem1", title: "Semantic Result", type: "note", tags: [], content: "found by vector", similarity: 0.9 },
+              {
+                id: "sem1",
+                title: "Semantic Result",
+                type: "note",
+                tags: [],
+                content: "found by vector",
+                similarity: 0.9,
+              },
             ]),
         });
       }
@@ -137,8 +158,7 @@ describe("api/chat — fallback_entries", () => {
       }
       return Promise.resolve({
         ok: true,
-        json: () =>
-          Promise.resolve({ content: [{ type: "text", text: "Semantic answer." }] }),
+        json: () => Promise.resolve({ content: [{ type: "text", text: "Semantic answer." }] }),
       });
     }) as any;
 
@@ -147,8 +167,8 @@ describe("api/chat — fallback_entries", () => {
     await handler(req, res);
 
     // The system prompt should NOT contain the fallback entries
-    const llmCall = (global.fetch as any).mock.calls.find((c: any[]) =>
-      String(c[0]).includes("anthropic") || String(c[0]).includes("api.openai"),
+    const llmCall = (global.fetch as any).mock.calls.find(
+      (c: any[]) => String(c[0]).includes("anthropic") || String(c[0]).includes("api.openai"),
     );
     if (llmCall) {
       const body = JSON.parse(llmCall[1].body);

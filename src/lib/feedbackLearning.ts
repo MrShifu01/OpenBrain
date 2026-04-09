@@ -14,14 +14,14 @@
 /* ─── Types ─── */
 
 export const FEEDBACK_TYPES = {
-  CAPTURE_EDIT:   "CAPTURE_EDIT",
-  REFINE_ACCEPT:  "REFINE_ACCEPT",
-  REFINE_EDIT:    "REFINE_EDIT",
-  REFINE_REJECT:  "REFINE_REJECT",
-  QA_EDIT:        "QA_EDIT",
+  CAPTURE_EDIT: "CAPTURE_EDIT",
+  REFINE_ACCEPT: "REFINE_ACCEPT",
+  REFINE_EDIT: "REFINE_EDIT",
+  REFINE_REJECT: "REFINE_REJECT",
+  QA_EDIT: "QA_EDIT",
 } as const;
 
-export type FeedbackType = typeof FEEDBACK_TYPES[keyof typeof FEEDBACK_TYPES];
+export type FeedbackType = (typeof FEEDBACK_TYPES)[keyof typeof FEEDBACK_TYPES];
 
 export interface FeedbackEvent {
   type: FeedbackType;
@@ -72,7 +72,10 @@ const MAX_BUFFER = 50;
 
 /* ─── Feedback event creation ─── */
 
-export function createFeedbackEvent(type: string, details: Record<string, unknown> = {}): FeedbackEvent {
+export function createFeedbackEvent(
+  type: string,
+  details: Record<string, unknown> = {},
+): FeedbackEvent {
   if (!VALID_TYPES.has(type)) {
     throw new Error(`Unknown feedback type: ${type}`);
   }
@@ -127,7 +130,10 @@ export function extractLearningSection(memoryGuide: string | null | undefined): 
   return sectionContent.trim();
 }
 
-export function mergeLearningSection(memoryGuide: string | null | undefined, rules: string): string {
+export function mergeLearningSection(
+  memoryGuide: string | null | undefined,
+  rules: string,
+): string {
   const guide = memoryGuide || "";
 
   let cleaned = guide;
@@ -149,22 +155,24 @@ export function mergeLearningSection(memoryGuide: string | null | undefined, rul
 /* ─── Distill prompt building ─── */
 
 export function buildDistillPrompt(events: FeedbackEvent[], existingRules: string): string {
-  const eventSummary = (events || []).map((e, i) => {
-    switch (e.type) {
-      case FEEDBACK_TYPES.CAPTURE_EDIT:
-        return `${i + 1}. CAPTURE CORRECTION: Field "${e.field}" — AI suggested "${e.aiValue}", user changed to "${e.userValue}"${e.rawInput ? ` (raw input: "${e.rawInput}")` : ""}`;
-      case FEEDBACK_TYPES.REFINE_REJECT:
-        return `${i + 1}. REFINE REJECTED: ${e.suggestionType} on "${e.entryTitle}" — AI suggested ${e.field}="${e.suggestedValue}", current was "${e.currentValue}". User rejected.`;
-      case FEEDBACK_TYPES.REFINE_EDIT:
-        return `${i + 1}. REFINE EDITED: ${e.suggestionType} on "${e.entryTitle}" — AI suggested "${e.suggestedValue}", user changed to "${e.userValue}"`;
-      case FEEDBACK_TYPES.REFINE_ACCEPT:
-        return `${i + 1}. REFINE ACCEPTED: ${e.suggestionType} — "${e.suggestedValue}" applied`;
-      case FEEDBACK_TYPES.QA_EDIT:
-        return `${i + 1}. QA CORRECTION: Field "${e.field}" — AI parsed "${e.aiValue}", user changed to "${e.userValue}"`;
-      default:
-        return `${i + 1}. ${e.type}: ${JSON.stringify(e)}`;
-    }
-  }).join("\n");
+  const eventSummary = (events || [])
+    .map((e, i) => {
+      switch (e.type) {
+        case FEEDBACK_TYPES.CAPTURE_EDIT:
+          return `${i + 1}. CAPTURE CORRECTION: Field "${e.field}" — AI suggested "${e.aiValue}", user changed to "${e.userValue}"${e.rawInput ? ` (raw input: "${e.rawInput}")` : ""}`;
+        case FEEDBACK_TYPES.REFINE_REJECT:
+          return `${i + 1}. REFINE REJECTED: ${e.suggestionType} on "${e.entryTitle}" — AI suggested ${e.field}="${e.suggestedValue}", current was "${e.currentValue}". User rejected.`;
+        case FEEDBACK_TYPES.REFINE_EDIT:
+          return `${i + 1}. REFINE EDITED: ${e.suggestionType} on "${e.entryTitle}" — AI suggested "${e.suggestedValue}", user changed to "${e.userValue}"`;
+        case FEEDBACK_TYPES.REFINE_ACCEPT:
+          return `${i + 1}. REFINE ACCEPTED: ${e.suggestionType} — "${e.suggestedValue}" applied`;
+        case FEEDBACK_TYPES.QA_EDIT:
+          return `${i + 1}. QA CORRECTION: Field "${e.field}" — AI parsed "${e.aiValue}", user changed to "${e.userValue}"`;
+        default:
+          return `${i + 1}. ${e.type}: ${JSON.stringify(e)}`;
+      }
+    })
+    .join("\n");
 
   const existingContext = existingRules
     ? `\n\nEXISTING RULES (update/merge/replace as needed):\n${existingRules}`
@@ -177,14 +185,15 @@ export function buildDistillPrompt(events: FeedbackEvent[], existingRules: strin
 
 export function parseDistillResponse(text: string): string[] {
   if (!text) return [];
-  const cleaned = text.replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*/g, "").trim())
+  const cleaned = text
+    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*/g, "").trim())
     .replace(/```/g, "")
     .trim();
 
   const rules = cleaned
     .split("\n")
-    .map(line => line.trim())
-    .filter(line => line.startsWith("- ") && line.length > 3)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- ") && line.length > 3)
     .slice(0, MAX_LEARNING_RULES);
 
   return rules;
@@ -213,43 +222,56 @@ export function applyMemoryHygiene(rules: string[]): string[] {
 
 /* ─── Integration helpers ─── */
 
-export function trackCaptureEdits(aiParsed: CaptureSnapshot, userFinal: CaptureSnapshot, rawInput?: string): void {
+export function trackCaptureEdits(
+  aiParsed: CaptureSnapshot,
+  userFinal: CaptureSnapshot,
+  rawInput?: string,
+): void {
   if (!aiParsed || !userFinal) return;
 
   if (aiParsed.title !== userFinal.title) {
-    bufferFeedback(createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
-      field: "title",
-      aiValue: aiParsed.title,
-      userValue: userFinal.title,
-      rawInput,
-    }));
+    bufferFeedback(
+      createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
+        field: "title",
+        aiValue: aiParsed.title,
+        userValue: userFinal.title,
+        rawInput,
+      }),
+    );
   }
 
   if (aiParsed.type !== userFinal.type) {
-    bufferFeedback(createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
-      field: "type",
-      aiValue: aiParsed.type,
-      userValue: userFinal.type,
-      rawInput,
-    }));
+    bufferFeedback(
+      createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
+        field: "type",
+        aiValue: aiParsed.type,
+        userValue: userFinal.type,
+        rawInput,
+      }),
+    );
   }
 
   const aiTags = (aiParsed.tags || []).slice().sort().join(",");
   const userTags = (userFinal.tags || []).slice().sort().join(",");
   if (aiTags !== userTags) {
-    bufferFeedback(createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
-      field: "tags",
-      aiValue: (aiParsed.tags || []).join(", "),
-      userValue: (userFinal.tags || []).join(", "),
-      rawInput,
-    }));
+    bufferFeedback(
+      createFeedbackEvent(FEEDBACK_TYPES.CAPTURE_EDIT, {
+        field: "tags",
+        aiValue: (aiParsed.tags || []).join(", "),
+        userValue: (userFinal.tags || []).join(", "),
+        rawInput,
+      }),
+    );
   }
 }
 
-export function trackRefineAction(action: "accept" | "edit" | "reject", details: Record<string, unknown>): void {
+export function trackRefineAction(
+  action: "accept" | "edit" | "reject",
+  details: Record<string, unknown>,
+): void {
   const typeMap: Record<string, FeedbackType> = {
     accept: FEEDBACK_TYPES.REFINE_ACCEPT,
-    edit:   FEEDBACK_TYPES.REFINE_EDIT,
+    edit: FEEDBACK_TYPES.REFINE_EDIT,
     reject: FEEDBACK_TYPES.REFINE_REJECT,
   };
   const feedbackType = typeMap[action];
@@ -260,7 +282,11 @@ export function trackRefineAction(action: "accept" | "edit" | "reject", details:
 
 /* ─── Full distill-and-update orchestration ─── */
 
-export async function distillAndUpdate(callAIFn: CallAIFn, getMemoryFn: GetMemoryFn, saveMemoryFn: SaveMemoryFn): Promise<boolean> {
+export async function distillAndUpdate(
+  callAIFn: CallAIFn,
+  getMemoryFn: GetMemoryFn,
+  saveMemoryFn: SaveMemoryFn,
+): Promise<boolean> {
   const buffer = getBufferedFeedback();
   if (!shouldDistill(buffer)) return false;
 

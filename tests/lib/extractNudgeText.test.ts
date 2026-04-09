@@ -40,9 +40,7 @@ describe("extractNudgeText", () => {
         },
       ],
     };
-    expect(extractNudgeText(data)).toBe(
-      "You have a contact without a phone number.",
-    );
+    expect(extractNudgeText(data)).toBe("You have a contact without a phone number.");
   });
 
   it("returns null when there are no text blocks", () => {

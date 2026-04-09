@@ -16,16 +16,22 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   const embeddingHeader = response.headers.get("X-Embedding-Usage");
   if (embeddingHeader) {
     try {
-      const { provider, model, count } = JSON.parse(embeddingHeader) as { provider: string; model: string; count: number };
-      import("./usageTracker").then(m => {
-        m.recordUsage({
-          date: new Date().toISOString().slice(0, 10),
-          type: "embedding",
-          provider,
-          model,
-          embeddingCount: count,
-        });
-      }).catch(() => {});
+      const { provider, model, count } = JSON.parse(embeddingHeader) as {
+        provider: string;
+        model: string;
+        count: number;
+      };
+      import("./usageTracker")
+        .then((m) => {
+          m.recordUsage({
+            date: new Date().toISOString().slice(0, 10),
+            type: "embedding",
+            provider,
+            model,
+            embeddingCount: count,
+          });
+        })
+        .catch(() => {});
     } catch {}
   }
 

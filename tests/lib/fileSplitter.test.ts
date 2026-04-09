@@ -131,9 +131,7 @@ Instructions: Mix until smooth. Cook on pan.
     });
 
     it("defaults missing type to 'note'", () => {
-      const response = JSON.stringify([
-        { title: "No Type Entry", content: "data" },
-      ]);
+      const response = JSON.stringify([{ title: "No Type Entry", content: "data" }]);
       const entries = parseAISplitResponse(response);
       expect(entries[0].type).toBe("note");
     });

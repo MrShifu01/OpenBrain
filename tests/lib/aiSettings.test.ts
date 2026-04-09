@@ -17,13 +17,20 @@ vi.mock("../../src/lib/supabase", () => ({
 vi.mock("../../src/data/constants", () => ({ MODEL: "claude-sonnet-4-6" }));
 
 import {
-  getUserApiKey,   setUserApiKey,
-  getOpenRouterKey, setOpenRouterKey,
-  getGroqKey,      setGroqKey,
-  getEmbedOpenAIKey, setEmbedOpenAIKey,
-  getGeminiKey,    setGeminiKey,
-  getUserModel,    setUserModel,
-  getUserProvider, setUserProvider,
+  getUserApiKey,
+  setUserApiKey,
+  getOpenRouterKey,
+  setOpenRouterKey,
+  getGroqKey,
+  setGroqKey,
+  getEmbedOpenAIKey,
+  setEmbedOpenAIKey,
+  getGeminiKey,
+  setGeminiKey,
+  getUserModel,
+  setUserModel,
+  getUserProvider,
+  setUserProvider,
   loadUserAISettings,
   _resetForTests,
 } from "../../src/lib/aiSettings";

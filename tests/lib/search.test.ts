@@ -4,16 +4,12 @@ vi.mock("../../src/lib/authFetch", () => ({
   authFetch: vi.fn().mockResolvedValue({ ok: true, json: async () => [] }),
 }));
 
-import {
-  search,
-  tokenSearchStrategy,
-  keywordSearchStrategy,
-} from "../../src/lib/search";
+import { search, tokenSearchStrategy, keywordSearchStrategy } from "../../src/lib/search";
 import { indexEntry } from "../../src/lib/searchIndex";
 import type { Entry } from "../../src/types";
 
 const makeEntry = (id: string, title: string, content = "", tags: string[] = []): Entry =>
-  ({ id, title, content, type: "note", tags, created_at: "", metadata: {} } as any);
+  ({ id, title, content, type: "note", tags, created_at: "", metadata: {} }) as any;
 
 describe("SearchStrategy", () => {
   const entries = [

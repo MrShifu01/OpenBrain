@@ -2,10 +2,7 @@ import { readFileSync } from "fs";
 import { resolve } from "path";
 import { describe, it, expect } from "vitest";
 
-const src = readFileSync(
-  resolve(__dirname, "../QuickCapture.tsx"),
-  "utf-8"
-);
+const src = readFileSync(resolve(__dirname, "../QuickCapture.tsx"), "utf-8");
 
 describe("QuickCapture — design token compliance", () => {
   it("no hard-coded rgba(0,0,0,0.7) scrim", () => {

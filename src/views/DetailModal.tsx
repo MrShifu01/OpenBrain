@@ -91,7 +91,9 @@ export default function DetailModal({
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
   // UX-5: Escape key closes modal
@@ -155,9 +157,12 @@ export default function DetailModal({
           }).catch(() => {}),
         ),
         ...toRemove.map((brain_id) =>
-          authFetch(`/api/entry-brains?entry_id=${encodeURIComponent(entry.id)}&brain_id=${encodeURIComponent(brain_id)}`, {
-            method: "DELETE",
-          }).catch(() => {}),
+          authFetch(
+            `/api/entry-brains?entry_id=${encodeURIComponent(entry.id)}&brain_id=${encodeURIComponent(brain_id)}`,
+            {
+              method: "DELETE",
+            },
+          ).catch(() => {}),
         ),
       ]);
       // Update local snapshot so subsequent saves diff correctly
@@ -203,19 +208,48 @@ export default function DetailModal({
   if (isSupplier || entry.type === "contact" || entry.type === "person") {
     if (phone) {
       quickActions.push(
-        <a key="call" href={`tel:${phone}`} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>
+        <a
+          key="call"
+          href={`tel:${phone}`}
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+        >
           📞 Call
         </a>,
       );
       quickActions.push(
-        <a key="wa" href={toWaUrl(phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>
+        <a
+          key="wa"
+          href={toWaUrl(phone)}
+          target="_blank"
+          rel="noreferrer"
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+        >
           💬 WhatsApp
         </a>,
       );
     }
     if (isSupplier && onReorder) {
       quickActions.push(
-        <button key="reorder" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }} onClick={() => onReorder(entry)}>
+        <button
+          key="reorder"
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+          onClick={() => onReorder(entry)}
+        >
           🔁 Reorder
         </button>,
       );
@@ -227,7 +261,7 @@ export default function DetailModal({
       quickActions.push(
         <button
           key="done"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all press-scale"
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
           style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "done" }, importance: 0 })
@@ -240,8 +274,12 @@ export default function DetailModal({
     quickActions.push(
       <button
         key="snooze1w"
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
-        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
+        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+        style={{
+          background: "var(--color-surface-container)",
+          border: "1px solid var(--color-outline-variant)",
+          color: "var(--color-on-surface-variant)",
+        }}
         onClick={() => {
           const d = new Date(entry.metadata?.due_date || Date.now());
           d.setDate(d.getDate() + 7);
@@ -256,8 +294,12 @@ export default function DetailModal({
     quickActions.push(
       <button
         key="snooze1m"
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
-        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
+        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+        style={{
+          background: "var(--color-surface-container)",
+          border: "1px solid var(--color-outline-variant)",
+          color: "var(--color-on-surface-variant)",
+        }}
         onClick={() => {
           const d = new Date(entry.metadata?.due_date || Date.now());
           d.setMonth(d.getMonth() + 1);
@@ -276,7 +318,7 @@ export default function DetailModal({
       quickActions.push(
         <button
           key="start"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all press-scale"
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
           style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "in_progress" } })
@@ -290,8 +332,12 @@ export default function DetailModal({
       quickActions.push(
         <button
           key="archive"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
-          style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "archived" } })
           }
@@ -306,8 +352,12 @@ export default function DetailModal({
     quickActions.push(
       <button
         key="renewal"
-        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
-        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
+        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+        style={{
+          background: "var(--color-surface-container)",
+          border: "1px solid var(--color-outline-variant)",
+          color: "var(--color-on-surface-variant)",
+        }}
         onClick={() => onReorder({ ...entry, _renewalMode: true })}
       >
         🔔 Set renewal reminder
@@ -320,8 +370,12 @@ export default function DetailModal({
       quickActions.push(
         <button
           key="copy-secret"
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale"
-          style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
           onClick={() => {
             navigator.clipboard.writeText(entry.content || "").then(() => {
               setShareMsg("Copied to clipboard");
@@ -333,7 +387,16 @@ export default function DetailModal({
         </button>,
       );
       quickActions.push(
-        <button key="hide-secret" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }} onClick={() => setSecretRevealed(false)}>
+        <button
+          key="hide-secret"
+          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+          onClick={() => setSecretRevealed(false)}
+        >
           👁 Hide
         </button>,
       );
@@ -343,7 +406,16 @@ export default function DetailModal({
   // Share always available (but not for secret entries)
   if (!isSecret)
     quickActions.push(
-      <button key="share" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }} onClick={handleShare}>
+      <button
+        key="share"
+        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+        style={{
+          background: "var(--color-surface-container)",
+          border: "1px solid var(--color-outline-variant)",
+          color: "var(--color-on-surface-variant)",
+        }}
+        onClick={handleShare}
+      >
         📤 Share
       </button>,
     );
@@ -353,12 +425,15 @@ export default function DetailModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="detail-modal-title"
-      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center"
-      style={{ background: "var(--color-scrim)", paddingBottom: "calc(96px + env(safe-area-inset-bottom))" }}
+      className="fixed inset-0 z-50 flex items-end justify-center lg:items-center"
+      style={{
+        background: "var(--color-scrim)",
+        paddingBottom: "calc(96px + env(safe-area-inset-bottom))",
+      }}
       onClick={editing ? undefined : onClose}
     >
       <div
-        className="relative w-full max-w-lg rounded-t-2xl lg:rounded-2xl border flex flex-col"
+        className="relative flex w-full max-w-lg flex-col rounded-t-2xl border lg:rounded-2xl"
         style={{
           background: "var(--color-surface-container-low)",
           borderColor: "var(--color-outline-variant)",
@@ -372,13 +447,16 @@ export default function DetailModal({
         onTouchMove={(e) => e.stopPropagation()}
       >
         {/* Header — always visible, never scrolls away */}
-        <div className="flex items-start justify-between flex-shrink-0 px-5 pt-5 pb-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex flex-shrink-0 items-start justify-between px-5 pt-5 pb-4">
+          <div className="min-w-0 flex-1">
+            <div className="mb-1.5 flex items-center gap-2">
               <span className="text-lg">{cfg.i}</span>
               <span
-                className="text-[10px] uppercase tracking-widest font-semibold px-2.5 py-0.5 rounded-full"
-                style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
+                className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold tracking-widest uppercase"
+                style={{
+                  background: "var(--color-primary-container)",
+                  color: "var(--color-primary)",
+                }}
               >
                 {editType}
               </span>
@@ -386,20 +464,24 @@ export default function DetailModal({
             {!editing && (
               <h2
                 id="detail-modal-title"
-                className="text-lg font-bold text-on-surface truncate"
+                className="text-on-surface truncate text-lg font-bold"
                 style={{ fontFamily: "'Lora', Georgia, serif" }}
               >
                 {editTitle}
               </h2>
             )}
           </div>
-          <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+          <div className="ml-3 flex flex-shrink-0 items-center gap-2">
             {!editing && canWrite && onDelete && (
               <button
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all press-scale"
+                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
                 style={{
-                  background: confirmingDelete ? "var(--color-error-container)" : "color-mix(in oklch, var(--color-error) 8%, transparent)",
-                  color: confirmingDelete ? "var(--color-on-error-container)" : "var(--color-error)",
+                  background: confirmingDelete
+                    ? "var(--color-error-container)"
+                    : "color-mix(in oklch, var(--color-error) 8%, transparent)",
+                  color: confirmingDelete
+                    ? "var(--color-on-error-container)"
+                    : "var(--color-error)",
                   border: "1px solid color-mix(in oklch, var(--color-error) 20%, transparent)",
                 }}
                 onClick={async () => {
@@ -419,7 +501,7 @@ export default function DetailModal({
             )}
             {!editing && canWrite && onUpdate && (
               <button
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold transition-all press-scale"
+                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
                 style={{
                   border: "1px solid var(--color-outline-variant)",
                   color: "var(--color-on-surface-variant)",
@@ -429,12 +511,10 @@ export default function DetailModal({
                 Edit
               </button>
             )}
-            {!canWrite && (
-              <span className="text-xs text-on-surface-variant/60">🔒 View only</span>
-            )}
+            {!canWrite && <span className="text-on-surface-variant/60 text-xs">🔒 View only</span>}
             <button
               aria-label="Close"
-              className="w-11 h-11 flex items-center justify-center rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all press-scale"
+              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container press-scale flex h-11 w-11 items-center justify-center rounded-lg transition-all"
               onClick={editing ? () => setEditing(false) : onClose}
             >
               ✕
@@ -446,280 +526,363 @@ export default function DetailModal({
         <div
           data-testid="detail-scroll-body"
           className="flex-1 overflow-y-auto px-5 pb-8"
-          style={{ overscrollBehavior: "contain", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          style={
+            {
+              overscrollBehavior: "contain",
+              WebkitOverflowScrolling: "touch",
+            } as React.CSSProperties
+          }
         >
-
-        {/* Edit form */}
-        {editing ? (
-          <div className="space-y-4 mt-2">
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                Title
-              </label>
-              <input
-                autoFocus
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-on-surface text-sm min-h-[44px] transition-all focus:outline-none"
-                style={{
-                  background: "var(--color-surface-container)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                Type
-              </label>
-              {/* Free-form type input — AI can use any label; datalist shows known types */}
-              <datalist id="entry-types-list">
-                {Array.from(new Set([
-                  ...entries.map((e) => e.type).filter(Boolean),
-                  "note", "person", "place", "idea", "contact",
-                  "document", "reminder", "decision", "secret",
-                ])).map((typ) => <option key={typ} value={typ} />)}
-              </datalist>
-              <input
-                type="text"
-                list="entry-types-list"
-                value={editType}
-                onChange={(e) => setEditType(e.target.value.toLowerCase().trim())}
-                placeholder="e.g. recipe, supplier, director…"
-                className="w-full px-4 py-3 rounded-xl text-on-surface text-sm min-h-[44px] transition-all focus:outline-none"
-                style={{
-                  background: "var(--color-surface-container)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                Content
-              </label>
-              <textarea
-                value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
-                rows={4}
-                className="w-full px-4 py-3 rounded-xl text-on-surface text-sm transition-all focus:outline-none resize-y"
-                style={{
-                  background: "var(--color-surface-container)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                Tags{" "}
-                <span className="normal-case text-on-surface-variant/50">(comma separated)</span>
-              </label>
-              <input
-                value={editTags}
-                onChange={(e) => setEditTags(e.target.value)}
-                placeholder="tag1, tag2, tag3"
-                className="w-full px-4 py-3 rounded-xl text-on-surface placeholder:text-on-surface-variant/40 text-sm min-h-[44px] transition-all focus:outline-none"
-                style={{
-                  background: "var(--color-surface-container)",
-                  border: "1px solid var(--color-outline-variant)",
-                }}
-                onFocus={(e) => { e.currentTarget.style.borderColor = "var(--color-primary)"; e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)"; }}
-                onBlur={(e) => { e.currentTarget.style.borderColor = "var(--color-outline-variant)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-            </div>
-            {brains.length > 1 && (
+          {/* Edit form */}
+          {editing ? (
+            <div className="mt-2 space-y-4">
               <div>
-                <label className="block text-[10px] uppercase tracking-widest font-semibold mb-1.5" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Brains <span className="normal-case tracking-normal text-on-surface-variant/50">(tap to add/remove)</span>
+                <label
+                  className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
+                  style={{ color: "var(--color-on-surface-variant)" }}
+                >
+                  Title
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {brains.map((b) => {
-                    const emoji = b.type === "family" ? "🏠" : b.type === "business" ? "🏪" : "🧠";
-                    const isPrimary = editBrainId === b.id;
-                    const isExtra = editExtraBrainIds.includes(b.id);
-                    const isActive = isPrimary || isExtra;
-                    return (
-                      <button
-                        key={b.id}
-                        aria-label={`${isActive ? "Remove from" : "Add to"} ${b.name}`}
-                        aria-pressed={isActive}
-                        className="px-3 py-2 rounded-xl text-xs font-semibold transition-all press-scale flex items-center gap-1.5"
-                        style={{
-                          background: isPrimary
-                            ? "var(--color-primary-container)"
-                            : isExtra
-                              ? "var(--color-secondary-container)"
-                              : "var(--color-surface-container)",
-                          border: isPrimary
-                            ? "1px solid var(--color-primary)"
-                            : isExtra
-                              ? "1px solid var(--color-secondary)"
-                              : "1px solid var(--color-outline-variant)",
-                          color: isPrimary ? "var(--color-primary)" : isExtra ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
-                        }}
-                        onClick={() => {
-                          if (isPrimary) {
-                            // Can't deselect primary — switch primary to another already-selected brain
-                            // or do nothing (always need a primary)
-                            return;
-                          }
-                          if (isExtra) {
-                            setEditExtraBrainIds((prev) => prev.filter((id) => id !== b.id));
-                          } else {
-                            setEditExtraBrainIds((prev) => [...prev, b.id]);
-                          }
-                        }}
-                      >
-                        {emoji} {b.name}
-                        {isPrimary && <span className="text-[9px] opacity-60">primary</span>}
-                        {isExtra && <span className="text-[9px] opacity-60">✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                {!extraBrainsLoaded && editing && (
-                  <p className="text-[10px] mt-1.5" style={{ color: "var(--color-outline)" }}>Loading brain assignments…</p>
-                )}
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="text-on-surface min-h-[44px] w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
+                  style={{
+                    background: "var(--color-surface-container)",
+                    border: "1px solid var(--color-outline-variant)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
               </div>
-            )}
-            <div className="flex gap-3 pt-2">
-              <button
-                className="flex-1 py-3 rounded-xl text-sm font-semibold text-on-surface-variant hover:text-on-surface transition-all press-scale"
-                style={{ border: "1px solid var(--color-outline-variant)" }}
-                onClick={() => setEditing(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="flex-[2] py-3 rounded-xl text-sm font-bold press-scale transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background: saving || !editTitle.trim() ? "var(--color-surface-container-highest)" : "var(--color-primary)",
-                  color: saving || !editTitle.trim() ? "var(--color-on-surface-variant)" : "var(--color-on-primary)",
-                  fontFamily: "'DM Sans', system-ui, sans-serif",
-                }}
-                onClick={handleSave}
-                disabled={saving || !editTitle.trim()}
-              >
-                {saving ? "Saving..." : "Save changes"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4 mt-1">
-            {isSecret && !secretRevealed ? (
-              <div className="flex flex-col items-center text-center py-8 gap-3">
-                <div className="text-4xl">{vaultUnlocked ? "🔐" : "🔒"}</div>
-                <p className="text-sm text-on-surface-variant">
-                  {vaultUnlocked
-                    ? "This entry is end-to-end encrypted"
-                    : "Unlock your Vault to view this secret"}
-                </p>
-                {vaultUnlocked ? (
-                  <button
-                    className="mt-2 px-5 py-2.5 rounded-xl text-sm font-bold press-scale transition-all"
-                    style={{
-                      background: "var(--color-primary)",
-                      color: "var(--color-on-primary)",
-                    }}
-                    onClick={() => setSecretRevealed(true)}
-                  >
-                    Reveal content
-                  </button>
-                ) : (
-                  <p className="text-xs text-on-surface-variant/50 mt-1">
-                    Go to the Vault tab and enter your passphrase
-                  </p>
-                )}
+              <div>
+                <label
+                  className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
+                  style={{ color: "var(--color-on-surface-variant)" }}
+                >
+                  Type
+                </label>
+                {/* Free-form type input — AI can use any label; datalist shows known types */}
+                <datalist id="entry-types-list">
+                  {Array.from(
+                    new Set([
+                      ...entries.map((e) => e.type).filter(Boolean),
+                      "note",
+                      "person",
+                      "place",
+                      "idea",
+                      "contact",
+                      "document",
+                      "reminder",
+                      "decision",
+                      "secret",
+                    ]),
+                  ).map((typ) => (
+                    <option key={typ} value={typ} />
+                  ))}
+                </datalist>
+                <input
+                  type="text"
+                  list="entry-types-list"
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value.toLowerCase().trim())}
+                  placeholder="e.g. recipe, supplier, director…"
+                  className="text-on-surface min-h-[44px] w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
+                  style={{
+                    background: "var(--color-surface-container)",
+                    border: "1px solid var(--color-outline-variant)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
               </div>
-            ) : (
-              <>
-                <p className="text-sm text-on-surface/90 leading-relaxed whitespace-pre-wrap">{editContent}</p>
-                {meta.length > 0 && (
-                  <div
-                    className="rounded-xl p-3 space-y-2"
-                    style={{ background: "var(--color-surface-container)" }}
+              <div>
+                <label
+                  className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
+                  style={{ color: "var(--color-on-surface-variant)" }}
+                >
+                  Content
+                </label>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={4}
+                  className="text-on-surface w-full resize-y rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
+                  style={{
+                    background: "var(--color-surface-container)",
+                    border: "1px solid var(--color-outline-variant)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+              <div>
+                <label
+                  className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
+                  style={{ color: "var(--color-on-surface-variant)" }}
+                >
+                  Tags{" "}
+                  <span className="text-on-surface-variant/50 normal-case">(comma separated)</span>
+                </label>
+                <input
+                  value={editTags}
+                  onChange={(e) => setEditTags(e.target.value)}
+                  placeholder="tag1, tag2, tag3"
+                  className="text-on-surface placeholder:text-on-surface-variant/40 min-h-[44px] w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
+                  style={{
+                    background: "var(--color-surface-container)",
+                    border: "1px solid var(--color-outline-variant)",
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                />
+              </div>
+              {brains.length > 1 && (
+                <div>
+                  <label
+                    className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
                   >
-                    {meta.map(([k, v]) => (
-                      <div key={k} className="flex items-baseline gap-2 text-xs">
-                        <span className="text-[10px] uppercase tracking-widest font-semibold flex-shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>
-                          {k.replace(/_/g, " ")}:{" "}
-                        </span>
-                        <span className="text-on-surface/80">
-                          {Array.isArray(v) ? v.join(", ") : String(v)}
-                        </span>
-                      </div>
-                    ))}
+                    Brains{" "}
+                    <span className="text-on-surface-variant/50 tracking-normal normal-case">
+                      (tap to add/remove)
+                    </span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {brains.map((b) => {
+                      const emoji =
+                        b.type === "family" ? "🏠" : b.type === "business" ? "🏪" : "🧠";
+                      const isPrimary = editBrainId === b.id;
+                      const isExtra = editExtraBrainIds.includes(b.id);
+                      const isActive = isPrimary || isExtra;
+                      return (
+                        <button
+                          key={b.id}
+                          aria-label={`${isActive ? "Remove from" : "Add to"} ${b.name}`}
+                          aria-pressed={isActive}
+                          className="press-scale flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                          style={{
+                            background: isPrimary
+                              ? "var(--color-primary-container)"
+                              : isExtra
+                                ? "var(--color-secondary-container)"
+                                : "var(--color-surface-container)",
+                            border: isPrimary
+                              ? "1px solid var(--color-primary)"
+                              : isExtra
+                                ? "1px solid var(--color-secondary)"
+                                : "1px solid var(--color-outline-variant)",
+                            color: isPrimary
+                              ? "var(--color-primary)"
+                              : isExtra
+                                ? "var(--color-secondary)"
+                                : "var(--color-on-surface-variant)",
+                          }}
+                          onClick={() => {
+                            if (isPrimary) {
+                              // Can't deselect primary — switch primary to another already-selected brain
+                              // or do nothing (always need a primary)
+                              return;
+                            }
+                            if (isExtra) {
+                              setEditExtraBrainIds((prev) => prev.filter((id) => id !== b.id));
+                            } else {
+                              setEditExtraBrainIds((prev) => [...prev, b.id]);
+                            }
+                          }}
+                        >
+                          {emoji} {b.name}
+                          {isPrimary && <span className="text-[9px] opacity-60">primary</span>}
+                          {isExtra && <span className="text-[9px] opacity-60">✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
-              </>
-            )}
-            {editTags
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean).length > 0 && (
-              <div className="pt-1">
-                <div className="flex flex-wrap gap-1.5">
-                  {editTags
-                    .split(",")
-                    .map((tag) => tag.trim())
-                    .filter(Boolean)
-                    .map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-                        style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
-                      >
-                        {tag}
-                      </span>
-                    ))}
+                  {!extraBrainsLoaded && editing && (
+                    <p className="mt-1.5 text-[10px]" style={{ color: "var(--color-outline)" }}>
+                      Loading brain assignments…
+                    </p>
+                  )}
                 </div>
+              )}
+              <div className="flex gap-3 pt-2">
+                <button
+                  className="text-on-surface-variant hover:text-on-surface press-scale flex-1 rounded-xl py-3 text-sm font-semibold transition-all"
+                  style={{ border: "1px solid var(--color-outline-variant)" }}
+                  onClick={() => setEditing(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="press-scale flex-[2] rounded-xl py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{
+                    background:
+                      saving || !editTitle.trim()
+                        ? "var(--color-surface-container-highest)"
+                        : "var(--color-primary)",
+                    color:
+                      saving || !editTitle.trim()
+                        ? "var(--color-on-surface-variant)"
+                        : "var(--color-on-primary)",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                  }}
+                  onClick={handleSave}
+                  disabled={saving || !editTitle.trim()}
+                >
+                  {saving ? "Saving..." : "Save changes"}
+                </button>
               </div>
-            )}
-            {related.length > 0 && (
-              <div className="pt-1">
-                <p className="text-[10px] uppercase tracking-widest font-semibold mb-2" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Connections
+            </div>
+          ) : (
+            <div className="mt-1 space-y-4">
+              {isSecret && !secretRevealed ? (
+                <div className="flex flex-col items-center gap-3 py-8 text-center">
+                  <div className="text-4xl">{vaultUnlocked ? "🔐" : "🔒"}</div>
+                  <p className="text-on-surface-variant text-sm">
+                    {vaultUnlocked
+                      ? "This entry is end-to-end encrypted"
+                      : "Unlock your Vault to view this secret"}
+                  </p>
+                  {vaultUnlocked ? (
+                    <button
+                      className="press-scale mt-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
+                      style={{
+                        background: "var(--color-primary)",
+                        color: "var(--color-on-primary)",
+                      }}
+                      onClick={() => setSecretRevealed(true)}
+                    >
+                      Reveal content
+                    </button>
+                  ) : (
+                    <p className="text-on-surface-variant/50 mt-1 text-xs">
+                      Go to the Vault tab and enter your passphrase
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <p className="text-on-surface/90 text-sm leading-relaxed whitespace-pre-wrap">
+                    {editContent}
+                  </p>
+                  {meta.length > 0 && (
+                    <div
+                      className="space-y-2 rounded-xl p-3"
+                      style={{ background: "var(--color-surface-container)" }}
+                    >
+                      {meta.map(([k, v]) => (
+                        <div key={k} className="flex items-baseline gap-2 text-xs">
+                          <span
+                            className="flex-shrink-0 text-[10px] font-semibold tracking-widest uppercase"
+                            style={{ color: "var(--color-on-surface-variant)" }}
+                          >
+                            {k.replace(/_/g, " ")}:{" "}
+                          </span>
+                          <span className="text-on-surface/80">
+                            {Array.isArray(v) ? v.join(", ") : String(v)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+              {editTags
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter(Boolean).length > 0 && (
+                <div className="pt-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {editTags
+                      .split(",")
+                      .map((tag) => tag.trim())
+                      .filter(Boolean)
+                      .map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                          style={{
+                            background: "var(--color-primary-container)",
+                            color: "var(--color-primary)",
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              )}
+              {related.length > 0 && (
+                <div className="pt-1">
+                  <p
+                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    Connections
+                  </p>
+                  {related.map(
+                    (r, i) =>
+                      r.other && (
+                        <div
+                          key={i}
+                          className="mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
+                          style={{ background: "var(--color-surface-container)" }}
+                        >
+                          <span>{resolveIcon(r.other.type, typeIcons)}</span>
+                          <span className="text-on-surface-variant/50">{r.dir}</span>
+                          <span className="text-on-surface flex-1">{r.other.title}</span>
+                          <span className="text-on-surface-variant/50 text-[10px] tracking-widest uppercase">
+                            {r.rel}
+                          </span>
+                        </div>
+                      ),
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick Actions */}
+          {!editing && quickActions.length > 0 && (
+            <div
+              className="mt-4 pt-4"
+              style={{ borderTop: "1px solid var(--color-outline-variant)" }}
+            >
+              <div className="flex flex-wrap gap-2">{quickActions}</div>
+              {shareMsg && (
+                <p className="mt-2 text-center text-xs" style={{ color: "var(--color-primary)" }}>
+                  {shareMsg}
                 </p>
-                {related.map(
-                  (r, i) =>
-                    r.other && (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg mb-1.5 text-xs"
-                        style={{ background: "var(--color-surface-container)" }}
-                      >
-                        <span>{resolveIcon(r.other.type, typeIcons)}</span>
-                        <span className="text-on-surface-variant/50">{r.dir}</span>
-                        <span className="text-on-surface flex-1">{r.other.title}</span>
-                        <span className="text-[10px] uppercase tracking-widest text-on-surface-variant/50">{r.rel}</span>
-                      </div>
-                    ),
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        {!editing && quickActions.length > 0 && (
-          <div
-            className="mt-4 pt-4"
-            style={{ borderTop: "1px solid var(--color-outline-variant)" }}
-          >
-            <div className="flex flex-wrap gap-2">{quickActions}</div>
-            {shareMsg && (
-              <p className="mt-2 text-xs text-center" style={{ color: "var(--color-primary)" }}>
-                {shareMsg}
-              </p>
-            )}
-          </div>
-        )}
-
-        </div>{/* end scrollable body */}
+              )}
+            </div>
+          )}
+        </div>
+        {/* end scrollable body */}
       </div>
     </div>
   );

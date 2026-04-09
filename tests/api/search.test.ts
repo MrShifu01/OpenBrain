@@ -160,7 +160,7 @@ describe("search handler", () => {
       ok: true,
       json: async () => [
         { id: "e1", similarity: 0.85 },
-        { id: "e2", similarity: 0.2 },  // below threshold
+        { id: "e2", similarity: 0.2 }, // below threshold
         { id: "e3", similarity: 0.29 }, // below threshold
         { id: "e4", similarity: 0.31 }, // above threshold
       ],

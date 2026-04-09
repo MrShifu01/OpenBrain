@@ -22,8 +22,13 @@ vi.mock("../../src/lib/notifications", () => ({
 import { EntryRepository } from "../../src/lib/entryRepository";
 
 const makeEntry = (id = "e1") => ({
-  id, title: "Test", content: "body", type: "note" as const,
-  tags: [], created_at: new Date().toISOString(), metadata: {},
+  id,
+  title: "Test",
+  content: "body",
+  type: "note" as const,
+  tags: [],
+  created_at: new Date().toISOString(),
+  metadata: {},
 });
 
 describe("EntryRepository", () => {
@@ -34,7 +39,12 @@ describe("EntryRepository", () => {
   beforeEach(() => {
     getEntries = vi.fn().mockReturnValue([makeEntry()]);
     setEntries = vi.fn();
-    repo = new EntryRepository({ getEntries: getEntries as any, setEntries: setEntries as any, isOnline: true, refreshCount: vi.fn() as any });
+    repo = new EntryRepository({
+      getEntries: getEntries as any,
+      setEntries: setEntries as any,
+      isOnline: true,
+      refreshCount: vi.fn() as any,
+    });
     vi.clearAllMocks();
     getEntries.mockReturnValue([makeEntry()]);
   });

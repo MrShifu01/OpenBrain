@@ -8,11 +8,18 @@
  */
 
 export const SUPPORTED_EXTENSIONS = [
-  ".txt", ".md", ".csv", ".tsv", ".json",
+  ".txt",
+  ".md",
+  ".csv",
+  ".tsv",
+  ".json",
   ".pdf",
   ".docx",
-  ".xlsx", ".xls", ".ods",
-  ".ofx", ".qfx",
+  ".xlsx",
+  ".xls",
+  ".ods",
+  ".ofx",
+  ".qfx",
 ] as const;
 
 const TEXT_EXTENSIONS = new Set([".txt", ".md", ".csv", ".tsv", ".json", ".ofx", ".qfx"]);
@@ -58,7 +65,8 @@ async function validateMagic(file: File): Promise<boolean> {
   if (ext === ".pdf") return matchesMagic(magic, [0x25, 0x50, 0x44, 0x46]);
 
   // DOCX/XLSX: PK\x03\x04 (0x50 0x4B 0x03 0x04) — ZIP files
-  if ([".docx", ".xlsx", ".xls", ".ods"].includes(ext)) return matchesMagic(magic, [0x50, 0x4b, 0x03, 0x04]);
+  if ([".docx", ".xlsx", ".xls", ".ods"].includes(ext))
+    return matchesMagic(magic, [0x50, 0x4b, 0x03, 0x04]);
 
   // Text files: no strict magic check, assume valid
   if (TEXT_EXTENSIONS.has(ext)) return true;

@@ -85,7 +85,8 @@ export default function RefineView({
   const [editValue, setEditValue] = useState("");
 
   /* ── Analyze: entry quality + link discovery in parallel ── */
-  const analyze = useCallback(async () => { // eslint-disable-line react-hooks/preserve-manual-memoization
+  const analyze = useCallback(async () => {
+    // eslint-disable-line react-hooks/preserve-manual-memoization
     if (loading) return;
     setLoading(true);
     setSuggestions(null);
@@ -276,7 +277,11 @@ export default function RefineView({
 
       const entry = entries.find((e: Entry) => e.id === s.entryId);
       if (!entry) {
-        setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
+        setApplying((p) => {
+          const n = new Set(p);
+          n.delete(key);
+          return n;
+        });
         return;
       }
 
@@ -291,7 +296,12 @@ export default function RefineView({
             await authFetch("/api/update-entry", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ id: entry.id, content: combinedContent, tags: combinedTags, metadata: combinedMeta }),
+              body: JSON.stringify({
+                id: entry.id,
+                content: combinedContent,
+                tags: combinedTags,
+                metadata: combinedMeta,
+              }),
             });
             await authFetch("/api/delete-entry", {
               method: "DELETE",
@@ -300,7 +310,11 @@ export default function RefineView({
             });
             setEntries((prev) =>
               prev
-                .map((e) => e.id === entry.id ? { ...e, content: combinedContent, tags: combinedTags, metadata: combinedMeta } : e)
+                .map((e) =>
+                  e.id === entry.id
+                    ? { ...e, content: combinedContent, tags: combinedTags, metadata: combinedMeta }
+                    : e,
+                )
                 .filter((e) => e.id !== mergeTargetId),
             );
           } catch {}
@@ -309,7 +323,11 @@ export default function RefineView({
         const body: Record<string, any> = { id: entry.id };
         if (s.field === "type") body.type = value;
         else if (s.field === "title") body.title = value;
-        else if (s.field === "tags") body.tags = value.split(",").map((t: string) => t.trim()).filter(Boolean);
+        else if (s.field === "tags")
+          body.tags = value
+            .split(",")
+            .map((t: string) => t.trim())
+            .filter(Boolean);
         else if (s.field === "content") body.content = value;
         else if (s.field.startsWith("metadata.")) {
           const k = s.field.slice("metadata.".length);
@@ -326,7 +344,14 @@ export default function RefineView({
               if (e.id !== entry.id) return e;
               if (s.field === "type") return { ...e, type: value as any };
               if (s.field === "title") return { ...e, title: value };
-              if (s.field === "tags") return { ...e, tags: value.split(",").map((t: string) => t.trim()).filter(Boolean) };
+              if (s.field === "tags")
+                return {
+                  ...e,
+                  tags: value
+                    .split(",")
+                    .map((t: string) => t.trim())
+                    .filter(Boolean),
+                };
               if (s.field === "content") return { ...e, content: value };
               if (s.field.startsWith("metadata.")) {
                 const k = s.field.slice("metadata.".length);
@@ -339,7 +364,11 @@ export default function RefineView({
       }
 
       setDismissed((p) => new Set(p).add(key));
-      setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
+      setApplying((p) => {
+        const n = new Set(p);
+        n.delete(key);
+        return n;
+      });
       setEditingKey(null);
     },
     [entries, setEntries],
@@ -375,27 +404,40 @@ export default function RefineView({
       } catch {}
 
       setDismissed((p) => new Set(p).add(key));
-      setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
+      setApplying((p) => {
+        const n = new Set(p);
+        n.delete(key);
+        return n;
+      });
       setEditingKey(null);
     },
     [addLinks],
   );
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const reject = useCallback((key: string, s?: RefineSuggestion) => {
-    setDismissed((p) => new Set(p).add(key));
-    setEditingKey(null);
-    if (s && activeBrain?.id) {
-      recordDecision(activeBrain.id, {
-        source: "refine",
-        type: s.type,
-        action: "reject",
-        field: s.type === "LINK_SUGGESTED" ? undefined : (s as EntrySuggestion).field,
-        originalValue: s.type === "LINK_SUGGESTED" ? (s as LinkSuggestion).rel : (s as EntrySuggestion).suggestedValue,
-        reason: s.type === "LINK_SUGGESTED" ? (s as LinkSuggestion).reason : (s as EntrySuggestion).reason,
-      });
-    }
-  }, [activeBrain?.id]);
+  const reject = useCallback(
+    (key: string, s?: RefineSuggestion) => {
+      setDismissed((p) => new Set(p).add(key));
+      setEditingKey(null);
+      if (s && activeBrain?.id) {
+        recordDecision(activeBrain.id, {
+          source: "refine",
+          type: s.type,
+          action: "reject",
+          field: s.type === "LINK_SUGGESTED" ? undefined : (s as EntrySuggestion).field,
+          originalValue:
+            s.type === "LINK_SUGGESTED"
+              ? (s as LinkSuggestion).rel
+              : (s as EntrySuggestion).suggestedValue,
+          reason:
+            s.type === "LINK_SUGGESTED"
+              ? (s as LinkSuggestion).reason
+              : (s as EntrySuggestion).reason,
+        });
+      }
+    },
+    [activeBrain?.id],
+  );
 
   const keyOf = (s: RefineSuggestion): string =>
     s.type === "LINK_SUGGESTED"
@@ -410,26 +452,41 @@ export default function RefineView({
 
   const isSharedBrain = activeBrain && activeBrain.type !== "personal";
   const isOwner = !activeBrain || activeBrain.myRole === "owner";
-  const brainEmoji = activeBrain?.type === "business" ? "🏪" : activeBrain?.type === "family" ? "🏠" : "🧠";
+  const brainEmoji =
+    activeBrain?.type === "business" ? "🏪" : activeBrain?.type === "family" ? "🏠" : "🧠";
 
   if (isSharedBrain && !isOwner) {
     return (
-      <div className="px-4 py-4 space-y-4" style={{ background: "var(--color-background)", minHeight: "100%" }}>
+      <div
+        className="space-y-4 px-4 py-4"
+        style={{ background: "var(--color-background)", minHeight: "100%" }}
+      >
         <div
-          className="rounded-2xl p-8 text-center space-y-3"
-          style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+          className="space-y-3 rounded-2xl p-8 text-center"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
         >
           <div className="text-4xl">{brainEmoji}</div>
-          <h2 className="text-xl font-semibold text-[var(--color-on-surface)]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+          <h2
+            className="text-xl font-semibold text-[var(--color-on-surface)]"
+            style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+          >
             Refine — Owner Only
           </h2>
-          <p style={{ color: "var(--color-on-surface-variant)" }} className="text-sm leading-relaxed">
-            Only the owner of <strong className="text-[var(--color-on-surface)]">{activeBrain.name}</strong> can run the Refine analysis.
+          <p
+            style={{ color: "var(--color-on-surface-variant)" }}
+            className="text-sm leading-relaxed"
+          >
+            Only the owner of{" "}
+            <strong className="text-[var(--color-on-surface)]">{activeBrain.name}</strong> can run
+            the Refine analysis.
             <br />
             Members can view and add entries, but AI auditing is reserved for the brain owner.
           </p>
           <div
-            className="rounded-xl px-4 py-2 text-xs inline-block mt-2"
+            className="mt-2 inline-block rounded-xl px-4 py-2 text-xs"
             style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
           >
             Ask the brain owner to run Refine and review the suggestions.
@@ -442,7 +499,10 @@ export default function RefineView({
   const BRAIN_EMOJI: Record<string, string> = { personal: "🧠", business: "🏪", family: "🏠" };
 
   return (
-    <div className="px-4 py-4 space-y-4" style={{ background: "var(--color-background)", minHeight: "100%" }}>
+    <div
+      className="space-y-4 px-4 py-4"
+      style={{ background: "var(--color-background)", minHeight: "100%" }}
+    >
       {/* Header */}
       <div className="space-y-3">
         <h2
@@ -455,14 +515,23 @@ export default function RefineView({
           AI skeptically audits every entry — and discovers missing relationships between them.
         </p>
         {activeBrain?.id && getDecisionCount(activeBrain.id) > 0 && (
-          <div className="flex items-center gap-2 text-xs" style={{ color: "var(--color-primary)" }}>
-            <span className="inline-block w-2 h-2 rounded-full" style={{ background: "var(--color-primary)" }} />
+          <div
+            className="flex items-center gap-2 text-xs"
+            style={{ color: "var(--color-primary)" }}
+          >
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: "var(--color-primary)" }}
+            />
             Learning from {getDecisionCount(activeBrain.id)} past decisions
           </div>
         )}
         {activeBrain && (
           <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            Analysing <strong className="text-on-surface">{BRAIN_EMOJI[activeBrain.type || "personal"] || "🧠"} {activeBrain.name}</strong>
+            Analysing{" "}
+            <strong className="text-on-surface">
+              {BRAIN_EMOJI[activeBrain.type || "personal"] || "🧠"} {activeBrain.name}
+            </strong>
           </p>
         )}
       </div>
@@ -487,27 +556,61 @@ export default function RefineView({
       {/* Loading */}
       {loading && (
         <div
-          className="rounded-2xl p-8 text-center space-y-3"
-          style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+          className="space-y-3 rounded-2xl p-8 text-center"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
         >
-          <div className="text-3xl" style={{ color: "var(--color-primary)", animation: "typing-dot 2s ease-in-out infinite" }}>✶</div>
-          <p className="text-sm font-medium text-on-surface-variant">Auditing {entries.length} entries + mapping relationships…</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Running entry quality + link discovery in parallel</p>
+          <div
+            className="text-3xl"
+            style={{
+              color: "var(--color-primary)",
+              animation: "typing-dot 2s ease-in-out infinite",
+            }}
+          >
+            ✶
+          </div>
+          <p className="text-on-surface-variant text-sm font-medium">
+            Auditing {entries.length} entries + mapping relationships…
+          </p>
+          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            Running entry quality + link discovery in parallel
+          </p>
         </div>
       )}
 
       {/* Stats */}
       {suggestions !== null && !loading && (
-        <div className="flex items-start gap-6 py-3 border-b" style={{ borderColor: "var(--color-outline-variant)" }}>
+        <div
+          className="flex items-start gap-6 border-b py-3"
+          style={{ borderColor: "var(--color-outline-variant)" }}
+        >
           {[
             { l: "Entries", v: entries.length },
-            { l: "Fixes", v: visible.filter((s) => s.type !== "LINK_SUGGESTED").length + dismissed.size - linkCount },
+            {
+              l: "Fixes",
+              v:
+                visible.filter((s) => s.type !== "LINK_SUGGESTED").length +
+                dismissed.size -
+                linkCount,
+            },
             { l: "Links", v: linkCount },
             { l: "Remaining", v: visible.length },
           ].map((s) => (
             <div key={s.l} className="flex flex-col gap-0.5">
-              <span className="text-xl font-semibold text-[var(--color-on-surface)]" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>{s.v}</span>
-              <span className="text-[10px] uppercase tracking-[0.1em]" style={{ color: "var(--color-on-surface-variant)" }}>{s.l}</span>
+              <span
+                className="text-xl font-semibold text-[var(--color-on-surface)]"
+                style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+              >
+                {s.v}
+              </span>
+              <span
+                className="text-[10px] tracking-[0.1em] uppercase"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                {s.l}
+              </span>
             </div>
           ))}
         </div>
@@ -515,24 +618,51 @@ export default function RefineView({
 
       {/* Nothing found */}
       {noneFound && !loading && (
-        <div className="rounded-2xl p-8 text-center space-y-2" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-3xl" style={{ color: "var(--color-primary)" }}>✓</div>
-          <p className="text-sm font-medium text-[var(--color-on-surface)]">Everything looks clean</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>No high-confidence improvements or missing links found</p>
+        <div
+          className="space-y-2 rounded-2xl p-8 text-center"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
+        >
+          <div className="text-3xl" style={{ color: "var(--color-primary)" }}>
+            ✓
+          </div>
+          <p className="text-sm font-medium text-[var(--color-on-surface)]">
+            Everything looks clean
+          </p>
+          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            No high-confidence improvements or missing links found
+          </p>
         </div>
       )}
 
       {/* All done */}
       {allDone && !loading && (
-        <div className="rounded-2xl p-8 text-center space-y-2" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-3xl" style={{ color: "var(--color-secondary)" }}>✶</div>
-          <p className="text-sm font-medium text-[var(--color-on-surface)]">All suggestions resolved</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Re-analyze to check again</p>
+        <div
+          className="space-y-2 rounded-2xl p-8 text-center"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
+        >
+          <div className="text-3xl" style={{ color: "var(--color-secondary)" }}>
+            ✶
+          </div>
+          <p className="text-sm font-medium text-[var(--color-on-surface)]">
+            All suggestions resolved
+          </p>
+          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            Re-analyze to check again
+          </p>
         </div>
       )}
 
       {!loading && entryCount > 0 && (
-        <p className="text-[10px] uppercase tracking-widest font-semibold pt-2" style={{ color: "var(--color-on-surface-variant)" }}>
+        <p
+          className="pt-2 text-[10px] font-semibold tracking-widest uppercase"
+          style={{ color: "var(--color-on-surface-variant)" }}
+        >
           Entry fixes ({entryCount})
         </p>
       )}
@@ -540,7 +670,9 @@ export default function RefineView({
       {/* Suggestion cards */}
       {visible.map((s) => {
         const key = keyOf(s);
-        const meta = (LABELS as Record<string, { label: string; icon: string; variant: string }>)[s.type] || { label: s.type, icon: "•", variant: "neutral" };
+        const meta = (LABELS as Record<string, { label: string; icon: string; variant: string }>)[
+          s.type
+        ] || { label: s.type, icon: "•", variant: "neutral" };
         const { bg: metaBg, text: metaText } = labelColors(meta.variant);
         const busy = applying.has(key);
         const isEdit = editingKey === key;
@@ -555,56 +687,177 @@ export default function RefineView({
         return (
           <div key={key}>
             {showDivider && (
-              <p className="text-[10px] uppercase tracking-widest font-semibold pt-4 pb-1" style={{ color: "var(--color-on-surface-variant)" }}>
+              <p
+                className="pt-4 pb-1 text-[10px] font-semibold tracking-widest uppercase"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
                 Missing relationships ({linkCount})
               </p>
             )}
-            <div className="rounded-2xl p-4 space-y-3" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
+            <div
+              className="space-y-3 rounded-2xl p-4"
+              style={{
+                background: "var(--color-surface-container)",
+                border: "1px solid var(--color-outline-variant)",
+              }}
+            >
               {isLink ? (
                 <>
                   <div className="flex items-center justify-end">
-                    <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: metaBg, color: metaText }}>
+                    <span
+                      className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                      style={{ background: metaBg, color: metaText }}
+                    >
                       {meta.icon} {meta.label}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--color-on-surface-variant)" }}>From</div>
-                      <div className="text-sm text-[var(--color-on-surface)] truncate">
-                        {(TC as Record<string, any>)[entries.find((e) => e.id === ls.fromId)?.type || "note"]?.i || "📝"}{" "}{ls.fromTitle}
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="mb-1 text-[10px] tracking-widest uppercase"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        From
+                      </div>
+                      <div className="truncate text-sm text-[var(--color-on-surface)]">
+                        {(TC as Record<string, any>)[
+                          entries.find((e) => e.id === ls.fromId)?.type || "note"
+                        ]?.i || "📝"}{" "}
+                        {ls.fromTitle}
                       </div>
                     </div>
-                    <div className="flex-shrink-0 text-center px-2">
+                    <div className="flex-shrink-0 px-2 text-center">
                       {isEdit ? (
-                        <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter" && editValue.trim()) applyLink(ls, editValue.trim()); if (e.key === "Escape") setEditingKey(null); }}
-                          placeholder="relationship…" maxLength={50}
-                          className="w-32 rounded-lg px-2 py-1 text-xs text-center outline-none"
-                          style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary)", color: "var(--color-on-surface)" }}
+                        <input
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && editValue.trim())
+                              applyLink(ls, editValue.trim());
+                            if (e.key === "Escape") setEditingKey(null);
+                          }}
+                          placeholder="relationship…"
+                          maxLength={50}
+                          className="w-32 rounded-lg px-2 py-1 text-center text-xs outline-none"
+                          style={{
+                            background: "var(--color-surface)",
+                            border: "1px solid var(--color-primary)",
+                            color: "var(--color-on-surface)",
+                          }}
                         />
                       ) : (
-                        <span className="text-xs font-medium" style={{ color: "var(--color-primary)" }}>⟶ {ls.rel} ⟶</span>
+                        <span
+                          className="text-xs font-medium"
+                          style={{ color: "var(--color-primary)" }}
+                        >
+                          ⟶ {ls.rel} ⟶
+                        </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 text-right">
-                      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--color-on-surface-variant)" }}>To</div>
-                      <div className="text-sm text-[var(--color-on-surface)] truncate">
-                        {(TC as Record<string, any>)[entries.find((e) => e.id === ls.toId)?.type || "note"]?.i || "📝"}{" "}{ls.toTitle}
+                    <div className="min-w-0 flex-1 text-right">
+                      <div
+                        className="mb-1 text-[10px] tracking-widest uppercase"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        To
+                      </div>
+                      <div className="truncate text-sm text-[var(--color-on-surface)]">
+                        {(TC as Record<string, any>)[
+                          entries.find((e) => e.id === ls.toId)?.type || "note"
+                        ]?.i || "📝"}{" "}
+                        {ls.toTitle}
                       </div>
                     </div>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{ls.reason}</p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    {ls.reason}
+                  </p>
                   <div className="flex items-center gap-2 pt-1">
                     {isEdit ? (
                       <>
-                        <button onClick={() => setEditingKey(null)} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>Cancel</button>
-                        <button onClick={() => editValue.trim() && applyLink(ls, editValue.trim())} disabled={!editValue.trim() || busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: !editValue.trim() || busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: !editValue.trim() || busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: !editValue.trim() || busy ? 0.5 : 1 }}>Apply</button>
+                        <button
+                          onClick={() => setEditingKey(null)}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-on-surface-variant)",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => editValue.trim() && applyLink(ls, editValue.trim())}
+                          disabled={!editValue.trim() || busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                          style={{
+                            background:
+                              !editValue.trim() || busy
+                                ? "var(--color-surface-container-highest)"
+                                : "var(--color-primary)",
+                            color:
+                              !editValue.trim() || busy
+                                ? "var(--color-on-surface-variant)"
+                                : "var(--color-on-primary)",
+                            border: "none",
+                            opacity: !editValue.trim() || busy ? 0.5 : 1,
+                          }}
+                        >
+                          Apply
+                        </button>
                       </>
                     ) : (
                       <>
-                        <button onClick={() => reject(key, s)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-error)", opacity: busy ? 0.5 : 1 }}>✗ Reject</button>
-                        <button onClick={() => { setEditingKey(key); setEditValue(ls.rel); }} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)", opacity: busy ? 0.5 : 1 }}>✎ Edit</button>
-                        <button onClick={() => applyLink(ls)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: busy ? 0.5 : 1 }}>{busy ? "Saving…" : "✓ Accept"}</button>
+                        <button
+                          onClick={() => reject(key, s)}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-error)",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          ✗ Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingKey(key);
+                            setEditValue(ls.rel);
+                          }}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-on-surface-variant)",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          ✎ Edit
+                        </button>
+                        <button
+                          onClick={() => applyLink(ls)}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                          style={{
+                            background: busy
+                              ? "var(--color-surface-container-highest)"
+                              : "var(--color-primary)",
+                            color: busy
+                              ? "var(--color-on-surface-variant)"
+                              : "var(--color-on-primary)",
+                            border: "none",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          {busy ? "Saving…" : "✓ Accept"}
+                        </button>
                       </>
                     )}
                   </div>
@@ -612,42 +865,173 @@ export default function RefineView({
               ) : (
                 <>
                   <div className="flex items-center gap-2">
-                    <span className="text-base">{(TC as Record<string, any>)[entries.find((e) => e.id === es.entryId)?.type || "note"]?.i || "📝"}</span>
-                    <span className="text-sm font-medium text-[var(--color-on-surface)] truncate flex-1">{es.entryTitle || entries.find((e) => e.id === es.entryId)?.title || es.entryId}</span>
-                    <span className="rounded-full px-2.5 py-0.5 text-[11px] font-medium flex-shrink-0" style={{ background: metaBg, color: metaText }}>{meta.icon} {meta.label}</span>
+                    <span className="text-base">
+                      {(TC as Record<string, any>)[
+                        entries.find((e) => e.id === es.entryId)?.type || "note"
+                      ]?.i || "📝"}
+                    </span>
+                    <span className="flex-1 truncate text-sm font-medium text-[var(--color-on-surface)]">
+                      {es.entryTitle ||
+                        entries.find((e) => e.id === es.entryId)?.title ||
+                        es.entryId}
+                    </span>
+                    <span
+                      className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                      style={{ background: metaBg, color: metaText }}
+                    >
+                      {meta.icon} {meta.label}
+                    </span>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--color-on-surface-variant)" }}>Current</div>
-                      <div className="text-xs rounded-lg px-2.5 py-1.5 break-words" style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
-                        {es.currentValue || <em style={{ color: "var(--color-on-surface-variant)" }}>empty</em>}
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="mb-1 text-[10px] tracking-widest uppercase"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        Current
+                      </div>
+                      <div
+                        className="rounded-lg px-2.5 py-1.5 text-xs break-words"
+                        style={{
+                          background: "var(--color-surface-container)",
+                          color: "var(--color-on-surface-variant)",
+                        }}
+                      >
+                        {es.currentValue || (
+                          <em style={{ color: "var(--color-on-surface-variant)" }}>empty</em>
+                        )}
                       </div>
                     </div>
-                    <span className="text-sm mt-5 flex-shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>→</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: "var(--color-on-surface-variant)" }}>Suggested</div>
-                      <div className="text-xs rounded-lg px-2.5 py-1.5 break-words" style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}>{es.suggestedValue}</div>
+                    <span
+                      className="mt-5 flex-shrink-0 text-sm"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      →
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div
+                        className="mb-1 text-[10px] tracking-widest uppercase"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        Suggested
+                      </div>
+                      <div
+                        className="rounded-lg px-2.5 py-1.5 text-xs break-words"
+                        style={{
+                          background: "var(--color-primary-container)",
+                          color: "var(--color-primary)",
+                        }}
+                      >
+                        {es.suggestedValue}
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{es.reason}</p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    {es.reason}
+                  </p>
                   {isEdit && (
-                    <input autoFocus value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && editValue.trim()) applyEntry(es, editValue.trim()); if (e.key === "Escape") setEditingKey(null); }}
-                      maxLength={50} className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                      style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary)", color: "var(--color-on-surface)" }}
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && editValue.trim()) applyEntry(es, editValue.trim());
+                        if (e.key === "Escape") setEditingKey(null);
+                      }}
+                      maxLength={50}
+                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                      style={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-primary)",
+                        color: "var(--color-on-surface)",
+                      }}
                     />
                   )}
                   <div className="flex items-center gap-2 pt-1">
                     {isEdit ? (
                       <>
-                        <button onClick={() => setEditingKey(null)} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>Cancel</button>
-                        <button onClick={() => editValue.trim() && applyEntry(es, editValue.trim())} disabled={!editValue.trim() || busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: !editValue.trim() || busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: !editValue.trim() || busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: !editValue.trim() || busy ? 0.5 : 1 }}>Apply</button>
+                        <button
+                          onClick={() => setEditingKey(null)}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-on-surface-variant)",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => editValue.trim() && applyEntry(es, editValue.trim())}
+                          disabled={!editValue.trim() || busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                          style={{
+                            background:
+                              !editValue.trim() || busy
+                                ? "var(--color-surface-container-highest)"
+                                : "var(--color-primary)",
+                            color:
+                              !editValue.trim() || busy
+                                ? "var(--color-on-surface-variant)"
+                                : "var(--color-on-primary)",
+                            border: "none",
+                            opacity: !editValue.trim() || busy ? 0.5 : 1,
+                          }}
+                        >
+                          Apply
+                        </button>
                       </>
                     ) : (
                       <>
-                        <button onClick={() => reject(key, s)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-error)", opacity: busy ? 0.5 : 1 }}>✗ Reject</button>
-                        <button onClick={() => { setEditingKey(key); setEditValue(es.suggestedValue); }} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)", opacity: busy ? 0.5 : 1 }}>✎ Edit</button>
-                        <button onClick={() => applyEntry(es)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: busy ? 0.5 : 1 }}>{busy ? "Saving…" : "✓ Accept"}</button>
+                        <button
+                          onClick={() => reject(key, s)}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-error)",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          ✗ Reject
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingKey(key);
+                            setEditValue(es.suggestedValue);
+                          }}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all"
+                          style={{
+                            background: "transparent",
+                            border: "1px solid var(--color-outline-variant)",
+                            color: "var(--color-on-surface-variant)",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          ✎ Edit
+                        </button>
+                        <button
+                          onClick={() => applyEntry(es)}
+                          disabled={busy}
+                          className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
+                          style={{
+                            background: busy
+                              ? "var(--color-surface-container-highest)"
+                              : "var(--color-primary)",
+                            color: busy
+                              ? "var(--color-on-surface-variant)"
+                              : "var(--color-on-primary)",
+                            border: "none",
+                            opacity: busy ? 0.5 : 1,
+                          }}
+                        >
+                          {busy ? "Saving…" : "✓ Accept"}
+                        </button>
                       </>
                     )}
                   </div>

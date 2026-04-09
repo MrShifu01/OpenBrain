@@ -51,7 +51,15 @@ describe("useEntryActions", () => {
 
   it("handleDelete removes entry from state optimistically", () => {
     const { result } = renderHook(() =>
-      useEntryActions({ entries: entries as any, setEntries: setEntries as any, setSelected: setSelected as any, isOnline: true, isOnlineRef, refreshCount: refreshCount as any, cryptoKey: null }),
+      useEntryActions({
+        entries: entries as any,
+        setEntries: setEntries as any,
+        setSelected: setSelected as any,
+        isOnline: true,
+        isOnlineRef,
+        refreshCount: refreshCount as any,
+        cryptoKey: null,
+      }),
     );
     act(() => {
       result.current.handleDelete("a");
@@ -62,7 +70,15 @@ describe("useEntryActions", () => {
 
   it("handleUndo restores deleted entry", () => {
     const { result } = renderHook(() =>
-      useEntryActions({ entries: entries as any, setEntries: setEntries as any, setSelected: setSelected as any, isOnline: true, isOnlineRef, refreshCount: refreshCount as any, cryptoKey: null }),
+      useEntryActions({
+        entries: entries as any,
+        setEntries: setEntries as any,
+        setSelected: setSelected as any,
+        isOnline: true,
+        isOnlineRef,
+        refreshCount: refreshCount as any,
+        cryptoKey: null,
+      }),
     );
     act(() => {
       result.current.handleDelete("a");
@@ -76,7 +92,15 @@ describe("useEntryActions", () => {
 
   it("handleCreated sets lastAction to create", () => {
     const { result } = renderHook(() =>
-      useEntryActions({ entries: entries as any, setEntries: setEntries as any, setSelected: setSelected as any, isOnline: true, isOnlineRef, refreshCount: refreshCount as any, cryptoKey: null }),
+      useEntryActions({
+        entries: entries as any,
+        setEntries: setEntries as any,
+        setSelected: setSelected as any,
+        isOnline: true,
+        isOnlineRef,
+        refreshCount: refreshCount as any,
+        cryptoKey: null,
+      }),
     );
     act(() => {
       result.current.handleCreated({ id: "new-id" } as any);
@@ -87,7 +111,15 @@ describe("useEntryActions", () => {
 
   it("saveError is null by default", () => {
     const { result } = renderHook(() =>
-      useEntryActions({ entries: entries as any, setEntries: setEntries as any, setSelected: setSelected as any, isOnline: true, isOnlineRef, refreshCount: refreshCount as any, cryptoKey: null }),
+      useEntryActions({
+        entries: entries as any,
+        setEntries: setEntries as any,
+        setSelected: setSelected as any,
+        isOnline: true,
+        isOnlineRef,
+        refreshCount: refreshCount as any,
+        cryptoKey: null,
+      }),
     );
     expect(result.current.saveError).toBeNull();
   });

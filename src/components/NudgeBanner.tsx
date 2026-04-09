@@ -7,27 +7,27 @@ export function NudgeBanner({ nudge, onDismiss }: NudgeBannerProps) {
   if (!nudge) return null;
   return (
     <div
-      className="flex items-start gap-3 p-4 rounded-2xl mb-4 border"
+      className="mb-4 flex items-start gap-3 rounded-2xl border p-4"
       style={{
         background: "color-mix(in oklch, var(--color-primary) 8%, var(--color-surface))",
         borderColor: "color-mix(in oklch, var(--color-primary) 20%, transparent)",
       }}
     >
       <div
-        className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-base"
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-base"
         style={{ background: "color-mix(in oklch, var(--color-primary) 12%, transparent)" }}
       >
         💡
       </div>
-      <p className="flex-1 text-sm text-on-surface-variant leading-relaxed">{nudge}</p>
+      <p className="text-on-surface-variant flex-1 text-sm leading-relaxed">{nudge}</p>
       <button
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="text-on-surface-variant/50 hover:text-on-surface transition-colors flex-shrink-0 mt-0.5 press-scale"
+        className="text-on-surface-variant/50 hover:text-on-surface press-scale mt-0.5 flex-shrink-0 transition-colors"
       >
         <svg
           aria-hidden="true"
-          className="w-4 h-4"
+          className="h-4 w-4"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"

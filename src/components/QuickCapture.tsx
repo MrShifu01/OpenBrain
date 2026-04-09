@@ -10,16 +10,37 @@ import { recordDecision } from "../lib/learningEngine";
 import { TC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { registerTypeIcon, pickDefaultIcon } from "../lib/typeIcons";
-import { isSupportedFile, isTextFile, isDocxFile, isExcelFile, readTextFile, readDocxFile, readExcelFile, readFileAsBase64, ACCEPT_STRING } from "../lib/fileParser";
+import {
+  isSupportedFile,
+  isTextFile,
+  isDocxFile,
+  isExcelFile,
+  readTextFile,
+  readDocxFile,
+  readExcelFile,
+  readFileAsBase64,
+  ACCEPT_STRING,
+} from "../lib/fileParser";
 import { shouldSplitContent, buildSplitPrompt, parseAISplitResponse } from "../lib/fileSplitter";
 import BulkUploadModal from "./BulkUploadModal";
 import type { Entry, Link } from "../types";
 
 type CaptureStatus =
-  | "thinking" | "saving" | "saved-db" | "saved-local" | "saved-raw"
-  | "error" | "offline-image" | "img-too-large" | "file-too-large"
-  | "unsupported-file" | "reading-file" | "splitting" | "file-empty"
-  | "vault-needed" | "mic-denied";
+  | "thinking"
+  | "saving"
+  | "saved-db"
+  | "saved-local"
+  | "saved-raw"
+  | "error"
+  | "offline-image"
+  | "img-too-large"
+  | "file-too-large"
+  | "unsupported-file"
+  | "reading-file"
+  | "splitting"
+  | "file-empty"
+  | "vault-needed"
+  | "mic-denied";
 
 interface ParsedEntry {
   title?: string;
@@ -77,7 +98,9 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
     const el = modalRef.current;
     if (!el) return;
     const focusable = Array.from(
-      el.querySelectorAll<HTMLElement>('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      el.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
     );
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
@@ -85,9 +108,15 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
     function trap(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
       if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
       } else {
-        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
       }
     }
     el.addEventListener("keydown", trap);
@@ -106,16 +135,29 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
         aria-modal="true"
         aria-labelledby="qc-preview-title"
         className="w-full max-w-md rounded-2xl border p-5"
-        style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+        style={{
+          background: "var(--color-surface-container-low)",
+          borderColor: "var(--color-outline-variant)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <span id="qc-preview-title" className="text-sm font-semibold text-on-surface">Preview before saving</span>
-          <button onClick={onCancel} aria-label="Close" className="text-on-surface-variant hover:text-on-surface text-lg transition-colors">✕</button>
+        <div className="mb-4 flex items-center justify-between">
+          <span id="qc-preview-title" className="text-on-surface text-sm font-semibold">
+            Preview before saving
+          </span>
+          <button
+            onClick={onCancel}
+            aria-label="Close"
+            className="text-on-surface-variant hover:text-on-surface text-lg transition-colors"
+          >
+            ✕
+          </button>
         </div>
         <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Title</label>
+            <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">
+              Title
+            </label>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -126,18 +168,21 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
               data-1p-ignore="true"
               data-form-type="other"
               spellCheck={false}
-              className="w-full rounded-xl border px-3 py-2.5 text-sm text-on-surface bg-transparent outline-none focus:border-[var(--color-primary)] transition-colors"
+              className="text-on-surface w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none focus:border-[var(--color-primary)]"
               style={{ borderColor: "var(--color-outline-variant)" }}
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">Type</label>
+            <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">Type</label>
             <div className="relative">
               <select
                 value={type}
                 onChange={(e) => setType(e.target.value)}
-                className="w-full rounded-xl border px-3 py-2.5 pr-9 text-sm text-on-surface outline-none appearance-none cursor-pointer focus:border-[var(--color-primary)] transition-colors"
-                style={{ borderColor: "var(--color-outline-variant)", background: "var(--color-surface-container)" }}
+                className="text-on-surface w-full cursor-pointer appearance-none rounded-xl border px-3 py-2.5 pr-9 text-sm transition-colors outline-none focus:border-[var(--color-primary)]"
+                style={{
+                  borderColor: "var(--color-outline-variant)",
+                  background: "var(--color-surface-container)",
+                }}
               >
                 {Object.keys(TC).map((t) => (
                   <option key={t} value={t}>
@@ -145,13 +190,24 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
                   </option>
                 ))}
               </select>
-              <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "var(--color-on-surface-variant)" }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              <svg
+                className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19.5 8.25l-7.5 7.5-7.5-7.5"
+                />
               </svg>
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-on-surface-variant mb-1.5">
+            <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">
               Tags <span className="text-on-surface-variant/40">(comma separated)</span>
             </label>
             <input
@@ -165,30 +221,46 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
               data-1p-ignore="true"
               data-form-type="other"
               spellCheck={false}
-              className="w-full rounded-xl border px-3 py-2.5 text-sm text-on-surface bg-transparent outline-none placeholder:text-on-surface-variant/40 focus:border-[var(--color-primary)] transition-colors"
+              className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none focus:border-[var(--color-primary)]"
               style={{ borderColor: "var(--color-outline-variant)" }}
             />
           </div>
         </form>
         {dupes.length > 0 && (
-          <div className="mt-4 p-3 rounded-xl border" style={{ borderColor: "var(--color-primary-container)", background: "color-mix(in oklch, var(--color-primary) 6%, transparent)" }}>
-            <p className="text-xs font-semibold mb-2 text-primary">⚠ Similar entries found — update one instead?</p>
+          <div
+            className="mt-4 rounded-xl border p-3"
+            style={{
+              borderColor: "var(--color-primary-container)",
+              background: "color-mix(in oklch, var(--color-primary) 6%, transparent)",
+            }}
+          >
+            <p className="text-primary mb-2 text-xs font-semibold">
+              ⚠ Similar entries found — update one instead?
+            </p>
             {dupes.map((d) => (
               <div key={(d as Entry).id} className="flex items-center justify-between gap-2 py-1.5">
-                <span className="text-xs text-on-surface-variant truncate">• {(d as Entry).title}</span>
+                <span className="text-on-surface-variant truncate text-xs">
+                  • {(d as Entry).title}
+                </span>
                 <button
                   onClick={() => {
                     onUpdate((d as Entry).id, {
                       title: title.trim(),
                       type,
-                      tags: tags.split(",").map((t: string) => t.trim()).filter(Boolean),
+                      tags: tags
+                        .split(",")
+                        .map((t: string) => t.trim())
+                        .filter(Boolean),
                       content: preview.content,
                       metadata: preview.metadata,
                     });
                     onCancel();
                   }}
-                  className="text-[10px] font-semibold px-2.5 py-1 rounded-lg flex-shrink-0"
-                  style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
+                  className="flex-shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-semibold"
+                  style={{
+                    color: "var(--color-primary)",
+                    background: "var(--color-primary-container)",
+                  }}
                 >
                   Update this
                 </button>
@@ -196,10 +268,10 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
             ))}
           </div>
         )}
-        <div className="flex gap-3 mt-5">
+        <div className="mt-5 flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border text-sm text-on-surface-variant transition-colors hover:bg-surface-container"
+            className="text-on-surface-variant hover:bg-surface-container flex-1 rounded-xl border py-2.5 text-sm transition-colors"
             style={{ borderColor: "var(--color-outline-variant)", background: "transparent" }}
           >
             Cancel
@@ -210,11 +282,14 @@ function PreviewModal({ preview, entries, onSave, onUpdate, onCancel }: PreviewM
                 ...preview,
                 title: title.trim(),
                 type,
-                tags: tags.split(",").map((tag: string) => tag.trim()).filter(Boolean),
+                tags: tags
+                  .split(",")
+                  .map((tag: string) => tag.trim())
+                  .filter(Boolean),
               })
             }
             disabled={!title.trim()}
-            className="flex-[2] py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 press-scale"
+            className="press-scale flex-[2] rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-40"
             style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
             Save to Everion
@@ -366,7 +441,10 @@ export default function QuickCapture({
               {
                 role: "user",
                 content: [
-                  { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+                  {
+                    type: "document",
+                    source: { type: "base64", media_type: "application/pdf", data: base64 },
+                  },
                   {
                     type: "text",
                     text: "Extract ALL text from this document. Preserve structure, headings, lists. Output just the extracted content, clean and readable. No commentary.",
@@ -623,18 +701,25 @@ export default function QuickCapture({
           });
 
           if (transcribeRes.ok) {
-            const { text, audioBytes, provider: txProvider, model: txModel } = await transcribeRes.json();
+            const {
+              text,
+              audioBytes,
+              provider: txProvider,
+              model: txModel,
+            } = await transcribeRes.json();
             if (text?.trim()) setText((prev) => (prev ? `${prev} ${text.trim()}` : text.trim()));
             if (audioBytes) {
-              import("../lib/usageTracker").then(m => {
-                m.recordUsage({
-                  date: new Date().toISOString().slice(0, 10),
-                  type: "transcription",
-                  provider: txProvider || "groq",
-                  model: txModel || "whisper-large-v3-turbo",
-                  audioBytes,
-                });
-              }).catch(() => {});
+              import("../lib/usageTracker")
+                .then((m) => {
+                  m.recordUsage({
+                    date: new Date().toISOString().slice(0, 10),
+                    type: "transcription",
+                    provider: txProvider || "groq",
+                    model: txModel || "whisper-large-v3-turbo",
+                    audioBytes,
+                  });
+                })
+                .catch(() => {});
             }
           } else {
             console.warn("[Whisper] transcription failed:", transcribeRes.status);
@@ -671,22 +756,34 @@ export default function QuickCapture({
       if (preview && primaryBrainId) {
         if (preview.type && parsed.type && preview.type !== parsed.type) {
           recordDecision(primaryBrainId, {
-            source: "capture", type: "CAPTURE_TYPE", action: "edit",
-            field: "type", originalValue: preview.type, finalValue: parsed.type,
+            source: "capture",
+            type: "CAPTURE_TYPE",
+            action: "edit",
+            field: "type",
+            originalValue: preview.type,
+            finalValue: parsed.type,
           });
         }
         if (preview.title && parsed.title && preview.title !== parsed.title) {
           recordDecision(primaryBrainId, {
-            source: "capture", type: "CAPTURE_TITLE", action: "edit",
-            field: "title", originalValue: preview.title, finalValue: parsed.title,
+            source: "capture",
+            type: "CAPTURE_TITLE",
+            action: "edit",
+            field: "title",
+            originalValue: preview.title,
+            finalValue: parsed.title,
           });
         }
         const origTags = (preview.tags || []).sort().join(",");
         const finalTags = (parsed.tags || []).sort().join(",");
         if (origTags !== finalTags) {
           recordDecision(primaryBrainId, {
-            source: "capture", type: "CAPTURE_TAGS", action: "edit",
-            field: "tags", originalValue: origTags, finalValue: finalTags,
+            source: "capture",
+            type: "CAPTURE_TAGS",
+            action: "edit",
+            field: "tags",
+            originalValue: origTags,
+            finalValue: finalTags,
           });
         }
       }
@@ -779,7 +876,7 @@ export default function QuickCapture({
                     entriesSnapshot,
                     linksSnapshot,
                     primaryBrainId,
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   ).then((newLinks: any) => {
                     if (newLinks.length === 0) return;
                     addLinks?.(newLinks);
@@ -811,7 +908,7 @@ export default function QuickCapture({
       }
       setLoading(false);
       // Errors stay visible until the next save attempt; only clear success states.
-      setTimeout(() => setStatus((s) => s !== "error" ? null : s), 3000);
+      setTimeout(() => setStatus((s) => (s !== "error" ? null : s)), 3000);
     },
     [
       entries,
@@ -850,7 +947,9 @@ export default function QuickCapture({
       const data = await res.json();
       let parsedRaw: ParsedEntry | ParsedEntry[] = {};
       try {
-        parsedRaw = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
+        parsedRaw = JSON.parse(
+          (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim(),
+        );
       } catch {}
       // Array response: AI split input into multiple entries
       if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
@@ -925,7 +1024,7 @@ export default function QuickCapture({
       setStatus("error");
     }
     setLoading(false);
-    setTimeout(() => setStatus((s) => s !== "error" ? null : s), 3000);
+    setTimeout(() => setStatus((s) => (s !== "error" ? null : s)), 3000);
   };
 
   const statusMsg = {
@@ -950,11 +1049,16 @@ export default function QuickCapture({
     return (
       <div className="px-4 pt-3 pb-2">
         <div
-          className="flex items-center gap-2 rounded-2xl px-4 py-3 border"
-          style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+          className="flex items-center gap-2 rounded-2xl border px-4 py-3"
+          style={{
+            background: "var(--color-surface-container-low)",
+            borderColor: "var(--color-outline-variant)",
+          }}
         >
           <span>🔒</span>
-          <span className="text-sm text-on-surface-variant">You have view-only access to this brain</span>
+          <span className="text-on-surface-variant text-sm">
+            You have view-only access to this brain
+          </span>
         </div>
       </div>
     );
@@ -964,14 +1068,20 @@ export default function QuickCapture({
     <div className="px-4 pt-3 pb-2">
       {/* Capture input bar */}
       <div
-        className="flex items-center gap-2 rounded-2xl px-4 py-3.5 border transition-colors focus-within:border-[var(--color-primary)]"
+        className="flex items-center gap-2 rounded-2xl border px-4 py-3.5 transition-colors focus-within:border-[var(--color-primary)]"
         style={{
           background: "var(--color-surface-container)",
           borderColor: "var(--color-outline-variant)",
         }}
       >
         {/* Hidden file inputs */}
-        <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} className="hidden" />
+        <input
+          type="file"
+          accept="image/*"
+          ref={imgRef}
+          onChange={handleImageUpload}
+          className="hidden"
+        />
         <input
           type="file"
           accept={ACCEPT_STRING}
@@ -1012,21 +1122,23 @@ export default function QuickCapture({
           data-1p-ignore="true"
           data-form-type="other"
           spellCheck={false}
-          className="flex-1 min-w-0 bg-transparent text-on-surface text-base outline-none placeholder:text-on-surface-variant/40 px-4 py-3"
+          className="text-on-surface placeholder:text-on-surface-variant/40 min-w-0 flex-1 bg-transparent px-4 py-3 text-base outline-none"
         />
 
-          <button
-            onClick={capture}
-            disabled={loading || !text.trim()}
-            title={`Save to ${(BRAIN_META_QC[brains[0]?.type as keyof typeof BRAIN_META_QC] ?? BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`}
-            className="w-8 h-8 flex items-center justify-center rounded-xl text-lg font-bold transition-all disabled:opacity-30 flex-shrink-0"
-            style={{
-              background: text.trim() ? "var(--color-primary)" : "var(--color-surface-container-highest)",
-              color: text.trim() ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
-            }}
-          >
-            +
-          </button>
+        <button
+          onClick={capture}
+          disabled={loading || !text.trim()}
+          title={`Save to ${(BRAIN_META_QC[brains[0]?.type as keyof typeof BRAIN_META_QC] ?? BRAIN_META_QC.personal).emoji} ${brains[0]?.name || "brain"}`}
+          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl text-lg font-bold transition-all disabled:opacity-30"
+          style={{
+            background: text.trim()
+              ? "var(--color-primary)"
+              : "var(--color-surface-container-highest)",
+            color: text.trim() ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
+          }}
+        >
+          +
+        </button>
       </div>
 
       {/* Input mode buttons — below the bar */}
@@ -1037,13 +1149,34 @@ export default function QuickCapture({
           disabled={loading}
           title={listening ? "Stop recording" : "Voice capture"}
           aria-label={listening ? "Stop recording" : "Voice capture"}
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
-          style={listening ? { background: "color-mix(in oklch, var(--color-error) 15%, transparent)", color: "var(--color-error)" } : { color: "var(--color-on-surface-variant)" }}
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+          style={
+            listening
+              ? {
+                  background: "color-mix(in oklch, var(--color-error) 15%, transparent)",
+                  color: "var(--color-error)",
+                }
+              : { color: "var(--color-on-surface-variant)" }
+          }
         >
           {listening ? (
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+              <rect x="6" y="6" width="12" height="12" rx="2" />
+            </svg>
           ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+              />
+            </svg>
           )}
         </button>
         {/* Camera */}
@@ -1052,10 +1185,27 @@ export default function QuickCapture({
           disabled={loading}
           title="Photo capture"
           aria-label="Photo capture"
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+            />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+            />
+          </svg>
         </button>
         {/* File upload */}
         <button
@@ -1063,10 +1213,22 @@ export default function QuickCapture({
           disabled={loading}
           title="Upload file"
           aria-label="Upload file (PDF, Word, MD, TXT)"
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+            />
+          </svg>
         </button>
         {/* Bulk upload */}
         <button
@@ -1074,18 +1236,38 @@ export default function QuickCapture({
           disabled={loading}
           title="Bulk upload"
           aria-label="Bulk upload multiple files"
-          className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            />
+          </svg>
         </button>
       </div>
 
       {/* Status message */}
       {status && (
         <div className="mt-2 px-1">
-          <p className="text-xs font-mono break-all" style={{ color: status === "error" || status.includes("large") || status.includes("unsupported") ? "var(--color-error)" : "var(--color-primary)" }}>
-            {status === "error" && errorDetail ? errorDetail : (status ? statusMsg[status] : null)}
+          <p
+            className="font-mono text-xs break-all"
+            style={{
+              color:
+                status === "error" || status.includes("large") || status.includes("unsupported")
+                  ? "var(--color-error)"
+                  : "var(--color-primary)",
+            }}
+          >
+            {status === "error" && errorDetail ? errorDetail : status ? statusMsg[status] : null}
           </p>
           {status === "vault-needed" && onNavigate && (
             <button
@@ -1093,8 +1275,11 @@ export default function QuickCapture({
                 onNavigate("vault");
                 setStatus(null);
               }}
-              className="text-xs font-semibold mt-1 px-3 py-1 rounded-lg transition-colors"
-              style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
+              className="mt-1 rounded-lg px-3 py-1 text-xs font-semibold transition-colors"
+              style={{
+                color: "var(--color-primary)",
+                background: "var(--color-primary-container)",
+              }}
             >
               Open Vault
             </button>
@@ -1148,50 +1333,74 @@ export default function QuickCapture({
           onClick={() => setMultiPreview(null)}
         >
           <div
-            className="w-full max-w-lg flex flex-col rounded-2xl border"
-            style={{ background: "var(--color-surface-dim)", borderColor: "var(--color-outline-variant)", maxHeight: "100%" }}
+            className="flex w-full max-w-lg flex-col rounded-2xl border"
+            style={{
+              background: "var(--color-surface-dim)",
+              borderColor: "var(--color-outline-variant)",
+              maxHeight: "100%",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fixed header */}
-            <div className="px-5 pt-5 pb-3 flex-shrink-0">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-on-surface">✂️ {multiPreview.length} entries found in file</span>
-                <button onClick={() => setMultiPreview(null)} className="text-on-surface-variant hover:text-on-surface text-lg">✕</button>
+            <div className="flex-shrink-0 px-5 pt-5 pb-3">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-on-surface text-sm font-semibold">
+                  ✂️ {multiPreview.length} entries found in file
+                </span>
+                <button
+                  onClick={() => setMultiPreview(null)}
+                  className="text-on-surface-variant hover:text-on-surface text-lg"
+                >
+                  ✕
+                </button>
               </div>
-              <p className="text-xs text-on-surface-variant">
-                Review the entries extracted from your file. Remove any you don't want, then save all.
+              <p className="text-on-surface-variant text-xs">
+                Review the entries extracted from your file. Remove any you don't want, then save
+                all.
               </p>
             </div>
             {/* Scrollable entries list */}
-            <div className="flex-1 overflow-y-auto px-5 pb-3 space-y-3">
+            <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-3">
               {multiPreview.map((entry, i) => (
                 <div
                   key={i}
                   className="relative rounded-xl border p-3"
-                  style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
+                  style={{
+                    background: "var(--color-surface-container)",
+                    borderColor: "var(--color-outline-variant)",
+                  }}
                 >
                   <button
-                    onClick={() => setMultiPreview((prev) => (prev ?? []).filter((_, j) => j !== i))}
+                    onClick={() =>
+                      setMultiPreview((prev) => (prev ?? []).filter((_, j) => j !== i))
+                    }
                     title="Remove"
-                    className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded-full text-xs text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+                    className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full text-xs"
                   >
                     ✕
                   </button>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-semibold text-on-surface truncate">{entry.title}</span>
-                    <span className="text-[10px] uppercase tracking-wider text-on-surface-variant ml-auto mr-6">{entry.type}</span>
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-on-surface truncate text-sm font-semibold">
+                      {entry.title}
+                    </span>
+                    <span className="text-on-surface-variant mr-6 ml-auto text-[10px] tracking-wider uppercase">
+                      {entry.type}
+                    </span>
                   </div>
-                  <p className="text-xs text-on-surface-variant leading-relaxed">
+                  <p className="text-on-surface-variant text-xs leading-relaxed">
                     {(entry.content || "").slice(0, 150)}
                     {(entry.content || "").length > 150 ? "…" : ""}
                   </p>
                   {(entry.tags?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="mt-2 flex flex-wrap gap-1">
                       {(entry.tags ?? []).map((tag) => (
                         <span
                           key={tag}
-                          className="text-[10px] px-2 py-0.5 rounded-full"
-                          style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
+                          className="rounded-full px-2 py-0.5 text-[10px]"
+                          style={{
+                            color: "var(--color-primary)",
+                            background: "var(--color-primary-container)",
+                          }}
                         >
                           {tag}
                         </span>
@@ -1202,10 +1411,13 @@ export default function QuickCapture({
               ))}
             </div>
             {/* Fixed action buttons — always visible above bottom nav */}
-            <div className="flex gap-3 px-5 py-4 flex-shrink-0 border-t" style={{ borderColor: "var(--color-outline-variant)" }}>
+            <div
+              className="flex flex-shrink-0 gap-3 border-t px-5 py-4"
+              style={{ borderColor: "var(--color-outline-variant)" }}
+            >
               <button
                 onClick={() => setMultiPreview(null)}
-                className="flex-1 py-2.5 rounded-xl border text-sm text-on-surface-variant transition-colors hover:bg-white/5"
+                className="text-on-surface-variant flex-1 rounded-xl border py-2.5 text-sm transition-colors hover:bg-white/5"
                 style={{ borderColor: "var(--color-outline-variant)", background: "transparent" }}
               >
                 Cancel
@@ -1213,7 +1425,7 @@ export default function QuickCapture({
               <button
                 onClick={() => saveMultiEntries(multiPreview)}
                 disabled={multiPreview.length === 0}
-                className="flex-[2] py-2.5 rounded-xl text-sm font-bold transition-colors disabled:opacity-40"
+                className="flex-[2] rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-40"
                 style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
               >
                 Save {multiPreview.length} entries

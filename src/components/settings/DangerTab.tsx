@@ -94,17 +94,26 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
           style={{ background: "rgba(0,0,0,0.6)" }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl p-6 space-y-4"
-            style={{ background: "var(--color-surface-container-high)", border: "1px solid var(--color-outline-variant)" }}
+            className="w-full max-w-sm space-y-4 rounded-2xl p-6"
+            style={{
+              background: "var(--color-surface-container-high)",
+              border: "1px solid var(--color-outline-variant)",
+            }}
           >
             {modalStep === "ask-export" && (
               <>
-                <p className="text-base font-bold text-on-surface">Export your data first?</p>
+                <p className="text-on-surface text-base font-bold">Export your data first?</p>
                 <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Download all your entries across every brain as a JSON file before permanently deleting your account.
+                  Download all your entries across every brain as a JSON file before permanently
+                  deleting your account.
                 </p>
                 {accountError && (
-                  <p className="text-xs font-mono break-all" style={{ color: "var(--color-error)" }}>{accountError}</p>
+                  <p
+                    className="font-mono text-xs break-all"
+                    style={{ color: "var(--color-error)" }}
+                  >
+                    {accountError}
+                  </p>
                 )}
                 <div className="flex flex-col gap-2 pt-1">
                   <button
@@ -118,7 +127,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
                     onClick={handleDeleteOnly}
                     className="w-full rounded-xl py-3 text-sm font-bold transition-all"
                     style={{
-                      background: "color-mix(in oklch, var(--color-error) 15%, var(--color-surface-container))",
+                      background:
+                        "color-mix(in oklch, var(--color-error) 15%, var(--color-surface-container))",
                       color: "var(--color-error)",
                       border: "1px solid color-mix(in oklch, var(--color-error) 30%, transparent)",
                     }}
@@ -126,7 +136,10 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
                     Delete without Export
                   </button>
                   <button
-                    onClick={() => { setModalStep(null); setAccountError(null); }}
+                    onClick={() => {
+                      setModalStep(null);
+                      setAccountError(null);
+                    }}
                     className="w-full rounded-xl py-3 text-sm transition-colors hover:bg-white/5"
                     style={{ color: "var(--color-on-surface-variant)" }}
                   >
@@ -137,23 +150,29 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
             )}
             {modalStep === "exporting" && (
               <>
-                <p className="text-base font-bold text-on-surface">Exporting your data…</p>
+                <p className="text-on-surface text-base font-bold">Exporting your data…</p>
                 <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
                   Downloading all entries. Your account will be deleted once complete.
                 </p>
                 <div className="flex justify-center pt-2">
-                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
+                  <div
+                    className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
+                    style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }}
+                  />
                 </div>
               </>
             )}
             {modalStep === "deleting" && (
               <>
-                <p className="text-base font-bold text-on-surface">Deleting account…</p>
+                <p className="text-on-surface text-base font-bold">Deleting account…</p>
                 <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
                   Permanently removing your account and all data.
                 </p>
                 <div className="flex justify-center pt-2">
-                  <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "var(--color-error)", borderTopColor: "transparent" }} />
+                  <div
+                    className="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent"
+                    style={{ borderColor: "var(--color-error)", borderTopColor: "transparent" }}
+                  />
                 </div>
               </>
             )}
@@ -162,20 +181,32 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
       )}
 
       <div
-        className="rounded-2xl border p-4 space-y-4"
-        style={{ background: "color-mix(in oklch, var(--color-error) 5%, transparent)", borderColor: "color-mix(in oklch, var(--color-error) 20%, transparent)" }}
+        className="space-y-4 rounded-2xl border p-4"
+        style={{
+          background: "color-mix(in oklch, var(--color-error) 5%, transparent)",
+          borderColor: "color-mix(in oklch, var(--color-error) 20%, transparent)",
+        }}
       >
         <div>
-          <p className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>Danger Zone</p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>Irreversible actions. Proceed with care.</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--color-error)" }}>
+            Danger Zone
+          </p>
+          <p className="mt-0.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            Irreversible actions. Proceed with care.
+          </p>
         </div>
 
         {isOwner && (
           <div className="space-y-2">
             <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-              Delete brain <strong className="text-on-surface">{activeBrain.name}</strong> and all its entries permanently. This cannot be undone.
+              Delete brain <strong className="text-on-surface">{activeBrain.name}</strong> and all
+              its entries permanently. This cannot be undone.
             </p>
-            {brainError && <p className="text-xs" style={{ color: "var(--color-error)" }}>{brainError}</p>}
+            {brainError && (
+              <p className="text-xs" style={{ color: "var(--color-error)" }}>
+                {brainError}
+              </p>
+            )}
             <button
               disabled={deletingBrain}
               onClick={handleDeleteBrain}
@@ -189,7 +220,11 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
                 minHeight: 44,
               }}
             >
-              {deletingBrain ? "Deleting…" : confirmDeleteBrain ? "Tap again to confirm — this is permanent" : "Delete this Brain"}
+              {deletingBrain
+                ? "Deleting…"
+                : confirmDeleteBrain
+                  ? "Tap again to confirm — this is permanent"
+                  : "Delete this Brain"}
             </button>
           </div>
         )}
@@ -202,7 +237,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
             onClick={() => setModalStep("ask-export")}
             className="rounded-xl px-4 py-2 text-xs font-bold transition-all"
             style={{
-              background: "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))",
+              background:
+                "color-mix(in oklch, var(--color-error) 10%, var(--color-surface-container))",
               color: "var(--color-error)",
               border: "1px solid color-mix(in oklch, var(--color-error) 30%, transparent)",
               minHeight: 44,

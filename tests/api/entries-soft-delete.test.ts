@@ -87,9 +87,7 @@ describe("api/entries — soft delete", () => {
     // The actual PATCH call should use PATCH method (not DELETE) with deleted_at
     const patchCall = fetchSpy.mock.calls.find(
       ([url, opts]) =>
-        opts?.method === "PATCH" &&
-        url.includes("entries") &&
-        url.includes(ENTRY_ID)
+        opts?.method === "PATCH" && url.includes("entries") && url.includes(ENTRY_ID),
     );
     expect(patchCall).toBeDefined();
     const patchBody = JSON.parse(patchCall![1].body);
@@ -131,7 +129,7 @@ describe("api/entries — soft delete", () => {
 
     // The fallback direct query should include the deleted_at=is.null filter
     const hasDeletedFilter = fetchSpy.mock.calls.some(([url]: any[]) =>
-      url.includes("deleted_at=is.null")
+      url.includes("deleted_at=is.null"),
     );
     expect(hasDeletedFilter).toBe(true);
   });
@@ -152,8 +150,8 @@ describe("api/entries — soft delete", () => {
     await handler(req, res);
 
     // The query should include the "not is null" filter for deleted_at
-    const hasTrashFilter = fetchSpy.mock.calls.some(([url]: any[]) =>
-      url.includes("deleted_at=not.is.null") || url.includes("not.is.null")
+    const hasTrashFilter = fetchSpy.mock.calls.some(
+      ([url]: any[]) => url.includes("deleted_at=not.is.null") || url.includes("not.is.null"),
     );
     expect(hasTrashFilter).toBe(true);
   });
@@ -187,9 +185,7 @@ describe("api/entries — soft delete", () => {
     // The PATCH should set deleted_at to null
     const restoreCall = fetchSpy.mock.calls.find(
       ([url, opts]) =>
-        opts?.method === "PATCH" &&
-        url.includes("entries") &&
-        url.includes(ENTRY_ID)
+        opts?.method === "PATCH" && url.includes("entries") && url.includes(ENTRY_ID),
     );
     expect(restoreCall).toBeDefined();
     const body = JSON.parse(restoreCall![1].body);
@@ -225,9 +221,7 @@ describe("api/entries — soft delete", () => {
     // The hard-delete should use DELETE method (not PATCH)
     const deleteCall = fetchSpy.mock.calls.find(
       ([url, opts]) =>
-        opts?.method === "DELETE" &&
-        url.includes("entries") &&
-        url.includes(ENTRY_ID)
+        opts?.method === "DELETE" && url.includes("entries") && url.includes(ENTRY_ID),
     );
     expect(deleteCall).toBeDefined();
   });

@@ -56,13 +56,13 @@ describe("GET /api/entry-brains", () => {
   it("returns the list of brain_ids for an entry", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => [
-        { brain_id: "brain-a" },
-        { brain_id: "brain-b" },
-      ],
+      json: async () => [{ brain_id: "brain-a" }, { brain_id: "brain-b" }],
     });
     const handler = (await import("../../api/entries")).default;
-    const req = makeReq({ method: "GET", query: { resource: "entry-brains", entry_id: "entry-1" } });
+    const req = makeReq({
+      method: "GET",
+      query: { resource: "entry-brains", entry_id: "entry-1" },
+    });
     const res = makeRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);
@@ -73,7 +73,10 @@ describe("GET /api/entry-brains", () => {
     const { verifyAuth } = await import("../../api/_lib/verifyAuth.js");
     vi.mocked(verifyAuth).mockResolvedValueOnce(null);
     const handler = (await import("../../api/entries")).default;
-    const req = makeReq({ method: "GET", query: { resource: "entry-brains", entry_id: "entry-1" } });
+    const req = makeReq({
+      method: "GET",
+      query: { resource: "entry-brains", entry_id: "entry-1" },
+    });
     const res = makeRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(401);
@@ -129,7 +132,10 @@ describe("DELETE /api/entry-brains", () => {
       json: async () => ({}),
     });
     const handler = (await import("../../api/entries")).default;
-    const req = makeReq({ method: "DELETE", query: { resource: "entry-brains", entry_id: "e1", brain_id: "brain-b" } });
+    const req = makeReq({
+      method: "DELETE",
+      query: { resource: "entry-brains", entry_id: "e1", brain_id: "brain-b" },
+    });
     const res = makeRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(200);

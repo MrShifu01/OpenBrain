@@ -74,13 +74,16 @@ describe("api/chat — cross-brain (brain_ids)", () => {
               {
                 id: `entry-${body.p_brain_id?.slice(-1)}`,
                 title: `Entry from brain ${body.p_brain_id?.slice(-1)}`,
-                type: "note", tags: [], content: "content",
+                type: "note",
+                tags: [],
+                content: "content",
                 similarity: 0.8,
               },
             ]),
         });
       }
-      if (u.includes("/rest/v1/links")) return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (u.includes("/rest/v1/links"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       // LLM call
       return Promise.resolve({
         ok: true,
@@ -94,9 +97,16 @@ describe("api/chat — cross-brain (brain_ids)", () => {
 
   it("calls match_entries once per brain_id", async () => {
     const req = {
-      method: "POST", query: {},
+      method: "POST",
+      query: {},
       headers: { "x-embed-key": "sk", "x-embed-provider": "openai", "x-user-api-key": "sk-gen" },
-      body: { message: "Recipes?", brain_ids: [BRAIN_A, BRAIN_B], provider: "anthropic", model: "claude-haiku-4-5-20251001", history: [] },
+      body: {
+        message: "Recipes?",
+        brain_ids: [BRAIN_A, BRAIN_B],
+        provider: "anthropic",
+        model: "claude-haiku-4-5-20251001",
+        history: [],
+      },
     };
     const res = makeRes();
     await handler(req, res);
@@ -110,9 +120,16 @@ describe("api/chat — cross-brain (brain_ids)", () => {
 
   it("merges results from all brains into the LLM context", async () => {
     const req = {
-      method: "POST", query: {},
+      method: "POST",
+      query: {},
       headers: { "x-embed-key": "sk", "x-embed-provider": "openai", "x-user-api-key": "sk-gen" },
-      body: { message: "Recipes?", brain_ids: [BRAIN_A, BRAIN_B], provider: "anthropic", model: "claude-haiku-4-5-20251001", history: [] },
+      body: {
+        message: "Recipes?",
+        brain_ids: [BRAIN_A, BRAIN_B],
+        provider: "anthropic",
+        model: "claude-haiku-4-5-20251001",
+        history: [],
+      },
     };
     const res = makeRes();
     await handler(req, res);
@@ -126,21 +143,27 @@ describe("api/chat — cross-brain (brain_ids)", () => {
   });
 
   it("returns 403 if user is not a member of a requested brain", async () => {
-    const { checkBrainAccess } = await import("../../api/_lib/checkBrainAccess.js") as any;
+    const { checkBrainAccess } = (await import("../../api/_lib/checkBrainAccess.js")) as any;
     checkBrainAccess.mockImplementation((_userId: string, brainId: string) =>
-      brainId === BRAIN_B ? Promise.resolve(false) : Promise.resolve(true)
+      brainId === BRAIN_B ? Promise.resolve(false) : Promise.resolve(true),
     );
 
     const req = {
-      method: "POST", query: {},
+      method: "POST",
+      query: {},
       headers: { "x-embed-key": "sk", "x-embed-provider": "openai", "x-user-api-key": "sk-gen" },
-      body: { message: "Recipes?", brain_ids: [BRAIN_A, BRAIN_B], provider: "anthropic", model: "claude-haiku-4-5-20251001", history: [] },
+      body: {
+        message: "Recipes?",
+        brain_ids: [BRAIN_A, BRAIN_B],
+        provider: "anthropic",
+        model: "claude-haiku-4-5-20251001",
+        history: [],
+      },
     };
     const res = makeRes();
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(403);
   });
-
 });
 
 describe("api/chat — cross-brain fallback (no embeddings)", () => {
@@ -163,12 +186,14 @@ describe("api/chat — cross-brain fallback (no embeddings)", () => {
       if (u.includes("/rest/v1/entries") && u.includes("brain_id=eq.")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([
-            { id: "recent-1", title: "Recent entry", type: "note", tags: [], content: "" },
-          ]),
+          json: () =>
+            Promise.resolve([
+              { id: "recent-1", title: "Recent entry", type: "note", tags: [], content: "" },
+            ]),
         });
       }
-      if (u.includes("/rest/v1/links")) return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (u.includes("/rest/v1/links"))
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({ content: [{ type: "text", text: "Answer." }] }),
@@ -178,9 +203,9 @@ describe("api/chat — cross-brain fallback (no embeddings)", () => {
     // Import dependencies first to ensure mock implementations are correctly set up.
     // Test 3 modifies checkBrainAccess.mockImplementation; re-importing after resetModules
     // may reuse the same mock instance, so we explicitly restore correct behavior.
-    const { checkBrainAccess } = await import("../../api/_lib/checkBrainAccess.js") as any;
+    const { checkBrainAccess } = (await import("../../api/_lib/checkBrainAccess.js")) as any;
     checkBrainAccess.mockResolvedValue(true);
-    const { generateEmbedding } = await import("../../api/_lib/generateEmbedding.js") as any;
+    const { generateEmbedding } = (await import("../../api/_lib/generateEmbedding.js")) as any;
     generateEmbedding.mockResolvedValue(new Array(1536).fill(0.1));
 
     const mod = await import("../../api/chat.js");
@@ -189,9 +214,16 @@ describe("api/chat — cross-brain fallback (no embeddings)", () => {
 
   it("falls back to fetching recent entries from all brains when semantic returns 0", async () => {
     const req = {
-      method: "POST", query: {},
+      method: "POST",
+      query: {},
       headers: { "x-embed-key": "sk", "x-embed-provider": "openai", "x-user-api-key": "sk-gen" },
-      body: { message: "Recipes?", brain_ids: [BRAIN_A, BRAIN_B], provider: "anthropic", model: "claude-haiku-4-5-20251001", history: [] },
+      body: {
+        message: "Recipes?",
+        brain_ids: [BRAIN_A, BRAIN_B],
+        provider: "anthropic",
+        model: "claude-haiku-4-5-20251001",
+        history: [],
+      },
     };
     const res = makeRes();
     await handler(req, res);

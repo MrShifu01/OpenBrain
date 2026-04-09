@@ -141,9 +141,7 @@ describe("EntryCard — hover-reveal quick actions", () => {
   it("calls onPin with the entry when pin button is clicked", () => {
     const onPin = vi.fn();
     const entry = makeEntry("act3");
-    render(
-      <VirtualGrid filtered={[entry]} setSelected={vi.fn()} onPin={onPin} />,
-    );
+    render(<VirtualGrid filtered={[entry]} setSelected={vi.fn()} onPin={onPin} />);
     const card = screen.getByRole("article", { name: /Entry act3/i });
     fireEvent.click(within(card).getByRole("button", { name: /pin/i }));
     expect(onPin).toHaveBeenCalledWith(entry);
@@ -152,9 +150,7 @@ describe("EntryCard — hover-reveal quick actions", () => {
   it("calls onDelete with the entry when delete button is clicked", () => {
     const onDelete = vi.fn();
     const entry = makeEntry("act4");
-    render(
-      <VirtualGrid filtered={[entry]} setSelected={vi.fn()} onDelete={onDelete} />,
-    );
+    render(<VirtualGrid filtered={[entry]} setSelected={vi.fn()} onDelete={onDelete} />);
     const card = screen.getByRole("article", { name: /Entry act4/i });
     fireEvent.click(within(card).getByRole("button", { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledWith(entry);
@@ -162,13 +158,7 @@ describe("EntryCard — hover-reveal quick actions", () => {
 
   it("pin button label changes to 'Unpin' for already-pinned entries", () => {
     const pinnedEntry = { ...makeEntry("act5"), pinned: true };
-    render(
-      <VirtualGrid
-        filtered={[pinnedEntry]}
-        setSelected={vi.fn()}
-        onPin={vi.fn()}
-      />,
-    );
+    render(<VirtualGrid filtered={[pinnedEntry]} setSelected={vi.fn()} onPin={vi.fn()} />);
     const card = screen.getByRole("article", { name: /Entry act5/i });
     expect(within(card).getByRole("button", { name: /unpin/i })).toBeInTheDocument();
   });

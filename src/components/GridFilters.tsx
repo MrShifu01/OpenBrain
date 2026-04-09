@@ -3,9 +3,9 @@ import { TC } from "../data/constants";
 import type { DateFilter, SortOrder, EntryFilterState } from "../lib/entryFilters";
 
 const DATE_OPTIONS: { id: DateFilter; label: string }[] = [
-  { id: "all",   label: "All time" },
+  { id: "all", label: "All time" },
   { id: "today", label: "Today" },
-  { id: "week",  label: "This week" },
+  { id: "week", label: "This week" },
   { id: "month", label: "This month" },
 ];
 
@@ -35,7 +35,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
-      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 press-scale whitespace-nowrap"
+      className="press-scale flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors duration-150"
       style={
         active
           ? {
@@ -94,7 +94,8 @@ export default function GridFilters({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  const typeList = availableTypes.length > 0 ? availableTypes : Object.keys(TC).filter((t) => t !== "secret");
+  const typeList =
+    availableTypes.length > 0 ? availableTypes : Object.keys(TC).filter((t) => t !== "secret");
 
   return (
     <div ref={panelRef} className="w-full">
@@ -102,14 +103,13 @@ export default function GridFilters({
       <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 press-scale"
+          className="press-scale flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150"
           style={{
-            background: open || hasActive
-              ? "var(--color-primary-container)"
-              : "var(--color-surface-container)",
-            color: open || hasActive
-              ? "var(--color-primary)"
-              : "var(--color-on-surface-variant)",
+            background:
+              open || hasActive
+                ? "var(--color-primary-container)"
+                : "var(--color-surface-container)",
+            color: open || hasActive ? "var(--color-primary)" : "var(--color-on-surface-variant)",
             border: "1px solid var(--color-outline-variant)",
           }}
           aria-expanded={open}
@@ -141,7 +141,10 @@ export default function GridFilters({
         </button>
 
         {/* Active filter pills — always visible for quick-clear */}
-        <div className="flex items-center gap-1.5 overflow-x-auto flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
+        <div
+          className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
+          style={{ scrollbarWidth: "none" }}
+        >
           {filters.type !== "all" && (
             <ActivePill
               label={filters.type.charAt(0).toUpperCase() + filters.type.slice(1)}
@@ -163,7 +166,7 @@ export default function GridFilters({
           {hasActive && (
             <button
               onClick={() => onChange({ type: "all", date: "all", sort: "newest" })}
-              className="flex-shrink-0 text-xs press-scale"
+              className="press-scale flex-shrink-0 text-xs"
               style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}
             >
               Clear all
@@ -182,7 +185,7 @@ export default function GridFilters({
       >
         <div className="overflow-hidden">
           <div
-            className="mt-3 p-3 rounded-2xl flex flex-col gap-4"
+            className="mt-3 flex flex-col gap-4 rounded-2xl p-3"
             style={{
               background: "var(--color-surface-container-low)",
               border: "1px solid var(--color-outline-variant)",
@@ -191,7 +194,10 @@ export default function GridFilters({
             {/* Type */}
             <div className="flex flex-col gap-2">
               <SectionLabel>Type</SectionLabel>
-              <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
+              <div
+                className="flex gap-1.5 overflow-x-auto pb-0.5"
+                style={{ scrollbarWidth: "none" }}
+              >
                 <Chip active={filters.type === "all"} onClick={() => set({ type: "all" })}>
                   All types
                 </Chip>
@@ -207,14 +213,20 @@ export default function GridFilters({
             </div>
 
             {/* Separator */}
-            <div style={{ height: "1px", background: "var(--color-outline-variant)", opacity: 0.5 }} />
+            <div
+              style={{ height: "1px", background: "var(--color-outline-variant)", opacity: 0.5 }}
+            />
 
             {/* Date */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-3">
               <SectionLabel>Date</SectionLabel>
               <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
                 {DATE_OPTIONS.map((d) => (
-                  <Chip key={d.id} active={filters.date === d.id} onClick={() => set({ date: d.id })}>
+                  <Chip
+                    key={d.id}
+                    active={filters.date === d.id}
+                    onClick={() => set({ date: d.id })}
+                  >
                     {d.label}
                   </Chip>
                 ))}
@@ -222,15 +234,23 @@ export default function GridFilters({
             </div>
 
             {/* Separator */}
-            <div style={{ height: "1px", background: "var(--color-outline-variant)", opacity: 0.5 }} />
+            <div
+              style={{ height: "1px", background: "var(--color-outline-variant)", opacity: 0.5 }}
+            />
 
             {/* Sort */}
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex flex-wrap items-center gap-3">
               <SectionLabel>Sort</SectionLabel>
               <div className="flex gap-1.5">
                 {SORT_OPTIONS.map((s) => (
-                  <Chip key={s.id} active={filters.sort === s.id} onClick={() => set({ sort: s.id })}>
-                    <span aria-hidden className="font-mono text-[11px]">{s.icon}</span>
+                  <Chip
+                    key={s.id}
+                    active={filters.sort === s.id}
+                    onClick={() => set({ sort: s.id })}
+                  >
+                    <span aria-hidden className="font-mono text-[11px]">
+                      {s.icon}
+                    </span>
                     {s.label}
                   </Chip>
                 ))}
@@ -246,7 +266,7 @@ export default function GridFilters({
 function ActivePill({ label, onClear }: { label: string; onClear: () => void }) {
   return (
     <span
-      className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-xs"
+      className="flex flex-shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs"
       style={{
         background: "var(--color-primary-container)",
         color: "var(--color-primary)",
@@ -256,7 +276,7 @@ function ActivePill({ label, onClear }: { label: string; onClear: () => void }) 
       {label}
       <button
         onClick={onClear}
-        className="ml-0.5 opacity-60 hover:opacity-100 transition-opacity press-scale leading-none"
+        className="press-scale ml-0.5 leading-none opacity-60 transition-opacity hover:opacity-100"
         aria-label={`Remove ${label} filter`}
       >
         ×

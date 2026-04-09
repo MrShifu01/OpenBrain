@@ -33,7 +33,9 @@ describe("DesktopSidebar — SVG accessibility", () => {
   it("inline SVGs in footer buttons are aria-hidden", () => {
     const { container } = render(<DesktopSidebar {...baseProps} />);
     // New Entry button and New brain button both have inline SVGs
-    const footerSvgs = container.querySelectorAll("aside > button svg, aside > div svg, aside > nav ~ div svg");
+    const footerSvgs = container.querySelectorAll(
+      "aside > button svg, aside > div svg, aside > nav ~ div svg",
+    );
     footerSvgs.forEach((svg) => {
       expect(svg).toHaveAttribute("aria-hidden", "true");
     });

@@ -2,7 +2,11 @@
  * S5-6: Search history in sessionStorage.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { addSearchHistory, getSearchHistory, clearSearchHistory } from "../../src/lib/searchHistory";
+import {
+  addSearchHistory,
+  getSearchHistory,
+  clearSearchHistory,
+} from "../../src/lib/searchHistory";
 
 describe("searchHistory (S5-6)", () => {
   beforeEach(() => {

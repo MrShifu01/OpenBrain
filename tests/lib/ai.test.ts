@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../src/lib/aiSettings", () => ({
   getUserProvider: vi.fn().mockReturnValue("anthropic"),
-  getUserModel:    vi.fn().mockReturnValue("claude-sonnet-4-6"),
-  getUserApiKey:   vi.fn().mockReturnValue(null),
-  getOpenRouterKey:   vi.fn().mockReturnValue(null),
+  getUserModel: vi.fn().mockReturnValue("claude-sonnet-4-6"),
+  getUserApiKey: vi.fn().mockReturnValue(null),
+  getOpenRouterKey: vi.fn().mockReturnValue(null),
   getOpenRouterModel: vi.fn().mockReturnValue(null),
-  getModelForTask:    vi.fn().mockReturnValue(null),
+  getModelForTask: vi.fn().mockReturnValue(null),
 }));
 
 vi.mock("../../src/lib/systemPromptBuilder", () => ({
@@ -64,7 +64,9 @@ describe("callAI message normalisation", () => {
     mockGetProvider.mockReturnValue("badprovider");
     const imageMessage = {
       role: "user",
-      content: [{ type: "image", source: { type: "base64", media_type: "image/png", data: "abc" } }],
+      content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: "abc" } },
+      ],
     };
     await callAI({ messages: [imageMessage] });
     // The body should contain the original Anthropic-style block, not the OpenAI url format

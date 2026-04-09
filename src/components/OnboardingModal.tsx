@@ -2,7 +2,11 @@
 import { useState, useRef, useEffect } from "react";
 
 interface OnboardingModalProps {
-  onComplete: (selected: string[], answered: never[], skipped: { q: string; cat: string; p: string }[]) => void;
+  onComplete: (
+    selected: string[],
+    answered: never[],
+    skipped: { q: string; cat: string; p: string }[],
+  ) => void;
 }
 
 /* ─── 30 essential starter questions ─── */
@@ -217,7 +221,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
     const el = dialogRef.current;
     if (!el) return;
     const first = el.querySelector<HTMLElement>(
-      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
     );
     first?.focus();
   }, [step]);
@@ -230,15 +234,21 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
       if (e.key !== "Tab") return;
       const focusable = Array.from(
         el!.querySelectorAll<HTMLElement>(
-          'button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
+          'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
       ).filter((node) => !node.hasAttribute("disabled"));
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
       if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last?.focus();
+        }
       } else {
-        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first?.focus();
+        }
       }
     }
     el.addEventListener("keydown", trap);
@@ -304,7 +314,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
         <div className="mb-6 text-center">
           <h2
             id="onboarding-title"
-            className="mb-1 text-xl font-semibold text-on-surface"
+            className="text-on-surface mb-1 text-xl font-semibold"
             style={{ fontFamily: "'Lora', Georgia, serif" }}
           >
             {STEPS[step].title}
@@ -321,8 +331,18 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
               {[
                 {
                   icon: (
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    <svg
+                      className="h-5 w-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                      />
                     </svg>
                   ),
                   label: "End-to-end encrypted",
@@ -330,8 +350,18 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 },
                 {
                   icon: (
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />
+                    <svg
+                      className="h-5 w-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.068.157 2.148.279 3.238.364.466.037.893.281 1.153.671L12 21l2.652-3.978c.26-.39.687-.634 1.153-.67 1.09-.086 2.17-.208 3.238-.365 1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                      />
                     </svg>
                   ),
                   label: "Works offline",
@@ -339,8 +369,18 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 },
                 {
                   icon: (
-                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg
+                      className="h-5 w-5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                   ),
                   label: "Your data, always",
@@ -349,13 +389,18 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
               ].map(({ icon, label, desc }) => (
                 <div
                   key={label}
-                  className="flex items-start gap-3 px-4 py-3 rounded-xl"
+                  className="flex items-start gap-3 rounded-xl px-4 py-3"
                   style={{ background: "var(--color-surface-container-low)" }}
                 >
                   <span style={{ color: "var(--color-primary)", marginTop: "1px" }}>{icon}</span>
                   <div>
-                    <p className="text-sm font-semibold text-on-surface">{label}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>{desc}</p>
+                    <p className="text-on-surface text-sm font-semibold">{label}</p>
+                    <p
+                      className="mt-0.5 text-xs"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {desc}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -383,8 +428,14 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 >
                   <span className="text-2xl">{uc.emoji}</span>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-on-surface">{uc.label}</div>
-                    <div id={descId} className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{uc.desc}</div>
+                    <div className="text-on-surface text-sm font-medium">{uc.label}</div>
+                    <div
+                      id={descId}
+                      className="text-xs"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      {uc.desc}
+                    </div>
                   </div>
                   <div
                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-xs font-bold"
@@ -399,7 +450,10 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 </button>
               );
             })}
-            <p className="mt-1 text-center text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            <p
+              className="mt-1 text-center text-xs"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               Select all that apply
             </p>
           </div>
@@ -422,7 +476,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 >
                   <span className="text-2xl">{uc.emoji}</span>
                   <div className="flex-1">
-                    <div className="text-sm font-medium text-on-surface">{uc.label} brain</div>
+                    <div className="text-on-surface text-sm font-medium">{uc.label} brain</div>
                     <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                       {id === "personal" &&
                         "Fill Brain will show personal questions (identity, health, finance…)"}
@@ -431,7 +485,9 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                         "Your business brain will show supplier, staff & SOP questions"}
                     </div>
                   </div>
-                  <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>✓</span>
+                  <span className="text-sm font-bold" style={{ color: "var(--color-primary)" }}>
+                    ✓
+                  </span>
                 </div>
               );
             })}
@@ -466,11 +522,46 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 waiting in Fill Brain to help you build your memory.
               </p>
             </div>
-            <ul className="flex flex-col gap-1.5 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Fill Brain</strong> — answer guided questions to build your memory</li>
-              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Quick Capture</strong> — type anything; AI structures it for you</li>
-              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Refine</strong> — AI audits entries and surfaces missing connections</li>
-              <li><strong className="text-on-surface" style={{ fontFamily: "'Lora', Georgia, serif" }}>Ask</strong> — chat with AI about everything you've stored</li>
+            <ul
+              className="flex flex-col gap-1.5 text-sm"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
+              <li>
+                <strong
+                  className="text-on-surface"
+                  style={{ fontFamily: "'Lora', Georgia, serif" }}
+                >
+                  Fill Brain
+                </strong>{" "}
+                — answer guided questions to build your memory
+              </li>
+              <li>
+                <strong
+                  className="text-on-surface"
+                  style={{ fontFamily: "'Lora', Georgia, serif" }}
+                >
+                  Quick Capture
+                </strong>{" "}
+                — type anything; AI structures it for you
+              </li>
+              <li>
+                <strong
+                  className="text-on-surface"
+                  style={{ fontFamily: "'Lora', Georgia, serif" }}
+                >
+                  Refine
+                </strong>{" "}
+                — AI audits entries and surfaces missing connections
+              </li>
+              <li>
+                <strong
+                  className="text-on-surface"
+                  style={{ fontFamily: "'Lora', Georgia, serif" }}
+                >
+                  Ask
+                </strong>{" "}
+                — chat with AI about everything you've stored
+              </li>
             </ul>
             {needsIOSStep() && (
               <div

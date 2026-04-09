@@ -11,13 +11,13 @@ interface UseNudgeParams {
 
 // Date fields to check for upcoming deadlines/expiry, in priority order
 const DATE_FIELDS: Array<{ key: string; label: string }> = [
-  { key: "due_date",              label: "renewal due" },
-  { key: "expiry_date",          label: "expires" },
-  { key: "valid_to",             label: "valid until" },
-  { key: "valid_until",          label: "valid until" },
-  { key: "renewal_date",         label: "renewal" },
-  { key: "deadline",             label: "deadline" },
-  { key: "warranty_expiration",  label: "warranty expires" },
+  { key: "due_date", label: "renewal due" },
+  { key: "expiry_date", label: "expires" },
+  { key: "valid_to", label: "valid until" },
+  { key: "valid_until", label: "valid until" },
+  { key: "renewal_date", label: "renewal" },
+  { key: "deadline", label: "deadline" },
+  { key: "warranty_expiration", label: "warranty expires" },
 ];
 
 // Detect upcoming date-based issues within the next 180 days
@@ -118,11 +118,9 @@ export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams
           sessionStorage.setItem("openbrain_nudge", text);
         } else {
           // AI gave garbage — fall back to a simple deterministic nudge
-          const fallback = candidates[0]
-            .replace(/^"/, "").replace(/".*$/, "").trim(); // just the title
-          const fallbackMsg = expirations.length > 0
-            ? `Action needed: ${fallback}.`
-            : `Gap: ${fallback}.`;
+          const fallback = candidates[0].replace(/^"/, "").replace(/".*$/, "").trim(); // just the title
+          const fallbackMsg =
+            expirations.length > 0 ? `Action needed: ${fallback}.` : `Gap: ${fallback}.`;
           setNudge(fallbackMsg);
           sessionStorage.setItem("openbrain_nudge", fallbackMsg);
         }

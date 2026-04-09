@@ -4,7 +4,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 process.env.VITE_SUPABASE_URL = "https://mock.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "mock-key";
 
-vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+vi.mock("../../api/_lib/verifyAuth.js", () => ({
+  verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+}));
 vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
 vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
 
@@ -13,7 +15,8 @@ vi.stubGlobal("fetch", mockFetch);
 
 function makeReq(overrides: any = {}) {
   return {
-    method: "POST", query: { action: "setup", resource: "pin" },
+    method: "POST",
+    query: { action: "setup", resource: "pin" },
     headers: { authorization: "Bearer test" },
     body: { hash: "a".repeat(64), salt: "b".repeat(32) },
     socket: { remoteAddress: "127.0.0.1" },
@@ -29,12 +32,16 @@ function makeRes() {
   return res;
 }
 
-beforeEach(() => { mockFetch.mockReset(); });
+beforeEach(() => {
+  mockFetch.mockReset();
+});
 
 describe("POST /api/pin?action=setup", () => {
   it("stores hash and salt, returns ok", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
@@ -47,7 +54,9 @@ describe("POST /api/pin?action=setup", () => {
 
   it("rejects invalid hash (not 64 hex chars)", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const { default: handler } = await import("../../api/user-data.js");
@@ -58,7 +67,9 @@ describe("POST /api/pin?action=setup", () => {
 
   it("rejects invalid salt", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const { default: handler } = await import("../../api/user-data.js");
@@ -71,7 +82,9 @@ describe("POST /api/pin?action=setup", () => {
 describe("POST /api/pin?action=verify", () => {
   it("returns valid:true when hash matches", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const hash = "a".repeat(64);
@@ -84,25 +97,35 @@ describe("POST /api/pin?action=verify", () => {
 
   it("returns valid:false when hash doesn't match", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [{ pin_hash: "b".repeat(64) }] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
-    await handler(makeReq({ query: { action: "verify", resource: "pin" }, body: { hash: "a".repeat(64) } }), res);
+    await handler(
+      makeReq({ query: { action: "verify", resource: "pin" }, body: { hash: "a".repeat(64) } }),
+      res,
+    );
     expect(res.json).toHaveBeenCalledWith({ valid: false });
   });
 
   it("returns noPinSet when no record", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
-    await handler(makeReq({ query: { action: "verify", resource: "pin" }, body: { hash: "a".repeat(64) } }), res);
+    await handler(
+      makeReq({ query: { action: "verify", resource: "pin" }, body: { hash: "a".repeat(64) } }),
+      res,
+    );
     expect(res.json).toHaveBeenCalledWith({ valid: false, noPinSet: true });
   });
 });
@@ -110,13 +133,18 @@ describe("POST /api/pin?action=verify", () => {
 describe("DELETE /api/pin?action=delete", () => {
   it("clears pin_hash and returns ok", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({ verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }) }));
+    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+    }));
     vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
-    await handler(makeReq({ method: "DELETE", query: { action: "delete", resource: "pin" }, body: {} }), res);
+    await handler(
+      makeReq({ method: "DELETE", query: { action: "delete", resource: "pin" }, body: {} }),
+      res,
+    );
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
 });

@@ -64,7 +64,8 @@ describe("api/brains — invite action", () => {
       if (urlStr.includes("/rest/v1/brains?id=eq.") && urlStr.includes("owner_id=eq.")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([{ id: VALID_BRAIN_ID, name: "Smash Burger Bar", owner_id: "user-1" }]),
+          json: () =>
+            Promise.resolve([{ id: VALID_BRAIN_ID, name: "Smash Burger Bar", owner_id: "user-1" }]),
         });
       }
       // Brain invites insert
@@ -73,7 +74,13 @@ describe("api/brains — invite action", () => {
           ok: true,
           json: () =>
             Promise.resolve([
-              { id: "inv-1", brain_id: VALID_BRAIN_ID, email: "alice@example.com", token: HEX_64, role: "member" },
+              {
+                id: "inv-1",
+                brain_id: VALID_BRAIN_ID,
+                email: "alice@example.com",
+                token: HEX_64,
+                role: "member",
+              },
             ]),
           text: () => Promise.resolve(""),
         });
@@ -85,7 +92,11 @@ describe("api/brains — invite action", () => {
           json: () => Promise.resolve({ id: "email-1" }),
         });
       }
-      return Promise.resolve({ ok: false, json: () => Promise.resolve({}), text: () => Promise.resolve("") });
+      return Promise.resolve({
+        ok: false,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve(""),
+      });
     }) as any;
 
     const mod = await import("../../api/brains.js");
@@ -181,10 +192,7 @@ describe("api/brains — accept action", () => {
       if (urlStr.includes("brain_invites")) {
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve([
-              { id: "inv-1", brain_id: VALID_BRAIN_ID, role: "member" },
-            ]),
+          json: () => Promise.resolve([{ id: "inv-1", brain_id: VALID_BRAIN_ID, role: "member" }]),
         });
       }
       if (urlStr.includes("brain_members")) {

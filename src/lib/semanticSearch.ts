@@ -23,9 +23,8 @@ export async function semanticSearch(
 ): Promise<Entry[]> {
   if (!query.trim()) return entries;
 
-  const rawHeaders = embedHeaders !== undefined
-    ? embedHeaders
-    : (await import("./aiSettings")).getEmbedHeaders();
+  const rawHeaders =
+    embedHeaders !== undefined ? embedHeaders : (await import("./aiSettings")).getEmbedHeaders();
 
   // Normalise to lowercase for HTTP transport
   const headers: Record<string, string> | null = rawHeaders
@@ -43,9 +42,7 @@ export async function semanticSearch(
         const data = await res.json();
         if (!data.fallback && Array.isArray(data.results)) {
           const byId = new Map(entries.map((e) => [e.id, e]));
-          return data.results
-            .map((r: { id: string }) => byId.get(r.id) ?? r)
-            .filter(Boolean);
+          return data.results.map((r: { id: string }) => byId.get(r.id) ?? r).filter(Boolean);
         }
       }
     } catch {

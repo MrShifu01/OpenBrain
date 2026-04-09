@@ -26,14 +26,30 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex min-h-screen items-center justify-center p-10" style={{ background: "var(--color-background)", color: "var(--color-on-surface)" }}>
+        <div
+          className="flex min-h-screen items-center justify-center p-10"
+          style={{ background: "var(--color-background)", color: "var(--color-on-surface)" }}
+        >
           <div className="max-w-[400px] text-center">
-            <div className="mb-4 text-[48px]" aria-hidden="true">🧠</div>
-            <h2 className="m-0 mb-3 text-xl font-bold" style={{ color: "var(--color-primary)" }}>Something went wrong</h2>
-            <p className="m-0 mb-6 text-sm leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>
+            <div className="mb-4 text-[48px]" aria-hidden="true">
+              🧠
+            </div>
+            <h2 className="m-0 mb-3 text-xl font-bold" style={{ color: "var(--color-primary)" }}>
+              Something went wrong
+            </h2>
+            <p
+              className="m-0 mb-6 text-sm leading-relaxed"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               Everion hit an unexpected error. Your data is safe in the database.
             </p>
-            <p className="m-0 mb-6 rounded-lg p-3 text-left font-mono text-xs break-all" style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
+            <p
+              className="m-0 mb-6 rounded-lg p-3 text-left font-mono text-xs break-all"
+              style={{
+                background: "var(--color-surface-container)",
+                color: "var(--color-on-surface-variant)",
+              }}
+            >
               {this.state.error?.message || "Unknown error"}
             </p>
             <button

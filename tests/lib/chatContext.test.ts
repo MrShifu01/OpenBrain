@@ -2,11 +2,35 @@ import { describe, it, expect } from "vitest";
 import { scoreEntriesForQuery } from "../../src/lib/chatContext";
 
 const entries = [
-  { id: "1", title: "Chilli Spice Mix", content: "cumin, coriander, mustard, smoked paprika", type: "note", tags: ["recipe", "spice", "mix"] },
-  { id: "2", title: "SMASH SOCIAL CLUB", content: "Private company registration", type: "company", tags: ["business"] },
-  { id: "3", title: "Beef Burger Recipe", content: "Beef patty, brioche bun, smash technique", type: "recipe", tags: ["recipe", "burger"] },
+  {
+    id: "1",
+    title: "Chilli Spice Mix",
+    content: "cumin, coriander, mustard, smoked paprika",
+    type: "note",
+    tags: ["recipe", "spice", "mix"],
+  },
+  {
+    id: "2",
+    title: "SMASH SOCIAL CLUB",
+    content: "Private company registration",
+    type: "company",
+    tags: ["business"],
+  },
+  {
+    id: "3",
+    title: "Beef Burger Recipe",
+    content: "Beef patty, brioche bun, smash technique",
+    type: "recipe",
+    tags: ["recipe", "burger"],
+  },
   { id: "4", title: "CIPC Number", content: "2024/123456/07", type: "document", tags: ["legal"] },
-  { id: "5", title: "Garlic Sauce", content: "Garlic, mayo, lemon", type: "recipe", tags: ["recipe", "sauce"] },
+  {
+    id: "5",
+    title: "Garlic Sauce",
+    content: "Garlic, mayo, lemon",
+    type: "recipe",
+    tags: ["recipe", "sauce"],
+  },
 ];
 
 describe("scoreEntriesForQuery", () => {

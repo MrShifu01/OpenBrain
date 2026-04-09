@@ -23,7 +23,10 @@ export interface ContextEntry {
   [key: string]: unknown;
 }
 
-export function truncateToContextWindow(entries: ContextEntry[], charBudget: number): ContextEntry[] {
+export function truncateToContextWindow(
+  entries: ContextEntry[],
+  charBudget: number,
+): ContextEntry[] {
   const sorted = [...entries].sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
   const result: ContextEntry[] = [];
   let used = 0;

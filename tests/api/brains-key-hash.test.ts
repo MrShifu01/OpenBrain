@@ -63,11 +63,13 @@ describe("api/brains — generate-api-key hashing", () => {
         storedKeyData = JSON.parse(opts.body);
         return Promise.resolve({
           ok: true,
-          json: vi.fn().mockResolvedValue([{
-            id: "key-uuid-1",
-            label: storedKeyData.label || "Default",
-            created_at: new Date().toISOString(),
-          }]),
+          json: vi.fn().mockResolvedValue([
+            {
+              id: "key-uuid-1",
+              label: storedKeyData.label || "Default",
+              created_at: new Date().toISOString(),
+            },
+          ]),
         });
       }
       return Promise.resolve({

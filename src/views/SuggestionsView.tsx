@@ -5,7 +5,17 @@ import { PC } from "../data/constants";
 import { PROMPTS } from "../config/prompts";
 import { aiFetch } from "../lib/aiFetch";
 import { getUserModel, getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiSettings";
-import { isSupportedFile, isTextFile, isDocxFile, isExcelFile, readTextFile, readDocxFile, readExcelFile, readFileAsBase64, ACCEPT_STRING } from "../lib/fileParser";
+import {
+  isSupportedFile,
+  isTextFile,
+  isDocxFile,
+  isExcelFile,
+  readTextFile,
+  readDocxFile,
+  readExcelFile,
+  readFileAsBase64,
+  ACCEPT_STRING,
+} from "../lib/fileParser";
 import BulkUploadModal from "../components/BulkUploadModal";
 import type { Entry, Brain, Suggestion, Priority } from "../types";
 
@@ -138,15 +148,27 @@ export default function SuggestionsView({
       .then((data) => {
         const raw = (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim();
         let parsed: any = {};
-        try { parsed = JSON.parse(raw); } catch {}
+        try {
+          parsed = JSON.parse(raw);
+        } catch {}
         setAiQuestion(
           parsed.q
             ? { q: parsed.q, cat: parsed.cat || "AI", p: parsed.p || "medium", ai: true }
-            : { q: "What's one important thing you haven't captured yet?", cat: "AI", p: "medium", ai: true },
+            : {
+                q: "What's one important thing you haven't captured yet?",
+                cat: "AI",
+                p: "medium",
+                ai: true,
+              },
         );
       })
       .catch(() =>
-        setAiQuestion({ q: "What's one important thing you haven't captured yet?", cat: "AI", p: "medium", ai: true }),
+        setAiQuestion({
+          q: "What's one important thing you haven't captured yet?",
+          cat: "AI",
+          p: "medium",
+          ai: true,
+        }),
       )
       .finally(() => setAiLoading(false));
   }, [aiLoading, entries, answeredQs, brainType, targetBrain?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -248,7 +270,10 @@ export default function SuggestionsView({
               {
                 role: "user",
                 content: [
-                  { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64 } },
+                  {
+                    type: "document",
+                    source: { type: "base64", media_type: "application/pdf", data: base64 },
+                  },
                   {
                     type: "text",
                     text: "Extract ALL text from this document relevant to the question. Preserve structure. No commentary.",
@@ -367,18 +392,25 @@ export default function SuggestionsView({
             body: JSON.stringify({ audio: base64, mimeType: actualMime, language: "en" }),
           });
           if (transcribeRes.ok) {
-            const { text, audioBytes, provider: txProvider, model: txModel } = await transcribeRes.json();
+            const {
+              text,
+              audioBytes,
+              provider: txProvider,
+              model: txModel,
+            } = await transcribeRes.json();
             if (text?.trim()) setAnswer((prev) => (prev ? `${prev} ${text.trim()}` : text.trim()));
             if (audioBytes) {
-              import("../lib/usageTracker").then(m => {
-                m.recordUsage({
-                  date: new Date().toISOString().slice(0, 10),
-                  type: "transcription",
-                  provider: txProvider || "groq",
-                  model: txModel || "whisper-large-v3-turbo",
-                  audioBytes,
-                });
-              }).catch(() => {});
+              import("../lib/usageTracker")
+                .then((m) => {
+                  m.recordUsage({
+                    date: new Date().toISOString().slice(0, 10),
+                    type: "transcription",
+                    provider: txProvider || "groq",
+                    model: txModel || "whisper-large-v3-turbo",
+                    audioBytes,
+                  });
+                })
+                .catch(() => {});
             }
           } else {
             setMicError("Transcription failed — try again");
@@ -446,7 +478,9 @@ export default function SuggestionsView({
       const aiData = await aiRes.json();
       let parsedRaw: any = {};
       try {
-        parsedRaw = JSON.parse((aiData.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
+        parsedRaw = JSON.parse(
+          (aiData.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim(),
+        );
       } catch (err: any) {
         const msg = `[QA_PARSE:json] ${err?.message || String(err)} — raw: ${(aiData.content?.[0]?.text || "").slice(0, 200)}`;
         console.error(msg);
@@ -489,7 +523,9 @@ export default function SuggestionsView({
         }
 
         let captureData: any = {};
-        try { captureData = await rpcRes.json(); } catch {}
+        try {
+          captureData = await rpcRes.json();
+        } catch {}
         if (captureData.embed_error) {
           console.error(`[embed] ${captureData.embed_error}`);
         }
@@ -540,17 +576,19 @@ export default function SuggestionsView({
     next("save");
   };
 
-const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
+  const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
   const bm = BRAIN_META[brainType as keyof typeof BRAIN_META] || BRAIN_META.personal;
 
   return (
-    <div className="px-4 py-4 space-y-4">
+    <div className="space-y-4 px-4 py-4">
       {/* Active brain indicator */}
       {targetBrain && (
         <div>
-          <p className="text-xs text-on-surface-variant">
+          <p className="text-on-surface-variant text-xs">
             Showing questions for{" "}
-            <strong className="text-on-surface">{bm.emoji} {targetBrain.name}</strong>
+            <strong className="text-on-surface">
+              {bm.emoji} {targetBrain.name}
+            </strong>
           </p>
         </div>
       )}
@@ -564,10 +602,17 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
           <div
             key={s.l}
             className="rounded-xl border px-3 py-2.5 text-center"
-            style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
+            style={{
+              background: "var(--color-surface-container)",
+              borderColor: "var(--color-outline-variant)",
+            }}
           >
-            <div className="text-xl font-bold" style={{ color: s.color }}>{s.v}</div>
-            <div className="text-[10px] uppercase tracking-widest text-on-surface-variant font-semibold">{s.l}</div>
+            <div className="text-xl font-bold" style={{ color: s.color }}>
+              {s.v}
+            </div>
+            <div className="text-on-surface-variant text-[10px] font-semibold tracking-widest uppercase">
+              {s.l}
+            </div>
           </div>
         ))}
       </div>
@@ -576,9 +621,14 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
       {aiLoading && (
         <div
           className="rounded-2xl border px-4 py-6 text-center"
-          style={{ background: "var(--color-secondary-container)", borderColor: "var(--color-secondary)" }}
+          style={{
+            background: "var(--color-secondary-container)",
+            borderColor: "var(--color-secondary)",
+          }}
         >
-          <p className="text-sm" style={{ color: "var(--color-secondary)" }}>Thinking of a question…</p>
+          <p className="text-sm" style={{ color: "var(--color-secondary)" }}>
+            Thinking of a question…
+          </p>
         </div>
       )}
 
@@ -586,39 +636,66 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
       {current && !aiLoading && (
         <div
           className="rounded-2xl border px-4 py-4"
-          style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
+          style={{
+            background: "var(--color-surface-container)",
+            borderColor: "var(--color-outline-variant)",
+          }}
         >
-          <div className="flex flex-wrap items-center gap-2 mb-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
             <span
-              className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-              style={{ color: pc.l === "High" ? "var(--color-error)" : pc.l === "Medium" ? "var(--color-status-medium)" : "var(--color-primary)", background: pc.l === "High" ? "color-mix(in oklch, var(--color-error) 12%, transparent)" : pc.l === "Medium" ? "var(--color-status-medium-container)" : "var(--color-primary-container)" }}
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wider uppercase"
+              style={{
+                color:
+                  pc.l === "High"
+                    ? "var(--color-error)"
+                    : pc.l === "Medium"
+                      ? "var(--color-status-medium)"
+                      : "var(--color-primary)",
+                background:
+                  pc.l === "High"
+                    ? "color-mix(in oklch, var(--color-error) 12%, transparent)"
+                    : pc.l === "Medium"
+                      ? "var(--color-status-medium-container)"
+                      : "var(--color-primary-container)",
+              }}
             >
               {pc.l}
             </span>
             <span
-              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ color: "var(--color-secondary)", background: "var(--color-secondary-container)" }}
+              className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              style={{
+                color: "var(--color-secondary)",
+                background: "var(--color-secondary-container)",
+              }}
             >
               {current.cat}
             </span>
             {useSkipped ? (
               <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ color: "var(--color-status-medium)", background: "var(--color-status-medium-container)" }}
+                className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{
+                  color: "var(--color-status-medium)",
+                  background: "var(--color-status-medium-container)",
+                }}
               >
                 ↩ From onboarding
               </span>
             ) : (
               <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
+                className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                style={{
+                  color: "var(--color-primary)",
+                  background: "var(--color-primary-container)",
+                }}
               >
                 AI
               </span>
             )}
-            <span className="text-[10px] text-on-surface-variant ml-auto">#{answered + skipped + 1}</span>
+            <span className="text-on-surface-variant ml-auto text-[10px]">
+              #{answered + skipped + 1}
+            </span>
           </div>
-          <p className="text-base font-medium text-on-surface leading-relaxed">{current.q}</p>
+          <p className="text-on-surface text-base leading-relaxed font-medium">{current.q}</p>
         </div>
       )}
 
@@ -631,7 +708,7 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
               next("skip");
             }}
             disabled={aiLoading}
-            className="flex-1 py-3 rounded-xl border text-sm font-medium text-on-surface-variant transition-colors hover:bg-white/5 disabled:opacity-40"
+            className="text-on-surface-variant flex-1 rounded-xl border py-3 text-sm font-medium transition-colors hover:bg-white/5 disabled:opacity-40"
             style={{ borderColor: "var(--color-outline-variant)", background: "transparent" }}
           >
             Skip →
@@ -639,7 +716,7 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
           <button
             onClick={() => setShowInput(true)}
             disabled={!current || aiLoading}
-            className="flex-[2] py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40"
+            className="flex-[2] rounded-xl py-3 text-sm font-bold transition-colors disabled:opacity-40"
             style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
             Answer this
@@ -648,7 +725,13 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
       ) : (
         <div className="space-y-3">
           {/* Hidden file inputs */}
-          <input type="file" accept="image/*" ref={imgRef} onChange={handleImageUpload} className="hidden" />
+          <input
+            type="file"
+            accept="image/*"
+            ref={imgRef}
+            onChange={handleImageUpload}
+            className="hidden"
+          />
           <input
             type="file"
             accept={ACCEPT_STRING}
@@ -668,10 +751,10 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
             }}
             className="hidden"
           />
-          {imgError && <p className="text-xs text-error">{imgError}</p>}
-          {micError && <p className="text-xs text-error">{micError}</p>}
+          {imgError && <p className="text-error text-xs">{imgError}</p>}
+          {micError && <p className="text-error text-xs">{micError}</p>}
           {saveError && (
-            <p className="text-xs font-mono break-all" style={{ color: "var(--color-error)" }}>
+            <p className="font-mono text-xs break-all" style={{ color: "var(--color-error)" }}>
               {saveError}
             </p>
           )}
@@ -681,8 +764,11 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
             placeholder={listening ? "Listening..." : "Type your answer..."}
             autoFocus
             rows={3}
-            className="w-full rounded-xl border px-3 py-3 text-sm text-on-surface bg-transparent outline-none resize-none placeholder:text-on-surface-variant focus:border-[var(--color-primary)] transition-colors"
-            style={{ borderColor: "var(--color-outline-variant)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
+            className="text-on-surface placeholder:text-on-surface-variant w-full resize-none rounded-xl border bg-transparent px-3 py-3 text-sm transition-colors outline-none focus:border-[var(--color-primary)]"
+            style={{
+              borderColor: "var(--color-outline-variant)",
+              fontFamily: "'DM Sans', system-ui, sans-serif",
+            }}
           />
           <div className="flex items-center gap-2">
             <button
@@ -693,7 +779,7 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
                 recognitionRef.current?.stop();
                 mediaRecorderRef.current?.state !== "inactive" && mediaRecorderRef.current?.stop();
               }}
-              className="px-3 py-2 rounded-xl border text-xs text-on-surface-variant transition-colors hover:bg-white/5"
+              className="text-on-surface-variant rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
               style={{ borderColor: "var(--color-outline-variant)", background: "transparent" }}
             >
               Cancel
@@ -703,25 +789,46 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
                 setSkipped((s) => s + 1);
                 next("skip");
               }}
-              className="px-3 py-2 rounded-xl border text-xs text-on-surface-variant transition-colors hover:bg-white/5"
+              className="text-on-surface-variant rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
               style={{ borderColor: "var(--color-outline-variant)", background: "transparent" }}
             >
               Skip
             </button>
-            <div className="flex items-center gap-1 ml-auto">
+            <div className="ml-auto flex items-center gap-1">
               {/* Voice */}
               <button
                 onClick={startVoice}
                 disabled={imgLoading || saving}
                 title={listening ? "Stop recording" : "Voice input"}
                 aria-label={listening ? "Stop recording" : "Voice input"}
-                className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
-                style={listening ? { background: "color-mix(in oklch, var(--color-error) 15%, transparent)", color: "var(--color-error)" } : { color: "var(--color-on-surface-variant)" }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+                style={
+                  listening
+                    ? {
+                        background: "color-mix(in oklch, var(--color-error) 15%, transparent)",
+                        color: "var(--color-error)",
+                      }
+                    : { color: "var(--color-on-surface-variant)" }
+                }
               >
                 {listening ? (
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"
+                    />
+                  </svg>
                 )}
               </button>
               {/* Camera */}
@@ -730,10 +837,27 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
                 disabled={imgLoading || saving}
                 title="Upload photo"
                 aria-label="Upload photo"
-                className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"
+                  />
+                </svg>
               </button>
               {/* File upload */}
               <button
@@ -741,10 +865,22 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
                 disabled={imgLoading || saving}
                 title="Upload file (PDF, Word, MD, TXT)"
                 aria-label="Upload file"
-                className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                  />
+                </svg>
               </button>
               {/* Bulk upload */}
               <button
@@ -752,17 +888,29 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
                 disabled={imgLoading || saving}
                 title="Bulk upload multiple files"
                 aria-label="Bulk upload"
-                className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-white/10 disabled:opacity-40"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" /></svg>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+                  />
+                </svg>
               </button>
             </div>
           </div>
           <button
             onClick={handleSave}
             disabled={!answer.trim() || saving || imgLoading}
-            className="w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40"
+            className="w-full rounded-xl py-3 text-sm font-bold transition-colors disabled:opacity-40"
             style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
             {saving
@@ -791,8 +939,8 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
       {/* Session history */}
       {saved.length > 0 && (
         <div className="mt-4">
-          <div className="flex items-center mb-3">
-            <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest">
+          <div className="mb-3 flex items-center">
+            <p className="text-on-surface-variant text-xs font-semibold tracking-widest uppercase">
               This session ({saved.length})
             </p>
           </div>
@@ -801,31 +949,40 @@ const pc = current ? PC[current.p as Priority] || PC.medium : PC.medium;
               <div
                 key={i}
                 className="rounded-xl border px-3 py-2.5"
-                style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+                style={{
+                  background: "var(--color-surface-container-low)",
+                  borderColor: "var(--color-outline-variant)",
+                }}
               >
-                <div className="flex items-center gap-2 mb-1">
+                <div className="mb-1 flex items-center gap-2">
                   <span
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ color: "var(--color-secondary)", background: "var(--color-secondary-container)" }}
+                    className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                    style={{
+                      color: "var(--color-secondary)",
+                      background: "var(--color-secondary-container)",
+                    }}
                   >
                     {s.cat}
                   </span>
                   {s.brain && (
-                    <span className="text-[10px] text-on-surface-variant">
+                    <span className="text-on-surface-variant text-[10px]">
                       {BRAIN_META[(s.brain.type || "personal") as keyof typeof BRAIN_META]?.emoji}{" "}
                       {s.brain.name}
                     </span>
                   )}
                   {s.db && (
                     <span
-                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full ml-auto"
-                      style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
+                      className="ml-auto rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                      style={{
+                        color: "var(--color-primary)",
+                        background: "var(--color-primary-container)",
+                      }}
                     >
                       Saved
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-on-surface-variant leading-relaxed">
+                <p className="text-on-surface-variant text-xs leading-relaxed">
                   {s.a.slice(0, 120)}
                   {s.a.length > 120 ? "…" : ""}
                 </p>

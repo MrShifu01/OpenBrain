@@ -3,7 +3,10 @@ import { StorageAdapter } from "../../src/lib/storage";
 
 describe("StorageAdapter", () => {
   let store: StorageAdapter;
-  beforeEach(() => { localStorage.clear(); store = new StorageAdapter(); });
+  beforeEach(() => {
+    localStorage.clear();
+    store = new StorageAdapter();
+  });
 
   it("set and get a value", () => {
     store.set("k", { x: 1 });

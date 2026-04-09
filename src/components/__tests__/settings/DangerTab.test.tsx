@@ -12,7 +12,14 @@ describe("DangerTab", () => {
   });
 
   it("does not render delete brain button for non-owners", () => {
-    render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner={false} deleteAccount={vi.fn()} />);
+    render(
+      <DangerTab
+        activeBrain={brain}
+        deleteBrain={vi.fn()}
+        isOwner={false}
+        deleteAccount={vi.fn()}
+      />,
+    );
     expect(screen.queryByRole("button", { name: /delete this brain/i })).not.toBeInTheDocument();
   });
 
@@ -24,26 +31,49 @@ describe("DangerTab", () => {
 
   it("calls deleteBrain on second click", async () => {
     const deleteBrain = vi.fn().mockResolvedValue(undefined);
-    render(<DangerTab activeBrain={brain} deleteBrain={deleteBrain} isOwner deleteAccount={vi.fn()} />);
+    render(
+      <DangerTab activeBrain={brain} deleteBrain={deleteBrain} isOwner deleteAccount={vi.fn()} />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /delete this brain/i }));
     fireEvent.click(screen.getByRole("button", { name: /tap again/i }));
     expect(deleteBrain).toHaveBeenCalledWith("b1");
   });
 
   it("always renders delete account button", () => {
-    render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner={false} deleteAccount={vi.fn()} />);
+    render(
+      <DangerTab
+        activeBrain={brain}
+        deleteBrain={vi.fn()}
+        isOwner={false}
+        deleteAccount={vi.fn()}
+      />,
+    );
     expect(screen.getByRole("button", { name: /delete account/i })).toBeInTheDocument();
   });
 
   it("shows confirm text after first click on delete account", () => {
-    render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner={false} deleteAccount={vi.fn()} />);
+    render(
+      <DangerTab
+        activeBrain={brain}
+        deleteBrain={vi.fn()}
+        isOwner={false}
+        deleteAccount={vi.fn()}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     expect(screen.getByText(/tap again to confirm/i)).toBeInTheDocument();
   });
 
   it("calls deleteAccount on second click", async () => {
     const deleteAccount = vi.fn().mockResolvedValue(undefined);
-    render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner={false} deleteAccount={deleteAccount} />);
+    render(
+      <DangerTab
+        activeBrain={brain}
+        deleteBrain={vi.fn()}
+        isOwner={false}
+        deleteAccount={deleteAccount}
+      />,
+    );
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
     fireEvent.click(screen.getByRole("button", { name: /tap again/i }));
     expect(deleteAccount).toHaveBeenCalled();

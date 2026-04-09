@@ -6,55 +6,55 @@
 /* ── Theme Tokens ── */
 @theme {
   /* Surfaces — Deep Warm Charcoal (#1A1816 palette) */
-  --color-background:                  oklch(11% 0.010 60);
-  --color-surface:                     oklch(11% 0.010 60);
-  --color-surface-dim:                 oklch(8% 0.007 60);
-  --color-surface-container-lowest:    oklch(6% 0.005 60);
-  --color-surface-container-low:       oklch(15% 0.012 62);
-  --color-surface-container:           oklch(17% 0.013 62);
-  --color-surface-container-high:      oklch(21% 0.015 65);
-  --color-surface-container-highest:   oklch(25% 0.016 65);
-  --color-surface-variant:             oklch(21% 0.015 65);
-  --color-surface-bright:              oklch(31% 0.018 65);
+  --color-background: oklch(11% 0.01 60);
+  --color-surface: oklch(11% 0.01 60);
+  --color-surface-dim: oklch(8% 0.007 60);
+  --color-surface-container-lowest: oklch(6% 0.005 60);
+  --color-surface-container-low: oklch(15% 0.012 62);
+  --color-surface-container: oklch(17% 0.013 62);
+  --color-surface-container-high: oklch(21% 0.015 65);
+  --color-surface-container-highest: oklch(25% 0.016 65);
+  --color-surface-variant: oklch(21% 0.015 65);
+  --color-surface-bright: oklch(31% 0.018 65);
 
   /* Primary — Muted Gold/Bronze (#A68B67) */
-  --color-primary:                     oklch(68% 0.09 75);
-  --color-primary-dim:                 oklch(60% 0.09 75);
-  --color-primary-container:           oklch(24% 0.05 75);
-  --color-on-primary:                  oklch(12% 0.05 75);
-  --color-on-primary-container:        oklch(86% 0.07 75);
+  --color-primary: oklch(68% 0.09 75);
+  --color-primary-dim: oklch(60% 0.09 75);
+  --color-primary-container: oklch(24% 0.05 75);
+  --color-on-primary: oklch(12% 0.05 75);
+  --color-on-primary-container: oklch(86% 0.07 75);
 
   /* Secondary — Warm Stone (same 75° hue as amber, very low chroma — recedes without competing) */
-  --color-secondary:                   oklch(58% 0.022 75);
-  --color-secondary-dim:               oklch(51% 0.022 75);
-  --color-secondary-container:         oklch(22% 0.015 75);
-  --color-on-secondary:                oklch(12% 0.010 75);
-  --color-on-secondary-container:      oklch(85% 0.018 75);
+  --color-secondary: oklch(58% 0.022 75);
+  --color-secondary-dim: oklch(51% 0.022 75);
+  --color-secondary-container: oklch(22% 0.015 75);
+  --color-on-secondary: oklch(12% 0.01 75);
+  --color-on-secondary-container: oklch(85% 0.018 75);
 
   /* Semantic — Error */
-  --color-error:                       oklch(62% 0.18 25);
-  --color-error-dim:                   oklch(52% 0.18 25);
-  --color-on-error:                    oklch(97% 0.01 25);
+  --color-error: oklch(62% 0.18 25);
+  --color-error-dim: oklch(52% 0.18 25);
+  --color-on-error: oklch(97% 0.01 25);
 
   /* Semantic — Status (priority/urgency signals) */
-  --color-status-medium:               oklch(72% 0.16 68);
-  --color-status-medium-container:     color-mix(in oklch, oklch(72% 0.16 68) 12%, transparent);
+  --color-status-medium: oklch(72% 0.16 68);
+  --color-status-medium-container: color-mix(in oklch, oklch(72% 0.16 68) 12%, transparent);
 
   /* On-colors */
-  --color-on-surface:                  oklch(96% 0.007 80);
-  --color-on-surface-variant:          oklch(62% 0.012 70);
+  --color-on-surface: oklch(96% 0.007 80);
+  --color-on-surface-variant: oklch(62% 0.012 70);
 
   /* Borders */
-  --color-outline:                     oklch(38% 0.014 65);
-  --color-outline-variant:             oklch(22% 0.012 65);
+  --color-outline: oklch(38% 0.014 65);
+  --color-outline-variant: oklch(22% 0.012 65);
 
   /* Scrim — modal backdrop */
-  --color-scrim:                       oklch(10% 0.010 60 / 0.65);
+  --color-scrim: oklch(10% 0.01 60 / 0.65);
 
   /* Typography */
-  --font-family-headline: 'Lora', Georgia, serif;
-  --font-family-body:     'DM Sans', system-ui, sans-serif;
-  --font-family-label:    'DM Sans', system-ui, sans-serif;
+  --font-family-headline: "Lora", Georgia, serif;
+  --font-family-body: "DM Sans", system-ui, sans-serif;
+  --font-family-label: "DM Sans", system-ui, sans-serif;
 
   --font-size-10: 0.625rem;
   --font-size-12: 0.75rem;
@@ -68,23 +68,23 @@
   --font-size-56: 3.5rem;
 
   /* Border radius */
-  --radius:      0.25rem;
-  --radius-lg:   0.5rem;
-  --radius-xl:   0.75rem;
-  --radius-2xl:  1rem;
-  --radius-3xl:  1.5rem;
+  --radius: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
   --radius-full: 9999px;
 
   /* Elevation shadows — warm brown depth */
-  --shadow-sm:   0 1px 3px oklch(5% 0.010 60 / 0.40), 0 1px 2px oklch(5% 0.010 60 / 0.30);
-  --shadow-md:   0 4px 12px oklch(5% 0.010 60 / 0.45), 0 2px 4px oklch(5% 0.010 60 / 0.30);
-  --shadow-lg:   0 12px 32px oklch(5% 0.010 60 / 0.50), 0 4px 8px oklch(5% 0.010 60 / 0.30);
-  --shadow-nav:  0 -1px 0 oklch(22% 0.012 65), 0 8px 24px oklch(5% 0.010 60 / 0.40);
+  --shadow-sm: 0 1px 3px oklch(5% 0.01 60 / 0.4), 0 1px 2px oklch(5% 0.01 60 / 0.3);
+  --shadow-md: 0 4px 12px oklch(5% 0.01 60 / 0.45), 0 2px 4px oklch(5% 0.01 60 / 0.3);
+  --shadow-lg: 0 12px 32px oklch(5% 0.01 60 / 0.5), 0 4px 8px oklch(5% 0.01 60 / 0.3);
+  --shadow-nav: 0 -1px 0 oklch(22% 0.012 65), 0 8px 24px oklch(5% 0.01 60 / 0.4);
 
   /* Animations */
-  --animate-shimmer:    shimmer 1.5s infinite;
-  --animate-fade-in:    fade-in 0.2s ease-out;
-  --animate-slide-up:   slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-shimmer: shimmer 1.5s infinite;
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Easing */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -93,32 +93,70 @@
 
 /* ── Keyframes ── */
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position:  200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes slide-up {
-  from { transform: translateY(6px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 @keyframes slide-in-from-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 @keyframes slide-in-from-bottom {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes zoom-in-95 {
-  from { transform: scale(0.97); opacity: 0; }
-  to   { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 @keyframes typing-dot {
-  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
-  30%           { opacity: 1;    transform: translateY(-3px); }
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 
 /* ── Global primitives ── */
@@ -164,10 +202,20 @@
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--color-surface-dim); }
-::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-surface-dim);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
 
 /* Selection */
 ::selection {
@@ -184,7 +232,9 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
@@ -195,60 +245,61 @@ html:not(.dark) {
   color-scheme: light;
 
   /* Surfaces — Warm Ivory Linen (#FAF7F2 palette) */
-  --color-background:                  oklch(98.5% 0.009 85);
-  --color-surface:                     oklch(100% 0 0);
-  --color-surface-dim:                 oklch(96.5% 0.010 85);
-  --color-surface-container-lowest:    oklch(100% 0 0);
-  --color-surface-container-low:       oklch(97.5% 0.011 85);
-  --color-surface-container:           oklch(95.5% 0.013 85);
-  --color-surface-container-high:      oklch(93% 0.014 83);
-  --color-surface-container-highest:   oklch(90% 0.016 80);
-  --color-surface-variant:             oklch(93% 0.014 83);
-  --color-surface-bright:              oklch(100% 0 0);
+  --color-background: oklch(98.5% 0.009 85);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-dim: oklch(96.5% 0.01 85);
+  --color-surface-container-lowest: oklch(100% 0 0);
+  --color-surface-container-low: oklch(97.5% 0.011 85);
+  --color-surface-container: oklch(95.5% 0.013 85);
+  --color-surface-container-high: oklch(93% 0.014 83);
+  --color-surface-container-highest: oklch(90% 0.016 80);
+  --color-surface-variant: oklch(93% 0.014 83);
+  --color-surface-bright: oklch(100% 0 0);
 
   /* Primary — Muted Gold/Bronze, WCAG AA on white */
-  --color-primary:                     oklch(46% 0.09 75);
-  --color-primary-dim:                 oklch(40% 0.09 75);
-  --color-primary-container:           oklch(92% 0.05 75);
-  --color-on-primary:                  oklch(100% 0 0);
-  --color-on-primary-container:        oklch(26% 0.07 75);
+  --color-primary: oklch(46% 0.09 75);
+  --color-primary-dim: oklch(40% 0.09 75);
+  --color-primary-container: oklch(92% 0.05 75);
+  --color-on-primary: oklch(100% 0 0);
+  --color-on-primary-container: oklch(26% 0.07 75);
 
   /* Secondary — Warm Stone (same 75° hue as amber, very low chroma — recedes without competing) */
-  --color-secondary:                   oklch(42% 0.022 75);
-  --color-secondary-dim:               oklch(36% 0.022 75);
-  --color-secondary-container:         oklch(92% 0.012 75);
-  --color-on-secondary:                oklch(100% 0 0);
-  --color-on-secondary-container:      oklch(22% 0.018 75);
+  --color-secondary: oklch(42% 0.022 75);
+  --color-secondary-dim: oklch(36% 0.022 75);
+  --color-secondary-container: oklch(92% 0.012 75);
+  --color-on-secondary: oklch(100% 0 0);
+  --color-on-secondary-container: oklch(22% 0.018 75);
 
   /* Error */
-  --color-error:                       oklch(50% 0.18 25);
-  --color-error-dim:                   oklch(44% 0.18 25);
-  --color-on-error:                    oklch(99% 0.002 80);
+  --color-error: oklch(50% 0.18 25);
+  --color-error-dim: oklch(44% 0.18 25);
+  --color-on-error: oklch(99% 0.002 80);
 
   /* Semantic — Status */
-  --color-status-medium:               oklch(55% 0.16 68);
-  --color-status-medium-container:     color-mix(in oklch, oklch(55% 0.16 68) 12%, transparent);
+  --color-status-medium: oklch(55% 0.16 68);
+  --color-status-medium-container: color-mix(in oklch, oklch(55% 0.16 68) 12%, transparent);
 
   /* On-colors */
-  --color-on-surface:                  oklch(18% 0.012 65);
-  --color-on-surface-variant:          oklch(36% 0.013 65);
+  --color-on-surface: oklch(18% 0.012 65);
+  --color-on-surface-variant: oklch(36% 0.013 65);
 
   /* Borders */
-  --color-outline:                     oklch(62% 0.010 75);
-  --color-outline-variant:             oklch(90% 0.009 85);
+  --color-outline: oklch(62% 0.01 75);
+  --color-outline-variant: oklch(90% 0.009 85);
 
   /* Scrim — lighter overlay for light mode */
-  --color-scrim:                       oklch(18% 0.012 65 / 0.5);
+  --color-scrim: oklch(18% 0.012 65 / 0.5);
 
   /* Shadows — warm soft depth for light mode */
-  --shadow-sm:   0 1px 3px oklch(30% 0.020 65 / 0.10), 0 1px 2px oklch(30% 0.020 65 / 0.06);
-  --shadow-md:   0 4px 12px oklch(30% 0.020 65 / 0.13), 0 2px 4px oklch(30% 0.020 65 / 0.07);
-  --shadow-lg:   0 12px 32px oklch(30% 0.020 65 / 0.15), 0 4px 8px oklch(30% 0.020 65 / 0.07);
-  --shadow-nav:  0 -1px 0 oklch(90% 0.009 85), 0 8px 24px oklch(30% 0.020 65 / 0.10);
+  --shadow-sm: 0 1px 3px oklch(30% 0.02 65 / 0.1), 0 1px 2px oklch(30% 0.02 65 / 0.06);
+  --shadow-md: 0 4px 12px oklch(30% 0.02 65 / 0.13), 0 2px 4px oklch(30% 0.02 65 / 0.07);
+  --shadow-lg: 0 12px 32px oklch(30% 0.02 65 / 0.15), 0 4px 8px oklch(30% 0.02 65 / 0.07);
+  --shadow-nav: 0 -1px 0 oklch(90% 0.009 85), 0 8px 24px oklch(30% 0.02 65 / 0.1);
 }
 
 /* ── Base styles ── */
-html, body {
+html,
+body {
   min-height: 100dvh;
   background: var(--color-background);
   color: var(--color-on-surface);
@@ -257,14 +308,16 @@ html, body {
 }
 
 body {
-  font-family: 'DM Sans', system-ui, sans-serif;
+  font-family: "DM Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Prevent iOS from auto-zooming the page when focusing inputs with small text. */
 @media (max-width: 1024px) {
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     font-size: 16px !important;
   }
 }
@@ -286,8 +339,12 @@ input[type="radio"] {
   animation: typing-dot 1.2s ease-in-out infinite;
   opacity: 0.25;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.30s; }
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 /* ── Select dropdown styling — theme-aware ── */
 select {

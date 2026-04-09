@@ -112,19 +112,23 @@ export async function callAI({
   });
 
   if (res.ok) {
-    res.clone().json().then((body) => {
-      const { inputTokens, outputTokens } = extractTokenUsage(body);
-      if (inputTokens > 0 || outputTokens > 0) {
-        recordUsage({
-          date: new Date().toISOString().slice(0, 10),
-          type: "llm",
-          inputTokens,
-          outputTokens,
-          provider: safeProvider,
-          model,
-        });
-      }
-    }).catch(() => {});
+    res
+      .clone()
+      .json()
+      .then((body) => {
+        const { inputTokens, outputTokens } = extractTokenUsage(body);
+        if (inputTokens > 0 || outputTokens > 0) {
+          recordUsage({
+            date: new Date().toISOString().slice(0, 10),
+            type: "llm",
+            inputTokens,
+            outputTokens,
+            provider: safeProvider,
+            model,
+          });
+        }
+      })
+      .catch(() => {});
   }
 
   return res;

@@ -21,7 +21,11 @@ interface RawConnection {
 /** Simple fuzzy title similarity score 0–100 */
 export function scoreTitle(a: string, b: string): number {
   if (!a || !b) return 0;
-  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, "")
+      .trim();
   const na = norm(a);
   const nb = norm(b);
   if (na === nb) return 100;

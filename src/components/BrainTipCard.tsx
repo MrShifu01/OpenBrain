@@ -28,7 +28,7 @@ export default function BrainTipCard({ brain, onDismiss, onFill }: BrainTipCardP
 
   return (
     <div
-      className="relative rounded-2xl border p-4 space-y-3"
+      className="relative space-y-3 rounded-2xl border p-4"
       style={{
         background: "var(--color-surface-container)",
         borderColor: "var(--color-outline-variant)",
@@ -37,20 +37,25 @@ export default function BrainTipCard({ brain, onDismiss, onFill }: BrainTipCardP
       <button
         onClick={onDismiss}
         aria-label="Dismiss tip"
-        className="absolute top-2 right-2 text-sm rounded-full w-11 h-11 flex items-center justify-center"
-        style={{ color: "var(--color-on-surface-variant)", background: "var(--color-outline-variant)" }}
+        className="absolute top-2 right-2 flex h-11 w-11 items-center justify-center rounded-full text-sm"
+        style={{
+          color: "var(--color-on-surface-variant)",
+          background: "var(--color-outline-variant)",
+        }}
       >
         ×
       </button>
 
       <div className="flex items-center gap-2">
         <span className="text-xl">{emoji}</span>
-        <span className="text-sm font-semibold text-on-surface">{brain.name} is ready — start here</span>
+        <span className="text-on-surface text-sm font-semibold">
+          {brain.name} is ready — start here
+        </span>
       </div>
 
       <div className="space-y-2">
         {tips.map((tip) => (
-          <div key={tip} className="flex items-start gap-2 text-sm text-on-surface-variant">
+          <div key={tip} className="text-on-surface-variant flex items-start gap-2 text-sm">
             <span className="text-primary">✦</span>
             {tip}
           </div>
@@ -59,7 +64,7 @@ export default function BrainTipCard({ brain, onDismiss, onFill }: BrainTipCardP
 
       <button
         onClick={onFill}
-        className="w-full rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 press-scale"
+        className="press-scale w-full rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90"
         style={{
           background: "var(--color-primary)",
           color: "var(--color-on-primary)",

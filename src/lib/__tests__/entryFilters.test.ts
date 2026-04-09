@@ -21,11 +21,11 @@ const THIRTY_DAYS_AGO = "2026-03-09T14:00:00Z"; // 29d 22h before NOW — inside
 const FORTY_DAYS_AGO = "2026-02-27T10:00:00Z";
 
 const ENTRIES: Entry[] = [
-  entry({ id: "1", type: "note",     created_at: TODAY,           pinned: true }),
-  entry({ id: "2", type: "idea",     created_at: YESTERDAY }),
-  entry({ id: "3", type: "contact",  created_at: FIVE_DAYS_AGO }),
+  entry({ id: "1", type: "note", created_at: TODAY, pinned: true }),
+  entry({ id: "2", type: "idea", created_at: YESTERDAY }),
+  entry({ id: "3", type: "contact", created_at: FIVE_DAYS_AGO }),
   entry({ id: "4", type: "reminder", created_at: THIRTY_DAYS_AGO }),
-  entry({ id: "5", type: "note",     created_at: FORTY_DAYS_AGO }),
+  entry({ id: "5", type: "note", created_at: FORTY_DAYS_AGO }),
 ];
 
 describe("applyEntryFilters — type", () => {
@@ -51,8 +51,13 @@ describe("applyEntryFilters — type", () => {
 });
 
 describe("applyEntryFilters — date (relative to 2026-04-08T12:00:00Z)", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("'today' returns only entries created on same calendar day", () => {
     const result = applyEntryFilters(ENTRIES, { type: "all", date: "today", sort: "newest" });
@@ -103,8 +108,13 @@ describe("applyEntryFilters — sort", () => {
 });
 
 describe("applyEntryFilters — combined", () => {
-  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(NOW); });
-  afterEach(() => { vi.useRealTimers(); });
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("type + date combined narrows correctly", () => {
     // type=note, date=week: only entry 1 (today), not entry 5 (40d ago)

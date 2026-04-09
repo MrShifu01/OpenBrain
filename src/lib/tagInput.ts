@@ -6,11 +6,7 @@
  * Returns up to 8 tag suggestions matching the given partial input string,
  * excluding already-selected tags.
  */
-export function suggestTags(
-  partial: string,
-  allTags: string[],
-  selected: string[] = [],
-): string[] {
+export function suggestTags(partial: string, allTags: string[], selected: string[] = []): string[] {
   if (!partial.trim()) return [];
   const lower = partial.toLowerCase();
   const excludeSet = new Set(selected.map((t) => t.toLowerCase()));

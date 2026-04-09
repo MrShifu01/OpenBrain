@@ -67,7 +67,9 @@ describe("fileParser", () => {
     it("returns false for unsupported files", async () => {
       expect(await isSupportedFile(makeFile("photo.jpg", "", "image/jpeg"))).toBe(false);
       expect(await isSupportedFile(makeFile("video.mp4", "", "video/mp4"))).toBe(false);
-      expect(await isSupportedFile(makeFile("app.exe", "", "application/octet-stream"))).toBe(false);
+      expect(await isSupportedFile(makeFile("app.exe", "", "application/octet-stream"))).toBe(
+        false,
+      );
     });
   });
 
