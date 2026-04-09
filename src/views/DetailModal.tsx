@@ -104,8 +104,7 @@ export default function DetailModal({
         const raw = full.replace(/[^a-z]/g, " ");
         const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
         if (match) setEditType(match);
-        else setAiError(`No match (got: "${full.slice(0, 40)}")`);
-      } else {
+        else setAiError(`"${full.slice(0, 60)}"`);      } else {
         const errData = await res.json().catch(() => ({}));
         const msg = (errData as any)?.error || `HTTP ${res.status}`;
         setAiError(msg);
@@ -548,7 +547,7 @@ export default function DetailModal({
                   </label>
                   <div className="flex items-center gap-1.5">
                     {aiError && (
-                      <span className="max-w-[120px] truncate text-[9px]" style={{ color: "var(--color-error)" }} title={aiError}>{aiError}</span>
+                      <span className="max-w-[180px] truncate text-[9px]" style={{ color: "var(--color-error)" }}>{aiError}</span>
                     )}
                     <button
                       type="button"
