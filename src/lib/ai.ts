@@ -126,20 +126,35 @@ export async function callAI({
     return /no endpoint|no provider|model not found|invalid model/i.test(msg);
   };
 
+  const ATTEMPT_TIMEOUT_MS = 25000;
+
   let res!: Response;
   let usedModel = model;
   for (const m of modelsToTry) {
     usedModel = m;
-    res = await authFetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: m,
-        messages: normalizeMessages(messages, safeProvider),
-        system: fullSystem,
-        max_tokens,
-      }),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
+    try {
+      res = await authFetch(endpoint, {
+        method: "POST",
+        headers,
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: m,
+          messages: normalizeMessages(messages, safeProvider),
+          system: fullSystem,
+          max_tokens,
+        }),
+      });
+    } catch (err: any) {
+      clearTimeout(timer);
+      if (err?.name === "AbortError") {
+        console.warn(`[ai] model ${m} timed out after ${ATTEMPT_TIMEOUT_MS / 1000}s, trying next fallback`);
+        continue; // treat timeout as fallbackable
+      }
+      throw err;
+    }
+    clearTimeout(timer);
     if (res.ok) break;
     const body = await res.clone().json().catch(() => null);
     if (!isFallbackableError(res.status, body)) break;
