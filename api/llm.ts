@@ -6,8 +6,9 @@ import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 // Hardcoded server-side models — always used when no user key is provided
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
-const GEMINI_MODEL = "gemma-4-31b-it"; // Google AI via OpenAI-compatible endpoint
-const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
+const GEMINI_MODEL = "gemma-4-31b-it";
+// Native generateContent API — supports all Google models including Gemma
+const GEMINI_NATIVE_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const ANTHROPIC_MODELS = [
   "claude-haiku-4-5-20251001",
@@ -119,22 +120,28 @@ async function handleAnthropic(_req: ApiRequest, res: ApiResponse, { model, mess
 }
 
 async function handleGoogle(res: ApiResponse, { messages, max_tokens, system }: Pick<LlmParams, "messages" | "max_tokens" | "system">): Promise<void> {
-  const oaiMessages = system
-    ? [{ role: "system", content: system.slice(0, 10000) }, ...messages]
-    : messages;
-  const response = await fetch(`${GEMINI_BASE_URL}/chat/completions`, {
+  // Native generateContent API — works with Gemma and all Google models
+  const contents = messages.map((m: any) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+  const body: Record<string, any> = {
+    contents,
+    generationConfig: { maxOutputTokens: max_tokens || 1000 },
+  };
+  if (system) body.systemInstruction = { parts: [{ text: system.slice(0, 10000) }] };
+
+  const response = await fetch(`${GEMINI_NATIVE_URL}?key=${encodeURIComponent(GEMINI_API_KEY)}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
-    body: JSON.stringify({ model: GEMINI_MODEL, max_tokens: max_tokens || 1000, messages: oaiMessages }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
   const data: any = await response.json();
-  if (response.ok && data.choices?.[0]?.message?.content) {
-    return res.status(200).json({
-      content: [{ type: "text", text: data.choices[0].message.content }],
-      model: GEMINI_MODEL,
-      usage: data.usage,
-    });
+  if (response.ok) {
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return res.status(200).json({ content: [{ type: "text", text }], model: GEMINI_MODEL });
   }
+  console.error("[google]", response.status, JSON.stringify(data));
   return res.status(response.status).json(data);
 }
 
@@ -245,18 +252,24 @@ async function handleExtractFile(req: ApiRequest, res: ApiResponse): Promise<voi
 
   try {
     if (provider === "google") {
-      // Google OpenAI-compatible — vision via image_url, docs via text
-      const contentParts: any[] = mimeType.startsWith("image/")
-        ? [{ type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } }, { type: "text", text: EXTRACT_PROMPT }]
-        : [{ type: "text", text: EXTRACT_PROMPT }];
-      const r = await fetch(`${GEMINI_BASE_URL}/chat/completions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-        body: JSON.stringify({ model: model || GEMINI_MODEL, max_tokens: 4096, messages: [{ role: "user", content: contentParts }] }),
-      });
+      // Native generateContent API — supports images and all Gemma/Gemini models
+      const usedModel = model || GEMINI_MODEL;
+      const parts: any[] = [];
+      if (mimeType.startsWith("image/")) {
+        parts.push({ inlineData: { mimeType, data: fileData } });
+      }
+      parts.push({ text: EXTRACT_PROMPT });
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${usedModel}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { maxOutputTokens: 4096 } }),
+        }
+      );
       const d: any = await r.json();
       if (!r.ok) { console.error("[extract-file/google]", r.status, JSON.stringify(d)); return res.status(r.status).json(d); }
-      return res.status(200).json({ text: d.choices?.[0]?.message?.content || "" });
+      return res.status(200).json({ text: d.candidates?.[0]?.content?.parts?.[0]?.text || "" });
     }
 
     if (provider === "anthropic") {
