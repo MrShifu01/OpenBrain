@@ -67,10 +67,7 @@ export default function DetailModal({
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
-<<<<<<< HEAD
-=======
   const [aiError, setAiError] = useState<string | null>(null);
->>>>>>> claude/fix-image-upload-ai-config-m2haq
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -84,10 +81,7 @@ export default function DetailModal({
 
   async function suggestType() {
     setAiTyping(true);
-<<<<<<< HEAD
-=======
     setAiError(null);
->>>>>>> claude/fix-image-upload-ai-config-m2haq
     try {
       const provider = getUserProvider();
       const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
@@ -549,17 +543,6 @@ export default function DetailModal({
                   >
                     Type
                   </label>
-<<<<<<< HEAD
-                  <button
-                    type="button"
-                    onClick={suggestType}
-                    disabled={aiTyping}
-                    className="rounded-lg px-2 py-0.5 text-[10px] font-semibold transition-all disabled:opacity-50"
-                    style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}
-                  >
-                    {aiTyping ? "Thinking…" : "✦ AI pick"}
-                  </button>
-=======
                   <div className="flex items-center gap-1.5">
                     {aiError && (
                       <span className="max-w-[120px] truncate text-[9px]" style={{ color: "var(--color-error)" }} title={aiError}>{aiError}</span>
@@ -574,7 +557,6 @@ export default function DetailModal({
                       {aiTyping ? "Thinking…" : "✦ AI pick"}
                     </button>
                   </div>
->>>>>>> claude/fix-image-upload-ai-config-m2haq
                 </div>
                 <button
                   type="button"
