@@ -3,6 +3,7 @@ import { callAI } from "../lib/ai";
 import { aiFetch } from "../lib/aiFetch";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders, isAIConfigured } from "../lib/aiSettings";
+import { extractTextFromFile } from "../lib/fileExtract";
 import { PROMPTS } from "../config/prompts";
 import type { Entry } from "../types";
 
@@ -264,20 +265,23 @@ export function useCaptureSheetParse({
       for (const file of Array.from(files)) {
         if (file.type.startsWith("image/")) {
           await handleImageFile(file, appendText);
-        } else if (file.type.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(file.name)) {
-          const text = await new Promise<string>((res, rej) => {
-            const r = new FileReader();
-            r.onload = () => res(r.result as string);
-            r.onerror = rej;
-            r.readAsText(file);
-          }).catch(() => "");
-          if (text) appendText(text);
-        } else {
-          setErrorDetail(`Unsupported file type: ${file.name}`);
+          continue;
         }
+        setLoading(true);
+        setStatus(`Reading ${file.name}…`);
+        setErrorDetail(null);
+        try {
+          const text = await extractTextFromFile(file);
+          if (text.trim()) appendText(text.trim());
+          else setErrorDetail(`No text found in ${file.name}`);
+        } catch (e: any) {
+          setErrorDetail(`[${file.name}] ${e?.message || String(e)}`);
+        }
+        setLoading(false);
+        setStatus(null);
       }
     },
-    [handleImageFile],
+    [handleImageFile, setLoading, setStatus, setErrorDetail],
   );
 
   return {

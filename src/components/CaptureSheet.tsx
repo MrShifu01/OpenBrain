@@ -218,7 +218,7 @@ export default function CaptureSheet({
         <input
           ref={docRef}
           type="file"
-          accept="image/*,.txt,.md,.csv,.json"
+          accept="image/*,.pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.json"
           multiple
           className="hidden"
           onChange={(e) => {
