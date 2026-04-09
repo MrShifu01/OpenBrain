@@ -43,19 +43,20 @@ export default function BulkActionBar({ selectedIds, entries: _entries, brains, 
       const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
       const model = provider === "openrouter" ? (getOpenRouterModel() || "") : getUserModel();
       const endpoint = provider === "openai" ? "/api/openai" : provider === "openrouter" ? "/api/openrouter" : "/api/anthropic";
+      const types = CANONICAL_TYPES.filter(t => t !== "secret");
       const res = await authFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `Classify these entries. Reply with ONLY one type name from: ${CANONICAL_TYPES.filter(t => t !== "secret").join(", ")}. No explanation.`,
-          messages: [{ role: "user", content: sample }],
-          max_tokens: 10,
+          system: `You are a classifier. Output ONLY a single word — one of: ${types.join(", ")}. No punctuation, no explanation.`,
+          messages: [{ role: "user", content: `Classify these entries:\n${sample}` }],
+          max_tokens: 15,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
-        const match = CANONICAL_TYPES.find(t => raw.startsWith(t) || raw === t);
+        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z]/g, " ");
+        const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
         if (match) setTargetType(match);
         else console.warn("[bulkSuggestType] no match, got:", raw);
       } else {

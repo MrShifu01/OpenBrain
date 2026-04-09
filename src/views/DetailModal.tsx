@@ -87,19 +87,20 @@ export default function DetailModal({
       const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
       const model = provider === "openrouter" ? (getOpenRouterModel() || "") : getUserModel();
       const endpoint = provider === "openai" ? "/api/openai" : provider === "openrouter" ? "/api/openrouter" : "/api/anthropic";
+      const types = CANONICAL_TYPES.filter(t => t !== "secret");
       const res = await authFetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `Classify this entry. Reply with ONLY one type name from: ${CANONICAL_TYPES.filter(t => t !== "secret").join(", ")}. No explanation.`,
-          messages: [{ role: "user", content: `Title: ${editTitle}\n\nContent: ${editContent || "(none)"}` }],
-          max_tokens: 10,
+          system: `You are a classifier. Output ONLY a single word — one of: ${types.join(", ")}. No punctuation, no explanation.`,
+          messages: [{ role: "user", content: `Classify: Title: ${editTitle}. Content: ${(editContent || "").slice(0, 200)}` }],
+          max_tokens: 15,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
-        const match = CANONICAL_TYPES.find(t => raw.startsWith(t) || raw === t);
+        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z]/g, " ");
+        const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
         if (match) setEditType(match);
         else setAiError(`No match (got: "${raw.slice(0, 30)}")`);
       } else {
