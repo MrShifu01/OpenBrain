@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { callAI } from "../lib/ai";
 import { aiFetch } from "../lib/aiFetch";
 import { authFetch } from "../lib/authFetch";
-import { getEmbedHeaders } from "../lib/aiSettings";
+import { getEmbedHeaders, isAIConfigured } from "../lib/aiSettings";
 import { PROMPTS } from "../config/prompts";
 import type { Entry } from "../types";
 
@@ -107,6 +107,15 @@ export function useCaptureSheetParse({
       setLoading(true);
       setStatus("thinking");
       setErrorDetail(null);
+
+      if (!isAIConfigured()) {
+        setLoading(false);
+        setStatus(null);
+        setPreviewTitle("");
+        setPreviewTags("");
+        setPreview({ title: "", content: input, type: "note", tags: [], metadata: {}, _raw: input });
+        return;
+      }
 
       if (!isOnline) {
         await doSave({ title: input.slice(0, 60), content: input, type: "note", tags: [], metadata: {} });
