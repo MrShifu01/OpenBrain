@@ -268,11 +268,9 @@ export default function DesktopSidebar({
 }: DesktopSidebarProps) {
   const allItems = [CAPTURE_NAV, ...navViews];
 
-  const statusText = isOnline
-    ? pendingCount > 0
-      ? `Syncing ${pendingCount}…`
-      : `${entryCount} synced`
-    : "Offline";
+  const isOffline = !isOnline;
+  const isSyncing = isOnline && pendingCount > 0;
+  const statusText = isOffline ? "Offline" : isSyncing ? `Syncing ${pendingCount}…` : null;
 
   return (
     <aside
@@ -339,14 +337,18 @@ export default function DesktopSidebar({
           onClick={() => onNavigate("settings")}
         />
 
-        {/* Status row: online dot + count + theme toggle + new brain */}
+        {/* Status row: error/sync indicator + theme toggle + new brain */}
         <div className="flex items-center justify-between px-4 pt-3">
           <div className="flex items-center gap-2">
-            <div
-              className="h-2 w-2 flex-shrink-0 rounded-full"
-              style={{ background: isOnline ? "var(--color-secondary)" : "var(--color-error)" }}
-            />
-            <span className="text-on-surface-variant/50 text-xs">{statusText}</span>
+            {statusText && (
+              <>
+                <div
+                  className="h-2 w-2 flex-shrink-0 rounded-full"
+                  style={{ background: isOffline ? "var(--color-error)" : "var(--color-secondary)" }}
+                />
+                <span className="text-on-surface-variant/50 text-xs">{statusText}</span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-1">

@@ -23,28 +23,8 @@ const NAV_ITEMS = [
     ),
   },
   {
-    id: "grid",
-    label: "Grid",
-    icon: (
-      <svg
-        aria-hidden="true"
-        className="h-5 w-5"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.75"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-        />
-      </svg>
-    ),
-  },
-  {
     id: "_capture_fab",
-    label: "New",
+    label: "Capture",
     isFAB: true,
     icon: (
       <svg
@@ -60,8 +40,8 @@ const NAV_ITEMS = [
     ),
   },
   {
-    id: "chat",
-    label: "Ask",
+    id: "refine",
+    label: "Fix Issues",
     icon: (
       <svg
         aria-hidden="true"
@@ -74,7 +54,27 @@ const NAV_ITEMS = [
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+          d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: "todos",
+    label: "Todos",
+    icon: (
+      <svg
+        aria-hidden="true"
+        className="h-5 w-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </svg>
     ),
@@ -101,15 +101,16 @@ const NAV_ITEMS = [
   },
 ];
 
-const MORE_IDS = new Set(["suggest", "refine", "vault", "settings"]);
+const MORE_IDS = new Set(["suggest", "vault", "settings", "grid", "chat", "timeline"]);
 
 interface BottomNavProps {
   activeView: string;
   onNavigate: (id: string) => void;
   onCapture: () => void;
+  refineBadge?: number;
 }
 
-function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
+function BottomNavInner({ activeView, onNavigate, onCapture, refineBadge }: BottomNavProps) {
   const isMoreActive = MORE_IDS.has(activeView);
 
   return (
@@ -146,13 +147,21 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "press-scale flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200",
+              "press-scale relative flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200",
               isActive ? "text-primary" : "text-on-surface-variant",
             )}
             style={isActive ? { background: "var(--color-primary-container)" } : undefined}
           >
             {item.icon}
             <span className="text-[10px] font-medium">{item.label}</span>
+            {item.id === "refine" && refineBadge && refineBadge > 0 ? (
+              <span
+                className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                style={{ background: "var(--color-error)", color: "var(--color-on-error)" }}
+              >
+                {refineBadge > 9 ? "9+" : refineBadge}
+              </span>
+            ) : null}
           </button>
         );
       })}

@@ -10,10 +10,11 @@ import DangerTab from "../components/settings/DangerTab";
 
 type TabId = "account" | "intelligence" | "brain" | "notifications" | "storage" | "danger";
 
+// Personal → Features → Advanced
 const TAB_DEFS = [
   { id: "account" as TabId, label: "Account", icon: "👤" },
-  { id: "intelligence" as TabId, label: "Intelligence", icon: "🧠" },
   { id: "brain" as TabId, label: "Brain", icon: "🎯" },
+  { id: "intelligence" as TabId, label: "Intelligence", icon: "🧠" },
   { id: "notifications" as TabId, label: "Notifications", icon: "🔔" },
   { id: "storage" as TabId, label: "Storage", icon: "💾" },
   { id: "danger" as TabId, label: "Danger", icon: "⚠️" },
@@ -21,7 +22,7 @@ const TAB_DEFS = [
 
 export default function SettingsView() {
   const { activeBrain, canInvite, canManageMembers, refresh, deleteBrain } = useBrain();
-  const [activeTab, setActiveTab] = useState<TabId>("intelligence");
+  const [activeTab, setActiveTab] = useState<TabId>("account");
   const [email, setEmail] = useState("");
 
   useEffect(() => {

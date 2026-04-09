@@ -113,7 +113,12 @@ export function useEntryActions({
       removeFromIndex(id);
       const updated = { ...entries.find((e) => e.id === id), ...changes } as Entry;
       indexEntry(updated);
-      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...changes } : e)));
+      setEntries((prev) => {
+        const next = prev.map((e) => (e.id === id ? { ...e, ...changes } : e));
+        // Invalidate cache immediately on mutation
+        writeEntriesCache(next);
+        return next;
+      });
       setSelected((prev: any) => (prev?.id === id ? { ...prev, ...changes } : prev));
       if (previous)
         setLastAction({

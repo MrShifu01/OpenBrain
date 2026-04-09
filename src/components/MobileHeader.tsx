@@ -7,6 +7,7 @@ interface MobileHeaderProps {
   isDark: boolean;
   isOnline: boolean;
   pendingCount: number;
+  onSearch?: () => void;
   children?: ReactNode;
 }
 
@@ -16,6 +17,7 @@ export default function MobileHeader({
   isDark,
   isOnline,
   pendingCount,
+  onSearch,
   children,
 }: MobileHeaderProps) {
   return (
@@ -76,6 +78,20 @@ export default function MobileHeader({
           >
             Syncing
           </span>
+        )}
+
+        {/* Search tap target (mobile) */}
+        {onSearch && (
+          <button
+            onClick={onSearch}
+            aria-label="Search"
+            className="hover:bg-surface-container flex h-11 w-11 items-center justify-center rounded-xl transition-colors"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+          </button>
         )}
 
         {/* Brain switcher slot */}

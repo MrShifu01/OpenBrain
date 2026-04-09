@@ -1,5 +1,26 @@
 // ─── Core Domain Types ───
 
+// Canonical type vocabulary — AI should output one of these.
+// "secret" is reserved for E2E encryption (vault). "other" is the catch-all.
+export const CANONICAL_TYPES = [
+  "person",
+  "note",
+  "task",
+  "document",
+  "event",
+  "health",
+  "finance",
+  "reminder",
+  "contact",
+  "place",
+  "idea",
+  "decision",
+  "other",
+  "secret",
+] as const;
+
+export type CanonicalEntryType = (typeof CANONICAL_TYPES)[number];
+
 // Entry types are flexible strings — the AI picks the most descriptive label.
 // Well-known types with dedicated icons: reminder, document, contact, place,
 // person, idea, color, decision, note. "secret" is reserved for E2E encryption.

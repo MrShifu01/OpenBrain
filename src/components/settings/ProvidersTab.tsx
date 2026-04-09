@@ -287,9 +287,79 @@ export default function ProvidersTab({ activeBrain }: Props) {
     setTimeout(() => setEmbedStatus(null), 10000);
   };
 
+  const [simpleMode, setSimpleMode] = useState(() => !getOpenRouterKey() && !getUserApiKey());
+
   return (
     <>
+      {/* Simple / Advanced toggle */}
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <p className="text-on-surface text-sm font-semibold">Intelligence</p>
+          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            {simpleMode ? "Quick setup — one key, recommended model." : "Advanced: configure each provider and model."}
+          </p>
+        </div>
+        <button
+          onClick={() => setSimpleMode((s) => !s)}
+          className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+          style={{
+            borderColor: "var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+        >
+          {simpleMode ? "Advanced" : "Simple"}
+        </button>
+      </div>
+
+      {simpleMode && (
+        <div
+          className="mb-4 space-y-3 rounded-2xl border p-4"
+          style={{
+            background: "var(--color-primary-container)",
+            borderColor: "var(--color-outline-variant)",
+          }}
+        >
+          <div>
+            <p className="text-on-surface mb-0.5 text-sm font-semibold">Recommended: OpenRouter</p>
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+              Free tier available. Paste your key from{" "}
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--color-primary)" }}>
+                openrouter.ai/keys
+              </a>
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={orKey}
+              onChange={(e) => setOrKey(e.target.value)}
+              placeholder="sk-or-…"
+              className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
+              style={{
+                background: "var(--color-surface)",
+                borderColor: "var(--color-outline-variant)",
+                color: "var(--color-on-surface)",
+              }}
+            />
+            <button
+              onClick={saveOrKey}
+              disabled={!orKey.trim()}
+              className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40"
+              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+            >
+              {keySaveStatus === "saved" ? "Saved ✓" : keySaveStatus === "saving" ? "…" : "Save"}
+            </button>
+          </div>
+          {keySaveStatus === "error" && (
+            <p className="text-xs" style={{ color: "var(--color-error)" }}>Failed to save — check connection.</p>
+          )}
+        </div>
+      )}
+
       {/* AI Provider / BYO Key */}
+      <div
+        className={simpleMode ? "hidden" : ""}
+      >
       <div
         className="space-y-3 rounded-2xl border p-4"
         style={{
@@ -1081,6 +1151,61 @@ export default function ProvidersTab({ activeBrain }: Props) {
           </button>
         </div>
       </div>
+      </div>{/* end advanced wrapper */}
+
+      {/* Learning Engine Transparency */}
+      <LearningSection />
     </>
+  );
+}
+
+function LearningSection() {
+  const accepted = parseInt(localStorage.getItem("openbrain_refine_accepted") || "0", 10);
+  const rejected = parseInt(localStorage.getItem("openbrain_refine_rejected") || "0", 10);
+  const total = accepted + rejected;
+
+  function handleReset() {
+    localStorage.removeItem("openbrain_refine_accepted");
+    localStorage.removeItem("openbrain_refine_rejected");
+    window.location.reload();
+  }
+
+  return (
+    <div
+      className="space-y-3 rounded-2xl border p-4"
+      style={{
+        background: "var(--color-surface-container-high)",
+        borderColor: "var(--color-outline-variant)",
+      }}
+    >
+      <div>
+        <p className="text-on-surface text-sm font-semibold">Learning</p>
+        <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
+          Your actions in Fix Issues shape future AI suggestions.
+        </p>
+      </div>
+      {total > 0 ? (
+        <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+          <span>✓ <strong className="text-on-surface">{accepted}</strong> accepted</span>
+          <span>✗ <strong className="text-on-surface">{rejected}</strong> rejected</span>
+        </div>
+      ) : (
+        <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+          No feedback recorded yet — review suggestions in Fix Issues.
+        </p>
+      )}
+      {total > 0 && (
+        <button
+          onClick={handleReset}
+          className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+          style={{
+            color: "var(--color-error)",
+            borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)",
+          }}
+        >
+          Reset preferences
+        </button>
+      )}
+    </div>
   );
 }

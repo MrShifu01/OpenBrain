@@ -64,11 +64,11 @@ function detectGaps(entries: Entry[]): string[] {
 
 export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams) {
   const [nudge, setNudge] = useState<string | null>(
-    () => sessionStorage.getItem("openbrain_nudge") || null,
+    () => localStorage.getItem("openbrain_nudge") || null,
   );
 
   useEffect(() => {
-    if (!entriesLoaded || sessionStorage.getItem("openbrain_nudge") !== null) return;
+    if (!entriesLoaded || localStorage.getItem("openbrain_nudge") !== null) return;
 
     const recent = entries.slice(0, 50);
 
@@ -81,7 +81,7 @@ export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams
 
     if (candidates.length === 0) {
       // Nothing actionable found — skip nudge
-      sessionStorage.setItem("openbrain_nudge", "");
+      localStorage.setItem("openbrain_nudge", "");
       return;
     }
 
@@ -115,18 +115,18 @@ export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams
         const text = extractNudgeText(data);
         if (text) {
           setNudge(text);
-          sessionStorage.setItem("openbrain_nudge", text);
+          localStorage.setItem("openbrain_nudge", text);
         } else {
           // AI gave garbage — fall back to a simple deterministic nudge
           const fallback = candidates[0].replace(/^"/, "").replace(/".*$/, "").trim(); // just the title
           const fallbackMsg =
             expirations.length > 0 ? `Action needed: ${fallback}.` : `Gap: ${fallback}.`;
           setNudge(fallbackMsg);
-          sessionStorage.setItem("openbrain_nudge", fallbackMsg);
+          localStorage.setItem("openbrain_nudge", fallbackMsg);
         }
       })
       .catch(() => {
-        sessionStorage.setItem("openbrain_nudge", "");
+        localStorage.setItem("openbrain_nudge", "");
       });
   }, [entriesLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -289,3 +289,8 @@ export function getEmbedHeaders(): { "X-Embed-Provider": string; "X-Embed-Key": 
   if (!key) return null;
   return { "X-Embed-Provider": provider, "X-Embed-Key": key };
 }
+
+/** Returns true if the user has configured at least one AI provider key. */
+export function isAIConfigured(): boolean {
+  return !!(getUserApiKey() || getOpenRouterKey() || getGroqKey() || getGeminiKey());
+}

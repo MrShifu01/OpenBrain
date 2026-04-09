@@ -30,3 +30,6 @@ openbrain-dashboard.jsx
 
 # Git worktrees
 .worktrees
+
+.vercel
+.env*.local

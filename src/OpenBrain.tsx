@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, lazy, Suspense } fro
 import { useTheme } from "./ThemeContext";
 import { authFetch } from "./lib/authFetch";
 import { callAI } from "./lib/ai";
-import { getEmbedHeaders } from "./lib/aiSettings";
+import { getEmbedHeaders, isAIConfigured } from "./lib/aiSettings";
 import { decryptEntry } from "./lib/crypto";
 import { PROMPTS } from "./config/prompts";
 import { LINKS } from "./data/constants";
@@ -37,6 +37,7 @@ import DesktopSidebar from "./components/DesktopSidebar";
 import MobileMoreMenu from "./components/MobileMoreMenu";
 import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
+import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
 import type { Brain, Entry } from "./types";
 
@@ -55,13 +56,14 @@ function Loader() {
   );
 }
 
-// PERF-9: compiled once at module level
-const PHONE_REGEX = /(\+27[0-9]{9}|0[6-8][0-9]{8})/;
+// PERF-9: compiled once at module level — generic phone pattern
+const PHONE_REGEX = /(\+?[0-9]{7,15})/;
 
 const NAV_VIEWS = [
   { id: "grid", l: "Grid", ic: "▦" },
+  { id: "todos", l: "Todos", ic: "✓" },
   { id: "suggest", l: "Fill Brain", ic: "✦" },
-  { id: "refine", l: "Refine", ic: "✦" },
+  { id: "refine", l: "Fix Issues", ic: "✦" },
   { id: "vault", l: "Vault", ic: "🔐" },
   { id: "chat", l: "Ask", ic: "◈" },
 ];
@@ -135,7 +137,11 @@ export default function OpenBrain() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [workspace] = useState(() => localStorage.getItem("openbrain_workspace") || "all");
+  const [workspace, setWorkspaceFilter] = useState(() => localStorage.getItem("openbrain_workspace") || "all");
+  const setWorkspace = useCallback((w: string) => {
+    setWorkspaceFilter(w);
+    localStorage.setItem("openbrain_workspace", w);
+  }, []);
   const [gridFilters, setGridFilters] = useState<EntryFilterState>({
     type: "all",
     date: "all",
@@ -333,6 +339,7 @@ export default function OpenBrain() {
                 isDark={isDark}
                 isOnline={isOnline}
                 pendingCount={pendingCount}
+                onSearch={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))}
               >
                 {brains.length > 0 && (
                   <BrainSwitcher
@@ -347,6 +354,28 @@ export default function OpenBrain() {
                   />
                 )}
               </MobileHeader>
+
+              {!isAIConfigured() && (
+                <div
+                  className="mx-4 mt-3 flex items-start gap-3 rounded-2xl border px-4 py-3"
+                  style={{
+                    background: "color-mix(in oklch, var(--color-secondary) 8%, var(--color-surface))",
+                    borderColor: "color-mix(in oklch, var(--color-secondary) 20%, transparent)",
+                  }}
+                >
+                  <span className="text-lg">🧠</span>
+                  <p className="text-on-surface-variant flex-1 text-sm">
+                    Add an AI key in{" "}
+                    <button
+                      onClick={() => setView("settings")}
+                      className="text-primary underline"
+                    >
+                      Settings → Intelligence
+                    </button>{" "}
+                    to unlock smart features — parsing, chat, suggestions, and more.
+                  </p>
+                </div>
+              )}
 
               <QuickCapture
                 entries={entries}
@@ -379,7 +408,8 @@ export default function OpenBrain() {
                   nudge={nudge}
                   onDismiss={() => {
                     setNudge(null);
-                    sessionStorage.removeItem("openbrain_nudge");
+                    localStorage.setItem("openbrain_nudge_dismissed", Date.now().toString());
+                    localStorage.removeItem("openbrain_nudge");
                   }}
                 />
               )}
@@ -414,6 +444,12 @@ export default function OpenBrain() {
                   }}
                 />
               )}
+
+              <OmniSearch
+                entries={entries}
+                onSelect={setSelected}
+                onNavigate={setView}
+              />
 
               <div className="mx-auto max-w-6xl px-4 pt-4 pb-32 sm:px-6 lg:pb-8">
                 {view === "grid" && (
@@ -455,9 +491,27 @@ export default function OpenBrain() {
                           gridFilters.type !== "all",
                           gridFilters.date !== "all",
                           gridFilters.sort !== "newest",
+                          workspace !== "all",
                         ].filter(Boolean).length
                       }
                     />
+                    {/* Workspace filter toggle (3G) */}
+                    <div className="flex gap-2">
+                      {(["all", "personal", "business"] as const).map((w) => (
+                        <button
+                          key={w}
+                          onClick={() => setWorkspace(w)}
+                          className="press-scale rounded-full px-3 py-1 text-xs font-medium transition-colors"
+                          style={
+                            workspace === w
+                              ? { background: "var(--color-primary)", color: "var(--color-on-primary)" }
+                              : { background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)" }
+                          }
+                        >
+                          {w === "all" ? "All" : w.charAt(0).toUpperCase() + w.slice(1)}
+                        </button>
+                      ))}
+                    </div>
                     {!entriesLoaded ? (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <SkeletonCard count={6} />
@@ -571,8 +625,8 @@ export default function OpenBrain() {
                       {[
                         { id: "grid", l: "Memory Grid", ic: "▦" },
                         { id: "chat", l: "Ask Brain", ic: "◈" },
-                        { id: "refine", l: "Refine", ic: "✦" },
-                        { id: "vault", l: "Vault", ic: "🔐" },
+                        { id: "refine", l: "Fix Issues", ic: "✦" },
+                        { id: "todos", l: "Todos", ic: "✓" },
                       ].map((v) => (
                         <button
                           key={v.id}
@@ -732,7 +786,7 @@ export default function OpenBrain() {
                       } catch (err) { console.error("[OpenBrain]", err); }
                     }
                     setShowOnboarding(false);
-                    setView("suggest");
+                    setView("capture");
                   }}
                 />
               )}
