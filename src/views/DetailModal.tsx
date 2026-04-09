@@ -92,9 +92,9 @@ export default function DetailModal({
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `Classify the entry into one category. Output ONLY the category word, nothing else.\n\nCategories:\n- person: profile of a specific individual\n- note: general thoughts or observations\n- task: action item or to-do\n- document: formal document or article\n- event: scheduled meeting or occurrence\n- health: medical, wellness, fitness, symptoms, medication\n- finance: money, budget, expenses, investments\n- reminder: time-sensitive alert\n- contact: contact details or communication info\n- place: location or venue\n- idea: creative concept or brainstorm\n- decision: choice made or to be made\n- other: doesn't fit above`,
+          system: `Reply with ONE word only — the best category for this entry. Pick from: ${types.join(", ")}. No explanation.`,
           messages: [{ role: "user", content: `Title: ${editTitle}\nContent: ${(editContent || "").slice(0, 300)}` }],
-          max_tokens: 50,
+          max_tokens: 20,
         }),
       });
       if (res.ok) {
@@ -102,7 +102,11 @@ export default function DetailModal({
         const usedModel: string = data.model || "unknown model";
         const full = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
         const raw = full.replace(/[^a-z]/g, " ");
-        const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
+        // Find whichever type appears EARLIEST in the response (not first in list order)
+        const match = types
+          .map(t => ({ t, idx: raw.search(new RegExp(`\\b${t}\\b`)) }))
+          .filter(m => m.idx >= 0)
+          .sort((a, b) => a.idx - b.idx)[0]?.t;
         if (match) {
           setEditType(match);
           setAiMsg({ text: `✓ ${match} · ${usedModel}`, ok: true });

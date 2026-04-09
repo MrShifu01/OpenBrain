@@ -6,8 +6,9 @@ import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 // Hardcoded server-side models — always used when no user key is provided
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
-// GEMINI_MODEL: set via Vercel env var, defaults to gemma-4-31b-it
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemma-4-31b-it").trim();
+// GEMINI_MODEL: set via Vercel env var. gemini-2.0-flash-lite is reliable for JSON output.
+// Set to gemma-4-31b-it in Vercel env if you want Gemma specifically.
+const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.0-flash-lite").trim();
 
 const ANTHROPIC_MODELS = [
   "claude-haiku-4-5-20251001",
