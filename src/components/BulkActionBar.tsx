@@ -48,8 +48,8 @@ export default function BulkActionBar({ selectedIds, entries: _entries, brains, 
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `You are a classifier. Output ONLY a single word from this list: ${types.join(", ")}.`,
-          messages: [{ role: "user", content: `Classify these entries:\n${sample}` }],
+          system: `Classify entries into one shared category. Output ONLY the category word, nothing else.\n\nCategories:\n- person: profile of a specific individual\n- note: general thoughts or observations\n- task: action item or to-do\n- document: formal document or article\n- event: scheduled meeting or occurrence\n- health: medical, wellness, fitness, symptoms, medication\n- finance: money, budget, expenses, investments\n- reminder: time-sensitive alert\n- contact: contact details or communication info\n- place: location or venue\n- idea: creative concept or brainstorm\n- decision: choice made or to be made\n- other: doesn't fit above`,
+          messages: [{ role: "user", content: `Entries:\n${sample}` }],
           max_tokens: 50,
         }),
       });
