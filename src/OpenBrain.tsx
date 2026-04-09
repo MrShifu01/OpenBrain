@@ -243,6 +243,16 @@ export default function OpenBrain() {
     cryptoKey,
   });
 
+  useEffect(() => {
+    const flush = () => commitPendingDelete();
+    window.addEventListener("beforeunload", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, [commitPendingDelete]);
+
   const chat = useChat({
     entries,
     activeBrain,
