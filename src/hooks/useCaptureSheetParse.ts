@@ -3,6 +3,7 @@ import { callAI } from "../lib/ai";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders, isAIConfigured } from "../lib/aiSettings";
 import { extractTextFromFile } from "../lib/fileExtract";
+import { parseAISplitResponse } from "../lib/fileSplitter";
 import { PROMPTS } from "../config/prompts";
 import type { Entry } from "../types";
 
@@ -151,16 +152,23 @@ export function useCaptureSheetParse({
       }
 
       try {
+        const hasFiles = uploadedFiles.length > 0;
         const res = await callAI({
-          system: PROMPTS.CAPTURE,
-          max_tokens: 800,
+          system: hasFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE,
+          max_tokens: hasFiles ? 4000 : 800,
           brainId,
           messages: [{ role: "user", content: input }],
         });
         const data = await res.json();
         let parsedRaw: ParsedEntry | ParsedEntry[] = { title: "" };
         try {
-          parsedRaw = JSON.parse((data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim());
+          const raw = data.content?.[0]?.text || "{}";
+          if (hasFiles) {
+            const entries = parseAISplitResponse(raw);
+            parsedRaw = entries.length > 0 ? entries : { title: "" };
+          } else {
+            parsedRaw = JSON.parse(raw.replace(/```json|```/g, "").trim());
+          }
         } catch (err) { console.error("[useCaptureSheetParse]", err); }
 
         if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {

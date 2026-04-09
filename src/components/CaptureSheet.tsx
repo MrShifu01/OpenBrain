@@ -161,6 +161,7 @@ export default function CaptureSheet({
     saved: "Saved!",
     reading: "Reading image…",
     transcribing: "Transcribing…",
+    splitting: "Splitting document into entries…",
   };
 
   return (
