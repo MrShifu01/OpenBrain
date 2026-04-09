@@ -262,6 +262,41 @@ export default function ProvidersTab({ activeBrain }: Props) {
     }
   };
 
+  const handleReembedWithConfig = async (provider: string, key: string, model: string | null, force = true) => {
+    if (!activeBrain?.id || !key) return;
+    setEmbedStatus("running");
+    let totalProcessed = 0, totalFailed = 0;
+    try {
+      for (let i = 0; i < 100; i++) {
+        const embedHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+          "X-Embed-Provider": provider,
+          "X-Embed-Key": key,
+        };
+        if (model) embedHeaders["X-Embed-Model"] = model;
+        const res = await authFetch("/api/embed", {
+          method: "POST",
+          headers: embedHeaders,
+          body: JSON.stringify({ brain_id: activeBrain.id, batch: true, force }),
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          if (totalProcessed === 0) { setEmbedStatus(`error:${errData?.error || res.status}`); setTimeout(() => setEmbedStatus(null), 10000); return; }
+          break;
+        }
+        const data = await res.json();
+        totalProcessed += data.processed;
+        totalFailed += data.failed ?? 0;
+        setEmbedStatus(`running:${totalProcessed}`);
+        if ((data.remaining ?? 0) <= 0) break;
+      }
+      setEmbedStatus(`done:${totalProcessed}:${totalFailed}`);
+    } catch (e: any) {
+      setEmbedStatus(totalProcessed === 0 ? `error:${e.message || "Network error"}` : `done:${totalProcessed}:${totalFailed}`);
+    }
+    setTimeout(() => setEmbedStatus(null), 10000);
+  };
+
   const handleReembed = async (force = false) => {
     if (!activeBrain?.id) return;
     const key = embedProvider === "google" ? geminiKey
@@ -394,11 +429,15 @@ export default function ProvidersTab({ activeBrain }: Props) {
             setUiSimpleMode(next);
             if (next) {
               setModeToast({ mode: "simple", ai: "Gemini 2.0 Flash Lite", embed: "NVIDIA Nemotron Embed 1B", voice: "Gemma 4 27B A4B" });
+              // Switching to simple: re-embed with OR key + Nemotron
+              if (orKey) handleReembedWithConfig("openrouter", orKey, SIMPLE_EMBED_MODEL, true);
             } else {
               const advAi = getOpenRouterModel() || SIMPLE_AI_MODEL;
               const advEmbed = getEmbedProvider() === "google" ? "Google text-embedding-004" : getEmbedOrModel();
               const advVoice = getModelForTask("capture") || advAi;
               setModeToast({ mode: "advanced", ai: shortModel(advAi), embed: shortModel(advEmbed), voice: shortModel(advVoice) });
+              // Switching to advanced: re-embed with newly selected embed provider
+              handleReembed(true);
             }
           }}
           className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
@@ -993,16 +1032,26 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 onClick={() => {
                   saveEmbedProvider(pendingEmbedProvider!);
                   setPendingEmbedProvider(null);
+                  handleReembed(true);
                 }}
                 className="rounded-lg px-3 text-xs font-semibold"
                 style={{
-                  background:
-                    "color-mix(in oklch, var(--color-error) 15%, var(--color-surface-container))",
-                  color: "var(--color-error)",
+                  background: "var(--color-primary)",
+                  color: "var(--color-on-primary)",
                   minHeight: 36,
                 }}
               >
-                Switch anyway
+                Switch & Re-embed
+              </button>
+              <button
+                onClick={() => {
+                  saveEmbedProvider(pendingEmbedProvider!);
+                  setPendingEmbedProvider(null);
+                }}
+                className="rounded-lg px-3 text-xs"
+                style={{ color: "var(--color-on-surface-variant)", minHeight: 36 }}
+              >
+                Switch only
               </button>
               <button
                 onClick={() => setPendingEmbedProvider(null)}
