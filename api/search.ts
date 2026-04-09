@@ -100,10 +100,12 @@ async function handleSearch(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (cached) return res.status(200).json(cached);
 
   try {
+    const embedModel = ((req.headers["x-embed-model"] as string) || "").trim() || undefined;
     const embedding = await generateEmbedding(
       query.trim(),
-      embedProvider as "openai" | "google",
+      embedProvider as "openai" | "google" | "openrouter",
       embedKey,
+      embedModel,
     );
 
     const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {

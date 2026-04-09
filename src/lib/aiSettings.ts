@@ -80,7 +80,7 @@ export function getUserId(): string | null {
 }
 
 // ── Internal helper: fire-and-forget Supabase upsert ──
-function syncToSupabase(fields: Record<string, string | null>): void {
+function syncToSupabase(fields: Record<string, string | boolean | null>): void {
   const uid = _cachedUserId || getUserId();
   if (!uid) return;
   supabase
@@ -96,7 +96,7 @@ function syncToSupabase(fields: Record<string, string | null>): void {
 
 // ── Awaitable save — use in Save buttons to surface DB errors to the user ──
 export async function persistKeyToDb(
-  fields: Record<string, string | null>,
+  fields: Record<string, string | boolean | null>,
 ): Promise<{ error: string | null }> {
   const uid = _cachedUserId || getUserId();
   if (!uid) return { error: "Not authenticated — please sign in again." };
@@ -226,6 +226,13 @@ export async function loadUserAISettings(userId: string): Promise<void> {
     set(KEYS.AI_PROVIDER, data.ai_provider);
     set(KEYS.OPENROUTER_MODEL, data.openrouter_model);
     set(KEYS.EMBED_PROVIDER, data.embed_provider);
+    set(KEYS.EMBED_OR_MODEL, data.embed_or_model);
+    // simple_mode is boolean in DB — serialize to localStorage
+    if (typeof data.simple_mode === "boolean") {
+      localStorage.setItem(KEYS.SIMPLE_MODE, String(data.simple_mode));
+    } else if (data.simple_mode === null || data.simple_mode === undefined) {
+      localStorage.setItem(KEYS.SIMPLE_MODE, "true");
+    }
 
     for (const [task, col] of Object.entries(TASK_COL)) {
       set(KEYS.taskModel(task), data[col]);
@@ -252,11 +259,29 @@ export async function loadUserAISettings(userId: string): Promise<void> {
 }
 
 // ── Embedding settings ──
+export function getSimpleMode(): boolean {
+  const val = localStorage.getItem(KEYS.SIMPLE_MODE);
+  return val === null ? true : val !== "false";
+}
+export function setUiSimpleMode(val: boolean): void {
+  localStorage.setItem(KEYS.SIMPLE_MODE, String(val));
+  syncToSupabase({ simple_mode: val });
+}
+
+export function getEmbedOrModel(): string {
+  return localStorage.getItem(KEYS.EMBED_OR_MODEL) || "nvidia/llama-nemotron-embed-vl-1b-v2:free";
+}
+export function setEmbedOrModel(model: string | null): void {
+  if (model) localStorage.setItem(KEYS.EMBED_OR_MODEL, model);
+  else localStorage.removeItem(KEYS.EMBED_OR_MODEL);
+  syncToSupabase({ embed_or_model: model || null });
+}
+
 export function getEmbedProvider(): string {
   const stored = localStorage.getItem(KEYS.EMBED_PROVIDER);
   // OpenAI has been removed as an embedding provider option.
   if (!stored || stored === "openai") return "google";
-  return stored;
+  return stored; // "google" or "openrouter"
 }
 export function setEmbedProvider(p: string | null): void {
   localStorage.setItem(KEYS.EMBED_PROVIDER, p || "google");
@@ -280,14 +305,26 @@ export function setGeminiKey(key: string | null): void {
 }
 
 export function getEmbedKey(): string | null {
-  return getEmbedProvider() === "google" ? getGeminiKey() : getEmbedOpenAIKey();
+  const p = getEmbedProvider();
+  if (p === "google") return getGeminiKey();
+  if (p === "openrouter") return getOpenRouterKey();
+  return getEmbedOpenAIKey();
 }
 
-export function getEmbedHeaders(): { "X-Embed-Provider": string; "X-Embed-Key": string } | null {
+export function getEmbedHeaders(): {
+  "X-Embed-Provider": string;
+  "X-Embed-Key": string;
+  "X-Embed-Model"?: string;
+} | null {
   const provider = getEmbedProvider();
   const key = getEmbedKey();
   if (!key) return null;
-  return { "X-Embed-Provider": provider, "X-Embed-Key": key };
+  const h: { "X-Embed-Provider": string; "X-Embed-Key": string; "X-Embed-Model"?: string } = {
+    "X-Embed-Provider": provider,
+    "X-Embed-Key": key,
+  };
+  if (provider === "openrouter") h["X-Embed-Model"] = getEmbedOrModel();
+  return h;
 }
 
 /** Returns true if the user has configured at least one AI provider key. */

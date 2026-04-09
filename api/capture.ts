@@ -146,13 +146,15 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (response.ok && data?.id) {
     const embedProvider = ((req.headers["x-embed-provider"] as string) || "").toLowerCase();
     const embedKey = ((req.headers["x-embed-key"] as string) || "").trim();
-    if (embedKey && ["openai", "google"].includes(embedProvider)) {
+    const embedModel = ((req.headers["x-embed-model"] as string) || "").trim() || undefined;
+    if (embedKey && ["openai", "google", "openrouter"].includes(embedProvider)) {
       const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
       try {
         const embedding = await generateEmbedding(
           buildEntryText(entryForEmbed),
-          embedProvider as "openai" | "google",
+          embedProvider as "openai" | "google" | "openrouter",
           embedKey,
+          embedModel,
         );
         const patchRes = await fetch(
           `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(data.id)}`,
@@ -171,9 +173,12 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
           embedError = `[embed:patch] HTTP ${patchRes.status} — ${body}`;
           console.error(embedError);
         } else {
+          const usageModel = embedProvider === "google" ? "text-embedding-004"
+            : embedProvider === "openrouter" ? (embedModel || "nvidia/llama-nemotron-embed-vl-1b-v2:free")
+            : "text-embedding-3-small";
           res.setHeader("X-Embedding-Usage", JSON.stringify({
             provider: embedProvider,
-            model: embedProvider === "google" ? "text-embedding-004" : "text-embedding-3-small",
+            model: usageModel,
             count: 1,
           }));
         }
@@ -242,7 +247,8 @@ export async function handleEmbed(req: ApiRequest, res: ApiResponse): Promise<vo
   const provider = ((req.headers["x-embed-provider"] as string) || "openai").toLowerCase();
   const apiKey = ((req.headers["x-embed-key"] as string) || "").trim();
   if (!apiKey) return res.status(400).json({ error: "X-Embed-Key header required" });
-  if (!["openai", "google"].includes(provider)) return res.status(400).json({ error: "X-Embed-Provider must be openai or google" });
+  if (!["openai", "google", "openrouter"].includes(provider)) return res.status(400).json({ error: "X-Embed-Provider must be openai, google, or openrouter" });
+  const embedModel = ((req.headers["x-embed-model"] as string) || "").trim() || undefined;
 
   const { entry_id, brain_id, batch, force } = req.body || {};
 
@@ -259,7 +265,7 @@ export async function handleEmbed(req: ApiRequest, res: ApiResponse): Promise<vo
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (attempt > 0) await new Promise<void>((resolve) => setTimeout(resolve, attempt * 2000));
       try {
-        const embedding = await generateEmbedding(buildEntryText(entry), provider as "openai" | "google", apiKey);
+        const embedding = await generateEmbedding(buildEntryText(entry), provider as "openai" | "google" | "openrouter", apiKey, embedModel);
         await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}`, {
           method: "PATCH",
           headers: sbHeaders({ Prefer: "return=minimal" }),
@@ -291,7 +297,7 @@ export async function handleEmbed(req: ApiRequest, res: ApiResponse): Promise<vo
     let failed = 0;
     const texts = entries.map(buildEntryText);
     try {
-      const embeddings = await generateEmbeddingsBatch(texts, provider as "openai" | "google", apiKey);
+      const embeddings = await generateEmbeddingsBatch(texts, provider as "openai" | "google" | "openrouter", apiKey, embedModel);
       await Promise.all(entries.map((entry: any, idx: number) =>
         fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
           method: "PATCH",

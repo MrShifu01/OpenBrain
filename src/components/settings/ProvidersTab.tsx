@@ -24,7 +24,15 @@ import {
   setModelForTask,
   persistKeyToDb,
   isAISettingsLoaded,
+  getSimpleMode,
+  setUiSimpleMode,
+  getEmbedOrModel,
+  setEmbedOrModel,
 } from "../../lib/aiSettings";
+
+const SIMPLE_AI_MODEL = "google/gemini-2.0-flash-lite:free";
+const SIMPLE_EMBED_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free";
+const SIMPLE_VOICE_MODEL = "google/gemma-4-27b-a4b-it:free";
 import { supabase } from "../../lib/supabase";
 import { MODELS } from "../../config/models";
 import { countEmbedMismatches } from "../../lib/embedMismatch";
@@ -89,6 +97,10 @@ export default function ProvidersTab({ activeBrain }: Props) {
   const [aiTestStatus, setAiTestStatus] = useState<string | null>(null);
   const [dbTestStatus, setDbTestStatus] = useState<string | null>(null);
 
+  const [simpleAiStatus, setSimpleAiStatus] = useState<string | null>(null);
+  const [simpleEmbedStatus, setSimpleEmbedStatus] = useState<string | null>(null);
+  const [simpleVoiceStatus, setSimpleVoiceStatus] = useState<string | null>(null);
+
   const ANTHROPIC_MODELS = MODELS.ANTHROPIC;
   const OPENAI_MODELS = MODELS.OPENAI;
   const modelOptions = byoProvider === "openai" ? OPENAI_MODELS : ANTHROPIC_MODELS;
@@ -124,6 +136,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
       setEmbedProviderState(getEmbedProvider());
       setEmbedOpenAIKeyState(getEmbedOpenAIKey() || "");
       setGeminiKeyState(getGeminiKey() || "");
+      setSimpleMode(getSimpleMode());
     };
     if (isAISettingsLoaded()) sync();
     window.addEventListener("aiSettingsLoaded", sync);
@@ -206,14 +219,26 @@ export default function ProvidersTab({ activeBrain }: Props) {
 
   const saveOrKey = async () => {
     setOpenRouterKey(orKey || null);
-    // Auto-switch provider to openrouter so callAI() uses the correct key
     setByoProvider("openrouter");
     setUserProvider("openrouter");
     setKeySaveStatus("saving");
-    const { error } = await persistKeyToDb({
+    const fields: Record<string, string | boolean | null> = {
       openrouter_key: orKey || null,
       ai_provider: "openrouter",
-    });
+    };
+    if (simpleMode && orKey) {
+      setOpenRouterModel(SIMPLE_AI_MODEL);
+      setOrModel(SIMPLE_AI_MODEL);
+      setEmbedProvider("openrouter");
+      setEmbedProviderState("openrouter");
+      setEmbedOrModel(SIMPLE_EMBED_MODEL);
+      setModelForTask("capture", SIMPLE_VOICE_MODEL);
+      fields.openrouter_model = SIMPLE_AI_MODEL;
+      fields.embed_provider = "openrouter";
+      fields.embed_or_model = SIMPLE_EMBED_MODEL;
+      fields.model_capture = SIMPLE_VOICE_MODEL;
+    }
+    const { error } = await persistKeyToDb(fields);
     setKeySaveStatus(error ? "error" : "saved");
     if (error) console.error("[saveOrKey]", error);
     else if (orKey) setEditingOrKey(false);
@@ -245,20 +270,24 @@ export default function ProvidersTab({ activeBrain }: Props) {
 
   const handleReembed = async (force = false) => {
     if (!activeBrain?.id) return;
-    const key = embedProvider === "google" ? geminiKey : embedOpenAIKey;
+    const key = embedProvider === "google" ? geminiKey
+      : embedProvider === "openrouter" ? orKey
+      : embedOpenAIKey;
     if (!key) return;
     setEmbedStatus("running");
     let totalProcessed = 0,
       totalFailed = 0;
     try {
       for (let i = 0; i < 100; i++) {
+        const embedHeaders: Record<string, string> = {
+          "Content-Type": "application/json",
+          "X-Embed-Provider": embedProvider,
+          "X-Embed-Key": key,
+        };
+        if (embedProvider === "openrouter") embedHeaders["X-Embed-Model"] = getEmbedOrModel();
         const res = await authFetch("/api/embed", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Embed-Provider": embedProvider,
-            "X-Embed-Key": key,
-          },
+          headers: embedHeaders,
           body: JSON.stringify({ brain_id: activeBrain.id, batch: true, force }),
         });
         if (!res.ok) {
@@ -287,7 +316,77 @@ export default function ProvidersTab({ activeBrain }: Props) {
     setTimeout(() => setEmbedStatus(null), 10000);
   };
 
-  const [simpleMode, setSimpleMode] = useState(() => !getOpenRouterKey() && !getUserApiKey());
+  const [simpleMode, setSimpleMode] = useState(() => getSimpleMode());
+
+  const applySimpleDefaults = async () => {
+    setOpenRouterModel(SIMPLE_AI_MODEL);
+    setOrModel(SIMPLE_AI_MODEL);
+    setEmbedProvider("openrouter");
+    setEmbedProviderState("openrouter");
+    setEmbedOrModel(SIMPLE_EMBED_MODEL);
+    setModelForTask("capture", SIMPLE_VOICE_MODEL);
+    await persistKeyToDb({
+      openrouter_model: SIMPLE_AI_MODEL,
+      embed_provider: "openrouter",
+      embed_or_model: SIMPLE_EMBED_MODEL,
+      model_capture: SIMPLE_VOICE_MODEL,
+    });
+  };
+
+  const testSimpleModel = async (model: string, setStatus: (s: string | null) => void) => {
+    if (!orKey) return;
+    setStatus("testing");
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 15000);
+    try {
+      const sessionRes = await supabase.auth.getSession();
+      const accessToken = sessionRes.data?.session?.access_token;
+      const authH: Record<string, string> = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+      const res = await fetch("/api/openrouter", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", "X-User-Api-Key": orKey.trim(), ...authH },
+        body: JSON.stringify({ model, max_tokens: 5, messages: [{ role: "user", content: "Say ok" }] }),
+      });
+      setStatus(res.ok ? "ok" : "fail");
+    } catch (e: any) {
+      setStatus(e?.name === "AbortError" ? "timeout" : "fail");
+    } finally {
+      clearTimeout(to);
+    }
+    setTimeout(() => setStatus(null), 5000);
+  };
+
+  const testSimpleEmbed = async () => {
+    if (!orKey) return;
+    setSimpleEmbedStatus("testing");
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/embeddings", {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${orKey.trim()}`,
+          "HTTP-Referer": window.location.origin,
+          "X-Title": "Everion",
+        },
+        body: JSON.stringify({ model: SIMPLE_EMBED_MODEL, input: ["test"] }),
+      });
+      if (res.ok) {
+        setSimpleEmbedStatus("ok");
+      } else {
+        const body = await res.json().catch(() => null);
+        setSimpleEmbedStatus(`fail:${body?.error?.message || body?.error || res.status}`);
+      }
+    } catch (e: any) {
+      setSimpleEmbedStatus(e?.name === "AbortError" ? "timeout" : "fail");
+    } finally {
+      clearTimeout(to);
+    }
+    setTimeout(() => setSimpleEmbedStatus(null), 8000);
+  };
 
   return (
     <>
@@ -300,7 +399,12 @@ export default function ProvidersTab({ activeBrain }: Props) {
           </p>
         </div>
         <button
-          onClick={() => setSimpleMode((s) => !s)}
+          onClick={() => {
+            const next = !simpleMode;
+            setSimpleMode(next);
+            setUiSimpleMode(next);
+            if (next && orKey && !editingOrKey) applySimpleDefaults();
+          }}
           className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
           style={{
             borderColor: "var(--color-outline-variant)",
@@ -320,9 +424,9 @@ export default function ProvidersTab({ activeBrain }: Props) {
           }}
         >
           <div>
-            <p className="text-on-surface mb-0.5 text-sm font-semibold">Recommended: OpenRouter</p>
+            <p className="text-on-surface mb-0.5 text-sm font-semibold">OpenRouter API Key</p>
             <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-              Free tier available. Paste your key from{" "}
+              One free key powers everything. Get it at{" "}
               <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: "var(--color-primary)" }}>
                 openrouter.ai/keys
               </a>
@@ -332,7 +436,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
             <input
               type="password"
               value={orKey}
-              onChange={(e) => setOrKey(e.target.value)}
+              onChange={(e) => { setOrKey(e.target.value); setEditingOrKey(true); }}
               placeholder="sk-or-…"
               className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
               style={{
@@ -353,6 +457,73 @@ export default function ProvidersTab({ activeBrain }: Props) {
           {keySaveStatus === "error" && (
             <p className="text-xs" style={{ color: "var(--color-error)" }}>Failed to save — check connection.</p>
           )}
+
+          {/* Auto-configured free models + test buttons */}
+          <div className="border-t pt-3 space-y-2" style={{ borderColor: "var(--color-outline-variant)" }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--color-on-surface-variant)" }}>
+              Auto-configured (free)
+            </p>
+            {([
+              {
+                label: "AI",
+                sub: "Gemini 2.0 Flash Lite",
+                status: simpleAiStatus,
+                onTest: () => testSimpleModel(SIMPLE_AI_MODEL, setSimpleAiStatus),
+              },
+              {
+                label: "Embed",
+                sub: "NVIDIA Nemotron Embed 1B",
+                status: simpleEmbedStatus,
+                onTest: testSimpleEmbed,
+              },
+              {
+                label: "Voice",
+                sub: "Gemma 4 27B A4B",
+                status: simpleVoiceStatus,
+                onTest: () => testSimpleModel(SIMPLE_VOICE_MODEL, setSimpleVoiceStatus),
+              },
+            ] as const).map(({ label, sub, status, onTest }) => (
+              <div key={label} className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium" style={{ color: "var(--color-on-surface)" }}>{label}</p>
+                  <p className="text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>{sub}</p>
+                </div>
+                <button
+                  onClick={onTest}
+                  disabled={!orKey.trim() || editingOrKey}
+                  className="rounded-xl border px-3 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-40"
+                  style={{
+                    color: status === "ok"
+                      ? "var(--color-primary)"
+                      : status === "fail" || status?.startsWith("fail:") || status === "timeout"
+                        ? "var(--color-error)"
+                        : "var(--color-on-surface-variant)",
+                    borderColor: "var(--color-outline-variant)",
+                  }}
+                >
+                  {status === "testing"
+                    ? "Testing…"
+                    : status === "ok"
+                      ? "✓ OK"
+                      : status === "timeout"
+                        ? "Timed out"
+                        : status === "fail" || status?.startsWith("fail:")
+                          ? "✗ Failed"
+                          : "Test"}
+                </button>
+              </div>
+            ))}
+            {!editingOrKey && orKey && (
+              <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
+                Save key first, then test each model. Switch to Advanced for full control.
+              </p>
+            )}
+            {(editingOrKey || !orKey) && (
+              <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
+                Save your key to enable tests.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -946,7 +1117,9 @@ export default function ProvidersTab({ activeBrain }: Props) {
               onClick={() => handleReembed()}
               disabled={
                 embedStatus === "running" ||
-                !(embedProvider === "google" ? geminiKey : embedOpenAIKey)
+                !(embedProvider === "google" ? geminiKey
+                  : embedProvider === "openrouter" ? orKey
+                  : embedOpenAIKey)
               }
               className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
               style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
@@ -959,7 +1132,9 @@ export default function ProvidersTab({ activeBrain }: Props) {
               onClick={() => handleReembed(true)}
               disabled={
                 !!embedStatus?.startsWith("running") ||
-                !(embedProvider === "google" ? geminiKey : embedOpenAIKey)
+                !(embedProvider === "google" ? geminiKey
+                  : embedProvider === "openrouter" ? orKey
+                  : embedOpenAIKey)
               }
               className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-40"
               style={{

@@ -10,6 +10,8 @@ export const KEYS = {
   EMBED_PROVIDER: `${P}embed_provider`,
   EMBED_OPENAI_KEY: `${P}embed_openai_key`,
   GEMINI_KEY: `${P}gemini_key`,
+  SIMPLE_MODE: `${P}simple_mode`,
+  EMBED_OR_MODEL: `${P}embed_or_model`,
   OFFLINE_QUEUE: `${P}queue`,
   ENTRIES_CACHE: `${P}entries`,
   USAGE: `${P}usage`,
