@@ -157,7 +157,7 @@ export default function BrainTab({
     authFetch(`/api/brains?action=pending-invites&brain_id=${activeBrain.id}`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setPendingInvites)
-      .catch(() => {});
+      .catch((err) => console.error("[BrainTab] Failed to fetch pending invites", err));
   }, [activeBrain?.id]);
 
   const handleInvite = async () => {
@@ -236,7 +236,9 @@ export default function BrainTab({
 
   const copyInviteLink = (text: string) => {
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).catch(() => {});
+      navigator.clipboard
+        .writeText(text)
+        .catch((err) => console.error("[BrainTab] clipboard write failed", err));
     } else {
       const ta = document.createElement("textarea");
       ta.value = text;

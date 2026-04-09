@@ -6,6 +6,9 @@ import { getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiSettings";
 import { PROMPTS } from "../config/prompts";
 import type { Entry } from "../types";
 
+const MIN_VOICE_BLOB_BYTES = 1000;
+const VOICE_RECORDER_CHUNK_MS = 1000;
+
 interface ParsedEntry {
   title: string;
   content?: string;
@@ -243,7 +246,7 @@ export default function CaptureSheet({
         parsedRaw = JSON.parse(
           (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim(),
         );
-      } catch {}
+      } catch (err) { console.error("[CaptureSheet]", err); }
 
       // Array response: AI split input into multiple entries — save all directly
       if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
@@ -279,7 +282,7 @@ export default function CaptureSheet({
               } as Entry);
               _savedCount++;
             }
-          } catch {}
+          } catch (err) { console.error("[CaptureSheet]", err); }
         }
         setStatus("saved");
         setTimeout(() => {
@@ -414,7 +417,7 @@ export default function CaptureSheet({
         const blob = new Blob(audioChunksRef.current, { type: actualMime });
         audioChunksRef.current = [];
         mediaRecorderRef.current = null;
-        if (blob.size < 1000) return;
+        if (blob.size < MIN_VOICE_BLOB_BYTES) return;
 
         setLoading(true);
         setStatus("transcribing");
@@ -453,7 +456,9 @@ export default function CaptureSheet({
                     audioBytes,
                   });
                 })
-                .catch(() => {});
+                .catch((err) =>
+                  console.error("[CaptureSheet] recordUsage (transcription) failed", err),
+                );
             }
           } else {
             const errBody = await transcribeRes.text().catch(() => "");
@@ -466,7 +471,7 @@ export default function CaptureSheet({
         setStatus(null);
       };
 
-      recorder.start(1000);
+      recorder.start(VOICE_RECORDER_CHUNK_MS);
       setListening(true);
     } catch (e: any) {
       if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {

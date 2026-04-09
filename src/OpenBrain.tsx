@@ -75,7 +75,7 @@ export default function OpenBrain() {
         if (Array.isArray(parsed) && parsed.every((e) => e && typeof e.id === "string"))
           return parsed;
       }
-    } catch {}
+    } catch (err) { console.error("[OpenBrain]", err); }
     return [];
   });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
@@ -98,7 +98,7 @@ export default function OpenBrain() {
       .then((cached) => {
         if (cached && cached.length > 0) setEntries((prev) => (prev.length === 0 ? cached : prev));
       })
-      .catch(() => {});
+      .catch((err) => console.error("[OpenBrain] readEntriesCache failed", err));
   }, []);
 
   const [links, setLinks] = useState<any[]>(LINKS);
@@ -177,7 +177,7 @@ export default function OpenBrain() {
       .then((d) => {
         if (d?.exists) setVaultExists(true);
       })
-      .catch(() => {});
+      .catch((err) => console.error("[OpenBrain] /api/vault check failed", err));
   }, []);
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 200);
@@ -208,7 +208,7 @@ export default function OpenBrain() {
         const arr = Array.isArray(data) ? data : data.links || [];
         if (arr.length > 0) setLinks(arr);
       })
-      .catch(() => {});
+      .catch((err) => console.error("[OpenBrain] /api/search prefetch failed", err));
   }, [activeBrain?.id]);
   useEffect(() => {
     if (!entriesLoaded) return;
@@ -671,7 +671,7 @@ export default function OpenBrain() {
                         const ex = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
                         answeredItems.forEach((i: any) => ex.add(i.q));
                         localStorage.setItem(key, JSON.stringify([...ex]));
-                      } catch {}
+                      } catch (err) { console.error("[OpenBrain]", err); }
                       answeredItems.forEach((item: any) => {
                         callAI({
                           max_tokens: 800,
@@ -690,7 +690,7 @@ export default function OpenBrain() {
                                   .replace(/```json|```/g, "")
                                   .trim(),
                               );
-                            } catch {}
+                            } catch (err) { console.error("[OpenBrain]", err); }
                             if (parsed.title && activeBrain?.id) {
                               authFetch("/api/capture", {
                                 method: "POST",
@@ -729,7 +729,7 @@ export default function OpenBrain() {
                           "openbrain_onboarding_skipped",
                           JSON.stringify(merged),
                         );
-                      } catch {}
+                      } catch (err) { console.error("[OpenBrain]", err); }
                     }
                     setShowOnboarding(false);
                     setView("suggest");

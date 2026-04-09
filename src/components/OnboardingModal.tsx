@@ -273,7 +273,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
   function handleComplete() {
     try {
       localStorage.setItem("openbrain_onboarded", "1");
-    } catch {}
+    } catch (err) { console.error("[OnboardingModal]", err); }
     onComplete(selected, answeredItems, skippedQs);
   }
 

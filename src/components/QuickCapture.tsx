@@ -539,7 +539,9 @@ export default function QuickCapture({
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...embedHeaders },
                 body: JSON.stringify({ entry_id: result.id }),
-              }).catch(() => {});
+              }).catch((err) =>
+                console.error("[QuickCapture] multiSave embed enqueue failed", err),
+              );
             }
           }
           const multiType = parsed.type || "note";
@@ -719,7 +721,9 @@ export default function QuickCapture({
                     audioBytes,
                   });
                 })
-                .catch(() => {});
+                .catch((err) =>
+                  console.error("[QuickCapture] recordUsage (transcription) failed", err),
+                );
             }
           } else {
             console.warn("[Whisper] transcription failed:", transcribeRes.status);
@@ -950,7 +954,7 @@ export default function QuickCapture({
         parsedRaw = JSON.parse(
           (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim(),
         );
-      } catch {}
+      } catch (err) { console.error("[QuickCapture]", err); }
       // Array response: AI split input into multiple entries
       if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
         setLoading(false);

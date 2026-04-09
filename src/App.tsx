@@ -58,7 +58,9 @@ export default function App(): JSX.Element {
           window.history.replaceState(null, "", window.location.pathname);
         })
         .catch(async () => {
-          await supabase.auth.signOut().catch(() => {});
+          await supabase.auth
+            .signOut()
+            .catch((err) => console.error("[App] signOut after setSession failure", err));
           setSession(null);
           window.history.replaceState(null, "", window.location.pathname);
         });
@@ -68,7 +70,7 @@ export default function App(): JSX.Element {
       Promise.race([
         loadUserAISettings(userId),
         new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-      ]).catch(() => {});
+      ]).catch((err) => console.error("[App] loadUserAISettings failed", err));
 
     supabase.auth
       .getSession()
@@ -78,7 +80,9 @@ export default function App(): JSX.Element {
       })
       .catch(async () => {
         // Corrupted/malformed token in localStorage — clear it and send to login
-        await supabase.auth.signOut().catch(() => {});
+        await supabase.auth
+          .signOut()
+          .catch((err) => console.error("[App] signOut after getSession failure", err));
         setSession(null);
       });
     const {

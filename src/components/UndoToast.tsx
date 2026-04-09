@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 
+const UNDO_TOAST_CREATE_MS = 3000;
+const UNDO_TOAST_MUTATE_MS = 5000;
+
 interface UndoToastProps {
   action: { type: "delete" | "update" | "create"; entry?: any; id?: string };
   onUndo: () => void;
@@ -7,7 +10,7 @@ interface UndoToastProps {
 }
 
 export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
-  const duration = action.type === "create" ? 3000 : 5000;
+  const duration = action.type === "create" ? UNDO_TOAST_CREATE_MS : UNDO_TOAST_MUTATE_MS;
   const [pct, setPct] = useState(100);
   const rafRef = useRef<number>(0);
 

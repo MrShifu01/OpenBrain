@@ -31,8 +31,8 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
             embeddingCount: count,
           });
         })
-        .catch(() => {});
-    } catch {}
+        .catch((err) => console.error("[authFetch] background refresh failed", err));
+    } catch (err) { console.error("[authFetch]", err); }
   }
 
   return response;

@@ -210,7 +210,7 @@ export default function BulkUploadModal({
                     method: "POST",
                     headers: { "Content-Type": "application/json", ...eh },
                     body: JSON.stringify({ entry_id: result.id }),
-                  }).catch(() => {});
+                  }).catch((err) => console.error("[BulkUpload] embed enqueue failed", err));
                 }
               }
 

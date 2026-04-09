@@ -128,7 +128,7 @@ export async function callAI({
           });
         }
       })
-      .catch(() => {});
+      .catch((err) => console.error("[ai] recordUsage (llm) failed", err));
   }
 
   return res;

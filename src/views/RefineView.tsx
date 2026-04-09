@@ -127,8 +127,8 @@ export default function RefineView({
           try {
             const p = JSON.parse(raw);
             if (Array.isArray(p)) entrySuggestions.push(...p);
-          } catch {}
-        } catch {}
+          } catch (err) { console.error("[RefineView]", err); }
+        } catch (err) { console.error("[RefineView]", err); }
       }),
     );
 
@@ -207,8 +207,8 @@ export default function RefineView({
                     .map((l: any) => ({ ...l, type: "LINK_SUGGESTED" as const })),
                 );
               }
-            } catch {}
-          } catch {}
+            } catch (err) { console.error("[RefineView]", err); }
+          } catch (err) { console.error("[RefineView]", err); }
         }),
       );
     } else {
@@ -246,8 +246,8 @@ export default function RefineView({
               )
               .map((l: any) => ({ ...l, type: "LINK_SUGGESTED" as const }));
           }
-        } catch {}
-      } catch {}
+        } catch (err) { console.error("[RefineView]", err); }
+      } catch (err) { console.error("[RefineView]", err); }
     }
 
     setSuggestions([...entrySuggestions, ...linkSuggestions]);
@@ -316,7 +316,7 @@ export default function RefineView({
                 )
                 .filter((e) => e.id !== mergeTargetId),
             );
-          } catch {}
+          } catch (err) { console.error("[RefineView]", err); }
         }
       } else {
         const body: Record<string, any> = { id: entry.id };
@@ -359,7 +359,7 @@ export default function RefineView({
               return e;
             }),
           );
-        } catch {}
+        } catch (err) { console.error("[RefineView]", err); }
       }
 
       setDismissed((p) => new Set(p).add(key));
@@ -400,7 +400,7 @@ export default function RefineView({
           body: JSON.stringify({ links: [newLink] }),
         });
         addLinks?.([newLink]);
-      } catch {}
+      } catch (err) { console.error("[RefineView]", err); }
 
       setDismissed((p) => new Set(p).add(key));
       setApplying((p) => {

@@ -1,6 +1,9 @@
 import { useState, useEffect, type JSX } from "react";
 import { authFetch } from "../lib/authFetch";
 
+const STATUS_FLASH_MS = 3000;
+const ERROR_FLASH_MS = 8000;
+
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -171,7 +174,7 @@ export default function NotificationSettings(): JSX.Element {
   function flash(msg: string): void {
     setStatusMsg(msg);
     const isError = msg.includes("Failed") || msg.includes("not configured");
-    setTimeout(() => setStatusMsg(null), isError ? 8000 : 3000);
+    setTimeout(() => setStatusMsg(null), isError ? ERROR_FLASH_MS : STATUS_FLASH_MS);
   }
 
   const isStatusError =

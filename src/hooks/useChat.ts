@@ -15,6 +15,13 @@ import { unlockVault, decryptVaultKeyFromRecovery, decryptEntry } from "../lib/c
 import { PROMPTS } from "../config/prompts";
 import { getStoredPinHash } from "../lib/pin";
 import type { Entry, Brain } from "../types";
+import type { AIResponseBody, VaultData, DecryptedSecret } from "../lib/ai.types";
+
+interface ChatLink {
+  from?: string;
+  to?: string;
+  [key: string]: unknown;
+}
 
 const SECRET_QUERY_RE =
   /\b(password|passcode|passphrase|credentials|login|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|credit\s*card|cvv|routing\s*number|secret|vault)\b/i;
@@ -27,7 +34,7 @@ interface UseChatParams {
   entries: Entry[];
   activeBrain: Brain | null;
   brains: Brain[];
-  links: any[];
+  links: ChatLink[];
   cryptoKey: CryptoKey | null;
   handleVaultUnlock: (key: CryptoKey | null) => void;
   vaultExists: boolean;
@@ -56,7 +63,7 @@ export function useChat({
   const [showPinGate, setShowPinGate] = useState(false);
   const [pinGateIsSetup, setPinGateIsSetup] = useState(false);
   const [vaultUnlockModal, setVaultUnlockModal] = useState<{
-    vaultData: any;
+    vaultData: VaultData;
     pendingMsg: string;
   } | null>(null);
   const [vaultModalInput, setVaultModalInput] = useState("");
@@ -66,23 +73,23 @@ export function useChat({
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
   const sendChat = useCallback(
-    async (msg: string, overrideSecrets?: any[]) => {
+    async (msg: string, overrideSecrets?: DecryptedSecret[]) => {
       setChatLoading(true);
       try {
-        const secrets =
+        const secrets: DecryptedSecret[] =
           overrideSecrets ||
           (cryptoKey
             ? entries
                 .filter((e) => e.type === "secret")
                 .map((e) => ({
                   title: e.title,
-                  content: (e.content as any)?.slice(0, 500),
+                  content: typeof e.content === "string" ? e.content.slice(0, 500) : undefined,
                   tags: e.tags,
                 }))
             : []);
 
         const embedHeaders = getEmbedHeaders();
-        let data: any;
+        let data: AIResponseBody;
         if (embedHeaders && activeBrain?.id) {
           const provider = getUserProvider();
           const genKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
@@ -97,7 +104,7 @@ export function useChat({
                   title: e.title,
                   type: e.type,
                   tags: e.tags || [],
-                  content: e.content ? (e.content as any).slice(0, 200) : undefined,
+                  content: typeof e.content === "string" ? e.content.slice(0, 200) : undefined,
                 })),
                 msg,
               ).slice(0, 40);
@@ -129,7 +136,7 @@ export function useChat({
               title: e.title,
               type: e.type,
               tags: e.tags || [],
-              content: e.content ? (e.content as any).slice(0, 200) : undefined,
+              content: typeof e.content === "string" ? e.content.slice(0, 200) : undefined,
             })),
             msg,
           ).slice(0, 60);
@@ -145,11 +152,11 @@ export function useChat({
             brainId: activeBrain?.id,
             messages: [{ role: "user", content: msg }],
           });
-          data = await (res as any).json();
+          data = (await res.json()) as AIResponseBody;
         }
         const content =
           extractNudgeText(data) ||
-          data.content?.map((c: any) => c.text || "").join("") ||
+          data.content?.map((c) => c.text || "").join("") ||
           "Couldn't process.";
         if (containsSensitiveContent(content)) {
           const hasPinSet = !!getStoredPinHash();
@@ -225,11 +232,19 @@ export function useChat({
       handleVaultUnlock(key);
       setVaultUnlockModal(null);
       const decryptedEntries = await Promise.all(
-        entries.filter((e) => e.type === "secret").map((e) => decryptEntry(e as any, key!)),
+        entries
+          .filter((e) => e.type === "secret")
+          .map(
+            (e) =>
+              decryptEntry(
+                e as unknown as { content?: string; [k: string]: unknown },
+                key!,
+              ) as unknown as Promise<Entry>,
+          ),
       );
-      const secrets = decryptedEntries.map((e: any) => ({
+      const secrets: DecryptedSecret[] = decryptedEntries.map((e) => ({
         title: e.title,
-        content: e.content?.slice(0, 500),
+        content: typeof e.content === "string" ? e.content.slice(0, 500) : undefined,
         tags: e.tags,
       }));
       await sendChat(pendingMsg, secrets);

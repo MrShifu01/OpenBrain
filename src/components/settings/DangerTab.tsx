@@ -2,6 +2,8 @@ import { useState } from "react";
 import { authFetch } from "../../lib/authFetch";
 import type { Brain } from "../../types";
 
+const DELETE_BRAIN_CONFIRM_WINDOW_MS = 5000;
+
 interface Props {
   activeBrain: Brain;
   deleteBrain: (id: string) => Promise<void>;
@@ -22,7 +24,7 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
   const handleDeleteBrain = async () => {
     if (!confirmDeleteBrain) {
       setConfirmDeleteBrain(true);
-      setTimeout(() => setConfirmDeleteBrain(false), 5000);
+      setTimeout(() => setConfirmDeleteBrain(false), DELETE_BRAIN_CONFIRM_WINDOW_MS);
       return;
     }
     setDeletingBrain(true);

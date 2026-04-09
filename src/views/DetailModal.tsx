@@ -154,7 +154,7 @@ export default function DetailModal({
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ entry_id: entry.id, brain_id }),
-          }).catch(() => {}),
+          }).catch((err) => console.error("[DetailModal] entry-brains add failed", brain_id, err)),
         ),
         ...toRemove.map((brain_id) =>
           authFetch(
@@ -162,7 +162,9 @@ export default function DetailModal({
             {
               method: "DELETE",
             },
-          ).catch(() => {}),
+          ).catch((err) =>
+            console.error("[DetailModal] entry-brains remove failed", brain_id, err),
+          ),
         ),
       ]);
       // Update local snapshot so subsequent saves diff correctly
@@ -191,7 +193,7 @@ export default function DetailModal({
     if (navigator.share) {
       try {
         await navigator.share({ title: entry.title, text });
-      } catch {}
+      } catch (err) { console.error("[DetailModal]", err); }
     } else {
       await navigator.clipboard.writeText(text);
       setShareMsg("Copied to clipboard");
