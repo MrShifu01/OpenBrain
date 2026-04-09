@@ -268,8 +268,8 @@ export function useCaptureSheetParse({
 
   // Extract text from doc/pdf/excel — stores as uploaded file chip
   const handleDocFiles = useCallback(
-    async (files: FileList) => {
-      for (const file of Array.from(files)) {
+    async (files: File[]) => {
+      for (const file of files) {
         if (file.type.startsWith("image/")) {
           await handleImageFile(file);
           continue;

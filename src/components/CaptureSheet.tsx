@@ -223,9 +223,9 @@ export default function CaptureSheet({
           multiple
           className="hidden"
           onChange={(e) => {
-            const files = e.target.files;
+            const files = Array.from(e.target.files ?? []);
             e.target.value = "";
-            if (files?.length) handleDocFiles(files).catch((err) => console.error("[docInput]", err));
+            if (files.length) handleDocFiles(files).catch((err) => console.error("[docInput]", err));
           }}
         />
 
