@@ -79,14 +79,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return res.status(400).json({ error: "Invalid max_tokens" });
   }
 
-  // SEC-2: x-user-api-key is mandatory. No fallback to server key allowed.
-  const apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
-  if (!apiKey) return res.status(400).json({ error: "x-user-api-key header is required" });
+  let apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
+  let effectiveProvider = provider;
 
-  if (provider === "openai") {
+  // Fall back to server Anthropic key when no user key is configured
+  if (!apiKey) {
+    const serverKey = (process.env.ANTHROPIC_API_KEY || "").trim();
+    if (!serverKey) return res.status(400).json({ error: "x-user-api-key header is required" });
+    apiKey = serverKey;
+    effectiveProvider = "anthropic";
+  }
+
+  if (effectiveProvider === "openai") {
     return handleOpenAI(req, res, { model, messages, max_tokens, system, apiKey });
   }
-  if (provider === "openrouter") {
+  if (effectiveProvider === "openrouter") {
     return handleOpenRouter(req, res, { model, messages, max_tokens, system, apiKey });
   }
   // Default: anthropic
