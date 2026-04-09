@@ -24,7 +24,7 @@ const label = (s: Status) => {
   return "Not tested";
 };
 
-export default function ProvidersTab() {
+export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
   const [gemini, setGemini] = useState<Status>("idle");
   const [geminiModel, setGeminiModel] = useState("");
   const [groq, setGroq] = useState<Status>("idle");
