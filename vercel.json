@@ -14,6 +14,7 @@
     { "source": "/api/openai",           "destination": "/api/llm?provider=openai" },
     { "source": "/api/openrouter",       "destination": "/api/llm?provider=openrouter" },
     { "source": "/api/transcribe",       "destination": "/api/llm?action=transcribe" },
+    { "source": "/api/extract-file",     "destination": "/api/llm?action=extract-file" },
     { "source": "/api/delete-entry",     "destination": "/api/entries" },
     { "source": "/api/update-entry",     "destination": "/api/entries" },
     { "source": "/api/save-links",       "destination": "/api/capture?action=links" },

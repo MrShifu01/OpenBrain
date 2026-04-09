@@ -1,15 +1,6 @@
 import { authFetch } from "./authFetch";
 import { getUserProvider, getUserModel, getUserApiKey, getOpenRouterKey, getOpenRouterModel } from "./aiSettings";
 
-async function fileToBase64(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload = () => res((r.result as string).split(",")[1]);
-    r.onerror = rej;
-    r.readAsDataURL(file);
-  });
-}
-
 function getAIHeaders(): Record<string, string> {
   const provider = getUserProvider();
   const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
@@ -21,16 +12,27 @@ function getAIHeaders(): Record<string, string> {
   };
 }
 
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res((r.result as string).split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
 async function extractViaAI(file: File): Promise<string> {
-  await new Promise((r) => setTimeout(r, 0));
   const fileData = await fileToBase64(file);
   const res = await authFetch("/api/extract-file", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAIHeaders() },
     body: JSON.stringify({ filename: file.name, fileData, mimeType: file.type || "application/octet-stream" }),
   });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `HTTP ${res.status}`);
+  }
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data.text || "";
 }
 
@@ -52,16 +54,14 @@ async function extractExcel(buffer: ArrayBuffer): Promise<string> {
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
+  await new Promise((r) => setTimeout(r, 0));
   const name = file.name.toLowerCase();
 
-  // PDF and images → AI model
   if (name.endsWith(".pdf") || file.type.startsWith("image/")) {
     return extractViaAI(file);
   }
 
-  await new Promise((r) => setTimeout(r, 0));
   const buffer = await file.arrayBuffer();
-
   if (name.endsWith(".docx")) return extractDocx(buffer);
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) return extractExcel(buffer);
   return new TextDecoder().decode(buffer);

@@ -50,6 +50,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   if (action === "transcribe") return handleTranscribe(req, res);
+  if (action === "extract-file") return handleExtractFile(req, res);
 
   const provider = (req.query.provider as string) || "anthropic";
   const { model, messages, max_tokens, system } = req.body;
@@ -195,6 +196,55 @@ async function handleOpenRouter(_req: ApiRequest, res: ApiResponse, { model, mes
   }
 
   res.status(response.status).json(data);
+}
+
+// ── File extraction ──────────────────────────────────────────────────────────
+
+const MAX_FILE_B64 = 20 * 1024 * 1024;
+const EXTRACT_PROMPT = "Extract all text and information from this file. Preserve structure. Output only the extracted content, no commentary.";
+
+async function handleExtractFile(req: ApiRequest, res: ApiResponse): Promise<void> {
+  const apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
+  if (!apiKey) return res.status(400).json({ error: "x-user-api-key required" });
+
+  const provider = ((req.headers["x-provider"] as string) || "openrouter").trim();
+  const model = ((req.headers["x-model"] as string) || "").trim();
+  const { filename, fileData, mimeType } = req.body as { filename?: string; fileData?: string; mimeType?: string };
+
+  if (!fileData || typeof fileData !== "string") return res.status(400).json({ error: "fileData required" });
+  if (!mimeType) return res.status(400).json({ error: "mimeType required" });
+  if (fileData.length > MAX_FILE_B64) return res.status(413).json({ error: "File too large (max ~15 MB)" });
+
+  try {
+    if (provider === "anthropic") {
+      const block = mimeType.startsWith("image/")
+        ? { type: "image", source: { type: "base64", media_type: mimeType, data: fileData } }
+        : { type: "document", source: { type: "base64", media_type: mimeType, data: fileData } };
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: model || "claude-haiku-4-5-20251001", max_tokens: 4096, messages: [{ role: "user", content: [block, { type: "text", text: EXTRACT_PROMPT }] }] }),
+      });
+      const d: any = await r.json();
+      return res.status(r.ok ? 200 : r.status).json(r.ok ? { text: d.content?.[0]?.text || "" } : d);
+    }
+
+    // OpenRouter / OpenAI-compatible
+    const fileBlock = mimeType.startsWith("image/")
+      ? { type: "image_url", image_url: { url: `data:${mimeType};base64,${fileData}` } }
+      : { type: "file", file: { filename: filename || "file", file_data: `data:${mimeType};base64,${fileData}` } };
+    const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}`, "HTTP-Referer": "https://everionmind.com", "X-Title": "Everion" },
+      body: JSON.stringify({ model: model || "google/gemma-3-27b-it", max_tokens: 4096, messages: [{ role: "user", content: [fileBlock, { type: "text", text: EXTRACT_PROMPT }] }] }),
+    });
+    const d: any = await r.json();
+    if (!r.ok) { console.error("[extract-file/openrouter]", r.status, JSON.stringify(d)); return res.status(r.status).json(d); }
+    return res.status(200).json({ text: d.choices?.[0]?.message?.content || "" });
+  } catch (e: any) {
+    console.error("[extract-file]", e);
+    return res.status(502).json({ error: e.message || "Extraction failed" });
+  }
 }
 
 // ── Transcribe (merged from api/transcribe.ts) ──────────────────────────────
