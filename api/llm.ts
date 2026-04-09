@@ -79,21 +79,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return res.status(400).json({ error: "Invalid max_tokens" });
   }
 
-  let apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
-  let effectiveProvider = provider;
+  // SEC-2: x-user-api-key is mandatory. No fallback to server key allowed.
+  const apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
+  if (!apiKey) return res.status(400).json({ error: "x-user-api-key header is required" });
 
-  // Fall back to server Anthropic key when no user key is configured
-  if (!apiKey) {
-    const serverKey = (process.env.ANTHROPIC_API_KEY || "").trim();
-    if (!serverKey) return res.status(400).json({ error: "x-user-api-key header is required" });
-    apiKey = serverKey;
-    effectiveProvider = "anthropic";
-  }
-
-  if (effectiveProvider === "openai") {
+  if (provider === "openai") {
     return handleOpenAI(req, res, { model, messages, max_tokens, system, apiKey });
   }
-  if (effectiveProvider === "openrouter") {
+  if (provider === "openrouter") {
     return handleOpenRouter(req, res, { model, messages, max_tokens, system, apiKey });
   }
   // Default: anthropic
@@ -211,18 +204,11 @@ const MAX_FILE_B64 = 20 * 1024 * 1024;
 const EXTRACT_PROMPT = "Extract all text and information from this file. Preserve structure. Output only the extracted content, no commentary.";
 
 async function handleExtractFile(req: ApiRequest, res: ApiResponse): Promise<void> {
-  let apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
-  let provider = ((req.headers["x-provider"] as string) || "openrouter").trim();
-  let model = ((req.headers["x-model"] as string) || "").trim();
+  const apiKey = ((req.headers["x-user-api-key"] as string) || "").trim();
+  if (!apiKey) return res.status(400).json({ error: "x-user-api-key required" });
 
-  // Fall back to server Anthropic key for image/file extraction
-  if (!apiKey) {
-    const serverKey = (process.env.ANTHROPIC_API_KEY || "").trim();
-    if (!serverKey) return res.status(400).json({ error: "x-user-api-key required" });
-    apiKey = serverKey;
-    provider = "anthropic";
-    model = "claude-haiku-4-5-20251001";
-  }
+  const provider = ((req.headers["x-provider"] as string) || "openrouter").trim();
+  const model = ((req.headers["x-model"] as string) || "").trim();
   const { filename, fileData, mimeType } = req.body as { filename?: string; fileData?: string; mimeType?: string };
 
   if (!fileData || typeof fileData !== "string") return res.status(400).json({ error: "fileData required" });
