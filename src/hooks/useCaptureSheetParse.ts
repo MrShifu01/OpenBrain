@@ -259,6 +259,27 @@ export function useCaptureSheetParse({
     [],
   );
 
+  const handleDocFiles = useCallback(
+    async (files: FileList, appendText: (extracted: string) => void) => {
+      for (const file of Array.from(files)) {
+        if (file.type.startsWith("image/")) {
+          await handleImageFile(file, appendText);
+        } else if (file.type.startsWith("text/") || /\.(txt|md|csv|json)$/i.test(file.name)) {
+          const text = await new Promise<string>((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result as string);
+            r.onerror = rej;
+            r.readAsText(file);
+          }).catch(() => "");
+          if (text) appendText(text);
+        } else {
+          setErrorDetail(`Unsupported file type: ${file.name}`);
+        }
+      }
+    },
+    [handleImageFile],
+  );
+
   return {
     loading, setLoading,
     status, setStatus,
@@ -272,5 +293,6 @@ export function useCaptureSheetParse({
     doSave,
     confirmSave,
     handleImageFile,
+    handleDocFiles,
   };
 }
