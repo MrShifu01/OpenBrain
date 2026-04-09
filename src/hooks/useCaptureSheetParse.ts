@@ -160,16 +160,37 @@ export function useCaptureSheetParse({
           messages: [{ role: "user", content: input }],
         });
         const data = await res.json();
+
+        if (!res.ok) {
+          const errMsg = data?.error || `AI error ${res.status}`;
+          console.error("[useCaptureSheetParse] AI error:", errMsg);
+          if (hasFiles) {
+            // AI unavailable — show content in edit preview so user can still save manually
+            setLoading(false);
+            setStatus(null);
+            setErrorDetail(`AI unavailable: ${errMsg}`);
+            setPreviewTitle("");
+            setPreviewTags("");
+            setPreviewType("note");
+            setPreview({ title: "", content: input, type: "note", tags: [], metadata: {}, _raw: input });
+          } else {
+            throw new Error(errMsg);
+          }
+          return;
+        }
+
         let parsedRaw: ParsedEntry | ParsedEntry[] = { title: "" };
         try {
           const raw = data.content?.[0]?.text || "{}";
+          console.log("[useCaptureSheetParse] AI raw:", raw.slice(0, 200));
           if (hasFiles) {
             const entries = parseAISplitResponse(raw);
+            console.log("[useCaptureSheetParse] parsed entries:", entries.length);
             parsedRaw = entries.length > 0 ? entries : { title: "" };
           } else {
             parsedRaw = JSON.parse(raw.replace(/```json|```/g, "").trim());
           }
-        } catch (err) { console.error("[useCaptureSheetParse]", err); }
+        } catch (err) { console.error("[useCaptureSheetParse] parse error:", err); }
 
         if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
           setLoading(false);
