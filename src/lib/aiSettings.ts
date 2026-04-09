@@ -261,7 +261,7 @@ export async function loadUserAISettings(userId: string): Promise<void> {
 // ── Simple mode free model constants ──
 export const SIMPLE_AI_MODEL = "google/gemma-4-31b-it:free";
 export const SIMPLE_EMBED_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free";
-export const SIMPLE_VOICE_MODEL = "google/gemma-3-27b-it:free";
+export const SIMPLE_VOICE_MODEL = "google/gemma-4-31b-it:free";
 
 // ── Embedding settings ──
 export function getSimpleMode(): boolean {
