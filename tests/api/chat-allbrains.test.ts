@@ -127,7 +127,7 @@ describe("api/chat — cross-brain (brain_ids)", () => {
 
   it("returns 403 if user is not a member of a requested brain", async () => {
     const { checkBrainAccess } = await import("../../api/_lib/checkBrainAccess.js") as any;
-    checkBrainAccess.mockImplementation((userId: string, brainId: string) =>
+    checkBrainAccess.mockImplementation((_userId: string, brainId: string) =>
       brainId === BRAIN_B ? Promise.resolve(false) : Promise.resolve(true)
     );
 

@@ -29,7 +29,6 @@ import {
   getEmbedKey,
   getEmbedHeaders,
   getModelForTask,
-  setModelForTask,
   _resetForTests,
 } from "../../src/lib/aiSettings";
 

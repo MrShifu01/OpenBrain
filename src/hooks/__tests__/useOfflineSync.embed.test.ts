@@ -78,7 +78,7 @@ describe("useOfflineSync — embed headers on standard capture sync", () => {
     });
 
     const captureCall = mockAuthFetch.mock.calls.find(
-      ([url]: [string]) => url === "/api/capture",
+      ([url]: any[]) => url === "/api/capture",
     );
     expect(captureCall).toBeDefined();
     expect(captureCall![1].headers).toMatchObject(EMBED_HEADERS);
@@ -104,7 +104,7 @@ describe("useOfflineSync — embed headers on standard capture sync", () => {
     });
 
     const captureCall = mockAuthFetch.mock.calls.find(
-      ([url]: [string]) => url === "/api/capture",
+      ([url]: any[]) => url === "/api/capture",
     );
     expect(captureCall).toBeDefined();
     expect(captureCall![1].headers).not.toMatchObject({ "X-Embed-Provider": "openai" });

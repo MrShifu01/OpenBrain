@@ -11,6 +11,5 @@ export {
   getEmbedOpenAIKey, setEmbedOpenAIKey,
   getGeminiKey, setGeminiKey,
   getEmbedKey,
-  loadTaskModels,
   loadUserAISettings,
 } from "./aiSettings";

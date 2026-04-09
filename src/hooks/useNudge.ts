@@ -121,8 +121,8 @@ export function useNudge({ entriesLoaded, entries, activeBrain }: UseNudgeParams
           const fallback = candidates[0]
             .replace(/^"/, "").replace(/".*$/, "").trim(); // just the title
           const fallbackMsg = expirations.length > 0
-            ? `Action needed: ${candidates[0]}.`
-            : `Gap: ${candidates[0]}.`;
+            ? `Action needed: ${fallback}.`
+            : `Gap: ${fallback}.`;
           setNudge(fallbackMsg);
           sessionStorage.setItem("openbrain_nudge", fallbackMsg);
         }

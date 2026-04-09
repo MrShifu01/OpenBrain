@@ -130,7 +130,7 @@ describe("api/entries — pagination", () => {
     await handler(req, res);
 
     // Verify that some fetch URL contains the cursor filter
-    const hasCursor = fetchSpy.mock.calls.some(([url]: [string]) =>
+    const hasCursor = fetchSpy.mock.calls.some(([url]: any[]) =>
       url.includes(encodeURIComponent(cursor))
     );
     expect(hasCursor).toBe(true);

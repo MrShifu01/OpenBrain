@@ -309,10 +309,10 @@ export default function OpenBrain() {
               </div>
 
               <Suspense fallback={null}>
-                <DetailModal entry={selected} onClose={() => setSelected(null)} onDelete={handleDelete} onUpdate={handleUpdate}
+                {selected && <DetailModal entry={selected} onClose={() => setSelected(null)} onDelete={handleDelete} onUpdate={handleUpdate}
                   entries={entries} links={links} canWrite={canWrite} brains={brains} vaultUnlocked={!!cryptoKey} typeIcons={typeIcons}
-                  onTypeIconChange={(type: string, icon: string) => { registerTypeIcon(activeBrain?.id, type, icon); refreshTypeIcons(); }}
-                />
+                  onTypeIconChange={(type: string, icon: string) => { registerTypeIcon(activeBrain?.id ?? "", type, icon); refreshTypeIcons(); }}
+                />}
               </Suspense>
 
               {lastAction && (

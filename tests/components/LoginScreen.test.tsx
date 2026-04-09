@@ -20,12 +20,6 @@ vi.mock("../../src/lib/supabase", () => ({
   },
 }));
 
-// Lazy import after mock is set up
-async function renderLoginScreen() {
-  const { default: LoginScreen } = await import("../../src/LoginScreen");
-  return render(<LoginScreen />);
-}
-
 /** Click "Magic link" to reveal the email + OTP form */
 async function showMagicLinkForm() {
   await userEvent.click(screen.getByText("Magic link"));

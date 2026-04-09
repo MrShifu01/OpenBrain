@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render } from "@testing-library/react";
 
 vi.mock("../../src/lib/aiSettings", () => ({ getUserId: () => "test-user" }));
 vi.mock("../../src/lib/authFetch", () => ({ authFetch: vi.fn() }));

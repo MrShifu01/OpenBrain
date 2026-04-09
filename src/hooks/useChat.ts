@@ -202,7 +202,7 @@ export function useChat({
     setVaultModalError("");
     const { vaultData, pendingMsg } = vaultUnlockModal;
     try {
-      let key: CryptoKey;
+      let key: CryptoKey | null;
       if (vaultModalMode === "passphrase") {
         key = await unlockVault(vaultModalInput, vaultData.salt, vaultData.verify_token);
       } else {
@@ -221,7 +221,7 @@ export function useChat({
       handleVaultUnlock(key);
       setVaultUnlockModal(null);
       const decryptedEntries = await Promise.all(
-        entries.filter((e) => e.type === "secret").map((e) => decryptEntry(e, key)),
+        entries.filter((e) => e.type === "secret").map((e) => decryptEntry(e as any, key!)),
       );
       const secrets = decryptedEntries.map((e: any) => ({
         title: e.title,

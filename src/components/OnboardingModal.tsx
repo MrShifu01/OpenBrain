@@ -180,8 +180,8 @@ const ALL_STEPS = [
 function needsIOSStep() {
   return (
     /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-    !window.MSStream &&
-    (!("Notification" in window) || !window.navigator.standalone)
+    !(window as any).MSStream &&
+    (!("Notification" in window) || !(navigator as any).standalone)
   );
 }
 
@@ -409,6 +409,7 @@ export default function OnboardingModal({ onComplete }: OnboardingModalProps) {
           <div className="mb-6 flex flex-col gap-3">
             {selected.map((id) => {
               const uc = USE_CASES.find((u) => u.id === id);
+              if (!uc) return null;
               return (
                 <div
                   key={id}

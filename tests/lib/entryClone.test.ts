@@ -30,7 +30,7 @@ describe("buildClonePayload (S5-5)", () => {
 
   it("does not carry over the original id", () => {
     const clone = buildClonePayload(baseEntry);
-    expect(clone.id).toBeUndefined();
+    expect((clone as any).id).toBeUndefined();
   });
 
   it("preserves type and metadata", () => {

@@ -8,7 +8,6 @@ describe("embed provider mismatch", () => {
       { id: "2", embedding_provider: "openai" },
       { id: "3", embedding_provider: null },
     ];
-    const currentProvider = "openai";
     const newProvider = "google";
     const embeddedWithOld = entries.filter(
       e => e.embedding_provider && e.embedding_provider !== newProvider

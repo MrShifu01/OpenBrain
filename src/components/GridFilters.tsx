@@ -68,7 +68,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function GridFilters({
   filters,
   availableTypes,
-  typeIcons = {},
+  typeIcons: _typeIcons = {},
   onChange,
   activeCount,
 }: GridFiltersProps) {

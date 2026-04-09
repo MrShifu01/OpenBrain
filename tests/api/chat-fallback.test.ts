@@ -122,7 +122,7 @@ describe("api/chat — fallback_entries", () => {
 
   it("does NOT use fallback_entries when vector search returns results", async () => {
     // Override fetch to return a semantic result
-    global.fetch = vi.fn().mockImplementation((url: string, opts: any) => {
+    global.fetch = vi.fn().mockImplementation((url: string, _opts: any) => {
       if (String(url).includes("rpc/match_entries")) {
         return Promise.resolve({
           ok: true,

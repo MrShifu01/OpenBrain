@@ -23,7 +23,7 @@ interface ChatViewProps {
   vaultModalError: string;
   vaultModalBusy: boolean;
   handleVaultModalUnlock: () => void;
-  chatEndRef: React.RefObject<HTMLDivElement>;
+  chatEndRef: React.RefObject<HTMLDivElement | null>;
   brains: any[];
   phoneRegex: RegExp;
 }

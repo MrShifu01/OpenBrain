@@ -34,7 +34,7 @@ describe("EntryRepository", () => {
   beforeEach(() => {
     getEntries = vi.fn().mockReturnValue([makeEntry()]);
     setEntries = vi.fn();
-    repo = new EntryRepository({ getEntries, setEntries, isOnline: true, refreshCount: vi.fn() });
+    repo = new EntryRepository({ getEntries: getEntries as any, setEntries: setEntries as any, isOnline: true, refreshCount: vi.fn() as any });
     vi.clearAllMocks();
     getEntries.mockReturnValue([makeEntry()]);
   });

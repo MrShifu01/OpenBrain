@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
-  createFeedbackEvent,
-  bufferFeedback,
   getBufferedFeedback,
-  clearBuffer,
   FEEDBACK_TYPES,
   trackCaptureEdits,
   trackRefineAction,

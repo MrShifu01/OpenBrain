@@ -130,7 +130,7 @@ describe("api/entries — soft delete", () => {
     await handler(req, res);
 
     // The fallback direct query should include the deleted_at=is.null filter
-    const hasDeletedFilter = fetchSpy.mock.calls.some(([url]: [string]) =>
+    const hasDeletedFilter = fetchSpy.mock.calls.some(([url]: any[]) =>
       url.includes("deleted_at=is.null")
     );
     expect(hasDeletedFilter).toBe(true);
@@ -152,7 +152,7 @@ describe("api/entries — soft delete", () => {
     await handler(req, res);
 
     // The query should include the "not is null" filter for deleted_at
-    const hasTrashFilter = fetchSpy.mock.calls.some(([url]: [string]) =>
+    const hasTrashFilter = fetchSpy.mock.calls.some(([url]: any[]) =>
       url.includes("deleted_at=not.is.null") || url.includes("not.is.null")
     );
     expect(hasTrashFilter).toBe(true);

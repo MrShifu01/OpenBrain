@@ -17,7 +17,7 @@ const TYPE_THEME: Record<string, { bg: string; text: string }> = {
 const EntryCard = memo(function EntryCard({
   entry: e,
   onSelect,
-  typeIcons = {},
+  typeIcons: _typeIcons = {},
   onPin,
   onDelete,
 }: {
@@ -213,7 +213,7 @@ export function VirtualGrid({
 export function VirtualTimeline({
   sorted,
   setSelected,
-  typeIcons = {},
+  typeIcons: _typeIcons = {},
 }: {
   sorted: Entry[];
   setSelected: (e: Entry) => void;
@@ -256,7 +256,7 @@ export function VirtualTimeline({
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--color-primary)" }} />
               </div>
               <p className="text-xs uppercase tracking-widest text-on-surface-variant/50 font-semibold flex-shrink-0 w-20">
-                {fmtD(e.created_at)}
+                {fmtD(e.created_at ?? "")}
               </p>
               <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2 rounded-xl transition-colors group-hover:bg-surface-container">
                 <span className="text-sm text-on-surface truncate">{e.title}</span>

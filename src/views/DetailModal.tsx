@@ -15,7 +15,7 @@ interface DetailLink {
 interface DetailModalProps {
   entry: Entry;
   onClose: () => void;
-  onDelete?: (id: string) => Promise<void>;
+  onDelete?: (id: string) => void | Promise<void>;
   onUpdate?: (id: string, changes: any) => Promise<void>;
   onReorder?: (entry: any) => void;
   entries?: Entry[];

@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import "fake-indexeddb/auto";
 import { enqueue, clear } from "../../src/lib/offlineQueue";
-import type { OfflineOp } from "../../src/types";
 import type { Mock } from "vitest";
 
 vi.mock("../../src/lib/supabase", () => ({

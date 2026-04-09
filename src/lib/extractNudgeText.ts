@@ -35,7 +35,7 @@ export function extractNudgeText(data: any): string | null {
 
   // Reject lines that look like key:value metadata dumps
   const lines = cleaned.split("\n").filter(Boolean);
-  const metadataLineCount = lines.filter((l) =>
+  const metadataLineCount = lines.filter((l: string) =>
     /^[\w_]+:\s/.test(l) && l.split(":").length === 2,
   ).length;
   if (metadataLineCount > lines.length / 2) return null;

@@ -176,7 +176,7 @@ describe("api/brains — accept action", () => {
     process.env.SUPABASE_URL = "https://sb.example.com";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
 
-    global.fetch = vi.fn().mockImplementation((url: string, opts: any) => {
+    global.fetch = vi.fn().mockImplementation((url: string, _opts: any) => {
       const urlStr = String(url);
       if (urlStr.includes("brain_invites")) {
         return Promise.resolve({

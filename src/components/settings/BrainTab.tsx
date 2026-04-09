@@ -2,61 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { authFetch } from "../../lib/authFetch";
 import type { Brain } from "../../types";
 
-// ── Memory Editor ──────────────────────────────────────────────
-function MemoryEditor() {
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const MAX = 8000;
-
-  useEffect(() => {
-    authFetch("/api/memory")
-      .then(r => r.ok ? r.json() : {})
-      .then((d: any) => setContent(d.content || ""))
-      .catch(err => console.error("[BrainTab:MemoryEditor] Failed to load memory content", err));
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    const res = await authFetch("/api/memory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
-    setStatus(res.ok ? "saved" : "error");
-    setSaving(false);
-    setTimeout(() => setStatus(null), 3000);
-  };
-
-  return (
-    <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}>
-      <p className="text-sm font-semibold text-on-surface">AI Memory Guide</p>
-      <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Markdown guide injected into every AI call for context. Do not include IDs or bank details.</p>
-      <textarea
-        value={content}
-        onChange={e => setContent(e.target.value.slice(0, MAX))}
-        rows={8}
-        placeholder={"# Everion Classification Guide\n\n## Business Context\n- ...\n\n## Personal Context\n- ..."}
-        className="w-full rounded-xl px-3 py-2.5 text-xs bg-transparent border outline-none text-on-surface placeholder:text-on-surface-variant/40 resize-y"
-        style={{ borderColor: "var(--color-outline-variant)" }}
-        onFocus={e => (e.target.style.borderColor = "var(--color-primary)")}
-        onBlur={e => (e.target.style.borderColor = "var(--color-outline-variant)")}
-      />
-      <div className="flex items-center justify-between">
-        <span className="text-[10px]" style={{ color: "var(--color-outline)" }}>{content.length}/{MAX}</span>
-        <button
-          onClick={save}
-          disabled={saving}
-          className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-        >
-          {saving ? "Saving…" : status === "saved" ? "✓ Saved" : status === "error" ? "✗ Failed" : "Save"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Export / Import Panel ──────────────────────────────────────
 function ExportImportPanel({ activeBrain }: { activeBrain: Brain }) {
   const [importing, setImporting] = useState(false);

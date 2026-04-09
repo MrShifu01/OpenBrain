@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../../src/lib/authFetch", () => ({
   authFetch: vi.fn().mockResolvedValue({ ok: true, json: async () => [] }),

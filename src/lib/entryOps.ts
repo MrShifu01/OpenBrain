@@ -16,7 +16,7 @@ export async function saveEntry(
   entry: Entry,
   { brainId, vaultKey }: SaveEntryOptions,
 ): Promise<SaveEntryResult> {
-  const stored = vaultKey ? encryptEntry(entry, vaultKey) : entry;
+  const stored = vaultKey ? await encryptEntry(entry as any, vaultKey as any) : entry;
 
   // Optimistic cache update
   const cached = (await readEntriesCache()) ?? [];
