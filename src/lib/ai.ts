@@ -100,20 +100,11 @@ export async function callAI({
     userKey = getUserApiKey();
   }
 
-  // Short-circuit: server requires X-User-Api-Key for all BYO providers.
-  // Without a key we'd get a 400; return a clear 401 instead.
-  if (!userKey) {
-    return new Response(
-      JSON.stringify({ error: "No API key configured. Add your key in Settings → Intelligence." }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    );
-  }
-
   const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId }) || undefined;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-User-Api-Key": userKey,
+    "X-User-Api-Key": userKey || "",
   };
 
   const modelsToTry = [model, ...simpleFallbacks];
