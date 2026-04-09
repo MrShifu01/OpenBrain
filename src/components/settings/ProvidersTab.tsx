@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { callAI } from "../../lib/ai";
 import {
@@ -304,6 +304,10 @@ export default function ProvidersTab({ activeBrain }: Props) {
   };
 
   const [simpleMode, setSimpleMode] = useState(() => getSimpleMode());
+  const [modeToast, setModeToast] = useState<{ mode: "simple" | "advanced"; ai: string; embed: string; voice: string } | null>(null);
+
+  const shortModel = (id: string) =>
+    id.split("/").pop()?.split(":")[0]?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || id;
 
   const testSimpleModel = async (model: string, setStatus: (s: string | null) => void) => {
     if (!orKey) return;
@@ -375,6 +379,14 @@ export default function ProvidersTab({ activeBrain }: Props) {
             const next = !simpleMode;
             setSimpleMode(next);
             setUiSimpleMode(next);
+            if (next) {
+              setModeToast({ mode: "simple", ai: "Gemini 2.0 Flash Lite", embed: "NVIDIA Nemotron Embed 1B", voice: "Gemma 4 27B A4B" });
+            } else {
+              const advAi = getOpenRouterModel() || SIMPLE_AI_MODEL;
+              const advEmbed = getEmbedProvider() === "google" ? "Google text-embedding-004" : getEmbedOrModel();
+              const advVoice = getModelForTask("capture") || advAi;
+              setModeToast({ mode: "advanced", ai: shortModel(advAi), embed: shortModel(advEmbed), voice: shortModel(advVoice) });
+            }
           }}
           className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
           style={{
@@ -1301,7 +1313,82 @@ export default function ProvidersTab({ activeBrain }: Props) {
 
       {/* Learning Engine Transparency */}
       <LearningSection />
+
+      {modeToast && (
+        <ModelToast
+          toast={modeToast}
+          onDismiss={() => setModeToast(null)}
+        />
+      )}
     </>
+  );
+}
+
+function ModelToast({
+  toast,
+  onDismiss,
+}: {
+  toast: { mode: "simple" | "advanced"; ai: string; embed: string; voice: string };
+  onDismiss: () => void;
+}) {
+  const [pct, setPct] = useState(100);
+  const rafRef = useRef<number>(0);
+  const DURATION = 4500;
+
+  useEffect(() => {
+    const start = Date.now();
+    const tick = () => {
+      const p = Math.max(0, 100 - ((Date.now() - start) / DURATION) * 100);
+      setPct(p);
+      if (p <= 0) { onDismiss(); return; }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [onDismiss]);
+
+  const isSimple = toast.mode === "simple";
+  const rows = [
+    { label: "AI", value: toast.ai },
+    { label: "Embed", value: toast.embed },
+    { label: "Voice", value: toast.voice },
+  ];
+
+  return (
+    <div
+      role="status"
+      className="fixed bottom-24 left-1/2 z-50 w-[90vw] max-w-sm -translate-x-1/2 overflow-hidden rounded-2xl border lg:bottom-6"
+      style={{
+        background: "var(--color-surface-container-high)",
+        borderColor: "color-mix(in oklch, var(--color-primary) 25%, transparent)",
+        boxShadow: "var(--shadow-lg)",
+        animation: "slide-up 0.25s ease-out",
+      }}
+    >
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold" style={{ color: "var(--color-primary)" }}>
+            {isSimple ? "Simple mode — free models active" : "Advanced mode — your models active"}
+          </p>
+          <button onClick={onDismiss} style={{ color: "var(--color-on-surface-variant)" }} className="hover:opacity-70 transition-opacity ml-2">
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div className="space-y-1">
+          {rows.map(({ label, value }) => (
+            <div key={label} className="flex items-baseline gap-2">
+              <span className="text-[10px] font-semibold w-8 flex-shrink-0" style={{ color: "var(--color-on-surface-variant)" }}>{label}</span>
+              <span className="text-xs truncate" style={{ color: "var(--color-on-surface)" }}>{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="h-0.5 w-full mt-2" style={{ background: "var(--color-outline-variant)" }}>
+        <div className="h-full rounded-full transition-none" style={{ width: `${pct}%`, background: "var(--color-primary)" }} />
+      </div>
+    </div>
   );
 }
 
