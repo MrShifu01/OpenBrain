@@ -118,7 +118,8 @@ export async function callAI({
 
   const modelsToTry = [model, ...simpleFallbacks];
 
-  const isEndpointError = (body: unknown): boolean => {
+  const isFallbackableError = (status: number, body: unknown): boolean => {
+    if (status === 429) return true; // provider rate limit — try next model
     const msg: string =
       (body as any)?.error?.message || (body as any)?.error || (body as any)?.message || "";
     return /no endpoint|no provider|model not found|invalid model/i.test(msg);
@@ -139,10 +140,9 @@ export async function callAI({
       }),
     });
     if (res.ok) break;
-    // Only retry on endpoint-availability errors
     const body = await res.clone().json().catch(() => null);
-    if (!isEndpointError(body)) break;
-    console.warn(`[ai] model ${m} unavailable, trying next fallback`);
+    if (!isFallbackableError(res.status, body)) break;
+    console.warn(`[ai] model ${m} failed (${res.status}), trying next fallback`);
   }
 
   if (res.ok) {
