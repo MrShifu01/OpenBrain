@@ -475,23 +475,23 @@ export default function ProvidersTab({ activeBrain }: Props) {
             {([
               {
                 label: "AI",
-                sub: "Gemini 2.0 Flash Lite",
+                sub: SIMPLE_AI_MODEL,
                 status: simpleAiStatus,
                 onTest: () => testSimpleModel(SIMPLE_AI_MODEL, setSimpleAiStatus),
               },
               {
                 label: "Embed",
-                sub: "NVIDIA Nemotron Embed 1B",
+                sub: SIMPLE_EMBED_MODEL,
                 status: simpleEmbedStatus,
                 onTest: testSimpleEmbed,
               },
               {
                 label: "Voice",
-                sub: "Gemma 3 27B IT",
+                sub: SIMPLE_VOICE_MODEL,
                 status: simpleVoiceStatus,
                 onTest: () => testSimpleModel(SIMPLE_VOICE_MODEL, setSimpleVoiceStatus),
               },
-            ] as const).map(({ label, sub, status, onTest }) => {
+            ] as Array<{ label: string; sub: string; status: string | null; onTest: () => void }>).map(({ label, sub, status, onTest }) => {
               const isFail = status === "fail" || status?.startsWith("fail:");
               const errorMsg = status?.startsWith("fail:") ? status.slice(5) : null;
               return (
