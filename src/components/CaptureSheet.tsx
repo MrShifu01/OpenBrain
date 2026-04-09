@@ -34,6 +34,7 @@ export default function CaptureSheet({
     previewTitle, setPreviewTitle,
     previewTags, setPreviewTags,
     previewType, setPreviewType,
+    uploadedFiles, removeUploadedFile,
     resetState,
     capture,
     confirmSave,
@@ -200,7 +201,7 @@ export default function CaptureSheet({
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) handleImageFile(f, (extracted) => setText((prev) => (prev ? `${prev}\n${extracted}` : extracted)));
+            if (f) handleImageFile(f);
           }}
         />
         <input
@@ -212,7 +213,7 @@ export default function CaptureSheet({
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) handleImageFile(f, (extracted) => setText((prev) => (prev ? `${prev}\n${extracted}` : extracted)));
+            if (f) handleImageFile(f);
           }}
         />
         <input
@@ -222,13 +223,9 @@ export default function CaptureSheet({
           multiple
           className="hidden"
           onChange={(e) => {
-            console.log("[docInput] onChange fired, files:", e.target.files?.length);
             const files = e.target.files;
-            if (files?.length) {
-              handleDocFiles(files, (extracted) => setText((prev) => (prev ? `${prev}\n${extracted}` : extracted)))
-                .catch((err) => console.error("[docInput] unhandled:", err));
-            }
             e.target.value = "";
+            if (files?.length) handleDocFiles(files).catch((err) => console.error("[docInput]", err));
           }}
         />
 
@@ -303,6 +300,33 @@ export default function CaptureSheet({
               rows={7}
               className="text-on-surface placeholder:text-on-surface-variant/40 w-full resize-none bg-transparent text-base leading-relaxed outline-none"
             />
+
+            {/* Uploaded file chips */}
+            {uploadedFiles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {uploadedFiles.map((f) => (
+                  <span
+                    key={f.name}
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                    style={{ borderColor: "var(--color-outline-variant)", color: "var(--color-on-surface-variant)", background: "var(--color-surface-container)" }}
+                  >
+                    <svg className="h-3 w-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                    </svg>
+                    <span className="max-w-[140px] truncate">{f.name}</span>
+                    <button
+                      onClick={() => removeUploadedFile(f.name)}
+                      className="hover:text-on-surface ml-0.5 transition-colors"
+                      aria-label={`Remove ${f.name}`}
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
             {/* Status / error */}
             {(status || errorDetail) && (
@@ -458,7 +482,7 @@ export default function CaptureSheet({
                 </p>
                 <button
                   onClick={() => capture(text, () => setText(""))}
-                  disabled={loading || !text.trim()}
+                  disabled={loading || (!text.trim() && uploadedFiles.length === 0)}
                   className="press-scale flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all disabled:opacity-30"
                   style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
                 >

@@ -18,6 +18,11 @@ interface ParsedEntry {
   _raw?: string;
 }
 
+export interface UploadedFile {
+  name: string;
+  content: string;
+}
+
 interface UseCaptureSheetParseOptions {
   brainId?: string;
   isOnline: boolean;
@@ -38,6 +43,7 @@ export function useCaptureSheetParse({
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewTags, setPreviewTags] = useState("");
   const [previewType, setPreviewType] = useState("note");
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const resetState = useCallback(() => {
     setStatus(null);
@@ -46,7 +52,25 @@ export function useCaptureSheetParse({
     setPreviewTitle("");
     setPreviewTags("");
     setPreviewType("note");
+    setUploadedFiles([]);
   }, []);
+
+  const removeUploadedFile = useCallback((name: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.name !== name));
+  }, []);
+
+  // Build combined input: user text + file contents
+  const buildInput = useCallback(
+    (text: string) => {
+      const parts: string[] = [];
+      if (text.trim()) parts.push(text.trim());
+      for (const f of uploadedFiles) {
+        parts.push(`[File: ${f.name}]\n${f.content}`);
+      }
+      return parts.join("\n\n");
+    },
+    [uploadedFiles],
+  );
 
   const doSave = useCallback(
     async (parsed: ParsedEntry) => {
@@ -82,6 +106,7 @@ export function useCaptureSheetParse({
             created_at: new Date().toISOString(),
           } as Entry;
           onCreated(newEntry);
+          setUploadedFiles([]);
           setStatus("saved");
           setTimeout(() => { setStatus(null); onClose(); }, 700);
         } else {
@@ -104,8 +129,8 @@ export function useCaptureSheetParse({
 
   const capture = useCallback(
     async (text: string, clearText: () => void) => {
-      if (!text.trim()) return;
-      const input = text.trim();
+      const input = buildInput(text);
+      if (!input) return;
       clearText();
       setLoading(true);
       setStatus("thinking");
@@ -172,6 +197,7 @@ export function useCaptureSheetParse({
               }
             } catch (err) { console.error("[useCaptureSheetParse]", err); }
           }
+          setUploadedFiles([]);
           setStatus("saved");
           setTimeout(() => { setStatus(null); onClose(); }, 700);
           return;
@@ -197,7 +223,7 @@ export function useCaptureSheetParse({
         clearText();
       }
     },
-    [brainId, isOnline, doSave, onCreated, onClose],
+    [brainId, isOnline, doSave, onCreated, onClose, buildInput],
   );
 
   const confirmSave = useCallback(
@@ -209,13 +235,14 @@ export function useCaptureSheetParse({
         type: previewType,
         tags: previewTags.split(",").map((t) => t.trim()).filter(Boolean),
       });
-      void onRestoreText; // captured in closure for future use
+      void onRestoreText;
     },
     [preview, previewTitle, previewTags, previewType, doSave],
   );
 
+  // Extract text from image via Anthropic vision — stores as uploaded file chip
   const handleImageFile = useCallback(
-    async (file: File, appendText: (extracted: string) => void) => {
+    async (file: File) => {
       if (!file) return;
       if (file.size > IMAGE_MAX_BYTES) {
         setErrorDetail("Image too large (max 5 MB)");
@@ -249,8 +276,11 @@ export function useCaptureSheetParse({
         });
         const data = await apiRes.json();
         const extracted = data.content?.[0]?.text?.trim() || "";
-        if (extracted) appendText(extracted);
-        else setErrorDetail("[image] No text extracted");
+        if (extracted) {
+          setUploadedFiles((prev) => [...prev, { name: file.name, content: extracted }]);
+        } else {
+          setErrorDetail("[image] No text extracted");
+        }
       } catch (e: any) {
         setErrorDetail(`[image] ${e?.message || String(e)}`);
       }
@@ -260,13 +290,12 @@ export function useCaptureSheetParse({
     [],
   );
 
+  // Extract text from doc/pdf/excel — stores as uploaded file chip
   const handleDocFiles = useCallback(
-    async (files: FileList, appendText: (extracted: string) => void) => {
-      console.log("[handleDocFiles] called, count:", files.length);
+    async (files: FileList) => {
       for (const file of Array.from(files)) {
-        console.log("[handleDocFiles] processing:", file.name, file.type, file.size);
         if (file.type.startsWith("image/")) {
-          await handleImageFile(file, appendText);
+          await handleImageFile(file);
           continue;
         }
         setLoading(true);
@@ -274,8 +303,11 @@ export function useCaptureSheetParse({
         setErrorDetail(null);
         try {
           const text = await extractTextFromFile(file);
-          if (text.trim()) appendText(text.trim());
-          else setErrorDetail(`No text found in ${file.name}`);
+          if (text.trim()) {
+            setUploadedFiles((prev) => [...prev, { name: file.name, content: text.trim() }]);
+          } else {
+            setErrorDetail(`No text found in ${file.name}`);
+          }
         } catch (e: any) {
           console.error(`[fileExtract:${file.name}]`, e);
           setErrorDetail(`[${file.name}] ${e?.message || String(e)}`);
@@ -284,7 +316,7 @@ export function useCaptureSheetParse({
         setStatus(null);
       }
     },
-    [handleImageFile, setLoading, setStatus, setErrorDetail],
+    [handleImageFile],
   );
 
   return {
@@ -295,6 +327,7 @@ export function useCaptureSheetParse({
     previewTitle, setPreviewTitle,
     previewTags, setPreviewTags,
     previewType, setPreviewType,
+    uploadedFiles, removeUploadedFile,
     resetState,
     capture,
     doSave,
