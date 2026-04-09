@@ -275,6 +275,7 @@ export function useCaptureSheetParse({
           if (text.trim()) appendText(text.trim());
           else setErrorDetail(`No text found in ${file.name}`);
         } catch (e: any) {
+          console.error(`[fileExtract:${file.name}]`, e);
           setErrorDetail(`[${file.name}] ${e?.message || String(e)}`);
         }
         setLoading(false);
