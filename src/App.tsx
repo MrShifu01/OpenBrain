@@ -49,11 +49,18 @@ export default function App(): JSX.Element {
   }, [session]);
 
   useEffect(() => {
+    const loadSettings = (userId: string) =>
+      Promise.race([
+        loadUserAISettings(userId),
+        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+      ]).catch((err) => console.error("[App] loadUserAISettings failed", err));
+
     const tokens = getHashTokens();
     if (tokens) {
       supabase.auth
         .setSession(tokens)
-        .then(({ data: { session } }) => {
+        .then(async ({ data: { session } }) => {
+          if (session?.user?.id) await loadSettings(session.user.id);
           setSession(session);
           window.history.replaceState(null, "", window.location.pathname);
         })
@@ -66,11 +73,6 @@ export default function App(): JSX.Element {
         });
       return;
     }
-    const loadSettings = (userId: string) =>
-      Promise.race([
-        loadUserAISettings(userId),
-        new Promise<void>((resolve) => setTimeout(resolve, 3000)),
-      ]).catch((err) => console.error("[App] loadUserAISettings failed", err));
 
     supabase.auth
       .getSession()
