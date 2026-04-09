@@ -56,7 +56,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture, refineBadge }: Bott
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "press-scale relative flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200",
+              "press-scale relative flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full transition-all duration-200",
               isActive ? "text-primary" : "text-on-surface-variant",
             )}
             style={isActive ? { background: "var(--color-primary-container)" } : undefined}

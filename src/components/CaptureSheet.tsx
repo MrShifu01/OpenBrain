@@ -50,6 +50,8 @@ export default function CaptureSheet({
     onLoading: setLoading,
   });
 
+  const [typeOpen, setTypeOpen] = useState(false);
+
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -57,6 +59,16 @@ export default function CaptureSheet({
   const imgRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
+  const typeRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!typeOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [typeOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -519,20 +531,49 @@ export default function CaptureSheet({
                 style={{ borderColor: "var(--color-outline-variant)" }}
               />
             </div>
-            <div>
+            <div ref={typeRef} className="relative">
               <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">
                 Type
               </label>
-              <select
-                value={previewType}
-                onChange={(e) => setPreviewType(e.target.value)}
-                className="text-on-surface focus:border-primary w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
+              <button
+                type="button"
+                onClick={() => setTypeOpen((p) => !p)}
+                className="text-on-surface focus:border-primary flex w-full items-center justify-between rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
                 style={{ borderColor: "var(--color-outline-variant)" }}
               >
-                {CANONICAL_TYPES.filter((t) => t !== "secret").map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                <span>{previewType.charAt(0).toUpperCase() + previewType.slice(1)}</span>
+                <svg
+                  className={`h-4 w-4 flex-shrink-0 transition-transform ${typeOpen ? "rotate-180" : ""}`}
+                  fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {typeOpen && (
+                <div
+                  className="absolute bottom-full left-0 right-0 z-20 mb-1 overflow-y-auto rounded-xl border shadow-lg"
+                  style={{
+                    background: "var(--color-surface-container-high)",
+                    borderColor: "var(--color-outline-variant)",
+                    maxHeight: "200px",
+                  }}
+                >
+                  {CANONICAL_TYPES.filter((t) => t !== "secret").map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => { setPreviewType(t); setTypeOpen(false); }}
+                      className="w-full px-3 py-2.5 text-left text-sm transition-colors hover:bg-white/10"
+                      style={{
+                        color: "var(--color-on-surface)",
+                        background: previewType === t ? "var(--color-primary-container)" : undefined,
+                      }}
+                    >
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">

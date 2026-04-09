@@ -27,6 +27,7 @@ import { UndoToast } from "./components/UndoToast";
 import { NudgeBanner } from "./components/NudgeBanner";
 import { VirtualGrid, VirtualTimeline } from "./components/EntryList";
 import BrainSwitcher from "./components/BrainSwitcher";
+import BulkActionBar from "./components/BulkActionBar";
 import CreateBrainModal from "./components/CreateBrainModal";
 import OnboardingModal from "./components/OnboardingModal";
 import BrainTipCard from "./components/BrainTipCard";
@@ -146,9 +147,16 @@ export default function OpenBrain() {
     date: "all",
     sort: "newest",
   });
+  const [gridViewMode, setGridViewMode] = useState<"grid" | "list">(() =>
+    (localStorage.getItem("openbrain_viewmode") as "grid" | "list") || "grid"
+  );
   const [view, setView] = useState("capture");
   const [navOpen, setNavOpen] = useState(false);
   const [selected, setSelected] = useState<Entry | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelectMode = () => { setSelectMode((v) => !v); setSelectedIds(new Set()); };
+  const toggleSelectId = (id: string) => setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const addLinks = useCallback((newLinks: any[]) => setLinks((prev) => [...prev, ...newLinks]), []);
   const [typeIcons, setTypeIcons] = useState<Record<string, string>>({});
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
@@ -480,44 +488,52 @@ export default function OpenBrain() {
                       availableTypes={availableEntryTypes}
                       typeIcons={typeIcons}
                       onChange={setGridFilters}
+                      selectMode={selectMode}
+                      onSelectModeToggle={toggleSelectMode}
+                      viewMode={gridViewMode}
+                      onViewModeChange={(mode) => {
+                        setGridViewMode(mode);
+                        localStorage.setItem("openbrain_viewmode", mode);
+                      }}
                       activeCount={
                         [
                           gridFilters.type !== "all",
                           gridFilters.date !== "all",
                           gridFilters.sort !== "newest",
-                          workspace !== "all",
                         ].filter(Boolean).length
                       }
                     />
-                    {/* Workspace filter toggle (3G) */}
-                    <div className="flex gap-2">
-                      {(["all", "personal", "business"] as const).map((w) => (
-                        <button
-                          key={w}
-                          onClick={() => setWorkspace(w)}
-                          className="press-scale rounded-full px-3 py-1 text-xs font-medium transition-colors"
-                          style={
-                            workspace === w
-                              ? { background: "var(--color-primary)", color: "var(--color-on-primary)" }
-                              : { background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)" }
-                          }
-                        >
-                          {w === "all" ? "All" : w.charAt(0).toUpperCase() + w.slice(1)}
-                        </button>
-                      ))}
-                    </div>
+
                     {!entriesLoaded ? (
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <SkeletonCard count={6} />
                       </div>
                     ) : filtered.length > 0 ? (
+                      <>
                       <VirtualGrid
                         filtered={filtered}
-                        setSelected={setSelected}
+                        setSelected={selectMode ? () => {} : setSelected}
                         typeIcons={typeIcons}
                         onPin={(e) => handleUpdate(e.id, { pinned: !e.pinned })}
                         onDelete={(e) => handleDelete(e.id)}
+                        selectMode={selectMode}
+                        selectedIds={selectedIds}
+                        onToggleSelect={toggleSelectId}
+                        viewMode={gridViewMode}
                       />
+                      {selectMode && selectedIds.size > 0 && (
+                        <BulkActionBar
+                          selectedIds={selectedIds}
+                          entries={entries}
+                          brains={brains}
+                          onDone={(updated) => {
+                            setEntries((prev) => prev.map((e) => updated.find((u) => u.id === e.id) ?? e));
+                            toggleSelectMode();
+                          }}
+                          onCancel={toggleSelectMode}
+                        />
+                      )}
+                      </>
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 py-20">
                         <div className="text-4xl opacity-40">🔍</div>

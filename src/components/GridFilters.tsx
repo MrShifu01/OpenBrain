@@ -21,6 +21,10 @@ interface GridFiltersProps {
   typeIcons?: Record<string, string>;
   onChange: (filters: EntryFilterState) => void;
   activeCount: number;
+  selectMode?: boolean;
+  onSelectModeToggle?: () => void;
+  viewMode?: "grid" | "list";
+  onViewModeChange?: (mode: "grid" | "list") => void;
 }
 
 function Chip({
@@ -71,6 +75,10 @@ export default function GridFilters({
   typeIcons: _typeIcons = {},
   onChange,
   activeCount,
+  selectMode = false,
+  onSelectModeToggle,
+  viewMode = "grid",
+  onViewModeChange,
 }: GridFiltersProps) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -101,6 +109,22 @@ export default function GridFilters({
     <div ref={panelRef} className="w-full">
       {/* Toggle row */}
       <div className="flex items-center justify-between gap-2">
+        {onSelectModeToggle && (
+          <button
+            onClick={onSelectModeToggle}
+            className="press-scale flex flex-shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150"
+            style={selectMode ? {
+              background: "var(--color-primary)",
+              color: "var(--color-on-primary)",
+            } : {
+              background: "var(--color-surface-container)",
+              color: "var(--color-on-surface-variant)",
+              border: "1px solid var(--color-outline-variant)",
+            }}
+          >
+            {selectMode ? "Done" : "Select"}
+          </button>
+        )}
         <button
           onClick={() => setOpen((o) => !o)}
           className="press-scale flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-150"
@@ -173,6 +197,38 @@ export default function GridFilters({
             </button>
           )}
         </div>
+
+        {/* Grid / List toggle */}
+        {onViewModeChange && (
+          <div
+            className="flex flex-shrink-0 items-center rounded-full border overflow-hidden"
+            style={{ borderColor: "var(--color-outline-variant)" }}
+          >
+            <button
+              onClick={() => onViewModeChange("grid")}
+              aria-label="Grid view"
+              className="press-scale flex items-center justify-center px-2.5 py-1.5 transition-colors duration-150"
+              style={viewMode === "grid" ? { background: "var(--color-primary-container)", color: "var(--color-primary)" } : { background: "transparent", color: "var(--color-on-surface-variant)" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+                <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+                <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+                <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.75" />
+              </svg>
+            </button>
+            <button
+              onClick={() => onViewModeChange("list")}
+              aria-label="List view"
+              className="press-scale flex items-center justify-center px-2.5 py-1.5 transition-colors duration-150"
+              style={viewMode === "list" ? { background: "var(--color-primary-container)", color: "var(--color-primary)" } : { background: "transparent", color: "var(--color-on-surface-variant)" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path d="M1 3h14M1 8h14M1 13h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Collapsible panel */}

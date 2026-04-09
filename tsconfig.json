@@ -23,7 +23,11 @@
 
     /* Allow JS interop during migration */
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src", "tests"]
 }

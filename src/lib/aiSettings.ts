@@ -129,8 +129,7 @@ export function setUserModel(model: string | null): void {
 
 export function getUserProvider(): string {
   const stored = localStorage.getItem(KEYS.AI_PROVIDER);
-  // Anthropic has been removed as a user-selectable provider.
-  if (!stored || stored === "anthropic") return "openrouter";
+  if (!stored) return "openrouter";
   return stored;
 }
 export function setUserProvider(provider: string | null): void {

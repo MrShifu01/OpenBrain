@@ -128,7 +128,7 @@ export async function callAI({
 
   const ATTEMPT_TIMEOUT_MS = 25000;
 
-  let res!: Response;
+  let res: Response | undefined;
   let usedModel = model;
   for (const m of modelsToTry) {
     usedModel = m;
@@ -161,6 +161,13 @@ export async function callAI({
     console.warn(`[ai] model ${m} failed (${res.status}), trying next fallback`);
   }
 
+  if (!res) {
+    return new Response(
+      JSON.stringify({ error: "All models timed out. Check your connection or try again." }),
+      { status: 504, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   if (res.ok) {
     res
       .clone()
@@ -181,5 +188,5 @@ export async function callAI({
       .catch((err) => console.error("[ai] recordUsage (llm) failed", err));
   }
 
-  return res;
+  return res!;
 }

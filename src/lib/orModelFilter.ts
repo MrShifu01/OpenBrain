@@ -75,8 +75,8 @@ export const CURATED_OR_MODELS: ORModel[] = [
   { id: "deepseek/deepseek-chat-v3-0324:free", name: "DeepSeek V3", pricing: { prompt: "0" } },
   // Cheap  (<$2/1M)
   {
-    id: "google/gemma-4-31b-it:free",
-    name: "Gemma 4 31B",
+    id: "google/gemini-2.0-flash-lite-001",
+    name: "Gemini 2.0 Flash Lite",
     pricing: { prompt: "0.0000001" },
     modality: "text+image",
   },

@@ -69,7 +69,13 @@ export default function ProvidersTab({ activeBrain }: Props) {
   );
   const [orFilter, setOrFilter] = useState<FilterTier>("free");
   const [editingOrKey, setEditingOrKey] = useState(() => !getOpenRouterKey());
+  const [editingByoKey, setEditingByoKey] = useState(() => !getUserApiKey());
   const [perTaskOpen, setPerTaskOpen] = useState(false);
+  const [keyOpen, setKeyOpen] = useState(false);
+  const [ragKeyOpen, setRagKeyOpen] = useState(false);
+  const [voiceKeyOpen, setVoiceKeyOpen] = useState(false);
+  const [editingEmbedKey, setEditingEmbedKey] = useState(() => !getGeminiKey());
+  const [editingGroqKey, setEditingGroqKey] = useState(() => !getGroqKey());
   const [showKey, setShowKey] = useState(false);
   const [byoTestStatus, setByoTestStatus] = useState<string | null>(null);
   const [byoTestError, setByoTestError] = useState<string | null>(null);
@@ -94,6 +100,8 @@ export default function ProvidersTab({ activeBrain }: Props) {
   const [embedKeySaved, setEmbedKeySaved] = useState(false);
   const [groqKeySaved, setGroqKeySaved] = useState(false);
 
+  const [embedTestStatus, setEmbedTestStatus] = useState<string | null>(null);
+  const [groqTestStatus, setGroqTestStatus] = useState<string | null>(null);
   const [aiTestStatus, setAiTestStatus] = useState<string | null>(null);
   const [dbTestStatus, setDbTestStatus] = useState<string | null>(null);
 
@@ -132,10 +140,16 @@ export default function ProvidersTab({ activeBrain }: Props) {
       setOrKey(or);
       setOrModel(getOpenRouterModel() || "google/gemma-4-31b-it:free");
       if (or) setEditingOrKey(false);
-      setGroqKeyVal(getGroqKey() || "");
+      const byo = getUserApiKey() || "";
+      if (byo) setEditingByoKey(false);
+      const groq = getGroqKey() || "";
+      setGroqKeyVal(groq);
+      if (groq) setEditingGroqKey(false);
       setEmbedProviderState(getEmbedProvider());
       setEmbedOpenAIKeyState(getEmbedOpenAIKey() || "");
-      setGeminiKeyState(getGeminiKey() || "");
+      const gemini = getGeminiKey() || "";
+      setGeminiKeyState(gemini);
+      if (gemini) setEditingEmbedKey(false);
       setSimpleMode(getSimpleMode());
     };
     if (isAISettingsLoaded()) sync();
@@ -398,6 +412,51 @@ export default function ProvidersTab({ activeBrain }: Props) {
     setTimeout(() => setSimpleEmbedStatus(null), 8000);
   };
 
+  const testEmbedKey = async () => {
+    if (!geminiKey) return;
+    setEmbedTestStatus("testing");
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey.trim()}`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text: "test" }] } }),
+        },
+      );
+      setEmbedTestStatus(res.ok ? "ok" : "fail");
+    } catch (e: any) {
+      setEmbedTestStatus(e?.name === "AbortError" ? "timeout" : "fail");
+    } finally {
+      clearTimeout(to);
+    }
+    setTimeout(() => setEmbedTestStatus(null), 5000);
+  };
+
+  const testGroqKey = async () => {
+    if (!groqKeyVal) return;
+    setGroqTestStatus("testing");
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 15000);
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKeyVal.trim()}` },
+        body: JSON.stringify({ model: "llama-3.1-8b-instant", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
+      });
+      setGroqTestStatus(res.ok ? "ok" : "fail");
+    } catch (e: any) {
+      setGroqTestStatus(e?.name === "AbortError" ? "timeout" : "fail");
+    } finally {
+      clearTimeout(to);
+    }
+    setTimeout(() => setGroqTestStatus(null), 5000);
+  };
+
   return (
     <>
       {/* Simple / Advanced toggle */}
@@ -426,7 +485,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
               handleReembed(true);
             }
           }}
-          className="rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors"
+          className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors"
           style={{
             borderColor: "var(--color-outline-variant)",
             color: "var(--color-on-surface-variant)",
@@ -463,10 +522,10 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 <span className="font-mono text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{orKey.slice(0, 8)}···</span>
               </div>
               <div className="flex gap-1.5">
-                <button onClick={() => setEditingOrKey(true)} className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                <button onClick={() => setEditingOrKey(true)} className="rounded-xl border px-3 py-1.5 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
                   Change
                 </button>
-                <button onClick={removeOrKey} className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-error)", borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)" }}>
+                <button onClick={removeOrKey} className="rounded-xl border px-3 py-1.5 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-error)", borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)" }}>
                   Remove
                 </button>
               </div>
@@ -476,6 +535,9 @@ export default function ProvidersTab({ activeBrain }: Props) {
               <div className="flex gap-2">
                 <input
                   type="password"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                   value={orKey}
                   onChange={(e) => { setOrKey(e.target.value); setEditingOrKey(true); }}
                   placeholder="sk-or-…"
@@ -529,7 +591,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
                     <button
                       onClick={onTest}
                       disabled={!orKey.trim() || editingOrKey}
-                      className="rounded-xl border px-3 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-40 flex-shrink-0 ml-2"
+                      className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-40 flex-shrink-0 ml-2"
                       style={{
                         color: status === "ok"
                           ? "var(--color-primary)"
@@ -579,217 +641,151 @@ export default function ProvidersTab({ activeBrain }: Props) {
           borderColor: "var(--color-outline-variant)",
         }}
       >
-        <p className="text-on-surface text-sm font-semibold">AI Provider</p>
-        <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          Use your own API key — no Everion credits deducted. Leave blank to use the shared key.
-        </p>
-        <div className="flex items-center gap-2">
-          {["openrouter"].map((p) => (
-            <button
-              key={p}
-              onClick={() => saveByoProvider(p)}
-              className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                color:
-                  byoProvider === p ? "var(--color-on-primary)" : "var(--color-on-surface-variant)",
-                borderColor: byoProvider === p ? "transparent" : "var(--color-outline-variant)",
-                background: byoProvider === p ? "var(--color-primary)" : "transparent",
-              }}
-            >
-              {p === "openrouter" ? "OpenRouter" : p.charAt(0).toUpperCase() + p.slice(1)}
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <p className="text-on-surface text-sm font-semibold">AI Provider</p>
+          <div className="flex gap-1">
+            {(["openrouter", "anthropic", "openai"] as const).map((p) => (
+              <span
+                key={p}
+                onClick={() => saveByoProvider(p)}
+                className="cursor-pointer select-none rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors"
+                style={{
+                  background: byoProvider === p
+                    ? "color-mix(in oklch, var(--color-primary) 12%, transparent)"
+                    : "color-mix(in oklch, var(--color-outline-variant) 40%, transparent)",
+                  color: byoProvider === p
+                    ? "var(--color-primary)"
+                    : "var(--color-on-surface-variant)",
+                }}
+              >
+                {p === "openrouter" ? "OpenRouter" : p === "anthropic" ? "Anthropic" : "OpenAI"}
+              </span>
+            ))}
+          </div>
         </div>
 
         {byoProvider === "openrouter" ? (
           <>
-            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-              OpenRouter lets you use hundreds of models with one key.{" "}
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "var(--color-primary)" }}
-              >
-                Get a key →
-              </a>
-            </p>
-            {/* API Key — compact display when saved */}
-            <div className="space-y-1">
-              <p
-                className="text-xs font-medium"
+            {/* API Key — collapsible */}
+            <div className="border-t pt-1" style={{ borderColor: "var(--color-outline-variant)" }}>
+              <button
+                onClick={() => setKeyOpen((o) => !o)}
+                className="flex w-full items-center justify-between py-1.5 text-left text-xs font-medium transition-colors hover:opacity-70"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                OpenRouter API Key
-              </p>
-              {orKey && !editingOrKey ? (
-                <div
-                  className="flex items-center justify-between rounded-xl border px-3 py-2"
-                  style={{ borderColor: "var(--color-outline-variant)" }}
-                >
-                  <span
-                    className="font-mono text-xs"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    {orKey.slice(0, 10)}···{orKey.slice(-4)}
-                  </span>
-                  <div className="flex gap-1.5">
-                    <button
-                      onClick={testByoKey}
-                      className="rounded-lg border px-2 py-1 text-[10px] transition-colors hover:bg-white/5"
-                      style={{
-                        color:
-                          byoTestStatus === "ok"
-                            ? "var(--color-primary)"
-                            : byoTestStatus === "fail"
-                              ? "var(--color-error)"
-                              : "var(--color-on-surface-variant)",
-                        borderColor: "var(--color-outline-variant)",
-                      }}
-                    >
-                      {byoTestStatus === "testing"
-                        ? "…"
-                        : byoTestStatus === "ok"
-                          ? "✓ OK"
-                          : byoTestStatus === "fail"
-                            ? "✗ Fail"
-                            : "Test"}
-                    </button>
-                    <button
-                      onClick={() => setEditingOrKey(true)}
-                      className="rounded-lg border px-2 py-1 text-[10px] transition-colors hover:bg-white/5"
-                      style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={removeOrKey}
-                      className="rounded-lg border px-2 py-1 text-[10px] transition-colors hover:bg-white/5"
-                      style={{ color: "var(--color-error)", borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)" }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <input
-                    type={showKey ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={orKey}
-                    onChange={(e) => {
-                      setOrKey(e.target.value);
-                      setKeySaveStatus(null);
-                    }}
-                    placeholder="sk-or-..."
-                    className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                    style={{ borderColor: "var(--color-outline-variant)" }}
-                    onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                    onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setShowKey((s) => !s)}
-                      className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
-                      style={{
-                        color: "var(--color-on-surface-variant)",
-                        borderColor: "var(--color-outline-variant)",
-                      }}
-                    >
-                      {showKey ? "Hide" : "Show"}
-                    </button>
-                    <button
-                      onClick={saveOrKey}
-                      disabled={!orKey || keySaveStatus === "saving"}
-                      className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                      style={{
-                        background:
-                          keySaveStatus === "error" ? "var(--color-error)" : "var(--color-primary)",
-                        color: "var(--color-on-primary)",
-                      }}
-                    >
-                      {keySaveStatus === "saving"
-                        ? "…"
-                        : keySaveStatus === "saved"
-                          ? "Saved!"
-                          : keySaveStatus === "error"
-                            ? "DB Error"
-                            : "Save"}
-                    </button>
-                    <button
-                      onClick={testByoKey}
-                      disabled={!orKey}
-                      className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5 disabled:opacity-40"
-                      style={{
-                        color: "var(--color-on-surface-variant)",
-                        borderColor: "var(--color-outline-variant)",
-                      }}
-                    >
-                      {byoTestStatus === "testing"
-                        ? "…"
-                        : byoTestStatus === "ok"
-                          ? "✓"
-                          : byoTestStatus === "timeout"
-                            ? "Timeout"
-                            : byoTestStatus === "fail"
-                              ? "✗"
-                              : "Test"}
-                    </button>
-                  </div>
-                  {byoTestError && (
-                    <p className="text-[11px]" style={{ color: "var(--color-error)" }}>
-                      ✗ {byoTestError}
-                    </p>
+                <span>API Key</span>
+                <div className="flex items-center gap-2">
+                  {orKey && !editingOrKey && (
+                    <span className="font-mono text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                      {orKey.slice(0, 8)}···
+                    </span>
                   )}
-                  {byoTestStatus === "ok" && (
-                    <p className="text-[11px]" style={{ color: "var(--color-primary)" }}>
-                      ✓ Connected
-                    </p>
+                  <span style={{ color: "var(--color-outline)", fontSize: 10 }}>
+                    {keyOpen ? "▲" : "▼"}
+                  </span>
+                </div>
+              </button>
+              {keyOpen && (
+                <div className="space-y-2 pt-1 pb-2">
+                  {orKey && !editingOrKey ? (
+                    <div
+                      className="flex items-center gap-2 rounded-xl border px-3 py-2"
+                      style={{ borderColor: "var(--color-outline-variant)" }}
+                    >
+                      <span className="font-mono text-xs flex-1" style={{ color: "var(--color-on-surface-variant)" }}>
+                        {orKey.slice(0, 10)}···{orKey.slice(-4)}
+                      </span>
+                      <button onClick={testByoKey} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: byoTestStatus === "ok" ? "var(--color-primary)" : byoTestStatus === "fail" ? "var(--color-error)" : "var(--color-on-surface-variant)" }}>
+                        {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓ OK" : byoTestStatus === "fail" ? "✗ Fail" : "Test"}
+                      </button>
+                      <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                      <button onClick={() => setEditingOrKey(true)} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: "var(--color-on-surface-variant)" }}>Edit</button>
+                      <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                      <button onClick={removeOrKey} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: "var(--color-error)" }}>Remove</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type={showKey ? "text" : "password"}
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-form-type="other"
+                        value={orKey}
+                        onChange={(e) => { setOrKey(e.target.value); setKeySaveStatus(null); }}
+                        placeholder="sk-or-..."
+                        className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
+                        style={{ borderColor: "var(--color-outline-variant)" }}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => setShowKey((s) => !s)} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                          {showKey ? "Hide" : "Show"}
+                        </button>
+                        <button onClick={saveOrKey} disabled={!orKey || keySaveStatus === "saving"} className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40" style={{ background: keySaveStatus === "error" ? "var(--color-error)" : "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                          {keySaveStatus === "saving" ? "…" : keySaveStatus === "saved" ? "Saved!" : keySaveStatus === "error" ? "DB Error" : "Save"}
+                        </button>
+                        <button onClick={testByoKey} disabled={!orKey} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                          {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓" : byoTestStatus === "timeout" ? "Timeout" : byoTestStatus === "fail" ? "✗" : "Test"}
+                        </button>
+                      </div>
+                      {byoTestError && <p className="text-[11px]" style={{ color: "var(--color-error)" }}>✗ {byoTestError}</p>}
+                      {byoTestStatus === "ok" && <p className="text-[11px]" style={{ color: "var(--color-primary)" }}>✓ Connected</p>}
+                    </div>
                   )}
                 </div>
               )}
             </div>
 
-            {/* Model selector — tier filter as dropdown */}
+            {/* Model selector — pill tier filters */}
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between">
                 <p
-                  className="flex-1 text-xs font-medium"
+                  className="text-xs font-medium"
                   style={{ color: "var(--color-on-surface-variant)" }}
                 >
                   Model
                 </p>
-                <select
-                  value={orFilter}
-                  onChange={(e) => setOrFilter(e.target.value as FilterTier)}
-                  className="cursor-pointer rounded-lg border bg-transparent px-2 py-1 text-[10px] outline-none"
-                  style={{
-                    color: "var(--color-on-surface-variant)",
-                    borderColor: "var(--color-outline-variant)",
-                  }}
-                >
-                  {TIER_OPTIONS.map((t) => (
-                    <option key={t.value} value={t.value}>
+                <div className="flex gap-1">
+                  {TIER_OPTIONS.filter((t) => t.value !== "all").map((t) => (
+                    <span
+                      key={t.value}
+                      onClick={() => setOrFilter(t.value as FilterTier)}
+                      className="cursor-pointer select-none rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors"
+                      style={{
+                        background: orFilter === t.value
+                          ? "color-mix(in oklch, var(--color-primary) 12%, transparent)"
+                          : "color-mix(in oklch, var(--color-outline-variant) 40%, transparent)",
+                        color: orFilter === t.value
+                          ? "var(--color-primary)"
+                          : "var(--color-on-surface-variant)",
+                      }}
+                    >
                       {t.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="relative">
+                <select
+                  value={orModel}
+                  onChange={(e) => {
+                    setOrModel(e.target.value);
+                    setOpenRouterModel(e.target.value);
+                  }}
+                  className="text-on-surface w-full appearance-none rounded-xl border bg-transparent py-2 pl-3 pr-8 outline-none"
+                  style={{ borderColor: "var(--color-outline-variant)", fontSize: "0.875rem" }}
+                >
+                  {filteredOrModels.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {modelLabel(m, recommendedId)}
                     </option>
                   ))}
                 </select>
+                <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-on-surface-variant)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l4 4 4-4" />
+                </svg>
               </div>
-              <select
-                value={orModel}
-                onChange={(e) => {
-                  setOrModel(e.target.value);
-                  setOpenRouterModel(e.target.value);
-                }}
-                className="text-on-surface w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                style={{ borderColor: "var(--color-outline-variant)" }}
-              >
-                {filteredOrModels.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {modelLabel(m, recommendedId)}
-                  </option>
-                ))}
-              </select>
               <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
                 Tip: choose a model with ZDR (zero data retention) for sensitive entries.
               </p>
@@ -808,18 +804,23 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 </span>
               </button>
               {perTaskOpen && (
-                <div className="space-y-3 pt-2 pb-1">
+                <div className="pt-1 pb-1">
                   {(
                     [
-                      ["Entry capture", "capture"],
-                      ["Fill Brain questions", "questions"],
-                      ["Refine collection", "refine"],
-                      ["Brain chat", "chat"],
-                    ] as [string, string][]
-                  ).map(([label, task]) => (
-                    <div key={task} className="flex flex-col gap-1">
+                      ["Entry capture", "capture", CURATED_OR_MODELS],
+                      ["Fill Brain questions", "questions", CURATED_OR_MODELS],
+                      ["Refine collection", "refine", CURATED_OR_MODELS],
+                      ["Brain chat", "chat", CURATED_OR_MODELS],
+                      ["Image reading", "vision", CURATED_OR_MODELS.filter((m) => m.modality?.includes?.("image"))],
+                    ] as [string, string, typeof CURATED_OR_MODELS][]
+                  ).map(([label, task, models]) => (
+                    <div
+                      key={task}
+                      className="flex flex-col gap-0.5 py-2 border-b last:border-b-0"
+                      style={{ borderColor: "var(--color-outline-variant)" }}
+                    >
                       <span
-                        className="text-xs"
+                        className="text-[10px] uppercase tracking-wide font-medium"
                         style={{ color: "var(--color-on-surface-variant)" }}
                       >
                         {label}
@@ -831,15 +832,11 @@ export default function ProvidersTab({ activeBrain }: Props) {
                           setModelForTask(task, v);
                           setTaskModels((prev) => ({ ...prev, [task]: v }));
                         }}
-                        className="w-full rounded-lg border bg-transparent px-2 text-xs outline-none"
-                        style={{
-                          color: "var(--color-on-surface)",
-                          borderColor: "var(--color-outline-variant)",
-                          height: 36,
-                        }}
+                        className="w-full bg-transparent text-xs outline-none"
+                        style={{ color: "var(--color-on-surface)" }}
                       >
-                        <option value="default">Same as global default</option>
-                        {CURATED_OR_MODELS.map((m) => (
+                        <option value="default">Global default</option>
+                        {models.map((m) => (
                           <option key={m.id} value={m.id}>
                             {modelLabel(m, recommendedId)} [{getPriceTier(m.pricing)}]
                           </option>
@@ -847,98 +844,91 @@ export default function ProvidersTab({ activeBrain }: Props) {
                       </select>
                     </div>
                   ))}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                      Image reading
-                    </span>
-                    <select
-                      value={taskModels["vision"] ?? "default"}
-                      onChange={(e) => {
-                        const v = e.target.value === "default" ? null : e.target.value;
-                        setModelForTask("vision", v);
-                        setTaskModels((prev) => ({ ...prev, vision: v }));
-                      }}
-                      className="w-full rounded-lg border bg-transparent px-2 text-xs outline-none"
-                      style={{
-                        color: "var(--color-on-surface)",
-                        borderColor: "var(--color-outline-variant)",
-                        height: 36,
-                      }}
-                    >
-                      <option value="default">Same as global default</option>
-                      {CURATED_OR_MODELS.filter((m) => m.modality?.includes?.("image")).map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {modelLabel(m, recommendedId)} [{getPriceTier(m.pricing)}]
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
               )}
             </div>
           </>
         ) : (
           <>
-            <div className="space-y-1">
-              <p
-                className="text-xs font-medium"
+            <div className="border-t pt-1" style={{ borderColor: "var(--color-outline-variant)" }}>
+              <button
+                onClick={() => setKeyOpen((o) => !o)}
+                className="flex w-full items-center justify-between py-1.5 text-left text-xs font-medium transition-colors hover:opacity-70"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                API Key
-              </p>
-              <div className="flex flex-col gap-2">
-                <input
-                  type={showKey ? "text" : "password"}
-                  autoComplete="new-password"
-                  value={byoKey}
-                  onChange={(e) => {
-                    setByoKey(e.target.value);
-                    setKeySaved(false);
-                  }}
-                  placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."}
-                  className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                  style={{ borderColor: "var(--color-outline-variant)" }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowKey((s) => !s)}
-                    className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
-                    style={{
-                      color: "var(--color-on-surface-variant)",
-                      borderColor: "var(--color-outline-variant)",
-                    }}
-                  >
-                    {showKey ? "Hide" : "Show"}
-                  </button>
-                  <button
-                    onClick={handleSaveKey}
-                    disabled={!byoKey}
-                    className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                    style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-                  >
-                    {keySaved ? "Saved!" : "Save"}
-                  </button>
-                  <button
-                    onClick={testByoKey}
-                    disabled={!byoKey}
-                    className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5 disabled:opacity-40"
-                    style={{
-                      color: "var(--color-on-surface-variant)",
-                      borderColor: "var(--color-outline-variant)",
-                    }}
-                  >
-                    {byoTestStatus === "testing"
-                      ? "…"
-                      : byoTestStatus === "ok"
-                        ? "✓"
-                        : byoTestStatus === "fail"
-                          ? "✗"
-                          : "Test"}
-                  </button>
+                <span>API Key</span>
+                <div className="flex items-center gap-2">
+                  {byoKey && !editingByoKey && (
+                    <span className="font-mono text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                      {byoKey.slice(0, 8)}···
+                    </span>
+                  )}
+                  <span style={{ color: "var(--color-outline)", fontSize: 10 }}>
+                    {keyOpen ? "▲" : "▼"}
+                  </span>
                 </div>
-              </div>
+              </button>
+              {keyOpen && (
+                <div className="space-y-2 pt-1 pb-2">
+                  {byoKey && !editingByoKey ? (
+                    <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--color-outline-variant)" }}>
+                      <span className="font-mono text-xs flex-1" style={{ color: "var(--color-on-surface-variant)" }}>
+                        {byoKey.slice(0, 10)}···{byoKey.slice(-4)}
+                      </span>
+                      <button onClick={testByoKey} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: byoTestStatus === "ok" ? "var(--color-primary)" : byoTestStatus === "fail" ? "var(--color-error)" : "var(--color-on-surface-variant)" }}>
+                        {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓ OK" : byoTestStatus === "fail" ? "✗ Fail" : "Test"}
+                      </button>
+                      <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                      <button onClick={() => setEditingByoKey(true)} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: "var(--color-on-surface-variant)" }}>Edit</button>
+                      <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                      <button
+                        onClick={async () => {
+                          setByoKey("");
+                          setUserApiKey(null);
+                          await persistKeyToDb({ api_key: null });
+                          setEditingByoKey(true);
+                        }}
+                        className="text-[10px] transition-opacity hover:opacity-70"
+                        style={{ color: "var(--color-error)" }}
+                      >Remove</button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <input
+                        type={showKey ? "text" : "password"}
+                        autoComplete="new-password"
+                        value={byoKey}
+                        onChange={(e) => { setByoKey(e.target.value); setKeySaved(false); }}
+                        placeholder={byoProvider === "openai" ? "sk-..." : "sk-ant-..."}
+                        className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
+                        style={{ borderColor: "var(--color-outline-variant)" }}
+                        onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                        onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => setShowKey((s) => !s)} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                          {showKey ? "Hide" : "Show"}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await handleSaveKey();
+                            if (byoKey) setEditingByoKey(false);
+                          }}
+                          disabled={!byoKey}
+                          className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+                        >
+                          {keySaved ? "Saved!" : "Save"}
+                        </button>
+                        <button onClick={testByoKey} disabled={!byoKey} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5 disabled:opacity-40" style={{ color: byoTestStatus === "ok" ? "var(--color-primary)" : byoTestStatus === "fail" ? "var(--color-error)" : "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                          {byoTestStatus === "testing" ? "…" : byoTestStatus === "ok" ? "✓ OK" : byoTestStatus === "fail" ? "✗ Fail" : "Test"}
+                        </button>
+                      </div>
+                      {byoTestError && <p className="text-[11px]" style={{ color: "var(--color-error)" }}>✗ {byoTestError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-1">
               <p
@@ -947,21 +937,26 @@ export default function ProvidersTab({ activeBrain }: Props) {
               >
                 Model
               </p>
-              <select
-                value={byoModel}
-                onChange={(e) => {
-                  setByoModel(e.target.value);
-                  setUserModel(e.target.value);
-                }}
-                className="text-on-surface w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                style={{ borderColor: "var(--color-outline-variant)" }}
-              >
-                {modelOptions.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={byoModel}
+                  onChange={(e) => {
+                    setByoModel(e.target.value);
+                    setUserModel(e.target.value);
+                  }}
+                  className="text-on-surface w-full appearance-none rounded-xl border bg-transparent py-2 pl-3 pr-8 outline-none"
+                  style={{ borderColor: "var(--color-outline-variant)", fontSize: "0.875rem" }}
+                >
+                  {modelOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+                <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-on-surface-variant)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l4 4 4-4" />
+                </svg>
+              </div>
             </div>
           </>
         )}
@@ -975,36 +970,24 @@ export default function ProvidersTab({ activeBrain }: Props) {
           borderColor: "var(--color-outline-variant)",
         }}
       >
-        <p className="text-on-surface text-sm font-semibold">Semantic Search & RAG</p>
-        <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          Powers semantic search, RAG chat, and smarter connection discovery. Requires a separate
-          embedding API key.
-        </p>
-        <div className="flex items-center gap-2">
-          {["google"].map((p) => (
-            <button
-              key={p}
-              onClick={() => handleEmbedProviderClick(p)}
-              className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors"
-              style={{
-                color:
-                  embedProvider === p
-                    ? "var(--color-on-primary)"
-                    : "var(--color-on-surface-variant)",
-                borderColor: embedProvider === p ? "transparent" : "var(--color-outline-variant)",
-                background: embedProvider === p ? "var(--color-primary)" : "transparent",
-              }}
-            >
-              {p === "openai" ? "OpenAI" : "Google"}
-            </button>
-          ))}
+        <div className="flex items-center justify-between">
+          <p className="text-on-surface text-sm font-semibold">Semantic Search & RAG</p>
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+            style={{
+              background: "color-mix(in oklch, var(--color-primary) 12%, transparent)",
+              color: "var(--color-primary)",
+            }}
+          >
+            Google
+          </span>
         </div>
+
         {pendingEmbedProvider && (
           <div
             className="space-y-2 rounded-xl p-3 text-xs"
             style={{
-              background:
-                "color-mix(in oklch, var(--color-error) 8%, var(--color-surface-container))",
+              background: "color-mix(in oklch, var(--color-error) 8%, var(--color-surface-container))",
               border: "1px solid color-mix(in oklch, var(--color-error) 25%, transparent)",
             }}
           >
@@ -1014,214 +997,126 @@ export default function ProvidersTab({ activeBrain }: Props) {
                 : "Switching providers may make search inconsistent until you re-embed."}
             </p>
             <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  saveEmbedProvider(pendingEmbedProvider!);
-                  setPendingEmbedProvider(null);
-                  handleReembed(true);
-                }}
-                className="rounded-lg px-3 text-xs font-semibold"
-                style={{
-                  background: "var(--color-primary)",
-                  color: "var(--color-on-primary)",
-                  minHeight: 36,
-                }}
-              >
-                Switch & Re-embed
-              </button>
-              <button
-                onClick={() => {
-                  saveEmbedProvider(pendingEmbedProvider!);
-                  setPendingEmbedProvider(null);
-                }}
-                className="rounded-lg px-3 text-xs"
-                style={{ color: "var(--color-on-surface-variant)", minHeight: 36 }}
-              >
-                Switch only
-              </button>
-              <button
-                onClick={() => setPendingEmbedProvider(null)}
-                className="rounded-lg px-3 text-xs"
-                style={{ color: "var(--color-on-surface-variant)", minHeight: 36 }}
-              >
-                Cancel
-              </button>
+              <button onClick={() => { saveEmbedProvider(pendingEmbedProvider!); setPendingEmbedProvider(null); handleReembed(true); }} className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>Switch & Re-embed</button>
+              <button onClick={() => { saveEmbedProvider(pendingEmbedProvider!); setPendingEmbedProvider(null); }} className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>Switch only</button>
+              <button onClick={() => setPendingEmbedProvider(null)} className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>Cancel</button>
             </div>
           </div>
         )}
-        {embedProvider === "openai" ? (
-          <div className="space-y-1">
-            <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-              OpenAI API Key{" "}
-              <span style={{ color: "var(--color-outline)" }}>(text-embedding-3-small)</span>
-            </p>
-            <div className="flex flex-col gap-2">
-              <input
-                type={showEmbedKey ? "text" : "password"}
-                autoComplete="new-password"
-                value={embedOpenAIKey}
-                onChange={(e) => {
-                  setEmbedOpenAIKeyState(e.target.value);
-                  setEmbedKeySaved(false);
-                }}
-                placeholder="sk-..."
-                className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                style={{ borderColor: "var(--color-outline-variant)" }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowEmbedKey((s) => !s)}
-                  className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
-                  style={{
-                    color: "var(--color-on-surface-variant)",
-                    borderColor: "var(--color-outline-variant)",
-                  }}
-                >
-                  {showEmbedKey ? "Hide" : "Show"}
-                </button>
-                <button
-                  onClick={async () => {
-                    setEmbedOpenAIKey(embedOpenAIKey || null);
-                    setEmbedKeySaved(true);
-                    const { error } = await persistKeyToDb({
-                      embed_openai_key: embedOpenAIKey || null,
-                    });
-                    if (error) {
-                      console.error("[saveEmbedOpenAI]", error);
-                      setEmbedKeySaved(false);
-                    } else {
-                      setTimeout(() => setEmbedKeySaved(false), 2000);
-                    }
-                  }}
-                  disabled={!embedOpenAIKey}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                  style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-                >
-                  {embedKeySaved ? "Saved!" : "Save"}
-                </button>
-              </div>
+
+        {/* API Key — collapsible */}
+        <div className="border-t pt-1" style={{ borderColor: "var(--color-outline-variant)" }}>
+          <button
+            onClick={() => setRagKeyOpen((o) => !o)}
+            className="flex w-full items-center justify-between py-1.5 text-left text-xs font-medium transition-colors hover:opacity-70"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <span>API Key</span>
+            <div className="flex items-center gap-2">
+              {geminiKey && !editingEmbedKey && (
+                <span className="font-mono text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {geminiKey.slice(0, 8)}···
+                </span>
+              )}
+              <span style={{ color: "var(--color-outline)", fontSize: 10 }}>{ragKeyOpen ? "▲" : "▼"}</span>
             </div>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-              Google Gemini API Key{" "}
-              <span style={{ color: "var(--color-outline)" }}>(text-embedding-004)</span>{" "}
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "var(--color-primary)" }}
-              >
-                Get key →
-              </a>
-            </p>
-            <div className="flex flex-col gap-2">
-              <input
-                type={showEmbedKey ? "text" : "password"}
-                autoComplete="new-password"
-                value={geminiKey}
-                onChange={(e) => {
-                  setGeminiKeyState(e.target.value);
-                  setEmbedKeySaved(false);
-                }}
-                placeholder="AIza..."
-                className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-                style={{ borderColor: "var(--color-outline-variant)" }}
-                onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowEmbedKey((s) => !s)}
-                  className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
-                  style={{
-                    color: "var(--color-on-surface-variant)",
-                    borderColor: "var(--color-outline-variant)",
-                  }}
-                >
-                  {showEmbedKey ? "Hide" : "Show"}
-                </button>
-                <button
-                  onClick={async () => {
-                    setGeminiKey(geminiKey || null);
-                    setEmbedKeySaved(true);
-                    const { error } = await persistKeyToDb({ gemini_key: geminiKey || null });
-                    if (error) {
-                      console.error("[saveGemini]", error);
-                      setEmbedKeySaved(false);
-                    } else {
-                      setTimeout(() => setEmbedKeySaved(false), 2000);
-                    }
-                  }}
-                  disabled={!geminiKey}
-                  className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                  style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-                >
-                  {embedKeySaved ? "Saved!" : "Save"}
-                </button>
-              </div>
+          </button>
+          {ragKeyOpen && (
+            <div className="space-y-2 pt-1 pb-2">
+              {geminiKey && !editingEmbedKey ? (
+                <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--color-outline-variant)" }}>
+                  <span className="font-mono text-xs flex-1" style={{ color: "var(--color-on-surface-variant)" }}>
+                    {geminiKey.slice(0, 10)}···{geminiKey.slice(-4)}
+                  </span>
+                  <button onClick={testEmbedKey} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: embedTestStatus === "ok" ? "var(--color-primary)" : embedTestStatus === "fail" ? "var(--color-error)" : "var(--color-on-surface-variant)" }}>
+                    {embedTestStatus === "testing" ? "…" : embedTestStatus === "ok" ? "✓ OK" : embedTestStatus === "fail" ? "✗ Fail" : "Test"}
+                  </button>
+                  <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                  <button onClick={() => setEditingEmbedKey(true)} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: "var(--color-on-surface-variant)" }}>Edit</button>
+                  <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                  <button
+                    onClick={async () => {
+                      setGeminiKeyState("");
+                      setGeminiKey(null);
+                      await persistKeyToDb({ gemini_key: null });
+                      setEditingEmbedKey(true);
+                    }}
+                    className="text-[10px] transition-opacity hover:opacity-70"
+                    style={{ color: "var(--color-error)" }}
+                  >Remove</button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type={showEmbedKey ? "text" : "password"}
+                    autoComplete="off"
+                        data-lpignore="true"
+                        data-form-type="other"
+                    value={geminiKey}
+                    onChange={(e) => { setGeminiKeyState(e.target.value); setEmbedKeySaved(false); }}
+                    placeholder="AIza..."
+                    className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
+                    style={{ borderColor: "var(--color-outline-variant)" }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowEmbedKey((s) => !s)} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                      {showEmbedKey ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setGeminiKey(geminiKey || null);
+                        setEmbedKeySaved(true);
+                        setEditingEmbedKey(false);
+                        const { error } = await persistKeyToDb({ gemini_key: geminiKey || null });
+                        if (error) { console.error("[saveGemini]", error); setEmbedKeySaved(false); setEditingEmbedKey(true); }
+                        else setTimeout(() => setEmbedKeySaved(false), 2000);
+                      }}
+                      disabled={!geminiKey}
+                      className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                      style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+                    >
+                      {embedKeySaved ? "Saved!" : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+
         {activeBrain && (
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => handleReembed()}
-              disabled={
-                embedStatus === "running" ||
-                !(embedProvider === "google" ? geminiKey
-                  : embedProvider === "openrouter" ? orKey
-                  : embedOpenAIKey)
-              }
-              className="rounded-xl px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+          <div className="flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: "var(--color-outline-variant)" }}>
+            <span
+              onClick={() => { if (!(embedStatus === "running" || !(embedProvider === "google" ? geminiKey : embedProvider === "openrouter" ? orKey : embedOpenAIKey))) handleReembed(); }}
+              className="cursor-pointer select-none rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors"
+              style={{
+                background: "color-mix(in oklch, var(--color-primary) 12%, transparent)",
+                color: "var(--color-primary)",
+                opacity: (embedStatus === "running" || !(embedProvider === "google" ? geminiKey : embedProvider === "openrouter" ? orKey : embedOpenAIKey)) ? 0.4 : 1,
+              }}
             >
-              {embedStatus?.startsWith("running")
-                ? `Embedding…${embedStatus.includes(":") ? ` (${embedStatus.split(":")[1]})` : ""}`
-                : "Embed new"}
-            </button>
-            <button
-              onClick={() => handleReembed(true)}
-              disabled={
-                !!embedStatus?.startsWith("running") ||
-                !(embedProvider === "google" ? geminiKey
-                  : embedProvider === "openrouter" ? orKey
-                  : embedOpenAIKey)
-              }
-              className="rounded-xl border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-40"
+              {embedStatus?.startsWith("running") ? `Embedding…${embedStatus.includes(":") ? ` (${embedStatus.split(":")[1]})` : ""}` : "Embed new"}
+            </span>
+            <span
+              onClick={() => { if (!(!!embedStatus?.startsWith("running") || !(embedProvider === "google" ? geminiKey : embedProvider === "openrouter" ? orKey : embedOpenAIKey))) handleReembed(true); }}
+              className="cursor-pointer select-none rounded-full px-2.5 py-0.5 text-[10px] font-medium transition-colors"
               style={{
                 color: "var(--color-on-surface-variant)",
-                borderColor: "var(--color-outline-variant)",
+                background: "color-mix(in oklch, var(--color-outline-variant) 40%, transparent)",
+                opacity: (!!embedStatus?.startsWith("running") || !(embedProvider === "google" ? geminiKey : embedProvider === "openrouter" ? orKey : embedOpenAIKey)) ? 0.4 : 1,
               }}
             >
               Re-embed all
-            </button>
+            </span>
             {embedStatus && !embedStatus.startsWith("running") && (
-              <span
-                className="text-xs"
-                style={{
-                  color: embedStatus.startsWith("error")
-                    ? "var(--color-error)"
-                    : "var(--color-primary)",
-                }}
-              >
-                {embedStatus.startsWith("error")
-                  ? `✗ ${embedStatus.split(":").slice(1).join(":") || "Failed"}`
-                  : (() => {
-                      const [, n, f] = embedStatus.split(":");
-                      return `✓ ${n} embedded${+f > 0 ? `, ${f} failed` : ""}`;
-                    })()}
+              <span className="text-xs" style={{ color: embedStatus.startsWith("error") ? "var(--color-error)" : "var(--color-primary)" }}>
+                {embedStatus.startsWith("error") ? `✗ ${embedStatus.split(":").slice(1).join(":") || "Failed"}` : (() => { const [, n, f] = embedStatus.split(":"); return `✓ ${n} embedded${+f > 0 ? `, ${f} failed` : ""}`; })()}
               </span>
             )}
           </div>
         )}
-        <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
-          New entries are embedded automatically. Use "Embed all" to backfill or after switching
-          providers.
-        </p>
       </div>
 
       {/* Voice Transcription */}
@@ -1232,72 +1127,99 @@ export default function ProvidersTab({ activeBrain }: Props) {
           borderColor: "var(--color-outline-variant)",
         }}
       >
-        <p className="text-on-surface text-sm font-semibold">Voice Transcription</p>
-        <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          Powers the mic button in Quick Capture. Uses Groq Whisper (fast, free tier).{" "}
-          <a
-            href="https://console.groq.com/keys"
-            target="_blank"
-            rel="noreferrer"
-            style={{ color: "var(--color-primary)" }}
+        <div className="flex items-center justify-between">
+          <p className="text-on-surface text-sm font-semibold">Voice Transcription</p>
+          <span
+            className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+            style={{
+              background: "color-mix(in oklch, var(--color-primary) 12%, transparent)",
+              color: "var(--color-primary)",
+            }}
           >
-            Get a free key →
-          </a>
-        </p>
-        <div className="space-y-1">
-          <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
-            Groq API Key{" "}
-            <span style={{ color: "var(--color-outline)" }}>(whisper-large-v3-turbo)</span>
-          </p>
-          <div className="flex flex-col gap-2">
-            <input
-              type={showGroqKey ? "text" : "password"}
-              autoComplete="new-password"
-              value={groqKeyVal}
-              onChange={(e) => {
-                setGroqKeyVal(e.target.value);
-                setGroqKeySaved(false);
-              }}
-              placeholder="gsk_..."
-              className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
-              style={{ borderColor: "var(--color-outline-variant)" }}
-              onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-              onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowGroqKey((s) => !s)}
-                className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5"
-                style={{
-                  color: "var(--color-on-surface-variant)",
-                  borderColor: "var(--color-outline-variant)",
-                }}
-              >
-                {showGroqKey ? "Hide" : "Show"}
-              </button>
-              <button
-                onClick={async () => {
-                  setGroqKey(groqKeyVal || null);
-                  setGroqKeySaved(true);
-                  const { error } = await persistKeyToDb({ groq_key: groqKeyVal || null });
-                  if (error) {
-                    console.error("[saveGroq]", error);
-                    setGroqKeySaved(false);
-                  } else {
-                    setTimeout(() => setGroqKeySaved(false), 2000);
-                  }
-                }}
-                disabled={!groqKeyVal}
-                className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-              >
-                {groqKeySaved ? "Saved!" : "Save"}
-              </button>
+            Groq Whisper
+          </span>
+        </div>
+
+        {/* API Key — collapsible */}
+        <div className="border-t pt-1" style={{ borderColor: "var(--color-outline-variant)" }}>
+          <button
+            onClick={() => setVoiceKeyOpen((o) => !o)}
+            className="flex w-full items-center justify-between py-1.5 text-left text-xs font-medium transition-colors hover:opacity-70"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <span>API Key</span>
+            <div className="flex items-center gap-2">
+              {groqKeyVal && !editingGroqKey && (
+                <span className="font-mono text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>
+                  {groqKeyVal.slice(0, 8)}···
+                </span>
+              )}
+              <span style={{ color: "var(--color-outline)", fontSize: 10 }}>{voiceKeyOpen ? "▲" : "▼"}</span>
             </div>
-          </div>
-          <p className="text-[10px]" style={{ color: "var(--color-outline)" }}>
-            Also works with an OpenAI key (set above) — but Groq is faster and free.
-          </p>
+          </button>
+          {voiceKeyOpen && (
+            <div className="space-y-2 pt-1 pb-2">
+              {groqKeyVal && !editingGroqKey ? (
+                <div className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--color-outline-variant)" }}>
+                  <span className="font-mono text-xs flex-1" style={{ color: "var(--color-on-surface-variant)" }}>
+                    {groqKeyVal.slice(0, 10)}···{groqKeyVal.slice(-4)}
+                  </span>
+                  <button onClick={testGroqKey} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: groqTestStatus === "ok" ? "var(--color-primary)" : groqTestStatus === "fail" ? "var(--color-error)" : "var(--color-on-surface-variant)" }}>
+                    {groqTestStatus === "testing" ? "…" : groqTestStatus === "ok" ? "✓ OK" : groqTestStatus === "fail" ? "✗ Fail" : "Test"}
+                  </button>
+                  <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                  <button onClick={() => setEditingGroqKey(true)} className="text-[10px] transition-opacity hover:opacity-70" style={{ color: "var(--color-on-surface-variant)" }}>Edit</button>
+                  <span style={{ color: "var(--color-outline-variant)" }}>·</span>
+                  <button
+                    onClick={async () => {
+                      setGroqKeyVal("");
+                      setGroqKey(null);
+                      await persistKeyToDb({ groq_key: null });
+                      setEditingGroqKey(true);
+                    }}
+                    className="text-[10px] transition-opacity hover:opacity-70"
+                    style={{ color: "var(--color-error)" }}
+                  >Remove</button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type={showGroqKey ? "text" : "password"}
+                    autoComplete="off"
+                        data-lpignore="true"
+                        data-form-type="other"
+                    value={groqKeyVal}
+                    onChange={(e) => { setGroqKeyVal(e.target.value); setGroqKeySaved(false); }}
+                    placeholder="gsk_..."
+                    className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border bg-transparent px-3 py-2 text-xs outline-none"
+                    style={{ borderColor: "var(--color-outline-variant)" }}
+                    onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                    onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowGroqKey((s) => !s)} className="rounded-xl border px-3 py-2 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                      {showGroqKey ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        setGroqKey(groqKeyVal || null);
+                        setGroqKeySaved(true);
+                        setEditingGroqKey(false);
+                        const { error } = await persistKeyToDb({ groq_key: groqKeyVal || null });
+                        if (error) { console.error("[saveGroq]", error); setGroqKeySaved(false); setEditingGroqKey(true); }
+                        else setTimeout(() => setGroqKeySaved(false), 2000);
+                      }}
+                      disabled={!groqKeyVal}
+                      className="rounded-xl px-3 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                      style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+                    >
+                      {groqKeySaved ? "Saved!" : "Save"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
