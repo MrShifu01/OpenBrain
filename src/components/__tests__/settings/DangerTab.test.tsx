@@ -1,5 +1,13 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+
+vi.mock("../../../lib/supabase", () => ({
+  supabase: {
+    auth: { getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
+    from: vi.fn().mockReturnValue({ upsert: vi.fn() }),
+  },
+}));
+
 import DangerTab from "../../settings/DangerTab";
 import type { Brain } from "../../../types";
 
@@ -51,7 +59,7 @@ describe("DangerTab", () => {
     expect(screen.getByRole("button", { name: /delete account/i })).toBeInTheDocument();
   });
 
-  it("shows confirm text after first click on delete account", () => {
+  it("shows export/delete modal after clicking delete account", () => {
     render(
       <DangerTab
         activeBrain={brain}
@@ -61,10 +69,10 @@ describe("DangerTab", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-    expect(screen.getByText(/tap again to confirm/i)).toBeInTheDocument();
+    expect(screen.getByText(/export your data first/i)).toBeInTheDocument();
   });
 
-  it("calls deleteAccount on second click", async () => {
+  it("calls deleteAccount when choosing delete without export", async () => {
     const deleteAccount = vi.fn().mockResolvedValue(undefined);
     render(
       <DangerTab
@@ -75,7 +83,7 @@ describe("DangerTab", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
-    fireEvent.click(screen.getByRole("button", { name: /tap again/i }));
+    fireEvent.click(screen.getByRole("button", { name: /delete without export/i }));
     expect(deleteAccount).toHaveBeenCalled();
   });
 });

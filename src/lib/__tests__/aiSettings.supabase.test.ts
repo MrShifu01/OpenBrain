@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.hoisted ensures these are initialized before vi.mock factories run
-const { mockUpsert, mockSingle, mockEq, mockSelect, mockFrom } = vi.hoisted(() => {
+const { mockUpsert, mockLimit, mockEq, mockSelect, mockFrom } = vi.hoisted(() => {
   const mockUpsert = vi.fn().mockResolvedValue({ error: null });
-  const mockSingle = vi.fn().mockResolvedValue({ data: null, error: null });
-  const mockEq = vi.fn(() => ({ single: mockSingle }));
+  const mockLimit = vi.fn().mockResolvedValue({ data: [], error: null });
+  const mockEq = vi.fn(() => ({ limit: mockLimit }));
   const mockSelect = vi.fn(() => ({ eq: mockEq }));
   const mockFrom = vi.fn(() => ({ upsert: mockUpsert, select: mockSelect }));
-  return { mockUpsert, mockSingle, mockEq, mockSelect, mockFrom };
+  return { mockUpsert, mockLimit, mockEq, mockSelect, mockFrom };
 });
 
 vi.mock("../supabase", () => ({ supabase: { from: mockFrom } }));
@@ -47,7 +47,7 @@ beforeEach(() => {
   mockUpsert.mockClear();
   mockSelect.mockClear();
   mockEq.mockClear();
-  mockSingle.mockClear();
+  mockLimit.mockClear();
 });
 
 // ── localStorage writes ──────────────────────────────────────────
@@ -200,23 +200,25 @@ describe("Supabase upsert on set", () => {
 
 describe("loadUserAISettings", () => {
   it("populates localStorage from Supabase row", async () => {
-    mockSingle.mockResolvedValueOnce({
-      data: {
-        api_key: "sk-from-db",
-        ai_model: "claude-opus-4",
-        ai_provider: "anthropic",
-        openrouter_key: "sk-or-db",
-        openrouter_model: "google/gemini-flash",
-        groq_key: "gsk_db",
-        embed_provider: "google",
-        embed_openai_key: "sk-embed-db",
-        gemini_key: "AIza_db",
-        model_capture: "fast-model",
-        model_questions: null,
-        model_vision: null,
-        model_refine: null,
-        model_chat: null,
-      },
+    mockLimit.mockResolvedValueOnce({
+      data: [
+        {
+          api_key: "sk-from-db",
+          ai_model: "claude-opus-4",
+          ai_provider: "anthropic",
+          openrouter_key: "sk-or-db",
+          openrouter_model: "google/gemini-flash",
+          groq_key: "gsk_db",
+          embed_provider: "google",
+          embed_openai_key: "sk-embed-db",
+          gemini_key: "AIza_db",
+          model_capture: "fast-model",
+          model_questions: null,
+          model_vision: null,
+          model_refine: null,
+          model_chat: null,
+        },
+      ],
       error: null,
     });
 
@@ -224,7 +226,7 @@ describe("loadUserAISettings", () => {
 
     expect(getUserApiKey()).toBe("sk-from-db");
     expect(getUserModel()).toBe("claude-opus-4");
-    expect(getUserProvider()).toBe("anthropic");
+    expect(getUserProvider()).toBe("openrouter"); // anthropic is migrated to openrouter
     expect(getOpenRouterKey()).toBe("sk-or-db");
     expect(getGroqKey()).toBe("gsk_db");
     expect(getGeminiKey()).toBe("AIza_db");
@@ -234,7 +236,7 @@ describe("loadUserAISettings", () => {
   });
 
   it("does nothing when Supabase returns null data", async () => {
-    mockSingle.mockResolvedValueOnce({ data: null, error: null });
+    mockLimit.mockResolvedValueOnce({ data: [], error: null });
     await loadUserAISettings(USER_ID);
     expect(getUserApiKey()).toBeNull();
   });

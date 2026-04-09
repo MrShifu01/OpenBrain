@@ -20,7 +20,7 @@ describe("constants", () => {
       const config: TypeConfig = TC[type];
       expect(config).toBeDefined();
       expect(config.i).toBeTruthy();
-      expect(config.c).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(config.c).toMatch(/^(#[0-9A-Fa-f]{6}|var\(--[\w-]+\))$/);
     });
   });
 

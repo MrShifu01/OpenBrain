@@ -9,8 +9,8 @@ describe("themeToggle utilities (S5-4)", () => {
     localStorage.clear();
   });
 
-  it("resolveTheme: defaults to dark when no preference stored", () => {
-    expect(resolveTheme(null)).toBe("dark");
+  it("resolveTheme: defaults to light when no preference stored", () => {
+    expect(resolveTheme(null)).toBe("light");
   });
 
   it("resolveTheme: returns stored preference", () => {

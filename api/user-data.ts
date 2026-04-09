@@ -263,6 +263,13 @@ async function handleDeleteAccount(req: ApiRequest, res: ApiResponse): Promise<v
   const user: any = await verifyAuth(req);
   if (!user) return void res.status(401).json({ error: "Unauthorized" });
 
+  // Fetch vault entries before deletion so they can be exported
+  const vaultRes = await fetch(
+    `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&select=*`,
+    { headers: hdrs() },
+  );
+  const vault_export: any[] = vaultRes.ok ? await vaultRes.json() : [];
+
   const r = await fetch(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(user.id)}`, {
     method: "DELETE",
     headers: hdrs(),
@@ -275,5 +282,5 @@ async function handleDeleteAccount(req: ApiRequest, res: ApiResponse): Promise<v
   }
 
   console.log(`[audit] DELETE_ACCOUNT user=${user.id}`);
-  return void res.status(200).json({ ok: true });
+  return void res.status(200).json({ deleted: true, vault_export });
 }

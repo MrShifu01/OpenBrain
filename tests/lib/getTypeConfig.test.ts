@@ -5,14 +5,14 @@ import { TC } from "../../src/data/constants";
 import { getTypeConfig } from "../../src/data/constants";
 
 const TYPE_COLOURS = [
-  "#9B59B6",
-  "#E67E22",
-  "#27AE60",
-  "#2980B9",
-  "#E74C3C",
-  "#16A085",
-  "#8E44AD",
-  "#D35400",
+  "var(--color-primary)",
+  "var(--color-secondary)",
+  "var(--color-status-medium)",
+  "var(--color-on-surface-variant)",
+  "var(--color-primary-dim)",
+  "var(--color-secondary-dim)",
+  "var(--color-error)",
+  "var(--color-primary)",
 ];
 
 describe("getTypeConfig", () => {

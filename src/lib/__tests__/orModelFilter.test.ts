@@ -138,11 +138,11 @@ describe("modelLabel", () => {
     expect(modelLabel(m)).toBe("Test Model — $2.50/1M");
   });
 
-  it("appends (Recommended) when id matches recommendedId", () => {
-    expect(modelLabel(m, "test/model")).toBe("Test Model — $2.50/1M (Recommended)");
+  it("appends ★ when id matches recommendedId", () => {
+    expect(modelLabel(m, "test/model")).toBe("Test Model — $2.50/1M ★");
   });
 
-  it("does not append (Recommended) when id differs", () => {
+  it("does not append ★ when id differs", () => {
     expect(modelLabel(m, "other/model")).toBe("Test Model — $2.50/1M");
   });
 });

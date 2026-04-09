@@ -64,8 +64,8 @@ describe("aiFetch settings", () => {
     expect(getUserModel()).toBe("claude-sonnet-4-6");
   });
 
-  it("getUserProvider defaults to anthropic", () => {
-    expect(getUserProvider()).toBe("anthropic");
+  it("getUserProvider defaults to openrouter", () => {
+    expect(getUserProvider()).toBe("openrouter");
   });
 
   it("setUserProvider stores provider", () => {
@@ -100,8 +100,8 @@ describe("aiFetch settings", () => {
     expect(getGroqKey()).toBe("gsk-test");
   });
 
-  it("getEmbedProvider defaults to openai", () => {
-    expect(getEmbedProvider()).toBe("openai");
+  it("getEmbedProvider defaults to google", () => {
+    expect(getEmbedProvider()).toBe("google");
   });
 
   it("setEmbedProvider stores provider", () => {
@@ -127,9 +127,9 @@ describe("aiFetch settings", () => {
     expect(getGeminiKey()).toBe("gemini-key");
   });
 
-  it("getEmbedKey returns openai key by default", () => {
-    setEmbedOpenAIKey("oai-key");
-    expect(getEmbedKey()).toBe("oai-key");
+  it("getEmbedKey returns google key by default", () => {
+    setGeminiKey("gem-key");
+    expect(getEmbedKey()).toBe("gem-key");
   });
 
   it("getEmbedKey returns google key when provider is google", () => {
@@ -143,9 +143,9 @@ describe("aiFetch settings", () => {
   });
 
   it("getEmbedHeaders returns headers when key is set", () => {
-    setEmbedOpenAIKey("oai-key");
+    setGeminiKey("gem-key");
     const headers = getEmbedHeaders();
-    expect(headers).toEqual({ "X-Embed-Provider": "openai", "X-Embed-Key": "oai-key" });
+    expect(headers).toEqual({ "X-Embed-Provider": "google", "X-Embed-Key": "gem-key" });
   });
 
   it("getModelForTask returns null by default", () => {

@@ -7,7 +7,7 @@ vi.mock("../../src/lib/supabase", () => ({
       upsert: vi.fn().mockResolvedValue({ error: null }),
       select: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
-          single: vi.fn().mockResolvedValue({ data: null }),
+          limit: vi.fn().mockResolvedValue({ data: [], error: null }),
         }),
       }),
     }),
@@ -143,8 +143,8 @@ describe("getUserModel / setUserModel", () => {
 });
 
 describe("getUserProvider / setUserProvider", () => {
-  it("returns anthropic by default", () => {
-    expect(getUserProvider()).toBe("anthropic");
+  it("returns openrouter by default", () => {
+    expect(getUserProvider()).toBe("openrouter");
   });
 
   it("persists in localStorage", () => {
@@ -158,18 +158,21 @@ describe("getUserProvider / setUserProvider", () => {
 describe("loadUserAISettings", () => {
   it("populates memory from Supabase data", async () => {
     const { supabase } = await import("../../src/lib/supabase");
-    vi.mocked(supabase.from("").select("").eq("", "").single).mockResolvedValueOnce({
-      data: {
-        api_key: "sk-from-db",
-        openrouter_key: "or-from-db",
-        groq_key: "gsk-from-db",
-        embed_openai_key: "sk-embed-from-db",
-        gemini_key: "AIza-from-db",
-        ai_model: "claude-3-5-sonnet",
-        ai_provider: "anthropic",
-        openrouter_model: null,
-        embed_provider: "openai",
-      },
+    vi.mocked(supabase.from("").select("").eq("", "").limit).mockResolvedValueOnce({
+      data: [
+        {
+          api_key: "sk-from-db",
+          openrouter_key: "or-from-db",
+          groq_key: "gsk-from-db",
+          embed_openai_key: "sk-embed-from-db",
+          gemini_key: "AIza-from-db",
+          ai_model: "claude-3-5-sonnet",
+          ai_provider: "anthropic",
+          openrouter_model: null,
+          embed_provider: "openai",
+        },
+      ],
+      error: null,
     } as any);
 
     await loadUserAISettings("user-123");
@@ -190,18 +193,21 @@ describe("loadUserAISettings", () => {
     localStorage.setItem(KEYS.GEMINI_KEY, "old-gem-key");
 
     const { supabase } = await import("../../src/lib/supabase");
-    vi.mocked(supabase.from("").select("").eq("", "").single).mockResolvedValueOnce({
-      data: {
-        api_key: "sk-from-db",
-        openrouter_key: null,
-        groq_key: null,
-        embed_openai_key: null,
-        gemini_key: null,
-        ai_model: null,
-        ai_provider: "anthropic",
-        openrouter_model: null,
-        embed_provider: "openai",
-      },
+    vi.mocked(supabase.from("").select("").eq("", "").limit).mockResolvedValueOnce({
+      data: [
+        {
+          api_key: "sk-from-db",
+          openrouter_key: null,
+          groq_key: null,
+          embed_openai_key: null,
+          gemini_key: null,
+          ai_model: null,
+          ai_provider: "anthropic",
+          openrouter_model: null,
+          embed_provider: "openai",
+        },
+      ],
+      error: null,
     } as any);
 
     await loadUserAISettings("user-123");
@@ -218,8 +224,9 @@ describe("loadUserAISettings", () => {
     localStorage.setItem(KEYS.AI_API_KEY, "sk-legacy");
 
     const { supabase } = await import("../../src/lib/supabase");
-    vi.mocked(supabase.from("").select("").eq("", "").single).mockResolvedValueOnce({
-      data: null, // no Supabase record yet
+    vi.mocked(supabase.from("").select("").eq("", "").limit).mockResolvedValueOnce({
+      data: [], // no Supabase record yet
+      error: null,
     } as any);
 
     await loadUserAISettings("user-legacy");

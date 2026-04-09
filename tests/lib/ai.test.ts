@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 vi.mock("../../src/lib/aiSettings", () => ({
   getUserProvider: vi.fn().mockReturnValue("anthropic"),
   getUserModel: vi.fn().mockReturnValue("claude-sonnet-4-6"),
-  getUserApiKey: vi.fn().mockReturnValue(null),
-  getOpenRouterKey: vi.fn().mockReturnValue(null),
+  getUserApiKey: vi.fn().mockReturnValue("sk-test-key"),
+  getOpenRouterKey: vi.fn().mockReturnValue("or-test-key"),
   getOpenRouterModel: vi.fn().mockReturnValue(null),
   getModelForTask: vi.fn().mockReturnValue(null),
 }));
