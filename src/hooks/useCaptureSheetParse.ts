@@ -160,7 +160,7 @@ export function useCaptureSheetParse({
         const data = await res.json();
 
         if (!res.ok) {
-          const errMsg = data?.error || `AI error ${res.status}`;
+          const errMsg = data?.error?.message || (typeof data?.error === "string" ? data.error : null) || `AI error ${res.status}`;
           console.error("[useCaptureSheetParse] AI error:", errMsg);
           // Always show edit preview on AI failure so user can save manually
           setLoading(false);
@@ -174,6 +174,7 @@ export function useCaptureSheetParse({
         }
 
         let parsedRaw: ParsedEntry | ParsedEntry[] = { title: "" };
+        let parseError = "";
         try {
           const raw = data.content?.[0]?.text || "{}";
           console.log("[useCaptureSheetParse] AI raw:", raw.slice(0, 200));
@@ -182,9 +183,15 @@ export function useCaptureSheetParse({
             console.log("[useCaptureSheetParse] parsed entries:", entries.length);
             parsedRaw = entries.length > 0 ? entries : { title: "" };
           } else {
-            parsedRaw = JSON.parse(raw.replace(/```json|```/g, "").trim());
+            // Extract JSON from response — model may wrap it in prose or code blocks
+            const stripped = raw.replace(/```json|```/g, "").trim();
+            const jsonMatch = stripped.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+            parsedRaw = JSON.parse(jsonMatch ? jsonMatch[1] : stripped);
           }
-        } catch (err) { console.error("[useCaptureSheetParse] parse error:", err); }
+        } catch (err: any) {
+          parseError = err?.message || String(err);
+          console.error("[useCaptureSheetParse] parse error:", parseError);
+        }
 
         if (Array.isArray(parsedRaw) && parsedRaw.length > 0) {
           setLoading(false);
@@ -235,7 +242,14 @@ export function useCaptureSheetParse({
           setPreview({ ...parsed, _raw: input });
           return;
         }
-        await doSave({ title: input.slice(0, 60), content: input, type: "note", tags: [], metadata: {} });
+        // JSON parsed but no title, or parse failed — show edit preview with error
+        setLoading(false);
+        setStatus(null);
+        if (parseError) setErrorDetail(`AI response could not be parsed: ${parseError}`);
+        setPreviewTitle("");
+        setPreviewTags("");
+        setPreviewType("note");
+        setPreview({ title: "", content: input, type: "note", tags: [], metadata: {}, _raw: input });
       } catch (e: any) {
         const msg = `[ai] ${e?.message || String(e)}`;
         console.error(msg);
