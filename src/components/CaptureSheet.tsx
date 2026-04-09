@@ -2,12 +2,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { callAI } from "../lib/ai";
 import { aiFetch } from "../lib/aiFetch";
 import { authFetch } from "../lib/authFetch";
-import { getEmbedHeaders, getGroqKey, getUserApiKey } from "../lib/aiSettings";
+import { getEmbedHeaders } from "../lib/aiSettings";
 import { PROMPTS } from "../config/prompts";
+import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import type { Entry } from "../types";
-
-const MIN_VOICE_BLOB_BYTES = 1000;
-const VOICE_RECORDER_CHUNK_MS = 1000;
 
 interface ParsedEntry {
   title: string;
@@ -47,9 +45,12 @@ export default function CaptureSheet({
   const [visible, setVisible] = useState(false);
 
   // Voice
-  const [listening, setListening] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const { listening, startVoice, resetListening } = useVoiceRecorder({
+    onTranscript: (t) => setText((prev) => (prev ? `${prev} ${t}` : t)),
+    onStatus: setStatus,
+    onError: setErrorDetail,
+    onLoading: setLoading,
+  });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -73,9 +74,9 @@ export default function CaptureSheet({
       setPreview(null);
       setPreviewTitle("");
       setPreviewTags("");
-      setListening(false);
+      resetListening();
     }
-  }, [isOpen]);
+  }, [isOpen, resetListening]);
 
   useEffect(() => {
     if (preview) requestAnimationFrame(() => titleInputRef.current?.focus());
@@ -376,111 +377,6 @@ export default function CaptureSheet({
     setLoading(false);
     setStatus(null);
   };
-
-  // ── Voice ──
-  const stopRecording = useCallback(() => {
-    mediaRecorderRef.current?.stop();
-  }, []);
-
-  const startVoice = useCallback(async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      stopRecording();
-      return;
-    }
-
-    const groqKey = getGroqKey();
-    const openAIKey = getUserApiKey();
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      let mimeType = "audio/mp4";
-      if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus"))
-        mimeType = "audio/webm;codecs=opus";
-      else if (MediaRecorder.isTypeSupported("audio/webm")) mimeType = "audio/webm";
-      else if (MediaRecorder.isTypeSupported("audio/mp4")) mimeType = "audio/mp4";
-
-      const recorder = new MediaRecorder(
-        stream,
-        mimeType !== "audio/mp4" ? { mimeType } : undefined,
-      );
-      audioChunksRef.current = [];
-      mediaRecorderRef.current = recorder;
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setListening(false);
-        const actualMime = recorder.mimeType || mimeType;
-        const blob = new Blob(audioChunksRef.current, { type: actualMime });
-        audioChunksRef.current = [];
-        mediaRecorderRef.current = null;
-        if (blob.size < MIN_VOICE_BLOB_BYTES) return;
-
-        setLoading(true);
-        setStatus("transcribing");
-        setErrorDetail(null);
-        try {
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve((reader.result as string).split(",")[1]);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          const headers: Record<string, string> = { "Content-Type": "application/json" };
-          if (groqKey) headers["X-Groq-Api-Key"] = groqKey;
-          if (openAIKey) headers["X-User-Api-Key"] = openAIKey;
-          const transcribeRes = await authFetch("/api/transcribe", {
-            method: "POST",
-            headers,
-            body: JSON.stringify({ audio: base64, mimeType: actualMime, language: "en" }),
-          });
-          if (transcribeRes.ok) {
-            const {
-              text: t,
-              audioBytes,
-              provider: txProvider,
-              model: txModel,
-            } = await transcribeRes.json();
-            if (t?.trim()) setText((prev) => (prev ? `${prev} ${t.trim()}` : t.trim()));
-            if (audioBytes) {
-              import("../lib/usageTracker")
-                .then((m) => {
-                  m.recordUsage({
-                    date: new Date().toISOString().slice(0, 10),
-                    type: "transcription",
-                    provider: txProvider || "groq",
-                    model: txModel || "whisper-large-v3-turbo",
-                    audioBytes,
-                  });
-                })
-                .catch((err) =>
-                  console.error("[CaptureSheet] recordUsage (transcription) failed", err),
-                );
-            }
-          } else {
-            const errBody = await transcribeRes.text().catch(() => "");
-            setErrorDetail(`[transcribe] HTTP ${transcribeRes.status} — ${errBody}`);
-          }
-        } catch (e: any) {
-          setErrorDetail(`[transcribe] ${e?.message || String(e)}`);
-        }
-        setLoading(false);
-        setStatus(null);
-      };
-
-      recorder.start(VOICE_RECORDER_CHUNK_MS);
-      setListening(true);
-    } catch (e: any) {
-      if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
-        setErrorDetail("[voice] Microphone permission denied");
-      } else {
-        setErrorDetail(`[voice] ${e?.message || String(e)}`);
-      }
-    }
-  }, [stopRecording]);
 
   // Keep mounted so CSS transition plays; hide from a11y when closed
   if (!isOpen && !visible) return null;
