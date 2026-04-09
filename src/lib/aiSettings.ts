@@ -261,18 +261,16 @@ export async function loadUserAISettings(userId: string): Promise<void> {
 // ── Simple mode free model constants ──
 export const SIMPLE_AI_MODEL = "google/gemma-4-31b-it:free";
 export const SIMPLE_AI_FALLBACKS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "openrouter/free",              // auto-selects any live free model
+  "google/gemini-2.0-flash-001",  // cheap paid — ultimate fallback
 ];
 
 export const SIMPLE_EMBED_MODEL = "nvidia/llama-nemotron-embed-vl-1b-v2:free";
 
 export const SIMPLE_VOICE_MODEL = "google/gemma-4-31b-it:free";
 export const SIMPLE_VOICE_FALLBACKS = [
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "deepseek/deepseek-chat-v3-0324:free",
-  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "openrouter/free",              // auto-selects any live free model
+  "google/gemini-2.0-flash-001",  // cheap paid — ultimate fallback
 ];
 
 // ── Embedding settings ──

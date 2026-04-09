@@ -119,7 +119,8 @@ export async function callAI({
   const modelsToTry = [model, ...simpleFallbacks];
 
   const isFallbackableError = (status: number, body: unknown): boolean => {
-    if (status === 429) return true; // provider rate limit — try next model
+    if (status === 429) return true; // provider rate limit
+    if (status === 404) return true; // no endpoints / model not found
     const msg: string =
       (body as any)?.error?.message || (body as any)?.error || (body as any)?.message || "";
     return /no endpoint|no provider|model not found|invalid model/i.test(msg);
