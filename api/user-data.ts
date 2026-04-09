@@ -110,17 +110,46 @@ async function handleHealth(req: ApiRequest, res: ApiResponse): Promise<void> {
   const user: any = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
+  const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+  const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
+
+  // Test DB
+  let db = false;
   try {
-    const response = await fetch(`${SB_URL}/rest/v1/entries?select=id&limit=1`, {
-      headers: {
-        "apikey": SB_KEY!,
-        "Authorization": `Bearer ${SB_KEY}`,
-      },
+    const r = await fetch(`${SB_URL}/rest/v1/entries?select=id&limit=1`, {
+      headers: { "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}` },
     });
-    res.status(response.ok ? 200 : 502).json({ ok: response.ok });
-  } catch {
-    res.status(500).json({ ok: false });
+    db = r.ok;
+  } catch { db = false; }
+
+  // Test Gemini — minimal generateContent call
+  let gemini = false;
+  if (GEMINI_API_KEY) {
+    try {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
+          body: JSON.stringify({ model: "gemma-4-31b-it", max_tokens: 1, messages: [{ role: "user", content: "hi" }] }),
+        }
+      );
+      gemini = r.ok;
+    } catch { gemini = false; }
   }
+
+  // Test Groq — list models (lightweight key validation)
+  let groq = false;
+  if (GROQ_API_KEY) {
+    try {
+      const r = await fetch("https://api.groq.com/openai/v1/models", {
+        headers: { "Authorization": `Bearer ${GROQ_API_KEY}` },
+      });
+      groq = r.ok;
+    } catch { groq = false; }
+  }
+
+  res.status(200).json({ db, gemini, groq });
 }
 
 // ── /api/vault (rewritten to /api/user-data?resource=vault) ──
