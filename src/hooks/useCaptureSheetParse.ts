@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { callAI } from "../lib/ai";
-import { aiFetch } from "../lib/aiFetch";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders, isAIConfigured } from "../lib/aiSettings";
 import { extractTextFromFile } from "../lib/fileExtract";
@@ -240,7 +239,7 @@ export function useCaptureSheetParse({
     [preview, previewTitle, previewTags, previewType, doSave],
   );
 
-  // Extract text from image via Anthropic vision — stores as uploaded file chip
+  // Extract text from image via configured AI model — stores as uploaded file chip
   const handleImageFile = useCallback(
     async (file: File) => {
       if (!file) return;
@@ -252,32 +251,9 @@ export function useCaptureSheetParse({
       setStatus("reading");
       setErrorDetail(null);
       try {
-        const base64 = await new Promise<string>((res, rej) => {
-          const r = new FileReader();
-          r.onload = () => res((r.result as string).split(",")[1]);
-          r.onerror = rej;
-          r.readAsDataURL(file);
-        });
-        const apiRes = await aiFetch("/api/anthropic", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            max_tokens: 600,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-                  { type: "text", text: "Extract all text from this image. Output just the extracted content, clean and readable. If it's a business card, document, label, or receipt — preserve structure. No commentary." },
-                ],
-              },
-            ],
-          }),
-        });
-        const data = await apiRes.json();
-        const extracted = data.content?.[0]?.text?.trim() || "";
-        if (extracted) {
-          setUploadedFiles((prev) => [...prev, { name: file.name, content: extracted }]);
+        const extracted = await extractTextFromFile(file);
+        if (extracted.trim()) {
+          setUploadedFiles((prev) => [...prev, { name: file.name, content: extracted.trim() }]);
         } else {
           setErrorDetail("[image] No text extracted");
         }

@@ -1,19 +1,37 @@
-// All heavy libs loaded lazily so a failure in one doesn't break others
+import { authFetch } from "./authFetch";
+import { getUserProvider, getUserModel, getUserApiKey, getOpenRouterKey, getOpenRouterModel } from "./aiSettings";
 
-async function extractPdf(buffer: ArrayBuffer): Promise<string> {
-  const [pdfjsLib, { default: workerUrl }] = await Promise.all([
-    import("pdfjs-dist"),
-    import("./pdfWorkerUrl"),
-  ]);
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl as string;
-  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
-  const pages: string[] = [];
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    pages.push(content.items.map((it: any) => it.str).join(" "));
-  }
-  return pages.join("\n\n");
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res((r.result as string).split(",")[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+function getAIHeaders(): Record<string, string> {
+  const provider = getUserProvider();
+  const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
+  const model = provider === "openrouter" ? (getOpenRouterModel() || "") : getUserModel();
+  return {
+    "x-user-api-key": apiKey || "",
+    "x-provider": provider || "openrouter",
+    "x-model": model,
+  };
+}
+
+async function extractViaAI(file: File): Promise<string> {
+  await new Promise((r) => setTimeout(r, 0));
+  const fileData = await fileToBase64(file);
+  const res = await authFetch("/api/extract-file", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAIHeaders() },
+    body: JSON.stringify({ filename: file.name, fileData, mimeType: file.type || "application/octet-stream" }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data.text || "";
 }
 
 async function extractDocx(buffer: ArrayBuffer): Promise<string> {
@@ -34,13 +52,16 @@ async function extractExcel(buffer: ArrayBuffer): Promise<string> {
 }
 
 export async function extractTextFromFile(file: File): Promise<string> {
-  // Yield so React can flush loading state before blocking work
-  await new Promise((r) => setTimeout(r, 0));
-
   const name = file.name.toLowerCase();
+
+  // PDF and images → AI model
+  if (name.endsWith(".pdf") || file.type.startsWith("image/")) {
+    return extractViaAI(file);
+  }
+
+  await new Promise((r) => setTimeout(r, 0));
   const buffer = await file.arrayBuffer();
 
-  if (name.endsWith(".pdf")) return extractPdf(buffer);
   if (name.endsWith(".docx")) return extractDocx(buffer);
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) return extractExcel(buffer);
   return new TextDecoder().decode(buffer);
