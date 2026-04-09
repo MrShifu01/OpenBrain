@@ -1,6 +1,7 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useState, useCallback } from "react";
 import { getDecisionCount } from "../lib/learningEngine";
 import { useRefineAnalysis } from "../hooks/useRefineAnalysis";
+import { authFetch } from "../lib/authFetch";
 import { TC } from "../data/constants";
 import type { Entry, Brain } from "../types";
 
@@ -105,6 +106,39 @@ export default function RefineView({
   brains: _brains,
   onSwitchBrain: _onSwitchBrain,
 }: RefineViewProps) {
+  const [embedLoading, setEmbedLoading] = useState(false);
+  const [embedProgress, setEmbedProgress] = useState<{ processed: number; failed: number; remaining: number } | null>(null);
+
+  const embedBrain = useCallback(async (force: boolean) => {
+    if (!activeBrain?.id || embedLoading) return;
+    setEmbedLoading(true);
+    setEmbedProgress({ processed: 0, failed: 0, remaining: 0 });
+    let totalProcessed = 0;
+    let totalFailed = 0;
+    let remaining = 1;
+    while (remaining > 0) {
+      try {
+        const res = await authFetch("/api/embed", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Embed-Provider": "google",
+            "X-Embed-Key": "",
+          },
+          body: JSON.stringify({ brain_id: activeBrain.id, batch: true, force }),
+        });
+        const data = await res.json();
+        if (!res.ok) { console.error("[embed]", data); break; }
+        totalProcessed += data.processed ?? 0;
+        totalFailed += data.failed ?? 0;
+        remaining = data.remaining ?? 0;
+        setEmbedProgress({ processed: totalProcessed, failed: totalFailed, remaining });
+        if ((data.processed ?? 0) === 0) break; // no progress, stop
+      } catch (err) { console.error("[embed]", err); break; }
+    }
+    setEmbedLoading(false);
+  }, [activeBrain, embedLoading]);
+
   const {
     loading,
     suggestions,
@@ -223,6 +257,56 @@ export default function RefineView({
       >
         {loading ? "Analyzing…" : suggestions === null ? "✶ Analyze my brain" : "✶ Re-analyze"}
       </button>
+
+      {/* Embed buttons */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => embedBrain(false)}
+          disabled={embedLoading || !activeBrain}
+          className="flex-1 rounded-xl py-2.5 text-xs font-semibold tracking-wide transition-all"
+          style={{
+            background: embedLoading ? "var(--color-surface-container-high)" : "var(--color-secondary-container)",
+            color: embedLoading ? "var(--color-on-surface-variant)" : "var(--color-on-secondary-container)",
+            border: "none",
+            cursor: embedLoading || !activeBrain ? "not-allowed" : "pointer",
+            opacity: embedLoading || !activeBrain ? 0.6 : 1,
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}
+        >
+          {embedLoading ? "Embedding…" : "◈ Embed new"}
+        </button>
+        <button
+          onClick={() => embedBrain(true)}
+          disabled={embedLoading || !activeBrain}
+          className="flex-1 rounded-xl py-2.5 text-xs font-semibold tracking-wide transition-all"
+          style={{
+            background: embedLoading ? "var(--color-surface-container-high)" : "var(--color-surface-container-high)",
+            color: embedLoading ? "var(--color-on-surface-variant)" : "var(--color-on-surface-variant)",
+            border: "1px solid var(--color-outline-variant)",
+            cursor: embedLoading || !activeBrain ? "not-allowed" : "pointer",
+            opacity: embedLoading || !activeBrain ? 0.6 : 1,
+            fontFamily: "'DM Sans', system-ui, sans-serif",
+          }}
+        >
+          Re-embed all
+        </button>
+      </div>
+
+      {/* Embed progress */}
+      {embedProgress !== null && (
+        <div
+          className="rounded-xl px-4 py-3 text-xs"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+            color: "var(--color-on-surface-variant)",
+          }}
+        >
+          {embedLoading
+            ? `Embedding… ${embedProgress.processed} done${embedProgress.remaining > 0 ? `, ${embedProgress.remaining} remaining` : ""}${embedProgress.failed > 0 ? `, ${embedProgress.failed} failed` : ""}`
+            : `Done — ${embedProgress.processed} embedded${embedProgress.failed > 0 ? `, ${embedProgress.failed} failed` : ""}${embedProgress.remaining > 0 ? ` (${embedProgress.remaining} still pending)` : ""}`}
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
