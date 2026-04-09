@@ -92,17 +92,19 @@ export default function DetailModal({
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `You are a classifier. Output ONLY a single word — one of: ${types.join(", ")}. No punctuation, no explanation.`,
-          messages: [{ role: "user", content: `Classify: Title: ${editTitle}. Content: ${(editContent || "").slice(0, 200)}` }],
-          max_tokens: 15,
+          system: `You are a classifier. Output ONLY a single word from this list: ${types.join(", ")}.`,
+          messages: [{ role: "user", content: `Title: ${editTitle}\nContent: ${(editContent || "").slice(0, 200)}` }],
+          max_tokens: 50,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z]/g, " ");
+        const full = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
+        console.log("[suggestType] raw:", full);
+        const raw = full.replace(/[^a-z]/g, " ");
         const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
         if (match) setEditType(match);
-        else setAiError(`No match (got: "${raw.slice(0, 30)}")`);
+        else setAiError(`No match (got: "${full.slice(0, 40)}")`);
       } else {
         const errData = await res.json().catch(() => ({}));
         const msg = (errData as any)?.error || `HTTP ${res.status}`;

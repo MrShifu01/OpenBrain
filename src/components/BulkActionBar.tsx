@@ -48,17 +48,19 @@ export default function BulkActionBar({ selectedIds, entries: _entries, brains, 
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-api-key": apiKey || "", "x-provider": provider, "x-model": model },
         body: JSON.stringify({
-          system: `You are a classifier. Output ONLY a single word — one of: ${types.join(", ")}. No punctuation, no explanation.`,
+          system: `You are a classifier. Output ONLY a single word from this list: ${types.join(", ")}.`,
           messages: [{ role: "user", content: `Classify these entries:\n${sample}` }],
-          max_tokens: 15,
+          max_tokens: 50,
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        const raw = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase().replace(/[^a-z]/g, " ");
+        const full = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
+        console.log("[bulkSuggestType] raw:", full);
+        const raw = full.replace(/[^a-z]/g, " ");
         const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
         if (match) setTargetType(match);
-        else console.warn("[bulkSuggestType] no match, got:", raw);
+        else console.warn("[bulkSuggestType] no match, got:", full);
       } else {
         const errData = await res.json().catch(() => ({}));
         console.error("[bulkSuggestType]", res.status, errData);
