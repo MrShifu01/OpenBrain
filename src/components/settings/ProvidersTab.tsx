@@ -1,5 +1,14 @@
 import { useState } from "react";
 import { authFetch } from "../../lib/authFetch";
+import {
+  clearAISettingsCache,
+  persistKeyToDb,
+  getUserApiKey,
+  getOpenRouterKey,
+  getGroqKey,
+  getGeminiKey,
+  getEmbedOpenAIKey,
+} from "../../lib/aiSettings";
 
 type Status = "idle" | "loading" | "ok" | "fail";
 
@@ -59,6 +68,22 @@ export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
     { title: "Database",   desc: "Supabase", status: db },
   ];
 
+  const hasStoredKeys = !!(getUserApiKey() || getOpenRouterKey() || getGroqKey() || getGeminiKey() || getEmbedOpenAIKey());
+  const [clearing, setClearing] = useState(false);
+  const [clearMsg, setClearMsg] = useState<string | null>(null);
+
+  async function clearAllKeys() {
+    setClearing(true);
+    setClearMsg(null);
+    const { error } = await persistKeyToDb({
+      api_key: null, openrouter_key: null, groq_key: null,
+      embed_openai_key: null, gemini_key: null,
+    });
+    clearAISettingsCache();
+    setClearMsg(error ? `Error: ${error}` : "All frontend API keys removed.");
+    setClearing(false);
+  }
+
   return (
     <div className="space-y-4 px-1">
       <div className="flex items-center justify-between">
@@ -95,6 +120,34 @@ export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Clear stored frontend keys */}
+      <div
+        className="rounded-xl p-4 space-y-3"
+        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+      >
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Frontend API keys</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
+            {hasStoredKeys ? "Keys stored from previous configuration — no longer needed." : "No frontend keys stored."}
+          </p>
+        </div>
+        {hasStoredKeys && (
+          <button
+            onClick={clearAllKeys}
+            disabled={clearing}
+            className="w-full rounded-xl py-2 text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: "var(--color-error-container)", color: "var(--color-on-error-container)" }}
+          >
+            {clearing ? "Clearing…" : "Remove all stored keys"}
+          </button>
+        )}
+        {clearMsg && (
+          <p className="text-xs text-center" style={{ color: clearMsg.startsWith("Error") ? "var(--color-error)" : "var(--color-primary)" }}>
+            {clearMsg}
+          </p>
+        )}
       </div>
     </div>
   );
