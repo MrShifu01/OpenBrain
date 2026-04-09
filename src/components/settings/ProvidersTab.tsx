@@ -217,6 +217,13 @@ export default function ProvidersTab({ activeBrain }: Props) {
     }
   };
 
+  const removeOrKey = async () => {
+    setOpenRouterKey(null);
+    setOrKey("");
+    setEditingOrKey(true);
+    await persistKeyToDb({ openrouter_key: null });
+  };
+
   const saveOrKey = async () => {
     setOpenRouterKey(orKey || null);
     setByoProvider("openrouter");
@@ -421,30 +428,43 @@ export default function ProvidersTab({ activeBrain }: Props) {
               </a>
             </p>
           </div>
-          <div className="flex gap-2">
-            <input
-              type="password"
-              value={orKey}
-              onChange={(e) => { setOrKey(e.target.value); setEditingOrKey(true); }}
-              placeholder="sk-or-…"
-              className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
-              style={{
-                background: "var(--color-surface)",
-                borderColor: "var(--color-outline-variant)",
-                color: "var(--color-on-surface)",
-              }}
-            />
-            <button
-              onClick={saveOrKey}
-              disabled={!orKey.trim()}
-              className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40"
-              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-            >
-              {keySaveStatus === "saved" ? "Saved ✓" : keySaveStatus === "saving" ? "…" : "Save"}
-            </button>
-          </div>
-          {keySaveStatus === "error" && (
-            <p className="text-xs" style={{ color: "var(--color-error)" }}>Failed to save — check connection.</p>
+          {orKey && !editingOrKey ? (
+            <div className="flex items-center justify-between rounded-xl border px-3 py-2.5" style={{ borderColor: "var(--color-outline-variant)", background: "var(--color-surface)" }}>
+              <div className="flex items-center gap-2">
+                <svg className="h-4 w-4 flex-shrink-0" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--color-primary)" }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 10.5l4.5 4.5 7.5-8" />
+                </svg>
+                <span className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>Key loaded</span>
+                <span className="font-mono text-xs" style={{ color: "var(--color-on-surface-variant)" }}>{orKey.slice(0, 8)}···</span>
+              </div>
+              <div className="flex gap-1.5">
+                <button onClick={() => setEditingOrKey(true)} className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}>
+                  Change
+                </button>
+                <button onClick={removeOrKey} className="rounded-lg border px-2.5 py-1 text-xs transition-colors hover:bg-white/5" style={{ color: "var(--color-error)", borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)" }}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={orKey}
+                  onChange={(e) => { setOrKey(e.target.value); setEditingOrKey(true); }}
+                  placeholder="sk-or-…"
+                  className="flex-1 rounded-xl border px-3 py-2 text-sm outline-none"
+                  style={{ background: "var(--color-surface)", borderColor: "var(--color-outline-variant)", color: "var(--color-on-surface)" }}
+                />
+                <button onClick={saveOrKey} disabled={!orKey.trim()} className="rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-40" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}>
+                  {keySaveStatus === "saved" ? "Saved ✓" : keySaveStatus === "saving" ? "…" : "Save"}
+                </button>
+              </div>
+              {keySaveStatus === "error" && (
+                <p className="text-xs" style={{ color: "var(--color-error)" }}>Failed to save — check connection.</p>
+              )}
+            </>
           )}
 
           {/* Auto-configured free models + test buttons */}
@@ -467,7 +487,7 @@ export default function ProvidersTab({ activeBrain }: Props) {
               },
               {
                 label: "Voice",
-                sub: "Gemma 4 27B A4B",
+                sub: "Gemma 3 27B IT",
                 status: simpleVoiceStatus,
                 onTest: () => testSimpleModel(SIMPLE_VOICE_MODEL, setSimpleVoiceStatus),
               },
@@ -613,12 +633,16 @@ export default function ProvidersTab({ activeBrain }: Props) {
                     <button
                       onClick={() => setEditingOrKey(true)}
                       className="rounded-lg border px-2 py-1 text-[10px] transition-colors hover:bg-white/5"
-                      style={{
-                        color: "var(--color-on-surface-variant)",
-                        borderColor: "var(--color-outline-variant)",
-                      }}
+                      style={{ color: "var(--color-on-surface-variant)", borderColor: "var(--color-outline-variant)" }}
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={removeOrKey}
+                      className="rounded-lg border px-2 py-1 text-[10px] transition-colors hover:bg-white/5"
+                      style={{ color: "var(--color-error)", borderColor: "color-mix(in oklch, var(--color-error) 30%, transparent)" }}
+                    >
+                      Remove
                     </button>
                   </div>
                 </div>
