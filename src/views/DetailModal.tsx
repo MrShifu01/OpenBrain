@@ -67,7 +67,7 @@ export default function DetailModal({
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiMsg, setAiMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -81,7 +81,7 @@ export default function DetailModal({
 
   async function suggestType() {
     setAiTyping(true);
-    setAiError(null);
+    setAiMsg(null);
     try {
       const provider = getUserProvider();
       const apiKey = provider === "openrouter" ? getOpenRouterKey() : getUserApiKey();
@@ -99,20 +99,23 @@ export default function DetailModal({
       });
       if (res.ok) {
         const data = await res.json();
+        const usedModel: string = data.model || "unknown model";
         const full = (data.content?.[0]?.text || data.choices?.[0]?.message?.content || "").trim().toLowerCase();
-        console.log("[suggestType] raw:", full);
         const raw = full.replace(/[^a-z]/g, " ");
         const match = types.find(t => new RegExp(`\\b${t}\\b`).test(raw));
-        if (match) setEditType(match);
-        else setAiError(`"${full.slice(0, 60)}"`);      } else {
+        if (match) {
+          setEditType(match);
+          setAiMsg({ text: `✓ ${match} · ${usedModel}`, ok: true });
+        } else {
+          setAiMsg({ text: `No match · raw: "${full.slice(0, 50)}"`, ok: false });
+        }
+      } else {
         const errData = await res.json().catch(() => ({}));
         const msg = (errData as any)?.error || `HTTP ${res.status}`;
-        setAiError(msg);
-        console.error("[suggestType]", res.status, errData);
+        setAiMsg({ text: msg, ok: false });
       }
     } catch (err: any) {
-      setAiError(err?.message || "Request failed");
-      console.error("[suggestType]", err);
+      setAiMsg({ text: err?.message || "Request failed", ok: false });
     }
     setAiTyping(false);
   }
@@ -546,8 +549,8 @@ export default function DetailModal({
                     Type
                   </label>
                   <div className="flex items-center gap-1.5">
-                    {aiError && (
-                      <span className="max-w-[180px] truncate text-[9px]" style={{ color: "var(--color-error)" }}>{aiError}</span>
+                    {aiMsg && (
+                      <span className="max-w-[200px] truncate text-[9px]" style={{ color: aiMsg.ok ? "var(--color-primary)" : "var(--color-error)" }} title={aiMsg.text}>{aiMsg.text}</span>
                     )}
                     <button
                       type="button"
