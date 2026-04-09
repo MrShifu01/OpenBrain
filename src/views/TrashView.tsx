@@ -31,8 +31,8 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
   };
 
   useEffect(() => {
-    load();
-  }, [brainId]); // eslint-disable-line react-hooks/set-state-in-effect
+    load(); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [brainId]);
 
   const restore = async (entry: Entry) => {
     setBusy(entry.id);

@@ -163,8 +163,8 @@ export default function OpenBrain() {
   useEffect(() => {
     if (showOnboarding && brains.length > 0) {
       localStorage.setItem("openbrain_onboarded", "1");
-      setShowOnboarding(false);
-    } // eslint-disable-line react-hooks/set-state-in-effect
+      setShowOnboarding(false); // eslint-disable-line react-hooks/set-state-in-effect
+    }
   }, [brains, showOnboarding]);
   useEffect(() => {
     const h = () => setShowOnboarding(true);
@@ -184,8 +184,8 @@ export default function OpenBrain() {
     return () => clearTimeout(t);
   }, [searchInput]);
   useEffect(() => {
-    if (activeBrain?.id) setTypeIcons(getTypeIcons(activeBrain.id));
-  }, [activeBrain?.id]); // eslint-disable-line react-hooks/set-state-in-effect
+    if (activeBrain?.id) setTypeIcons(getTypeIcons(activeBrain.id)); // eslint-disable-line react-hooks/set-state-in-effect
+  }, [activeBrain?.id]);
   useEffect(() => {
     if (!activeBrain?.id) return;
     setEntriesLoaded(false); // eslint-disable-line react-hooks/set-state-in-effect

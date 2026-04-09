@@ -86,7 +86,6 @@ export default function RefineView({
 
   /* ── Analyze: entry quality + link discovery in parallel ── */
   const analyze = useCallback(async () => {
-    // eslint-disable-line react-hooks/preserve-manual-memoization
     if (loading) return;
     setLoading(true);
     setSuggestions(null);
@@ -253,7 +252,7 @@ export default function RefineView({
 
     setSuggestions([...entrySuggestions, ...linkSuggestions]);
     setLoading(false);
-  }, [loading, entries, links]);
+  }, [loading, entries, links, activeBrain]);
 
   /* ── Accept an entry-quality suggestion ── */
   const applyEntry = useCallback(
@@ -414,7 +413,6 @@ export default function RefineView({
     [addLinks],
   );
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const reject = useCallback(
     (key: string, s?: RefineSuggestion) => {
       setDismissed((p) => new Set(p).add(key));
@@ -436,7 +434,7 @@ export default function RefineView({
         });
       }
     },
-    [activeBrain?.id],
+    [activeBrain],
   );
 
   const keyOf = (s: RefineSuggestion): string =>
