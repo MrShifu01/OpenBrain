@@ -11,6 +11,7 @@ interface CaptureSheetProps {
   brainId?: string;
   cryptoKey?: CryptoKey | null;
   isOnline?: boolean;
+  onBackgroundFiles?: (files: File[]) => void;
 }
 
 export default function CaptureSheet({
@@ -19,6 +20,7 @@ export default function CaptureSheet({
   onCreated,
   brainId,
   isOnline = true,
+  onBackgroundFiles,
 }: CaptureSheetProps) {
   const [text, setText] = useState("");
 
@@ -225,7 +227,9 @@ export default function CaptureSheet({
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) handleImageFile(f);
+            if (!f) return;
+            if (onBackgroundFiles) { onBackgroundFiles([f]); onClose(); }
+            else handleImageFile(f);
           }}
         />
         <input
@@ -237,7 +241,9 @@ export default function CaptureSheet({
           onChange={(e) => {
             const f = e.target.files?.[0];
             e.target.value = "";
-            if (f) handleImageFile(f);
+            if (!f) return;
+            if (onBackgroundFiles) { onBackgroundFiles([f]); onClose(); }
+            else handleImageFile(f);
           }}
         />
         <input
@@ -249,7 +255,9 @@ export default function CaptureSheet({
           onChange={(e) => {
             const files = Array.from(e.target.files ?? []);
             e.target.value = "";
-            if (files.length) handleDocFiles(files).catch((err) => console.error("[docInput]", err));
+            if (!files.length) return;
+            if (onBackgroundFiles) { onBackgroundFiles(files); onClose(); }
+            else handleDocFiles(files).catch((err) => console.error("[docInput]", err));
           }}
         />
 

@@ -25,6 +25,8 @@ import { EntriesContext } from "./context/EntriesContext";
 import { BrainContext } from "./context/BrainContext";
 import { UndoToast } from "./components/UndoToast";
 import { NudgeBanner } from "./components/NudgeBanner";
+import { BackgroundTaskToast } from "./components/BackgroundTaskToast";
+import { useBackgroundCapture } from "./hooks/useBackgroundCapture";
 import { VirtualGrid, VirtualTimeline } from "./components/EntryList";
 import BrainSwitcher from "./components/BrainSwitcher";
 import BulkActionBar from "./components/BulkActionBar";
@@ -250,6 +252,8 @@ export default function OpenBrain() {
     refreshCount,
     cryptoKey,
   });
+
+  const { tasks: bgTasks, processFiles: bgProcessFiles, dismissTask: bgDismissTask, dismissAll: bgDismissAll } = useBackgroundCapture();
 
   useEffect(() => {
     const flush = () => commitPendingDelete();
@@ -690,6 +694,12 @@ export default function OpenBrain() {
                 />
               )}
 
+              <BackgroundTaskToast
+                tasks={bgTasks}
+                onDismiss={bgDismissTask}
+                onDismissAll={bgDismissAll}
+              />
+
               {saveError && (
                 <div
                   className="fixed top-4 right-4 z-[100] flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3"
@@ -809,6 +819,7 @@ export default function OpenBrain() {
                 onCreated={handleCreated}
                 brainId={activeBrain?.id}
                 isOnline={isOnline}
+                onBackgroundFiles={(files) => bgProcessFiles(files, activeBrain?.id, handleCreated)}
               />
               <MobileMoreMenu
                 isOpen={navOpen}
