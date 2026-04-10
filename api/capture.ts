@@ -276,7 +276,7 @@ async function handleSaveLinks(req: ApiRequest, res: ApiResponse): Promise<void>
 // ── POST /api/embed (rewritten to /api/capture?action=embed) ──
 export async function handleEmbed(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  if (!(await rateLimit(req, 20))) return res.status(429).json({ error: "Too many requests" });
+  if (!(await rateLimit(req, 120))) return res.status(429).json({ error: "Too many requests" });
 
   const user: any = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
