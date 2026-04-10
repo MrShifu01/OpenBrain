@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { callAI } from "../lib/ai";
 import { PROMPTS } from "../config/prompts";
@@ -151,6 +151,12 @@ export async function checkDeadUrls(entries: Entry[]): Promise<EntrySuggestion[]
 function deltaKey(brainId: string) {
   return `refine_last_scan_${brainId}`;
 }
+function suggestionsKey(brainId: string) {
+  return `refine_suggestions_${brainId}`;
+}
+function dismissedKey(brainId: string) {
+  return `refine_dismissed_${brainId}`;
+}
 
 export function getChangedEntries(entries: Entry[], lastScannedAt: string | null): Entry[] {
   if (!lastScannedAt) return entries;
@@ -249,8 +255,16 @@ export function detectClusters(entries: Entry[], links: RefineLink[]): ClusterIn
 
 function extractJSON(text: string): string {
   const cleaned = text.replace(/```json|```/g, "").trim();
-  const m = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  return m ? m[1] : cleaned;
+  const start = cleaned.search(/[{[]/);
+  if (start === -1) return cleaned;
+  const opener = cleaned[start];
+  const closer = opener === "[" ? "]" : "}";
+  let depth = 0;
+  for (let i = start; i < cleaned.length; i++) {
+    if (cleaned[i] === opener) depth++;
+    else if (cleaned[i] === closer && --depth === 0) return cleaned.slice(start, i + 1);
+  }
+  return cleaned;
 }
 
 // ─── Hook ──────────────────────────────────────────────────────────────────
@@ -270,12 +284,34 @@ export function useRefineAnalysis({
   setEntries,
   addLinks,
 }: UseRefineAnalysisOptions) {
+  const brainId = activeBrain?.id ?? "default";
+
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<RefineSuggestion[] | null>(null);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [suggestions, setSuggestions] = useState<RefineSuggestion[] | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(suggestionsKey(activeBrain?.id ?? "default"));
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try {
+      const raw = sessionStorage.getItem(dismissedKey(activeBrain?.id ?? "default"));
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
   const [applying, setApplying] = useState<Set<string>>(new Set());
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  // Persist suggestions and dismissed across page refreshes
+  useEffect(() => {
+    if (suggestions === null) return;
+    try { sessionStorage.setItem(suggestionsKey(brainId), JSON.stringify(suggestions)); } catch { /* quota */ }
+  }, [suggestions, brainId]);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(dismissedKey(brainId), JSON.stringify([...dismissed])); } catch { /* quota */ }
+  }, [dismissed, brainId]);
 
   const analyze = useCallback(async () => {
     if (loading) return;
@@ -283,8 +319,8 @@ export function useRefineAnalysis({
     setSuggestions(null);
     setDismissed(new Set());
     setEditingKey(null);
+    try { sessionStorage.removeItem(suggestionsKey(brainId)); sessionStorage.removeItem(dismissedKey(brainId)); } catch { /* ignore */ }
 
-    const brainId = activeBrain?.id ?? "default";
     const lastScannedAt = localStorage.getItem(deltaKey(brainId));
     const entriesToAudit = getChangedEntries(entries, lastScannedAt);
 
@@ -309,7 +345,7 @@ export function useRefineAnalysis({
         try {
           const res = await callAI({ task: "refine",
             max_tokens: 1500,
-            system: PROMPTS.ENTRY_AUDIT,
+            system: `Today's date is ${new Date().toISOString().slice(0, 10)}. ${PROMPTS.ENTRY_AUDIT}`,
             brainId: activeBrain?.id,
             messages: [{ role: "user", content: `Review these ${slim.length} entries:\n\n${JSON.stringify(slim)}` }],
           });
@@ -573,7 +609,7 @@ export function useRefineAnalysis({
   const applyEntry = useCallback(
     async (s: EntrySuggestion, override?: string) => {
       const value = override ?? s.suggestedValue;
-      const key = `entry:${s.entryId}:${s.field}`;
+      const key = `entry:${s.entryId}:${s.type}:${s.field}`;
       setApplying((p) => new Set(p).add(key));
 
       if (activeBrain?.id) {

@@ -1,4 +1,4 @@
-import { type ReactNode, useState, useCallback, useEffect } from "react";
+import { type ReactNode, useState, useCallback, useEffect, useRef } from "react";
 import { getDecisionCount } from "../lib/learningEngine";
 import { useRefineAnalysis } from "../hooks/useRefineAnalysis";
 import { authFetch } from "../lib/authFetch";
@@ -114,6 +114,43 @@ function scoreColor(score: number) {
   return "var(--color-error)";
 }
 
+function healthLabel(score: number): string {
+  if (score >= 90) return "Elite";
+  if (score >= 70) return "Strong";
+  if (score >= 40) return "Growing";
+  return "Weak";
+}
+
+interface BrainInsights {
+  strengths: string[];
+  weakAreas: string[];
+}
+
+function deriveInsights(suggestions: any[]): BrainInsights {
+  const counts: Record<string, number> = {};
+  for (const s of suggestions) counts[s.type] = (counts[s.type] ?? 0) + 1;
+
+  const weakAreas: string[] = [];
+  if ((counts.CONTENT_WEAK ?? 0) >= 2) weakAreas.push("Memory depth");
+  if ((counts.ORPHAN_DETECTED ?? 0) >= 2) weakAreas.push("Knowledge connections");
+  if ((counts.TAG_SUGGESTED ?? 0) >= 2) weakAreas.push("Organisation & tagging");
+  if ((counts.STALE_REMINDER ?? 0) >= 1) weakAreas.push("Time management");
+  if ((counts.LINK_SUGGESTED ?? 0) >= 3) weakAreas.push("Relationship mapping");
+  if ((counts.TYPE_MISMATCH ?? 0) >= 2) weakAreas.push("Memory categorisation");
+  if ((counts.TITLE_POOR ?? 0) >= 2) weakAreas.push("Memory clarity");
+  if ((counts.DUPLICATE_ENTRY ?? 0) >= 1 || (counts.MERGE_SUGGESTED ?? 0) >= 1) weakAreas.push("Duplicate entries");
+
+  const strengths: string[] = [];
+  if (!counts.CONTENT_WEAK) strengths.push("Memory detail");
+  if (!counts.ORPHAN_DETECTED) strengths.push("Connected knowledge");
+  if (!counts.TYPE_MISMATCH) strengths.push("Accurate categorisation");
+  if (!counts.SENSITIVE_DATA) strengths.push("Data security");
+  if (!counts.TITLE_POOR) strengths.push("Clear naming");
+  if (!counts.DUPLICATE_ENTRY) strengths.push("Clean records");
+
+  return { strengths: strengths.slice(0, 4), weakAreas };
+}
+
 const ANALYSIS_STEPS = [
   "Mapping your memories…",
   "Finding missing connections…",
@@ -133,6 +170,7 @@ export default function RefineView({
   const [embedLoading, setEmbedLoading] = useState(false);
   const [embedProgress, setEmbedProgress] = useState<{ processed: number; failed: number; remaining: number } | null>(null);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const improvementsRef = useRef<HTMLDivElement>(null);
 
   const embedBrain = useCallback(async (force: boolean) => {
     if (!activeBrain?.id || embedLoading) return;
@@ -190,8 +228,10 @@ export default function RefineView({
   // Compute health score from all suggestions (including dismissed)
   const allSuggestions = suggestions ?? [];
   const healthScore = computeHealthScore(allSuggestions);
-  const gaps = allSuggestions.filter((s) => ["CONTENT_WEAK","ORPHAN_DETECTED","TITLE_POOR","TAG_SUGGESTED","STALE_REMINDER","DEAD_URL"].includes(s.type)).length;
-  const weakConnections = allSuggestions.filter((s) => ["LINK_SUGGESTED","WEAK_LABEL"].includes(s.type)).length;
+  const GAP_TYPES = ["CONTENT_WEAK","ORPHAN_DETECTED","TITLE_POOR","TAG_SUGGESTED","STALE_REMINDER","DEAD_URL"];
+  const gaps = visible.filter((s) => GAP_TYPES.includes(s.type)).length;
+  const weakConnections = visible.filter((s) => ["LINK_SUGGESTED","WEAK_LABEL"].includes(s.type)).length;
+  const insights = suggestions !== null ? deriveInsights(allSuggestions) : null;
 
   // ── Owner gate ──
   if (isSharedBrain && !isOwner) {
@@ -252,11 +292,8 @@ export default function RefineView({
             </button>
           </div>
 
-          {/* Refresh Brain */}
+          {/* Sync Brain */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>
-              Keep Up To Date
-            </p>
             <button
               onClick={() => embedBrain(false)}
               disabled={embedLoading || !activeBrain}
@@ -271,10 +308,10 @@ export default function RefineView({
               <svg className="h-5 w-5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24" style={{ color: "var(--color-primary)" }}><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
               <div className="flex-1">
                 <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
-                  {embedLoading ? "Refreshing…" : "Refresh Brain"}
+                  {embedLoading ? "Syncing…" : "Sync Brain"}
                 </p>
                 <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Strengthen connections between your new memories
+                  Keep connections up to date as you add memories
                 </p>
               </div>
               {embedLoading && (
@@ -287,8 +324,8 @@ export default function RefineView({
             {embedProgress !== null && (
               <p className="px-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 {embedLoading
-                  ? `Refreshing… ${embedProgress.processed} done${embedProgress.remaining > 0 ? `, ${embedProgress.remaining} remaining` : ""}`
-                  : `Done — ${embedProgress.processed} memories refreshed${embedProgress.failed > 0 ? `, ${embedProgress.failed} failed` : ""}`}
+                  ? `Syncing… ${embedProgress.processed} done${embedProgress.remaining > 0 ? `, ${embedProgress.remaining} remaining` : ""}`
+                  : "Refreshed — Connections are now stronger"}
               </p>
             )}
           </div>
@@ -373,55 +410,37 @@ export default function RefineView({
         className="rounded-3xl border px-5 py-5"
         style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
             <div className="text-4xl font-bold" style={{ color: scoreColor(healthScore) }}>
               {healthScore}%
             </div>
-            <div className="mt-0.5 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>Brain Health</div>
+            <div className="mt-0.5 text-sm font-medium" style={{ color: scoreColor(healthScore) }}>
+              {healthLabel(healthScore)}
+            </div>
+            
           </div>
-          <div className="text-right space-y-1">
-            {gaps > 0 && <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}><span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{gaps}</span> gap{gaps !== 1 ? "s" : ""}</div>}
-            {weakConnections > 0 && <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}><span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{weakConnections}</span> weak connection{weakConnections !== 1 ? "s" : ""}</div>}
+          <div className="text-right space-y-1.5">
+            {gaps > 0 && (
+              <button
+                onClick={() => {
+                  const el = improvementsRef.current;
+                  if (!el) return;
+                  const top = el.getBoundingClientRect().top + window.scrollY - 72;
+                  window.scrollTo({ top });
+                }}
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-opacity active:opacity-60"
+                style={{ background: "var(--color-primary-container)", color: "var(--color-primary)", border: "none", cursor: "pointer" }}
+              >
+                <span className="font-bold">{gaps}</span>
+                {" "}gap{gaps !== 1 ? "s" : ""} →
+              </button>
+            )}
+            {weakConnections > 0 && <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}><span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{weakConnections}</span> weak link{weakConnections !== 1 ? "s" : ""}</div>}
             {visible.length > 0 && <div className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}><span className="font-semibold" style={{ color: "var(--color-on-surface)" }}>{visible.length}</span> to review</div>}
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={analyze}
-            className="flex-1 rounded-xl py-2.5 text-sm font-semibold tracking-wide transition-all"
-            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)", border: "none" }}
-          >
-            Improve Now
-          </button>
-          <button
-            onClick={() => embedBrain(false)}
-            disabled={embedLoading || !activeBrain}
-            title="Strengthen connections between your new memories"
-            className="flex items-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-medium transition-all"
-            style={{
-              background: "var(--color-surface-container-high)",
-              color: embedLoading ? "var(--color-on-surface-variant)" : "var(--color-on-surface-variant)",
-              border: "1px solid var(--color-outline-variant)",
-              opacity: embedLoading || !activeBrain ? 0.5 : 1,
-              cursor: embedLoading || !activeBrain ? "not-allowed" : "pointer",
-            }}
-          >
-            {embedLoading
-              ? <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              : <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>}
-            {embedLoading ? "Refreshing…" : "Refresh Brain"}
-          </button>
-        </div>
-
-        {embedProgress !== null && (
-          <p className="mt-2 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            {embedLoading
-              ? `Refreshing… ${embedProgress.processed} done${embedProgress.remaining > 0 ? `, ${embedProgress.remaining} remaining` : ""}`
-              : `Done — ${embedProgress.processed} memories refreshed`}
-          </p>
-        )}
       </div>
 
       {activeBrain?.id && getDecisionCount(activeBrain.id) > 0 && (
@@ -431,30 +450,87 @@ export default function RefineView({
         </div>
       )}
 
-      {/* All clean */}
+      {/* Strengths / Weak Areas */}
+      {insights && (insights.strengths.length > 0 || insights.weakAreas.length > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          {insights.strengths.length > 0 && (
+            <div className="rounded-2xl p-4" style={{ background: "var(--color-surface-container-low)", border: "1px solid var(--color-outline-variant)" }}>
+              <p className="mb-2 text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--color-primary)" }}>Strengths</p>
+              <ul className="space-y-1">
+                {insights.strengths.map((s) => (
+                  <li key={s} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-on-surface)" }}>
+                    <span style={{ color: "var(--color-primary)" }}>•</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {insights.weakAreas.length > 0 && (
+            <div className="rounded-2xl p-4" style={{ background: "var(--color-surface-container-low)", border: "1px solid var(--color-outline-variant)" }}>
+              <p className="mb-2 text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--color-error)" }}>Needs Work</p>
+              <ul className="space-y-1">
+                {insights.weakAreas.map((s) => (
+                  <li key={s} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--color-on-surface)" }}>
+                    <span style={{ color: "var(--color-error)" }}>•</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* No gaps found — forward motion */}
       {noneFound && (
-        <div className="space-y-2 rounded-2xl p-8 text-center" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-3xl" style={{ color: "var(--color-primary)" }}>✓</div>
-          <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>Your brain is in great shape</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>No improvements found — keep adding memories</p>
+        <div className="space-y-4 rounded-2xl p-6 text-center" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
+          <p className="text-base font-semibold" style={{ color: "var(--color-on-surface)" }}>Brain is {healthLabel(healthScore)}</p>
+          <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+            No major gaps found. You can still deepen knowledge and strengthen connections.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={analyze} className="flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)", border: "none" }}>
+              Improve Further
+            </button>
+            <button onClick={() => embedBrain(false)} disabled={embedLoading || !activeBrain} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-all" style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)", opacity: embedLoading || !activeBrain ? 0.5 : 1, cursor: embedLoading || !activeBrain ? "not-allowed" : "pointer" }}>
+              {embedLoading ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>}
+              {embedLoading ? "Syncing…" : "Sync Brain"}
+            </button>
+          </div>
+          {embedProgress !== null && !embedLoading && (
+            <p className="text-xs" style={{ color: "var(--color-primary)" }}>Refreshed — Connections are now stronger</p>
+          )}
         </div>
       )}
 
-      {/* All applied */}
+      {/* All improvements applied — forward motion */}
       {allDone && (
-        <div className="space-y-2 rounded-2xl p-8 text-center" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
-          <div className="text-3xl" style={{ color: "var(--color-secondary)" }}>✶</div>
-          <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>All improvements applied</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Analyze again to find new opportunities</p>
+        <div className="space-y-4 rounded-2xl p-6 text-center" style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}>
+          <p className="text-base font-semibold" style={{ color: "var(--color-on-surface)" }}>Brain is {healthLabel(healthScore)}</p>
+          <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+            No active improvements. You can still improve depth and connections.
+          </p>
+          <div className="flex gap-2">
+            <button onClick={analyze} className="flex-1 rounded-xl py-2.5 text-sm font-semibold transition-all" style={{ background: "var(--color-primary)", color: "var(--color-on-primary)", border: "none" }}>
+              Improve Further
+            </button>
+            <button onClick={() => embedBrain(false)} disabled={embedLoading || !activeBrain} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold transition-all" style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)", opacity: embedLoading || !activeBrain ? 0.5 : 1, cursor: embedLoading || !activeBrain ? "not-allowed" : "pointer" }}>
+              {embedLoading ? <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> : <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>}
+              {embedLoading ? "Syncing…" : "Sync Brain"}
+            </button>
+          </div>
+          {embedProgress !== null && !embedLoading && (
+            <p className="text-xs" style={{ color: "var(--color-primary)" }}>Refreshed — Connections are now stronger</p>
+          )}
         </div>
       )}
 
-      {/* Improvements section label */}
-      {!loading && entryCount > 0 && (
-        <p className="pt-1 text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>
-          Improvements ({entryCount})
-        </p>
-      )}
+      {/* Improvements + suggestion cards */}
+      <div ref={improvementsRef}>
+        {!loading && entryCount > 0 && (
+          <p className="pt-1 pb-1 text-[10px] font-semibold tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>
+            Improvements ({entryCount})
+          </p>
+        )}
 
       {/* Suggestion cards */}
       {visible.map((s) => {
@@ -627,6 +703,7 @@ export default function RefineView({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

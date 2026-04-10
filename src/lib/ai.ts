@@ -1,17 +1,4 @@
 import { authFetch } from "./authFetch";
-import {
-  getUserProvider,
-  getUserModel,
-  getUserApiKey,
-  getOpenRouterKey,
-  getOpenRouterModel,
-  getModelForTask,
-  getSimpleMode,
-  SIMPLE_AI_MODEL,
-  SIMPLE_AI_FALLBACKS,
-  SIMPLE_VOICE_MODEL,
-  SIMPLE_VOICE_FALLBACKS,
-} from "./aiSettings";
 import { buildSystemPrompt } from "./systemPromptBuilder";
 import { recordUsage, extractTokenUsage } from "./usageTracker";
 
@@ -37,129 +24,52 @@ export interface CallAIOptions {
   brainId?: string;
 }
 
-const SUPPORTED_PROVIDERS = ["anthropic", "openai", "openrouter"] as const;
-
-function normalizeMessages(messages: AIMessage[], provider: string): AIMessage[] {
-  if (provider === "anthropic") return messages;
-  return messages.map((msg) => {
-    if (!Array.isArray(msg.content)) return msg;
-    return {
-      ...msg,
-      content: msg.content.map((block) => {
-        if (block.type === "image" && block.source?.type === "base64") {
-          return {
-            type: "image_url",
-            image_url: { url: `data:${block.source.media_type};base64,${block.source.data}` },
-          };
-        }
-        return block;
-      }),
-    };
-  });
-}
 
 export async function callAI({
   messages = [],
   system,
   max_tokens,
   memoryGuide,
-  task,
   brainId,
 }: CallAIOptions = {}): Promise<Response> {
-  const provider = getUserProvider();
-  const safeProvider = (SUPPORTED_PROVIDERS as readonly string[]).includes(provider)
-    ? provider
-    : "anthropic";
-  const endpoint = `/api/llm?provider=${safeProvider}`;
-
-  let model: string;
-  let simpleFallbacks: string[] = [];
-  if (safeProvider === "openrouter") {
-    if (getSimpleMode()) {
-      if (task === "capture") {
-        model = SIMPLE_VOICE_MODEL;
-        simpleFallbacks = SIMPLE_VOICE_FALLBACKS;
-      } else {
-        model = SIMPLE_AI_MODEL;
-        simpleFallbacks = SIMPLE_AI_FALLBACKS;
-      }
-    } else {
-      const taskDefault = task === "refine" ? "google/gemini-2.5-flash-lite" : null;
-      model =
-        (task ? getModelForTask(task) : null) ||
-        taskDefault ||
-        getOpenRouterModel() ||
-        SIMPLE_AI_MODEL;
-    }
-  } else {
-    model = getUserModel();
-  }
-
-  let userKey: string | null;
-  if (safeProvider === "openrouter") {
-    userKey = getOpenRouterKey();
-  } else {
-    userKey = getUserApiKey();
-  }
+  // Always use server-side Gemini — no user key sent so server routes to GEMINI_API_KEY
+  const endpoint = `/api/llm?provider=google`;
+  const model = "gemini-2.5-flash-lite";
 
   const fullSystem = buildSystemPrompt({ base: system, memoryGuide, brainId }) || undefined;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-User-Api-Key": userKey || "",
-  };
-
-  const modelsToTry = [model, ...simpleFallbacks];
-
-  const isFallbackableError = (status: number, body: unknown): boolean => {
-    if (status === 429) return true; // provider rate limit
-    if (status === 404) return true; // no endpoints / model not found
-    const msg: string =
-      (body as any)?.error?.message || (body as any)?.error || (body as any)?.message || "";
-    return /no endpoint|no provider|model not found|invalid model/i.test(msg);
   };
 
   const ATTEMPT_TIMEOUT_MS = 25000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
 
-  let res: Response | undefined;
-  let usedModel = model;
-  for (const m of modelsToTry) {
-    usedModel = m;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
-    try {
-      res = await authFetch(endpoint, {
-        method: "POST",
-        headers,
-        signal: controller.signal,
-        body: JSON.stringify({
-          model: m,
-          messages: normalizeMessages(messages, safeProvider),
-          system: fullSystem,
-          max_tokens,
-        }),
-      });
-    } catch (err: any) {
-      clearTimeout(timer);
-      if (err?.name === "AbortError") {
-        console.warn(`[ai] model ${m} timed out after ${ATTEMPT_TIMEOUT_MS / 1000}s, trying next fallback`);
-        continue; // treat timeout as fallbackable
-      }
-      throw err;
-    }
+  let res: Response;
+  try {
+    res = await authFetch(endpoint, {
+      method: "POST",
+      headers,
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        messages,
+        system: fullSystem,
+        max_tokens,
+      }),
+    });
+  } catch (err: any) {
     clearTimeout(timer);
-    if (res.ok) break;
-    const body = await res.clone().json().catch(() => null);
-    if (!isFallbackableError(res.status, body)) break;
-    console.warn(`[ai] model ${m} failed (${res.status}), trying next fallback`);
+    if (err?.name === "AbortError") {
+      return new Response(
+        JSON.stringify({ error: "Request timed out. Check your connection or try again." }),
+        { status: 504, headers: { "Content-Type": "application/json" } },
+      );
+    }
+    throw err;
   }
-
-  if (!res) {
-    return new Response(
-      JSON.stringify({ error: "All models timed out. Check your connection or try again." }),
-      { status: 504, headers: { "Content-Type": "application/json" } },
-    );
-  }
+  clearTimeout(timer);
 
   if (res.ok) {
     res
@@ -173,8 +83,8 @@ export async function callAI({
             type: "llm",
             inputTokens,
             outputTokens,
-            provider: safeProvider,
-            model: usedModel,
+            provider: "google",
+            model,
           });
         }
       })
