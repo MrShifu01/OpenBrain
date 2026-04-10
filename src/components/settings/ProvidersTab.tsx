@@ -190,7 +190,10 @@ export default function ProvidersTab(props?: { activeBrain?: any }) {
     let totalProcessed = 0;
     let totalFailed = 0;
     let remaining = 1;
+    let batchCount = 0;
     while (remaining > 0) {
+      if (batchCount > 0) await new Promise(r => setTimeout(r, 4000));
+      batchCount++;
       try {
         const res = await authFetch("/api/embed", {
           method: "POST",
