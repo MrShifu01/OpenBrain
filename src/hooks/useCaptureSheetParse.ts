@@ -59,13 +59,17 @@ export function useCaptureSheetParse({
     setUploadedFiles((prev) => prev.filter((f) => f.name !== name));
   }, []);
 
-  // Build combined input: user text + file contents
+  // Build combined input: user text + file contents (truncated to avoid overwhelming the model)
+  const FILE_CONTENT_LIMIT = 6000;
   const buildInput = useCallback(
     (text: string) => {
       const parts: string[] = [];
       if (text.trim()) parts.push(text.trim());
       for (const f of uploadedFiles) {
-        parts.push(`[File: ${f.name}]\n${f.content}`);
+        const content = f.content.length > FILE_CONTENT_LIMIT
+          ? f.content.slice(0, FILE_CONTENT_LIMIT) + "\n…[truncated]"
+          : f.content;
+        parts.push(`[File: ${f.name}]\n${content}`);
       }
       return parts.join("\n\n");
     },
@@ -203,6 +207,9 @@ export function useCaptureSheetParse({
           setPreviewTitle(single.title || "");
           setPreviewTags((single.tags || []).join(", "));
           setPreviewType(single.type || "note");
+          if (!single.title) {
+            setErrorDetail(`AI returned no title · raw: "${aiRawText.slice(0, 200)}"`);
+          }
           setPreview({ ...single, _raw: input });
           return;
         }
