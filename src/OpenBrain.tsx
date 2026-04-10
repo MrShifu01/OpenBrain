@@ -44,7 +44,6 @@ import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
 import type { Brain, Entry } from "./types";
 
-const SuggestionsView = lazy(() => import("./views/SuggestionsView"));
 const RefineView = lazy(() => import("./views/RefineView"));
 const TodoView = lazy(() => import("./views/TodoView"));
 const DetailModal = lazy(() => import("./views/DetailModal"));
@@ -65,7 +64,6 @@ const PHONE_REGEX = /(\+?[0-9]{7,15})/;
 const NAV_VIEWS = [
   { id: "grid", l: "Grid", ic: "▦" },
   { id: "todos", l: "Todos", ic: "✓" },
-  { id: "suggest", l: "Fill Brain", ic: "✦" },
   { id: "refine", l: "Improve Brain", ic: "✦" },
   { id: "chat", l: "Ask", ic: "◈" },
 ];
@@ -537,16 +535,6 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                     )}
                   </div>
                 )}
-                {view === "suggest" && (
-                  <Suspense fallback={<Loader />}>
-                    <SuggestionsView
-                      entries={entries}
-                      setEntries={setEntries}
-                      activeBrain={activeBrain}
-                      brains={brains}
-                    />
-                  </Suspense>
-                )}
                 {view === "refine" && (
                   <Suspense fallback={<Loader />}>
                     <RefineView
@@ -557,6 +545,7 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                       activeBrain={activeBrain}
                       brains={brains}
                       onSwitchBrain={setActiveBrain}
+                      onCapture={() => setShowCapture(true)}
                     />
                   </Suspense>
                 )}

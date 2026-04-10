@@ -64,6 +64,7 @@ export const PRIORITY_WEIGHTS: Record<string, number> = {
   TITLE_POOR: 2,
   ORPHAN_DETECTED: 2,
   SPLIT_SUGGESTED: 2,
+  GAP_DETECTED: 1,
   URL_FOUND: 1,
   WEAK_LABEL: 1,
 };
@@ -90,7 +91,7 @@ export function detectOrphans(
       field: "tags",
       currentValue: "",
       suggestedValue: "",
-      reason: "No links and no tags — invisible in graph",
+      reason: "No links and no tags — Accept to auto-generate tags",
     }));
 }
 
@@ -156,6 +157,9 @@ function suggestionsKey(brainId: string) {
 }
 function dismissedKey(brainId: string) {
   return `refine_dismissed_${brainId}`;
+}
+function acceptedKey(brainId: string) {
+  return `refine_accepted_${brainId}`;
 }
 
 export function getChangedEntries(entries: Entry[], lastScannedAt: string | null): Entry[] {
@@ -299,6 +303,12 @@ export function useRefineAnalysis({
       return raw ? new Set(JSON.parse(raw)) : new Set();
     } catch { return new Set(); }
   });
+  const [accepted, setAccepted] = useState<Set<string>>(() => {
+    try {
+      const raw = sessionStorage.getItem(acceptedKey(activeBrain?.id ?? "default"));
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
   const [applying, setApplying] = useState<Set<string>>(new Set());
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -313,13 +323,18 @@ export function useRefineAnalysis({
     try { sessionStorage.setItem(dismissedKey(brainId), JSON.stringify([...dismissed])); } catch { /* quota */ }
   }, [dismissed, brainId]);
 
+  useEffect(() => {
+    try { sessionStorage.setItem(acceptedKey(brainId), JSON.stringify([...accepted])); } catch { /* quota */ }
+  }, [accepted, brainId]);
+
   const analyze = useCallback(async () => {
     if (loading) return;
     setLoading(true);
     setSuggestions(null);
     setDismissed(new Set());
+    setAccepted(new Set());
     setEditingKey(null);
-    try { sessionStorage.removeItem(suggestionsKey(brainId)); sessionStorage.removeItem(dismissedKey(brainId)); } catch { /* ignore */ }
+    try { sessionStorage.removeItem(suggestionsKey(brainId)); sessionStorage.removeItem(dismissedKey(brainId)); sessionStorage.removeItem(acceptedKey(brainId)); } catch { /* ignore */ }
 
     const lastScannedAt = localStorage.getItem(deltaKey(brainId));
     const entriesToAudit = getChangedEntries(entries, lastScannedAt);
@@ -332,32 +347,32 @@ export function useRefineAnalysis({
     const batches = [];
     for (let i = 0; i < entriesToAudit.length; i += BATCH) batches.push(entriesToAudit.slice(i, i + BATCH));
 
-    await Promise.all(
-      batches.map(async (batch) => {
-        const slim = batch.map((e: Entry) => ({
-          id: e.id,
-          title: e.title,
-          content: (e.content || "").slice(0, 400),
-          type: e.type,
-          metadata: e.metadata || {},
-          tags: e.tags || [],
-        }));
+    for (let bi = 0; bi < batches.length; bi++) {
+      if (bi > 0) await new Promise((r) => setTimeout(r, 500));
+      const batch = batches[bi];
+      const slim = batch.map((e: Entry) => ({
+        id: e.id,
+        title: e.title,
+        content: (e.content || "").slice(0, 400),
+        type: e.type,
+        metadata: e.metadata || {},
+        tags: e.tags || [],
+      }));
+      try {
+        const res = await callAI({ task: "refine",
+          max_tokens: 1500,
+          system: `Today's date is ${new Date().toISOString().slice(0, 10)}. ${PROMPTS.ENTRY_AUDIT}`,
+          brainId: activeBrain?.id,
+          messages: [{ role: "user", content: `Review these ${slim.length} entries:\n\n${JSON.stringify(slim)}` }],
+        });
+        const data = await res.json();
+        const raw = extractJSON(data.content?.[0]?.text || "[]");
         try {
-          const res = await callAI({ task: "refine",
-            max_tokens: 1500,
-            system: `Today's date is ${new Date().toISOString().slice(0, 10)}. ${PROMPTS.ENTRY_AUDIT}`,
-            brainId: activeBrain?.id,
-            messages: [{ role: "user", content: `Review these ${slim.length} entries:\n\n${JSON.stringify(slim)}` }],
-          });
-          const data = await res.json();
-          const raw = extractJSON(data.content?.[0]?.text || "[]");
-          try {
-            const p = JSON.parse(raw);
-            if (Array.isArray(p)) entrySuggestions.push(...p);
-          } catch (err) { console.error("[useRefineAnalysis]", err); }
+          const p = JSON.parse(raw);
+          if (Array.isArray(p)) entrySuggestions.push(...p);
         } catch (err) { console.error("[useRefineAnalysis]", err); }
-      }),
-    );
+      } catch (err) { console.error("[useRefineAnalysis]", err); }
+    }
 
     // Link discovery (always full set)
     let linkSuggestions: RefineSuggestion[] = [];
@@ -384,47 +399,47 @@ export function useRefineAnalysis({
       for (let i = 0; i < similarityPairs.length; i += PAIR_BATCH)
         pairBatches.push(similarityPairs.slice(i, i + PAIR_BATCH));
 
-      await Promise.all(
-        pairBatches.map(async (batch: RefineLink[]) => {
-          const candidates = batch
-            .map((l: RefineLink) => {
-              const a = entryMap[l.from], b = entryMap[l.to];
-              if (!a || !b) return null;
-              return {
-                fromId: a.id, fromTitle: a.title, fromType: a.type,
-                fromContent: (a.content || "").slice(0, 200), fromTags: (a.tags || []).slice(0, 6),
-                toId: b.id, toTitle: b.title, toType: b.type,
-                toContent: (b.content || "").slice(0, 200), toTags: (b.tags || []).slice(0, 6),
-              };
-            })
-            .filter(Boolean);
-          if (candidates.length === 0) return;
+      for (let pi = 0; pi < pairBatches.length; pi++) {
+        if (pi > 0) await new Promise((r) => setTimeout(r, 500));
+        const batch = pairBatches[pi];
+        const candidates = batch
+          .map((l: RefineLink) => {
+            const a = entryMap[l.from], b = entryMap[l.to];
+            if (!a || !b) return null;
+            return {
+              fromId: a.id, fromTitle: a.title, fromType: a.type,
+              fromContent: (a.content || "").slice(0, 200), fromTags: (a.tags || []).slice(0, 6),
+              toId: b.id, toTitle: b.title, toType: b.type,
+              toContent: (b.content || "").slice(0, 200), toTags: (b.tags || []).slice(0, 6),
+            };
+          })
+          .filter(Boolean);
+        if (candidates.length === 0) continue;
+        try {
+          const res = await callAI({ task: "refine",
+            max_tokens: 1200,
+            system: PROMPTS.LINK_DISCOVERY_PAIRS,
+            brainId: activeBrain?.id,
+            messages: [{ role: "user", content: `CANDIDATE PAIRS:\n${JSON.stringify(candidates)}` }],
+          });
+          const data = await res.json();
+          const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
           try {
-            const res = await callAI({ task: "refine",
-              max_tokens: 1200,
-              system: PROMPTS.LINK_DISCOVERY_PAIRS,
-              brainId: activeBrain?.id,
-              messages: [{ role: "user", content: `CANDIDATE PAIRS:\n${JSON.stringify(candidates)}` }],
-            });
-            const data = await res.json();
-            const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
-            try {
-              const p = JSON.parse(raw);
-              if (Array.isArray(p)) {
-                linkSuggestions.push(
-                  ...p
-                    .filter((l: any) =>
-                      l.fromId && l.toId &&
-                      !existingLinkKeys.has(`${l.fromId}-${l.toId}`) &&
-                      !existingLinkKeys.has(`${l.toId}-${l.fromId}`),
-                    )
-                    .map((l: any) => ({ ...l, type: "LINK_SUGGESTED" as const })),
-                );
-              }
-            } catch (err) { console.error("[useRefineAnalysis]", err); }
+            const p = JSON.parse(raw);
+            if (Array.isArray(p)) {
+              linkSuggestions.push(
+                ...p
+                  .filter((l: any) =>
+                    l.fromId && l.toId &&
+                    !existingLinkKeys.has(`${l.fromId}-${l.toId}`) &&
+                    !existingLinkKeys.has(`${l.toId}-${l.fromId}`),
+                  )
+                  .map((l: any) => ({ ...l, type: "LINK_SUGGESTED" as const })),
+              );
+            }
           } catch (err) { console.error("[useRefineAnalysis]", err); }
-        }),
-      );
+        } catch (err) { console.error("[useRefineAnalysis]", err); }
+      }
     } else {
       try {
         const slim = entries.slice(0, 60).map((e: Entry) => ({
@@ -591,6 +606,43 @@ export function useRefineAnalysis({
     const staleSuggestions = detectStaleReminders(entries);
     const deadUrlSuggestions = await checkDeadUrls(entries);
 
+    // Gap detection: AI identifies what's missing from this brain
+    let gapSuggestions: EntrySuggestion[] = [];
+    try {
+      const ctx = entries
+        .slice(0, 40)
+        .map((e: Entry) => `- [${e.type}] ${e.title}: ${(e.content || "").slice(0, 120)}`)
+        .join("\n");
+      const brainType = activeBrain?.type || "personal";
+      const brainContext =
+        brainType === "family"
+          ? "family shared knowledge base (household, family members, emergencies, finances)"
+          : brainType === "business"
+            ? "business knowledge base (suppliers, staff, SOPs, costs, licences, equipment)"
+            : "personal knowledge base";
+      const gapRes = await callAI({
+        task: "refine",
+        max_tokens: 600,
+        system: `You are auditing a ${brainContext} called OpenBrain for completeness gaps. Based on the entries provided, identify 2-3 important categories of information that are clearly missing. For each gap, write a specific question the user should answer to fill it.\n\nReturn ONLY a valid JSON array:\n[{"q":"specific question","cat":"category name","p":"high"|"medium"}]\n\nRules:\n- Only suggest gaps that are clearly important for this brain type\n- Be specific, not generic (e.g. "Who is your emergency contact?" not "Add more contacts")\n- Maximum 3 gaps\n- If the brain looks comprehensive, return []`,
+        brainId: activeBrain?.id,
+        messages: [{ role: "user", content: `Existing entries (${entries.length} total):\n${ctx || "(none yet)"}` }],
+      });
+      const gapData = await gapRes.json();
+      const gapRaw = extractJSON(gapData.content?.[0]?.text || "[]");
+      const gapParsed = JSON.parse(gapRaw);
+      if (Array.isArray(gapParsed)) {
+        gapSuggestions = gapParsed.slice(0, 3).map((g: any, i: number) => ({
+          type: "GAP_DETECTED",
+          entryId: `gap-${i}-${Date.now()}`,
+          entryTitle: g.cat || "Missing info",
+          field: "content",
+          currentValue: "",
+          suggestedValue: g.q,
+          reason: g.q,
+        }));
+      }
+    } catch (err) { console.error("[useRefineAnalysis] gap detection", err); }
+
     setSuggestions([
       ...entrySuggestions,
       ...linkSuggestions,
@@ -600,6 +652,7 @@ export function useRefineAnalysis({
       ...orphanSuggestions,
       ...staleSuggestions,
       ...deadUrlSuggestions,
+      ...gapSuggestions,
     ]);
 
     localStorage.setItem(deltaKey(brainId), new Date().toISOString());
@@ -626,6 +679,38 @@ export function useRefineAnalysis({
         return;
       }
 
+      // ORPHAN_DETECTED: auto-generate tags with AI before applying
+      if (s.type === "ORPHAN_DETECTED") {
+        try {
+          const res = await callAI({
+            task: "refine",
+            max_tokens: 200,
+            system: `You are a knowledge base organizer. Given an entry, suggest 2-4 short, useful tags that would help categorize and find it later. Return ONLY a valid JSON array of tag strings, e.g. ["health","supplements"]. No markdown, no explanation.`,
+            brainId: activeBrain?.id,
+            messages: [{ role: "user", content: `Entry title: ${entry.title}\nEntry content: ${entry.content || "(empty)"}\nEntry type: ${entry.type}` }],
+          });
+          const data = await res.json();
+          const raw = extractJSON(data.content?.[0]?.text || "[]");
+          const tags = JSON.parse(raw);
+          if (Array.isArray(tags) && tags.length > 0) {
+            const mergedTags = [...new Set([...(entry.tags || []), ...tags.map((t: string) => t.toLowerCase().trim())])];
+            await authFetch("/api/update-entry", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: entry.id, tags: mergedTags }),
+            });
+            setEntries((prev) =>
+              prev.map((e) => (e.id === entry.id ? { ...e, tags: mergedTags } : e)),
+            );
+          }
+        } catch (err) { console.error("[useRefineAnalysis] orphan tag gen", err); }
+        setAccepted((p) => new Set(p).add(key));
+        setDismissed((p) => new Set(p).add(key));
+        setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
+        setEditingKey(null);
+        return;
+      }
+
       if (s.type === "CLUSTER_SUGGESTED") {
         try {
           const parsed = JSON.parse(s.suggestedValue);
@@ -641,6 +726,7 @@ export function useRefineAnalysis({
             }),
           });
         } catch (err) { console.error("[useRefineAnalysis]", err); }
+        setAccepted((p) => new Set(p).add(key));
         setDismissed((p) => new Set(p).add(key));
         setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
         setEditingKey(null);
@@ -658,6 +744,7 @@ export function useRefineAnalysis({
             prev.map((e) => (e.id === entry.id ? { ...e, type: "secret" } : e)),
           );
         } catch (err) { console.error("[useRefineAnalysis]", err); }
+        setAccepted((p) => new Set(p).add(key));
         setDismissed((p) => new Set(p).add(key));
         setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
         setEditingKey(null);
@@ -721,6 +808,7 @@ export function useRefineAnalysis({
         } catch (err) { console.error("[useRefineAnalysis]", err); }
       }
 
+      setAccepted((p) => new Set(p).add(key));
       setDismissed((p) => new Set(p).add(key));
       setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
       setEditingKey(null);
@@ -752,6 +840,7 @@ export function useRefineAnalysis({
         addLinks?.([newLink]);
       } catch (err) { console.error("[useRefineAnalysis]", err); }
 
+      setAccepted((p) => new Set(p).add(key));
       setDismissed((p) => new Set(p).add(key));
       setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
       setEditingKey(null);
@@ -781,6 +870,7 @@ export function useRefineAnalysis({
         });
       } catch (err) { console.error("[useRefineAnalysis]", err); }
 
+      setAccepted((p) => new Set(p).add(key));
       setDismissed((p) => new Set(p).add(key));
       setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
       setEditingKey(null);
@@ -826,6 +916,7 @@ export function useRefineAnalysis({
     loading,
     suggestions,
     dismissed,
+    accepted,
     applying,
     editingKey, setEditingKey,
     editValue, setEditValue,

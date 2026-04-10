@@ -127,7 +127,7 @@ export default function OnboardingChecklist({
             {categories.map(([cat, items]) => (
               <button
                 key={cat}
-                onClick={() => onNavigate("suggest")}
+                onClick={() => onNavigate("refine")}
                 className="hover:border-primary flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-left transition-colors"
                 style={{
                   background: "var(--color-surface-container-high)",
@@ -164,11 +164,11 @@ export default function OnboardingChecklist({
             style={{ borderColor: "var(--color-outline-variant)" }}
           >
             <button
-              onClick={() => onNavigate("suggest")}
+              onClick={() => onNavigate("refine")}
               className="flex-1 rounded-xl py-2 text-xs font-bold transition-colors"
               style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
-              Fill Brain →
+              Improve Brain →
             </button>
             <button
               onClick={dismissAll}

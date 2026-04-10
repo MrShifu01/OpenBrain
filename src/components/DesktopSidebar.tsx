@@ -12,7 +12,6 @@ interface NavView {
 const NAV_ICONS: Record<string, ReactNode> = {
   capture: NavIcon.capture,
   grid: NavIcon.grid,
-  suggest: NavIcon.suggest,
   refine: NavIcon.refine,
   todos: NavIcon.todos,
   timeline: NavIcon.timeline,

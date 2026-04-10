@@ -51,6 +51,7 @@ interface RefineViewProps {
   activeBrain: Brain | null;
   brains: Brain[];
   onSwitchBrain?: (brain: Brain) => void;
+  onCapture?: () => void;
 }
 
 /* ─── Suggestion type metadata ─── */
@@ -67,6 +68,7 @@ function SvgTag() { return <svg className="inline h-3 w-3 align-middle" fill="no
 function SvgArrowsLR() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5H21M16.5 3L21 7.5m0 0L16.5 12M21 7.5H3" /></svg>; }
 function SvgLock() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>; }
 function SvgCluster() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>; }
+function SvgLightbulb() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" /></svg>; }
 
 const LABELS: Record<string, { label: string; icon: ReactNode; variant: string }> = {
   TYPE_MISMATCH:     { label: "Miscategorised",         icon: <SvgRefresh />,   variant: "neutral" },
@@ -87,6 +89,7 @@ const LABELS: Record<string, { label: string; icon: ReactNode; variant: string }
   WEAK_LABEL:        { label: "Strengthen connection",   icon: <SvgArrowsLR />,  variant: "neutral" },
   DUPLICATE_ENTRY:   { label: "Possible duplicate",      icon: <SvgArrows />,    variant: "primary" },
   CLUSTER_SUGGESTED: { label: "Group into hub",          icon: <SvgCluster />,   variant: "primary" },
+  GAP_DETECTED:      { label: "Missing info",            icon: <SvgLightbulb />, variant: "primary" },
 };
 
 function labelColors(variant: string) {
@@ -98,13 +101,17 @@ function labelColors(variant: string) {
 const SCORE_WEIGHTS: Record<string, number> = {
   SENSITIVE_DATA: 7, MERGE_SUGGESTED: 7, DUPLICATE_ENTRY: 7, TYPE_MISMATCH: 7,
   CONTENT_WEAK: 5, ORPHAN_DETECTED: 5, TITLE_POOR: 5, TAG_SUGGESTED: 5, STALE_REMINDER: 5, DEAD_URL: 5,
-  WEAK_LABEL: 3, LINK_SUGGESTED: 3,
+  WEAK_LABEL: 3, LINK_SUGGESTED: 3, GAP_DETECTED: 3,
   URL_FOUND: 2, DATE_FOUND: 2, PHONE_FOUND: 2, EMAIL_FOUND: 2, SPLIT_SUGGESTED: 2, CLUSTER_SUGGESTED: 2,
 };
 
-function computeHealthScore(allSuggestions: any[]): number {
+function computeHealthScore(allSuggestions: any[], entryCount?: number): number {
   let score = 100;
   for (const s of allSuggestions) score -= (SCORE_WEIGHTS[s.type] ?? 2);
+  // Completeness penalty: brains with very few entries can't be "Elite"
+  if (typeof entryCount === "number" && entryCount < 10) {
+    score -= (10 - entryCount) * 2; // -2 per missing entry below 10
+  }
   return Math.max(35, Math.min(100, score));
 }
 
@@ -139,6 +146,7 @@ function deriveInsights(suggestions: any[]): BrainInsights {
   if ((counts.TYPE_MISMATCH ?? 0) >= 2) weakAreas.push("Memory categorisation");
   if ((counts.TITLE_POOR ?? 0) >= 2) weakAreas.push("Memory clarity");
   if ((counts.DUPLICATE_ENTRY ?? 0) >= 1 || (counts.MERGE_SUGGESTED ?? 0) >= 1) weakAreas.push("Duplicate entries");
+  if ((counts.GAP_DETECTED ?? 0) >= 1) weakAreas.push("Brain completeness");
 
   const strengths: string[] = [];
   if (!counts.CONTENT_WEAK) strengths.push("Memory detail");
@@ -166,6 +174,7 @@ export default function RefineView({
   activeBrain,
   brains: _brains,
   onSwitchBrain: _onSwitchBrain,
+  onCapture,
 }: RefineViewProps) {
   const [embedLoading, setEmbedLoading] = useState(false);
   const [embedProgress, setEmbedProgress] = useState<{ processed: number; failed: number; remaining: number } | null>(null);
@@ -202,6 +211,7 @@ export default function RefineView({
     loading,
     suggestions,
     dismissed,
+    accepted,
     applying,
     editingKey, setEditingKey,
     editValue, setEditValue,
@@ -225,13 +235,14 @@ export default function RefineView({
   const isOwner = !activeBrain || activeBrain.myRole === "owner";
   const brainEmoji = activeBrain?.type === "business" ? "🏪" : activeBrain?.type === "family" ? "🏠" : "🧠";
 
-  // Compute health score from all suggestions (including dismissed)
+  // Health score: accepted fixes improve it, skipped items still count against you
   const allSuggestions = suggestions ?? [];
-  const healthScore = computeHealthScore(allSuggestions);
-  const GAP_TYPES = ["CONTENT_WEAK","ORPHAN_DETECTED","TITLE_POOR","TAG_SUGGESTED","STALE_REMINDER","DEAD_URL"];
+  const unfixedSuggestions = allSuggestions.filter((s) => !accepted.has(keyOf(s)));
+  const healthScore = computeHealthScore(unfixedSuggestions, entries.length);
+  const GAP_TYPES = ["CONTENT_WEAK","ORPHAN_DETECTED","TITLE_POOR","TAG_SUGGESTED","STALE_REMINDER","DEAD_URL","GAP_DETECTED"];
   const gaps = visible.filter((s) => GAP_TYPES.includes(s.type)).length;
   const weakConnections = visible.filter((s) => ["LINK_SUGGESTED","WEAK_LABEL"].includes(s.type)).length;
-  const insights = suggestions !== null ? deriveInsights(allSuggestions) : null;
+  const insights = suggestions !== null ? deriveInsights(unfixedSuggestions) : null;
 
   // ── Owner gate ──
   if (isSharedBrain && !isOwner) {
@@ -623,80 +634,98 @@ export default function RefineView({
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">
-                      {(TC as Record<string, any>)[entries.find((e) => e.id === es.entryId)?.type || "note"]?.i || "📝"}
-                    </span>
-                    <span className="flex-1 truncate text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
-                      {es.entryTitle || entries.find((e) => e.id === es.entryId)?.title || es.entryId}
-                    </span>
-                    <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: metaBg, color: metaText }}>
-                      {meta.icon} {meta.label}
-                    </span>
-                  </div>
-                  {(() => {
-                    // Resolve UUID suggestedValue to a human-readable label
-                    let displaySuggested = es.suggestedValue;
-                    if ((es.type === "MERGE_SUGGESTED" || es.type === "DUPLICATE_ENTRY") && es.suggestedValue) {
-                      const target = entries.find((e) => e.id === es.suggestedValue);
-                      displaySuggested = target ? `Merge with "${target.title}"` : "Merge with duplicate";
-                    } else if (!es.suggestedValue) {
-                      const EMPTY_LABELS: Record<string, string> = {
-                        ORPHAN_DETECTED: "Add tags or link to other memories",
-                        STALE_REMINDER: "Update or remove this reminder",
-                        DEAD_URL: "Remove or replace this link",
-                        SENSITIVE_DATA: "Move to Vault for safe keeping",
-                        CLUSTER_SUGGESTED: "Create a hub memory for this group",
-                      };
-                      displaySuggested = EMPTY_LABELS[es.type] ?? "See reason below";
-                    }
-                    return (
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>Current</div>
-                          <div className="rounded-lg px-2.5 py-1.5 text-xs break-words" style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
-                            {es.currentValue || <em style={{ color: "var(--color-on-surface-variant)" }}>empty</em>}
-                          </div>
-                        </div>
-                        <span className="mt-5 flex-shrink-0 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>→</span>
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>Suggested</div>
-                          <div className="rounded-lg px-2.5 py-1.5 text-xs break-words" style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}>
-                            {displaySuggested}
-                          </div>
-                        </div>
+                  {es.type === "GAP_DETECTED" ? (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: metaBg, color: metaText }}>
+                          {meta.icon} {meta.label}
+                        </span>
+                        <span className="text-[10px] uppercase tracking-widest" style={{ color: "var(--color-on-surface-variant)" }}>{es.entryTitle}</span>
                       </div>
-                    );
-                  })()}
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{es.reason}</p>
-                  {isEdit && (
-                    <input
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && editValue.trim()) applyEntry(es, editValue.trim());
-                        if (e.key === "Escape") setEditingKey(null);
-                      }}
-                      maxLength={50}
-                      className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                      style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary)", color: "var(--color-on-surface)" }}
-                    />
-                  )}
-                  <div className="flex items-center gap-2 pt-1">
-                    {isEdit ? (
-                      <>
-                        <button onClick={() => setEditingKey(null)} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>Cancel</button>
-                        <button onClick={() => editValue.trim() && applyEntry(es, editValue.trim())} disabled={!editValue.trim() || busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: !editValue.trim() || busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: !editValue.trim() || busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: !editValue.trim() || busy ? 0.5 : 1 }}>Apply</button>
-                      </>
-                    ) : (
-                      <>
+                      <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>{es.suggestedValue}</p>
+                      <div className="flex items-center gap-2 pt-1">
                         <button onClick={() => reject(key, s)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-error)", opacity: busy ? 0.5 : 1 }}>✗ Skip</button>
-                        <button onClick={() => { setEditingKey(key); setEditValue(es.suggestedValue); }} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)", opacity: busy ? 0.5 : 1 }}>✎ Edit</button>
-                        <button onClick={() => applyEntry(es)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: busy ? 0.5 : 1 }}>{busy ? "Saving…" : "✓ Accept"}</button>
-                      </>
-                    )}
-                  </div>
+                        <button onClick={() => { reject(key, s); onCapture?.(); }} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: busy ? 0.5 : 1 }}>+ Add Memory</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">
+                          {(TC as Record<string, any>)[entries.find((e) => e.id === es.entryId)?.type || "note"]?.i || "📝"}
+                        </span>
+                        <span className="flex-1 truncate text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
+                          {es.entryTitle || entries.find((e) => e.id === es.entryId)?.title || es.entryId}
+                        </span>
+                        <span className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium" style={{ background: metaBg, color: metaText }}>
+                          {meta.icon} {meta.label}
+                        </span>
+                      </div>
+                      {(() => {
+                        // Resolve UUID suggestedValue to a human-readable label
+                        let displaySuggested = es.suggestedValue;
+                        if ((es.type === "MERGE_SUGGESTED" || es.type === "DUPLICATE_ENTRY") && es.suggestedValue) {
+                          const target = entries.find((e) => e.id === es.suggestedValue);
+                          displaySuggested = target ? `Merge with "${target.title}"` : "Merge with duplicate";
+                        } else if (!es.suggestedValue) {
+                          const EMPTY_LABELS: Record<string, string> = {
+                            ORPHAN_DETECTED: "Auto-generate tags with AI",
+                            STALE_REMINDER: "Update or remove this reminder",
+                            DEAD_URL: "Remove or replace this link",
+                            SENSITIVE_DATA: "Move to Vault for safe keeping",
+                            CLUSTER_SUGGESTED: "Create a hub memory for this group",
+                          };
+                          displaySuggested = EMPTY_LABELS[es.type] ?? "See reason below";
+                        }
+                        return (
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>Current</div>
+                              <div className="rounded-lg px-2.5 py-1.5 text-xs break-words" style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}>
+                                {es.currentValue || <em style={{ color: "var(--color-on-surface-variant)" }}>empty</em>}
+                              </div>
+                            </div>
+                            <span className="mt-5 flex-shrink-0 text-sm" style={{ color: "var(--color-on-surface-variant)" }}>→</span>
+                            <div className="min-w-0 flex-1">
+                              <div className="mb-1 text-[10px] tracking-widest uppercase" style={{ color: "var(--color-on-surface-variant)" }}>Suggested</div>
+                              <div className="rounded-lg px-2.5 py-1.5 text-xs break-words" style={{ background: "var(--color-primary-container)", color: "var(--color-primary)" }}>
+                                {displaySuggested}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <p className="text-xs leading-relaxed" style={{ color: "var(--color-on-surface-variant)" }}>{es.reason}</p>
+                      {isEdit && (
+                        <input
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && editValue.trim()) applyEntry(es, editValue.trim());
+                            if (e.key === "Escape") setEditingKey(null);
+                          }}
+                          maxLength={50}
+                          className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+                          style={{ background: "var(--color-surface)", border: "1px solid var(--color-primary)", color: "var(--color-on-surface)" }}
+                        />
+                      )}
+                      <div className="flex items-center gap-2 pt-1">
+                        {isEdit ? (
+                          <>
+                            <button onClick={() => setEditingKey(null)} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)" }}>Cancel</button>
+                            <button onClick={() => editValue.trim() && applyEntry(es, editValue.trim())} disabled={!editValue.trim() || busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: !editValue.trim() || busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: !editValue.trim() || busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: !editValue.trim() || busy ? 0.5 : 1 }}>Apply</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => reject(key, s)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-error)", opacity: busy ? 0.5 : 1 }}>✗ Skip</button>
+                            <button onClick={() => { setEditingKey(key); setEditValue(es.suggestedValue); }} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-medium transition-all" style={{ background: "transparent", border: "1px solid var(--color-outline-variant)", color: "var(--color-on-surface-variant)", opacity: busy ? 0.5 : 1 }}>✎ Edit</button>
+                            <button onClick={() => applyEntry(es)} disabled={busy} className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold transition-all" style={{ background: busy ? "var(--color-surface-container-highest)" : "var(--color-primary)", color: busy ? "var(--color-on-surface-variant)" : "var(--color-on-primary)", border: "none", opacity: busy ? 0.5 : 1 }}>{busy ? "Saving…" : "✓ Accept"}</button>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>

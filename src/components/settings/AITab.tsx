@@ -109,8 +109,7 @@ export default function AITab() {
         {(
           [
             ["Entry capture", "capture"],
-            ["Fill Brain questions", "questions"],
-            ["Refine collection", "refine"],
+            ["Improve Brain", "refine"],
             ["Brain chat", "chat"],
             ["Image reading", "vision"],
           ] as [string, string][]

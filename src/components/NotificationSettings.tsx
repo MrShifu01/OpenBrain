@@ -304,15 +304,15 @@ export default function NotificationSettings(): JSX.Element {
             )}
           </div>
 
-          {/* Fill Brain nudge */}
+          {/* Brain health nudge */}
           <div className={cardClasses}>
             <div
               className={`flex items-center justify-between ${prefs.nudge_enabled ? "mb-3" : ""}`}
             >
               <div>
-                <p className={labelClasses}>Fill Brain Nudge</p>
+                <p className={labelClasses}>Improve Brain Nudge</p>
                 <p className="text-ob-text-dim m-0 text-[11px]">
-                  Weekly reminder to answer questions in Fill Brain.
+                  Weekly reminder to improve your brain health.
                 </p>
               </div>
               <button

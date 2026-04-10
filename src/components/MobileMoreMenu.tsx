@@ -10,7 +10,6 @@ interface MobileMoreMenuProps {
 const SIDEBAR_ITEMS = [
   { id: "grid", label: "Memory Grid", icon: NavIcon.grid },
   { id: "chat", label: "Ask Brain", icon: NavIcon.chat },
-  { id: "suggest", label: "Fill Brain", icon: NavIcon.suggest },
   { id: "refine", label: "Improve Brain", icon: NavIcon.refine },
   { id: "vault", label: "Vault", icon: NavIcon.vault },
   { id: "settings", label: "Settings", icon: NavIcon.settings },
