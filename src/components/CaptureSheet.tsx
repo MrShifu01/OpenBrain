@@ -527,6 +527,11 @@ export default function CaptureSheet({
 
         {preview && (
           <div className="space-y-3">
+            {errorDetail && (
+              <p className="font-mono text-xs break-all" style={{ color: "var(--color-error)" }}>
+                {errorDetail}
+              </p>
+            )}
             <div>
               <label className="text-on-surface-variant mb-1.5 block text-xs font-medium">
                 Title

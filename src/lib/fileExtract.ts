@@ -36,6 +36,22 @@ async function extractViaAI(file: File): Promise<string> {
   return data.text || "";
 }
 
+async function extractPDF(buffer: ArrayBuffer): Promise<string> {
+  const mod = await import("pdfjs-dist");
+  const pdfjsLib = (mod as any).default ?? mod;
+  // Disable worker (runs synchronously in main thread — fine for small-medium PDFs)
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items.map((item: any) => item.str).join(" ");
+    if (text.trim()) pages.push(text.trim());
+  }
+  return pages.join("\n\n");
+}
+
 async function extractDocx(buffer: ArrayBuffer): Promise<string> {
   const mod = await import("mammoth");
   const mammoth = (mod as any).default ?? mod;
@@ -57,11 +73,12 @@ export async function extractTextFromFile(file: File): Promise<string> {
   await new Promise((r) => setTimeout(r, 0));
   const name = file.name.toLowerCase();
 
-  if (name.endsWith(".pdf") || file.type.startsWith("image/")) {
+  if (file.type.startsWith("image/")) {
     return extractViaAI(file);
   }
 
   const buffer = await file.arrayBuffer();
+  if (name.endsWith(".pdf") || file.type === "application/pdf") return extractPDF(buffer);
   if (name.endsWith(".docx")) return extractDocx(buffer);
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) return extractExcel(buffer);
   return new TextDecoder().decode(buffer);
