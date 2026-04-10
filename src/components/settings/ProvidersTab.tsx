@@ -41,6 +41,9 @@ export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
   const [db, setDb] = useState<Status>("idle");
   const [testing, setTesting] = useState(false);
 
+  const [llmTesting, setLlmTesting] = useState(false);
+  const [llmResult, setLlmResult] = useState<{ ok: boolean; text: string } | null>(null);
+
   async function runTests() {
     setTesting(true);
     setGemini("loading");
@@ -61,6 +64,33 @@ export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
       setGemini("fail"); setGroq("fail"); setDb("fail");
     }
     setTesting(false);
+  }
+
+  async function testLLM() {
+    setLlmTesting(true);
+    setLlmResult(null);
+    try {
+      const res = await authFetch("/api/openrouter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-api-key": "" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: "Reply with exactly: WORKING" }],
+          max_tokens: 10,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const text = data.content?.[0]?.text || data.choices?.[0]?.message?.content || "(empty)";
+        const model = data.model || "unknown";
+        setLlmResult({ ok: true, text: `✓ Model: ${model}\nResponse: "${text}"` });
+      } else {
+        const err = data?.error?.message || data?.error || JSON.stringify(data);
+        setLlmResult({ ok: false, text: `HTTP ${res.status}: ${err}` });
+      }
+    } catch (e: any) {
+      setLlmResult({ ok: false, text: `Network error: ${e?.message}` });
+    }
+    setLlmTesting(false);
   }
 
   const cards: { title: string; desc: string; status: Status }[] = [
@@ -121,6 +151,32 @@ export default function ProvidersTab(_props?: { activeBrain?: unknown }) {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Direct LLM pipeline test */}
+      <div
+        className="rounded-xl p-4 space-y-3"
+        style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+      >
+        <div>
+          <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>Live AI test</p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
+            Tests the exact path the AI features use (no key required).
+          </p>
+        </div>
+        <button
+          onClick={testLLM}
+          disabled={llmTesting}
+          className="w-full rounded-xl py-2 text-xs font-semibold transition-all disabled:opacity-50"
+          style={{ background: "var(--color-secondary-container)", color: "var(--color-on-secondary-container)" }}
+        >
+          {llmTesting ? "Calling model…" : "Test AI pipeline"}
+        </button>
+        {llmResult && (
+          <p className="text-xs font-mono break-all whitespace-pre-wrap" style={{ color: llmResult.ok ? "var(--color-primary)" : "var(--color-error)" }}>
+            {llmResult.text}
+          </p>
+        )}
       </div>
 
       {/* Clear stored frontend keys */}
