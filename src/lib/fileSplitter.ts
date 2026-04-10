@@ -56,7 +56,8 @@ export function buildSplitPrompt(content: string, brainType: string): string {
 export function parseAISplitResponse(raw: string): SplitEntry[] {
   try {
     const cleaned = raw.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(cleaned);
+    const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+    const parsed = JSON.parse(jsonMatch ? jsonMatch[1] : cleaned);
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((e: any) => e && typeof e.title === "string" && e.title.trim())
