@@ -324,7 +324,7 @@ export async function handleEmbed(req: ApiRequest, res: ApiResponse): Promise<vo
     const filter = force
       ? `brain_id=eq.${encodeURIComponent(brain_id)}`
       : `brain_id=eq.${encodeURIComponent(brain_id)}&or=(embedded_at.is.null,embedding_provider.neq.${encodeURIComponent(provider)})`;
-    const entriesRes = await fetch(`${SB_URL}/rest/v1/entries?${filter}&select=id,title,content,tags&limit=5`, { headers: sbHeadersNoContent() });
+    const entriesRes = await fetch(`${SB_URL}/rest/v1/entries?${filter}&select=id,title,content,tags&limit=25`, { headers: sbHeadersNoContent() });
     if (!entriesRes.ok) return res.status(502).json({ error: "Database error" });
     const entries: any[] = await entriesRes.json();
     if (!entries.length) return res.status(200).json({ processed: 0, failed: 0, remaining: 0 });

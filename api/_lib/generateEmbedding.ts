@@ -30,7 +30,7 @@ export async function generateEmbedding(text: string, provider: "openai" | "goog
 export async function generateEmbeddingsBatch(texts: string[], provider: "openai" | "google" | "openrouter", apiKey: string, model?: string): Promise<number[][]> {
   const truncated = texts.map(t => String(t).slice(0, 8000));
   if (provider === "google") {
-    return Promise.all(truncated.map(t => generateGoogleEmbedding(t, apiKey)));
+    return generateGoogleEmbeddingBatch(truncated, apiKey);
   }
   if (provider === "openrouter") {
     const modelId = model || "nvidia/llama-nemotron-embed-vl-1b-v2:free";
@@ -116,4 +116,26 @@ async function generateGoogleEmbedding(text: string, apiKey: string): Promise<nu
     throw new Error(`${GOOGLE_EMBED_MODEL} returned ${values.length} dims, expected 768`);
   }
   return values;
+}
+
+async function generateGoogleEmbeddingBatch(texts: string[], apiKey: string): Promise<number[][]> {
+  const requests = texts.map(text => ({
+    model: `models/${GOOGLE_EMBED_MODEL}`,
+    content: { parts: [{ text }] },
+    outputDimensionality: 768,
+  }));
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_EMBED_MODEL}:batchEmbedContents?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requests }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.text().catch(() => String(res.status));
+    throw new Error(`Google batch embedding error ${res.status}: ${err}`);
+  }
+  const data: any = await res.json();
+  return (data.embeddings || []).map((e: any) => e.values as number[]);
 }
