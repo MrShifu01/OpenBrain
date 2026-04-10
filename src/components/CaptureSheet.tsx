@@ -49,6 +49,7 @@ export default function CaptureSheet({
     uploadedFiles, removeUploadedFile,
     resetState,
     capture,
+    doSave,
     confirmSave,
     handleImageFile,
     handleDocFiles,
@@ -308,7 +309,7 @@ export default function CaptureSheet({
               Before saving
             </h2>
           ) : (
-            <div className="flex flex-1 rounded-xl border overflow-hidden mr-3"
+            <div className="flex flex-1 rounded-xl border overflow-hidden lg:mr-3"
               style={{ borderColor: "var(--color-outline-variant)" }}>
               <button
                 type="button"
@@ -345,7 +346,7 @@ export default function CaptureSheet({
               } else onClose();
             }}
             aria-label={preview ? "Back to capture" : "Close"}
-            className="text-on-surface-variant hover:text-on-surface flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors"
+            className={`text-on-surface-variant hover:text-on-surface h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors ${preview ? "flex" : "hidden lg:flex"}`}
           >
             {preview ? (
               <svg
@@ -378,6 +379,30 @@ export default function CaptureSheet({
         {/* ── Add Secret tab ── */}
         {!preview && activeTab === "secret" && (
           <div className="space-y-3">
+            {!cryptoKey ? (
+              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl text-3xl"
+                  style={{ background: "color-mix(in oklch, var(--color-outline) 15%, transparent)" }}>
+                  🔒
+                </div>
+                <div>
+                  <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
+                    Vault is locked
+                  </p>
+                  <p className="mt-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                    Go to the Vault tab and unlock with your passphrase, then come back to add a secret.
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="mt-1 rounded-xl px-5 py-2 text-sm font-semibold transition-opacity hover:opacity-90"
+                  style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+                >
+                  Go to Vault
+                </button>
+              </div>
+            ) : (
+            <>
             <div className="flex items-center gap-2 rounded-xl px-3 py-2"
               style={{ background: "color-mix(in oklch, var(--color-primary) 8%, transparent)" }}>
               <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
@@ -455,6 +480,8 @@ export default function CaptureSheet({
                 ) : "Save to Vault"}
               </button>
             </div>
+            </>
+            )}
           </div>
         )}
 

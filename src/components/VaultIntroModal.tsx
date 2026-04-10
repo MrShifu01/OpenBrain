@@ -10,7 +10,7 @@ export function VaultIntroModal({ onDismiss }: VaultIntroModalProps) {
       onClick={onDismiss}
     >
       <div
-        className="w-full max-w-sm rounded-t-3xl border p-6 sm:rounded-3xl"
+        className="w-full max-w-sm rounded-t-3xl border px-6 pt-6 pb-24 sm:rounded-3xl sm:p-6 max-h-[90vh] overflow-y-auto"
         style={{
           background: "var(--color-surface)",
           borderColor: "var(--color-outline-variant)",
