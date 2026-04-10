@@ -47,13 +47,16 @@ import type { Brain, Entry } from "./types";
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 function lazyRetry(fn: () => Promise<any>) {
   return lazy(() =>
-    fn().catch(() => {
-      const key = "chunk_reload";
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, "1");
+    fn().then((mod) => {
+      sessionStorage.removeItem("chunk_reload");
+      return mod;
+    }).catch(() => {
+      if (!sessionStorage.getItem("chunk_reload")) {
+        sessionStorage.setItem("chunk_reload", "1");
         window.location.reload();
+        return new Promise(() => {}); // never resolves — page is reloading
       }
-      return fn();
+      return fn(); // second attempt after reload
     })
   );
 }

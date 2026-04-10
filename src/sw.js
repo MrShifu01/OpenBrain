@@ -18,15 +18,9 @@ registerRoute(
   new NetworkFirst({ cacheName: 'js-chunks' })
 );
 
-// SPA navigation fallback to index.html
+// SPA navigation: always fetch fresh index.html, fall back to cache offline
 registerRoute(new NavigationRoute(
-  async ({ event }) => {
-    try {
-      return await fetch(event.request);
-    } catch {
-      return caches.match('/index.html');
-    }
-  }
+  new NetworkFirst({ cacheName: 'html-nav', networkTimeoutSeconds: 3 })
 ));
 
 // ── Push event: show notification ──
