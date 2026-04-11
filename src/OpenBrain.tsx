@@ -327,8 +327,8 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
     [entries, setEntries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate],
   );
   const brainValue = useMemo(
-    () => ({ activeBrain, brains, refresh, canInvite, canManageMembers, deleteBrain }),
-    [activeBrain, brains, refresh, canInvite, canManageMembers, deleteBrain],
+    () => ({ activeBrain, brains, setActiveBrain, refresh, canInvite, canManageMembers, deleteBrain }),
+    [activeBrain, brains, setActiveBrain, refresh, canInvite, canManageMembers, deleteBrain],
   );
 
   if (brainsLoading) return (

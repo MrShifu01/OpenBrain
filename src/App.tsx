@@ -8,6 +8,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
+import UpdateToast from "./components/UpdateToast";
 import type { Session } from "@supabase/supabase-js";
 
 const PENDING_INVITE_KEY = "ob_pending_invite";
@@ -163,6 +164,7 @@ export default function App(): JSX.Element {
             </div>
           )}
           <OpenBrain initialShowCapture={earlyCapture} />
+          <UpdateToast />
         </MemoryProvider>
       </ErrorBoundary>
     </ThemeProvider>

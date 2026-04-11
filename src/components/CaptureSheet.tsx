@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
 import { VaultIntroModal } from "./VaultIntroModal";
+import { BrainTypeIcon } from "./icons/BrainTypeIcon";
+import { useBrain as useBrainCtx } from "../context/BrainContext";
 import { CANONICAL_TYPES } from "../types";
-import type { Entry } from "../types";
+import type { Brain, Entry } from "../types";
 
 const VAULT_INTRO_KEY = "ob_vault_intro_seen";
 
@@ -35,6 +37,13 @@ export default function CaptureSheet({
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState("");
   const [showVaultIntro, setShowVaultIntro] = useState(false);
+  const [brainPickerOpen, setBrainPickerOpen] = useState(false);
+
+  const brainCtx = useBrainCtx() ?? {};
+  const ctxBrains: Brain[] = brainCtx.brains ?? [];
+  const ctxActiveBrain: Brain | null = brainCtx.activeBrain ?? null;
+  const setActiveBrain: ((b: Brain) => void) | undefined = brainCtx.setActiveBrain;
+  const brainPickerRef = useRef<HTMLDivElement>(null);
 
   // Drag-to-close + entrance animation
   const [dragY, setDragY] = useState(0);
@@ -93,6 +102,22 @@ export default function CaptureSheet({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [typeOpen]);
+
+  useEffect(() => {
+    if (!brainPickerOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (brainPickerRef.current && !brainPickerRef.current.contains(e.target as Node)) {
+        setBrainPickerOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [brainPickerOpen]);
+
+  // Close brain picker when the sheet closes
+  useEffect(() => {
+    if (!isOpen) setBrainPickerOpen(false);
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -377,6 +402,87 @@ export default function CaptureSheet({
             )}
           </button>
         </div>
+
+        {/* Brain destination confirmation — prevents accidental saves to the wrong brain */}
+        {!preview && ctxActiveBrain && (
+          <div ref={brainPickerRef} className="relative mb-3">
+            <button
+              type="button"
+              onClick={() => setBrainPickerOpen((o) => !o)}
+              className="press-scale flex w-full items-center gap-2 rounded-xl border px-3 py-2 transition-colors"
+              style={{
+                background: "var(--color-surface-container)",
+                borderColor: "var(--color-outline-variant)",
+              }}
+            >
+              <span
+                className="text-[10px] font-semibold tracking-[0.15em] uppercase"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                Saving to
+              </span>
+              <div
+                className="text-on-surface-variant flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg"
+                style={{ background: "var(--color-surface-container-high)" }}
+              >
+                <BrainTypeIcon type={ctxActiveBrain.type ?? "personal"} className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-on-surface flex-1 truncate text-left text-sm font-semibold">
+                {ctxActiveBrain.name}
+              </span>
+              {ctxBrains.length > 1 && (
+                <svg
+                  className={`text-on-surface-variant h-3.5 w-3.5 flex-shrink-0 transition-transform ${brainPickerOpen ? "rotate-180" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              )}
+            </button>
+            {brainPickerOpen && ctxBrains.length > 1 && (
+              <div
+                className="absolute top-full right-0 left-0 z-50 mt-1.5 overflow-hidden rounded-xl border py-1"
+                style={{
+                  background: "var(--color-surface)",
+                  borderColor: "var(--color-outline-variant)",
+                  boxShadow: "var(--shadow-lg)",
+                  animation: "zoom-in-95 0.15s ease-out",
+                }}
+              >
+                {ctxBrains.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => {
+                      if (setActiveBrain && b.id !== ctxActiveBrain.id) setActiveBrain(b);
+                      setBrainPickerOpen(false);
+                    }}
+                    className="hover:bg-surface-container flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                  >
+                    <span className="text-on-surface-variant flex-shrink-0">
+                      <BrainTypeIcon type={b.type ?? "personal"} className="h-4 w-4" />
+                    </span>
+                    <span className="text-on-surface flex-1 truncate text-sm font-medium">{b.name}</span>
+                    {b.id === ctxActiveBrain.id && (
+                      <svg
+                        className="text-primary h-3.5 w-3.5 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Add Secret tab ── */}
         {!preview && activeTab === "secret" && (

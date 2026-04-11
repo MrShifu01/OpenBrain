@@ -2,8 +2,12 @@ import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { NetworkFirst } from 'workbox-strategies';
 
-// Take control immediately when a new SW version is available
-self.skipWaiting();
+// New SW waits until the user taps "Update" in the toast, which posts
+// { type: 'SKIP_WAITING' }. Then skipWaiting + clients.claim triggers
+// controllerchange in main.tsx which reloads the page with fresh chunks.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 self.addEventListener('activate', () => self.clients.claim());
 
 // Remove old precaches from previous SW versions

@@ -25,7 +25,7 @@ export default defineConfig({
       strategies: 'injectManifest',
       srcDir: 'src',
       filename: 'sw.js',
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       manifest: {
         name: 'Everion',
         short_name: 'Everion',
