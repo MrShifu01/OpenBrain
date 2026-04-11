@@ -31,6 +31,7 @@ export default function BulkActionBar({
   const [typeOpen, setTypeOpen] = useState(false);
   const [brainsOpen, setBrainsOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const typeRef = useRef<HTMLDivElement>(null);
   const brainsRef = useRef<HTMLDivElement>(null);
 
@@ -159,6 +160,55 @@ export default function BulkActionBar({
     maxHeight: "180px",
   };
 
+  // Collapsed pill — low-profile chip so selecting more items isn't blocked
+  if (!expanded) {
+    return (
+      <div
+        className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2"
+        style={{ width: "auto", maxWidth: "92vw" }}
+      >
+        <div
+          className="flex items-center gap-2 rounded-full border py-1.5 pr-1.5 pl-4 shadow-lg"
+          style={{
+            background: "var(--color-surface-container-high)",
+            borderColor: "var(--color-outline-variant)",
+            boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.18))",
+          }}
+        >
+          <span
+            className="text-xs font-semibold whitespace-nowrap"
+            style={{ color: "var(--color-on-surface)" }}
+          >
+            {count} selected
+          </span>
+          <button
+            onClick={() => setExpanded(true)}
+            className="press-scale rounded-full px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
+            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+          >
+            Edit
+          </button>
+          <button
+            onClick={onCancel}
+            aria-label="Cancel selection"
+            className="press-scale flex h-7 w-7 items-center justify-center rounded-full transition-opacity hover:opacity-70"
+            style={{ color: "var(--color-on-surface-variant)" }}
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2"
@@ -174,9 +224,23 @@ export default function BulkActionBar({
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
+          <button
+            onClick={() => setExpanded(false)}
+            className="press-scale flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm font-semibold transition-opacity hover:opacity-70"
+            style={{ color: "var(--color-on-surface)" }}
+            aria-label="Back to selecting"
+          >
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
             {count} {count === 1 ? "entry" : "entries"} selected
-          </span>
+          </button>
           <button
             onClick={onCancel}
             className="rounded-lg px-2.5 py-1 text-xs transition-opacity hover:opacity-70"
