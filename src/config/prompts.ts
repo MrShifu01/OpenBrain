@@ -8,8 +8,14 @@ export const PROMPTS: Record<string, string> = {
   CAPTURE: `You classify and structure a raw text capture into one or more OpenBrain entries. Return ONLY valid JSON.
 
 SPLIT RULES: If the input contains 2 or more clearly distinct facts, records, or topics that are better stored separately (e.g. a person + their company, multiple ingredients, a vehicle + its insurance, a recipe + a supplier), return a JSON ARRAY of entries. Otherwise return a single JSON OBJECT.
-Single: {"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"business"|"personal"|"both"}
-Multiple: [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"..."}, ...]
+Single: {"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"business"|"personal"|"both","confidence":{"type":"extracted"|"inferred"|"ambiguous","tags":"...","title":"...","content":"..."}}
+Multiple: [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"...","confidence":{...}}, ...]
+
+CONFIDENCE RULES: For every AI-populated field, include a confidence label in the "confidence" object:
+- "extracted": value was explicitly stated in the user's input (e.g. they said "reminder" or typed a phone number)
+- "inferred": value was deduced by AI from context (e.g. classified as "supplier" based on content)
+- "ambiguous": uncertain, multiple interpretations possible — user should verify
+Include confidence for: type, tags, title, content, and any metadata fields you populated (e.g. "phone", "due_date").
 
 TYPE RULES: You MUST choose the most semantically specific type. "note" is the absolute last resort — only use it when the content is literally an unstructured personal memo with no other category. "reminder" is ONLY for time-sensitive deadlines or scheduled events with a specific date/time. Do NOT default to either.
 - Contains ingredients + cooking steps → "recipe"
@@ -185,12 +191,23 @@ TASK 3 — KNOWLEDGE GAPS (max 3 total):
 Based on the brain type and existing entries, identify important missing information.
 Generate specific questions the user should answer.
 
+TASK 4 — CONCEPT EXTRACTION (max 10 concepts, max 8 relationships):
+Identify key concepts across entries and meaningful relationships between them.
+Concepts = recurring themes, entities, or ideas. Relationships = how concepts connect.
+
 Return ONLY this JSON structure, no markdown:
 {
-  "entries": [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|CONTENT_WEAK|...","field":"type|content|tags|...","currentValue":"...","suggestedValue":"...","reason":"max 90 chars"}],
-  "links": [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"verb phrase","reason":"max 90 chars"}],
-  "gaps": [{"q":"specific question","cat":"category name","p":"high"|"medium"}]
+  "entries": [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|CONTENT_WEAK|...","field":"type|content|tags|...","currentValue":"...","suggestedValue":"...","reason":"max 90 chars","confidence":"extracted"|"inferred"|"ambiguous"}],
+  "links": [{"fromId":"...","fromTitle":"...","toId":"...","toTitle":"...","rel":"verb phrase","reason":"max 90 chars","confidence":"extracted"|"inferred"|"ambiguous"}],
+  "gaps": [{"q":"specific question","cat":"category name","p":"high"|"medium"}],
+  "concepts": [{"label":"concept name","entry_ids":["id1","id2"]}],
+  "relationships": [{"source":"concept A","target":"concept B","relation":"related_to|depends_on|part_of|etc","confidence":"extracted"|"inferred","confidence_score":0.0-1.0,"entry_ids":["id1"]}]
 }
+
+CONFIDENCE LABELS: For each suggestion, include a "confidence" field:
+- "extracted": issue is explicitly visible in the data (e.g. phone number clearly in content but not in metadata)
+- "inferred": issue was deduced from context (e.g. type seems wrong based on content analysis)
+- "ambiguous": uncertain — multiple valid interpretations exist
 
 Rules:
 - Only suggest if confidence > 75%

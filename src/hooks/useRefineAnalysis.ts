@@ -4,7 +4,8 @@ import { callAI } from "../lib/ai";
 import { PROMPTS } from "../config/prompts";
 import { recordDecision } from "../lib/learningEngine";
 import { computeCompletenessScore } from "../lib/completenessScore";
-import type { Entry, Brain } from "../types";
+import type { Entry, Brain, ConfidenceLevel } from "../types";
+import { extractConcepts, extractRelationships, mergeGraph, loadGraph, saveGraph, applyFeedback } from "../lib/conceptGraph";
 
 interface EntrySuggestion {
   type: string;
@@ -14,6 +15,7 @@ interface EntrySuggestion {
   currentValue?: string;
   suggestedValue: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 interface LinkSuggestion {
@@ -24,6 +26,7 @@ interface LinkSuggestion {
   toTitle?: string;
   rel: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 interface WeakLabelSuggestion {
@@ -35,6 +38,7 @@ interface WeakLabelSuggestion {
   currentRel: string;
   rel: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 type RefineSuggestion = EntrySuggestion | LinkSuggestion | WeakLabelSuggestion;
@@ -477,6 +481,18 @@ export function useRefineAnalysis({
             reason: g.q,
           }));
         }
+        // Phase 2: Extract and store concept graph
+        if (activeBrain?.id && (p.concepts || p.relationships)) {
+          try {
+            const newConcepts = p.concepts ? extractConcepts(p.concepts) : [];
+            const newRels = p.relationships ? extractRelationships(p.relationships) : [];
+            const existing = loadGraph(activeBrain.id);
+            const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
+            saveGraph(activeBrain.id, merged);
+          } catch (err) {
+            console.error("[Improve Brain] concept graph parse failed:", err);
+          }
+        }
       } catch (err) {
         console.error("[Improve Brain] JSON parse failed:", err, "raw:", raw);
       }
@@ -745,6 +761,7 @@ export function useRefineAnalysis({
           body: JSON.stringify({ links: [newLink] }),
         });
         addLinks?.([newLink]);
+        if (activeBrain?.id) applyFeedback(activeBrain.id, "accept", s.fromId, s.toId);
       } catch (err) {
         console.error("[useRefineAnalysis]", err);
       }

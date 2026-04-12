@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { BrainTypeIcon } from "../components/icons/BrainTypeIcon";
 import { TC } from "../data/constants";
 import { resolveIcon } from "../lib/typeIcons";
 import { extractPhone, toWaUrl } from "../lib/phone";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { authFetch } from "../lib/authFetch";
+import { loadGraph, getRelatedEntries, getConceptsForEntry } from "../lib/conceptGraph";
 import {
   getUserProvider,
   getUserApiKey,
@@ -175,8 +176,27 @@ export default function DetailModal({
       other: entries.find((e) => e.id === (l.from === entry.id ? l.to : l.from)),
       dir: l.from === entry.id ? "→" : "←",
     }));
-  const skip = new Set(["category", "status"]);
+  // Concept graph: related entries via shared concepts
+  const brainId = entry.brain_id;
+  const conceptRelated = useMemo(() => {
+    if (!brainId) return [];
+    const graph = loadGraph(brainId);
+    return getRelatedEntries(graph, entry.id)
+      .slice(0, 5)
+      .map((r) => ({
+        ...r,
+        entry: entries.find((e) => e.id === r.entryId),
+      }))
+      .filter((r) => r.entry);
+  }, [brainId, entry.id, entries]);
+  const entryConcepts = useMemo(() => {
+    if (!brainId) return [];
+    const graph = loadGraph(brainId);
+    return getConceptsForEntry(graph, entry.id);
+  }, [brainId, entry.id]);
+  const skip = new Set(["category", "status", "confidence", "completeness_score"]);
   const meta = Object.entries(entry.metadata || {}).filter(([k]) => !skip.has(k));
+  const confidence = (entry.metadata?.confidence || {}) as Record<string, string>;
 
   useEffect(() => {
     return () => {
@@ -484,6 +504,19 @@ export default function DetailModal({
               >
                 {editType}
               </span>
+              {confidence.type && (() => {
+                const cl = confidence.type;
+                const dotColor = cl === "extracted" ? "rgb(22,163,74)" : cl === "inferred" ? "rgb(217,119,6)" : "rgb(220,38,38)";
+                const label = cl === "extracted" ? "Extracted" : cl === "inferred" ? "Inferred" : "Ambiguous";
+                return (
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[9px] font-medium"
+                    style={{ background: `${dotColor}15`, color: dotColor }}
+                  >
+                    {label}
+                  </span>
+                );
+              })()}
             </div>
             {!editing && (
               <h2
@@ -852,19 +885,30 @@ export default function DetailModal({
                       className="space-y-2 rounded-xl p-3"
                       style={{ background: "var(--color-surface-container)" }}
                     >
-                      {meta.map(([k, v]) => (
-                        <div key={k} className="flex items-baseline gap-2 text-xs">
-                          <span
-                            className="flex-shrink-0 text-[10px] font-semibold tracking-widest uppercase"
-                            style={{ color: "var(--color-on-surface-variant)" }}
-                          >
-                            {k.replace(/_/g, " ")}:{" "}
-                          </span>
-                          <span className="text-on-surface/80">
-                            {Array.isArray(v) ? v.join(", ") : String(v)}
-                          </span>
-                        </div>
-                      ))}
+                      {meta.map(([k, v]) => {
+                        const cl = confidence[k] as string | undefined;
+                        const dotColor = cl === "extracted" ? "rgb(22,163,74)" : cl === "inferred" ? "rgb(217,119,6)" : cl === "ambiguous" ? "rgb(220,38,38)" : undefined;
+                        return (
+                          <div key={k} className="flex items-baseline gap-2 text-xs">
+                            <span
+                              className="flex-shrink-0 text-[10px] font-semibold tracking-widest uppercase"
+                              style={{ color: "var(--color-on-surface-variant)" }}
+                            >
+                              {dotColor && (
+                                <span
+                                  className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
+                                  style={{ background: dotColor }}
+                                  title={cl}
+                                />
+                              )}
+                              {k.replace(/_/g, " ")}:{" "}
+                            </span>
+                            <span className="text-on-surface/80">
+                              {Array.isArray(v) ? v.join(", ") : String(v)}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </>
@@ -919,6 +963,53 @@ export default function DetailModal({
                         </div>
                       ),
                   )}
+                </div>
+              )}
+              {entryConcepts.length > 0 && (
+                <div className="pt-1">
+                  <p
+                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    Concepts
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {entryConcepts.map((c) => (
+                      <span
+                        key={c.id}
+                        className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
+                        style={{
+                          background: "var(--color-secondary-container)",
+                          color: "var(--color-secondary)",
+                        }}
+                      >
+                        {c.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {conceptRelated.length > 0 && (
+                <div className="pt-1">
+                  <p
+                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    Related by Concepts
+                  </p>
+                  {conceptRelated.map((r) => (
+                    <div
+                      key={r.entryId}
+                      className="mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
+                      style={{ background: "var(--color-surface-container)" }}
+                    >
+                      <span>{resolveIcon(r.entry!.type, typeIcons)}</span>
+                      <span className="text-on-surface flex-1 truncate">{r.entry!.title}</span>
+                      <span className="text-on-surface-variant/50 text-[10px]">
+                        {r.sharedConcepts.slice(0, 2).join(", ")}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

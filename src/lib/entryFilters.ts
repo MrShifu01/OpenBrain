@@ -1,4 +1,5 @@
 import type { Entry } from "../types";
+import { loadGraph } from "./conceptGraph";
 
 export type DateFilter = "all" | "today" | "week" | "month";
 export type SortOrder = "newest" | "oldest" | "pinned";
@@ -7,6 +8,8 @@ export interface EntryFilterState {
   type: string; // "all" or a specific type string
   date: DateFilter;
   sort: SortOrder;
+  concept?: string; // filter by concept label
+  brainId?: string; // needed for concept lookup
 }
 
 function startOfDay(d: Date): Date {
@@ -27,6 +30,16 @@ export function applyEntryFilters(entries: Entry[], filters: EntryFilterState): 
   // ── Type filter ──
   if (filters.type !== "all") {
     result = result.filter((e) => e.type === filters.type);
+  }
+
+  // ── Concept filter ──
+  if (filters.concept && filters.brainId) {
+    const graph = loadGraph(filters.brainId);
+    const concept = graph.concepts.find((c) => c.label === filters.concept);
+    if (concept) {
+      const entryIds = new Set(concept.source_entries);
+      result = result.filter((e) => entryIds.has(e.id));
+    }
   }
 
   // ── Date filter ──

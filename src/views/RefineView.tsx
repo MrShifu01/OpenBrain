@@ -3,7 +3,8 @@ import { getDecisionCount } from "../lib/learningEngine";
 import { useRefineAnalysis } from "../hooks/useRefineAnalysis";
 import { authFetch } from "../lib/authFetch";
 import { TC } from "../data/constants";
-import type { Entry, Brain } from "../types";
+import SurprisingConnections from "../components/SurprisingConnections";
+import type { Entry, Brain, ConfidenceLevel } from "../types";
 
 interface EntrySuggestion {
   type: string;
@@ -13,6 +14,7 @@ interface EntrySuggestion {
   currentValue?: string;
   suggestedValue: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 interface LinkSuggestion {
@@ -23,6 +25,7 @@ interface LinkSuggestion {
   toTitle?: string;
   rel: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 interface WeakLabelSuggestion {
@@ -34,6 +37,7 @@ interface WeakLabelSuggestion {
   currentRel: string;
   rel: string;
   reason: string;
+  confidence?: ConfidenceLevel;
 }
 
 interface RefineLink {
@@ -321,6 +325,26 @@ function labelColors(variant: string) {
   if (variant === "primary")
     return { bg: "var(--color-primary-container)", text: "var(--color-primary)" };
   return { bg: "var(--color-surface-container-high)", text: "var(--color-on-surface-variant)" };
+}
+
+const CONFIDENCE_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+  extracted: { bg: "rgba(34,197,94,0.15)", text: "rgb(22,163,74)", label: "Extracted" },
+  inferred: { bg: "rgba(245,158,11,0.15)", text: "rgb(217,119,6)", label: "Inferred" },
+  ambiguous: { bg: "rgba(239,68,68,0.10)", text: "rgb(220,38,38)", label: "Ambiguous" },
+};
+
+function ConfidencePill({ level }: { level?: ConfidenceLevel }) {
+  if (!level) return null;
+  const s = CONFIDENCE_STYLE[level];
+  if (!s) return null;
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+      style={{ background: s.bg, color: s.text }}
+    >
+      {s.label}
+    </span>
+  );
 }
 
 // Deduct points per suggestion type
@@ -1186,7 +1210,8 @@ export default function RefineView({
               >
                 {isLink ? (
                   <>
-                    <div className="flex items-center justify-end">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <ConfidencePill level={(s as any).confidence} />
                       <span
                         className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
                         style={{ background: metaBg, color: metaText }}
@@ -1448,6 +1473,7 @@ export default function RefineView({
                               entries.find((e) => e.id === es.entryId)?.title ||
                               es.entryId}
                           </span>
+                          <ConfidencePill level={es.confidence} />
                           <span
                             className="flex-shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
                             style={{ background: metaBg, color: metaText }}
@@ -1796,6 +1822,14 @@ export default function RefineView({
           );
         })}
       </div>
+
+      {/* Phase 3: Surprising Connections */}
+      {suggestions !== null && (
+        <SurprisingConnections
+          entries={entries}
+          brainId={activeBrain?.id}
+        />
+      )}
     </div>
   );
 }

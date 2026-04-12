@@ -16,6 +16,7 @@ interface ParsedEntry {
   type?: string;
   tags?: string[];
   metadata?: Record<string, unknown>;
+  confidence?: Record<string, string>;
   _raw?: string;
 }
 
@@ -128,6 +129,9 @@ export function useCaptureSheetParse({
 
         // ── Regular entry → entries table ──
         const embedHeaders = getEmbedHeaders();
+        const metaWithConfidence = parsed.confidence
+          ? { ...(parsed.metadata || {}), confidence: parsed.confidence }
+          : parsed.metadata || {};
         const res = await authFetch("/api/capture", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(embedHeaders || {}) },
@@ -135,7 +139,7 @@ export function useCaptureSheetParse({
             p_title: parsed.title,
             p_content: parsed.content || "",
             p_type: parsed.type || "note",
-            p_metadata: parsed.metadata || {},
+            p_metadata: metaWithConfidence,
             p_tags: parsed.tags || [],
             p_brain_id: brainId,
           }),
@@ -148,7 +152,7 @@ export function useCaptureSheetParse({
             title: parsed.title,
             content: parsed.content || "",
             type: (parsed.type || "note") as Entry["type"],
-            metadata: parsed.metadata || {},
+            metadata: metaWithConfidence,
             pinned: false,
             importance: 0,
             tags: parsed.tags || [],
@@ -275,6 +279,9 @@ export function useCaptureSheetParse({
           setStatus(`Saving ${parsedRaw.length} entries…`);
           for (const entry of parsedRaw) {
             try {
+              const entryMeta = entry.confidence
+                ? { ...(entry.metadata || {}), confidence: entry.confidence }
+                : entry.metadata || {};
               const res2 = await authFetch("/api/capture", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
@@ -282,7 +289,7 @@ export function useCaptureSheetParse({
                   p_title: entry.title,
                   p_content: entry.content || "",
                   p_type: entry.type || "note",
-                  p_metadata: entry.metadata || {},
+                  p_metadata: entryMeta,
                   p_tags: entry.tags || [],
                   p_brain_id: brainId,
                 }),

@@ -30,6 +30,8 @@ export type Priority = "high" | "medium" | "low";
 
 export type Workspace = "business" | "personal" | "both";
 
+export type ConfidenceLevel = "extracted" | "inferred" | "ambiguous";
+
 export interface EntryMetadata {
   phone?: string;
   email?: string;
@@ -42,6 +44,7 @@ export interface EntryMetadata {
   price?: string;
   unit?: string;
   workspace?: Workspace;
+  confidence?: Record<string, ConfidenceLevel>;
   [key: string]: unknown;
 }
 
@@ -94,6 +97,22 @@ export interface ToastEvent {
 }
 
 export type ToastListener = (event: ToastEvent) => void;
+
+export interface Concept {
+  id: string;
+  label: string;
+  source_entries: string[];
+  frequency: number;
+}
+
+export interface Relationship {
+  source_concept: string;
+  target_concept: string;
+  relation: string;
+  confidence: "extracted" | "inferred";
+  confidence_score: number;
+  evidence_entries: string[];
+}
 
 export interface Link {
   from_id: string;

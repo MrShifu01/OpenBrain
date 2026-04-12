@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { id: "more", label: "More", icon: NavIcon.more },
 ];
 
-const MORE_IDS = new Set(["vault", "settings", "grid", "todos", "timeline"]);
+const MORE_IDS = new Set(["vault", "settings", "grid", "todos", "timeline", "graph"]);
 
 interface BottomNavProps {
   activeView: string;

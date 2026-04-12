@@ -73,6 +73,7 @@ function lazyRetry(fn: () => Promise<any>) {
 }
 
 const RefineView = lazyRetry(() => import("./views/RefineView"));
+const GraphView = lazyRetry(() => import("./views/GraphView"));
 const TodoView = lazyRetry(() => import("./views/TodoView"));
 const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
@@ -612,6 +613,15 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                       brains={brains}
                       onSwitchBrain={setActiveBrain}
                       onCapture={() => setShowCapture(true)}
+                    />
+                  </Suspense>
+                )}
+                {view === "graph" && (
+                  <Suspense fallback={<Loader />}>
+                    <GraphView
+                      entries={entries}
+                      activeBrain={activeBrain}
+                      onSelectEntry={setSelected}
                     />
                   </Suspense>
                 )}

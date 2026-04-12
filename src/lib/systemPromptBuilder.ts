@@ -1,4 +1,5 @@
 import { getLearningsContext } from "./learningEngine";
+import { loadGraph, getGodNodes } from "./conceptGraph";
 
 export interface SystemPromptOptions {
   base?: string;
@@ -18,6 +19,15 @@ export function buildSystemPrompt({
 
   if (memoryGuide) {
     prompt = `[Classification Guide]\n${memoryGuide}\n\n[Task]\n${prompt}`;
+  }
+
+  if (brainId) {
+    const graph = loadGraph(brainId);
+    const godNodes = getGodNodes(graph, 10);
+    if (godNodes.length > 0) {
+      const themes = godNodes.map((c) => c.label).join(", ");
+      prompt = `${prompt}\n\n--- BRAIN CONTEXT ---\nThis brain's core themes are: ${themes}\n--- END BRAIN CONTEXT ---`;
+    }
   }
 
   if (withLearnings && brainId) {

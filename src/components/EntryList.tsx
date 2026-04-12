@@ -78,6 +78,20 @@ const EntryCard = memo(function EntryCard({
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <Badge variant={typeVariant}>{e.type.charAt(0).toUpperCase() + e.type.slice(1)}</Badge>
+          {(e.metadata?.confidence as Record<string, string> | undefined)?.type && (
+            <span
+              className="inline-block h-2 w-2 rounded-full"
+              style={{
+                background:
+                  (e.metadata!.confidence as Record<string, string>).type === "extracted"
+                    ? "rgb(22,163,74)"
+                    : (e.metadata!.confidence as Record<string, string>).type === "inferred"
+                      ? "rgb(217,119,6)"
+                      : "rgb(220,38,38)",
+              }}
+              title={`Type: ${(e.metadata!.confidence as Record<string, string>).type}`}
+            />
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           {(e as any).pinned && <span className="text-primary text-xs">📌</span>}
