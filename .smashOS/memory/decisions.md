@@ -2,6 +2,54 @@
 
 ---
 
+## [AUDIT] Full App Audit — 2026-04-12 (pass 5)
+**Tags**: AUDIT
+
+### Overall Score: 80/100 — B-
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 78 |
+| Performance | 76 |
+| Architecture | 84 |
+| Code Quality / Types | 80 |
+| UX / UI | 82 |
+| Maintainability | 78 |
+| User Perspective | 80 |
+
+### Progress since pass 4 (78/100)
+- ✓ AI keys moved from localStorage to in-memory store (deferred item resolved)
+- ✓ @ts-nocheck remains at zero
+- ✓ QuickCapture.tsx deleted (dead code on this branch)
+- ✓ 31 dead src/lib/ and src/data/ files deleted (~2,069 lines)
+- ✓ Duplicate cn.ts + utils.ts consolidated
+- ✓ lucide-react replaced with inline SVGs (37MB dep removed)
+- ✓ shadcn moved to devDependencies
+- ✓ @luma.gl/webgl, @softarc/sheriff-* removed from deps
+- ✓ 30 orphaned test files cleaned up
+
+### CRITICAL & HIGH Findings
+
+**[HIGH]** Permissions-Policy blocks microphone (`microphone=()`) but app uses MediaRecorder for voice capture. Voice recording silently broken in production. — `vercel.json:44` vs `src/hooks/useVoiceRecorder.ts:22`
+
+**[HIGH]** No error monitoring (Sentry or equivalent) — production errors are console.error only, invisible to the team. — `src/ErrorBoundary.tsx:23`
+
+**[HIGH]** RefineView.tsx is 1,883 lines — largest component, needs decomposition. — `src/views/RefineView.tsx`
+
+**[HIGH]** DetailModal.tsx is 1,037 lines — second largest, needs decomposition. — `src/views/DetailModal.tsx`
+
+**[HIGH]** `computeCompletenessScore` duplicated verbatim in `api/entries.ts:11-40` and `api/capture.ts:12-40`. — should extract to `api/_lib/`
+
+### Top 5 Actions
+1. [HIGH] Fix Permissions-Policy: change `microphone=()` to `microphone=(self)` in vercel.json:44
+2. [HIGH] Add error monitoring (Sentry) — wire to ErrorBoundary.componentDidCatch
+3. [HIGH] Decompose RefineView.tsx (1,883 lines) and DetailModal.tsx (1,037 lines)
+4. [HIGH] Extract duplicated computeCompletenessScore to api/_lib/
+5. [MEDIUM] Replace xlsx dependency (unpatched high-severity CVEs, no fix available)
+
+---
+
 ## [IMPROVEMENT] Audit Fix Pass — 2026-04-08 (pass 4)
 **Tags**: SECURITY, QUALITY, TESTING
 

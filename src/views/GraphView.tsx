@@ -1,25 +1,26 @@
-import { useMemo, useCallback, useRef, useState, useEffect, lazy, Suspense } from "react";
+import { useMemo, useCallback, useRef, useState, useEffect } from "react";
+import { Cosmograph } from "@cosmograph/react";
+import type { CosmographRef } from "@cosmograph/react";
 import { TC } from "../data/constants";
 import { loadGraph, saveGraph, mergeGraph, extractConcepts, extractRelationships, detectCommunities } from "../lib/conceptGraph";
 import { callAI } from "../lib/ai";
 import type { Entry, Brain } from "../types";
 
-const ForceGraph2D = lazy(() => import("react-force-graph-2d"));
-
-interface GraphNode {
+interface GraphPoint {
+  [key: string]: unknown;
+  _idx: number;
   id: string;
   label: string;
   type: string;
   connections: number;
-  community?: number;
-  // d3 force positions (mutated by the engine)
-  x?: number;
-  y?: number;
+  community: number;
+  color: string;
 }
 
 interface GraphLink {
-  source: string;
-  target: string;
+  [key: string]: unknown;
+  source: number;
+  target: number;
   label: string;
   value: number;
 }
@@ -30,9 +31,18 @@ interface GraphViewProps {
   onSelectEntry?: (entry: Entry) => void;
 }
 
+// Warm earth-tone palette harmonized with gold/bronze theme
 const COMMUNITY_COLORS = [
-  "#6366f1", "#ec4899", "#f59e0b", "#10b981", "#3b82f6",
-  "#8b5cf6", "#ef4444", "#14b8a6", "#f97316", "#06b6d4",
+  "#b8956a", // warm gold
+  "#c4785a", // terracotta
+  "#8fa878", // sage
+  "#7a9bb5", // dusty blue
+  "#b07aa3", // muted mauve
+  "#c9a84c", // amber
+  "#6b9e9e", // teal stone
+  "#c47e6e", // copper rose
+  "#8b8b6b", // olive
+  "#9a7eb8", // lavender stone
 ];
 
 function extractJSON(text: string): string {
@@ -48,6 +58,8 @@ function extractJSON(text: string): string {
   }
   let truncated = cleaned.slice(start);
   truncated = truncated.replace(/,\s*"[^"]*$/, "").replace(/,\s*$/, "");
+  // Fix truncated numbers (e.g. "0." or "3.1" cut mid-value) that cause "Unterminated fractional number"
+  truncated = truncated.replace(/:\s*-?\d+\.\s*$/, ": 0").replace(/,\s*-?\d+\.\s*$/, "");
   const opens: string[] = [];
   let inString = false;
   let escape = false;
@@ -84,24 +96,44 @@ Rules:
 - Relationships should describe HOW concepts connect with a specific verb phrase
 - confidence_score: 0.8+ for explicit connections, 0.5-0.8 for inferred ones`;
 
+/** Resolve a CSS custom property to a computed string */
+function resolveCSSVar(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/** Resolve a type color from TC, falling back if it's a CSS var() */
+function resolveTypeColor(type: string, fallback: string): string {
+  const c = (TC as Record<string, { c?: string }>)[type]?.c;
+  if (!c || c.startsWith("var(")) return fallback;
+  return c;
+}
+
 export default function GraphView({ entries, activeBrain, onSelectEntry }: GraphViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const fgRef = useRef<any>(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const cosmographRef = useRef<CosmographRef>(undefined);
   const [filter, setFilter] = useState("");
   const [building, setBuilding] = useState(false);
   const [graphVersion, setGraphVersion] = useState(0);
 
-  // Track container size
+  // Resolve theme colors for Cosmograph (CSS vars → computed values)
+  const [tc, setTc] = useState({
+    surface: "#1a1816",
+    primary: "#a68b67",
+    onSurface: "#f5f0ea",
+    onSurfaceVariant: "#9a9590",
+    outlineVariant: "#3a3835",
+  });
+
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((es) => {
-      const { width, height } = es[0].contentRect;
-      setDimensions({ width: Math.max(300, width), height: Math.max(300, height) });
+    setTc({
+      surface: resolveCSSVar("--color-surface", "#1a1816"),
+      primary: resolveCSSVar("--color-primary", "#a68b67"),
+      onSurface: resolveCSSVar("--color-on-surface", "#f5f0ea"),
+      onSurfaceVariant: resolveCSSVar("--color-on-surface-variant", "#9a9590"),
+      outlineVariant: resolveCSSVar("--color-outline-variant", "#3a3835"),
     });
-    ro.observe(el);
-    return () => ro.disconnect();
   }, []);
 
   const buildGraph = useCallback(async () => {
@@ -137,8 +169,8 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
     }
   }, [entries, activeBrain, building]);
 
-  const { nodes, links } = useMemo(() => {
-    if (!activeBrain?.id) return { nodes: [], links: [] };
+  const { points, links } = useMemo(() => {
+    if (!activeBrain?.id) return { points: [] as GraphPoint[], links: [] as GraphLink[] };
     const graph = loadGraph(activeBrain.id);
     const communities = detectCommunities(graph);
 
@@ -163,25 +195,31 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
         )
       : entries;
 
-    const entryIds = new Set(filteredEntries.map((e) => e.id));
-
-    // Only include entries that have at least 1 concept connection
     const connectedEntryIds = new Set<string>();
     for (const concept of graph.concepts) {
       for (const eid of concept.source_entries) connectedEntryIds.add(eid);
     }
 
-    const nodes: GraphNode[] = filteredEntries
-      .filter((e) => !e.encrypted && connectedEntryIds.has(e.id))
-      .map((e) => ({
-        id: e.id,
-        label: e.title.length > 24 ? e.title.slice(0, 22) + "..." : e.title,
-        type: e.type,
-        connections: connectionCount.get(e.id) || 0,
-        community: entryCommunity.get(e.id),
-      }));
+    const pointsRaw = filteredEntries
+      .filter((e) => !e.encrypted && connectedEntryIds.has(e.id));
 
-    // Build links from relationships
+    const idToIdx = new Map<string, number>();
+    const points: GraphPoint[] = pointsRaw.map((e, i) => {
+        idToIdx.set(e.id, i);
+        const comm = entryCommunity.get(e.id) ?? -1;
+        return {
+          _idx: i,
+          id: e.id,
+          label: e.title.length > 24 ? e.title.slice(0, 22) + "\u2026" : e.title,
+          type: e.type,
+          connections: connectionCount.get(e.id) || 0,
+          community: comm,
+          color: comm >= 0
+            ? COMMUNITY_COLORS[comm % COMMUNITY_COLORS.length]
+            : resolveTypeColor(e.type, tc.primary),
+        };
+      });
+
     const links: GraphLink[] = [];
     const seen = new Set<string>();
     for (const rel of graph.relationships) {
@@ -189,114 +227,38 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
       const tgtEntries = graph.concepts.find((c) => c.id === rel.target_concept)?.source_entries || [];
       for (const se of srcEntries) {
         for (const te of tgtEntries) {
-          if (se === te || !entryIds.has(se) || !entryIds.has(te)) continue;
-          if (!connectedEntryIds.has(se) || !connectedEntryIds.has(te)) continue;
+          if (se === te) continue;
+          const si = idToIdx.get(se);
+          const ti = idToIdx.get(te);
+          if (si === undefined || ti === undefined) continue;
           const key = [se, te].sort().join("|");
           if (seen.has(key)) continue;
           seen.add(key);
-          links.push({ source: se, target: te, label: rel.relation, value: rel.confidence_score });
+          links.push({ source: si, target: ti, label: rel.relation, value: rel.confidence_score });
         }
       }
     }
 
-    return { nodes, links };
-  }, [entries, activeBrain, filter, graphVersion]);
-
-  // Configure d3 forces once the engine is available
-  const forcesConfigured = useRef(false);
-  useEffect(() => {
-    forcesConfigured.current = false;
-  }, [graphVersion]);
-
-  useEffect(() => {
-    const fg = fgRef.current;
-    if (!fg || forcesConfigured.current || nodes.length === 0) return;
-    forcesConfigured.current = true;
-
-    // Center force — keeps the cluster at origin
-    fg.d3Force("center")?.strength(1);
-
-    // Charge — nodes repel each other so they don't overlap
-    fg.d3Force("charge")?.strength(-120).distanceMax(300);
-
-    // Link — connected nodes pull toward each other
-    fg.d3Force("link")?.distance(60).strength(0.7);
-
-    // Remove any y-gravity that causes downward drift
-    fg.d3Force("gravity", null);
-
-    // Reheat so new forces take effect
-    fg.d3ReheatSimulation();
-
-    // Zoom to fit after layout settles
-    setTimeout(() => {
-      fg.zoomToFit(400, 60);
-    }, 1500);
-  }, [nodes, links, graphVersion]);
-
-  // Also zoom to fit when engine fully stops
-  const zoomedRef = useRef(false);
-  useEffect(() => {
-    zoomedRef.current = false;
-  }, [graphVersion, filter]);
-
-  const handleEngineStop = useCallback(() => {
-    if (!zoomedRef.current && fgRef.current) {
-      fgRef.current.zoomToFit(400, 60);
-      zoomedRef.current = true;
-    }
-  }, []);
+    return { points, links };
+  }, [entries, activeBrain, filter, graphVersion, tc.primary]);
 
   const entryMap = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
 
-  const handleNodeClick = useCallback(
-    (node: any) => {
-      const entry = entryMap.get(node.id);
+  // Cosmograph click: index-based, look up point to find entry
+  const handleClick = useCallback(
+    (index: number | undefined) => {
+      if (index === undefined) return;
+      const point = points[index];
+      if (!point) return;
+      const entry = entryMap.get(point.id);
       if (entry) onSelectEntry?.(entry);
     },
-    [entryMap, onSelectEntry],
+    [points, entryMap, onSelectEntry],
   );
 
-  // Custom node rendering — visible labels + properly sized dots
-  const nodeCanvasObject = useCallback(
-    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const baseSize = 5 + Math.min(node.connections * 2, 10);
-      const color =
-        node.community !== undefined
-          ? COMMUNITY_COLORS[node.community % COMMUNITY_COLORS.length]
-          : (TC as Record<string, any>)[node.type]?.c || "#6366f1";
-
-      // Node circle
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, baseSize, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(255,255,255,0.4)";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      // Label — scale-aware so it stays readable at any zoom
-      const fontSize = Math.max(10 / globalScale, 3);
-      ctx.font = `500 ${fontSize}px -apple-system, system-ui, sans-serif`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fillText(node.label, node.x, node.y + baseSize + 2);
-    },
-    [],
-  );
-
-  // Transparent hit area slightly larger than drawn node
-  const nodePointerAreaPaint = useCallback(
-    (node: any, color: string, ctx: CanvasRenderingContext2D) => {
-      const size = 8 + Math.min(node.connections * 2, 10);
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, size, 0, 2 * Math.PI);
-      ctx.fillStyle = color;
-      ctx.fill();
-    },
-    [],
-  );
+  const handleSimulationEnd = useCallback(() => {
+    cosmographRef.current?.fitView(400);
+  }, []);
 
   if (!activeBrain?.id) {
     return (
@@ -314,7 +276,7 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
         className="flex flex-col items-center justify-center gap-3 p-8 text-center"
         style={{ color: "var(--color-on-surface-variant)", minHeight: "100%" }}
       >
-        <div className="text-4xl">🕸️</div>
+        <div className="text-4xl">&#x1f578;&#xfe0f;</div>
         <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
           No entries yet
         </p>
@@ -329,7 +291,7 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
         className="flex flex-col items-center justify-center gap-4 p-8 text-center"
         style={{ color: "var(--color-on-surface-variant)", minHeight: "100%" }}
       >
-        <div className="text-4xl">🕸️</div>
+        <div className="text-4xl">&#x1f578;&#xfe0f;</div>
         <p className="text-sm font-medium" style={{ color: "var(--color-on-surface)" }}>
           No connections yet
         </p>
@@ -365,7 +327,7 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
     <div
       ref={containerRef}
       className="relative flex flex-col"
-      style={{ background: "var(--color-surface)", height: "100%", minHeight: "400px" }}
+      style={{ background: "var(--color-surface)", height: "calc(100dvh - 120px)" }}
     >
       {/* Filter bar */}
       <div className="flex items-center gap-2 px-4 py-3">
@@ -381,7 +343,7 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
           }}
         />
         <span className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-          {nodes.length} nodes · {links.length} edges
+          {points.length} nodes · {links.length} edges
         </span>
         <button
           onClick={buildGraph}
@@ -399,37 +361,62 @@ export default function GraphView({ entries, activeBrain, onSelectEntry }: Graph
       </div>
 
       {/* Graph */}
-      <div className="flex-1">
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center p-8" style={{ color: "var(--color-on-surface-variant)" }}>
-              Loading graph...
-            </div>
-          }
-        >
-          <ForceGraph2D
-            ref={fgRef}
-            width={dimensions.width}
-            height={dimensions.height - 52}
-            graphData={{ nodes, links }}
-            nodeCanvasObject={nodeCanvasObject}
-            nodePointerAreaPaint={nodePointerAreaPaint}
-            onNodeClick={handleNodeClick}
-            linkColor={() => "rgba(150,150,255,0.25)"}
-            linkWidth={(link: any) => Math.max(1, link.value * 3)}
-            linkDirectionalParticles={2}
-            linkDirectionalParticleWidth={2}
-            linkDirectionalParticleSpeed={0.005}
-            backgroundColor="transparent"
-            cooldownTicks={200}
-            onEngineStop={handleEngineStop}
-            d3AlphaDecay={0.05}
-            d3VelocityDecay={0.5}
-            nodeRelSize={6}
-            minZoom={0.5}
-            maxZoom={8}
-          />
-        </Suspense>
+      <div className="cosmograph-container" style={{ flex: 1, minHeight: 0 }}>
+        <Cosmograph
+          ref={cosmographRef}
+          /* ── Data ── */
+          points={points.length ? points : undefined}
+          pointIndexBy="_idx"
+          pointIdBy="id"
+          links={links.length ? links : undefined}
+          linkSourceBy="source"
+          linkTargetBy="target"
+          /* ── Point appearance ── */
+          pointColorBy="color"
+          pointSizeBy="connections"
+          pointSizeRange={[8, 24]}
+          pointDefaultColor={tc.primary}
+          pointGreyoutOpacity={0.15}
+          /* ── Link appearance ── */
+          linkDefaultColor={tc.outlineVariant}
+          linkWidthBy="value"
+          linkWidthRange={[1, 4]}
+          linkGreyoutOpacity={0.08}
+          linkDefaultArrows
+          /* ── Labels ── */
+          pointLabelBy="label"
+          pointLabelWeightBy="connections"
+          showDynamicLabels
+          showTopLabels
+          showTopLabelsLimit={10}
+          showHoveredPointLabel
+          pointLabelColor={tc.onSurfaceVariant}
+          pointLabelClassName="cosmograph-label"
+          hoveredPointLabelClassName="cosmograph-label--hovered"
+          pointLabelFontSize={11}
+          /* ── Interaction ── */
+          hoveredPointRingColor={tc.primary}
+          focusedPointRingColor={tc.primary}
+          hoveredPointCursor="pointer"
+          selectPointOnClick="single"
+          onClick={handleClick}
+          /* ── Canvas ── */
+          backgroundColor={tc.surface}
+          fitViewOnInit
+          fitViewDelay={800}
+          fitViewPadding={0.05}
+          fitViewDuration={600}
+          scalePointsOnZoom
+          /* ── Simulation ── */
+          simulationFriction={0.85}
+          simulationGravity={0.5}
+          simulationRepulsion={0.4}
+          simulationLinkSpring={1.0}
+          simulationLinkDistance={8}
+          simulationDecay={5000}
+          onSimulationEnd={handleSimulationEnd}
+          disableLogging
+        />
       </div>
     </div>
   );

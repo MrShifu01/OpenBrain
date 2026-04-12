@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "../../lib/cn";
 
 /**
  * Active filter pill — shows an applied filter with a × clear button.
