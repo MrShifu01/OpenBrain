@@ -73,7 +73,6 @@ function lazyRetry(fn: () => Promise<any>) {
 }
 
 const RefineView = lazyRetry(() => import("./views/RefineView"));
-const GraphView = lazyRetry(() => import("./views/GraphView"));
 const TodoView = lazyRetry(() => import("./views/TodoView"));
 const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
@@ -402,6 +401,8 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
             activeBrainName={activeBrain?.name || "Everion"}
             view={view}
             onNavigate={(id) => {
+              setSelected(null);
+              setShowCapture(false);
               setView(id);
               setNavOpen(false);
             }}
@@ -613,15 +614,6 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                       brains={brains}
                       onSwitchBrain={setActiveBrain}
                       onCapture={() => setShowCapture(true)}
-                    />
-                  </Suspense>
-                )}
-                {view === "graph" && (
-                  <Suspense fallback={<Loader />}>
-                    <GraphView
-                      entries={entries}
-                      activeBrain={activeBrain}
-                      onSelectEntry={setSelected}
                     />
                   </Suspense>
                 )}
@@ -1016,6 +1008,8 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                   if (id === "close") {
                     setNavOpen(false);
                   } else {
+                    setSelected(null);
+                    setShowCapture(false);
                     setView(id);
                     setNavOpen(false);
                   }
@@ -1027,6 +1021,8 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                   if (id === "more") {
                     setNavOpen((o) => !o);
                   } else {
+                    setSelected(null);
+                    setShowCapture(false);
                     setView(id);
                     setNavOpen(false);
                   }

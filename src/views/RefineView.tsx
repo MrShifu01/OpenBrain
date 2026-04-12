@@ -4,6 +4,8 @@ import { useRefineAnalysis } from "../hooks/useRefineAnalysis";
 import { authFetch } from "../lib/authFetch";
 import { TC } from "../data/constants";
 import SurprisingConnections from "../components/SurprisingConnections";
+import { loadGraph, saveGraph, mergeGraph, extractConcepts, extractRelationships } from "../lib/conceptGraph";
+import { callAI } from "../lib/ai";
 import type { Entry, Brain, ConfidenceLevel } from "../types";
 
 interface EntrySuggestion {
@@ -439,6 +441,56 @@ function deriveInsights(suggestions: any[]): BrainInsights {
   return { strengths: strengths.slice(0, 4), weakAreas };
 }
 
+const BUILD_GRAPH_PROMPT = `You are a knowledge-graph builder. Given a list of entries from a personal/business knowledge base, extract concepts and relationships.
+
+TASK — CONCEPT EXTRACTION:
+Identify key concepts (recurring themes, entities, ideas) across entries and meaningful relationships between them.
+
+Return ONLY this JSON structure, no markdown:
+{
+  "concepts": [{"label":"concept name","entry_ids":["id1","id2"]}],
+  "relationships": [{"source":"concept A","target":"concept B","relation":"related_to|depends_on|part_of|supplies|works_at|used_in|etc","confidence":"extracted"|"inferred","confidence_score":0.0-1.0,"entry_ids":["id1"]}]
+}
+
+Rules:
+- Max 20 concepts, max 15 relationships
+- Concepts should be specific and meaningful (not generic like "note" or "item")
+- Each concept must reference at least 2 entries
+- Relationships should describe HOW concepts connect with a specific verb phrase
+- confidence_score: 0.8+ for explicit connections, 0.5-0.8 for inferred ones`;
+
+function extractJSON(text: string): string {
+  const cleaned = text.replace(/```json|```/g, "").trim();
+  const start = cleaned.search(/[{[]/);
+  if (start === -1) return cleaned;
+  const opener = cleaned[start];
+  const closer = opener === "[" ? "]" : "}";
+  let depth = 0;
+  for (let i = start; i < cleaned.length; i++) {
+    if (cleaned[i] === opener) depth++;
+    else if (cleaned[i] === closer && --depth === 0) return cleaned.slice(start, i + 1);
+  }
+  let truncated = cleaned.slice(start);
+  truncated = truncated.replace(/,\s*"[^"]*$/, "").replace(/,\s*$/, "");
+  truncated = truncated.replace(/:\s*-?\d+\.\s*$/, ": 0").replace(/,\s*-?\d+\.\s*$/, "");
+  const opens: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (const ch of truncated) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{" || ch === "[") opens.push(ch);
+    else if (ch === "}" || ch === "]") opens.pop();
+  }
+  while (opens.length) {
+    const o = opens.pop();
+    truncated += o === "[" ? "]" : "}";
+  }
+  return truncated;
+}
+
 const ANALYSIS_STEPS = [
   "Mapping your memories…",
   "Finding missing connections…",
@@ -501,9 +553,37 @@ export default function RefineView({
           break;
         }
       }
+
+      // Build knowledge graph (concept extraction) after syncing embeddings
+      try {
+        const visible = entries.filter((e) => !e.encrypted);
+        const allSlim = visible.slice(0, 40).map(
+          (e) => `- [${e.type}] ${e.title} (id:${e.id})${e.tags?.length ? ` [${e.tags.join(",")}]` : ""}:${(e.content || "").slice(0, 80)}`,
+        );
+        const res = await callAI({
+          task: "refine",
+          max_tokens: 4096,
+          system: BUILD_GRAPH_PROMPT,
+          brainId: activeBrain.id,
+          messages: [{ role: "user", content: `ENTRIES (${visible.length} total):\n${allSlim.join("\n")}` }],
+        });
+        const data = await res.json();
+        const raw = extractJSON(data.content?.[0]?.text || "{}");
+        const p = JSON.parse(raw);
+        if (p.concepts || p.relationships) {
+          const newConcepts = p.concepts ? extractConcepts(p.concepts) : [];
+          const newRels = p.relationships ? extractRelationships(p.relationships) : [];
+          const existing = loadGraph(activeBrain.id);
+          const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
+          saveGraph(activeBrain.id, merged);
+        }
+      } catch (err) {
+        console.error("[sync] knowledge graph build failed:", err);
+      }
+
       setEmbedLoading(false);
     },
-    [activeBrain, embedLoading],
+    [activeBrain, embedLoading, entries],
   );
 
   const {
@@ -695,10 +775,10 @@ export default function RefineView({
               </svg>
               <div className="flex-1">
                 <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
-                  {embedLoading ? "Syncing…" : "Sync Brain"}
+                  {embedLoading ? "Syncing…" : "Sync & Connect"}
                 </p>
                 <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                  Keep connections up to date as you add memories
+                  Sync embeddings and discover concept connections
                 </p>
               </div>
               {embedLoading && (
@@ -728,7 +808,7 @@ export default function RefineView({
               <p className="px-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 {embedLoading
                   ? `Syncing… ${embedProgress.processed} done${embedProgress.remaining > 0 ? `, ${embedProgress.remaining} remaining` : ""}`
-                  : "Refreshed — Connections are now stronger"}
+                  : "Synced — Connections and concepts updated"}
               </p>
             )}
           </div>
@@ -1113,12 +1193,12 @@ export default function RefineView({
                   />
                 </svg>
               )}
-              {embedLoading ? "Syncing…" : "Sync Brain"}
+              {embedLoading ? "Syncing…" : "Sync & Connect"}
             </button>
           </div>
           {embedProgress !== null && !embedLoading && (
             <p className="text-xs" style={{ color: "var(--color-primary)" }}>
-              Refreshed — Connections are now stronger
+              Synced — Connections and concepts updated
             </p>
           )}
         </div>
@@ -1194,12 +1274,12 @@ export default function RefineView({
                   />
                 </svg>
               )}
-              {embedLoading ? "Syncing…" : "Sync Brain"}
+              {embedLoading ? "Syncing…" : "Sync & Connect"}
             </button>
           </div>
           {embedProgress !== null && !embedLoading && (
             <p className="text-xs" style={{ color: "var(--color-primary)" }}>
-              Refreshed — Connections are now stronger
+              Synced — Connections and concepts updated
             </p>
           )}
         </div>

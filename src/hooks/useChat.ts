@@ -3,6 +3,7 @@ import { authFetch } from "../lib/authFetch";
 import { callAI } from "../lib/ai";
 import { extractNudgeText } from "../lib/extractNudgeText";
 import { scoreEntriesForQuery } from "../lib/chatContext";
+import { loadGraph } from "../lib/conceptGraph";
 import {
   getEmbedHeaders,
   getUserProvider,
@@ -16,6 +17,55 @@ import { PROMPTS } from "../config/prompts";
 import { getStoredPinHash } from "../lib/pin";
 import type { Entry, Brain } from "../types";
 import type { AIResponseBody, VaultData, DecryptedSecret } from "../lib/ai.types";
+
+/**
+ * Build a concept-graph context snippet for a chat query.
+ * Finds concepts matching query terms and surfaces cross-concept
+ * relationships that pure keyword/vector search would miss.
+ */
+function buildGraphContext(brainId: string, query: string, entries: Entry[]): string {
+  const graph = loadGraph(brainId);
+  if (graph.concepts.length === 0) return "";
+
+  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  if (terms.length === 0) return "";
+
+  // Find concepts matching query terms
+  const matchedConcepts = graph.concepts.filter((c) =>
+    terms.some((t) => c.label.toLowerCase().includes(t)),
+  );
+  if (matchedConcepts.length === 0) return "";
+
+  const entryMap = new Map(entries.map((e) => [e.id, e]));
+  const lines: string[] = [];
+
+  // Surface concept relationships
+  for (const concept of matchedConcepts.slice(0, 5)) {
+    const relatedRels = graph.relationships.filter(
+      (r) => r.source_concept === concept.id || r.target_concept === concept.id,
+    );
+    if (relatedRels.length > 0) {
+      const relStrs = relatedRels.slice(0, 4).map((r) => {
+        const other = r.source_concept === concept.id ? r.target_concept : r.source_concept;
+        const otherConcept = graph.concepts.find((c) => c.id === other);
+        return `${concept.label} --${r.relation}--> ${otherConcept?.label || other}`;
+      });
+      lines.push(...relStrs);
+    }
+
+    // Surface entries connected through this concept
+    const entryTitles = concept.source_entries
+      .slice(0, 4)
+      .map((eid) => entryMap.get(eid)?.title)
+      .filter(Boolean);
+    if (entryTitles.length > 0) {
+      lines.push(`"${concept.label}" connects: ${entryTitles.join(", ")}`);
+    }
+  }
+
+  if (lines.length === 0) return "";
+  return `\n\n<concept_graph>\n${lines.join("\n")}\n</concept_graph>`;
+}
 
 interface ChatLink {
   from?: string;
@@ -89,6 +139,9 @@ export function useChat({
             : []);
 
         const embedHeaders = getEmbedHeaders();
+        // Build concept graph context for richer answers
+        const graphCtx = activeBrain?.id ? buildGraphContext(activeBrain.id, msg, entries) : "";
+
         let data: AIResponseBody;
         if (embedHeaders && activeBrain?.id) {
           const provider = getUserProvider();
@@ -111,6 +164,8 @@ export function useChat({
           const brainParam = isAllBrains
             ? { brain_ids: brains.map((b) => b.id) }
             : { brain_id: activeBrain.id };
+          // Append concept graph context to message so the server-side LLM sees it
+          const enrichedMsg = graphCtx ? `${msg}\n\n[Concept graph context — use to surface cross-concept connections:]${graphCtx}` : msg;
           const res = await authFetch("/api/chat", {
             method: "POST",
             headers: {
@@ -119,7 +174,7 @@ export function useChat({
               ...(genKey ? { "X-User-Api-Key": genKey } : {}),
             },
             body: JSON.stringify({
-              message: msg,
+              message: enrichedMsg,
               ...brainParam,
               history,
               provider,
@@ -143,12 +198,14 @@ export function useChat({
           const contextWithSecrets = secrets.length
             ? [...relevantEntries, ...secrets.map((s) => ({ ...s, type: "secret" }))]
             : relevantEntries;
+          // Include concept graph in system prompt for client-side path
+          const systemPrompt = PROMPTS.CHAT.replace(
+            "{{MEMORIES}}",
+            JSON.stringify(contextWithSecrets),
+          ).replace("{{LINKS}}", JSON.stringify(links)) + graphCtx;
           const res = await callAI({
             max_tokens: 1000,
-            system: PROMPTS.CHAT.replace(
-              "{{MEMORIES}}",
-              JSON.stringify(contextWithSecrets),
-            ).replace("{{LINKS}}", JSON.stringify(links)),
+            system: systemPrompt,
             brainId: activeBrain?.id,
             messages: [{ role: "user", content: msg }],
           });
