@@ -1,0 +1,292 @@
+{
+  "nodes": [
+    {
+      "id": "favicon_everion_logo",
+      "label": "Everion Favicon (E Logo)",
+      "file_type": "image",
+      "source_file": "public/favicon.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "icons_social_sprite",
+      "label": "Social & UI Icon Sprite Sheet",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "icon192_everion_pwa",
+      "label": "Everion PWA Icon 192px",
+      "file_type": "image",
+      "source_file": "public/icons/icon-192.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "icon512_everion_pwa",
+      "label": "Everion PWA Icon 512px",
+      "file_type": "image",
+      "source_file": "public/icons/icon-512.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "hero_app_mockup",
+      "label": "Hero Image (App Icon Mockup Template)",
+      "file_type": "image",
+      "source_file": "src/assets/hero.png",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "react_logo",
+      "label": "React Logo",
+      "file_type": "image",
+      "source_file": "src/assets/react.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "vite_logo",
+      "label": "Vite Logo",
+      "file_type": "image",
+      "source_file": "src/assets/vite.svg",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "brand_bluesky",
+      "label": "Bluesky Icon",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#bluesky-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "brand_discord",
+      "label": "Discord Icon",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#discord-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "brand_github",
+      "label": "GitHub Icon",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#github-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "brand_x_twitter",
+      "label": "X (Twitter) Icon",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#x-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ui_documentation_icon",
+      "label": "Documentation Icon",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#documentation-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "ui_social_icon",
+      "label": "Social/Community Icon (User with Star)",
+      "file_type": "image",
+      "source_file": "public/icons.svg",
+      "source_location": "symbol#social-icon",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "favicon_everion_logo",
+      "target": "icon192_everion_pwa",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/favicon.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "favicon_everion_logo",
+      "target": "icon512_everion_pwa",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/favicon.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "icon192_everion_pwa",
+      "target": "icon512_everion_pwa",
+      "relation": "semantically_similar_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons/icon-192.png",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "brand_bluesky",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "brand_discord",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "brand_github",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "brand_x_twitter",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ui_documentation_icon",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "ui_social_icon",
+      "target": "icons_social_sprite",
+      "relation": "conceptually_related_to",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "react_logo",
+      "target": "vite_logo",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "src/assets/react.svg",
+      "source_location": null,
+      "weight": 0.8
+    },
+    {
+      "source": "brand_bluesky",
+      "target": "brand_discord",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 0.7
+    },
+    {
+      "source": "brand_github",
+      "target": "brand_x_twitter",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "public/icons.svg",
+      "source_location": null,
+      "weight": 0.7
+    },
+    {
+      "source": "hero_app_mockup",
+      "target": "favicon_everion_logo",
+      "relation": "conceptually_related_to",
+      "confidence": "AMBIGUOUS",
+      "confidence_score": 0.3,
+      "source_file": "src/assets/hero.png",
+      "source_location": null,
+      "weight": 0.4
+    },
+    {
+      "source": "vite_logo",
+      "target": "favicon_everion_logo",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.6,
+      "source_file": "src/assets/vite.svg",
+      "source_location": null,
+      "weight": 0.5
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}

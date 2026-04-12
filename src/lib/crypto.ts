@@ -1,52 +1,8 @@
-const DB_NAME = "openbrain-crypto";
-const DB_VERSION = 1;
-const STORE = "keys";
 const CIPHER = "AES-GCM";
 const IV_BYTES = 12;
 const CIPHERTEXT_PREFIX = "v1:";
 
-function _openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      req.result.createObjectStore(STORE, { keyPath: "id" });
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
 
-async function _storeKey(userId: string, cryptoKey: CryptoKey): Promise<void> {
-  const db = await _openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put({ id: userId, key: cryptoKey });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function _loadKey(userId: string): Promise<CryptoKey | null> {
-  const db = await _openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, "readonly");
-    const req = tx.objectStore(STORE).get(userId);
-    req.onsuccess = () => resolve(req.result?.key ?? null);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-export async function getOrCreateKey(userId: string): Promise<CryptoKey> {
-  if (!userId) throw new Error("userId required");
-  const existing = await _loadKey(userId);
-  if (existing) return existing;
-  const key = await crypto.subtle.generateKey({ name: CIPHER, length: 256 }, false, [
-    "encrypt",
-    "decrypt",
-  ]);
-  await _storeKey(userId, key);
-  return key;
-}
 
 export async function deriveKeyFromPassphrase(
   passphrase: string,

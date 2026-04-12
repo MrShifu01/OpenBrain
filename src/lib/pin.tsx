@@ -18,13 +18,6 @@ function _pinKey(): string {
 export function getStoredPinHash(): string | null {
   return localStorage.getItem(_pinKey()) || null;
 }
-export function removePin(): void {
-  localStorage.removeItem(_pinKey());
-  // Best-effort server-side removal — fire and forget
-  authFetch("/api/pin?action=delete", { method: "DELETE" }).catch((err) =>
-    console.error("[pin] server-side pin delete failed", err),
-  );
-}
 
 async function _legacyVerifyPin(pin: string, stored: string): Promise<boolean> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin + "ob_salt_v1"));

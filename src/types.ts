@@ -19,8 +19,6 @@ export const CANONICAL_TYPES = [
   "secret",
 ] as const;
 
-export type CanonicalEntryType = (typeof CANONICAL_TYPES)[number];
-
 // Entry types are flexible strings — the AI picks the most descriptive label.
 // Well-known types with dedicated icons: reminder, document, contact, place,
 // person, idea, color, decision, note. "secret" is reserved for E2E encryption.

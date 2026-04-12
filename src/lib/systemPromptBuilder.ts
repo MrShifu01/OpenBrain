@@ -1,7 +1,7 @@
 import { getLearningsContext } from "./learningEngine";
 import { loadGraph, getGodNodes } from "./conceptGraph";
 
-export interface SystemPromptOptions {
+interface SystemPromptOptions {
   base?: string;
   memoryGuide?: string;
   brainId?: string;

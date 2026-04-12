@@ -10,9 +10,6 @@ interface OnboardingModalProps {
   ) => void;
 }
 
-// Kept for backward-compat — questions are opt-in in Fill Brain, not forced at signup
-export const ONBOARDING_QUESTIONS: { q: string; cat: string; p: string }[] = [];
-
 const USE_CASES = [
   {
     id: "personal",

@@ -36,23 +36,6 @@ function SingleSkeleton() {
   );
 }
 
-export function SkeletonRow() {
-  return (
-    <div
-      role="status"
-      aria-label="Loading"
-      className="flex items-center gap-3 rounded-xl px-4 py-3"
-      style={{ background: "var(--color-surface-container-lowest)" }}
-    >
-      <div className="skeleton-shimmer h-8 w-8 flex-shrink-0 rounded-lg" />
-      <div className="flex-1 space-y-1.5">
-        <div className="skeleton-shimmer h-3 w-1/3 rounded-full" />
-        <div className="skeleton-shimmer h-2.5 w-1/2 rounded-full" />
-      </div>
-    </div>
-  );
-}
-
 interface SkeletonCardProps {
   count?: number;
 }

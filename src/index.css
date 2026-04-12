@@ -403,6 +403,30 @@ select option:hover {
   background: color-mix(in oklch, var(--color-error) 10%, transparent);
 }
 
+/* Cosmograph — label styling */
+.cosmograph-container {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
+
+.cosmograph-label {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  text-shadow: 0 1px 3px var(--color-surface);
+  pointer-events: none;
+}
+
+.cosmograph-label--hovered {
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-shadow: 0 1px 4px var(--color-surface);
+}
+
 /* Scrollbar hide utility */
 .scrollbar-hide {
   -ms-overflow-style: none;

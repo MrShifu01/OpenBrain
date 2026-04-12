@@ -16,14 +16,14 @@ const SUMMARIZE_EVERY = 10;
 
 /* ─── Types ─── */
 
-export type DecisionSource =
+type DecisionSource =
   | "refine" // Refine audit suggestions
   | "capture" // QuickCapture classification edits
   | "connection" // Auto-link accept/remove
   | "suggestion" // Fill-brain Q&A edits
   | "chat"; // Chat feedback (future)
 
-export interface LearningDecision {
+interface LearningDecision {
   /** Which feature produced this decision */
   source: DecisionSource;
   /** Suggestion type, e.g. TYPE_MISMATCH, LINK_SUGGESTED, CAPTURE_EDIT */
@@ -303,10 +303,6 @@ export function getDecisionCount(brainId: string): number {
   return readDecisions(brainId).length;
 }
 
-/** Get decision count by source. */
-export function getDecisionCountBySource(brainId: string, source: DecisionSource): number {
-  return readDecisions(brainId).filter((d) => d.source === source).length;
-}
 
 /* ─── Utilities ─── */
 

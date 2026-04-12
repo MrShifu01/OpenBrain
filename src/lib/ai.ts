@@ -14,7 +14,7 @@ interface AIContentBlock {
   image_url?: { url: string };
 }
 
-export interface CallAIOptions {
+interface CallAIOptions {
   messages?: AIMessage[];
   system?: string;
   max_tokens?: number;

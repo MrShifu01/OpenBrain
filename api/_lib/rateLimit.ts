@@ -1,4 +1,4 @@
-import type { ApiRequest, ApiResponse } from './types';
+import type { ApiRequest } from './types';
 
 // Distributed rate limiter — sliding window using Upstash Redis REST API.
 // Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env vars.
@@ -79,16 +79,3 @@ export async function rateLimit(req: ApiRequest, limit: number = 20, windowMs: n
   return !limited;
 }
 
-/**
- * Middleware wrapper. Usage: export default withRateLimit(handler, { max: 30 })
- */
-export function withRateLimit(
-  handler: (req: ApiRequest, res: ApiResponse) => Promise<void>,
-  { windowMs = 60000, max = 30 }: { windowMs?: number; max?: number } = {}
-): (req: ApiRequest, res: ApiResponse) => Promise<void> {
-  return async (req: ApiRequest, res: ApiResponse) => {
-    const allowed = await rateLimit(req, max, windowMs);
-    if (!allowed) return res.status(429).json({ error: "Too many requests" });
-    return handler(req, res);
-  };
-}

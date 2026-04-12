@@ -4,7 +4,7 @@
 
 const STORAGE_KEY = "openbrain_theme";
 
-export type Theme = "dark" | "light";
+type Theme = "dark" | "light";
 
 export function loadPersistedTheme(): Theme | null {
   const stored = localStorage.getItem(STORAGE_KEY);

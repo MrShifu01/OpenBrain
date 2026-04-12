@@ -6,9 +6,17 @@ import path from 'path'
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      // Cosmograph internals: CSS modules are pre-compiled as .css.js
+      { find: /^@\/cosmograph\/(.*)\.css$/, replacement: path.resolve(__dirname, 'node_modules/@cosmograph/cosmograph/cosmograph/$1.css.js') },
+      // gl-bench ships CJS by default — point to its ESM build so rolldown gets a default export
+      { find: 'gl-bench', replacement: path.resolve(__dirname, 'node_modules/gl-bench/dist/gl-bench.module.js') },
+      // App-level @ alias
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+    ],
+  },
+  optimizeDeps: {
+    include: ['@cosmograph/react', '@cosmograph/cosmograph'],
   },
   server: {
     proxy: {

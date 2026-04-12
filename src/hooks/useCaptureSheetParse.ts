@@ -21,7 +21,7 @@ interface ParsedEntry {
   _raw?: string;
 }
 
-export interface UploadedFile {
+interface UploadedFile {
   name: string;
   content: string;
 }

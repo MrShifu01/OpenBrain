@@ -1,4 +1,4 @@
-export interface ModelLists {
+interface ModelLists {
   ANTHROPIC: string[];
   OPENAI: string[];
   OPENROUTER: string[];
