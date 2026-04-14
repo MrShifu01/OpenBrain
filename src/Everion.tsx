@@ -55,6 +55,7 @@ import KeyConcepts from "./components/KeyConcepts";
 import SettingsView from "./views/SettingsView";
 import FeedView from "./views/FeedView";
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
+import { isFullyEnriched, enrichEntry } from "./lib/enrichEntry";
 import type { Brain, Entry } from "./types";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
@@ -180,6 +181,8 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
   );
   const [view, setView] = useState("feed");
   const [selected, setSelected] = useState<Entry | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const toggleSelectMode = () => {
@@ -290,6 +293,30 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     refreshCount,
     cryptoKey,
   });
+
+  const silentUpdate = useCallback(
+    (id: string, changes: any) => handleUpdate(id, changes, { silent: true }),
+    [handleUpdate],
+  );
+
+  const unenrichedCount = useMemo(
+    () => entries.filter((e) => !isFullyEnriched(e, entries)).length,
+    [entries],
+  );
+
+  const runBulkEnrich = useCallback(async () => {
+    if (!activeBrain?.id || enriching) return;
+    const unenriched = entries.filter((e) => !isFullyEnriched(e, entries));
+    if (unenriched.length === 0) return;
+    setEnriching(true);
+    setEnrichProgress({ done: 0, total: unenriched.length });
+    for (let i = 0; i < unenriched.length; i++) {
+      await enrichEntry(unenriched[i], activeBrain.id, silentUpdate);
+      setEnrichProgress({ done: i + 1, total: unenriched.length });
+    }
+    setEnriching(false);
+    setEnrichProgress(null);
+  }, [activeBrain?.id, entries, enriching, silentUpdate]);
 
   // On every capture: silently extract concepts from the new entry and generate an insight.
   // Skips insight-type entries to prevent infinite loops.
@@ -755,8 +782,10 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
                     onCapture={() => setShowCapture(true)}
                     onSelectEntry={setSelected}
                     onNavigate={setView}
-                    entries={entries}
-                    onUpdate={handleUpdate}
+                    unenrichedCount={unenrichedCount}
+                    enriching={enriching}
+                    enrichProgress={enrichProgress}
+                    onEnrich={runBulkEnrich}
                   />
                 )}
                 {view === "capture" &&

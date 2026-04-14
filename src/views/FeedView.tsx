@@ -1,9 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { fmtD } from "../data/constants";
 import { EarlyAccessBanner } from "../components/EarlyAccessBanner";
-import { PROMPTS } from "../config/prompts";
-import type { Entry } from "../types";
 
 interface FeedEntry {
   id: string;
@@ -33,124 +31,10 @@ interface FeedViewProps {
   onCapture: () => void;
   onSelectEntry?: (entry: any) => void;
   onNavigate?: (view: string) => void;
-  entries?: Entry[];
-  onUpdate?: (id: string, changes: any) => Promise<void>;
-}
-
-const SKIP_META = new Set([
-  "category", "status", "confidence", "completeness_score",
-  "raw_content", "source_entry_id", "full_text", "workspace", "enrichment",
-]);
-
-function isFullyEnriched(entry: Entry, allEntries: Entry[]): boolean {
-  if (entry.type === "insight") return true;
-  const e = (entry.metadata as any)?.enrichment ?? {};
-  const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
-  const concepts = (e.concepts_count ?? 0) > 0;
-  const insight =
-    e.has_insight ??
-    allEntries.some(
-      (x) => x.type === "insight" && (x.metadata as any)?.source_entry_id === entry.id,
-    );
-  const parsed = Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META.has(k)).length > 0;
-  return embedded && concepts && insight && parsed;
-}
-
-async function enrichEntry(
-  entry: Entry,
-  brainId: string,
-  onUpdate: (id: string, changes: any) => Promise<void>,
-): Promise<void> {
-  const e = (entry.metadata as any)?.enrichment ?? {};
-  const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
-  const concepts = (e.concepts_count ?? 0) > 0;
-  const parsed = Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META.has(k)).length > 0;
-  const insight = e.has_insight ?? false;
-
-  // ── AI Parsing ─────────────────────────────────────────────────────────
-  if (!parsed) {
-    try {
-      const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
-      const res = await authFetch("/api/llm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system: PROMPTS.CAPTURE,
-          messages: [{ role: "user", content: rawText }],
-          max_tokens: 800,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const text: string = data?.content?.[0]?.text || data?.text || "";
-        const jsonMatch = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-        if (jsonMatch) {
-          let parsed: any;
-          try { parsed = JSON.parse(jsonMatch[0]); } catch { /* skip */ }
-          const result = Array.isArray(parsed) ? parsed[0] : parsed;
-          if (result?.type) {
-            const newMeta = { ...(result.metadata || {}) };
-            delete newMeta.confidence;
-            if (rawText.length > 200 && !newMeta.full_text) newMeta.full_text = rawText;
-            await onUpdate(entry.id, {
-              type: result.type,
-              content: result.content || entry.content,
-              metadata: { ...(entry.metadata ?? {}), ...newMeta },
-            });
-            // Refresh local entry ref for subsequent steps
-            entry = { ...entry, type: result.type, content: result.content || entry.content, metadata: { ...(entry.metadata ?? {}), ...newMeta } };
-          }
-        }
-      }
-    } catch { /* continue to next step */ }
-  }
-
-  // ── Embedding ──────────────────────────────────────────────────────────
-  if (!embedded) {
-    try {
-      const res = await authFetch("/api/embed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entry_id: entry.id }),
-      });
-      if (res.ok) {
-        const existing = (entry.metadata as any)?.enrichment ?? {};
-        await onUpdate(entry.id, {
-          metadata: { ...(entry.metadata ?? {}), enrichment: { ...existing, embedded: true } },
-        });
-      }
-    } catch { /* continue */ }
-  }
-
-  // ── Concepts ───────────────────────────────────────────────────────────
-  if (!concepts) {
-    try {
-      const { extractEntryConnections } = await import("../lib/brainConnections");
-      await extractEntryConnections(
-        { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
-        brainId,
-      );
-      const existing = (entry.metadata as any)?.enrichment ?? {};
-      await onUpdate(entry.id, {
-        metadata: { ...(entry.metadata ?? {}), enrichment: { ...existing, concepts_count: 1, has_related: true } },
-      });
-    } catch { /* continue */ }
-  }
-
-  // ── Insight ────────────────────────────────────────────────────────────
-  if (!insight) {
-    try {
-      const { generateEntryInsight } = await import("../lib/brainConnections");
-      await generateEntryInsight(
-        { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
-        brainId,
-      );
-      const existing = (entry.metadata as any)?.enrichment ?? {};
-      await onUpdate(entry.id, {
-        metadata: { ...(entry.metadata ?? {}), enrichment: { ...existing, has_insight: true } },
-      });
-    } catch { /* continue */ }
-  }
+  unenrichedCount?: number;
+  enriching?: boolean;
+  enrichProgress?: { done: number; total: number } | null;
+  onEnrich?: () => void;
 }
 
 export default function FeedView({
@@ -158,13 +42,13 @@ export default function FeedView({
   onCapture,
   onSelectEntry,
   onNavigate,
-  entries = [],
-  onUpdate,
+  unenrichedCount = 0,
+  enriching = false,
+  enrichProgress,
+  onEnrich,
 }: FeedViewProps) {
   const [data, setData] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [enriching, setEnriching] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     if (!brainId) return;
@@ -175,23 +59,6 @@ export default function FeedView({
       .catch((err) => console.error("[FeedView]", err))
       .finally(() => setLoading(false));
   }, [brainId]);
-
-  const unenriched = useMemo(
-    () => entries.filter((e) => !isFullyEnriched(e, entries)),
-    [entries],
-  );
-
-  const runBulkEnrich = useCallback(async () => {
-    if (!brainId || !onUpdate || enriching || unenriched.length === 0) return;
-    setEnriching(true);
-    setEnrichProgress({ done: 0, total: unenriched.length });
-    for (let i = 0; i < unenriched.length; i++) {
-      await enrichEntry(unenriched[i], brainId, onUpdate);
-      setEnrichProgress({ done: i + 1, total: unenriched.length });
-    }
-    setEnriching(false);
-    setEnrichProgress(null);
-  }, [brainId, onUpdate, enriching, unenriched]);
 
   if (loading) {
     return (
@@ -236,7 +103,7 @@ export default function FeedView({
       <EarlyAccessBanner />
 
       {/* Bulk enrichment banner — only when there are unenriched entries */}
-      {unenriched.length > 0 && onUpdate && (
+      {(unenrichedCount > 0 || enriching) && onEnrich && (
         <div
           className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3"
           style={{
@@ -248,7 +115,7 @@ export default function FeedView({
             <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
               {enriching && enrichProgress
                 ? `Enriching ${enrichProgress.done} of ${enrichProgress.total}…`
-                : `${unenriched.length} ${unenriched.length === 1 ? "memory needs" : "memories need"} enrichment`}
+                : `${unenrichedCount} ${unenrichedCount === 1 ? "memory needs" : "memories need"} enrichment`}
             </p>
             {!enriching && (
               <p className="text-[10px] leading-tight" style={{ color: "var(--color-on-surface-variant)" }}>
@@ -257,7 +124,7 @@ export default function FeedView({
             )}
           </div>
           <button
-            onClick={runBulkEnrich}
+            onClick={onEnrich}
             disabled={enriching}
             className="flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all disabled:opacity-50"
             style={{ background: "var(--color-secondary)", color: "var(--color-on-secondary)" }}

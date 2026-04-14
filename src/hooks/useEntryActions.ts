@@ -67,7 +67,7 @@ export function useEntryActions({
   );
 
   const handleUpdate = useCallback(
-    async (id: string, changes: Partial<Entry>) => {
+    async (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => {
       const previous = entries.find((e) => e.id === id);
       if (!isOnline) {
         showToast("You can't save while offline.", "error");
@@ -120,7 +120,7 @@ export function useEntryActions({
         return next;
       });
       setSelected((prev: any) => (prev?.id === id ? { ...prev, ...changes } : prev));
-      if (previous)
+      if (previous && !options?.silent)
         setLastAction({
           type: "update",
           id,
