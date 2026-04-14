@@ -217,7 +217,8 @@ async function buildBrainConnections(brainId: string, onStatus: (s: string) => v
       `/api/entries?brain_id=${encodeURIComponent(brainId)}&limit=100`,
     );
     if (!res.ok) throw new Error("Could not fetch entries");
-    const entries: any[] = await res.json();
+    const body = await res.json();
+    const entries: any[] = Array.isArray(body) ? body : (body.entries ?? []);
     if (entries.length === 0) { onStatus("No entries found."); return; }
 
     const summary = entries.map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").slice(0, 200)}`).join("\n");
