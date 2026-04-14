@@ -8,7 +8,7 @@ export default function FloatingCaptureButton({ onClick }: FloatingCaptureButton
       onClick={onClick}
       aria-label="Capture a thought"
       title="Capture (Ctrl+K)"
-      className="press-scale fixed right-5 bottom-24 z-40 flex h-14 w-14 items-center justify-center rounded-full lg:bottom-8"
+      className="press-scale fixed right-5 bottom-24 z-40 hidden h-14 w-14 items-center justify-center rounded-full lg:flex lg:bottom-8"
       style={{
         background: "var(--color-primary)",
         color: "var(--color-on-primary)",

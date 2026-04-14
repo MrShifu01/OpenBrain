@@ -30,14 +30,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const oneMonthAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
     const resurfacedRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&created_at=gte.${sixMonthsAgo}&created_at=lte.${oneMonthAgo}&deleted=is.false&select=id,title,content,type,tags,created_at&order=random&limit=2`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&created_at=gte.${sixMonthsAgo}&created_at=lte.${oneMonthAgo}&deleted_at=is.null&select=id,title,content,type,tags,created_at&order=random&limit=2`,
       { headers: SB_HEADERS },
     );
     const resurfaced = resurfacedRes.ok ? await resurfacedRes.json() : [];
 
     // 2. Stats: entry count
     const statsRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted=is.false&select=id`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id`,
       { headers: { ...SB_HEADERS, Prefer: "count=exact" } },
     );
     const entryCount = parseInt(statsRes.headers.get("content-range")?.split("/")[1] || "0", 10);
@@ -56,7 +56,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     // 4. Latest gap-analyst insight (if any)
     const insightRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&type=eq.insight&deleted=is.false&select=content&order=created_at.desc&limit=1`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&type=eq.insight&deleted_at=is.null&select=content&order=created_at.desc&limit=1`,
       { headers: SB_HEADERS },
     );
     const insights = insightRes.ok ? await insightRes.json() : [];
@@ -64,7 +64,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
     // 5. Action suggestion: entries with few tags
     const sparseRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted=is.false&tags=eq.{}&select=id&limit=5`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&tags=eq.{}&select=id&limit=5`,
       { headers: SB_HEADERS },
     );
     const sparseEntries = sparseRes.ok ? await sparseRes.json() : [];

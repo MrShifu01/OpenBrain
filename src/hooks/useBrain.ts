@@ -17,10 +17,8 @@ export function useBrain(onBrainSwitch?: (brain: Brain | null) => void) {
       const data: Brain[] = await res.json();
       setBrains(data);
 
-      const stored = localStorage.getItem("openbrain_active_brain_id");
-      const match = data.find((b) => b.id === stored);
       const personal = data.find((b) => b.type === "personal");
-      const initial = match || personal || data[0] || null;
+      const initial = personal || data[0] || null;
 
       setActiveBrainState((prev) => {
         if (prev && data.find((b) => b.id === prev.id)) return prev;
