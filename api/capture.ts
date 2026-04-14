@@ -183,7 +183,6 @@ async function handleCapture(req: ApiRequest, res: ApiResponse): Promise<void> {
     // Always use server Gemini key for embeddings
     const embedProvider = "google";
     const embedKey = GEMINI_API_KEY;
-    const embedModel = undefined;
     if (embedKey) {
       const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
       try {
