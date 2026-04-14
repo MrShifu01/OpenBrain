@@ -38,7 +38,7 @@ export async function extractEntryConnections(entry: EntryRef, brainId: string):
       : String(entry.content || "").replace(/[\r\n]+/g, " ").slice(0, 300);
     const entryText = `id:${entry.id} type:${entry.type || "note"} title:${entry.title}\n${bodyText}`;
     const aiRes = await callAI({
-      max_tokens: 512,
+      max_tokens: 1024,
       system: ENTRY_CONCEPTS_PROMPT,
       messages: [{ role: "user", content: entryText }],
     });
@@ -58,9 +58,25 @@ export async function extractEntryConnections(entry: EntryRef, brainId: string):
       return;
     }
     let parsed: any;
-    try { parsed = JSON.parse(jsonMatch[0]); } catch (e) {
-      console.warn("[concepts] JSON parse failed for", entry.id, e);
-      return;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Truncated response — salvage complete objects from partial arrays
+      const salvageArray = (key: string): any[] => {
+        const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"));
+        if (!m) return [];
+        const items: any[] = [];
+        const objRe = /\{[^{}]*\}/g;
+        let om: RegExpExecArray | null;
+        while ((om = objRe.exec(m[1])) !== null) {
+          try { items.push(JSON.parse(om[0])); } catch { /* skip */ }
+        }
+        return items;
+      };
+      parsed = { concepts: salvageArray("concepts"), relationships: salvageArray("relationships") };
+      if (parsed.concepts.length > 0) {
+        console.log("[concepts] salvaged", parsed.concepts.length, "concepts from truncated response for", entry.id);
+      }
     }
 
     const newConcepts = parsed.concepts ? extractConcepts(parsed.concepts) : [];
