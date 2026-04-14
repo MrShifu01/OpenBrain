@@ -80,7 +80,7 @@ const RefineView = lazyRetry(() => import("./views/RefineView"));
 const TodoView = lazyRetry(() => import("./views/TodoView"));
 const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
-const ChatView = lazyRetry(() => import("./views/ChatView"));
+const AskView = lazyRetry(() => import("./views/AskView"));
 
 function Loader() {
   return (
@@ -94,11 +94,11 @@ function Loader() {
 const PHONE_REGEX = /(\+?[0-9]{7,15})/;
 
 const NAV_VIEWS = [
-  { id: "grid", l: "Memory", ic: "▦" },
-  { id: "chat", l: "Ask", ic: "◈" },
+  { id: "memory", l: "Memory", ic: "▦" },
+  { id: "ask", l: "Ask", ic: "◈" },
 ];
 
-export default function OpenBrain({ initialShowCapture }: { initialShowCapture?: boolean } = {}) {
+export default function Everion({ initialShowCapture }: { initialShowCapture?: boolean } = {}) {
   const [entries, setEntries] = useState<Entry[]>(() => {
     try {
       const cached = localStorage.getItem("openbrain_entries");
@@ -297,26 +297,28 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
     (newEntry: import("./types").Entry) => {
       _handleCreated(newEntry);
       if (activeBrain?.id && newEntry.type !== "insight") {
-        import("./lib/brainConnections").then(({ extractEntryConnections, generateEntryInsight }) => {
+        import("./lib/brainConnections").then(({ extractEntryConnections, generateEntryInsight, findAndSaveConnections }) => {
           extractEntryConnections(newEntry, activeBrain.id!).catch(() => {});
           generateEntryInsight(newEntry, activeBrain.id!).catch(() => {});
+          findAndSaveConnections(newEntry, entries, activeBrain.id!).catch(() => {});
         });
       }
     },
-    [_handleCreated, activeBrain?.id],
+    [_handleCreated, activeBrain?.id, entries],
   );
 
-  // Bulk file imports: extract concepts only, skip insight generation to avoid flooding the feed.
+  // Bulk file imports: extract concepts, skip insight generation to avoid flooding the feed.
   const handleCreatedBulk = useCallback(
     (newEntry: import("./types").Entry) => {
       _handleCreated(newEntry);
       if (activeBrain?.id && newEntry.type !== "insight") {
-        import("./lib/brainConnections").then(({ extractEntryConnections }) => {
+        import("./lib/brainConnections").then(({ extractEntryConnections, findAndSaveConnections }) => {
           extractEntryConnections(newEntry, activeBrain.id!).catch(() => {});
+          findAndSaveConnections(newEntry, entries, activeBrain.id!).catch(() => {});
         });
       }
     },
-    [_handleCreated, activeBrain?.id],
+    [_handleCreated, activeBrain?.id, entries],
   );
 
   const {
@@ -525,7 +527,7 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                   }}
                 />
               )}
-              {view === "grid" && nudge && (
+              {view === "memory" && nudge && (
                 <NudgeBanner
                   nudge={nudge}
                   onDismiss={() => {
@@ -570,7 +572,7 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
               <OmniSearch entries={entries} onSelect={setSelected} onNavigate={setView} />
 
               <div className="mx-auto max-w-6xl px-4 pt-4 pb-32 sm:px-6 lg:pb-8">
-                {view === "grid" && (
+                {view === "memory" && (
                   <div className="space-y-3">
                     <div
                       className="flex items-center gap-3 rounded-2xl border px-4 py-3"
@@ -740,9 +742,9 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                     />
                   </Suspense>
                 )}
-                {view === "chat" && (
+                {view === "ask" && (
                   <Suspense fallback={<Loader />}>
-                    <ChatView {...chat} brains={brains} phoneRegex={PHONE_REGEX} />
+                    <AskView {...chat} brains={brains} phoneRegex={PHONE_REGEX} />
                   </Suspense>
                 )}
                 {view === "settings" && <SettingsView onNavigate={setView} />}
@@ -825,10 +827,10 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                       )
                       .slice(0, 5);
                     const quickActions = [
-                      { id: "chat", label: "Ask Brain", icon: NavIcon.chat },
+                      { id: "ask", label: "Ask Brain", icon: NavIcon.chat },
                       { id: "todos", label: "Todos", icon: NavIcon.todos },
                       { id: "refine", label: "Improve Brain", icon: NavIcon.refine },
-                      { id: "grid", label: "Memory Grid", icon: NavIcon.grid },
+                      { id: "memory", label: "Memory Grid", icon: NavIcon.grid },
                     ] as { id: string; label: string; icon: ReactNode }[];
                     return (
                       <div className="space-y-6">

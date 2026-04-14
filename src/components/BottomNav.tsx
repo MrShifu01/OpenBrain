@@ -4,9 +4,9 @@ import { NavIcon } from "./icons/NavIcons";
 
 const NAV_ITEMS = [
   { id: "feed", label: "Feed", icon: NavIcon.feed },
-  { id: "grid", label: "Memory", icon: NavIcon.grid },
-  { id: "_capture_fab", label: "Capture", isFAB: true, icon: NavIcon.add },
-  { id: "chat", label: "Ask", icon: NavIcon.chat },
+  { id: "memory", label: "Memory", icon: NavIcon.grid },
+  { id: "_capture_fab", label: "New Entry", isFAB: true, icon: NavIcon.add },
+  { id: "ask", label: "Ask", icon: NavIcon.chat },
   { id: "settings", label: "Settings", icon: NavIcon.settings },
 ];
 

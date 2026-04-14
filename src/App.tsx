@@ -2,7 +2,7 @@ import { useState, useEffect, type JSX } from "react";
 import { supabase } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
-import OpenBrain from "./OpenBrain";
+import Everion from "./Everion";
 import LoginScreen from "./LoginScreen";
 import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
@@ -196,7 +196,7 @@ export default function App(): JSX.Element {
               {inviteMsg}
             </div>
           )}
-          <OpenBrain initialShowCapture={earlyCapture} />
+          <Everion initialShowCapture={earlyCapture} />
           <UpdateToast />
         </MemoryProvider>
       </ErrorBoundary>

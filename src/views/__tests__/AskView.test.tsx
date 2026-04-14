@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { createRef } from "react";
-import ChatView from "../ChatView";
+import AskView from "../AskView";
 
 const baseProps = {
   chatMsgs: [{ role: "assistant", content: "Hello!" }],
@@ -25,9 +25,9 @@ const baseProps = {
   phoneRegex: /(\+27|0)[6-8][0-9]{8}/g,
 };
 
-describe("ChatView — accessibility", () => {
+describe("AskView — accessibility", () => {
   it("messages container has aria-live=polite so screen readers announce new messages", () => {
-    const { container } = render(<ChatView {...baseProps} />);
+    const { container } = render(<AskView {...baseProps} />);
     const liveRegion = container.querySelector("[aria-live]");
     expect(liveRegion).not.toBeNull();
     expect(liveRegion).toHaveAttribute("aria-live", "polite");

@@ -6,7 +6,7 @@ const EXAMPLE_PROMPTS = [
   "Find connections between my recent ideas",
 ];
 
-interface ChatViewProps {
+interface AskViewProps {
   chatMsgs: { role: string; content: string }[];
   chatLoading: boolean;
   chatInput: string;
@@ -28,7 +28,7 @@ interface ChatViewProps {
   phoneRegex: RegExp;
 }
 
-export default function ChatView({
+export default function AskView({
   chatMsgs,
   chatLoading,
   chatInput,
@@ -48,7 +48,7 @@ export default function ChatView({
   chatEndRef,
   brains,
   phoneRegex,
-}: ChatViewProps) {
+}: AskViewProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
