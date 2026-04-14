@@ -2,15 +2,15 @@ import type { TypeConfig, Priority, PriorityConfig, Entry, Link } from "../types
 
 // Well-known type icons — all colors use CSS vars so they respond to light/dark mode.
 export const TC: Record<string, TypeConfig> = {
-  reminder: { i: "⏰", c: "var(--color-status-medium)" },
+  reminder: { i: "⏰", c: "var(--color-primary)" },
   document: { i: "📄", c: "var(--color-secondary)" },
   contact: { i: "📇", c: "var(--color-secondary)" },
   place: { i: "📍", c: "var(--color-on-surface-variant)" },
   person: { i: "👤", c: "var(--color-primary)" },
-  idea: { i: "💡", c: "var(--color-status-medium)" },
-  color: { i: "🎨", c: "var(--color-primary)" },
+  idea: { i: "💡", c: "var(--color-primary)" },
+  color: { i: "🎨", c: "var(--color-secondary)" },
   decision: { i: "⚖️", c: "var(--color-secondary)" },
-  note: { i: "📝", c: "var(--color-primary)" },
+  note: { i: "📝", c: "var(--color-secondary)" },
   secret: { i: "🔐", c: "var(--color-error)" },
 };
 export const PC: Record<Priority, PriorityConfig> = {

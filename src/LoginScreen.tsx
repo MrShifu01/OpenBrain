@@ -24,25 +24,56 @@ function RefreshCwIcon({ size = 24, style }: { size?: number; style?: React.CSSP
 import { useAuthFlow } from "./hooks/useAuthFlow";
 import { EverionLogo } from "./components/ui/EverionLogo";
 
+function PersonIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+    </svg>
+  );
+}
+
+function FamilyIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <circle cx="9" cy="7" r="3" />
+      <circle cx="16" cy="8" r="2.5" />
+      <path d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6" />
+      <path d="M16 14c2.5 0 5 1.8 5 5" />
+    </svg>
+  );
+}
+
+function BriefcaseIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <rect x="2" y="8" width="20" height="13" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+      <line x1="12" y1="13" x2="12" y2="17" />
+      <line x1="8" y1="15" x2="16" y2="15" />
+    </svg>
+  );
+}
+
 interface Feature {
-  emoji: string;
+  Icon: () => JSX.Element;
   label: string;
   desc: string;
 }
 
 const FEATURES: Feature[] = [
   {
-    emoji: "🧠",
+    Icon: PersonIcon,
     label: "Personal brain",
     desc: "Identity, health, finances, documents — always findable",
   },
   {
-    emoji: "👨‍👩‍👧",
+    Icon: FamilyIcon,
     label: "Family brain",
     desc: "Household info, kids' schools, emergency contacts — shared with the people that matter",
   },
   {
-    emoji: "🏢",
+    Icon: BriefcaseIcon,
     label: "Business brain",
     desc: "Suppliers, staff, SOPs, licences — your whole operation in one place",
   },
@@ -135,22 +166,6 @@ export default function LoginScreen(): JSX.Element {
           }}
         >
           <div style={{ marginBottom: 48 }}>
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "var(--color-primary-container)",
-                border: "1px solid var(--color-outline-variant)",
-                marginBottom: 24,
-              }}
-              aria-hidden="true"
-            >
-              <BrainIcon size={24} style={{ color: "var(--color-primary)" }} />
-            </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
               <EverionLogo size={32} />
               <h1
@@ -202,10 +217,10 @@ export default function LoginScreen(): JSX.Element {
                 style={{ display: "flex", alignItems: "flex-start", gap: 14 }}
               >
                 <span
-                  style={{ fontSize: 18, lineHeight: 1, marginTop: 2, flexShrink: 0 }}
+                  style={{ color: "var(--color-primary)", marginTop: 2, flexShrink: 0 }}
                   aria-hidden="true"
                 >
-                  {f.emoji}
+                  <f.Icon />
                 </span>
                 <div>
                   <div
@@ -279,6 +294,17 @@ export default function LoginScreen(): JSX.Element {
                 Create your Everion account below — you'll be added automatically.
               </div>
             )}
+
+            {/* ── Mobile-only brand strip ── */}
+            <div className="login-mobile-brand">
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <EverionLogo size={22} />
+                <span style={{ fontFamily: "'Lora', Georgia, serif", fontWeight: 700, fontSize: 20, color: "var(--color-on-surface)", letterSpacing: "-0.02em" }}>Everion</span>
+              </div>
+              <p style={{ fontSize: 13, color: "var(--color-primary)", margin: 0, fontWeight: 500 }}>
+                Your second brain — capture everything, find anything.
+              </p>
+            </div>
 
             {/* ── CTA (pre-form) ── */}
             {!showForm && !sent && !usePassword && (
@@ -939,12 +965,12 @@ export default function LoginScreen(): JSX.Element {
 
       <style>{`
         .login-primary-btn:hover { background: var(--color-primary-dim) !important; }
+        .login-mobile-brand { display: none; }
         @media (max-width: 768px) {
           .login-two-col { flex-direction: column !important; min-height: auto !important; border: none !important; border-radius: 0 !important; }
           .login-two-col > div:last-child { order: -1; width: 100% !important; padding: 36px 24px !important; }
-          .login-two-col > div:first-child { border-right: none !important; border-bottom: 1px solid var(--color-outline-variant) !important; padding: 32px 24px !important; }
-          .login-feature-list { display: none !important; }
-          .login-privacy-note { display: none !important; }
+          .login-two-col > div:first-child { display: none !important; }
+          .login-mobile-brand { display: block !important; margin-bottom: 28px; }
         }
       `}</style>
     </div>
