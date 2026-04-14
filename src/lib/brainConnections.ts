@@ -152,12 +152,14 @@ export async function buildBrainConnections(
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
+      // Response truncated — salvage individual arrays defensively
       const conceptsMatch = text.match(/"concepts"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
       const relsMatch = text.match(/"relationships"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
-      parsed = {
-        concepts: conceptsMatch ? JSON.parse(conceptsMatch[1]) : [],
-        relationships: relsMatch ? JSON.parse(relsMatch[1]) : [],
-      };
+      let concepts: any[] = [];
+      let relationships: any[] = [];
+      try { if (conceptsMatch) concepts = JSON.parse(conceptsMatch[1]); } catch { /* truncated */ }
+      try { if (relsMatch) relationships = JSON.parse(relsMatch[1]); } catch { /* truncated */ }
+      parsed = { concepts, relationships };
     }
 
     const newConcepts = parsed.concepts ? extractConcepts(parsed.concepts) : [];
