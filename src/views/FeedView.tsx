@@ -25,9 +25,10 @@ interface FeedViewProps {
   brainId: string | undefined;
   onCapture: () => void;
   onSelectEntry?: (entry: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
-export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedViewProps) {
+export default function FeedView({ brainId, onCapture, onSelectEntry, onNavigate }: FeedViewProps) {
   const [data, setData] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -145,8 +146,9 @@ export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedView
       )}
 
       {data.action && (
-        <div
-          className="flex items-start gap-3 rounded-2xl border p-4"
+        <button
+          onClick={() => onNavigate?.("grid")}
+          className="press-scale flex w-full items-start gap-3 rounded-2xl border p-4 text-left"
           style={{
             background: "color-mix(in oklch, var(--color-secondary) 8%, var(--color-surface))",
             borderColor: "color-mix(in oklch, var(--color-secondary) 18%, transparent)",
@@ -157,7 +159,10 @@ export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedView
             <p className="text-on-surface text-sm font-semibold">Suggestion</p>
             <p className="text-on-surface-variant mt-0.5 text-xs">{data.action}</p>
           </div>
-        </div>
+          {onNavigate && (
+            <span className="text-on-surface-variant self-center text-xs">→</span>
+          )}
+        </button>
       )}
 
       <div className="pt-2 text-center">

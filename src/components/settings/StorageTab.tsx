@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import TrashView from "../../views/TrashView";
 import type { Brain } from "../../types";
 import { KEYS } from "../../lib/storageKeys";
+import { authFetch } from "../../lib/authFetch";
+import { callAI } from "../../lib/ai";
+import { PROMPTS } from "../../config/prompts";
+import {
+  extractConcepts,
+  extractRelationships,
+  mergeGraph,
+  loadGraphFromDB,
+  saveGraphToDB,
+} from "../../lib/conceptGraph";
 
 function fmt(n: number) {
   return n.toLocaleString();
@@ -184,8 +194,69 @@ interface Props {
   activeBrain?: Brain;
 }
 
+async function reEmbedAll(brainId: string, onStatus: (s: string) => void) {
+  onStatus("Re-embedding all entries…");
+  try {
+    const res = await authFetch("/api/capture?action=embed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ batch: true, brain_id: brainId, force: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Unknown error");
+    onStatus(`Done — ${data.processed ?? "?"} embedded, ${data.failed ?? 0} failed.`);
+  } catch (e: any) {
+    onStatus(`Error: ${e.message}`);
+  }
+}
+
+async function buildBrainConnections(brainId: string, onStatus: (s: string) => void) {
+  onStatus("Fetching entries…");
+  try {
+    const res = await authFetch(
+      `/api/entries?brain_id=${encodeURIComponent(brainId)}&limit=100`,
+    );
+    if (!res.ok) throw new Error("Could not fetch entries");
+    const entries: any[] = await res.json();
+    if (entries.length === 0) { onStatus("No entries found."); return; }
+
+    const summary = entries.map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").slice(0, 200)}`).join("\n");
+    const userMessage = `Here are the brain entries:\n\n${summary}`;
+
+    onStatus(`Analysing ${entries.length} entries with AI…`);
+    const aiRes = await callAI({
+      task: "refine",
+      max_tokens: 4096,
+      system: `Today's date is ${new Date().toISOString().slice(0, 10)}. ${PROMPTS.COMBINED_AUDIT}`,
+      brainId,
+      messages: [{ role: "user", content: userMessage }],
+    });
+    if (!aiRes.ok) throw new Error(`AI error ${aiRes.status}`);
+    const raw = await aiRes.json();
+    const text: string = raw?.content?.[0]?.text || raw?.text || "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON in AI response");
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const newConcepts = parsed.concepts ? extractConcepts(parsed.concepts) : [];
+    const newRels = parsed.relationships ? extractRelationships(parsed.relationships) : [];
+
+    onStatus("Saving connections…");
+    const existing = await loadGraphFromDB(brainId);
+    const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
+    await saveGraphToDB(brainId, merged);
+    onStatus(`Done — ${newConcepts.length} concepts, ${newRels.length} relationships saved.`);
+  } catch (e: any) {
+    onStatus(`Error: ${e.message}`);
+  }
+}
+
 export default function StorageTab({ activeBrain }: Props) {
   const [showTrash, setShowTrash] = useState(false);
+  const [embedStatus, setEmbedStatus] = useState("");
+  const [embedBusy, setEmbedBusy] = useState(false);
+  const [graphStatus, setGraphStatus] = useState("");
+  const [graphBusy, setGraphBusy] = useState(false);
 
   return (
     <>
@@ -240,6 +311,62 @@ export default function StorageTab({ activeBrain }: Props) {
         >
           Restart Onboarding
         </button>
+      </div>
+
+      <div
+        className="space-y-3 rounded-2xl border p-4"
+        style={{
+          background: "var(--color-surface-container-high)",
+          borderColor: "var(--color-outline-variant)",
+        }}
+      >
+        <p className="text-on-surface text-sm font-semibold">Advanced Brain</p>
+        <p className="text-on-surface-variant text-xs">
+          Re-embed all entries with pgvector for semantic search. Build brain connections
+          to surface concepts and relationships across your knowledge.
+        </p>
+
+        <button
+          disabled={embedBusy || !activeBrain?.id}
+          onClick={async () => {
+            if (!activeBrain?.id) return;
+            setEmbedBusy(true);
+            await reEmbedAll(activeBrain.id, setEmbedStatus);
+            setEmbedBusy(false);
+          }}
+          className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{
+            background: "var(--color-secondary-container)",
+            color: "var(--color-on-secondary-container)",
+            minHeight: 44,
+          }}
+        >
+          {embedBusy ? "Embedding…" : "Re-embed All Entries"}
+        </button>
+        {embedStatus && (
+          <p className="text-on-surface-variant text-xs">{embedStatus}</p>
+        )}
+
+        <button
+          disabled={graphBusy || !activeBrain?.id}
+          onClick={async () => {
+            if (!activeBrain?.id) return;
+            setGraphBusy(true);
+            await buildBrainConnections(activeBrain.id, setGraphStatus);
+            setGraphBusy(false);
+          }}
+          className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{
+            background: "var(--color-primary-container)",
+            color: "var(--color-primary)",
+            minHeight: 44,
+          }}
+        >
+          {graphBusy ? "Building…" : "Build Brain Connections"}
+        </button>
+        {graphStatus && (
+          <p className="text-on-surface-variant text-xs">{graphStatus}</p>
+        )}
       </div>
     </>
   );

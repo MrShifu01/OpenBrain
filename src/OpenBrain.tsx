@@ -723,6 +723,7 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
                     brainId={activeBrain?.id}
                     onCapture={() => setShowCapture(true)}
                     onSelectEntry={setSelected}
+                    onNavigate={setView}
                   />
                 )}
                 {view === "capture" &&
