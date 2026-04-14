@@ -5,7 +5,6 @@ import {
   extractConcepts,
   extractRelationships,
   mergeGraph,
-  loadGraph,
   loadGraphFromDB,
   saveGraphToDB,
 } from "./conceptGraph";
@@ -52,8 +51,8 @@ export async function extractEntryConnections(entry: EntryRef, brainId: string):
     const newRels = parsed.relationships ? extractRelationships(parsed.relationships) : [];
     if (newConcepts.length === 0 && newRels.length === 0) return;
 
-    // Read from localStorage cache — no DB call needed
-    const existing = loadGraph(brainId);
+    // Load from DB (caches to localStorage for subsequent reads on same device)
+    const existing = await loadGraphFromDB(brainId);
     const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
     await saveGraphToDB(brainId, merged);
   } catch { /* silent */ }
@@ -66,7 +65,7 @@ export async function extractEntryConnections(entry: EntryRef, brainId: string):
  */
 export async function generateEntryInsight(entry: EntryRef, brainId: string): Promise<void> {
   try {
-    const graph = loadGraph(brainId);
+    const graph = await loadGraphFromDB(brainId);
     const topConcepts = graph.concepts
       .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
       .slice(0, 8)
