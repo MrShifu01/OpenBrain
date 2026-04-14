@@ -3,15 +3,7 @@ import TrashView from "../../views/TrashView";
 import type { Brain } from "../../types";
 import { KEYS } from "../../lib/storageKeys";
 import { authFetch } from "../../lib/authFetch";
-import { callAI } from "../../lib/ai";
-import { PROMPTS } from "../../config/prompts";
-import {
-  extractConcepts,
-  extractRelationships,
-  mergeGraph,
-  loadGraphFromDB,
-  saveGraphToDB,
-} from "../../lib/conceptGraph";
+import { buildBrainConnections } from "../../lib/brainConnections";
 
 function fmt(n: number) {
   return n.toLocaleString();
@@ -210,63 +202,6 @@ async function reEmbedAll(brainId: string, onStatus: (s: string) => void) {
   }
 }
 
-async function buildBrainConnections(brainId: string, onStatus: (s: string) => void) {
-  onStatus("Fetching entries…");
-  try {
-    const res = await authFetch(
-      `/api/entries?brain_id=${encodeURIComponent(brainId)}&limit=100`,
-    );
-    if (!res.ok) throw new Error("Could not fetch entries");
-    const body = await res.json();
-    const entries: any[] = Array.isArray(body) ? body : (body.entries ?? []);
-    if (entries.length === 0) { onStatus("No entries found."); return; }
-
-    // Keep summary compact — long content causes the AI to exceed max_tokens and truncate the JSON
-    const summary = entries
-      .slice(0, 80)
-      .map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").replace(/[\r\n]+/g, " ").slice(0, 80)}`)
-      .join("\n");
-    const userMessage = `Here are the brain entries:\n\n${summary}`;
-
-    onStatus(`Analysing ${entries.length} entries with AI…`);
-    const aiRes = await callAI({
-      task: "refine",
-      max_tokens: 4096,
-      system: `Today's date is ${new Date().toISOString().slice(0, 10)}. ${PROMPTS.COMBINED_AUDIT}`,
-      brainId,
-      messages: [{ role: "user", content: userMessage }],
-    });
-    if (!aiRes.ok) throw new Error(`AI error ${aiRes.status}`);
-    const raw = await aiRes.json();
-    const text: string = raw?.content?.[0]?.text || raw?.text || "";
-    // Try to extract JSON — handle truncated responses by finding the last complete array
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON in AI response");
-    let parsed: any;
-    try {
-      parsed = JSON.parse(jsonMatch[0]);
-    } catch {
-      // Response may be truncated — attempt to salvage concepts/relationships arrays individually
-      const conceptsMatch = text.match(/"concepts"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
-      const relsMatch = text.match(/"relationships"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
-      parsed = {
-        concepts: conceptsMatch ? JSON.parse(conceptsMatch[1]) : [],
-        relationships: relsMatch ? JSON.parse(relsMatch[1]) : [],
-      };
-    }
-
-    const newConcepts = parsed.concepts ? extractConcepts(parsed.concepts) : [];
-    const newRels = parsed.relationships ? extractRelationships(parsed.relationships) : [];
-
-    onStatus("Saving connections…");
-    const existing = await loadGraphFromDB(brainId);
-    const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
-    await saveGraphToDB(brainId, merged);
-    onStatus(`Done — ${newConcepts.length} concepts, ${newRels.length} relationships saved.`);
-  } catch (e: any) {
-    onStatus(`Error: ${e.message}`);
-  }
-}
 
 export default function StorageTab({ activeBrain }: Props) {
   const [showTrash, setShowTrash] = useState(false);

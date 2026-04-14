@@ -280,7 +280,7 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
     handleDelete,
     handleUpdate,
     handleUndo,
-    handleCreated,
+    handleCreated: _handleCreated,
   } = useEntryActions({
     entries,
     setEntries,
@@ -290,6 +290,22 @@ export default function OpenBrain({ initialShowCapture }: { initialShowCapture?:
     refreshCount,
     cryptoKey,
   });
+
+  // After every 5th capture: silently rebuild brain connections in the background
+  const handleCreated = useCallback(
+    (newEntry: import("./types").Entry) => {
+      _handleCreated(newEntry);
+      if (activeBrain?.id) {
+        import("./lib/brainConnections").then(({ incrementCaptureCount, buildBrainConnections }) => {
+          const count = incrementCaptureCount(activeBrain.id!);
+          if (count % 5 === 0) {
+            buildBrainConnections(activeBrain.id!).catch(() => {});
+          }
+        });
+      }
+    },
+    [_handleCreated, activeBrain?.id],
+  );
 
   const {
     tasks: bgTasks,
