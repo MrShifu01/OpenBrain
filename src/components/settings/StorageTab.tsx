@@ -221,7 +221,11 @@ async function buildBrainConnections(brainId: string, onStatus: (s: string) => v
     const entries: any[] = Array.isArray(body) ? body : (body.entries ?? []);
     if (entries.length === 0) { onStatus("No entries found."); return; }
 
-    const summary = entries.map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").slice(0, 200)}`).join("\n");
+    // Keep summary compact — long content causes the AI to exceed max_tokens and truncate the JSON
+    const summary = entries
+      .slice(0, 80)
+      .map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").replace(/[\r\n]+/g, " ").slice(0, 80)}`)
+      .join("\n");
     const userMessage = `Here are the brain entries:\n\n${summary}`;
 
     onStatus(`Analysing ${entries.length} entries with AI…`);
@@ -235,9 +239,21 @@ async function buildBrainConnections(brainId: string, onStatus: (s: string) => v
     if (!aiRes.ok) throw new Error(`AI error ${aiRes.status}`);
     const raw = await aiRes.json();
     const text: string = raw?.content?.[0]?.text || raw?.text || "";
+    // Try to extract JSON — handle truncated responses by finding the last complete array
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON in AI response");
-    const parsed = JSON.parse(jsonMatch[0]);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      // Response may be truncated — attempt to salvage concepts/relationships arrays individually
+      const conceptsMatch = text.match(/"concepts"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
+      const relsMatch = text.match(/"relationships"\s*:\s*(\[[\s\S]*?\])\s*[,}]/);
+      parsed = {
+        concepts: conceptsMatch ? JSON.parse(conceptsMatch[1]) : [],
+        relationships: relsMatch ? JSON.parse(relsMatch[1]) : [],
+      };
+    }
 
     const newConcepts = parsed.concepts ? extractConcepts(parsed.concepts) : [];
     const newRels = parsed.relationships ? extractRelationships(parsed.relationships) : [];
