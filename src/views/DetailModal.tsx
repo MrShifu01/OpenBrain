@@ -698,33 +698,6 @@ No explanation, no punctuation, just one word.`,
                   }}
                 />
               </div>
-              <div>
-                <label
-                  className="mb-1.5 block text-[10px] font-semibold tracking-widest uppercase"
-                  style={{ color: "var(--color-on-surface-variant)" }}
-                >
-                  Tags{" "}
-                  <span className="text-on-surface-variant/50 normal-case">(comma separated)</span>
-                </label>
-                <input
-                  value={editTags}
-                  onChange={(e) => setEditTags(e.target.value)}
-                  placeholder="tag1, tag2, tag3"
-                  className="text-on-surface placeholder:text-on-surface-variant/40 min-h-[44px] w-full rounded-xl px-4 py-3 text-sm transition-all focus:outline-none"
-                  style={{
-                    background: "var(--color-surface-container)",
-                    border: "1px solid var(--color-outline-variant)",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-primary)";
-                    e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-container)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "var(--color-outline-variant)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                />
-              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   className="text-on-surface-variant hover:text-on-surface press-scale flex-1 rounded-xl py-3 text-sm font-semibold transition-all"
@@ -832,31 +805,6 @@ No explanation, no punctuation, just one word.`,
                     </div>
                   )}
                 </>
-              )}
-              {editTags
-                .split(",")
-                .map((tag) => tag.trim())
-                .filter(Boolean).length > 0 && (
-                <div className="pt-1">
-                  <div className="flex flex-wrap gap-1.5">
-                    {editTags
-                      .split(",")
-                      .map((tag) => tag.trim())
-                      .filter(Boolean)
-                      .map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full px-2.5 py-0.5 text-[11px] font-medium"
-                          style={{
-                            background: "var(--color-primary-container)",
-                            color: "var(--color-primary)",
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                  </div>
-                </div>
               )}
               {related.length > 0 && (
                 <div className="pt-1">
