@@ -22,6 +22,24 @@ export function isFullyEnriched(entry: Entry, allEntries: Entry[]): boolean {
   return embedded && concepts && insight && parsed;
 }
 
+export function getEnrichmentGaps(entry: Entry, allEntries: Entry[]): string[] {
+  if (entry.type === "insight") return [];
+  const e = (entry.metadata as any)?.enrichment ?? {};
+  const gaps: string[] = [];
+  if (!(e.embedded ?? Boolean((entry as any).embedded_at))) gaps.push("embedding");
+  if (!((e.concepts_count ?? 0) > 0)) gaps.push("concepts");
+  const hasInsight =
+    e.has_insight ??
+    allEntries.some(
+      (x) => x.type === "insight" && (x.metadata as any)?.source_entry_id === entry.id,
+    );
+  if (!hasInsight) gaps.push("insight");
+  const parsed =
+    Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;
+  if (!parsed) gaps.push("parsed");
+  return gaps;
+}
+
 export async function enrichEntry(
   entry: Entry,
   brainId: string,

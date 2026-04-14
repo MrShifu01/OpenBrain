@@ -9,6 +9,19 @@ const SB_HEADERS: Record<string, string> = { apikey: SB_KEY!, Authorization: `Be
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 
+const SUGGESTIONS_PROMPT = `You are a second brain assistant. Given a list of entries a user has already captured, generate exactly 3 questions whose answers would most enrich what's already there.
+
+Rules:
+- Study WHAT IS THERE: the themes, types, and topics already captured
+- Generate questions that deepen or complement the existing content specifically
+- If they have suppliers but no pricing context, ask about pricing. If they have recipes but no sourcing, ask about sourcing.
+- Questions should be specific and directly answerable — not vague
+- Each question should target a different knowledge domain visible in the entries
+- Never generate generic questions — every question must be grounded in the actual content
+- cat is a short label (1-3 words) for the domain of the question
+- Return ONLY valid JSON, no markdown: {"suggestions":[{"q":"...","cat":"..."},{"q":"...","cat":"..."},{"q":"...","cat":"..."}]}
+- If data is too sparse, still return 3 generic-but-useful second brain questions`;
+
 const WOW_PROMPT = `You are a personal insight synthesizer for a second-brain app.
 
 Given the user's recent AI-generated insights AND their top brain concepts and relationships, find 1-3 genuine "wow" moments — surprising cross-domain connections, unexpected patterns, or profound implications the user has NOT consciously noticed.
@@ -26,6 +39,51 @@ function getGreeting(name?: string): string {
   const h = new Date().getHours();
   const time = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
   return name ? `${time}, ${name}.` : `${time}.`;
+}
+
+async function generateSuggestions(
+  entries: any[],
+  topConcepts: string[],
+): Promise<Array<{ q: string; cat: string }>> {
+  if (!GEMINI_API_KEY || entries.length === 0) return [];
+
+  const entryLines = entries
+    .map((e) => `- [${e.type}] ${e.title}${e.tags?.length ? ` (${e.tags.join(", ")})` : ""}`)
+    .join("\n");
+  const conceptLine = topConcepts.length ? `\n\nTop concepts: ${topConcepts.join(", ")}` : "";
+
+  const userText = `My brain entries:\n${entryLines}${conceptLine}`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: userText }] }],
+          systemInstruction: { parts: [{ text: SUGGESTIONS_PROMPT }] },
+          generationConfig: { maxOutputTokens: 512 },
+        }),
+      },
+    );
+    if (!res.ok) return [];
+    const data: any = await res.json();
+    const text: string = (data.candidates?.[0]?.content?.parts || [])
+      .filter((p: any) => !p.thought)
+      .map((p: any) => p.text || "")
+      .join("")
+      .trim();
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    if (!Array.isArray(parsed.suggestions)) return [];
+    return parsed.suggestions
+      .filter((s: any) => s.q && s.cat)
+      .slice(0, 3);
+  } catch {
+    return [];
+  }
 }
 
 async function synthesizeWows(
@@ -107,9 +165,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&type=eq.insight&deleted_at=is.null&select=id,title,content,type,tags,created_at&order=created_at.desc&limit=10`,
         { headers: SB_HEADERS },
       ),
-      // 5. Entries missing tags
+      // 5. Recent entries for suggestions context (last 20)
       fetch(
-        `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&tags=eq.{}&select=id&limit=5`,
+        `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type,tags&order=created_at.desc&limit=20`,
         { headers: SB_HEADERS },
       ),
       // 6. Concept graph
@@ -125,12 +183,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const meta = userData.user_metadata || {};
     const streak = { current: meta.current_streak || 0, longest: meta.longest_streak || 0 };
     const insights: any[] = insightRes.ok ? await insightRes.json() : [];
-    const sparseEntries = sparseRes.ok ? await sparseRes.json() : [];
-    const action = sparseEntries.length > 0
-      ? `${sparseEntries.length} entries are missing tags. Review them to help your brain make connections.`
-      : null;
+    const recentEntries: any[] = sparseRes.ok ? await sparseRes.json() : [];
 
-    // Extract top concepts + relationships from graph for wow synthesis
+    // Extract top concepts + relationships from graph for wow/suggestions synthesis
     let topConcepts: string[] = [];
     let relationships: string[] = [];
     if (graphRes.ok) {
@@ -147,8 +202,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
     }
 
-    // Synthesize wow moments from insights + concept graph
-    const wows = await synthesizeWows(insights, topConcepts, relationships);
+    // Run both LLM calls in parallel
+    const [wows, suggestions] = await Promise.all([
+      synthesizeWows(insights, topConcepts, relationships),
+      generateSuggestions(recentEntries, topConcepts),
+    ]);
 
     const name = meta.full_name || meta.name || user.email?.split("@")[0] || "";
 
@@ -156,7 +214,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       greeting: getGreeting(name),
       resurfaced,
       wows,
-      action,
+      suggestions,
       streak,
       stats: { entries: entryCount, connections: 0, insights: insights.length },
     });

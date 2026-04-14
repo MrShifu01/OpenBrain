@@ -55,7 +55,7 @@ import KeyConcepts from "./components/KeyConcepts";
 import SettingsView from "./views/SettingsView";
 import FeedView from "./views/FeedView";
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
-import { isFullyEnriched, enrichEntry } from "./lib/enrichEntry";
+import { isFullyEnriched, getEnrichmentGaps, enrichEntry } from "./lib/enrichEntry";
 import type { Brain, Entry } from "./types";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
@@ -299,10 +299,14 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     [handleUpdate],
   );
 
-  const unenrichedCount = useMemo(
-    () => entries.filter((e) => !isFullyEnriched(e, entries)).length,
+  const unenrichedDetails = useMemo(
+    () =>
+      entries
+        .filter((e) => !isFullyEnriched(e, entries))
+        .map((e) => ({ id: e.id, title: e.title || "(untitled)", gaps: getEnrichmentGaps(e, entries) })),
     [entries],
   );
+  const unenrichedCount = unenrichedDetails.length;
 
   const runBulkEnrich = useCallback(async () => {
     if (!activeBrain?.id || enriching) return;
@@ -783,9 +787,11 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
                     onSelectEntry={setSelected}
                     onNavigate={setView}
                     unenrichedCount={unenrichedCount}
+                    unenrichedDetails={unenrichedDetails}
                     enriching={enriching}
                     enrichProgress={enrichProgress}
                     onEnrich={runBulkEnrich}
+                    onCreated={handleCreated}
                   />
                 )}
                 {view === "capture" &&
