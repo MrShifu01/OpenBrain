@@ -63,7 +63,8 @@ export default function AccountTab({ email, brainId }: Props) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [notifImportOpen, setNotifImportOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [importsOpen, setImportsOpen] = useState(false);
 
   // Hydrate from Supabase in background — updates cache if server has newer data
   useEffect(() => {
@@ -301,47 +302,42 @@ export default function AccountTab({ email, brainId }: Props) {
         )}
       </div>
 
-      {/* Notifications & Imports — collapsible */}
+      {/* Notifications — collapsible */}
       <div
         className="rounded-2xl border overflow-hidden"
-        style={{
-          background: "var(--color-surface-container-high)",
-          borderColor: "var(--color-outline-variant)",
-        }}
+        style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}
       >
-        <button
-          type="button"
-          onClick={() => setNotifImportOpen((o) => !o)}
-          className="flex w-full items-center justify-between px-4 py-3.5 text-left"
-        >
+        <button type="button" onClick={() => setNotifOpen((o) => !o)} className="flex w-full items-center justify-between px-4 py-3.5 text-left">
           <div>
-            <p className="text-on-surface text-sm font-semibold">Notifications & Imports</p>
-            {!notifImportOpen && (
-              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                Push alerts, AI imports, Google Keep
-              </p>
-            )}
+            <p className="text-on-surface text-sm font-semibold">Notifications</p>
+            {!notifOpen && <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>Push alerts, daily prompts, expiry reminders</p>}
           </div>
-          <svg
-            className={`ml-3 h-4 w-4 flex-shrink-0 transition-transform ${notifImportOpen ? "rotate-180" : ""}`}
-            fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
-            style={{ color: "var(--color-on-surface-variant)" }}
-          >
+          <svg className={`ml-3 h-4 w-4 flex-shrink-0 transition-transform ${notifOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "var(--color-on-surface-variant)" }}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
+        {notifOpen && <div className="px-4 pb-4"><NotificationSettings /></div>}
+      </div>
 
-        {notifImportOpen && (
+      {/* Imports — collapsible */}
+      <div
+        className="rounded-2xl border overflow-hidden"
+        style={{ background: "var(--color-surface-container-high)", borderColor: "var(--color-outline-variant)" }}
+      >
+        <button type="button" onClick={() => setImportsOpen((o) => !o)} className="flex w-full items-center justify-between px-4 py-3.5 text-left">
+          <div>
+            <p className="text-on-surface text-sm font-semibold">Import Data</p>
+            {!importsOpen && <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>AI memories, Google Keep</p>}
+          </div>
+          <svg className={`ml-3 h-4 w-4 flex-shrink-0 transition-transform ${importsOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: "var(--color-on-surface-variant)" }}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {importsOpen && (
           <div className="px-4 pb-4 space-y-4">
-            <NotificationSettings />
-            <div
-              className="rounded-xl border p-3"
-              style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}
-            >
+            <div>
               <p className="text-on-surface mb-1 text-xs font-semibold">Import from AI</p>
-              <p className="mb-2 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
-                Bring in memories Claude or ChatGPT already knows about you.
-              </p>
+              <p className="mb-2 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>Bring in memories Claude or ChatGPT already knows about you.</p>
               <MemoryImportPanel brainId={brainId} />
             </div>
             {brainId && <GoogleKeepImportPanel brainId={brainId} />}

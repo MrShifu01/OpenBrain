@@ -12,7 +12,7 @@ export default function LoadingScreen(): JSX.Element {
           className="text-3xl font-bold tracking-tight"
           style={{ fontFamily: "'Lora', Georgia, serif", color: "var(--color-on-surface)" }}
         >
-          Everion
+          EverionMind
         </h1>
 
         {/* Loading bar — transform-only, ease-out-expo */}
