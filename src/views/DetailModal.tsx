@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { BrainTypeIcon } from "../components/icons/BrainTypeIcon";
 import { TC } from "../data/constants";
 import { resolveIcon } from "../lib/typeIcons";
-import { extractPhone, toWaUrl } from "../lib/phone";
 import { useEntryEdit } from "../hooks/useEntryEdit";
+import { ConnectionsPanel } from "../components/ConnectionsPanel";
+import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
 import { loadGraphFromDB, getRelatedEntries, getConceptsForEntry } from "../lib/conceptGraph";
 import type { ConceptGraph } from "../lib/conceptGraph";
@@ -203,240 +204,6 @@ No explanation, no punctuation, just one word.`,
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [editing, onClose]);
-
-  const phone = extractPhone(entry);
-  const isSupplier = entry.tags?.includes("supplier") || entry.metadata?.category === "supplier";
-
-  // Build quick actions for this entry type
-  const quickActions = [];
-
-  if (isSupplier || entry.type === "contact" || entry.type === "person") {
-    if (phone) {
-      quickActions.push(
-        <a
-          key="call"
-          href={`tel:${phone}`}
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-        >
-          📞 Call
-        </a>,
-      );
-      quickActions.push(
-        <a
-          key="wa"
-          href={toWaUrl(phone)}
-          target="_blank"
-          rel="noreferrer"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-        >
-          💬 WhatsApp
-        </a>,
-      );
-    }
-    if (isSupplier && onReorder) {
-      quickActions.push(
-        <button
-          key="reorder"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-          onClick={() => onReorder(entry)}
-        >
-          🔁 Reorder
-        </button>,
-      );
-    }
-  }
-
-  if (entry.type === "reminder") {
-    if (entry.metadata?.status !== "done") {
-      quickActions.push(
-        <button
-          key="done"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-          onClick={() =>
-            onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "done" }, importance: 0 })
-          }
-        >
-          ✅ Mark Done
-        </button>,
-      );
-    }
-    quickActions.push(
-      <button
-        key="snooze1w"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => {
-          const d = new Date(entry.metadata?.due_date || Date.now());
-          d.setDate(d.getDate() + 7);
-          onUpdate?.(entry.id, {
-            metadata: { ...entry.metadata, due_date: d.toISOString().split("T")[0] },
-          });
-        }}
-      >
-        ⏰ +1 week
-      </button>,
-    );
-    quickActions.push(
-      <button
-        key="snooze1m"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => {
-          const d = new Date(entry.metadata?.due_date || Date.now());
-          d.setMonth(d.getMonth() + 1);
-          onUpdate?.(entry.id, {
-            metadata: { ...entry.metadata, due_date: d.toISOString().split("T")[0] },
-          });
-        }}
-      >
-        ⏰ +1 month
-      </button>,
-    );
-  }
-
-  if (entry.type === "idea") {
-    if (entry.metadata?.status !== "in_progress") {
-      quickActions.push(
-        <button
-          key="start"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-          onClick={() =>
-            onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "in_progress" } })
-          }
-        >
-          🚀 Start this
-        </button>,
-      );
-    }
-    if (entry.metadata?.status !== "archived") {
-      quickActions.push(
-        <button
-          key="archive"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-          onClick={() =>
-            onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "archived" } })
-          }
-        >
-          📦 Archive
-        </button>,
-      );
-    }
-  }
-
-  if (entry.type === "document" && onReorder) {
-    quickActions.push(
-      <button
-        key="renewal"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => onReorder({ ...entry, _renewalMode: true })}
-      >
-        <svg
-          className="inline h-3.5 w-3.5 align-middle"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.75"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
-          />
-        </svg>{" "}
-        Set renewal reminder
-      </button>,
-    );
-  }
-
-  if (isSecret) {
-    if (secretRevealed) {
-      quickActions.push(
-        <button
-          key="copy-secret"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-          onClick={() => {
-            navigator.clipboard.writeText(entry.content || "").then(() => {
-              setShareMsg("Copied to clipboard");
-              setTimeout(() => setShareMsg(null), 2500);
-            });
-          }}
-        >
-          📋 Copy
-        </button>,
-      );
-      quickActions.push(
-        <button
-          key="hide-secret"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-          onClick={() => setSecretRevealed(false)}
-        >
-          👁 Hide
-        </button>,
-      );
-    }
-  }
-
-  // Share always available (but not for secret entries)
-  if (!isSecret)
-    quickActions.push(
-      <button
-        key="share"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => handleShare(entry)}
-      >
-        📤 Share
-      </button>,
-    );
 
   return (
     <div
@@ -808,80 +575,12 @@ No explanation, no punctuation, just one word.`,
                   )}
                 </>
               )}
-              {related.length > 0 && (
-                <div className="pt-1">
-                  <p
-                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    Connections
-                  </p>
-                  {related.map(
-                    (r, i) =>
-                      r.other && (
-                        <div
-                          key={i}
-                          className="mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
-                          style={{ background: "var(--color-surface-container)" }}
-                        >
-                          <span>{resolveIcon(r.other.type, typeIcons)}</span>
-                          <span className="text-on-surface-variant/50">{r.dir}</span>
-                          <span className="text-on-surface flex-1">{r.other.title}</span>
-                          <span className="text-on-surface-variant/50 text-[10px] tracking-widest uppercase">
-                            {r.rel}
-                          </span>
-                        </div>
-                      ),
-                  )}
-                </div>
-              )}
-              {entryConcepts.length > 0 && (
-                <div className="pt-1">
-                  <p
-                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    Concepts
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {entryConcepts.map((c) => (
-                      <span
-                        key={c.id}
-                        className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
-                        style={{
-                          background: "var(--color-secondary-container)",
-                          color: "var(--color-secondary)",
-                        }}
-                      >
-                        {c.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {conceptRelated.length > 0 && (
-                <div className="pt-1">
-                  <p
-                    className="mb-2 text-[10px] font-semibold tracking-widest uppercase"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    Related by Concepts
-                  </p>
-                  {conceptRelated.map((r) => (
-                    <div
-                      key={r.entryId}
-                      className="mb-1.5 flex items-center gap-2 rounded-lg px-3 py-2 text-xs"
-                      style={{ background: "var(--color-surface-container)" }}
-                    >
-                      <span>{resolveIcon(r.entry!.type, typeIcons)}</span>
-                      <span className="text-on-surface flex-1 truncate">{r.entry!.title}</span>
-                      <span className="text-on-surface-variant/50 text-[10px]">
-                        {r.sharedConcepts.slice(0, 2).join(", ")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <ConnectionsPanel
+                related={related}
+                entryConcepts={entryConcepts}
+                conceptRelated={conceptRelated}
+                typeIcons={typeIcons}
+              />
             </div>
           )}
 
@@ -916,18 +615,17 @@ No explanation, no punctuation, just one word.`,
           )}
 
           {/* Quick Actions */}
-          {!editing && quickActions.length > 0 && (
-            <div
-              className="mt-4 pt-4"
-              style={{ borderTop: "1px solid var(--color-outline-variant)" }}
-            >
-              <div className="flex flex-wrap gap-2">{quickActions}</div>
-              {shareMsg && (
-                <p className="mt-2 text-center text-xs" style={{ color: "var(--color-primary)" }}>
-                  {shareMsg}
-                </p>
-              )}
-            </div>
+          {!editing && (
+            <EntryQuickActions
+              entry={entry}
+              secretRevealed={secretRevealed}
+              onRevealSecret={setSecretRevealed}
+              onReorder={onReorder}
+              onUpdate={onUpdate}
+              handleShare={handleShare}
+              shareMsg={shareMsg}
+              onShareMsg={setShareMsg}
+            />
           )}
 
           {/* Brain Health */}
