@@ -186,20 +186,40 @@ interface Props {
   activeBrain?: Brain;
 }
 
-async function reEmbedAll(brainId: string, onStatus: (s: string) => void) {
-  onStatus("Re-embedding all entries…");
+async function runEmbedLoop(
+  brainId: string,
+  force: boolean,
+  label: string,
+  onStatus: (s: string) => void,
+) {
+  onStatus(`${label}…`);
+  let total = 0;
   try {
-    const res = await authFetch("/api/capture?action=embed", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ batch: true, brain_id: brainId, force: true }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Unknown error");
-    onStatus(`Done — ${data.processed ?? "?"} embedded, ${data.failed ?? 0} failed.`);
+    for (let i = 0; i < 100; i++) {
+      const res = await authFetch("/api/capture?action=embed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batch: true, brain_id: brainId, force }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unknown error");
+      total += data.processed ?? 0;
+      const remaining = data.remaining ?? 0;
+      if (remaining > 0) onStatus(`${label}… ${total} done, ${remaining} remaining`);
+      if (remaining === 0 || (data.processed ?? 0) === 0) break;
+    }
+    onStatus(`Done — ${total} entries embedded.`);
   } catch (e: any) {
     onStatus(`Error: ${e.message}`);
   }
+}
+
+function reEmbedAll(brainId: string, onStatus: (s: string) => void) {
+  return runEmbedLoop(brainId, true, "Re-embedding all entries", onStatus);
+}
+
+function syncMissingEmbeddings(brainId: string, onStatus: (s: string) => void) {
+  return runEmbedLoop(brainId, false, "Syncing missing embeddings", onStatus);
 }
 
 
@@ -207,6 +227,8 @@ export default function StorageTab({ activeBrain }: Props) {
   const [showTrash, setShowTrash] = useState(false);
   const [embedStatus, setEmbedStatus] = useState("");
   const [embedBusy, setEmbedBusy] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("");
+  const [syncBusy, setSyncBusy] = useState(false);
   const [graphStatus, setGraphStatus] = useState("");
   const [graphBusy, setGraphBusy] = useState(false);
 
@@ -279,7 +301,28 @@ export default function StorageTab({ activeBrain }: Props) {
         </p>
 
         <button
-          disabled={embedBusy || !activeBrain?.id}
+          disabled={syncBusy || embedBusy || !activeBrain?.id}
+          onClick={async () => {
+            if (!activeBrain?.id) return;
+            setSyncBusy(true);
+            await syncMissingEmbeddings(activeBrain.id, setSyncStatus);
+            setSyncBusy(false);
+          }}
+          className="rounded-xl px-4 py-2 text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
+          style={{
+            background: "var(--color-primary)",
+            color: "var(--color-on-primary)",
+            minHeight: 44,
+          }}
+        >
+          {syncBusy ? "Syncing…" : "Sync Missing Embeddings"}
+        </button>
+        {syncStatus && (
+          <p className="text-on-surface-variant text-xs">{syncStatus}</p>
+        )}
+
+        <button
+          disabled={embedBusy || syncBusy || !activeBrain?.id}
           onClick={async () => {
             if (!activeBrain?.id) return;
             setEmbedBusy(true);

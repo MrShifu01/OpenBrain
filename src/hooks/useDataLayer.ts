@@ -89,7 +89,7 @@ export function useDataLayer({
       prevBrainIdRef.current = activeBrainId;
     }
     setEntriesLoaded(false);
-    authFetch(`/api/entries?brain_id=${encodeURIComponent(activeBrainId)}`)
+    authFetch(`/api/entries?brain_id=${encodeURIComponent(activeBrainId)}&limit=1000`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const fetched = Array.isArray(data) ? data : (data?.entries ?? []);

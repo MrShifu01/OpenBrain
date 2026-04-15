@@ -122,7 +122,7 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const brain_id = req.query.brain_id as string | undefined;
-  const limit = Math.min(parseInt((req.query.limit as string) || "50", 10), 100);
+  const limit = Math.min(parseInt((req.query.limit as string) || "1000", 10), 1000);
   const cursor = req.query.cursor as string | undefined;
   const trash = req.query.trash === "true";
 
