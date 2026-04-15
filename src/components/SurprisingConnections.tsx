@@ -167,7 +167,7 @@ export default function SurprisingConnections({
                       className="rounded-full px-2 py-0.5 text-[9px] font-medium"
                       style={{
                         background: "var(--color-secondary-container)",
-                        color: "var(--color-secondary)",
+                        color: "var(--color-on-secondary-container)",
                       }}
                     >
                       {c}

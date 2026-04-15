@@ -24,10 +24,16 @@ interface SettingsViewProps {
 export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
   const { activeBrain, canInvite, canManageMembers, refresh, deleteBrain } = useBrain();
   const [activeTab, setActiveTab] = useState<TabId>("profile");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem("everion_email") || ""; } catch { return ""; }
+  });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => setEmail(user?.email || ""));
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      const e = user?.email || "";
+      setEmail(e);
+      try { if (e) localStorage.setItem("everion_email", e); } catch { /* ignore */ }
+    });
   }, []);
 
   return (

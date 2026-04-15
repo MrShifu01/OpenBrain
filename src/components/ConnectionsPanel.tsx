@@ -74,7 +74,7 @@ export function ConnectionsPanel({
                 className="rounded-full px-2.5 py-0.5 text-[10px] font-medium"
                 style={{
                   background: "var(--color-secondary-container)",
-                  color: "var(--color-secondary)",
+                  color: "var(--color-on-secondary-container)",
                 }}
               >
                 {c.label}

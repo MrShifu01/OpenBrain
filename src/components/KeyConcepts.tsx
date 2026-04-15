@@ -58,7 +58,7 @@ export default function KeyConcepts({ concepts, activeConcept, onConceptClick }:
                   : "var(--color-secondary-container)",
                 color: isActive
                   ? "var(--color-on-primary)"
-                  : "var(--color-secondary)",
+                  : "var(--color-on-secondary-container)",
               }}
             >
               {c.label}

@@ -92,7 +92,7 @@ export default function AskView({
   );
 
   return (
-    <div className="flex h-[calc(100dvh-320px)] flex-col lg:h-[calc(100dvh-80px)]">
+    <div className="flex h-[calc(100dvh-180px)] flex-col lg:h-[calc(100dvh-80px)]">
       {/* ── Message thread ── */}
       <div
         role="log"
