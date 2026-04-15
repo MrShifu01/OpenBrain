@@ -95,9 +95,11 @@ export function useEntryActions({
         if (Array.isArray(data) && data.length === 0) throw new Error(`No row matched id=${id}`);
       } catch (e: any) {
         captureError(e, "handleUpdate");
-        showError(`Save failed: ${e.message}`);
-        setSaveError(`Save failed: ${e.message}`);
-        setTimeout(() => setSaveError(null), 5000);
+        if (!options?.silent) {
+          showError(`Save failed: ${e.message}`);
+          setSaveError(`Save failed: ${e.message}`);
+          setTimeout(() => setSaveError(null), 5000);
+        }
         return;
       }
       if (!isSecret) {
