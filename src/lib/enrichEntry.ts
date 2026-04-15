@@ -5,34 +5,25 @@ import type { Entry } from "../types";
 const ENRICH_SKIP_META = new Set([
   "category", "status", "confidence", "completeness_score",
   "raw_content", "source_entry_id", "full_text", "workspace", "enrichment",
+  "ai_insight",
 ]);
 
-export function isFullyEnriched(entry: Entry, allEntries: Entry[]): boolean {
-  if (entry.type === "insight") return true;
+export function isFullyEnriched(entry: Entry, _allEntries: Entry[]): boolean {
   const e = (entry.metadata as any)?.enrichment ?? {};
   const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
   const concepts = (e.concepts_count ?? 0) > 0;
-  const insight =
-    e.has_insight ??
-    allEntries.some(
-      (x) => x.type === "insight" && (x.metadata as any)?.source_entry_id === entry.id,
-    );
+  const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   const parsed =
     Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;
   return embedded && concepts && insight && parsed;
 }
 
-export function getEnrichmentGaps(entry: Entry, allEntries: Entry[]): string[] {
-  if (entry.type === "insight") return [];
+export function getEnrichmentGaps(entry: Entry, _allEntries: Entry[]): string[] {
   const e = (entry.metadata as any)?.enrichment ?? {};
   const gaps: string[] = [];
   if (!(e.embedded ?? Boolean((entry as any).embedded_at))) gaps.push("embedding");
   if (!((e.concepts_count ?? 0) > 0)) gaps.push("concepts");
-  const hasInsight =
-    e.has_insight ??
-    allEntries.some(
-      (x) => x.type === "insight" && (x.metadata as any)?.source_entry_id === entry.id,
-    );
+  const hasInsight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   if (!hasInsight) gaps.push("insight");
   const parsed =
     Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;

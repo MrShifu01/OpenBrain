@@ -54,10 +54,8 @@ function buildItems(
   // Related: persisted flag first, then live prop
   const hasRelatedEntries = e.has_related ?? hasRelated;
 
-  // Insight: persisted flag first, then scan entries list
-  const hasInsight =
-    e.has_insight ??
-    entries.some((e) => e.type === "insight" && (e.metadata as any)?.source_entry_id === entry.id);
+  // Insight: check ai_insight on entry metadata first, then fall back to legacy has_insight flag
+  const hasInsight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
 
   return [
     {
@@ -303,7 +301,7 @@ export function EntryHealthPanel({
           update("insight", { status: "running", detail: undefined });
           try {
             const { generateEntryInsight } = await import("../lib/brainConnections");
-            await generateEntryInsight(
+            const insightText = await generateEntryInsight(
               {
                 id: entry.id,
                 title: entry.title,
@@ -313,8 +311,11 @@ export function EntryHealthPanel({
               },
               brainId,
             );
+            // Update local state so the insight shows immediately without a reload
+            await onUpdate?.(entry.id, {
+              metadata: { ...(entry.metadata ?? {}), ai_insight: insightText },
+            });
             update("insight", { status: "pass", note: "AI insight generated" });
-            saveEnrichmentFlag({ has_insight: true });
           } catch (e: any) {
             update("insight", { status: "fail", detail: e?.message || "Failed" });
           }

@@ -106,13 +106,14 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
 
 /**
  * Generate a brief AI insight about a newly-captured entry, using the existing
- * concept graph (from localStorage) as context. Saves result as type=insight entry.
- * Fire-and-forget safe.
+ * concept graph as context. Stores the result as metadata.ai_insight on the
+ * source entry — no separate entry row is created.
+ * Returns the insight text so callers can update local state.
  */
 export async function generateEntryInsight(
   entry: EntryRef,
   brainId: string,
-): Promise<{ id: string; title: string; type: string }> {
+): Promise<string> {
   const graph = await loadGraphFromDB(brainId);
   const topConcepts = graph.concepts
     .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
@@ -137,28 +138,18 @@ export async function generateEntryInsight(
   const insightText: string = raw?.content?.[0]?.text?.trim() || "";
   if (insightText.length < 20) throw new Error("AI returned an empty or too-short insight");
 
-  const captureRes = await authFetch("/api/capture", {
-    method: "POST",
+  // Merge ai_insight into the source entry's metadata (server merges with existing metadata)
+  const patchRes = await authFetch("/api/entries", {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      p_title: `Insight: ${entry.title.slice(0, 60)}`,
-      p_content: insightText,
-      p_type: "insight",
-      p_tags: entry.tags || [],
-      p_metadata: {
-        source_entry_id: entry.id,
-        ...(entry.content ? { raw_content: String(entry.content).slice(0, 4000) } : {}),
-      },
-      p_brain_id: brainId,
-    }),
+    body: JSON.stringify({ id: entry.id, metadata: { ai_insight: insightText } }),
   });
-  if (!captureRes.ok) {
-    const errText = await captureRes.text().catch(() => String(captureRes.status));
-    throw new Error(`Failed to save insight (${captureRes.status}): ${errText.slice(0, 200)}`);
+  if (!patchRes.ok) {
+    const errText = await patchRes.text().catch(() => String(patchRes.status));
+    throw new Error(`Failed to save insight (${patchRes.status}): ${errText.slice(0, 200)}`);
   }
-  const insightTitle = `Insight: ${entry.title.slice(0, 60)}`;
-  const saved = await captureRes.json().catch(() => ({}));
-  return { id: saved?.id ?? "", title: insightTitle, type: "insight" };
+
+  return insightText;
 }
 
 const BATCH_CONCEPTS_PROMPT = `You are building a concept graph from a list of personal/business brain entries.

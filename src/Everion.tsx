@@ -323,34 +323,41 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
   }, [activeBrain?.id, entries, enriching, silentUpdate]);
 
   // On every capture: silently extract concepts from the new entry and generate an insight.
-  // Skips insight-type entries to prevent infinite loops.
   const handleCreated = useCallback(
     (newEntry: import("./types").Entry) => {
       _handleCreated(newEntry);
-      if (activeBrain?.id && newEntry.type !== "insight") {
+      if (activeBrain?.id) {
         import("./lib/brainConnections").then(({ extractEntryConnections, generateEntryInsight, findAndSaveConnections }) => {
           extractEntryConnections(newEntry, activeBrain.id!).catch(() => {});
-          generateEntryInsight(newEntry, activeBrain.id!).catch(() => {});
+          generateEntryInsight(newEntry, activeBrain.id!)
+            .then((insightText) => silentUpdate(newEntry.id, {
+              metadata: { ...(newEntry.metadata ?? {}), ai_insight: insightText },
+            }))
+            .catch(() => {});
           findAndSaveConnections(newEntry, entries, activeBrain.id!).catch(() => {});
         });
       }
     },
-    [_handleCreated, activeBrain?.id, entries],
+    [_handleCreated, activeBrain?.id, entries, silentUpdate],
   );
 
   // File uploads: extract concepts, find connections, generate insight.
   const handleCreatedBulk = useCallback(
     (newEntry: import("./types").Entry) => {
       _handleCreated(newEntry);
-      if (activeBrain?.id && newEntry.type !== "insight") {
+      if (activeBrain?.id) {
         import("./lib/brainConnections").then(({ extractEntryConnections, generateEntryInsight, findAndSaveConnections }) => {
           extractEntryConnections(newEntry, activeBrain.id!).catch(() => {});
-          generateEntryInsight(newEntry, activeBrain.id!).catch(() => {});
+          generateEntryInsight(newEntry, activeBrain.id!)
+            .then((insightText) => silentUpdate(newEntry.id, {
+              metadata: { ...(newEntry.metadata ?? {}), ai_insight: insightText },
+            }))
+            .catch(() => {});
           findAndSaveConnections(newEntry, entries, activeBrain.id!).catch(() => {});
         });
       }
     },
-    [_handleCreated, activeBrain?.id, entries],
+    [_handleCreated, activeBrain?.id, entries, silentUpdate],
   );
 
   const {

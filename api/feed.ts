@@ -160,9 +160,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       ),
       // 3. User metadata (streak)
       fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, { headers: SB_HEADERS }),
-      // 4. Recent insight entries (last 10)
+      // 4. Recent entries that have an ai_insight in metadata (last 10)
       fetch(
-        `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&type=eq.insight&deleted_at=is.null&select=id,title,content,type,tags,created_at&order=created_at.desc&limit=10`,
+        `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&metadata->>ai_insight=not.is.null&deleted_at=is.null&select=id,title,metadata&order=created_at.desc&limit=10`,
         { headers: SB_HEADERS },
       ),
       // 5. Recent entries for suggestions context (last 20)
@@ -182,7 +182,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const userData = userRes.ok ? await userRes.json() : {};
     const meta = userData.user_metadata || {};
     const streak = { current: meta.current_streak || 0, longest: meta.longest_streak || 0 };
-    const insights: any[] = insightRes.ok ? await insightRes.json() : [];
+    const insightRows: any[] = insightRes.ok ? await insightRes.json() : [];
+    // Map to {title, content} shape expected by synthesizeWows
+    const insights = insightRows.map((e) => ({
+      title: e.title,
+      content: String(e.metadata?.ai_insight || ""),
+    }));
     const recentEntries: any[] = sparseRes.ok ? await sparseRes.json() : [];
 
     // Extract top concepts + relationships from graph for wow/suggestions synthesis
