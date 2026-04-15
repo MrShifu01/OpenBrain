@@ -52,17 +52,17 @@ const DEFAULT_PREFS: NotificationPrefs = {
   expiry_lead_days: [90, 30, 7, 1],
 };
 
-const cardClasses = "bg-ob-surface border border-ob-border rounded-xl px-5 py-4 mb-3";
-const labelClasses = "text-[13px] font-bold text-ob-text m-0 mb-0.5";
-const subClasses = "text-[11px] text-ob-text-dim m-0 mb-3";
+const cardClasses = "bg-surface-container border border-outline-variant rounded-xl px-5 py-4 mb-3";
+const labelClasses = "text-[13px] font-bold text-on-surface m-0 mb-0.5";
+const subClasses = "text-[11px] text-on-surface-variant m-0 mb-3";
 const inputClasses =
-  "py-2 px-2.5 bg-ob-bg border border-ob-border rounded-lg text-ob-text-soft text-xs outline-none";
+  "py-2 px-2.5 bg-surface border border-outline-variant rounded-lg text-on-surface-variant text-xs outline-none";
 
 function toggleClasses(on: boolean): string {
   return `inline-flex items-center gap-1.5 py-[7px] px-3.5 rounded-[20px] text-xs font-bold cursor-pointer border-none ${
     on
       ? "bg-[var(--color-secondary-container)] text-[var(--color-secondary)] outline outline-1 outline-[var(--color-outline-variant)]"
-      : "bg-ob-surface text-ob-text-dim outline outline-1 outline-ob-border"
+      : "bg-surface-container text-on-surface-variant outline outline-1 outline-[var(--color-outline-variant)]"
   }`;
 }
 
@@ -180,7 +180,7 @@ export default function NotificationSettings(): JSX.Element {
   const isStatusError =
     statusMsg && (statusMsg.includes("Failed") || statusMsg.includes("not configured"));
 
-  if (loading) return <div className="text-ob-text-dim p-6 text-[13px]">Loading…</div>;
+  if (loading) return <div className="text-on-surface-variant p-6 text-[13px]">Loading…</div>;
 
   // iOS not in standalone → show home screen instructions
   if (iosNoStandalone) {
@@ -190,7 +190,7 @@ export default function NotificationSettings(): JSX.Element {
         <p className={subClasses}>
           To receive notifications, OpenBrain must be on your Home Screen.
         </p>
-        <ol className="text-ob-text-muted m-0 pl-5 text-xs leading-8">
+        <ol className="text-on-surface-variant/60 m-0 pl-5 text-xs leading-8">
           <li>
             Tap the <strong>Share button</strong> (□↑) in Safari
           </li>
@@ -209,7 +209,7 @@ export default function NotificationSettings(): JSX.Element {
     return (
       <div className={cardClasses}>
         <p className={labelClasses}>Notifications</p>
-        <p className="text-ob-text-dim m-0 text-[11px]">
+        <p className="text-on-surface-variant m-0 text-[11px]">
           Push notifications are not supported in this browser.
         </p>
       </div>
@@ -218,8 +218,8 @@ export default function NotificationSettings(): JSX.Element {
 
   return (
     <div>
-      <p className="text-ob-text m-0 mb-1 text-sm font-bold">Notifications</p>
-      <p className="text-ob-text-dim m-0 mb-3.5 text-[11px]">
+      <p className="text-on-surface m-0 mb-1 text-sm font-bold">Notifications</p>
+      <p className="text-on-surface-variant m-0 mb-3.5 text-[11px]">
         <span className={isStatusError ? "text-orange" : ""}>
           {saving ? "Saving…" : statusMsg || "Get reminders and daily prompts on any device."}
         </span>
@@ -237,7 +237,7 @@ export default function NotificationSettings(): JSX.Element {
           <div className="flex items-center justify-between">
             <div>
               <p className={labelClasses}>Push Notifications</p>
-              <p className="text-ob-text-dim m-0 text-[11px]">
+              <p className="text-on-surface-variant m-0 text-[11px]">
                 {subscription ? "Active on this device" : "Not subscribed on this device"}
               </p>
             </div>
@@ -268,7 +268,7 @@ export default function NotificationSettings(): JSX.Element {
             >
               <div>
                 <p className={labelClasses}>Daily Capture Prompt</p>
-                <p className="text-ob-text-dim m-0 text-[11px]">
+                <p className="text-on-surface-variant m-0 text-[11px]">
                   A nightly nudge to capture what's worth remembering.
                 </p>
               </div>
@@ -283,7 +283,7 @@ export default function NotificationSettings(): JSX.Element {
             {prefs.daily_enabled && (
               <div className="mt-1 flex flex-wrap gap-2">
                 <div>
-                  <div className="text-ob-text-dim mb-1 text-[10px]">TIME</div>
+                  <div className="text-on-surface-variant mb-1 text-[10px]">TIME</div>
                   <input
                     type="time"
                     value={prefs.daily_time}
@@ -292,7 +292,7 @@ export default function NotificationSettings(): JSX.Element {
                   />
                 </div>
                 <div className="min-w-40 flex-1">
-                  <div className="text-ob-text-dim mb-1 text-[10px]">TIMEZONE</div>
+                  <div className="text-on-surface-variant mb-1 text-[10px]">TIMEZONE</div>
                   <input
                     type="text"
                     value={prefs.daily_timezone}
@@ -311,7 +311,7 @@ export default function NotificationSettings(): JSX.Element {
             >
               <div>
                 <p className={labelClasses}>Improve Brain Nudge</p>
-                <p className="text-ob-text-dim m-0 text-[11px]">
+                <p className="text-on-surface-variant m-0 text-[11px]">
                   Weekly reminder to improve your brain health.
                 </p>
               </div>
@@ -326,7 +326,7 @@ export default function NotificationSettings(): JSX.Element {
             {prefs.nudge_enabled && (
               <div className="mt-1 flex flex-wrap gap-2">
                 <div>
-                  <div className="text-ob-text-dim mb-1 text-[10px]">DAY</div>
+                  <div className="text-on-surface-variant mb-1 text-[10px]">DAY</div>
                   <select
                     value={prefs.nudge_day}
                     className={inputClasses}
@@ -340,7 +340,7 @@ export default function NotificationSettings(): JSX.Element {
                   </select>
                 </div>
                 <div>
-                  <div className="text-ob-text-dim mb-1 text-[10px]">TIME</div>
+                  <div className="text-on-surface-variant mb-1 text-[10px]">TIME</div>
                   <input
                     type="time"
                     value={prefs.nudge_time}
@@ -349,7 +349,7 @@ export default function NotificationSettings(): JSX.Element {
                   />
                 </div>
                 <div className="min-w-40 flex-1">
-                  <div className="text-ob-text-dim mb-1 text-[10px]">TIMEZONE</div>
+                  <div className="text-on-surface-variant mb-1 text-[10px]">TIMEZONE</div>
                   <input
                     type="text"
                     value={prefs.nudge_timezone}
@@ -368,7 +368,7 @@ export default function NotificationSettings(): JSX.Element {
             >
               <div>
                 <p className={labelClasses}>Expiry Reminders</p>
-                <p className="text-ob-text-dim m-0 text-[11px]">
+                <p className="text-on-surface-variant m-0 text-[11px]">
                   Alerts before passport, licence, insurance expire.
                 </p>
               </div>
@@ -382,7 +382,7 @@ export default function NotificationSettings(): JSX.Element {
             </div>
             {prefs.expiry_enabled && (
               <div>
-                <div className="text-ob-text-dim mb-2 text-[10px]">
+                <div className="text-on-surface-variant mb-2 text-[10px]">
                   REMIND ME THIS MANY DAYS BEFORE
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -396,7 +396,7 @@ export default function NotificationSettings(): JSX.Element {
                         className={`cursor-pointer rounded-[20px] border-none px-3.5 py-1.5 text-xs font-bold ${
                           active
                             ? "bg-[var(--color-secondary-container)] text-[var(--color-secondary)] outline outline-1 outline-[var(--color-outline-variant)]"
-                            : "bg-ob-bg text-ob-text-dim outline-ob-border outline outline-1"
+                            : "bg-surface text-on-surface-variant outline-[var(--color-outline-variant)] outline outline-1"
                         }`}
                       >
                         {day}d
