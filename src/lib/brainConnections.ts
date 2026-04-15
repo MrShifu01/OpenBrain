@@ -3,6 +3,7 @@ import { callAI } from "./ai";
 import {
   extractConcepts,
   extractRelationships,
+  loadGraphFromDB,
 } from "./conceptGraph";
 import { writeConceptsToGraph } from "./graphWriter";
 

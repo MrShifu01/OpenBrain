@@ -427,8 +427,8 @@ export default function CaptureSheet({
           </button>
         </div>
 
-        {/* Brain destination confirmation — prevents accidental saves to the wrong brain */}
-        {!preview && ctxActiveBrain && (
+        {/* Brain destination confirmation — hidden for MVP (single personal brain) */}
+        {false && !preview && ctxActiveBrain && (
           <div ref={brainPickerRef} className="relative mb-3">
             <button
               type="button"
