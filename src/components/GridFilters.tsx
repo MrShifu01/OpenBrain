@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { TC } from "../data/constants";
 import type { DateFilter, SortOrder, EntryFilterState } from "../lib/entryFilters";
+import type { Concept } from "../types";
 import { Chip } from "./ui/chip";
 import { ActivePill } from "./ui/active-pill";
 
@@ -27,6 +28,7 @@ interface GridFiltersProps {
   onSelectModeToggle?: () => void;
   viewMode?: "grid" | "list";
   onViewModeChange?: (mode: "grid" | "list") => void;
+  concepts?: Concept[];
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -47,6 +49,7 @@ export default function GridFilters({
   onSelectModeToggle,
   viewMode = "grid",
   onViewModeChange,
+  concepts = [],
 }: GridFiltersProps) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -280,6 +283,33 @@ export default function GridFilters({
                 ))}
               </div>
             </div>
+
+            {/* Themes */}
+            {concepts.length > 0 && (
+              <>
+                <div className="bg-outline-variant h-px opacity-50" />
+                <div className="flex flex-col gap-2">
+                  <SectionLabel>Themes</SectionLabel>
+                  <div className="scrollbar-hide flex flex-wrap gap-1.5">
+                    {concepts.map((c) => {
+                      const isActive = filters.concept === c.label;
+                      return (
+                        <Chip
+                          key={c.id}
+                          active={isActive}
+                          onClick={() => set({ concept: isActive ? undefined : c.label })}
+                        >
+                          {c.label}
+                          <span className="text-[9px] tabular-nums opacity-60">
+                            {c.source_entries.length}
+                          </span>
+                        </Chip>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

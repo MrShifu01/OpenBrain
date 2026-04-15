@@ -44,7 +44,6 @@ import DesktopSidebar from "./components/DesktopSidebar";
 import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
 import OmniSearch from "./components/OmniSearch";
-import KeyConcepts from "./components/KeyConcepts";
 import SettingsView from "./views/SettingsView";
 import FeedView from "./views/FeedView";
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
@@ -336,7 +335,7 @@ function EverionContent({
                   filters={appShell.gridFilters}
                   availableTypes={availableEntryTypes}
                   typeIcons={appShell.typeIcons}
-                  onChange={appShell.setGridFilters}
+                  onChange={(f) => appShell.setGridFilters({ ...f, brainId: activeBrain?.id })}
                   selectMode={appShell.selectMode}
                   onSelectModeToggle={appShell.toggleSelectMode}
                   viewMode={appShell.gridViewMode}
@@ -352,21 +351,8 @@ function EverionContent({
                       !!appShell.gridFilters.concept,
                     ].filter(Boolean).length
                   }
+                  concepts={godNodes}
                 />
-
-                {godNodes.length > 0 && (
-                  <KeyConcepts
-                    concepts={godNodes}
-                    activeConcept={appShell.gridFilters.concept}
-                    onConceptClick={(label) =>
-                      appShell.setGridFilters((f) => ({
-                        ...f,
-                        concept: label,
-                        brainId: activeBrain?.id,
-                      }))
-                    }
-                  />
-                )}
 
                 {!entriesLoaded ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
