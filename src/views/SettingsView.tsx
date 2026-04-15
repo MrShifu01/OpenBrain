@@ -4,7 +4,6 @@ import { useBrain } from "../context/BrainContext";
 import AccountTab from "../components/settings/AccountTab";
 import ProvidersTab from "../components/settings/ProvidersTab";
 import BrainTab from "../components/settings/BrainTab";
-import NotificationsTab from "../components/settings/NotificationsTab";
 import StorageTab from "../components/settings/StorageTab";
 import DangerTab from "../components/settings/DangerTab";
 import ClaudeCodeTab from "../components/settings/ClaudeCodeTab";
@@ -74,7 +73,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         {activeTab === "profile" && (
           <>
             <AccountTab email={email} brainId={activeBrain?.id} />
-            <NotificationsTab />
             {isMultiBrainEnabled() && activeBrain && (
               <BrainTab
                 activeBrain={activeBrain}
