@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useRef, useEffect, useMemo } from "react";
 
 const EXAMPLE_PROMPTS = [
   "Summarize what I've captured this week",
