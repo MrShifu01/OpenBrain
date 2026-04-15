@@ -90,10 +90,10 @@ export default function ClaudeCodeTab() {
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold" style={{ color: "var(--color-on-surface)" }}>
-            Claude Code Access
+            MCP Access
           </p>
           <p className="text-xs mt-0.5" style={{ color: "var(--color-on-surface-variant)" }}>
-            Generate keys to chat with your data directly from Claude Code
+            Generate API keys for any MCP-compatible client (Claude Code, Cursor, etc.)
           </p>
         </div>
         {!showForm && (

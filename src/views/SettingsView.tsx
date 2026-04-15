@@ -15,7 +15,7 @@ type TabId = "profile" | "advanced" | "claude";
 const TAB_DEFS: { id: TabId; label: string }[] = [
   { id: "profile", label: "Profile" },
   { id: "advanced", label: "Advanced" },
-  { id: "claude", label: "Claude Code" },
+  { id: "claude", label: "MCP Access" },
 ];
 
 interface SettingsViewProps {
