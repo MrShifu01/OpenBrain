@@ -111,7 +111,7 @@ function NavItem({ id, label, isActive, onClick, badge }: NavItemProps) {
       </span>
       <span className="flex-1 text-left">{label}</span>
       {badge && (
-        <span className="bg-secondary text-on-secondary rounded-full px-1.5 py-0.5 text-[10px] font-semibold">
+        <span className="bg-secondary text-on-secondary rounded-full px-1.5 py-0.5 text-[11px] font-semibold">
           {badge}
         </span>
       )}

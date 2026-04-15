@@ -241,7 +241,7 @@ export default function BulkActionBar({
           <div ref={typeRef} className="relative flex flex-1 flex-col gap-1">
             <div className="flex items-center justify-between">
               <label
-                className="text-[10px] font-semibold tracking-wide uppercase"
+                className="text-[11px] font-semibold tracking-wide uppercase"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 Change type
@@ -326,7 +326,7 @@ export default function BulkActionBar({
           {/* Brain multi-picker */}
           <div ref={brainsRef} className="relative flex flex-1 flex-col gap-1">
             <label
-              className="text-[10px] font-semibold tracking-wide uppercase"
+              className="text-[11px] font-semibold tracking-wide uppercase"
               style={{ color: "var(--color-on-surface-variant)" }}
             >
               Add to brains

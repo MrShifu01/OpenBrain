@@ -36,16 +36,28 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!brainsRes.ok) return res.status(502).json({ error: "Failed to fetch brains" });
   const brains: any[] = await brainsRes.json();
 
+  // Bulk fetch all entries for all brains in one query — avoids N+1
+  const brainIds = brains.map((b: any) => b.id).join(",");
+  const allEntriesRes = await fetch(
+    `${SB_URL}/rest/v1/entries?brain_id=in.(${brainIds})&select=id,brain_id,tags`,
+    { headers: sbHeadersNoContent() }
+  );
+  if (!allEntriesRes.ok) return res.status(502).json({ error: "Failed to fetch entries" });
+  const allEntries: any[] = await allEntriesRes.json();
+
+  // Group by brain_id in memory
+  const entriesByBrain = new Map<string, any[]>();
+  for (const e of allEntries) {
+    const list = entriesByBrain.get(e.brain_id) ?? [];
+    list.push(e);
+    entriesByBrain.set(e.brain_id, list);
+  }
+
   let processed = 0;
   const gaps: Array<{ brain_id: string; brain_name: string; gap_tags: string[] }> = [];
 
   for (const brain of brains) {
-    const entriesRes = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain.id)}&select=id,title,tags`,
-      { headers: sbHeadersNoContent() }
-    );
-    if (!entriesRes.ok) continue;
-    const entries: any[] = await entriesRes.json();
+    const entries = entriesByBrain.get(brain.id) ?? [];
     processed++;
 
     // Count tag frequency

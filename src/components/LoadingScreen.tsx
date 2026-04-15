@@ -29,13 +29,6 @@ export default function LoadingScreen(): JSX.Element {
           />
         </div>
       </div>
-
-      <style>{`
-        @keyframes loading-sweep {
-          0%   { transform: translateX(-200%); }
-          100% { transform: translateX(300%); }
-        }
-      `}</style>
     </div>
   );
 }

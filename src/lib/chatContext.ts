@@ -27,7 +27,7 @@ export function scoreEntriesForQuery<
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) => w.replace(/s$/, "")); // naive de-pluralise
+    .filter(Boolean);
 
   const scored = entries.map((e) => {
     const titleLc = e.title.toLowerCase();

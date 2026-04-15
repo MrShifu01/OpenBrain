@@ -362,6 +362,26 @@ export default function AskView({
       <div className="pt-4" style={{ borderTop: "1px solid var(--color-outline-variant)" }}>
         <div className="lg:mx-auto lg:max-w-2xl">
 
+          {/* Brain scope toggle — only shown when multiple brains exist */}
+          {brains.length > 1 && (
+            <div className="mb-3 flex gap-1.5">
+              {([false, true] as const).map((allBrains) => (
+                <button
+                  key={String(allBrains)}
+                  onClick={() => setSearchAllBrains(allBrains)}
+                  className="press-scale rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
+                  style={
+                    searchAllBrains === allBrains
+                      ? { background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }
+                      : { background: "transparent", color: "var(--color-on-surface-variant)", border: "1px solid var(--color-outline-variant)" }
+                  }
+                >
+                  {allBrains ? "Everywhere" : "Here"}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Input row */}
           <div className="flex items-end gap-2">
             <textarea

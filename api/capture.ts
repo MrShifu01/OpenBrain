@@ -7,6 +7,8 @@ import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 
+export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
+
 const SB_URL = process.env.SUPABASE_URL;
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 

@@ -67,7 +67,9 @@ export function useVaultOps({
         const data: any[] = await r.json();
         setVaultEntries(data.map((e) => ({ ...e, type: "secret" as const })));
       }
-    } catch {}
+    } catch (e) {
+      console.error("[vault] fetch failed:", e);
+    }
   }, []);
 
   // Legacy: secrets still in the entries table (before migration)

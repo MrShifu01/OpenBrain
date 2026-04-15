@@ -53,7 +53,7 @@ const EntryCard = memo(function EntryCard({
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }
       }}
-      aria-label={e.title}
+      aria-label={`Open entry: ${e.title}`}
       aria-selected={selectMode ? selected : undefined}
       {...(isPinned ? { "data-pinned": "true" } : {})}
       {...(importance > 0 ? { "data-importance": String(importance) } : {})}
@@ -229,7 +229,7 @@ const EntryRow = memo(function EntryRow({
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }
       }}
-      aria-label={e.title}
+      aria-label={`Open entry: ${e.title}`}
       {...(isPinned ? { "data-pinned": "true" } : {})}
       className={`group press-scale bg-surface-container flex w-full cursor-pointer items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all duration-200 ${selected ? "border-primary outline-primary outline outline-2 outline-offset-2" : "border-outline-variant"}`}
     >
@@ -439,7 +439,7 @@ export function VirtualTimeline({
           return (
             <button
               key={e.id}
-              aria-label={e.title}
+              aria-label={`Open entry: ${e.title}`}
               style={{
                 position: "absolute",
                 top: vItem.start - virtualizer.options.scrollMargin,

@@ -152,7 +152,7 @@ export default function CreateBrainModal({
 
         {/* Brain type */}
         <div className="mb-5">
-          <label className="text-on-surface-variant mb-2 block text-[10px] font-semibold tracking-[0.2em] uppercase">
+          <label className="text-on-surface-variant mb-2 block text-[11px] font-semibold tracking-[0.2em] uppercase">
             Brain type
           </label>
           <div className="grid grid-cols-2 gap-2">
@@ -180,7 +180,7 @@ export default function CreateBrainModal({
 
         {/* Brain name */}
         <div className="mb-5">
-          <label className="text-on-surface-variant mb-2 block text-[10px] font-semibold tracking-[0.2em] uppercase">
+          <label className="text-on-surface-variant mb-2 block text-[11px] font-semibold tracking-[0.2em] uppercase">
             Brain name
           </label>
           <input
@@ -207,7 +207,7 @@ export default function CreateBrainModal({
 
         {/* Invite members */}
         <div className="mb-5">
-          <label className="text-on-surface-variant mb-2 block text-[10px] font-semibold tracking-[0.2em] uppercase">
+          <label className="text-on-surface-variant mb-2 block text-[11px] font-semibold tracking-[0.2em] uppercase">
             Invite members{" "}
             <span className="text-on-surface-variant/50 normal-case">(optional)</span>
           </label>

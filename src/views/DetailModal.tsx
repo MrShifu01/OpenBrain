@@ -270,45 +270,6 @@ No explanation, no punctuation, just one word.`,
             )}
           </div>
           <div className="ml-3 flex flex-shrink-0 items-center gap-2">
-            {!editing && canWrite && onDelete && (
-              <button
-                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  background: confirmingDelete
-                    ? "var(--color-error-container)"
-                    : "color-mix(in oklch, var(--color-error) 8%, transparent)",
-                  color: confirmingDelete
-                    ? "var(--color-on-error-container)"
-                    : "var(--color-error)",
-                  border: "1px solid color-mix(in oklch, var(--color-error) 20%, transparent)",
-                }}
-                onClick={async () => {
-                  if (!confirmingDelete) {
-                    setConfirmingDelete(true);
-                    confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
-                  } else {
-                    setDeleting(true);
-                    await onDelete(entry.id);
-                    setDeleting(false);
-                  }
-                }}
-                disabled={deleting}
-              >
-                {deleting ? "Deleting..." : confirmingDelete ? "Confirm delete?" : "Delete"}
-              </button>
-            )}
-            {!editing && canWrite && onUpdate && (
-              <button
-                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  border: "1px solid var(--color-outline-variant)",
-                  color: "var(--color-on-surface-variant)",
-                }}
-                onClick={() => setEditing(true)}
-              >
-                Edit
-              </button>
-            )}
             {!canWrite && <span className="text-on-surface-variant/60 text-xs">🔒 View only</span>}
             <button
               aria-label="Close"
@@ -668,6 +629,54 @@ No explanation, no punctuation, just one word.`,
           )}
         </div>
         {/* end scrollable body */}
+
+        {/* Action strip — Delete and Edit consolidated at bottom for thumb reach */}
+        {!editing && (canWrite && (onDelete || onUpdate)) && (
+          <div
+            className="flex flex-shrink-0 items-center gap-2 border-t px-5 py-3"
+            style={{ borderColor: "var(--color-outline-variant)" }}
+          >
+            {canWrite && onDelete && (
+              <button
+                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
+                style={{
+                  background: confirmingDelete
+                    ? "var(--color-error-container)"
+                    : "color-mix(in oklch, var(--color-error) 8%, transparent)",
+                  color: confirmingDelete
+                    ? "var(--color-on-error-container)"
+                    : "var(--color-error)",
+                  border: "1px solid color-mix(in oklch, var(--color-error) 20%, transparent)",
+                }}
+                onClick={async () => {
+                  if (!confirmingDelete) {
+                    setConfirmingDelete(true);
+                    confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+                  } else {
+                    setDeleting(true);
+                    await onDelete(entry.id);
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : confirmingDelete ? "Confirm delete?" : "Delete"}
+              </button>
+            )}
+            {canWrite && onUpdate && (
+              <button
+                className="press-scale ml-auto rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
+                style={{
+                  border: "1px solid var(--color-outline-variant)",
+                  color: "var(--color-on-surface-variant)",
+                }}
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

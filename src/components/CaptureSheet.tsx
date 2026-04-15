@@ -440,7 +440,7 @@ export default function CaptureSheet({
               }}
             >
               <span
-                className="text-[10px] font-semibold tracking-[0.15em] uppercase"
+                className="text-[11px] font-semibold tracking-[0.15em] uppercase"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 Saving to

@@ -102,7 +102,7 @@ export default function BrainSwitcher({
           }}
         >
           {personalBrains.length > 0 && (
-            <p className="text-on-surface-variant/50 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] uppercase">
+            <p className="text-on-surface-variant/50 px-4 py-1.5 text-[11px] font-semibold tracking-[0.2em] uppercase">
               Personal
             </p>
           )}
@@ -117,7 +117,7 @@ export default function BrainSwitcher({
           ))}
 
           {sharedBrains.length > 0 && (
-            <p className="text-on-surface-variant/50 mt-1 px-4 py-1.5 text-[10px] font-semibold tracking-[0.2em] uppercase">
+            <p className="text-on-surface-variant/50 mt-1 px-4 py-1.5 text-[11px] font-semibold tracking-[0.2em] uppercase">
               Shared
             </p>
           )}

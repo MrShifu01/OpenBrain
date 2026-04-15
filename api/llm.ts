@@ -3,6 +3,8 @@ import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 
+export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
+
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
