@@ -91,15 +91,7 @@ export async function enrichEntry(
             metadata: mergedMeta,
           });
           entry = { ...entry, type: result.type, content: result.content || entry.content, metadata: mergedMeta };
-        } else {
-          // AI gave prose — mark parsed so we don't retry endlessly
-          const mergedMeta = {
-            ...(entry.metadata ?? {}),
-            enrichment: { ...existingEnrichment, parsed: true },
-          };
-          await onUpdate(entry.id, { metadata: mergedMeta });
-          entry = { ...entry, metadata: mergedMeta };
-        }
+        // If AI gave prose with no parseable JSON, leave parsed unset so it retries next time
       }
     } catch { /* continue */ }
   }

@@ -207,16 +207,8 @@ export function EntryHealthPanel({
                 result = Array.isArray(p) ? p[0] : p;
               } catch { /* fall through to fallback */ }
             }
-            // Fallback: AI gave prose — mark as classified with existing type so we don't block
             if (!result?.type) {
-              const existingEnrichmentFallback = getEnrichment(entry);
-              await onUpdate?.(entry.id, {
-                metadata: {
-                  ...(entry.metadata ?? {}),
-                  enrichment: { ...existingEnrichmentFallback, parsed: true },
-                },
-              });
-              update("parsing", { status: "pass", note: "Classified" });
+              update("parsing", { status: "fail", detail: "AI did not return structured data — try again" });
               return;
             }
             const newMeta = { ...(result.metadata || {}) };
