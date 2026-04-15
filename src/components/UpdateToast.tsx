@@ -10,38 +10,41 @@ export default function UpdateToast() {
     if (!("serviceWorker" in navigator)) return;
 
     let cancelled = false;
+    let intervalId: number | undefined;
 
     navigator.serviceWorker.getRegistration().then((reg) => {
       if (cancelled || !reg) return;
 
-      const detect = () => {
+      const showIfWaiting = () => {
         if (reg.waiting && navigator.serviceWorker.controller) {
           setWaiting(reg.waiting);
         }
       };
 
-      detect();
+      showIfWaiting();
 
       reg.addEventListener("updatefound", () => {
         const installing = reg.installing;
         if (!installing) return;
         installing.addEventListener("statechange", () => {
-          if (installing.state === "installed" && navigator.serviceWorker.controller) {
-            setWaiting(installing);
+          if (installing.state === "installed") {
+            showIfWaiting();
           }
         });
       });
 
-      // Periodic check so long-lived sessions still notice deploys.
-      const interval = window.setInterval(() => {
+      // Check immediately, then every 60s. Also call showIfWaiting() each tick
+      // in case a SW reached "waiting" state between the updatefound and now.
+      reg.update().catch(() => {});
+      intervalId = window.setInterval(() => {
+        showIfWaiting();
         reg.update().catch(() => {});
       }, 60_000);
-
-      return () => window.clearInterval(interval);
     });
 
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
   }, []);
 
