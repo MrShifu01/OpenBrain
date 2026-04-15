@@ -9,18 +9,46 @@ const SB_HEADERS: Record<string, string> = { apikey: SB_KEY!, Authorization: `Be
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 
-const SUGGESTIONS_PROMPT = `You are a second brain assistant. Given a list of entries a user has already captured, generate exactly 3 questions whose answers would most enrich what's already there.
+const SUGGESTIONS_PROMPT = `You are a second brain assistant helping a user build a rich personal knowledge base. Given a list of entries already captured and a random category seed, generate exactly 3 questions.
+
+MIX RULE: Each set of 3 questions must blend two modes — vary this randomly based on the seed:
+- DEEPEN (grounded): questions that fill specific gaps in existing entries (e.g. they have suppliers but no pricing → ask about pricing)
+- EXPLORE (expansive): questions from the Second Brain category list below that the user has NOT covered yet
+
+SECOND BRAIN CATEGORY LIST (use as inspiration, rephrase naturally, pick randomly based on seed):
+- Memories of significant life events you don't want to fade
+- Personal reflections and lessons learned from the past year
+- Random shower ideas or spontaneous insights you haven't written down
+- Stories or anecdotes — yours or someone else's — worth remembering
+- Realizations from conversations that shifted your perspective
+- Personal breakthroughs from meditation, therapy, or meaningful experiences
+- Observations on your own recurring patterns or habits
+- Inspiring quotes that evoke wonder or curiosity
+- Surprising facts that challenged your beliefs
+- Takeaways from a course, conference, or book you recently finished
+- Answers to questions you frequently get asked
+- A project retrospective — what went well, what didn't
+- A checklist or template you use repeatedly
+- Household facts (appliance models, paint colors, maintenance history)
+- Health records or goals (exercise routines, supplements, doctor notes)
+- Financial research (investments, budget notes, tax info)
+- Travel itineraries or dream destinations
+- Industry trends you want to track
+- Your Twelve Favourite Problems — open questions you keep returning to
+- Mental models that help you make better decisions
+- Hobby research (recipes, gear reviews, language notes)
+- Drafts or brainstorms for creative projects
+- Books you own or plan to read
+- Strategic career questions (how to spend more time on high-value work)
+- People worth keeping closer contact with and why
 
 Rules:
-- Study WHAT IS THERE: the themes, types, and topics already captured
-- Generate questions that deepen or complement the existing content specifically
-- If they have suppliers but no pricing context, ask about pricing. If they have recipes but no sourcing, ask about sourcing.
-- Questions should be specific and directly answerable — not vague
-- Each question should target a different knowledge domain visible in the entries
-- Never generate generic questions — every question must be grounded in the actual content
-- cat is a short label (1-3 words) for the domain of the question
-- Return ONLY valid JSON, no markdown: {"suggestions":[{"q":"...","cat":"..."},{"q":"...","cat":"..."},{"q":"...","cat":"..."}]}
-- If data is too sparse, still return 3 generic-but-useful second brain questions`;
+- Aim for roughly 1-2 DEEPEN + 1-2 EXPLORE per set (vary the ratio randomly)
+- DEEPEN questions must reference something specific already in the brain
+- EXPLORE questions should feel personal and curious, not corporate or generic
+- All questions must be concise, directly answerable, and feel like a friend asked them
+- cat is a short label (1-3 words) for the domain
+- Return ONLY valid JSON, no markdown: {"suggestions":[{"q":"...","cat":"..."},{"q":"...","cat":"..."},{"q":"...","cat":"..."}]}`;
 
 const WOW_PROMPT = `You are a personal insight synthesizer for a second-brain app.
 
@@ -51,8 +79,9 @@ async function generateSuggestions(
     .map((e) => `- [${e.type}] ${e.title}${e.tags?.length ? ` (${e.tags.join(", ")})` : ""}`)
     .join("\n");
   const conceptLine = topConcepts.length ? `\n\nTop concepts: ${topConcepts.join(", ")}` : "";
+  const seed = Math.floor(Math.random() * 10000);
 
-  const userText = `My brain entries:\n${entryLines}${conceptLine}`;
+  const userText = `Seed: ${seed}\n\nMy brain entries:\n${entryLines}${conceptLine}`;
 
   try {
     const res = await fetch(

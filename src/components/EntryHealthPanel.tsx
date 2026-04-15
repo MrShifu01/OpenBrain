@@ -67,8 +67,8 @@ function buildItems(
     {
       key: "parsing",
       label: "AI Parsing",
-      note: metaKeys.length > 0 ? `${metaKeys.length} structured fields` : "No structured fields found",
-      status: metaKeys.length > 0 ? "pass" : "fail",
+      note: metaKeys.length > 0 ? `${metaKeys.length} structured fields` : e.parsed ? "Classified" : "No structured fields found",
+      status: metaKeys.length > 0 || e.parsed ? "pass" : "fail",
     },
     {
       key: "concepts",
@@ -220,13 +220,18 @@ export function EntryHealthPanel({
             if (rawText.length > 200 && !newMeta.full_text) {
               newMeta.full_text = rawText;
             }
+            const existingEnrichment = getEnrichment(entry);
             await onUpdate?.(entry.id, {
               type: result.type,
               content: result.content || entry.content,
-              metadata: { ...(entry.metadata ?? {}), ...newMeta },
+              metadata: {
+                ...(entry.metadata ?? {}),
+                ...newMeta,
+                enrichment: { ...existingEnrichment, parsed: true },
+              },
             });
             const fieldCount = Object.keys(newMeta).filter((k) => k !== "full_text").length;
-            update("parsing", { status: "pass", note: `${fieldCount} structured fields` });
+            update("parsing", { status: "pass", note: fieldCount > 0 ? `${fieldCount} structured fields` : "Classified" });
           } catch (e: any) {
             update("parsing", { status: "fail", detail: e?.message || "Failed" });
           }

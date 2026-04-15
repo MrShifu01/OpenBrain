@@ -14,6 +14,7 @@ export function isFullyEnriched(entry: Entry, _allEntries: Entry[]): boolean {
   const concepts = (e.concepts_count ?? 0) > 0;
   const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   const parsed =
+    e.parsed === true ||
     Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;
   return embedded && concepts && insight && parsed;
 }
@@ -26,6 +27,7 @@ export function getEnrichmentGaps(entry: Entry, _allEntries: Entry[]): string[] 
   const hasInsight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   if (!hasInsight) gaps.push("insight");
   const parsed =
+    e.parsed === true ||
     Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;
   if (!parsed) gaps.push("parsed");
   return gaps;
@@ -40,6 +42,7 @@ export async function enrichEntry(
   const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
   const concepts = (e.concepts_count ?? 0) > 0;
   const parsed =
+    e.parsed === true ||
     Object.keys(entry.metadata ?? {}).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0;
   const insight = e.has_insight ?? false;
 
@@ -68,17 +71,18 @@ export async function enrichEntry(
             const newMeta = { ...(result.metadata || {}) };
             delete newMeta.confidence;
             if (rawText.length > 200 && !newMeta.full_text) newMeta.full_text = rawText;
+            const existingEnrichment = (entry.metadata as any)?.enrichment ?? {};
+            const mergedMeta = {
+              ...(entry.metadata ?? {}),
+              ...newMeta,
+              enrichment: { ...existingEnrichment, parsed: true },
+            };
             await onUpdate(entry.id, {
               type: result.type,
               content: result.content || entry.content,
-              metadata: { ...(entry.metadata ?? {}), ...newMeta },
+              metadata: mergedMeta,
             });
-            entry = {
-              ...entry,
-              type: result.type,
-              content: result.content || entry.content,
-              metadata: { ...(entry.metadata ?? {}), ...newMeta },
-            };
+            entry = { ...entry, type: result.type, content: result.content || entry.content, metadata: mergedMeta };
           }
         }
       }

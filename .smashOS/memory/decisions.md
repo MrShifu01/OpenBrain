@@ -2,6 +2,57 @@
 
 ---
 
+## [AUDIT] Full App Audit — 2026-04-14 (pass 6)
+**Tags**: AUDIT
+
+### Overall Score: 79/100 — B-
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 82 |
+| Performance | 83 |
+| Architecture | 74 |
+| Code Quality / Types | 72 |
+| UX / UI | 80 |
+| Maintainability | 76 |
+| User Perspective | 78 |
+
+### Progress since pass 5 (80/100)
+- ✅ Sentry now fully wired: `@sentry/react` installed, DSN configured, `ErrorBoundary.componentDidCatch` calls `Sentry.captureException` — HIGH resolved
+- ✅ AI keys (Groq, Gemini) now in-memory only; localStorage cleared on every login — already counted in pass 5 but confirmed solid
+- ❌ Permissions-Policy `microphone=()` — still blocks voice recording in production — NOT FIXED (3rd consecutive pass)
+- ❌ `computeCompletenessScore` duplication in entries.ts + capture.ts — NOT FIXED
+- ❌ RefineView.tsx still 1,883 lines — NOT FIXED
+- ⚠️ Tests regressed: 8 failing tests across 3 files (AccountTab mock + BottomNav duplicate test files) — CI blocked
+
+### CRITICAL & HIGH Findings
+
+**[HIGH]** `Permissions-Policy: microphone=()` blocks voice recording in production — silent failure in UI. `vercel.json:44` — 1-line fix: change to `microphone=(self)`.
+
+**[HIGH]** 8 failing tests, CI blocked: `AccountTab.test.tsx` (missing `getUser` mock, 4 tests) + duplicate BottomNav test files in `tests/` and `src/components/__tests__/` (4 tests).
+
+**[HIGH]** `xlsx` dependency: 5 unpatched HIGH CVEs (prototype pollution + ReDoS). No upstream fix. — `package.json:31`
+
+**[HIGH]** `RefineView.tsx` — 1,883 lines, 3rd consecutive audit pass unfixed. — `src/views/RefineView.tsx`
+
+**[HIGH]** `computeCompletenessScore` duplicated verbatim in `api/entries.ts:11` and `api/capture.ts:12`. — extract to `api/_lib/`
+
+**[MEDIUM]** `Sentry.init({ sendDefaultPii: true })` — PII (names, phones, IDs) sent to Sentry without user consent. GDPR/POPIA concern. — `src/main.tsx:12`
+
+**[MEDIUM]** Sentry DSN hardcoded in source; not configurable per environment. — `src/main.tsx:11`
+
+**[MEDIUM]** `npm audit` not in CI — 5 HIGH CVEs undetected.
+
+### Top 5 Actions
+1. [HIGH] Fix `Permissions-Policy`: `microphone=()` → `microphone=(self)` in `vercel.json:44`
+2. [HIGH] Fix 8 failing tests: add `getUser` mock to AccountTab test; delete duplicate `tests/components/BottomNav.test.tsx`
+3. [HIGH] Replace `xlsx` with `exceljs` or server-side extraction (unpatched CVEs, no fix available)
+4. [HIGH] Extract `computeCompletenessScore` to `api/_lib/completeness.ts`
+5. [MEDIUM] `sendDefaultPii: false` + move Sentry DSN to `VITE_SENTRY_DSN` env var; add to `.env.example`
+
+---
+
 ## [AUDIT] Full App Audit — 2026-04-12 (pass 5)
 **Tags**: AUDIT
 
