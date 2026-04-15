@@ -242,7 +242,7 @@ function EverionContent({
       </DesktopSidebar>
 
       <div className="w-full overflow-x-hidden">
-        <div className="bg-background min-h-dvh lg:ml-72 lg:max-w-[calc(75vw)]">
+        <div className={`bg-background lg:ml-72 lg:max-w-[calc(75vw)] ${appShell.view === "ask" ? "flex h-dvh flex-col overflow-hidden" : "min-h-dvh"}`}>
           <MobileHeader
             brainName={activeBrain?.name || "Everion"}
             brainEmoji="🧠"
@@ -324,7 +324,7 @@ function EverionContent({
 
           <OmniSearch entries={entries} onSelect={setSelected} onNavigate={appShell.setView} />
 
-          <div key={appShell.view} className={`animate-view-enter mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 ${appShell.view === "ask" ? "" : "pt-4 pb-32"}`}>
+          <div key={appShell.view} className={`animate-view-enter mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 ${appShell.view === "ask" ? "flex flex-1 flex-col overflow-hidden" : "pt-4 pb-32"}`}>
             {appShell.view === "memory" && (
               <div className="space-y-3">
                 <div
