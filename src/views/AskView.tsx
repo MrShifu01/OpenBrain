@@ -1,4 +1,20 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
+
+/** Tracks the visual viewport height on mobile so the composer sits above the keyboard. */
+function useVisualViewportHeight(): number | null {
+  const [vpHeight, setVpHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const screenH = window.screen.height;
+    const update = () => {
+      setVpHeight(vv.height < screenH * 0.75 ? vv.height : null);
+    };
+    vv.addEventListener("resize", update);
+    return () => vv.removeEventListener("resize", update);
+  }, []);
+  return vpHeight;
+}
 
 const EXAMPLE_PROMPTS = [
   "Summarize what I've captured this week",
@@ -91,8 +107,16 @@ export default function AskView({
     [chatMsgs, phoneRegex],
   );
 
+  const vpHeight = useVisualViewportHeight();
+  // When keyboard is open on mobile, size to visual viewport minus the sticky header (~68px).
+  // Otherwise fall back to the CSS calc that accounts for the bottom nav.
+  const mobileHeight = vpHeight != null ? `${vpHeight - 68}px` : "calc(100dvh - 180px)";
+
   return (
-    <div className="flex h-[calc(100dvh-180px)] flex-col lg:h-[calc(100dvh-80px)]">
+    <div
+      className="flex flex-col lg:h-[calc(100dvh-80px)]"
+      style={{ height: mobileHeight }}
+    >
       {/* ── Message thread ── */}
       <div
         role="log"
