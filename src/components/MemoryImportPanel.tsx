@@ -90,35 +90,22 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
     <div className="space-y-3">
       {/* Step 1 — copy the prompt */}
       <div>
-        <p className="text-on-surface mb-1 text-xs font-semibold">
+        <p className="text-on-surface mb-2 text-xs font-semibold">
           Step 1 — Copy this prompt into Claude or ChatGPT
         </p>
-        <div
-          className="relative rounded-xl border p-3"
+        <button
+          onClick={copyPrompt}
+          className="rounded-xl px-4 py-2 text-xs font-semibold transition-colors"
           style={{
-            background: "var(--color-surface-container-low)",
-            borderColor: "var(--color-outline-variant)",
+            background: copied
+              ? "color-mix(in oklch, var(--color-primary) 15%, transparent)"
+              : "var(--color-surface-container-high)",
+            color: copied ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+            border: "1px solid var(--color-outline-variant)",
           }}
         >
-          <pre
-            className="text-on-surface-variant whitespace-pre-wrap text-xs leading-relaxed"
-            style={{ maxHeight: 160, overflowY: "auto" }}
-          >
-            {AI_MEMORY_PROMPT}
-          </pre>
-          <button
-            onClick={copyPrompt}
-            className="absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-medium transition-colors"
-            style={{
-              background: copied
-                ? "color-mix(in oklch, var(--color-primary) 15%, transparent)"
-                : "var(--color-surface-container-highest)",
-              color: copied ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-            }}
-          >
-            {copied ? "Copied!" : "Copy"}
-          </button>
-        </div>
+          {copied ? "✓ Prompt copied!" : "Copy prompt"}
+        </button>
       </div>
 
       {/* Step 2 — paste the JSON result */}

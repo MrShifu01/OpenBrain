@@ -64,9 +64,7 @@ Rules:
 - If data is too sparse for genuine wow moments, return {"wows":[]}`;
 
 function getGreeting(name?: string): string {
-  const h = new Date().getHours();
-  const time = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-  return name ? `${time}, ${name}.` : `${time}.`;
+  return name ? `Hi, ${name}.` : `Hi there.`;
 }
 
 async function generateSuggestions(
@@ -242,7 +240,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       generateSuggestions(recentEntries, topConcepts),
     ]);
 
-    const name = meta.full_name || meta.name || user.email?.split("@")[0] || "";
+    const name = meta.display_name || meta.full_name || meta.name || "";
 
     return res.status(200).json({
       greeting: getGreeting(name),

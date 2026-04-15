@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import MemoryImportPanel from "./MemoryImportPanel";
+import { supabase } from "../lib/supabase";
 
 interface OnboardingModalProps {
   onComplete: (
@@ -13,10 +14,11 @@ interface OnboardingModalProps {
   brainId?: string;
 }
 
-type Step = "welcome" | "capture" | "processing" | "query" | "response" | "celebration" | "import";
+type Step = "welcome" | "name" | "capture" | "processing" | "query" | "response" | "celebration" | "import";
 
 export default function OnboardingModal({ onComplete, brainId }: OnboardingModalProps) {
   const [step, setStep] = useState<Step>("welcome");
+  const [userName, setUserName] = useState("");
   const [thoughts, setThoughts] = useState("");
   const [query, setQuery] = useState("What patterns do you see?");
   const [aiResponse, setAiResponse] = useState("");
@@ -135,11 +137,38 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
             </h2>
             <p className="text-on-surface-variant mb-6 text-sm">Let's teach your brain.</p>
             <button
-              onClick={() => setStep("capture")}
+              onClick={() => setStep("name")}
               className="press-scale text-on-primary w-full rounded-xl py-3 text-sm font-semibold"
               style={{ background: "var(--color-primary)" }}
             >
               Let's go
+            </button>
+          </div>
+        )}
+
+        {step === "name" && (
+          <div>
+            <h3 className="text-on-surface mb-1 text-lg font-bold">What's your name?</h3>
+            <p className="text-on-surface-variant mb-3 text-xs">So your brain knows who it belongs to.</p>
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && userName.trim() && (supabase.auth.updateUser({ data: { display_name: userName.trim() } }), setStep("capture"))}
+              placeholder="Your first name"
+              autoFocus
+              className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border px-4 py-3 text-sm outline-none"
+              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+            />
+            <button
+              onClick={() => {
+                if (userName.trim()) supabase.auth.updateUser({ data: { display_name: userName.trim() } });
+                setStep("capture");
+              }}
+              className="press-scale text-on-primary mt-3 w-full rounded-xl py-3 text-sm font-semibold"
+              style={{ background: "var(--color-primary)" }}
+            >
+              {userName.trim() ? "Continue" : "Skip for now"}
             </button>
           </div>
         )}
