@@ -119,21 +119,6 @@ const EntryCard = memo(function EntryCard({
           {e.content as string}
         </p>
       ) : null}
-      {(e as any).tags?.length > 0 && (
-        <div className="mt-auto flex flex-wrap gap-1.5">
-          {(e as any).tags.slice(0, 3).map((tag: string) => (
-            <Badge key={tag} variant="secondary" size="pill">
-              {tag}
-            </Badge>
-          ))}
-          {(e as any).tags.length > 3 && (
-            <span className="text-on-surface-variant px-1 text-xs">
-              +{(e as any).tags.length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
       {concepts && concepts.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1">
           {concepts.slice(0, 3).map((c) => (

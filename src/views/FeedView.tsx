@@ -165,6 +165,9 @@ export default function FeedView({
         }
       }
 
+      // Store the raw Q&A source so Full Content shows in the detail modal
+      if (!metadata.full_text) metadata = { ...metadata, full_text: rawText };
+
       // 2. Save via capture API (auto-embeds)
       const capRes = await authFetch("/api/capture", {
         method: "POST",
@@ -189,6 +192,7 @@ export default function FeedView({
         type,
         metadata,
         tags,
+        brain_id: brainId,
         created_at: new Date().toISOString(),
       });
 
