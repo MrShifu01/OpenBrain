@@ -7,6 +7,7 @@ import { PROMPTS } from "../config/prompts";
 const FEED_TTL = 2 * 60 * 60 * 1000; // 2 hours
 
 function feedCacheKey(brainId: string) { return `feed_cache:${brainId}`; }
+function mergeCacheKey(brainId: string) { return `merge_cache:${brainId}`; }
 
 function readFeedCache(brainId: string): FeedData | null {
   try {
@@ -24,7 +25,24 @@ function writeFeedCache(brainId: string, data: FeedData) {
   } catch { /* storage full — ignore */ }
 }
 
+function readMergeCache(brainId: string): MergeSuggestion[] | null {
+  try {
+    const raw = localStorage.getItem(mergeCacheKey(brainId));
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > FEED_TTL) return null;
+    return data as MergeSuggestion[];
+  } catch { return null; }
+}
+
+function writeMergeCache(brainId: string, merges: MergeSuggestion[]) {
+  try {
+    localStorage.setItem(mergeCacheKey(brainId), JSON.stringify({ data: merges, ts: Date.now() }));
+  } catch { /* storage full — ignore */ }
+}
+
 export function invalidateFeedCache(brainId: string) {
+  // Only bust the main feed cache — merge cache has its own 2-hour TTL
   try { localStorage.removeItem(feedCacheKey(brainId)); } catch { /* ignore */ }
 }
 
@@ -119,13 +137,20 @@ export default function FeedView({
       return;
     }
 
+    const cachedMerges = readMergeCache(brainId);
+    const url = `/api/feed?brain_id=${encodeURIComponent(brainId)}${cachedMerges ? "&skip_merges=true" : ""}`;
+
     setLoading(true);
-    authFetch(`/api/feed?brain_id=${encodeURIComponent(brainId)}`)
+    authFetch(url)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d) {
-          setData(d);
-          writeFeedCache(brainId, d);
+          // Use fresh merge cache if API skipped merges, otherwise cache what API returned
+          const merges = cachedMerges ?? d.merges ?? [];
+          if (!cachedMerges && d.merges?.length) writeMergeCache(brainId, d.merges);
+          const finalData = { ...d, merges };
+          setData(finalData);
+          writeFeedCache(brainId, finalData);
         }
       })
       .catch((err) => console.error("[FeedView]", err))

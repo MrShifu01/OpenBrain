@@ -270,6 +270,40 @@ No explanation, no punctuation, just one word.`,
                 {editTitle}
               </h2>
             )}
+            {!editing && (() => {
+              const checks = [
+                { label: "insight", ok: !!entry.metadata?.ai_insight },
+                { label: "parsing", ok: !!(entry.metadata?.full_text || entry.metadata?.raw_content) },
+                { label: "embedding", ok: !!entry.embedded_at },
+                { label: "concepts", ok: conceptsLoading ? null : entryConcepts.length > 0 },
+                { label: "related", ok: conceptsLoading ? null : conceptRelated.length > 0 },
+              ];
+              return (
+                <div className="mt-2 flex items-center gap-3">
+                  {checks.map(({ label, ok }) => (
+                    <div key={label} className="flex flex-col items-center gap-0.5">
+                      <span
+                        className="block h-2 w-2 rounded-full"
+                        style={{
+                          background: ok === null
+                            ? "var(--color-outline-variant)"
+                            : ok
+                              ? "rgb(22,163,74)"
+                              : "rgb(220,38,38)",
+                        }}
+                        title={`${label}: ${ok === null ? "loading" : ok ? "present" : "missing"}`}
+                      />
+                      <span
+                        className="text-[8px] font-medium leading-none"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           <div className="ml-3 flex flex-shrink-0 items-center gap-2">
             {!canWrite && <span className="text-on-surface-variant/60 text-xs">🔒 View only</span>}

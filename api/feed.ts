@@ -223,10 +223,20 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   const brainId = (req.query.brain_id as string) || "";
   if (!brainId) return res.status(400).json({ error: "brain_id required" });
+  const skipMerges = req.query.skip_merges === "true";
 
   try {
     // Run independent fetches in parallel
-    const [resurfacedRes, statsRes, userRes, insightRes, sparseRes, graphRes, mergeEntriesRes] = await Promise.all([
+    const mergeOldestPromise = skipMerges ? Promise.resolve(null) : fetch(
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type&order=created_at.asc&limit=25`,
+      { headers: SB_HEADERS },
+    );
+    const mergeNewestPromise = skipMerges ? Promise.resolve(null) : fetch(
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type&order=created_at.desc&limit=25`,
+      { headers: SB_HEADERS },
+    );
+
+    const [resurfacedRes, statsRes, userRes, insightRes, sparseRes, graphRes, mergeOldestRes, mergeNewestRes] = await Promise.all([
       // 1. Resurfaced entries: random entries from 1-6 months ago
       fetch(
         `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&created_at=gte.${new Date(Date.now() - 180 * 86400000).toISOString()}&created_at=lte.${new Date(Date.now() - 30 * 86400000).toISOString()}&deleted_at=is.null&select=id,title,content,type,tags,created_at&order=random&limit=2`,
@@ -254,11 +264,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         `${SB_URL}/rest/v1/concept_graphs?brain_id=eq.${encodeURIComponent(brainId)}&select=graph`,
         { headers: SB_HEADERS },
       ),
-      // 7. Wider entry sample for merge detection (50 entries, older entries included)
-      fetch(
-        `${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type&order=created_at.desc&limit=50`,
-        { headers: SB_HEADERS },
-      ),
+      mergeOldestPromise,
+      mergeNewestPromise,
     ]);
 
     const resurfaced = resurfacedRes.ok ? await resurfacedRes.json() : [];
@@ -273,7 +280,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       content: String(e.metadata?.ai_insight || ""),
     }));
     const recentEntries: any[] = sparseRes.ok ? await sparseRes.json() : [];
-    const mergeEntries: any[] = mergeEntriesRes.ok ? await mergeEntriesRes.json() : [];
+
+    // Combine oldest + newest entries, deduplicate by id, then shuffle for random spread
+    let mergeEntries: any[] = [];
+    if (!skipMerges) {
+      const oldest: any[] = mergeOldestRes?.ok ? await mergeOldestRes.json() : [];
+      const newest: any[] = mergeNewestRes?.ok ? await mergeNewestRes.json() : [];
+      const seen = new Set<string>();
+      const combined: any[] = [];
+      for (const e of [...oldest, ...newest]) {
+        if (!seen.has(e.id)) { seen.add(e.id); combined.push(e); }
+      }
+      // Fisher-Yates shuffle so Gemini sees a varied order each time
+      for (let i = combined.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [combined[i], combined[j]] = [combined[j], combined[i]];
+      }
+      mergeEntries = combined;
+    }
 
     // Extract top concepts + relationships from graph for wow/suggestions synthesis
     let topConcepts: string[] = [];
@@ -292,11 +316,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       }
     }
 
-    // Run all LLM calls in parallel
+    // Run LLM calls in parallel; skip merges when client has a fresh cache
     const [wows, suggestions, merges] = await Promise.all([
       synthesizeWows(insights, topConcepts, relationships),
       generateSuggestions(recentEntries, topConcepts),
-      generateMergeSuggestions(mergeEntries),
+      skipMerges ? Promise.resolve([]) : generateMergeSuggestions(mergeEntries),
     ]);
 
     const name = meta.display_name || meta.full_name || meta.name || "";
