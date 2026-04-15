@@ -60,18 +60,6 @@ async function extractDocx(buffer: ArrayBuffer): Promise<string> {
   return result.value;
 }
 
-async function extractExcel(buffer: ArrayBuffer): Promise<string> {
-  const mod = await import("xlsx");
-  const XLSX = (mod as any).default ?? mod;
-  const wb = XLSX.read(buffer, { type: "array" });
-  return (wb.SheetNames as string[])
-    .map((name: string) => {
-      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name]);
-      return `[Sheet: ${name}]\n${csv}`;
-    })
-    .join("\n\n");
-}
-
 export async function extractTextFromFile(file: File): Promise<string> {
   await new Promise((r) => setTimeout(r, 0));
   const name = file.name.toLowerCase();
@@ -79,6 +67,9 @@ export async function extractTextFromFile(file: File): Promise<string> {
   if (file.type.startsWith("image/")) {
     return extractViaAI(file);
   }
+
+  // Excel files route through AI extraction to avoid client-side CVE exposure
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return extractViaAI(file);
 
   const buffer = await file.arrayBuffer();
   if (name.endsWith(".pdf") || file.type === "application/pdf") {
@@ -91,6 +82,5 @@ export async function extractTextFromFile(file: File): Promise<string> {
     return extractViaAI(file);
   }
   if (name.endsWith(".docx")) return extractDocx(buffer);
-  if (name.endsWith(".xlsx") || name.endsWith(".xls")) return extractExcel(buffer);
   return new TextDecoder().decode(buffer);
 }
