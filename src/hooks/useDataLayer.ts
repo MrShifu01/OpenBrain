@@ -192,6 +192,33 @@ export function useDataLayer({
   );
   const unenrichedCount = unenrichedDetails.length;
 
+  // Silent background enrich — fires once per brain after entries load.
+  // 8s initial delay lets the page settle; 5s between entries respects the LLM rate limit.
+  const autoEnrichBrainRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!entriesLoaded || !activeBrainId) return;
+    if (autoEnrichBrainRef.current === activeBrainId) return;
+
+    const unenriched = entries.filter((e) => !isFullyEnriched(e, entries, conceptEntryIds));
+    if (unenriched.length === 0) return;
+
+    autoEnrichBrainRef.current = activeBrainId;
+    const snapshot = [...unenriched];
+    const brainId = activeBrainId;
+    let cancelled = false;
+
+    (async () => {
+      await new Promise((r) => setTimeout(r, 8000));
+      for (let i = 0; i < snapshot.length; i++) {
+        if (cancelled) break;
+        await enrichEntry(snapshot[i], brainId, silentUpdate);
+        if (i < snapshot.length - 1) await new Promise((r) => setTimeout(r, 5000));
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [entriesLoaded, activeBrainId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const runBulkEnrich = useCallback(async () => {
     if (!activeBrainId || enriching) return;
     const unenriched = entries.filter((e) => !isFullyEnriched(e, entries, conceptEntryIds));
