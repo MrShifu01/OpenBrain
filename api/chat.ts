@@ -154,7 +154,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       "only","then","them","make","like","well","take","come","good","know","need",
       "feel","seem","same","tell","give","find","show","list","number","south","african"]);
     const qTokens = message.trim().split(/\s+/)
-      .map((w: string) => w.replace(/[^a-zA-Z0-9]/g, ""))
+      .map((w: string) => w.split("'")[0].replace(/[^a-zA-Z0-9]/g, "")) // "Henk's" → "Henk"
       .filter((w: string) => w.length > 3 && !QKW_STOP.has(w.toLowerCase()))
       .slice(0, 6);
     if (qTokens.length > 0) {
