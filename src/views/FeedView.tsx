@@ -4,6 +4,30 @@ import { fmtD } from "../data/constants";
 import { EarlyAccessBanner } from "../components/EarlyAccessBanner";
 import { PROMPTS } from "../config/prompts";
 
+const FEED_TTL = 2 * 60 * 60 * 1000; // 2 hours
+
+function feedCacheKey(brainId: string) { return `feed_cache:${brainId}`; }
+
+function readFeedCache(brainId: string): FeedData | null {
+  try {
+    const raw = localStorage.getItem(feedCacheKey(brainId));
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > FEED_TTL) return null;
+    return data as FeedData;
+  } catch { return null; }
+}
+
+function writeFeedCache(brainId: string, data: FeedData) {
+  try {
+    localStorage.setItem(feedCacheKey(brainId), JSON.stringify({ data, ts: Date.now() }));
+  } catch { /* storage full — ignore */ }
+}
+
+export function invalidateFeedCache(brainId: string) {
+  try { localStorage.removeItem(feedCacheKey(brainId)); } catch { /* ignore */ }
+}
+
 interface FeedEntry {
   id: string;
   title: string;
@@ -79,10 +103,24 @@ export default function FeedView({
 
   useEffect(() => {
     if (!brainId) return;
+
+    // Serve from cache instantly if fresh — no loading state shown
+    const cached = readFeedCache(brainId);
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     authFetch(`/api/feed?brain_id=${encodeURIComponent(brainId)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setData(d); })
+      .then((d) => {
+        if (d) {
+          setData(d);
+          writeFeedCache(brainId, d);
+        }
+      })
       .catch((err) => console.error("[FeedView]", err))
       .finally(() => setLoading(false));
   }, [brainId]);

@@ -45,7 +45,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
 import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
-import FeedView from "./views/FeedView";
+import FeedView, { invalidateFeedCache } from "./views/FeedView";
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
 import { useAppShell, type AppShellState } from "./hooks/useAppShell";
 import { useDataLayer } from "./hooks/useDataLayer";
@@ -184,6 +184,27 @@ function EverionContent({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [appShell.setShowCapture]);
+
+  // Prefetch feed in background when brain loads so it's cached before the user navigates there
+  useEffect(() => {
+    if (!activeBrain?.id) return;
+    try {
+      const raw = localStorage.getItem(`feed_cache:${activeBrain.id}`);
+      if (raw) {
+        const { ts } = JSON.parse(raw);
+        if (Date.now() - ts < 2 * 60 * 60 * 1000) return; // still fresh
+      }
+    } catch { /* ignore */ }
+    const id = activeBrain.id;
+    import("./lib/authFetch").then(({ authFetch }) => {
+      authFetch(`/api/feed?brain_id=${encodeURIComponent(id)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d) localStorage.setItem(`feed_cache:${id}`, JSON.stringify({ data: d, ts: Date.now() }));
+        })
+        .catch(() => {});
+    });
+  }, [activeBrain?.id]);
 
   return (
     <>
@@ -467,7 +488,7 @@ function EverionContent({
                 enriching={enriching}
                 enrichProgress={enrichProgress}
                 onEnrich={runBulkEnrich}
-                onCreated={handleCreated}
+                onCreated={(e) => { if (activeBrain?.id) invalidateFeedCache(activeBrain.id); handleCreated(e); }}
               />
             )}
             {appShell.view === "capture" &&
@@ -810,7 +831,7 @@ function EverionContent({
             <CaptureSheet
               isOpen={appShell.showCapture}
               onClose={() => appShell.setShowCapture(false)}
-              onCreated={handleCreated}
+              onCreated={(e) => { if (activeBrain?.id) invalidateFeedCache(activeBrain.id); handleCreated(e); }}
               brainId={activeBrain?.id}
               cryptoKey={cryptoKey}
               isOnline={isOnline}
