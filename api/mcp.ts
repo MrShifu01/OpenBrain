@@ -126,7 +126,7 @@ async function searchEntries(userId: string, query: string, brainId?: string): P
 
   // Verify the user owns this brain
   const access = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
+    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId!)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
     { headers: hdrs() },
   );
   const owned: any[] = await access.json();
@@ -138,7 +138,7 @@ async function searchEntries(userId: string, query: string, brainId?: string): P
   if (!embedding) {
     // Fall back to keyword search
     const fallback = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(resolvedBrainId)}&deleted_at=is.null&select=id,title,content,type,tags,created_at&limit=10`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(resolvedBrainId!)}&deleted_at=is.null&select=id,title,content,type,tags,created_at&limit=10`,
       { headers: hdrs() },
     );
     return fallback.json();
@@ -202,7 +202,7 @@ async function createEntry(
   // Generate embedding
   let embedding: number[] | null = null;
   if (GEMINI_API_KEY) {
-    embedding = await generateEmbedding(buildEntryText(safeTitle, safeContent, safeType, safeTags), GEMINI_API_KEY);
+    embedding = await generateEmbedding(buildEntryText({ title: safeTitle, content: safeContent, tags: safeTags }), GEMINI_API_KEY);
   }
 
   const id = (randomUUID as () => string)();

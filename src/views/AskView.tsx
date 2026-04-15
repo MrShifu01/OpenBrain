@@ -1,6 +1,12 @@
 import { useRef, useEffect, useMemo, useState } from "react";
 
-/** Tracks the visual viewport height on mobile so the composer sits above the keyboard. */
+/**
+ * Tracks the usable height above the keyboard on mobile.
+ * Returns `vv.height + vv.offsetTop` when the keyboard is open so that the
+ * caller can subtract the AskView's fixed top offset (header + wrapper padding)
+ * and get a container that ends exactly at the keyboard edge — even when iOS
+ * scrolls the page after focus.  Returns null when keyboard is closed.
+ */
 function useVisualViewportHeight(): number | null {
   const [vpHeight, setVpHeight] = useState<number | null>(null);
   useEffect(() => {
@@ -8,10 +14,19 @@ function useVisualViewportHeight(): number | null {
     if (!vv) return;
     const screenH = window.screen.height;
     const update = () => {
-      setVpHeight(vv.height < screenH * 0.75 ? vv.height : null);
+      if (vv.height < screenH * 0.75) {
+        // Include offsetTop so the value is stable even when iOS scrolls the page.
+        setVpHeight(vv.height + vv.offsetTop);
+      } else {
+        setVpHeight(null);
+      }
     };
     vv.addEventListener("resize", update);
-    return () => vv.removeEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
   }, []);
   return vpHeight;
 }
@@ -108,9 +123,11 @@ export default function AskView({
   );
 
   const vpHeight = useVisualViewportHeight();
-  // When keyboard is open on mobile, size to visual viewport minus the sticky header (~68px).
-  // Otherwise fall back to the CSS calc that accounts for the bottom nav.
-  const mobileHeight = vpHeight != null ? `${vpHeight - 68}px` : "calc(100dvh - 180px)";
+  // When keyboard is open: vpHeight = vv.height + vv.offsetTop (scroll-adjusted).
+  // Subtract the header height (68px) — no wrapper pt-4 since AskView sits directly
+  // below the header with no extra top padding.
+  // When keyboard is closed: fall back to CSS calc (header + bottom nav = 136px).
+  const mobileHeight = vpHeight != null ? `${vpHeight - 68}px` : "calc(100dvh - 136px)";
 
   return (
     <div
