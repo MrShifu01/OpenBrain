@@ -6,6 +6,7 @@ import { decryptEntry } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
 import { isFullyEnriched, getEnrichmentGaps, enrichEntry } from "../lib/enrichEntry";
+import { loadGraphFromDB } from "../lib/conceptGraph";
 import { useEntryActions } from "./useEntryActions";
 import type { Entry } from "../types";
 
@@ -43,6 +44,18 @@ export function useDataLayer({
   const [vaultExists, setVaultExists] = useState(false);
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
+  const [conceptEntryIds, setConceptEntryIds] = useState<Set<string>>(new Set());
+
+  // Load concept graph entry IDs so unenriched detection matches the health panel
+  useEffect(() => {
+    if (!activeBrainId) return;
+    loadGraphFromDB(activeBrainId)
+      .then((graph) => {
+        const ids = new Set<string>(graph.concepts.flatMap((c) => c.source_entries ?? []));
+        setConceptEntryIds(ids);
+      })
+      .catch(() => {});
+  }, [activeBrainId]);
 
   // Load entries cache on mount
   useEffect(() => {
@@ -169,19 +182,19 @@ export function useDataLayer({
   const unenrichedDetails = useMemo(
     () =>
       entries
-        .filter((e) => !isFullyEnriched(e, entries))
+        .filter((e) => !isFullyEnriched(e, entries, conceptEntryIds))
         .map((e) => ({
           id: e.id,
           title: e.title || "(untitled)",
-          gaps: getEnrichmentGaps(e, entries),
+          gaps: getEnrichmentGaps(e, entries, conceptEntryIds),
         })),
-    [entries],
+    [entries, conceptEntryIds],
   );
   const unenrichedCount = unenrichedDetails.length;
 
   const runBulkEnrich = useCallback(async () => {
     if (!activeBrainId || enriching) return;
-    const unenriched = entries.filter((e) => !isFullyEnriched(e, entries));
+    const unenriched = entries.filter((e) => !isFullyEnriched(e, entries, conceptEntryIds));
     if (unenriched.length === 0) return;
     setEnriching(true);
     setEnrichProgress({ done: 0, total: unenriched.length });
@@ -192,7 +205,7 @@ export function useDataLayer({
     }
     setEnriching(false);
     setEnrichProgress(null);
-  }, [activeBrainId, entries, enriching, silentUpdate]);
+  }, [activeBrainId, entries, enriching, silentUpdate, conceptEntryIds]);
 
   const handleCreated = useCallback(
     (newEntry: Entry) => {

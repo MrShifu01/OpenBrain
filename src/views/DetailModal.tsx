@@ -11,6 +11,7 @@ import type { ConceptGraph } from "../lib/conceptGraph";
 import { CANONICAL_TYPES } from "../types";
 import type { Entry, Brain, EntryType } from "../types";
 import { EntryHealthPanel } from "../components/EntryHealthPanel";
+import { SKIP_META_KEYS } from "../lib/entryConstants";
 
 interface DetailLink {
   from: string;
@@ -169,8 +170,7 @@ No explanation, no punctuation, just one word.`,
   const [showFullText, setShowFullText] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const CONTENT_PREVIEW_LIMIT = 300;
-  const skip = new Set(["category", "status", "confidence", "completeness_score", "raw_content", "source_entry_id", "full_text", "workspace", "enrichment"]);
-  const meta = Object.entries(entry.metadata || {}).filter(([k]) => !skip.has(k));
+  const meta = Object.entries(entry.metadata || {}).filter(([k]) => !SKIP_META_KEYS.has(k));
   const confidence = (entry.metadata?.confidence || {}) as Record<string, string>;
 
   useEffect(() => {

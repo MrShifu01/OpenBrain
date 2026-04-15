@@ -3,10 +3,14 @@ import { PROMPTS } from "../config/prompts";
 import type { Entry } from "../types";
 import { SKIP_META_KEYS } from "./entryConstants";
 
-export function isFullyEnriched(entry: Entry, _allEntries: Entry[]): boolean {
+export function isFullyEnriched(
+  entry: Entry,
+  _allEntries: Entry[],
+  entryIdsWithConcepts?: Set<string>,
+): boolean {
   const e = (entry.metadata as any)?.enrichment ?? {};
   const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
-  const concepts = (e.concepts_count ?? 0) > 0;
+  const concepts = (e.concepts_count ?? 0) > 0 || (entryIdsWithConcepts?.has(entry.id) ?? false);
   const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   const parsed =
     e.parsed === true ||
@@ -14,11 +18,16 @@ export function isFullyEnriched(entry: Entry, _allEntries: Entry[]): boolean {
   return embedded && concepts && insight && parsed;
 }
 
-export function getEnrichmentGaps(entry: Entry, _allEntries: Entry[]): string[] {
+export function getEnrichmentGaps(
+  entry: Entry,
+  _allEntries: Entry[],
+  entryIdsWithConcepts?: Set<string>,
+): string[] {
   const e = (entry.metadata as any)?.enrichment ?? {};
   const gaps: string[] = [];
   if (!(e.embedded ?? Boolean((entry as any).embedded_at))) gaps.push("embedding");
-  if (!((e.concepts_count ?? 0) > 0)) gaps.push("concepts");
+  const hasConcepts = (e.concepts_count ?? 0) > 0 || (entryIdsWithConcepts?.has(entry.id) ?? false);
+  if (!hasConcepts) gaps.push("concepts");
   const hasInsight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
   if (!hasInsight) gaps.push("insight");
   const parsed =
@@ -39,7 +48,7 @@ export async function enrichEntry(
   const parsed =
     e.parsed === true ||
     Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k)).length > 0;
-  const insight = e.has_insight ?? false;
+  const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
 
   // ── AI Parsing ─────────────────────────────────────────────────────────
   if (!parsed) {
