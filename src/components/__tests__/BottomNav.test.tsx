@@ -26,11 +26,11 @@ describe("BottomNav — FAB capture action", () => {
     const onNavigate = vi.fn();
     render(<BottomNav activeView="feed" onNavigate={onNavigate} onCapture={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /^memory$/i }));
-    expect(onNavigate).toHaveBeenCalledWith("grid");
+    expect(onNavigate).toHaveBeenCalledWith("memory");
   });
 
   it("active view item has aria-current='page'", () => {
-    render(<BottomNav activeView="grid" onNavigate={vi.fn()} onCapture={vi.fn()} />);
+    render(<BottomNav activeView="memory" onNavigate={vi.fn()} onCapture={vi.fn()} />);
     const memBtn = screen.getByRole("button", { name: /^memory$/i });
     expect(memBtn).toHaveAttribute("aria-current", "page");
   });

@@ -6,7 +6,12 @@ const { mockSignOut } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../../lib/supabase", () => ({
-  supabase: { auth: { signOut: mockSignOut } },
+  supabase: {
+    auth: {
+      signOut: mockSignOut,
+      getUser: vi.fn().mockResolvedValue({ data: { user: { user_metadata: {} } } }),
+    },
+  },
 }));
 
 import AccountTab from "../../settings/AccountTab";

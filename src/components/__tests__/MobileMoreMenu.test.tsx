@@ -20,11 +20,6 @@ describe("MobileMoreMenu", () => {
     expect(panel.className).toContain("translate-x-0");
   });
 
-  it("renders Improve Brain item", () => {
-    render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
-    expect(screen.getByText("Improve Brain")).toBeInTheDocument();
-  });
-
   it("renders Vault item", () => {
     render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
     expect(screen.getByText("Vault")).toBeInTheDocument();
@@ -33,13 +28,6 @@ describe("MobileMoreMenu", () => {
   it("renders Settings item", () => {
     render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
     expect(screen.getByText("Settings")).toBeInTheDocument();
-  });
-
-  it("calls onNavigate with 'refine' when Improve Brain is clicked", () => {
-    const onNavigate = vi.fn();
-    render(<MobileMoreMenu isOpen={true} onNavigate={onNavigate} />);
-    fireEvent.click(screen.getByText("Improve Brain"));
-    expect(onNavigate).toHaveBeenCalledWith("refine");
   });
 
   it("calls onNavigate with 'vault' when Vault button is clicked", () => {
