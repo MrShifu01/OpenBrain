@@ -208,11 +208,11 @@ export function useDataLayer({
     let cancelled = false;
 
     (async () => {
-      await new Promise((r) => setTimeout(r, 8000));
+      await new Promise((r) => setTimeout(r, 15000));
       for (let i = 0; i < snapshot.length; i++) {
         if (cancelled) break;
         await enrichEntry(snapshot[i], brainId, silentUpdate);
-        if (i < snapshot.length - 1) await new Promise((r) => setTimeout(r, 5000));
+        if (i < snapshot.length - 1) await new Promise((r) => setTimeout(r, 15000));
       }
     })();
 
