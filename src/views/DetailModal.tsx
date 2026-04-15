@@ -147,9 +147,13 @@ No explanation, no punctuation, just one word.`,
   // Concept graph: load async from DB so we always get fresh data
   const brainId = entry.brain_id;
   const [conceptGraph, setConceptGraph] = useState<ConceptGraph | null>(null);
+  const [conceptsLoading, setConceptsLoading] = useState(true);
   useEffect(() => {
     if (!brainId) return;
-    loadGraphFromDB(brainId).then(setConceptGraph).catch(() => {});
+    setConceptsLoading(true);
+    loadGraphFromDB(brainId)
+      .then((g) => { setConceptGraph(g); setConceptsLoading(false); })
+      .catch(() => setConceptsLoading(false));
   }, [brainId, entry.id]);
   const entryConcepts = useMemo(() => {
     if (!conceptGraph) return [];
@@ -539,6 +543,7 @@ No explanation, no punctuation, just one word.`,
                 entryConcepts={entryConcepts}
                 conceptRelated={conceptRelated}
                 typeIcons={typeIcons}
+                conceptsLoading={conceptsLoading}
               />
             </div>
           )}
