@@ -205,7 +205,7 @@ function GoogleKeepImportPanel({ activeBrain }: { activeBrain: Brain }) {
       return;
     }
 
-    const BATCH = 500;
+    const BATCH = 2000;
     let totalImported = 0;
     try {
       for (let i = 0; i < entries.length; i += BATCH) {
