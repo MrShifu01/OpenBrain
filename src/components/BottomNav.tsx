@@ -1,6 +1,18 @@
-import { memo } from "react";
+import { memo, useState, useEffect } from "react";
 import { cn } from "../lib/cn";
 import { NavIcon } from "./icons/NavIcons";
+
+function useKeyboardVisible(): boolean {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const handler = () => setVisible(vv.height < window.innerHeight * 0.75);
+    vv.addEventListener("resize", handler);
+    return () => vv.removeEventListener("resize", handler);
+  }, []);
+  return visible;
+}
 
 const NAV_ITEMS = [
   { id: "feed", label: "Feed", icon: NavIcon.feed },
@@ -17,6 +29,8 @@ interface BottomNavProps {
 }
 
 function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
+  const keyboardVisible = useKeyboardVisible();
+  if (keyboardVisible) return null;
   return (
     <nav
       aria-label="Primary navigation"

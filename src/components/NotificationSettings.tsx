@@ -396,7 +396,7 @@ export default function NotificationSettings(): JSX.Element {
                         className={`cursor-pointer rounded-[20px] border-none px-3.5 py-1.5 text-xs font-bold ${
                           active
                             ? "bg-[var(--color-secondary-container)] text-[var(--color-secondary)] outline outline-1 outline-[var(--color-outline-variant)]"
-                            : "bg-surface text-on-surface-variant outline-[var(--color-outline-variant)] outline outline-1"
+                            : "bg-surface-container text-on-surface-variant outline outline-1 outline-[var(--color-outline-variant)]"
                         }`}
                       >
                         {day}d
