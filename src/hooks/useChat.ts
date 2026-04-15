@@ -3,7 +3,8 @@ import { authFetch } from "../lib/authFetch";
 import { callAI } from "../lib/ai";
 import { extractNudgeText } from "../lib/extractNudgeText";
 import { scoreEntriesForQuery } from "../lib/chatContext";
-import { loadGraph, saveGraphToDB } from "../lib/conceptGraph";
+import { loadGraph } from "../lib/conceptGraph";
+import { withGraphLock } from "../lib/graphWriter";
 import { recordDecision } from "../lib/learningEngine";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import { unlockVault, decryptVaultKeyFromRecovery, decryptEntry } from "../lib/crypto";
@@ -81,7 +82,10 @@ function feedQueryToGraph(brainId: string, query: string): void {
     }
   }
   if (changed) {
-    saveGraphToDB(brainId, graph);
+    withGraphLock(brainId, async () => {
+      const { saveGraphToDB } = await import("../lib/conceptGraph");
+      await saveGraphToDB(brainId, graph);
+    });
   }
 }
 

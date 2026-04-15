@@ -3,15 +3,8 @@ import { callAI } from "./ai";
 import {
   extractConcepts,
   extractRelationships,
-  mergeGraph,
-  loadGraphFromDB,
-  saveGraphToDB,
 } from "./conceptGraph";
-
-// ─── Per-entry concept extraction (runs on every capture) ───────────────────
-
-// Serialize all graph reads+writes so concurrent captures don't race.
-let _graphLock: Promise<void> = Promise.resolve();
+import { writeConceptsToGraph } from "./graphWriter";
 
 const ENTRY_CONCEPTS_PROMPT = `Extract key concepts and relationships from this single brain entry.
 Return ONLY this JSON (no markdown):
@@ -33,10 +26,8 @@ interface EntryRef {
  * Reads the graph from localStorage (free), writes back only if there are new concepts.
  * Fire-and-forget safe.
  */
-export async function extractEntryConnections(entry: EntryRef, brainId: string): Promise<void> {
-  // Chain onto the lock so concurrent calls are serialized, not raced
-  _graphLock = _graphLock.then(() => _doExtractEntryConnections(entry, brainId));
-  return _graphLock;
+export function extractEntryConnections(entry: EntryRef, brainId: string): Promise<void> {
+  return _doExtractEntryConnections(entry, brainId);
 }
 
 async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Promise<void> {
@@ -95,9 +86,7 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
       return;
     }
 
-    const existing = await loadGraphFromDB(brainId);
-    const merged = mergeGraph(existing, { concepts: newConcepts, relationships: newRels });
-    await saveGraphToDB(brainId, merged);
+    await writeConceptsToGraph(brainId, { concepts: newConcepts, relationships: newRels });
     console.log("[concepts] saved", newConcepts.length, "concepts for", entry.title);
   } catch (e) {
     console.error("[concepts] extractEntryConnections failed for", entry.id, e);
@@ -218,7 +207,8 @@ export async function buildBrainConnections(
     const CHUNK = 20;
     let totalConcepts = 0;
     let totalRels = 0;
-    let graph = await loadGraphFromDB(brainId);
+    const allNewConcepts: ReturnType<typeof extractConcepts> = [];
+    const allNewRels: ReturnType<typeof extractRelationships> = [];
 
     for (let i = 0; i < entries.length; i += CHUNK) {
       const chunk = entries.slice(i, i + CHUNK);
@@ -243,13 +233,14 @@ export async function buildBrainConnections(
 
       const newConcepts = extractConcepts(newC);
       const newRels = extractRelationships(newR);
-      graph = mergeGraph(graph, { concepts: newConcepts, relationships: newRels });
+      allNewConcepts.push(...newConcepts);
+      allNewRels.push(...newRels);
       totalConcepts += newConcepts.length;
       totalRels += newRels.length;
     }
 
     status("Saving concept graph…");
-    await saveGraphToDB(brainId, graph);
+    await writeConceptsToGraph(brainId, { concepts: allNewConcepts, relationships: allNewRels });
 
     // ── Phase 2: Entry-to-entry connections — batch link finding ──
     const linkChunks = Math.ceil(entries.length / CHUNK);
