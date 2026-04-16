@@ -98,6 +98,29 @@ interface ChatLink {
 const SECRET_QUERY_RE =
   /\b(password|passcode|passphrase|credentials|login|wifi\s*(key|password)|network\s*key|bank\s*(account|pin|number|detail)|credit\s*card|cvv|routing\s*number|secret|vault)\b/i;
 
+// ── Save-intent detection ─────────────────────────────────────────────────────
+// Detects messages where the user wants to store something in their brain,
+// e.g. "add this as an entry", "remember that John called", "save this: ..."
+const SAVE_INTENT_RE =
+  /\b(add|save|remember|log|capture|store|record|note down|write down|keep)\b.{0,40}\b(this|that|it|entry|to my brain|to brain|to my memory)\b/i;
+
+function extractSaveContent(msg: string): string {
+  // "add this: content" / "save to brain: content" — take everything after the colon
+  const colonIdx = msg.indexOf(":");
+  if (colonIdx > 0 && colonIdx < 80) {
+    const after = msg.slice(colonIdx + 1).trim();
+    if (after.length > 4) return after;
+  }
+  // "remember that content" / "add that content"
+  const thatMatch = msg.match(/\b(?:remember|add|save|log)\s+that\s+(.+)/i);
+  if (thatMatch) return thatMatch[1].trim();
+  // Strip the leading intent phrase and return what's left
+  const stripped = msg
+    .replace(/^(add|save|remember|log|capture|store|record|note down|write down|keep)\s+(this|that|it|an?\s+entry\s+(for|about)?|to\s+(my\s+)?(brain|memory))[:\s,]*/i, "")
+    .trim();
+  return stripped || msg.trim();
+}
+
 function containsSensitiveContent(text: string): boolean {
   return SECRET_QUERY_RE.test(text);
 }
@@ -150,6 +173,7 @@ export function useChat({
   const sendChat = useCallback(
     async (msg: string, overrideSecrets?: DecryptedSecret[]) => {
       setChatLoading(true);
+      const saveContent = SAVE_INTENT_RE.test(msg) ? extractSaveContent(msg) : null;
       try {
         const secrets: DecryptedSecret[] =
           overrideSecrets ||
@@ -253,6 +277,7 @@ export function useChat({
         const noInfoMatch = rawContent.match(/\[NO_INFO:([^\]]+)\]\s*$/);
         const content = noInfoMatch ? rawContent.replace(noInfoMatch[0], "").trimEnd() : rawContent;
         if (noInfoMatch) setPendingCapture(noInfoMatch[1].trim());
+        else if (saveContent) setPendingCapture(saveContent);
         const assistantMsg = {
           role: "assistant",
           content,

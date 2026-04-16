@@ -240,7 +240,7 @@ export default function AskView({
                       border: "1px solid transparent",
                     }}
                   >
-                    + Add it
+                    + Save as entry
                   </button>
                 )}
                 {m.role === "assistant" && m.key > 0 && (
