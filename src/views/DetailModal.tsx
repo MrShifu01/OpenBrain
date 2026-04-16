@@ -6,7 +6,7 @@ import { useEntryEdit } from "../hooks/useEntryEdit";
 import { ConnectionsPanel } from "../components/ConnectionsPanel";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
-import { loadGraphFromDB, getRelatedEntries, getConceptsForEntry } from "../lib/conceptGraph";
+import { loadGraphFromDB, getRelatedEntries, getConceptsForEntry, mergeGraph, extractConcepts, saveGraphToDB } from "../lib/conceptGraph";
 import type { ConceptGraph } from "../lib/conceptGraph";
 import { CANONICAL_TYPES } from "../types";
 import type { Entry, Brain, EntryType } from "../types";
@@ -89,6 +89,8 @@ export default function DetailModal({
   const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [aiMsg, setAiMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [conceptsRewriting, setConceptsRewriting] = useState(false);
+  const [conceptsMsg, setConceptsMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -140,6 +142,58 @@ No explanation, no punctuation, just one word.`,
       setAiMsg({ text: err?.message || "Request failed", ok: false });
     }
     setAiTyping(false);
+  }
+
+  async function rewriteConcepts() {
+    const _brainId = entry.brain_id;
+    if (!_brainId) return;
+    setConceptsRewriting(true);
+    setConceptsMsg(null);
+    try {
+      const entryContext = `Title: ${editTitle}\nType: ${editType}\nContent: ${(editContent || "").slice(0, 1000)}`;
+      const res = await authFetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system: `Extract concepts for this single knowledge base entry. Return ONLY valid JSON, no markdown.
+
+CONCEPT LABEL RULES:
+- Max 3 words, aim for 1–2
+- Categorical themes only — never instance-specific. "identity documents" not "father's South African ID number". "family contacts" not "Henk Stander".
+- No possessives (no apostrophes, no "father's", "mum's")
+- No proper nouns (no person names, country names, brand names)
+- Must be reusable — a valid label could apply to 3+ different entries
+- Good: "identity documents", "financial accounts", "family contacts", "health records", "vehicles", "passwords"
+- Bad: "father's ID number", "Henk Stander", "South African passport"
+
+Return: {"concepts": [{"label": "concept name", "entry_ids": ["${entry.id}"]}]}
+Max 5 concepts. If none clearly apply, return {"concepts": []}.`,
+          messages: [{ role: "user", content: entryContext }],
+          max_tokens: 300,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const raw = (data.content?.[0]?.text || "").trim().replace(/^```json\n?|```$/g, "");
+      const parsed = JSON.parse(raw);
+      const newConcepts = extractConcepts(parsed.concepts || []);
+
+      // Load graph, strip this entry from all existing concepts, merge in fresh ones
+      const graph = await loadGraphFromDB(_brainId);
+      const stripped = {
+        ...graph,
+        concepts: graph.concepts
+          .map((c) => ({ ...c, source_entries: c.source_entries.filter((id) => id !== entry.id) }))
+          .filter((c) => c.source_entries.length > 0),
+      };
+      const updated = mergeGraph(stripped, { concepts: newConcepts, relationships: [] });
+      await saveGraphToDB(_brainId, updated);
+      setConceptGraph(updated);
+      setConceptsMsg({ text: `✓ ${newConcepts.length} concept${newConcepts.length !== 1 ? "s" : ""} updated`, ok: true });
+    } catch (err: any) {
+      setConceptsMsg({ text: err?.message || "Failed", ok: false });
+    }
+    setConceptsRewriting(false);
   }
 
   const {
@@ -482,6 +536,62 @@ No explanation, no punctuation, just one word.`,
                   }}
                 />
               </div>
+              {/* Concepts section */}
+              <div>
+                <div className="mb-1.5 flex items-center justify-between">
+                  <label
+                    className="block text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    Concepts
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    {conceptsMsg && (
+                      <span
+                        className="text-[9px]"
+                        style={{ color: conceptsMsg.ok ? "var(--color-primary)" : "var(--color-error)" }}
+                      >
+                        {conceptsMsg.text}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={rewriteConcepts}
+                      disabled={conceptsRewriting}
+                      className="rounded-lg px-2 py-0.5 text-[10px] font-semibold transition-all disabled:opacity-50"
+                      style={{
+                        background: "var(--color-primary-container)",
+                        color: "var(--color-primary)",
+                      }}
+                    >
+                      {conceptsRewriting ? "Rewriting…" : "✦ Rewrite"}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 rounded-xl px-3 py-2.5 min-h-[44px]"
+                  style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+                >
+                  {entryConcepts.length === 0 ? (
+                    <span className="text-[11px] self-center" style={{ color: "var(--color-on-surface-variant)" }}>
+                      {conceptsLoading ? "Loading…" : "No concepts yet"}
+                    </span>
+                  ) : (
+                    entryConcepts.map((c) => (
+                      <span
+                        key={c.id}
+                        className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                        style={{
+                          background: "var(--color-secondary-container)",
+                          color: "var(--color-on-secondary-container)",
+                        }}
+                      >
+                        {c.label}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   className="text-on-surface-variant hover:text-on-surface press-scale flex-1 rounded-xl py-3 text-sm font-semibold transition-all"

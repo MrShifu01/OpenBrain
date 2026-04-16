@@ -219,7 +219,16 @@ Generate specific questions the user should answer.
 
 TASK 4 — CONCEPT EXTRACTION (max 10 concepts, max 8 relationships):
 Identify key concepts across entries and meaningful relationships between them.
-Concepts = recurring themes, entities, or ideas. Relationships = how concepts connect.
+Concepts = recurring themes, categories, or domains that span multiple entries. Relationships = how concepts connect.
+
+CONCEPT LABEL RULES (strictly enforced):
+- Max 3 words. Aim for 1–2.
+- Categorical themes only — not instance-specific labels. "identity documents" not "father's South African ID number". "family contacts" not "Henk Stander's phone".
+- No possessives (no apostrophes, no "father's", "mum's", "John's").
+- No proper nouns (no person names, no country names, no brand names).
+- Must be reusable — a valid concept label could plausibly apply to 3+ different entries.
+- Good examples: "identity documents", "family contacts", "financial accounts", "health records", "property", "vehicles", "passwords", "recipes".
+- Bad examples: "father's ID number", "Henk Stander", "South African passport", "grandmother's recipe".
 
 Return ONLY this JSON structure, no markdown:
 {

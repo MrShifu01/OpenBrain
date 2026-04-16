@@ -56,3 +56,30 @@ npm run build
 ```
 
 Confirm no HIGH CVEs from `serialize-javascript` remain after install.
+
+---
+
+## M-11 — Set APP_URL env var for MCP internal routing
+
+**Action:** Vercel dashboard → Project → Settings → Environment Variables
+
+`ask_everionmind` in the MCP calls `/api/chat` internally via HTTP. It resolves the URL in this priority order:
+
+1. `APP_URL` (manually set — most reliable)
+2. `VERCEL_PROJECT_PRODUCTION_URL` (auto-set by Vercel for production)
+3. `VERCEL_URL` (auto-set but deployment-specific — **may point to a preview, not production**)
+4. `http://localhost:3000` (local dev fallback)
+
+If neither `APP_URL` nor `VERCEL_PROJECT_PRODUCTION_URL` is present, the MCP logs a warning on every cold start showing which URL it resolved to.
+
+**Steps:**
+
+1. Go to Vercel dashboard → your EverionMind project → Settings → Environment Variables
+2. Add:
+   - **Name:** `APP_URL`
+   - **Value:** `https://your-production-domain.com` (your canonical URL, no trailing slash)
+   - **Environment:** Production only
+3. Redeploy for the variable to take effect
+4. Verify: trigger an MCP tool call and confirm no `[mcp] WARNING` appears in Vercel function logs
+
+**Why this matters:** Without it, if `VERCEL_PROJECT_PRODUCTION_URL` is also absent, `ask_everionmind` routes to whatever `VERCEL_URL` resolves to — which on a new deployment or preview branch will be a different function instance than production, causing retrieval failures or stale data.

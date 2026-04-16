@@ -29,13 +29,26 @@ function normalize(label: string): string {
     .replace(/[^a-z0-9\s]/g, "");
 }
 
+/** Strip possessives and truncate to max 3 words — safety net for AI label drift */
+function sanitizeConceptLabel(label: string): string {
+  return label
+    .replace(/[''\u2019]\s*s\b/gi, "")  // strip possessives: "father's" → "father"
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .slice(0, 3)                         // enforce 3-word max
+    .join(" ");
+}
+
 /** Parse AI-returned concepts into typed Concept[] */
 export function extractConcepts(
   aiConcepts: Array<{ label: string; entry_ids: string[] }>,
 ): Concept[] {
   const map = new Map<string, Concept>();
   for (const c of aiConcepts) {
-    const key = normalize(c.label);
+    const sanitized = sanitizeConceptLabel(c.label);
+    if (!sanitized) continue;
+    const key = normalize(sanitized);
     if (!key) continue;
     const existing = map.get(key);
     if (existing) {
@@ -45,7 +58,7 @@ export function extractConcepts(
     } else {
       map.set(key, {
         id: key,
-        label: c.label.trim(),
+        label: sanitized,
         source_entries: [...new Set(c.entry_ids)],
         frequency: c.entry_ids.length,
       });
