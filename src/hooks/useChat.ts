@@ -123,7 +123,9 @@ export function useChat({
 }: UseChatParams) {
   const [chatInput, setChatInput] = useState("");
   const [searchAllBrains, setSearchAllBrains] = useState(false);
-  const [chatMsgs, setChatMsgs] = useState([
+  const [chatMsgs, setChatMsgs] = useState<
+    { role: string; content: string; sources?: string[]; confidence?: string; query?: string }[]
+  >([
     {
       role: "assistant",
       content:
@@ -251,13 +253,20 @@ export function useChat({
         const noInfoMatch = rawContent.match(/\[NO_INFO:([^\]]+)\]\s*$/);
         const content = noInfoMatch ? rawContent.replace(noInfoMatch[0], "").trimEnd() : rawContent;
         if (noInfoMatch) setPendingCapture(noInfoMatch[1].trim());
+        const assistantMsg = {
+          role: "assistant",
+          content,
+          sources: data.sources ?? [],
+          confidence: data.confidence,
+          query: msg,
+        };
         if (containsSensitiveContent(content)) {
           const hasPinSet = !!getStoredPinHash();
           setPendingSecureMsg({ content });
           setPinGateIsSetup(!hasPinSet);
           setShowPinGate(true);
         } else {
-          setChatMsgs((p) => [...p, { role: "assistant", content }]);
+          setChatMsgs((p) => [...p, assistantMsg]);
         }
       } catch {
         setChatMsgs((p) => [...p, { role: "assistant", content: "Connection error." }]);
@@ -265,6 +274,31 @@ export function useChat({
       setChatLoading(false);
     },
     [cryptoKey, entries, links, chatMsgs, activeBrain, searchAllBrains, brains],
+  );
+
+  const sendFeedback = useCallback(
+    async (msgIdx: number, vote: 1 | -1) => {
+      const msg = chatMsgs[msgIdx];
+      if (!msg || msg.role !== "assistant" || !activeBrain?.id) return;
+      try {
+        await authFetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            brain_id: activeBrain.id,
+            query: msg.query ?? "",
+            answer: msg.content,
+            retrieved_entry_ids: msg.sources ?? [],
+            top_entry_ids: msg.sources ?? [],
+            feedback: vote,
+            confidence: msg.confidence ?? "medium",
+          }),
+        });
+      } catch {
+        /* non-fatal — feedback failure is silent */
+      }
+    },
+    [chatMsgs, activeBrain],
   );
 
   const handleChat = useCallback(async () => {
@@ -374,5 +408,6 @@ export function useChat({
     sendChat,
     handleChat,
     handleVaultModalUnlock,
+    sendFeedback,
   };
 }

@@ -249,7 +249,7 @@ function computeConfidence(answer: string, entries: any[], query: string): "high
 // legitimately have low confidence without being wrong. Retry only when both
 // NO_INFO is present (model explicitly flagged a missing fact) AND confidence
 // is low, or when NO_INFO appears on its own.
-function shouldRetry(answer: string, confidence: "high" | "medium" | "low"): boolean {
+function shouldRetry(answer: string, _confidence: "high" | "medium" | "low"): boolean {
   return answer.includes("[NO_INFO:");
 }
 

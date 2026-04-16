@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import { useKeyboardVisible } from "../hooks/useKeyboardVisible";
 
 const EXAMPLE_PROMPTS = [
@@ -8,7 +8,7 @@ const EXAMPLE_PROMPTS = [
 ];
 
 interface AskViewProps {
-  chatMsgs: { role: string; content: string }[];
+  chatMsgs: { role: string; content: string; sources?: string[]; confidence?: string; query?: string }[];
   chatLoading: boolean;
   chatInput: string;
   setChatInput: (v: string) => void;
@@ -30,6 +30,7 @@ interface AskViewProps {
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   brains: any[];
   phoneRegex: RegExp;
+  sendFeedback?: (msgIdx: number, vote: 1 | -1) => void;
 }
 
 export default function AskView({
@@ -55,9 +56,19 @@ export default function AskView({
   chatEndRef,
   brains,
   phoneRegex,
+  sendFeedback,
 }: AskViewProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const keyboardVisible = useKeyboardVisible();
+  // Track which message indices have already been rated (purely display state)
+  const [ratedIdxs, setRatedIdxs] = useState<Set<number>>(new Set());
+  const handleFeedback = useCallback(
+    (idx: number, vote: 1 | -1) => {
+      setRatedIdxs((prev) => new Set(prev).add(idx));
+      sendFeedback?.(idx, vote);
+    },
+    [sendFeedback],
+  );
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -231,6 +242,53 @@ export default function AskView({
                   >
                     + Add it
                   </button>
+                )}
+                {m.role === "assistant" && m.key > 0 && (
+                  <div className="flex items-center gap-1 self-start">
+                    {ratedIdxs.has(m.key) ? (
+                      <span
+                        className="text-xs"
+                        style={{ color: "var(--color-on-surface-variant)", opacity: 0.6 }}
+                      >
+                        Thanks
+                      </span>
+                    ) : (
+                      <>
+                        <button
+                          aria-label="Helpful"
+                          onClick={() => handleFeedback(m.key, 1)}
+                          className="press-scale flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors"
+                          style={{ color: "var(--color-on-surface-variant)" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "oklch(from var(--color-primary) l c h / 0.1)";
+                            e.currentTarget.style.color = "var(--color-primary)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--color-on-surface-variant)";
+                          }}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          aria-label="Not helpful"
+                          onClick={() => handleFeedback(m.key, -1)}
+                          className="press-scale flex h-6 w-6 items-center justify-center rounded-full text-xs transition-colors"
+                          style={{ color: "var(--color-on-surface-variant)" }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "oklch(from var(--color-error) l c h / 0.1)";
+                            e.currentTarget.style.color = "var(--color-error)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "var(--color-on-surface-variant)";
+                          }}
+                        >
+                          ↓
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

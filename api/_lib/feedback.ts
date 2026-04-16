@@ -234,7 +234,7 @@ export async function getKnowledgeShortcuts(
 export async function learnKnowledgeShortcut(
   brainId: string,
   query: string,
-  retrievedEntryIds: string[],
+  _retrievedEntryIds: string[],
   topEntryIds: string[],
 ): Promise<void> {
   if (!topEntryIds.length) return;

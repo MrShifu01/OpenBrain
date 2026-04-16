@@ -30,6 +30,10 @@ export interface AIResponseBody {
   usage?: AIUsageBlock;
   /** Error bag. */
   error?: string | { message?: string };
+  /** Entry IDs used to generate the answer (from /api/chat). */
+  sources?: string[];
+  /** Retrieval confidence level (from /api/chat). */
+  confidence?: "high" | "medium" | "low";
 }
 
 /** Persisted vault metadata returned by `GET /api/vault`. */
