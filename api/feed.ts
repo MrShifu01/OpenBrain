@@ -214,6 +214,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       });
     }
 
+    // ── MERGES section: only merge detection, no wows/suggestions ───────────
+    if (section === "merges") {
+      const [oldestRes, newestRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type,content&order=created_at.asc&limit=40`, { headers: SB_HEADERS }),
+        fetch(`${SB_URL}/rest/v1/entries?brain_id=eq.${brainId}&deleted_at=is.null&select=id,title,type,content&order=created_at.desc&limit=40`, { headers: SB_HEADERS }),
+      ]);
+      const oldest: any[] = oldestRes.ok ? await oldestRes.json() : [];
+      const newest: any[] = newestRes.ok ? await newestRes.json() : [];
+      const seen = new Set<string>();
+      const combined: any[] = [];
+      for (const e of [...oldest, ...newest]) {
+        if (!seen.has(e.id)) { seen.add(e.id); combined.push(e); }
+      }
+      for (let i = combined.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [combined[i], combined[j]] = [combined[j], combined[i]];
+      }
+      const merges = await generateMergeSuggestions(combined);
+      return res.status(200).json({ merges });
+    }
+
     // ── INSIGHTS section: LLM calls, returns in ~2-5s ─────────────────────────
     if (section === "insights") {
       const mergeOldestPromise = skipMerges ? Promise.resolve(null) : fetch(

@@ -222,6 +222,18 @@ export default function FeedView({
         })
         .catch((err) => console.error("[FeedView/insights]", err))
         .finally(() => setInsightsLoading(false));
+    } else if (!cachedMerges) {
+      // Insights are cached but merge cache is empty — run a cheap merges-only check
+      authFetch(`/api/feed?brain_id=${encodeURIComponent(brainId)}&section=merges`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { merges: MergeSuggestion[] } | null) => {
+          if (d?.merges?.length) {
+            writeCache(mergeCacheKey(brainId), d.merges);
+            setInsightsData((prev) => prev ? { ...prev, merges: d.merges } : prev);
+          }
+        })
+        .catch((err) => console.error("[FeedView/merges]", err))
+        .finally(() => setInsightsLoading(false));
     }
   }, [brainId]);
 
