@@ -141,6 +141,8 @@ export default function FeedView({
   // Wow insight feedback: keyed by headline
   type WowFeedback = { vote: "up" | "down" | null; correction: string };
   const [wowFeedback, setWowFeedback] = useState<Record<string, WowFeedback>>({});
+  const [savingInsightFeedback, setSavingInsightFeedback] = useState<Set<string>>(new Set());
+  const [savedInsightFeedback, setSavedInsightFeedback] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!brainId) return;
@@ -285,6 +287,37 @@ export default function FeedView({
       try { localStorage.setItem(wowFeedbackKey(brainId), JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
+  }
+
+  async function handleSaveWowFeedback(headline: string, correction: string) {
+    if (!brainId || !correction.trim()) return;
+    setSavingInsightFeedback((prev) => new Set([...prev, headline]));
+    try {
+      showToast("Analyzing your correction…", "success");
+      const detail = insightsData?.wows.find((w) => w.headline === headline)?.detail ?? "";
+      const res = await authFetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "insight_correction", brain_id: brainId, headline, detail, correction: correction.trim() }),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      const { fixed_count } = await res.json();
+      setSavedInsightFeedback((prev) => new Set([...prev, headline]));
+      showToast(
+        fixed_count > 0
+          ? `Fixed ${fixed_count} ${fixed_count === 1 ? "entry" : "entries"} based on your correction.`
+          : "Feedback saved — no entries needed correction.",
+        "success",
+      );
+    } catch {
+      showToast("Failed to apply correction. Try again.", "error");
+    } finally {
+      setSavingInsightFeedback((prev) => {
+        const next = new Set(prev);
+        next.delete(headline);
+        return next;
+      });
+    }
   }
 
   function handleIgnore(m: MergeSuggestion, note?: string) {
@@ -765,11 +798,12 @@ export default function FeedView({
                     />
                     {fb.correction && (
                       <button
-                        onClick={() => handleWowCorrection(wow.headline, fb.correction)}
-                        className="rounded-lg px-2 py-1 text-[10px] font-semibold"
+                        onClick={() => handleSaveWowFeedback(wow.headline, fb.correction)}
+                        disabled={savingInsightFeedback.has(wow.headline) || savedInsightFeedback.has(wow.headline)}
+                        className="rounded-lg px-2 py-1 text-[10px] font-semibold disabled:opacity-50"
                         style={{ background: "var(--color-error)", color: "#fff" }}
                       >
-                        Save
+                        {savingInsightFeedback.has(wow.headline) ? "Fixing…" : savedInsightFeedback.has(wow.headline) ? "Fixed ✓" : "Save"}
                       </button>
                     )}
                   </div>
