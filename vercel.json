@@ -4,8 +4,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/notification-prefs", "destination": "/api/notifications?resource=prefs" },
-    { "source": "/api/push-subscribe",     "destination": "/api/notifications?resource=push" },
+    { "source": "/api/notification-prefs", "destination": "/api/user-data?resource=prefs" },
+    { "source": "/api/push-subscribe",     "destination": "/api/user-data?resource=push" },
     { "source": "/api/anthropic",        "destination": "/api/llm?provider=anthropic" },
     { "source": "/api/openai",           "destination": "/api/llm?provider=openai" },
     { "source": "/api/openrouter",       "destination": "/api/llm?provider=openrouter" },
