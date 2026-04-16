@@ -244,8 +244,12 @@ function computeConfidence(answer: string, entries: any[], query: string): "high
 }
 
 // Returns true when a second retrieval + generation pass is warranted.
+// Standalone low confidence is NOT sufficient — vague or open-ended questions
+// legitimately have low confidence without being wrong. Retry only when both
+// NO_INFO is present (model explicitly flagged a missing fact) AND confidence
+// is low, or when NO_INFO appears on its own.
 function shouldRetry(answer: string, confidence: "high" | "medium" | "low"): boolean {
-  return answer.includes("[NO_INFO:") || confidence === "low";
+  return answer.includes("[NO_INFO:");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -342,9 +346,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       })
     );
 
-    // Expanded query embeddings run in parallel — primary brain only (latency-bounded)
+    // Expanded query embeddings — primary brain only, skipped when the plan
+    // found no entities (analytical/open-ended questions get no benefit from
+    // expanded searches and pay real latency for them).
     let expandedRaw: any[] = [];
-    if (plan.expandedQueries.length > 0) {
+    if (plan.expandedQueries.length > 0 && plan.entities.length > 0) {
       try {
         const expandedEmbs = await Promise.all(
           plan.expandedQueries.slice(0, 2).map((q: string) =>
@@ -392,7 +398,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     // Store the combined score on each entry for graph boost and re-ranking
     allSemanticResults.forEach((e: any) => { e._score = _combinedScore(e); });
     allSemanticResults.sort((a, b) => b._score - a._score);
-    retrievedEntries = allSemanticResults.slice(0, 60); // expanded pool (was 20)
+    retrievedEntries = allSemanticResults.slice(0, 40); // expanded pool (was 20; 60 was too noisy)
 
     // ── Query keyword expansion ───────────────────────────────────────────────
     // Extracts named-entity tokens from the user's message and does a title ILIKE
@@ -554,13 +560,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         retrievedEntries = applyGraphBoost(retrievedEntries, graph);
 
         // ── LLM re-ranking (conditional) ────────────────────────────────────
-        // Only fires when top-3 hybrid scores are ambiguous (spread < 0.15).
-        // Skipped when there's a clear winner — avoids an unnecessary LLM call.
+        // Fires only when top-3 scores are genuinely ambiguous (spread < 0.05)
+        // AND the top entry has no direct title keyword match (clear winner =
+        // no re-rank needed). 0.05 is tight enough that scores in the typical
+        // 0.3–0.8 range only trigger this when entries are nearly identical.
         const _top3Scores = retrievedEntries.slice(0, 3).map((e: any) => e._score ?? e.similarity ?? 0);
         const _spread = _top3Scores.length >= 2
           ? Math.max(..._top3Scores) - Math.min(..._top3Scores)
           : 1;
-        if (_spread < 0.15 && retrievedEntries.length >= 5) {
+        const _qWords = message.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+        const _topHasDirectMatch = _qWords.length > 0 && retrievedEntries[0] &&
+          _qWords.some((w: string) => String(retrievedEntries[0].title ?? "").toLowerCase().includes(w));
+        if (_spread < 0.05 && !_topHasDirectMatch && retrievedEntries.length >= 5) {
           retrievedEntries = await rerankEntries(message.trim(), retrievedEntries, GEMINI_API_KEY, GEMINI_MODEL);
         }
         // ────────────────────────────────────────────────────────────────────
@@ -703,10 +714,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const firstText = firstResult.text;
     const noInfoMatch = firstText.match(/\[NO_INFO:([^\]]+)\]/);
 
-    // ── Confidence scoring + unified retry trigger ─────────────────────────
-    // Retry fires on NO_INFO (existing) OR low confidence (new).
-    // For low-confidence-without-NO_INFO, the retry topic is synthesized from
-    // the query plan so the expansion machinery has something to work with.
+    // ── Confidence scoring + retry trigger ───────────────────────────────────
+    // Confidence is computed for observability; retry is gated on NO_INFO only.
+    // A low-confidence answer without NO_INFO is usually a vague question, not
+    // a retrieval failure — retrying would just double-generate for no gain.
+    // When NO_INFO fires without a plan entity/attribute, the topic falls back
+    // to a slice of the original message so retry always has something to embed.
     const _confidence = computeConfidence(firstText, retrievedEntries, message.trim());
     const _retryNeeded = shouldRetry(firstText, _confidence);
     const _retryTopic = noInfoMatch
