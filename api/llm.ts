@@ -97,11 +97,10 @@ async function handleExtractFile(req: ApiRequest, res: ApiResponse): Promise<voi
   if (fileData.length > MAX_FILE_B64) return res.status(413).json({ error: "File too large (max ~15 MB)" });
 
   try {
-    const parts: any[] = [];
-    if (mimeType.startsWith("image/") || mimeType === "application/pdf") {
-      parts.push({ inlineData: { mimeType, data: fileData } });
-    }
-    parts.push({ text: EXTRACT_PROMPT });
+    const parts: any[] = [
+      { inlineData: { mimeType, data: fileData } },
+      { text: EXTRACT_PROMPT },
+    ];
     const r = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
       {

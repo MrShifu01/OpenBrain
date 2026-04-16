@@ -17,6 +17,57 @@ const TAB_DEFS: { id: TabId; label: string }[] = [
   { id: "claude", label: "MCP Access" },
 ];
 
+function VaultCard({ onNavigate }: { onNavigate: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      className="rounded-2xl border"
+      style={{
+        background: "var(--color-surface-container)",
+        borderColor: "var(--color-outline-variant)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 py-3.5 text-left"
+      >
+        <div className="min-w-0">
+          <p className="text-on-surface text-sm font-semibold">Vault</p>
+          {!open && (
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+              End-to-end encrypted secrets
+            </p>
+          )}
+        </div>
+        <svg
+          className={`ml-3 h-4 w-4 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"
+          style={{ color: "var(--color-on-surface-variant)" }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <div style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr" }}>
+        <div style={{ overflow: "hidden" }}>
+          <div className="px-4 pb-4">
+            <p className="mb-3 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+              End-to-end encrypted secrets
+            </p>
+            <button
+              onClick={() => onNavigate("vault")}
+              className="press-scale rounded-xl px-4 py-2 text-xs font-semibold transition-all"
+              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+            >
+              Open Vault
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface SettingsViewProps {
   onNavigate?: (id: string) => void;
 }
@@ -93,27 +144,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           <>
             <ProvidersTab activeBrain={activeBrain ?? undefined} />
             <StorageTab activeBrain={activeBrain ?? undefined} />
-            {onNavigate && (
-              <div
-                className="flex items-center justify-between rounded-2xl border px-4 py-3"
-                style={{
-                  background: "var(--color-surface-container-low)",
-                  borderColor: "var(--color-outline-variant)",
-                }}
-              >
-                <div>
-                  <p className="text-on-surface text-sm font-semibold">Vault</p>
-                  <p className="text-on-surface-variant text-xs">End-to-end encrypted secrets</p>
-                </div>
-                <button
-                  onClick={() => onNavigate("vault")}
-                  className="press-scale rounded-xl px-4 py-2 text-xs font-semibold transition-all"
-                  style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-                >
-                  Open Vault
-                </button>
-              </div>
-            )}
+            {onNavigate && <VaultCard onNavigate={onNavigate} />}
             {activeBrain && (
               <DangerTab
                 activeBrain={activeBrain}
