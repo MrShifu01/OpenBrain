@@ -320,6 +320,7 @@ export default function FeedView({
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { flagged: number; entries: Record<string, AuditFlag[] | null> } | null) => {
           if (!d) return;
+          console.log("[audit] response:", d.flagged, "flagged entries:", d.entries);
           try { localStorage.setItem(auditCacheKey(brainId), String(Date.now())); } catch { /* ignore */ }
           setLocalAuditFlags((prev) => {
             const next = new Map(prev);

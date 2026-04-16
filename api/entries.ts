@@ -414,6 +414,7 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
 
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
   const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
+  console.log("[audit] model:", GEMINI_MODEL, "key set:", !!GEMINI_API_KEY, "entries:", entries.length);
 
   let flags: any[] = [];
   try {
@@ -432,6 +433,7 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
     if (geminiRes.ok) {
       const geminiData = await geminiRes.json();
       const text: string = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      console.log("[audit] gemini raw text:", text.slice(0, 300));
       const cleaned = text.replace(/```json|```/g, "").trim();
       const match = cleaned.match(/\[[\s\S]*\]/);
       if (match) {
@@ -443,8 +445,11 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
           }
         } catch { /* invalid JSON — no flags */ }
       }
+    } else {
+      const errText = await geminiRes.text().catch(() => "");
+      console.log("[audit] gemini error:", geminiRes.status, errText.slice(0, 200));
     }
-  } catch { /* Gemini unreachable — return empty */ }
+  } catch (e) { console.log("[audit] gemini exception:", e); }
 
   // Group flags by entryId
   const flagsByEntry: Record<string, any[]> = {};
