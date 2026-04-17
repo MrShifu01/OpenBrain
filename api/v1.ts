@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { rateLimit } from "./_lib/rateLimit.js";
-import { resolveApiKey, getUserBrainId } from "./_lib/resolveApiKey.js";
+import { resolveApiKey } from "./_lib/resolveApiKey.js";
 import { retrieveEntries } from "./_lib/retrievalCore.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 
@@ -27,14 +27,15 @@ const hdrs = (extra: Record<string, string> = {}): Record<string, string> => ({
   ...extra,
 });
 
+type Auth = { userId: string; brainId: string };
+
 // ── /v1/context ───────────────────────────────────────────────────────────────
 
-async function handleContext(userId: string, body: any) {
+async function handleContext({ brainId }: Auth, body: any) {
   const { query, limit = 5 } = body;
   if (!query || typeof query !== "string") throw { status: 400, message: "query is required" };
   if (!GEMINI_API_KEY) throw { status: 500, message: "Embedding not configured on server" };
 
-  const brainId = await getUserBrainId(userId);
   const safeLimit = Math.min(Math.max(1, Number(limit) || 5), 50);
   const results = await retrieveEntries(query, brainId, GEMINI_API_KEY, safeLimit);
   return { results };
@@ -47,9 +48,7 @@ async function callOpenAI(apiKey: string, provider: string, modelName: string, s
     openai: "https://api.openai.com/v1",
     google: "https://generativelanguage.googleapis.com/v1beta/openai",
   };
-  const baseUrl = baseUrls[provider] ?? "https://api.openai.com/v1";
-
-  const r = await fetch(`${baseUrl}/chat/completions`, {
+  const r = await fetch(`${baseUrls[provider] ?? "https://api.openai.com/v1"}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
@@ -58,10 +57,7 @@ async function callOpenAI(apiKey: string, provider: string, modelName: string, s
       max_tokens: 1000,
     }),
   });
-  if (!r.ok) {
-    const text = await r.text().catch(() => String(r.status));
-    throw { status: 502, message: `LLM provider error: ${text}` };
-  }
+  if (!r.ok) throw { status: 502, message: `LLM provider error: ${await r.text().catch(() => String(r.status))}` };
   const data: any = await r.json();
   return data.choices?.[0]?.message?.content?.trim() ?? "";
 }
@@ -69,11 +65,7 @@ async function callOpenAI(apiKey: string, provider: string, modelName: string, s
 async function callAnthropic(apiKey: string, modelName: string, system: string, query: string): Promise<string> {
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: modelName || "claude-haiku-4-5-20251001",
       system,
@@ -81,28 +73,22 @@ async function callAnthropic(apiKey: string, modelName: string, system: string, 
       max_tokens: 1000,
     }),
   });
-  if (!r.ok) {
-    const text = await r.text().catch(() => String(r.status));
-    throw { status: 502, message: `LLM provider error: ${text}` };
-  }
+  if (!r.ok) throw { status: 502, message: `LLM provider error: ${await r.text().catch(() => String(r.status))}` };
   const data: any = await r.json();
   return data.content?.[0]?.text?.trim() ?? "";
 }
 
-async function handleAnswer(userId: string, body: any) {
+async function handleAnswer({ brainId }: Auth, body: any) {
   const { query, model, api_key, limit = 5 } = body;
   if (!query || typeof query !== "string") throw { status: 400, message: "query is required" };
   if (!model || typeof model !== "string") throw { status: 400, message: "model is required (e.g. openai/gpt-4o)" };
   if (!api_key || typeof api_key !== "string") throw { status: 400, message: "api_key is required" };
   if (!GEMINI_API_KEY) throw { status: 500, message: "Embedding not configured on server" };
 
-  const brainId = await getUserBrainId(userId);
   const safeLimit = Math.min(Math.max(1, Number(limit) || 5), 50);
   const entries = await retrieveEntries(query, brainId, GEMINI_API_KEY, safeLimit);
 
-  const contextBlock = entries
-    .map((e) => `### ${e.title}\n${e.content}`)
-    .join("\n\n");
+  const contextBlock = entries.map((e) => `### ${e.title}\n${e.content}`).join("\n\n");
   const systemPrompt = `You are a helpful assistant with access to the user's personal knowledge base. Answer using ONLY the context below. If the context is insufficient, say so clearly.\n\nContext:\n${contextBlock}`;
 
   const slashIdx = model.indexOf("/");
@@ -121,12 +107,11 @@ async function handleAnswer(userId: string, body: any) {
 
 // ── /v1/ingest ────────────────────────────────────────────────────────────────
 
-async function handleIngest(userId: string, body: any) {
+async function handleIngest({ userId, brainId }: Auth, body: any) {
   const { title, content, type = "note", tags = [] } = body;
   if (!title || typeof title !== "string") throw { status: 400, message: "title is required" };
   if (!content || typeof content !== "string") throw { status: 400, message: "content is required" };
 
-  const brainId = await getUserBrainId(userId);
   const safeTitle = title.trim().slice(0, 200);
   const safeContent = content.slice(0, 10000);
   const safeType = String(type).trim().slice(0, 50).toLowerCase() || "note";
@@ -158,7 +143,7 @@ async function handleIngest(userId: string, body: any) {
 
 // ── /v1/update ────────────────────────────────────────────────────────────────
 
-async function handleUpdate(userId: string, body: any) {
+async function handleUpdate({ brainId }: Auth, body: any) {
   const { id, title, content, type, tags } = body;
   if (!id) throw { status: 400, message: "id is required" };
   if (title === undefined && content === undefined && type === undefined && tags === undefined) {
@@ -166,17 +151,11 @@ async function handleUpdate(userId: string, body: any) {
   }
 
   const entryRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=id,brain_id,title,content,tags&limit=1`,
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,tags&limit=1`,
     { headers: hdrs() },
   );
   const rows: any[] = await entryRes.json();
   if (!rows.length) throw { status: 404, message: "Entry not found" };
-
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(rows[0].brain_id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  if (!(await brainCheck.json() as any[]).length) throw { status: 404, message: "Entry not found" };
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (title !== undefined) patch.title = String(title).trim().slice(0, 200);
@@ -185,12 +164,11 @@ async function handleUpdate(userId: string, body: any) {
   if (tags !== undefined) patch.tags = Array.isArray(tags) ? tags.slice(0, 20).map((t: any) => String(t).slice(0, 50)) : [];
 
   if (GEMINI_API_KEY && (title !== undefined || content !== undefined || tags !== undefined)) {
-    const merged = {
+    const embedding = await generateEmbedding(buildEntryText({
       title: (patch.title ?? rows[0].title) as string,
       content: (patch.content ?? rows[0].content) as string,
       tags: (patch.tags ?? rows[0].tags ?? []) as string[],
-    };
-    const embedding = await generateEmbedding(buildEntryText(merged), GEMINI_API_KEY);
+    }), GEMINI_API_KEY);
     if (embedding) patch.embedding = embedding;
   }
 
@@ -206,22 +184,16 @@ async function handleUpdate(userId: string, body: any) {
 
 // ── /v1/delete ────────────────────────────────────────────────────────────────
 
-async function handleDelete(userId: string, body: any) {
+async function handleDelete({ brainId }: Auth, body: any) {
   const { id } = body;
   if (!id) throw { status: 400, message: "id is required" };
 
   const entryRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=id,brain_id&limit=1`,
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id&limit=1`,
     { headers: hdrs() },
   );
   const rows: any[] = await entryRes.json();
   if (!rows.length) throw { status: 404, message: "Entry not found" };
-
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(rows[0].brain_id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  if (!(await brainCheck.json() as any[]).length) throw { status: 404, message: "Entry not found" };
 
   const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
     method: "PATCH",
@@ -233,6 +205,14 @@ async function handleDelete(userId: string, body: any) {
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
+
+const HANDLERS: Record<string, (auth: Auth, body: any) => Promise<any>> = {
+  context: handleContext,
+  answer: handleAnswer,
+  ingest: handleIngest,
+  update: handleUpdate,
+  delete: handleDelete,
+};
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
@@ -246,21 +226,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const auth = await resolveApiKey(rawKey);
   if (!auth) return res.status(401).json({ error: "Invalid or revoked API key" });
 
-  const action = req.query.action as string;
-  const handlers: Record<string, (userId: string, body: any) => Promise<any>> = {
-    context: handleContext,
-    answer: handleAnswer,
-    ingest: handleIngest,
-    update: handleUpdate,
-    delete: handleDelete,
-  };
-
-  const fn = handlers[action];
-  if (!fn) return res.status(404).json({ error: `Unknown action: ${action}` });
+  const fn = HANDLERS[req.query.action as string];
+  if (!fn) return res.status(404).json({ error: `Unknown action: ${req.query.action}` });
 
   try {
-    const result = await fn(auth.userId, req.body ?? {});
-    return res.status(200).json(result);
+    return res.status(200).json(await fn(auth, req.body ?? {}));
   } catch (e: any) {
     if (e?.status) return res.status(e.status).json({ error: e.message });
     return res.status(500).json({ error: e?.message ?? "Internal error" });

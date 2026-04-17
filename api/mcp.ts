@@ -15,7 +15,7 @@ import { randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { rateLimit } from "./_lib/rateLimit.js";
-import { resolveApiKey, getUserBrainId } from "./_lib/resolveApiKey.js";
+import { resolveApiKey } from "./_lib/resolveApiKey.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 import { retrieveEntries } from "./_lib/retrievalCore.js";
 const SB_URL = process.env.SUPABASE_URL!;
@@ -122,17 +122,16 @@ const TOOLS = [
 
 const DATE_FIELDS_MCP = ["due_date", "deadline", "expiry_date", "event_date"] as const;
 
-async function retrieveMemory(userId: string, query: string, limit = 15): Promise<unknown> {
+async function retrieveMemory(brainId: string, query: string, limit = 15): Promise<unknown> {
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
   if (!GEMINI_API_KEY) throw new Error("Embedding not configured on server");
 
-  const brainId = await getUserBrainId(userId);
   const safeLimit = Math.min(Math.max(1, limit), 50);
   return retrieveEntries(query, brainId, GEMINI_API_KEY, safeLimit);
 }
 
-async function getUpcoming(userId: string, days = 30): Promise<unknown> {
-  const resolvedBrainId = await getUserBrainId(userId);
+async function getUpcoming(brainId: string, days = 30): Promise<unknown> {
+  const resolvedBrainId = brainId;
   const safeDays = Math.min(Math.max(1, days), 365);
   const today = new Date().toISOString().slice(0, 10);
   const future = new Date(Date.now() + safeDays * 86400000).toISOString().slice(0, 10);
@@ -169,8 +168,7 @@ async function getUpcoming(userId: string, days = 30): Promise<unknown> {
   return { entries: merged, days: safeDays, from: today, to: future };
 }
 
-async function searchEntries(userId: string, query: string): Promise<unknown> {
-  const brainId = await getUserBrainId(userId);
+async function searchEntries(brainId: string, query: string): Promise<unknown> {
 
   if (!GEMINI_API_KEY) throw new Error("Embedding not configured on server");
 
@@ -197,34 +195,26 @@ async function searchEntries(userId: string, query: string): Promise<unknown> {
   return rpcRes.json();
 }
 
-async function getEntry(userId: string, id: string): Promise<unknown> {
+async function getEntry(brainId: string, id: string): Promise<unknown> {
   const r = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=id,title,content,type,tags,metadata,created_at,updated_at,brain_id`,
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,type,tags,metadata,created_at,updated_at,brain_id`,
     { headers: hdrs() },
   );
   if (!r.ok) throw new Error("Failed to fetch entry");
   const rows: any[] = await r.json();
   if (!rows.length) throw new Error("Entry not found");
-
-  // Verify the entry belongs to a brain the user owns
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(rows[0].brain_id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await brainCheck.json();
-  if (!owned.length) throw new Error("Access denied");
-
   return rows[0];
 }
 
 async function createEntry(
   userId: string,
+  brainId: string,
   title: string,
   content: string,
   type = "note",
   tags: string[] = [],
 ): Promise<unknown> {
-  const resolvedBrainId = await getUserBrainId(userId);
+  const resolvedBrainId = brainId;
 
   const safeTitle = title.trim().slice(0, 200);
   const safeContent = content.slice(0, 10000);
@@ -263,25 +253,17 @@ async function createEntry(
 }
 
 async function updateEntry(
-  userId: string,
+  brainId: string,
   id: string,
   fields: { title?: string; content?: string; type?: string; tags?: string[] },
 ): Promise<unknown> {
-  // Fetch entry to verify ownership via brain
   const entryRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=id,brain_id,title,content,tags&limit=1`,
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,tags&limit=1`,
     { headers: hdrs() },
   );
   if (!entryRes.ok) throw new Error("Failed to fetch entry");
   const rows: any[] = await entryRes.json();
   if (!rows.length) throw new Error("Entry not found");
-
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(rows[0].brain_id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await brainCheck.json();
-  if (!owned.length) throw new Error("Access denied");
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (fields.title !== undefined) patch.title = fields.title.trim().slice(0, 200);
@@ -313,21 +295,14 @@ async function updateEntry(
   return updated[0];
 }
 
-async function deleteEntry(userId: string, id: string): Promise<unknown> {
+async function deleteEntry(brainId: string, id: string): Promise<unknown> {
   const entryRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&deleted_at=is.null&select=id,brain_id&limit=1`,
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id&limit=1`,
     { headers: hdrs() },
   );
   if (!entryRes.ok) throw new Error("Failed to fetch entry");
   const rows: any[] = await entryRes.json();
   if (!rows.length) throw new Error("Entry not found");
-
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(rows[0].brain_id)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await brainCheck.json();
-  if (!owned.length) throw new Error("Access denied");
 
   const r = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
@@ -372,7 +347,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const auth = await resolveApiKey(rawKey);
   if (!auth) return res.status(401).json(jsonRpcErr(null, -32001, "Invalid or revoked API key"));
 
-  const { userId } = auth;
+  const { userId, brainId } = auth;
   const { jsonrpc, id, method, params } = req.body || {};
 
   if (jsonrpc !== "2.0") return res.status(400).json(jsonRpcErr(id ?? null, -32600, "Invalid JSON-RPC version"));
@@ -401,29 +376,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
       if (toolName === "retrieve_memory") {
         if (!args.query) return res.status(200).json(jsonRpcErr(id, -32602, "query is required"));
-        result = await retrieveMemory(userId, args.query, args.limit);
+        result = await retrieveMemory(brainId, args.query, args.limit);
       } else if (toolName === "get_upcoming") {
-        result = await getUpcoming(userId, args.days);
+        result = await getUpcoming(brainId, args.days);
       } else if (toolName === "search_entries") {
         if (!args.query) return res.status(200).json(jsonRpcErr(id, -32602, "query is required"));
-        result = await searchEntries(userId, args.query);
+        result = await searchEntries(brainId, args.query);
       } else if (toolName === "get_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
-        result = await getEntry(userId, args.id);
+        result = await getEntry(brainId, args.id);
       } else if (toolName === "create_entry") {
         if (!args.title || !args.content) {
           return res.status(200).json(jsonRpcErr(id, -32602, "title and content are required"));
         }
-        result = await createEntry(userId, args.title, args.content, args.type, args.tags);
+        result = await createEntry(userId, brainId, args.title, args.content, args.type, args.tags);
       } else if (toolName === "update_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         if (args.title === undefined && args.content === undefined && args.type === undefined && args.tags === undefined) {
           return res.status(200).json(jsonRpcErr(id, -32602, "At least one field to update is required"));
         }
-        result = await updateEntry(userId, args.id, { title: args.title, content: args.content, type: args.type, tags: args.tags });
+        result = await updateEntry(brainId, args.id, { title: args.title, content: args.content, type: args.type, tags: args.tags });
       } else if (toolName === "delete_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
-        result = await deleteEntry(userId, args.id);
+        result = await deleteEntry(brainId, args.id);
       } else {
         return res.status(200).json(jsonRpcErr(id, -32601, `Unknown tool: ${toolName}`));
       }
