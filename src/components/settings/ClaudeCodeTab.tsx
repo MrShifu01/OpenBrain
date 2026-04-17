@@ -28,7 +28,7 @@ export default function ClaudeCodeTab() {
   const [showForm, setShowForm] = useState(false);
   const [revealedKey, setRevealedKey] = useState<{ name: string; key: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedInstall, setCopiedInstall] = useState(false);
+  const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const fetchKeys = useCallback(async () => {
@@ -173,25 +173,30 @@ export default function ClaudeCodeTab() {
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <div className="flex items-center gap-2">
-            <code
-              className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
-              style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
-            >
-              {`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer ${revealedKey.key}"`}
-            </code>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer ${revealedKey.key}"`).then(() => {
-                  setCopiedInstall(true);
-                  setTimeout(() => setCopiedInstall(false), 2000);
-                });
-              }}
-              className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-              style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
-            >
-              {copiedInstall ? "Copied!" : "Copy install"}
-            </button>
+          <div className="space-y-1">
+            <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+              API base URL — use your key as a Bearer token in every request:
+            </p>
+            <div className="flex items-center gap-2">
+              <code
+                className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
+                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+              >
+                https://everionmind.vercel.app/v1/
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText("https://everionmind.vercel.app/v1/").then(() => {
+                    setCopiedSnippet("url");
+                    setTimeout(() => setCopiedSnippet(null), 2000);
+                  });
+                }}
+                className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+              >
+                {copiedSnippet === "url" ? "Copied!" : "Copy"}
+              </button>
+            </div>
           </div>
           <button
             onClick={() => setRevealedKey(null)}
@@ -243,39 +248,114 @@ export default function ClaudeCodeTab() {
 
           <details className="group">
             <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+              REST API — all tools & languages →
+            </summary>
+            <div className="mt-2 space-y-3">
+              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                All endpoints are <code className="text-xs">POST</code> to <code className="text-xs">https://everionmind.vercel.app/v1/&lt;action&gt;</code> with your key as a Bearer token.
+              </p>
+
+              {(
+                [
+                  {
+                    id: "context",
+                    label: "Search your memory",
+                    body: `{ "query": "what did I note about the project?" }`,
+                    response: `{ "results": [{ "id": "…", "title": "…", "content": "…", "similarity": 0.91 }] }`,
+                  },
+                  {
+                    id: "answer",
+                    label: "Ask a question (bring your own LLM key)",
+                    body: `{ "query": "what's due this week?", "model": "anthropic/claude-haiku-4-5-20251001", "api_key": "<your_llm_key>" }`,
+                    response: `{ "answer": "…", "sources": [{ "id": "…", "title": "…" }] }`,
+                  },
+                  {
+                    id: "ingest",
+                    label: "Save a new entry",
+                    body: `{ "title": "Meeting notes", "content": "…", "type": "note", "tags": ["work"] }`,
+                    response: `{ "id": "…", "title": "…", "created_at": "…" }`,
+                  },
+                  {
+                    id: "update",
+                    label: "Edit an entry",
+                    body: `{ "id": "<entry_id>", "content": "updated text" }`,
+                    response: `{ "id": "…", "title": "…", "updated_at": "…" }`,
+                  },
+                  {
+                    id: "delete",
+                    label: "Delete an entry",
+                    body: `{ "id": "<entry_id>" }`,
+                    response: `{ "id": "…", "deleted": true }`,
+                  },
+                ] as { id: string; label: string; body: string; response: string }[]
+              ).map(({ id, label, body, response }) => {
+                const curl = `curl -X POST https://everionmind.vercel.app/v1/${id} \\\n  -H "Authorization: Bearer <your_key>" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
+                return (
+                  <div key={id} className="space-y-1">
+                    <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
+                      <code className="font-mono" style={{ color: "var(--color-primary)" }}>/{id}</code> — {label}
+                    </p>
+                    <div className="relative">
+                      <pre
+                        className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
+                        style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                      >{curl}</pre>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(curl).then(() => {
+                            setCopiedSnippet(id);
+                            setTimeout(() => setCopiedSnippet(null), 2000);
+                          });
+                        }}
+                        className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
+                        style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                      >
+                        {copiedSnippet === id ? "✓" : "Copy"}
+                      </button>
+                    </div>
+                    <p className="text-xs font-mono opacity-60 pl-1" style={{ color: "var(--color-on-surface)" }}>
+                      Returns: {response}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+
+          <details className="group">
+            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
               Claude Code / Cursor (MCP) →
             </summary>
             <div className="mt-2 space-y-2">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                One-liner install (paste your key, then run in terminal):
+                One-liner install — replace <code className="text-xs">&lt;your_key&gt;</code> then run in terminal:
               </p>
-              <div className="flex items-center gap-2">
-                <code
-                  className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
+              <div className="relative">
+                <pre
+                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
                   style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
-                >
-                  {`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer <your_key>"`}
-                </code>
+                >{`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp \\\n  -H "Authorization: Bearer <your_key>"`}</pre>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer <your_key>"`).then(() => {
-                      setCopiedInstall(true);
-                      setTimeout(() => setCopiedInstall(false), 2000);
+                      setCopiedSnippet("mcp-install");
+                      setTimeout(() => setCopiedSnippet(null), 2000);
                     });
                   }}
-                  className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
                   style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
                 >
-                  {copiedInstall ? "Copied!" : "Copy"}
+                  {copiedSnippet === "mcp-install" ? "✓" : "Copy"}
                 </button>
               </div>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 Or add manually to <code className="text-xs">~/.claude/claude_desktop_config.json</code> (Claude) / <code className="text-xs">~/.cursor/mcp.json</code> (Cursor):
               </p>
-              <pre
-                className="rounded-xl p-3 text-xs overflow-x-auto"
-                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
-              >{`{
+              <div className="relative">
+                <pre
+                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
+                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                >{`{
   "mcpServers": {
     "everionmind": {
       "type": "http",
@@ -286,6 +366,19 @@ export default function ClaudeCodeTab() {
     }
   }
 }`}</pre>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`{\n  "mcpServers": {\n    "everionmind": {\n      "type": "http",\n      "url": "https://everionmind.vercel.app/api/mcp",\n      "headers": {\n        "Authorization": "Bearer <your_key>"\n      }\n    }\n  }\n}`).then(() => {
+                      setCopiedSnippet("mcp-json");
+                      setTimeout(() => setCopiedSnippet(null), 2000);
+                    });
+                  }}
+                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
+                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                >
+                  {copiedSnippet === "mcp-json" ? "✓" : "Copy"}
+                </button>
+              </div>
             </div>
           </details>
 
