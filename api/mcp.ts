@@ -11,10 +11,11 @@
  *   create_entry      — create a new entry with embedding (use for "save this to Everion")
  *   search_entries    — low-level vector search (use retrieve_memory for best results)
  */
-import { createHash, randomUUID } from "crypto";
+import { randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { rateLimit } from "./_lib/rateLimit.js";
+import { resolveApiKey } from "./_lib/resolveApiKey.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 import { retrieveEntries } from "./_lib/retrievalCore.js";
 const SB_URL = process.env.SUPABASE_URL!;
@@ -116,32 +117,6 @@ const TOOLS = [
   },
 ];
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-
-async function resolveUserFromKey(rawKey: string): Promise<{ userId: string; keyId: string } | null> {
-  if (!rawKey.startsWith("em_")) return null;
-  const hash = createHash("sha256").update(rawKey).digest("hex");
-
-  const r = await fetch(
-    `${SB_URL}/rest/v1/user_api_keys?key_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null&select=id,user_id&limit=1`,
-    { headers: hdrs() },
-  );
-  if (!r.ok) return null;
-  const rows: any[] = await r.json();
-  if (!rows.length) return null;
-
-  // Update last_used_at (fire and forget)
-  fetch(
-    `${SB_URL}/rest/v1/user_api_keys?id=eq.${encodeURIComponent(rows[0].id)}`,
-    {
-      method: "PATCH",
-      headers: hdrs({ Prefer: "return=minimal" }),
-      body: JSON.stringify({ last_used_at: new Date().toISOString() }),
-    },
-  ).catch(() => {});
-
-  return { userId: rows[0].user_id, keyId: rows[0].id };
-}
 
 // ── Tool implementations ──────────────────────────────────────────────────────
 
@@ -405,7 +380,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const rawKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
   if (!rawKey) return res.status(401).json(jsonRpcErr(null, -32001, "Missing Authorization header"));
 
-  const auth = await resolveUserFromKey(rawKey);
+  const auth = await resolveApiKey(rawKey);
   if (!auth) return res.status(401).json(jsonRpcErr(null, -32001, "Invalid or revoked API key"));
 
   const { userId } = auth;
