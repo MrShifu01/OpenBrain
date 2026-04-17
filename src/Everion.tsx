@@ -366,8 +366,6 @@ function EverionContent({
                   availableTypes={availableEntryTypes}
                   typeIcons={appShell.typeIcons}
                   onChange={(f) => appShell.setGridFilters({ ...f, brainId: activeBrain?.id })}
-                  selectMode={appShell.selectMode}
-                  onSelectModeToggle={appShell.toggleSelectMode}
                   viewMode={appShell.gridViewMode}
                   onViewModeChange={(mode) => {
                     appShell.setGridViewMode(mode);
