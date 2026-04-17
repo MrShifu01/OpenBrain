@@ -5,11 +5,11 @@
  * The raw key is SHA-256 hashed and compared against user_api_keys.key_hash.
  *
  * Knowledge base tools:
- *   retrieve_memory   — full RAG retrieval (embed → vector → expand → graph boost); brain_id auto-detected if omitted
- *   get_upcoming      — entries with due/deadline/expiry dates in the next N days; brain_id auto-detected if omitted
+ *   retrieve_memory   — full RAG retrieval (embed → vector → expand → graph boost)
+ *   get_upcoming      — entries with due/deadline/expiry dates in the next N days
  *   get_entry         — fetch a single entry by ID
- *   create_entry      — create a new entry with embedding (use for "save this to Everion"); brain_id auto-detected if omitted
- *   search_entries    — low-level vector search (use retrieve_memory for best results); brain_id auto-detected if omitted
+ *   create_entry      — create a new entry with embedding (use for "save this to Everion")
+ *   search_entries    — low-level vector search (use retrieve_memory for best results)
  */
 import { createHash, randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
@@ -38,7 +38,6 @@ const TOOLS = [
       type: "object",
       properties: {
         query: { type: "string", description: "Natural language question or topic to search for" },
-        brain_id: { type: "string", description: "Brain UUID to search (auto-detected if omitted)" },
         limit: { type: "number", description: "Max entries to return (1–50, default 15)" },
       },
       required: ["query"],
@@ -50,7 +49,6 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        brain_id: { type: "string", description: "Brain UUID (auto-detected if omitted)" },
         days: { type: "number", description: "Look-ahead window in days (1–365, default 30)" },
       },
       required: [],
@@ -73,7 +71,6 @@ const TOOLS = [
       properties: {
         title: { type: "string", description: "Short descriptive title (max 200 chars)" },
         content: { type: "string", description: "Full content to store" },
-        brain_id: { type: "string", description: "Brain UUID to save into (auto-detected if omitted)" },
         type: { type: "string", description: "Entry type: note, person, recipe, task, event, document, idea, contact. Defaults to note." },
         tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorisation" },
       },
@@ -87,7 +84,6 @@ const TOOLS = [
       type: "object",
       properties: {
         query: { type: "string", description: "Natural language search query" },
-        brain_id: { type: "string", description: "Brain UUID to search (auto-detected if omitted)" },
       },
       required: ["query"],
     },
@@ -162,35 +158,17 @@ async function getUserBrainId(userId: string): Promise<string> {
 
 const DATE_FIELDS_MCP = ["due_date", "deadline", "expiry_date", "event_date"] as const;
 
-async function retrieveMemory(userId: string, query: string, brainId?: string, limit = 15): Promise<unknown> {
+async function retrieveMemory(userId: string, query: string, limit = 15): Promise<unknown> {
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
   if (!GEMINI_API_KEY) throw new Error("Embedding not configured on server");
 
-  const resolvedBrainId = brainId || await getUserBrainId(userId);
-
-  // Verify brain ownership
-  const access = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await access.json();
-  if (!owned.length) throw new Error("Brain not found or access denied");
-
+  const brainId = await getUserBrainId(userId);
   const safeLimit = Math.min(Math.max(1, limit), 50);
-  return retrieveEntries(query, resolvedBrainId, GEMINI_API_KEY, safeLimit);
+  return retrieveEntries(query, brainId, GEMINI_API_KEY, safeLimit);
 }
 
-async function getUpcoming(userId: string, brainId?: string, days = 30): Promise<unknown> {
-  const resolvedBrainId = brainId || await getUserBrainId(userId);
-
-  // Verify brain ownership
-  const access = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await access.json();
-  if (!owned.length) throw new Error("Brain not found or access denied");
-
+async function getUpcoming(userId: string, days = 30): Promise<unknown> {
+  const resolvedBrainId = await getUserBrainId(userId);
   const safeDays = Math.min(Math.max(1, days), 365);
   const today = new Date().toISOString().slice(0, 10);
   const future = new Date(Date.now() + safeDays * 86400000).toISOString().slice(0, 10);
@@ -227,24 +205,15 @@ async function getUpcoming(userId: string, brainId?: string, days = 30): Promise
   return { entries: merged, days: safeDays, from: today, to: future };
 }
 
-async function searchEntries(userId: string, query: string, brainId?: string): Promise<unknown> {
-  const resolvedBrainId = brainId || await getUserBrainId(userId);
-
-  // Verify the user owns this brain
-  const access = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId!)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await access.json();
-  if (!owned.length) throw new Error("Brain not found or access denied");
+async function searchEntries(userId: string, query: string): Promise<unknown> {
+  const brainId = await getUserBrainId(userId);
 
   if (!GEMINI_API_KEY) throw new Error("Embedding not configured on server");
 
   const embedding = await generateEmbedding(query, GEMINI_API_KEY);
   if (!embedding) {
-    // Fall back to keyword search
     const fallback = await fetch(
-      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(resolvedBrainId!)}&deleted_at=is.null&select=id,title,content,type,tags,created_at&limit=10`,
+      `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,type,tags,created_at&limit=10`,
       { headers: hdrs() },
     );
     return fallback.json();
@@ -257,7 +226,7 @@ async function searchEntries(userId: string, query: string, brainId?: string): P
       query_embedding: embedding,
       match_threshold: 0.3,
       match_count: 10,
-      filter_brain_id: resolvedBrainId,
+      filter_brain_id: brainId,
     }),
   });
   if (!rpcRes.ok) throw new Error("Search failed");
@@ -288,18 +257,10 @@ async function createEntry(
   userId: string,
   title: string,
   content: string,
-  brainId?: string,
   type = "note",
   tags: string[] = [],
 ): Promise<unknown> {
-  const resolvedBrainId = brainId || await getUserBrainId(userId);
-  // Verify brain ownership
-  const brainCheck = await fetch(
-    `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(resolvedBrainId)}&owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-    { headers: hdrs() },
-  );
-  const owned: any[] = await brainCheck.json();
-  if (!owned.length) throw new Error("Brain not found or access denied");
+  const resolvedBrainId = await getUserBrainId(userId);
 
   const safeTitle = title.trim().slice(0, 200);
   const safeContent = content.slice(0, 10000);
@@ -476,12 +437,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
       if (toolName === "retrieve_memory") {
         if (!args.query) return res.status(200).json(jsonRpcErr(id, -32602, "query is required"));
-        result = await retrieveMemory(userId, args.query, args.brain_id, args.limit);
+        result = await retrieveMemory(userId, args.query, args.limit);
       } else if (toolName === "get_upcoming") {
-        result = await getUpcoming(userId, args.brain_id, args.days);
+        result = await getUpcoming(userId, args.days);
       } else if (toolName === "search_entries") {
         if (!args.query) return res.status(200).json(jsonRpcErr(id, -32602, "query is required"));
-        result = await searchEntries(userId, args.query, args.brain_id);
+        result = await searchEntries(userId, args.query);
       } else if (toolName === "get_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         result = await getEntry(userId, args.id);
@@ -489,7 +450,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         if (!args.title || !args.content) {
           return res.status(200).json(jsonRpcErr(id, -32602, "title and content are required"));
         }
-        result = await createEntry(userId, args.title, args.content, args.brain_id, args.type, args.tags);
+        result = await createEntry(userId, args.title, args.content, args.type, args.tags);
       } else if (toolName === "update_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         if (args.title === undefined && args.content === undefined && args.type === undefined && args.tags === undefined) {

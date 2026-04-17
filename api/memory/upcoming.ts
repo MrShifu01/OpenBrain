@@ -1,5 +1,5 @@
 /**
- * GET /api/memory/upcoming?brain_id=<uuid>&days=30
+ * GET /api/memory/upcoming?days=30
  *
  * Returns entries with upcoming dates (due_date, deadline, expiry_date, event_date)
  * within the next N days. Sorted by earliest date ascending.
@@ -12,8 +12,6 @@ import type { ApiRequest, ApiResponse } from "../_lib/types";
 import { applySecurityHeaders } from "../_lib/securityHeaders.js";
 import { rateLimit } from "../_lib/rateLimit.js";
 import { verifyAuth } from "../_lib/verifyAuth.js";
-import { checkBrainAccess } from "../_lib/checkBrainAccess.js";
-
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SB_HEADERS: Record<string, string> = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
@@ -50,14 +48,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
   const query = req.query as Record<string, string>;
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const brain_id = query.brain_id;
-  if (!brain_id || !uuidRe.test(brain_id)) {
-    return res.status(400).json({ error: "brain_id required (UUID)" });
-  }
 
-  const access = await checkBrainAccess(userId, brain_id);
-  if (!access) return res.status(403).json({ error: "Forbidden" });
+  const brainRes = await fetch(
+    `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
+    { headers: SB_HEADERS },
+  );
+  if (!brainRes.ok) return res.status(502).json({ error: "Failed to fetch brain" });
+  const brains: any[] = await brainRes.json();
+  if (!brains.length) return res.status(404).json({ error: "No brain found" });
+  const brain_id = brains[0].id;
 
   const days = Math.min(Math.max(1, parseInt(query.days) || 30), 365);
   const today = new Date().toISOString().slice(0, 10);

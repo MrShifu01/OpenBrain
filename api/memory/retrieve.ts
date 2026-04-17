@@ -1,12 +1,12 @@
 /**
  * POST /api/memory/retrieve
  *
- * Semantic retrieval over a brain — returns enriched entries with full metadata.
+ * Semantic retrieval over the user's brain — returns enriched entries with full metadata.
  * Strips the Gemini generation step from the chat pipeline; intended for external
  * AI agents (ChatGPT Actions, Claude MCP, etc.) that want raw entries to reason over.
  *
  * Auth: Authorization: Bearer <em_key>  OR  Authorization: Bearer <supabase_jwt>
- * Body: { query: string, brain_id: string, limit?: number (1-50, default 15) }
+ * Body: { query: string, limit?: number (1-50, default 15) }
  * Response: { entries: RetrievedEntry[] }
  */
 import { createHash } from "crypto";
@@ -50,23 +50,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (!userId) return res.status(401).json({ error: "Unauthorized" });
   if (!GEMINI_API_KEY) return res.status(500).json({ error: "AI not configured" });
 
-  const { query, brain_id, limit } = req.body || {};
+  const { query, limit } = req.body || {};
   if (!query || typeof query !== "string" || !query.trim()) {
     return res.status(400).json({ error: "query required" });
   }
 
-  let resolvedBrainId = brain_id;
-  if (!resolvedBrainId) {
-    // Look up the user's brain
-    const brainRes = await fetch(
-      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
-    );
-    if (!brainRes.ok) return res.status(502).json({ error: "Failed to fetch brain" });
-    const brains: any[] = await brainRes.json();
-    if (!brains.length) return res.status(404).json({ error: "No brain found" });
-    resolvedBrainId = brains[0].id;
-  }
+  const brainRes = await fetch(
+    `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
+    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+  );
+  if (!brainRes.ok) return res.status(502).json({ error: "Failed to fetch brain" });
+  const brains: any[] = await brainRes.json();
+  if (!brains.length) return res.status(404).json({ error: "No brain found" });
+  const resolvedBrainId = brains[0].id;
 
   const safeLimit = Math.min(Math.max(1, parseInt(String(limit)) || 15), 50);
 
