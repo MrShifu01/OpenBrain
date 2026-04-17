@@ -28,6 +28,7 @@ export default function ClaudeCodeTab() {
   const [showForm, setShowForm] = useState(false);
   const [revealedKey, setRevealedKey] = useState<{ name: string; key: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedInstall, setCopiedInstall] = useState(false);
   const [error, setError] = useState("");
 
   const fetchKeys = useCallback(async () => {
@@ -227,10 +228,37 @@ export default function ClaudeCodeTab() {
             <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
               Claude Code / Cursor (MCP) →
             </summary>
-            <pre
-              className="mt-2 rounded-xl p-3 text-xs overflow-x-auto"
-              style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
-            >{`{
+            <div className="mt-2 space-y-2">
+              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                One-liner install (paste your key, then run in terminal):
+              </p>
+              <div className="flex items-center gap-2">
+                <code
+                  className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
+                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                >
+                  {`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer <your_key>"`}
+                </code>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer <your_key>"`).then(() => {
+                      setCopiedInstall(true);
+                      setTimeout(() => setCopiedInstall(false), 2000);
+                    });
+                  }}
+                  className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                >
+                  {copiedInstall ? "Copied!" : "Copy"}
+                </button>
+              </div>
+              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                Or add manually to <code className="text-xs">~/.claude/claude_desktop_config.json</code> (Claude) / <code className="text-xs">~/.cursor/mcp.json</code> (Cursor):
+              </p>
+              <pre
+                className="rounded-xl p-3 text-xs overflow-x-auto"
+                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+              >{`{
   "mcpServers": {
     "everionmind": {
       "type": "http",
@@ -241,9 +269,7 @@ export default function ClaudeCodeTab() {
     }
   }
 }`}</pre>
-            <p className="mt-1.5 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-              Add to <code className="text-xs">~/.claude/claude_desktop_config.json</code> (Claude) or <code className="text-xs">~/.cursor/mcp.json</code> (Cursor).
-            </p>
+            </div>
           </details>
 
           <details className="group">
