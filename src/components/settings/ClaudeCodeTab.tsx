@@ -173,9 +173,26 @@ export default function ClaudeCodeTab() {
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            Use as <code className="text-xs">Authorization: Bearer {revealedKey.key.slice(0, 12)}…</code> — see setup guides below.
-          </p>
+          <div className="flex items-center gap-2">
+            <code
+              className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
+              style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+            >
+              {`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer ${revealedKey.key}"`}
+            </code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`claude mcp add --transport http everionmind https://everionmind.vercel.app/api/mcp -H "Authorization: Bearer ${revealedKey.key}"`).then(() => {
+                  setCopiedInstall(true);
+                  setTimeout(() => setCopiedInstall(false), 2000);
+                });
+              }}
+              className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
+              style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+            >
+              {copiedInstall ? "Copied!" : "Copy install"}
+            </button>
+          </div>
           <button
             onClick={() => setRevealedKey(null)}
             className="text-xs underline"
