@@ -198,6 +198,40 @@ export default function ClaudeCodeTab() {
               </button>
             </div>
           </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium" style={{ color: "var(--color-on-surface-variant)" }}>
+              Claude Code setup — paste this into Claude Code chat:
+            </p>
+            <div className="relative">
+              <pre
+                className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16 whitespace-pre-wrap"
+                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+              >{`Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):
+
+## Everion Memory
+
+My personal memory system: https://everion.smashburgerbar.co.za
+
+Before answering questions about my personal life, business, tasks, people, or stored information, search my memory:
+curl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'
+
+When I share new facts worth remembering, save them without being asked:
+curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`}</pre>
+              <button
+                onClick={() => {
+                  const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`;
+                  navigator.clipboard.writeText(prompt).then(() => {
+                    setCopiedSnippet("claude-md");
+                    setTimeout(() => setCopiedSnippet(null), 2000);
+                  });
+                }}
+                className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
+                style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+              >
+                {copiedSnippet === "claude-md" ? "✓" : "Copy"}
+              </button>
+            </div>
+          </div>
           <button
             onClick={() => setRevealedKey(null)}
             className="text-xs underline"
@@ -319,6 +353,49 @@ export default function ClaudeCodeTab() {
                   </div>
                 );
               })}
+            </div>
+          </details>
+
+          <details className="group">
+            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+              Claude Code (REST API via CLAUDE.md) →
+            </summary>
+            <div className="mt-2 space-y-2">
+              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                Paste this into Claude Code chat — it will set up your <code className="text-xs">~/.claude/CLAUDE.md</code> automatically:
+              </p>
+              <div className="relative">
+                <pre
+                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16 whitespace-pre-wrap"
+                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                >{`Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):
+
+## Everion Memory
+
+My personal memory system: https://everion.smashburgerbar.co.za
+
+Before answering questions about my personal life, business, tasks, people, or stored information, search my memory:
+curl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'
+
+When I share new facts worth remembering, save them without being asked:
+curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`}</pre>
+                <button
+                  onClick={() => {
+                    const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d \'{"query": "<relevant topic>", "limit": 8}\'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d \'{"title": "<short title>", "content": "<detail>", "type": "note"}\'`;
+                    navigator.clipboard.writeText(prompt).then(() => {
+                      setCopiedSnippet("claude-md-guide");
+                      setTimeout(() => setCopiedSnippet(null), 2000);
+                    });
+                  }}
+                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
+                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                >
+                  {copiedSnippet === "claude-md-guide" ? "✓" : "Copy"}
+                </button>
+              </div>
+              <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                Replace <code className="text-xs">&lt;your_key&gt;</code> with your actual <code className="text-xs">em_</code> key before pasting.
+              </p>
             </div>
           </details>
 
