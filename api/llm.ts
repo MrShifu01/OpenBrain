@@ -13,6 +13,7 @@ export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
+const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash").trim();
 const SB_URL = (process.env.SUPABASE_URL || "").trim();
 const SB_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
 const sbHdrs = () => ({ "Content-Type": "application/json", apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` });
@@ -298,7 +299,7 @@ async function handleChat(req: ApiRequest, res: ApiResponse, user: any): Promise
     };
 
     const gemRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CHAT_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     );
     const gemData: any = await gemRes.json();
