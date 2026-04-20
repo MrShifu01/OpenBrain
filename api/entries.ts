@@ -14,6 +14,7 @@ const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pi
 //   /api/delete-entry, /api/update-entry → /api/entries
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
+  if (req.query.resource === "entry-brains") return handleEntryBrains(req, res);
   if (req.query.resource === "audit" && req.method === "POST") return handleAudit(req, res);
   if (req.method === "GET") return handleGet(req, res);
   if (req.method === "DELETE") return handleDelete(req, res);
@@ -74,6 +75,7 @@ async function handleGet(req: ApiRequest, res: ApiResponse): Promise<void> {
   // Fallback: user's own entries (pre-migration compatibility)
   const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}&user_id=eq.${encodeURIComponent(user.id)}${cursorFilter}`;
   const response = await fetch(url, { headers: sbHeadersNoContent() });
+  if (!response.ok) return res.status(502).json({ error: "Database error" });
   const rows: any[] = await response.json();
   const hasMore = rows.length > limit;
   const results = hasMore ? rows.slice(0, limit) : rows;
@@ -345,36 +347,38 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
   const access = await checkBrainAccess(user.id, brain_id);
   if (!access) return res.status(403).json({ error: "Forbidden" });
 
-  // Fetch ALL entries for this brain (paginated)
-  const allEntries: any[] = [];
+  // Fetch entries for this brain (capped at 500 most recent to avoid timeout)
+  const AUDIT_ENTRY_CAP = 500;
+  const cappedEntries: any[] = [];
   let offset = 0;
-  while (true) {
+  while (cappedEntries.length < AUDIT_ENTRY_CAP) {
     const r = await fetch(
       `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&select=id,title,content,type,tags,metadata&order=created_at.desc&limit=${AUDIT_DB_PAGE}&offset=${offset}`,
       { headers: sbHeadersNoContent() },
     );
     if (!r.ok) return res.status(502).json({ error: "Database error" });
     const page: any[] = await r.json();
-    allEntries.push(...page);
-    if (page.length < AUDIT_DB_PAGE) break;
+    cappedEntries.push(...page);
+    if (page.length < AUDIT_DB_PAGE || cappedEntries.length >= AUDIT_ENTRY_CAP) break;
     offset += AUDIT_DB_PAGE;
   }
+  if (cappedEntries.length > AUDIT_ENTRY_CAP) cappedEntries.length = AUDIT_ENTRY_CAP;
 
-  if (!allEntries.length) return res.status(200).json({ flagged: 0, entries: {} });
+  if (!cappedEntries.length) return res.status(200).json({ flagged: 0, entries: {} });
 
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
   const GEMINI_MODEL   = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
-  console.log("[audit] model:", GEMINI_MODEL, "key set:", !!GEMINI_API_KEY, "total entries:", allEntries.length);
+  console.log("[audit] model:", GEMINI_MODEL, "key set:", !!GEMINI_API_KEY, "total entries:", cappedEntries.length);
 
   // Run Gemini sequentially over batches of AUDIT_GEMINI_BATCH entries.
   // When pace=true (auto background run), space batches evenly over 60s.
-  const numBatches = Math.ceil(allEntries.length / AUDIT_GEMINI_BATCH);
+  const numBatches = Math.ceil(cappedEntries.length / AUDIT_GEMINI_BATCH);
   const batchDelay = pace ? Math.max(2000, Math.floor(60000 / numBatches)) : 0;
 
   const allFlags: any[] = [];
-  for (let i = 0; i < allEntries.length; i += AUDIT_GEMINI_BATCH) {
+  for (let i = 0; i < cappedEntries.length; i += AUDIT_GEMINI_BATCH) {
     if (i > 0 && batchDelay > 0) await sleep(batchDelay);
-    const batch = allEntries.slice(i, i + AUDIT_GEMINI_BATCH);
+    const batch = cappedEntries.slice(i, i + AUDIT_GEMINI_BATCH);
     const batchSet = new Set(batch.map((e: any) => e.id));
     const lines = batch
       .map((e: any) =>
@@ -400,7 +404,7 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
 
   // PATCH only entries whose flags changed to avoid unnecessary writes
   await Promise.all(
-    allEntries.map(async (entry: any) => {
+    cappedEntries.map(async (entry: any) => {
       const newFlags = flagsByEntry[entry.id] ?? null;
       const oldFlags = (entry.metadata as any)?.audit_flags ?? null;
       if (!newFlags?.length && !oldFlags?.length) return; // no change — skip
@@ -418,9 +422,78 @@ async function handleAudit(req: ApiRequest, res: ApiResponse): Promise<void> {
 
   // Return full flag map for client to update local state without a re-fetch
   const responseEntries: Record<string, any[] | null> = {};
-  for (const entry of allEntries) {
+  for (const entry of cappedEntries) {
     responseEntries[entry.id] = flagsByEntry[entry.id] ?? null;
   }
 
   return res.status(200).json({ flagged: Object.keys(flagsByEntry).length, entries: responseEntries });
+}
+
+// ── /api/entry-brains — multi-brain assignment management ──
+async function handleEntryBrains(req: ApiRequest, res: ApiResponse): Promise<void> {
+  if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
+  const user: any = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+  if (req.method === "GET") {
+    const entry_id = req.query.entry_id as string | undefined;
+    if (!entry_id || typeof entry_id !== "string") {
+      return res.status(400).json({ error: "Missing entry_id" });
+    }
+    const r = await fetch(
+      `${SB_URL}/rest/v1/entry_brains?entry_id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+      { headers: sbHeadersNoContent() },
+    );
+    if (!r.ok) return res.status(502).json({ error: "Database error" });
+    const rows: any[] = await r.json();
+    return res.status(200).json(rows.map((row: any) => row.brain_id));
+  }
+
+  if (req.method === "POST") {
+    const { entry_id, brain_id } = req.body;
+    if (!entry_id || !brain_id) {
+      return res.status(400).json({ error: "Missing entry_id or brain_id" });
+    }
+    const entryRes = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+      { headers: sbHeadersNoContent() },
+    );
+    if (!entryRes.ok) return res.status(502).json({ error: "Database error" });
+    const [entry]: any[] = await entryRes.json();
+    if (!entry) return res.status(404).json({ error: "Not found" });
+    const access = await checkBrainAccess(user.id, entry.brain_id);
+    if (!access) return res.status(403).json({ error: "Forbidden" });
+    const r = await fetch(`${SB_URL}/rest/v1/entry_brains`, {
+      method: "POST",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({ entry_id, brain_id }),
+    });
+    if (!r.ok) return res.status(502).json({ error: "Database error" });
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === "DELETE") {
+    const entry_id = req.query.entry_id as string | undefined;
+    const brain_id = req.query.brain_id as string | undefined;
+    if (!entry_id || !brain_id) {
+      return res.status(400).json({ error: "Missing entry_id or brain_id" });
+    }
+    const entryRes = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&select=brain_id`,
+      { headers: sbHeadersNoContent() },
+    );
+    if (!entryRes.ok) return res.status(502).json({ error: "Database error" });
+    const [entry]: any[] = await entryRes.json();
+    if (!entry) return res.status(404).json({ error: "Not found" });
+    const access = await checkBrainAccess(user.id, entry.brain_id);
+    if (!access) return res.status(403).json({ error: "Forbidden" });
+    const r = await fetch(
+      `${SB_URL}/rest/v1/entry_brains?entry_id=eq.${encodeURIComponent(entry_id)}&brain_id=eq.${encodeURIComponent(brain_id)}`,
+      { method: "DELETE", headers: sbHeadersNoContent() },
+    );
+    if (!r.ok) return res.status(502).json({ error: "Database error" });
+    return res.status(200).json({ ok: true });
+  }
+
+  return res.status(405).json({ error: "Method not allowed" });
 }

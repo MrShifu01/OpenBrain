@@ -797,6 +797,8 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
 
   patchEntryIdRef.current = dataLayer.patchEntryId;
 
+  // Single-user app — all brains are owned by the authenticated user.
+  // If multi-user support is added, wire this to brain membership/ownership.
   const canWrite = true;
   const { nudge, setNudge } = useNudge({
     entriesLoaded: dataLayer.entriesLoaded,

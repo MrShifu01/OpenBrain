@@ -215,7 +215,7 @@ async function execTool(name: string, args: Record<string, any>, userId: string,
     const r = await fetch(`${SB_URL}/rest/v1/entries`, {
       method: "POST",
       headers: { ...sbHdrs(), Prefer: "return=representation" },
-      body: JSON.stringify({ id, user_id: userId, brain_id: brainId, title: safeTitle, content: safeContent, type: safeType, tags: safeTags, embedding, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
+      body: JSON.stringify({ id, user_id: userId, brain_id: brainId, title: safeTitle, content: safeContent, type: safeType, tags: safeTags, embedding: embedding ? `[${embedding.join(",")}]` : null, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
     });
     if (!r.ok) return { error: `Failed to create: ${await r.text().catch(() => r.status)}` };
     const rows: any[] = await r.json();
@@ -238,7 +238,7 @@ async function execTool(name: string, args: Record<string, any>, userId: string,
     if (GEMINI_API_KEY && (args.title !== undefined || args.content !== undefined || args.tags !== undefined)) {
       const merged = { title: (patch.title ?? rows[0].title) as string, content: (patch.content ?? rows[0].content) as string, tags: (patch.tags ?? rows[0].tags ?? []) as string[] };
       const emb = await generateEmbedding(buildEntryText(merged), GEMINI_API_KEY);
-      if (emb) patch.embedding = emb;
+      if (emb) patch.embedding = `[${emb.join(",")}]`;
     }
     const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(args.id)}`, {
       method: "PATCH",
@@ -282,8 +282,12 @@ async function handleChat(req: ApiRequest, res: ApiResponse, user: any): Promise
   }
 
   // Build contents array from history + new message
+  // Sanitize history: whitelist only valid roles and string content, cap at 20 messages
+  const safeHistory = (Array.isArray(history) ? history : [])
+    .filter((m: any) => typeof m?.content === "string" && ["user", "assistant"].includes(m?.role))
+    .slice(-20);
   const contents: any[] = [
-    ...history.map((m: any) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+    ...safeHistory.map((m: any) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
     { role: "user", parts: [{ text: message }] },
   ];
 

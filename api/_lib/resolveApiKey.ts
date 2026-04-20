@@ -1,13 +1,7 @@
 import { createHash } from "crypto";
+import { sbHeaders } from "./sbHeaders.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-const hdrs = () => ({
-  "Content-Type": "application/json",
-  apikey: SB_KEY,
-  Authorization: `Bearer ${SB_KEY}`,
-});
 
 export async function resolveApiKey(
   rawKey: string,
@@ -17,7 +11,7 @@ export async function resolveApiKey(
 
   const keyRes = await fetch(
     `${SB_URL}/rest/v1/user_api_keys?key_hash=eq.${encodeURIComponent(hash)}&revoked_at=is.null&select=id,user_id&limit=1`,
-    { headers: hdrs() },
+    { headers: sbHeaders() },
   );
   if (!keyRes.ok) return null;
   const keyRows: any[] = await keyRes.json();
@@ -30,13 +24,13 @@ export async function resolveApiKey(
       `${SB_URL}/rest/v1/user_api_keys?id=eq.${encodeURIComponent(keyId)}`,
       {
         method: "PATCH",
-        headers: { ...hdrs(), Prefer: "return=minimal" },
+        headers: { ...sbHeaders(), Prefer: "return=minimal" },
         body: JSON.stringify({ last_used_at: new Date().toISOString() }),
       },
     ).catch(() => {}),
     fetch(
       `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-      { headers: hdrs() },
+      { headers: sbHeaders() },
     ),
   ]);
 

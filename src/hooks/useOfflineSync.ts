@@ -84,7 +84,18 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
             } catch {
               /* ignore */
             }
-            if (!parsed.title) continue;
+            if (!parsed.title) {
+              const retryCount = (op.retryCount || 0) + 1;
+              if (retryCount > MAX_RETRIES) {
+                await remove(op.id);
+                setPendingCount((c) => Math.max(0, c - 1));
+                await putFailed(op).then(() => getAllFailed().then(setFailedOps));
+              } else {
+                await remove(op.id);
+                await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + Math.pow(2, retryCount) * 1000 } as OfflineOp);
+              }
+              continue;
+            }
             const embedHeaders = getEmbedHeaders() || {};
             const saveRes = await authFetch("/api/capture", {
               method: "POST",

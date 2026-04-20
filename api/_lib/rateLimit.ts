@@ -8,9 +8,23 @@ import type { ApiRequest } from './types';
 // Add to Vercel env: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
 
 // ─── In-memory fallback (same serverless caveat as before) ───────────────────
+if (!process.env.UPSTASH_REDIS_REST_URL) {
+  console.warn("[rateLimit] No Upstash URL configured — rate limiting is disabled in serverless");
+}
+
 const _counts = new Map<string, { count: number; reset: number }>();
+const _MAX_IN_MEMORY_KEYS = 500;
+
+function _evictExpired(): void {
+  const now = Date.now();
+  for (const [key, e] of _counts) {
+    if (now > e.reset) _counts.delete(key);
+  }
+}
+
 function _inMemoryLimited(key: string, windowMs: number, limit: number): boolean {
   const now = Date.now();
+  if (_counts.size >= _MAX_IN_MEMORY_KEYS) _evictExpired();
   const e = _counts.get(key) || { count: 0, reset: now + windowMs };
   if (now > e.reset) { e.count = 0; e.reset = now + windowMs; }
   e.count++;

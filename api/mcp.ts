@@ -185,10 +185,9 @@ async function searchEntries(brainId: string, query: string): Promise<unknown> {
     method: "POST",
     headers: hdrs(),
     body: JSON.stringify({
-      query_embedding: embedding,
-      match_threshold: 0.3,
+      query_embedding: `[${embedding.join(",")}]`,
+      p_brain_id: brainId,
       match_count: 10,
-      filter_brain_id: brainId,
     }),
   });
   if (!rpcRes.ok) throw new Error("Search failed");
@@ -239,7 +238,7 @@ async function createEntry(
       content: safeContent,
       type: safeType,
       tags: safeTags,
-      embedding,
+      embedding: embedding ? `[${embedding.join(",")}]` : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }),
@@ -280,7 +279,7 @@ async function updateEntry(
       tags: (patch.tags ?? rows[0].tags ?? []) as string[],
     };
     const embedding = await generateEmbedding(buildEntryText(merged), GEMINI_API_KEY);
-    if (embedding) patch.embedding = embedding;
+    if (embedding) patch.embedding = `[${embedding.join(",")}]`;
   }
 
   const r = await fetch(

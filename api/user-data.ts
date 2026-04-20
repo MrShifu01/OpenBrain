@@ -131,6 +131,14 @@ async function handleActivity(req: ApiRequest, res: ApiResponse): Promise<void> 
     const validActions = ["created", "updated", "deleted", "connected"];
     if (!validActions.includes(action)) return res.status(400).json({ error: "Invalid action" });
 
+    // Verify caller owns this brain before writing activity
+    const ownerRes = await fetch(
+      `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id)}&owner_id=eq.${encodeURIComponent(user.id)}`,
+      { headers: hdrs() },
+    );
+    const ownerData: any[] = await ownerRes.json();
+    if (!ownerData.length) return res.status(403).json({ error: "Forbidden" });
+
     const r = await fetch(`${SB_URL}/rest/v1/brain_activity`, {
       method: "POST",
       headers: hdrs({ "Prefer": "return=minimal" }),
@@ -459,7 +467,16 @@ async function handleNotificationPrefs(req: ApiRequest, res: ApiResponse): Promi
   }
 
   if (req.method === "POST") {
-    const updates = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    let updates: Record<string, unknown>;
+    try {
+      const parsed = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return res.status(400).json({ error: "Invalid JSON: expected an object" });
+      }
+      updates = parsed as Record<string, unknown>;
+    } catch {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
     const getRes = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, { headers: adminHdrs });
     const current: any = getRes.ok ? await getRes.json() : {};
     const existingPrefs = current.user_metadata?.notification_prefs ?? {};

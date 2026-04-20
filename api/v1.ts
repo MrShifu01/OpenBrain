@@ -133,7 +133,7 @@ async function handleIngest({ userId, brainId }: Auth, body: any) {
     body: JSON.stringify({
       id, user_id: userId, brain_id: brainId,
       title: safeTitle, content: safeContent, type: safeType, tags: safeTags,
-      embedding, created_at: now, updated_at: now,
+      embedding: embedding ? `[${embedding.join(",")}]` : null, created_at: now, updated_at: now,
     }),
   });
   if (!r.ok) throw new Error(`Failed to create entry: ${await r.text().catch(() => String(r.status))}`);
@@ -170,7 +170,7 @@ async function handleUpdate({ brainId }: Auth, body: any) {
       content: (patch.content ?? rows[0].content) as string,
       tags: (patch.tags ?? rows[0].tags ?? []) as string[],
     }), GEMINI_API_KEY);
-    if (embedding) patch.embedding = embedding;
+    if (embedding) patch.embedding = `[${embedding.join(",")}]`;
   }
 
   const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
