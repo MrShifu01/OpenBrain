@@ -55,28 +55,30 @@ describe("EntryCard (via VirtualGrid) — keyboard accessibility", () => {
 });
 
 describe("VirtualTimeline rows — keyboard accessibility", () => {
-  it("timeline rows are native <button> elements with tabIndex=0", () => {
+  it("timeline rows are focusable <article> elements with aria-label and tabIndex=0", () => {
     render(<VirtualTimeline sorted={entries} setSelected={vi.fn()} />);
-    const rows = screen.getAllByRole("button");
-    expect(rows.length).toBeGreaterThan(0);
-    rows.forEach((row) => {
-      expect(row.tagName).toBe("BUTTON");
+    const cards = screen.getAllByRole("article");
+    expect(cards.length).toBeGreaterThan(0);
+    cards.forEach((card) => {
+      expect(card.tagName).toBe("ARTICLE");
+      expect(card).toHaveAttribute("tabindex", "0");
+      expect(card).toHaveAttribute("aria-label");
     });
   });
 
   it("calls setSelected when a timeline row is clicked", () => {
     const setSelected = vi.fn();
     render(<VirtualTimeline sorted={entries} setSelected={setSelected} />);
-    const rows = screen.getAllByRole("button");
-    fireEvent.click(rows[0]);
+    const cards = screen.getAllByRole("article");
+    fireEvent.click(cards[0]);
     expect(setSelected).toHaveBeenCalled();
   });
 
   it("calls setSelected when Enter is pressed on a timeline row", () => {
     const setSelected = vi.fn();
     render(<VirtualTimeline sorted={entries} setSelected={setSelected} />);
-    const rows = screen.getAllByRole("button");
-    fireEvent.keyDown(rows[0], { key: "Enter" });
+    const cards = screen.getAllByRole("article");
+    fireEvent.keyDown(cards[0], { key: "Enter" });
     expect(setSelected).toHaveBeenCalled();
   });
 });
