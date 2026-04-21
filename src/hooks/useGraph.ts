@@ -169,6 +169,5 @@ export function useGraph() {
     setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
   }, []);
 
-  const entryCount = entries.length;
-  return { nodes, edges, selected, setSelected, moveNode, entriesLoaded, entryCount };
+  return { nodes, edges, selected, setSelected, moveNode, entriesLoaded };
 }
