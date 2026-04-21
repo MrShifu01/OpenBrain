@@ -4,6 +4,7 @@ import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import Everion from "./Everion";
 import LoginScreen from "./LoginScreen";
+import Landing from "./views/Landing";
 import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
@@ -27,6 +28,16 @@ export default function App(): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [earlyCapture, setEarlyCapture] = useState(false);
+  const [showLogin, setShowLogin] = useState(() => {
+    // Skip landing and go straight to the login form when the URL already
+    // signals authentication intent (invite token, magic-link hash, /login path)
+    if (typeof window === "undefined") return false;
+    if (window.location.pathname === "/login") return true;
+    if (window.location.hash.includes("access_token")) return true;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("invite")) return true;
+    return false;
+  });
 
   // Stash any ?invite=<token> from the URL before auth so it survives the
   // magic-link / email-confirm round-trip. LoginScreen reads the same key to
@@ -169,7 +180,7 @@ export default function App(): JSX.Element {
   if (!session)
     return (
       <ThemeProvider>
-        <LoginScreen />
+        {showLogin ? <LoginScreen /> : <Landing onAuth={() => setShowLogin(true)} />}
       </ThemeProvider>
     );
   return (
