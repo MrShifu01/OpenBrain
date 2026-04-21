@@ -12,7 +12,7 @@ function formatDate(iso?: string) {
 }
 
 export default function GraphView({ openEntry }: GraphViewProps) {
-  const { nodes, edges, selected, setSelected, moveNode, entriesLoaded } = useGraph();
+  const { nodes, edges, selected, setSelected, moveNode, entriesLoaded, entryCount } = useGraph();
 
   const selectedNode = nodes.find((n) => n.id === selected);
   const selectedEntry = selectedNode?.entry ?? null;
@@ -49,7 +49,9 @@ export default function GraphView({ openEntry }: GraphViewProps) {
             className="f-serif"
             style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
           >
-            the shape of what you've been thinking about
+            {entriesLoaded
+              ? `${entryCount} entries · ${nodes.length} nodes · ${edges.length} edges`
+              : "loading…"}
           </div>
         </div>
       </header>
