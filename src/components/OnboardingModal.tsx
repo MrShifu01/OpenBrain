@@ -132,7 +132,7 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         {step === "welcome" && (
           <div className="text-center">
             <div className="mb-4 text-5xl">🧠</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "var(--f-serif)" }}>
               Welcome to Everion
             </h2>
             <p className="text-on-surface-variant mb-6 text-sm">Let's teach your brain.</p>
@@ -260,7 +260,7 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         {step === "celebration" && (
           <div className="text-center">
             <div className="mb-4 animate-bounce text-5xl">✨</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "var(--f-serif)" }}>
               That's your brain working.
             </h2>
             <p className="text-on-surface-variant mb-6 text-sm">

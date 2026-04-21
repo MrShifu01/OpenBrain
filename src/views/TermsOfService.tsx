@@ -5,7 +5,7 @@ export default function TermsOfService() {
         minHeight: "100vh",
         background: "var(--color-surface)",
         color: "var(--color-on-surface)",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontFamily: "var(--f-sans)",
         padding: "clamp(32px, 5vw, 64px) clamp(16px, 5vw, 48px)",
         maxWidth: 720,
         margin: "0 auto",

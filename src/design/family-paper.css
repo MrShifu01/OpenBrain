@@ -1,0 +1,75 @@
+/* ═══ EVERION — PAPER / INK ═══
+   editorial, book-like. ivory paper by day, printed reverse at night.
+   Source Serif 4, oxblood accent, squared corners.
+   Activated by html.family-paper.
+*/
+
+html.family-paper {
+  --f-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --f-sans: 'Inter Tight', system-ui, -apple-system, sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* INK — dark (printed reverse) */
+  --bg:           oklch(16% 0.016 28);
+  --surface:      oklch(19% 0.018 28);
+  --surface-high: oklch(23% 0.020 28);
+  --surface-low:  oklch(13% 0.014 28);
+  --surface-dim:  oklch(10% 0.012 28);
+
+  --ink:          oklch(96% 0.018 82);
+  --ink-soft:     oklch(80% 0.020 78);
+  --ink-faint:    oklch(60% 0.016 75);
+  --ink-ghost:    oklch(44% 0.014 72);
+
+  --line:         oklch(30% 0.018 28);
+  --line-soft:    oklch(24% 0.016 28);
+
+  --ember:        oklch(62% 0.165 22);
+  --ember-soft:   oklch(56% 0.155 22);
+  --ember-wash:   oklch(62% 0.165 22 / 0.14);
+  --ember-deep:   oklch(30% 0.100 22);
+  --ember-ink:    oklch(98% 0.01 80);
+
+  --moss:         oklch(58% 0.070 148);
+  --moss-wash:    oklch(58% 0.070 148 / 0.12);
+  --blood:        oklch(60% 0.175 20);
+  --blood-wash:   oklch(60% 0.175 20 / 0.12);
+
+  --scrim:        oklch(8% 0.012 28 / 0.75);
+  --lift-1: 0 1px 2px oklch(5% 0.01 28 / .35);
+  --lift-2: 0 8px 24px oklch(5% 0.01 28 / .45), 0 2px 6px oklch(5% 0.01 28 / .3);
+  --lift-3: 0 30px 70px oklch(5% 0.01 28 / .55), 0 8px 16px oklch(5% 0.01 28 / .35);
+}
+
+/* PAPER — light variant (the canonical mode for this direction) */
+html.family-paper.theme-light {
+  --bg:           oklch(96% 0.022 85);
+  --surface:      oklch(97.5% 0.018 85);
+  --surface-high: oklch(99% 0.012 85);
+  --surface-low:  oklch(93% 0.025 82);
+  --surface-dim:  oklch(90% 0.028 80);
+
+  --ink:          oklch(20% 0.028 32);
+  --ink-soft:     oklch(36% 0.024 32);
+  --ink-faint:    oklch(52% 0.020 30);
+  --ink-ghost:    oklch(70% 0.016 32);
+
+  --line:         oklch(84% 0.022 78);
+  --line-soft:    oklch(90% 0.020 78);
+
+  --ember:        oklch(40% 0.155 22);
+  --ember-soft:   oklch(46% 0.148 22);
+  --ember-wash:   oklch(40% 0.155 22 / 0.08);
+  --ember-deep:   oklch(92% 0.060 22);
+  --ember-ink:    oklch(97% 0.018 85);
+
+  --moss:         oklch(38% 0.065 148);
+  --moss-wash:    oklch(38% 0.065 148 / 0.08);
+  --blood:        oklch(42% 0.170 20);
+  --blood-wash:   oklch(42% 0.170 20 / 0.08);
+
+  --scrim:        oklch(20% 0.02 32 / 0.35);
+  --lift-1: 0 1px 2px oklch(30% 0.02 32 / .08);
+  --lift-2: 0 6px 24px oklch(30% 0.02 32 / .12), 0 2px 6px oklch(30% 0.02 32 / .06);
+  --lift-3: 0 30px 70px oklch(30% 0.02 32 / .16), 0 8px 16px oklch(30% 0.02 32 / .08);
+}

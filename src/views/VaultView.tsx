@@ -97,7 +97,7 @@ export default function VaultView({
           <div className="text-4xl">🔐</div>
           <h2
             className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            style={{ fontFamily: "var(--f-sans)" }}
           >
             Set up your Vault
           </h2>
@@ -188,7 +188,7 @@ export default function VaultView({
           <div className="text-4xl">🗝</div>
           <h2
             className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            style={{ fontFamily: "var(--f-sans)" }}
           >
             Your Recovery Key
           </h2>
@@ -270,7 +270,7 @@ export default function VaultView({
           <div className="text-4xl">🔒</div>
           <h2
             className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            style={{ fontFamily: "var(--f-sans)" }}
           >
             Unlock Vault
           </h2>
@@ -341,7 +341,7 @@ export default function VaultView({
           <div className="text-4xl">🗝</div>
           <h2
             className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
+            style={{ fontFamily: "var(--f-sans)" }}
           >
             Recovery Key
           </h2>
@@ -640,7 +640,7 @@ export default function VaultView({
             style={{
               background: "var(--color-surface-container-low)",
               borderColor: "var(--color-outline-variant)",
-              fontFamily: "'DM Sans', sans-serif",
+              fontFamily: "var(--f-sans)",
             }}
           >
             <div className="border-b p-4" style={{ borderColor: "var(--color-outline-variant)" }}>

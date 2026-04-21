@@ -1,10 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "../../src/ThemeContext";
+import { DesignThemeProvider } from "../../src/design/DesignThemeContext";
 import MobileHeader from "../../src/components/MobileHeader";
 
+// Redesigned mobile header — 36px touch targets (min-height: 36px inline),
+// serif brand with a coloured status dot, no text "Offline/Syncing" label.
 function renderWithTheme(ui: React.ReactElement) {
-  return render(<ThemeProvider>{ui}</ThemeProvider>);
+  return render(
+    <DesignThemeProvider>
+      <ThemeProvider>{ui}</ThemeProvider>
+    </DesignThemeProvider>,
+  );
 }
 
 describe("MobileHeader", () => {
@@ -17,9 +24,9 @@ describe("MobileHeader", () => {
     pendingCount: 0,
   };
 
-  it("does not render the brain name as visible text in the header", () => {
-    renderWithTheme(<MobileHeader {...defaultProps} brainName="My Very Long Business Brain Name" />);
-    expect(screen.queryByText("My Very Long Business Brain Name")).not.toBeInTheDocument();
+  it("renders the Everion brand", () => {
+    renderWithTheme(<MobileHeader {...defaultProps} />);
+    expect(screen.getByText("Everion")).toBeInTheDocument();
   });
 
   it("renders a header element with banner role", () => {
@@ -27,27 +34,19 @@ describe("MobileHeader", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
   });
 
-  it("all touch targets have min-h-11 class for 44px touch target", () => {
-    const { container } = renderWithTheme(<MobileHeader {...defaultProps} />);
-    const buttons = container.querySelectorAll("button");
-    buttons.forEach((btn) => {
-      expect(btn.className).toMatch(/min-h-11|min-w-11|w-11|h-11/);
-    });
-  });
-
-  it("shows offline indicator when not online", () => {
+  it("shows an offline status indicator when offline", () => {
     renderWithTheme(<MobileHeader {...defaultProps} isOnline={false} />);
-    expect(screen.getByText(/offline/i)).toBeInTheDocument();
+    const dot = screen.getByTitle(/offline/i);
+    expect(dot).toBeInTheDocument();
   });
 
-  it("shows syncing indicator when online with pending changes", () => {
+  it("shows a pending status indicator when online with pending changes", () => {
     renderWithTheme(<MobileHeader {...defaultProps} pendingCount={3} />);
-    expect(screen.getByText(/syncing/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/pending/i)).toBeInTheDocument();
   });
 
-  it("shows no status indicator when online and nothing pending", () => {
+  it("shows a synced status indicator when online and nothing pending", () => {
     renderWithTheme(<MobileHeader {...defaultProps} isOnline={true} pendingCount={0} />);
-    expect(screen.queryByText(/offline/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/syncing/i)).not.toBeInTheDocument();
+    expect(screen.getByTitle(/synced/i)).toBeInTheDocument();
   });
 });

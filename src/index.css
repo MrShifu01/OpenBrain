@@ -2,7 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+/* Legacy Lora + DM Sans kept for non-redesigned surfaces; design families override with Newsreader / Source Serif 4 / Fraunces / Inter Tight. */
 @import url("https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap");
+/* Redesign fonts — loaded once, shared by all three families */
+@import url("https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap");
+
+@import "./design/tokens.css";
+@import "./design/family-dusk.css";
+@import "./design/family-paper.css";
+@import "./design/family-bronze.css";
+@import "./design/bridge.css";
 
 /* ── Dark mode via class on <html> ── */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -70,10 +79,10 @@
   /* Scrim */
   --color-scrim: oklch(0% 0 0 / 0.6);
 
-  /* Typography */
-  --font-family-headline: "Lora", Georgia, serif;
-  --font-family-body: "DM Sans", system-ui, sans-serif;
-  --font-family-label: "DM Sans", system-ui, sans-serif;
+  /* Typography — overridden per family in bridge.css to the active design's fonts */
+  --font-family-headline: "Newsreader", Georgia, serif;
+  --font-family-body: "Inter Tight", system-ui, sans-serif;
+  --font-family-label: "Inter Tight", system-ui, sans-serif;
 
   --font-size-10: 0.625rem;
   --font-size-12: 0.75rem;
@@ -296,13 +305,13 @@ html:not(.dark) .glass-panel-dark {
   border: 1px solid var(--color-outline-variant);
 }
 
-/* ── Typography utilities ── */
+/* ── Typography utilities — defaults; families override in bridge.css ── */
 .font-headline {
-  font-family: "Lora", Georgia, serif;
-  letter-spacing: -0.02em;
+  font-family: var(--f-serif, "Newsreader", Georgia, serif);
+  letter-spacing: -0.015em;
 }
 .font-body {
-  font-family: "DM Sans", system-ui, sans-serif;
+  font-family: var(--f-sans, "Inter Tight", system-ui, sans-serif);
 }
 .gradient-text {
   color: var(--color-primary);
@@ -549,8 +558,8 @@ select option:hover { background-color: var(--color-surface-container-high); col
 .safe-top { padding-top: max(0px, env(safe-area-inset-top)); }
 
 @theme inline {
-  --font-heading: "Lora", Georgia, serif;
-  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-heading: "Newsreader", Georgia, serif;
+  --font-sans: "Inter Tight", system-ui, sans-serif;
   --font-mono: "Geist Variable", monospace;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);

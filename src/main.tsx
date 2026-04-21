@@ -5,10 +5,15 @@ import * as Sentry from "@sentry/react";
 import "./index.css";
 import App from "./App";
 import { ThemeProvider } from "./ThemeContext";
+import { DesignThemeProvider, applyInitialDesignTheme } from "./design/DesignThemeContext";
 import ErrorBoundary from "./ErrorBoundary";
 import PrivacyPolicy from "./views/PrivacyPolicy";
 import TermsOfService from "./views/TermsOfService";
 import { ConsentBanner, getConsentDecision } from "./components/ConsentBanner";
+
+// Paint the correct design family class on <html> before React mounts so the
+// first frame uses the right theme tokens.
+applyInitialDesignTheme();
 
 function initSentry() {
   Sentry.init({
@@ -54,9 +59,11 @@ function Root() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <ErrorBoundary>
-      <ThemeProvider>
-        <Root />
-      </ThemeProvider>
+      <DesignThemeProvider>
+        <ThemeProvider>
+          <Root />
+        </ThemeProvider>
+      </DesignThemeProvider>
     </ErrorBoundary>
   </StrictMode>,
 );

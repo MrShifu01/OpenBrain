@@ -329,10 +329,10 @@ export default function CaptureSheet({
         <div className="mb-4 flex items-center justify-between">
           {preview ? (
             <h2
-              className="text-on-surface font-semibold"
-              style={{ fontFamily: "'Lora', Georgia, serif", fontSize: "1.125rem" }}
+              className="f-serif"
+              style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.005em", color: "var(--ink)" }}
             >
-              Before saving
+              before saving
             </h2>
           ) : (
             <div

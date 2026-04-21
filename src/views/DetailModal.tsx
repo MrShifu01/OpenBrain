@@ -231,7 +231,7 @@ const [showFullContent, setShowFullContent] = useState(false);
               <h2
                 id="detail-modal-title"
                 className="text-on-surface truncate text-lg font-bold"
-                style={{ fontFamily: "'Lora', Georgia, serif" }}
+                style={{ fontFamily: "var(--f-serif)" }}
               >
                 {editTitle}
               </h2>
@@ -415,7 +415,7 @@ const [showFullContent, setShowFullContent] = useState(false);
                       saving || !editTitle.trim()
                         ? "var(--color-on-surface-variant)"
                         : "var(--color-on-primary)",
-                    fontFamily: "'DM Sans', system-ui, sans-serif",
+                    fontFamily: "var(--f-sans)",
                   }}
                   onClick={() =>
                     handleSave({ editTitle, editContent, editType, editTags }).then(() =>

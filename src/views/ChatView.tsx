@@ -195,7 +195,7 @@ export default function ChatView({ brainId }: ChatViewProps) {
             color: "var(--color-on-surface)",
             maxHeight: "120px",
             overflowY: "auto",
-            fontFamily: "'DM Sans', system-ui, sans-serif",
+            fontFamily: "var(--f-sans)",
           }}
         />
         <button

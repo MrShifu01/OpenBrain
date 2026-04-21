@@ -128,7 +128,7 @@ function MiniCalendar({
           <div className="flex flex-col items-start">
             <span
               className="text-sm font-semibold text-[var(--color-on-surface)]"
-              style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+              style={{ fontFamily: "var(--f-sans)" }}
             >
               {monthLabel}
             </span>
@@ -373,7 +373,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
           <p
             className="text-[10px] font-semibold tracking-[0.14em] uppercase"
             style={{
-              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontFamily: "var(--f-sans)",
               color: accentColor || "var(--color-on-surface-variant)",
             }}
           >
@@ -413,7 +413,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
             className="text-sm font-semibold"
             style={{
               color: selEntries.length ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-              fontFamily: "'DM Sans', system-ui, sans-serif",
+              fontFamily: "var(--f-sans)",
             }}
           >
             {selEntries.length
@@ -464,7 +464,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {} }: TodoV
           <div className="mb-4 text-5xl">📋</div>
           <p
             className="text-on-surface mb-1 text-lg font-semibold"
-            style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+            style={{ fontFamily: "var(--f-sans)" }}
           >
             All clear
           </p>

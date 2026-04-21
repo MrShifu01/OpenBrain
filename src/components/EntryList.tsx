@@ -103,17 +103,26 @@ const EntryCard = memo(function EntryCard({
           )}
         </div>
       </div>
-      <h3 className="text-on-surface mb-2 line-clamp-2 text-base leading-snug font-semibold tracking-tight">
+      <h3
+        className="f-serif mb-2 line-clamp-2"
+        style={{
+          fontSize: 18, lineHeight: 1.25, fontWeight: 450, letterSpacing: "-0.005em",
+          color: "var(--ink)",
+        }}
+      >
         {e.title}
       </h3>
       {e.type === "secret" ? (
-        <p className="mb-3 text-sm italic" style={{ color: "var(--color-on-surface-variant)" }}>
-          🔒 Encrypted — tap to reveal
+        <p
+          className="f-serif mb-3"
+          style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          Encrypted — tap to reveal
         </p>
       ) : e.content ? (
         <p
-          className="mb-3 line-clamp-2 text-sm leading-relaxed"
-          style={{ color: "var(--color-on-surface-variant)" }}
+          className="f-serif mb-3 line-clamp-3"
+          style={{ fontSize: 15, lineHeight: 1.55, color: "var(--ink-soft)" }}
         >
           {e.content as string}
         </p>

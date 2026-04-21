@@ -190,7 +190,7 @@ export default function App(): JSX.Element {
                 textAlign: "center",
                 padding: "14px 16px",
                 fontSize: "16px",
-                fontFamily: "'DM Sans', system-ui, sans-serif",
+                fontFamily: "var(--f-sans)",
               }}
             >
               {inviteMsg}

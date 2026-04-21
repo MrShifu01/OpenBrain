@@ -7,6 +7,7 @@ import BrainTab from "../components/settings/BrainTab";
 import StorageTab from "../components/settings/StorageTab";
 import DangerTab from "../components/settings/DangerTab";
 import ClaudeCodeTab from "../components/settings/ClaudeCodeTab";
+import AppearanceTab from "../components/settings/AppearanceTab";
 import { authFetch } from "../lib/authFetch";
 
 type TabId = "profile" | "advanced" | "claude";
@@ -194,33 +195,53 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     <div
       className="min-h-screen"
       style={{
-        background: "var(--color-background)",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        background: "var(--bg)",
+        fontFamily: "var(--f-sans)",
       }}
     >
       <div
-        className="border-b px-4 pt-4 pb-2"
-        style={{ borderColor: "var(--color-outline-variant)" }}
+        className="border-b px-6 pt-6 pb-4"
+        style={{ borderColor: "var(--line-soft)" }}
       >
-        <h2 className="text-on-surface mb-1 text-2xl font-bold">Settings</h2>
-        <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-          Manage your account and preferences
+        <h2
+          className="f-serif"
+          style={{
+            fontSize: 28, fontWeight: 450, letterSpacing: "-0.01em",
+            color: "var(--ink)", margin: 0,
+          }}
+        >
+          Settings
+        </h2>
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)",
+            marginTop: 4, marginBottom: 0,
+          }}
+        >
+          your room — how it looks, who runs the AI, what we keep.
         </p>
       </div>
 
       <div
-        className="scrollbar-hide overflow-x-auto px-4 pt-2 pb-0"
+        className="scrollbar-hide overflow-x-auto px-6 pt-3 pb-0"
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           {TAB_DEFS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="px-4 py-3 text-sm font-medium whitespace-nowrap transition-all"
+              className="f-sans press"
               style={{
-                color: activeTab === tab.id ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-                borderBottom: activeTab === tab.id ? "2px solid var(--color-primary)" : "2px solid transparent",
+                padding: "10px 14px", minHeight: 40,
+                fontSize: 13, fontWeight: 500, whiteSpace: "nowrap",
+                color: activeTab === tab.id ? "var(--ink)" : "var(--ink-faint)",
+                background: "transparent",
+                borderLeft: 0, borderRight: 0, borderTop: 0,
+                borderBottom: activeTab === tab.id ? "2px solid var(--ember)" : "2px solid transparent",
+                cursor: "pointer",
+                transition: "color 180ms, border-color 180ms",
               }}
             >
               {tab.label}
@@ -229,9 +250,10 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         </div>
       </div>
 
-      <div className="space-y-4 px-4 py-4">
+      <div className="space-y-4 px-6 py-6" style={{ maxWidth: 860 }}>
         {activeTab === "profile" && (
           <>
+            <AppearanceTab />
             <AccountTab email={email} brainId={activeBrain?.id} />
             {activeBrain && (
               <BrainTab

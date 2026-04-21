@@ -5,7 +5,7 @@ export default function PrivacyPolicy() {
         minHeight: "100vh",
         background: "var(--color-surface)",
         color: "var(--color-on-surface)",
-        fontFamily: "'DM Sans', system-ui, sans-serif",
+        fontFamily: "var(--f-sans)",
         padding: "clamp(32px, 5vw, 64px) clamp(16px, 5vw, 48px)",
         maxWidth: 720,
         margin: "0 auto",
@@ -28,7 +28,7 @@ export default function PrivacyPolicy() {
 
       <h1
         style={{
-          fontFamily: "'Lora', Georgia, serif",
+          fontFamily: "var(--f-serif)",
           fontSize: "clamp(26px, 4vw, 38px)",
           fontWeight: 700,
           letterSpacing: "-0.02em",

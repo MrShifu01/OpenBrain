@@ -206,7 +206,7 @@ function EverionContent({
       </DesktopSidebar>
 
       <div className="w-full overflow-x-hidden">
-        <div className="bg-background lg:ml-72 lg:max-w-[calc(75vw)] min-h-dvh">
+        <div className="bg-background lg:ml-60 lg:max-w-[calc(100vw-240px)] min-h-dvh">
           <MobileHeader
             brainName={activeBrain?.name || "Everion"}
             brainEmoji="🧠"
@@ -258,30 +258,32 @@ function EverionContent({
             {appShell.view === "memory" && (
               <div className="space-y-3">
                 <div
-                  className="flex items-center gap-3 rounded-2xl border px-4 py-3"
+                  className="flex items-center gap-3 px-4"
                   style={{
-                    background: "var(--color-surface-container-low)",
-                    borderColor: "var(--color-outline-variant)",
+                    background: "var(--surface-low)",
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: 8,
+                    height: 40,
                   }}
                 >
                   <svg
-                    className="text-primary h-4 w-4 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
+                    width="16" height="16"
+                    fill="none" stroke="currentColor" strokeWidth="1.5"
+                    strokeLinecap="round" strokeLinejoin="round"
                     viewBox="0 0 24 24"
+                    style={{ color: "var(--ink-faint)", flexShrink: 0 }}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
-                    />
+                    <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
                   </svg>
                   <input
                     value={appShell.searchInput}
                     onChange={(e) => appShell.setSearchInput(e.target.value)}
-                    placeholder="Search memories..."
-                    className="text-on-surface placeholder:text-on-surface-variant/40 flex-1 border-none bg-transparent text-sm outline-none"
+                    placeholder="search everything…"
+                    className="f-serif flex-1 border-none bg-transparent outline-none"
+                    style={{
+                      fontSize: 15, fontStyle: appShell.searchInput ? "normal" : "italic",
+                      color: "var(--ink)",
+                    }}
                   />
                 </div>
                 <GridFilters
@@ -310,23 +312,49 @@ function EverionContent({
                     <SkeletonCard count={6} />
                   </div>
                 ) : entries.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-                    <div className="text-5xl">🧠</div>
-                    <h2
-                      className="text-on-surface text-xl font-bold"
-                      style={{ fontFamily: "'Lora', Georgia, serif" }}
+                  <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+                    <div
+                      style={{
+                        width: 56, height: 56, borderRadius: "50%",
+                        background: "var(--ember-wash)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
                     >
-                      Your memory is blank. Start filling it.
+                      <svg
+                        width="24" height="24"
+                        fill="none" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                        style={{ color: "var(--ember)" }}
+                      >
+                        <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4"/>
+                      </svg>
+                    </div>
+                    <h2
+                      className="f-serif"
+                      style={{
+                        fontSize: 28, fontWeight: 400, letterSpacing: "-0.01em",
+                        color: "var(--ink)", margin: 0,
+                      }}
+                    >
+                      Nothing yet. That's fine.
                     </h2>
-                    <p className="text-on-surface-variant max-w-sm text-sm">
-                      Every thought you capture makes your brain smarter. Try one now.
+                    <p
+                      className="f-serif"
+                      style={{
+                        fontSize: 16, fontStyle: "italic",
+                        color: "var(--ink-soft)", margin: 0,
+                        maxWidth: 360, lineHeight: 1.5,
+                      }}
+                    >
+                      Remember something.
                     </p>
                     <button
                       onClick={() => appShell.setShowCapture(true)}
-                      className="press-scale text-on-primary rounded-xl px-6 py-3 text-sm font-semibold"
-                      style={{ background: "var(--color-primary)" }}
+                      className="design-btn-primary press"
+                      style={{ marginTop: 8 }}
                     >
-                      Capture a thought
+                      Remember a thought
                     </button>
                   </div>
                 ) : filtered.length > 0 ? (
@@ -360,17 +388,30 @@ function EverionContent({
                   </>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-                    <div className="text-4xl opacity-40">🔍</div>
-                    <p className="text-on-surface font-bold">Nothing matches that filter.</p>
-                    <p className="text-on-surface-variant max-w-xs text-sm">
-                      Try a different search, or capture something new.
+                    <h3
+                      className="f-serif"
+                      style={{
+                        fontSize: 22, fontWeight: 450, letterSpacing: "-0.005em",
+                        color: "var(--ink)", margin: 0,
+                      }}
+                    >
+                      nothing matches.
+                    </h3>
+                    <p
+                      className="f-serif"
+                      style={{
+                        fontSize: 15, fontStyle: "italic",
+                        color: "var(--ink-faint)", margin: 0, maxWidth: 320, lineHeight: 1.5,
+                      }}
+                    >
+                      try a looser word. or a feeling.
                     </p>
                     <button
                       onClick={() => appShell.setShowCapture(true)}
-                      className="press-scale text-on-primary rounded-xl px-5 py-2.5 text-sm font-semibold"
-                      style={{ background: "var(--color-primary)" }}
+                      className="design-btn-secondary press"
+                      style={{ marginTop: 8 }}
                     >
-                      Capture a thought
+                      Remember something new
                     </button>
                   </div>
                 )}

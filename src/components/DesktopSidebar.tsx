@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { NavIcon } from "./icons/NavIcons";
-import { EverionLogo } from "./ui/EverionLogo";
 
 interface NavView {
   id: string;
@@ -34,13 +33,18 @@ const NAV_ICONS: Record<string, ReactNode> = {
 };
 
 const SUN_ICON = (
-  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.5 1.5M17.6 17.6l1.5 1.5M2 12h2M20 12h2M4.9 19.1l1.5-1.5M17.6 6.4l1.5-1.5"/>
+  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>
   </svg>
 );
 const MOON_ICON = (
-  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <path d="M20 15A8 8 0 0 1 9 4a8 8 0 1 0 11 11Z"/>
+  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>
+  </svg>
+);
+const PLUME_ICON = (
+  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4"/>
   </svg>
 );
 
@@ -59,57 +63,103 @@ export default function DesktopSidebar({
 }: DesktopSidebarProps) {
   const isOffline = !isOnline;
   const isSyncing = isOnline && pendingCount > 0;
-  const statusText = isOffline ? "Offline" : isSyncing ? `Syncing ${pendingCount}…` : null;
+  const statusDotColor = isOffline ? "var(--ink-faint)" : isSyncing ? "var(--ember)" : "var(--moss)";
+  const statusText = isOffline ? "offline" : isSyncing ? `${pendingCount} pending` : null;
 
   return (
     <aside
-      className="fixed top-0 left-0 z-40 hidden h-dvh w-72 flex-col px-[18px] py-6 lg:flex"
+      className="fixed top-0 left-0 z-40 hidden h-dvh flex-col lg:flex"
       style={{
-        background: "var(--color-background)",
-        borderRight: "1px solid var(--color-surface-container)",
+        width: 240,
+        background: "var(--surface-low)",
+        borderRight: "1px solid var(--line-soft)",
+        padding: "20px 12px",
       }}
     >
       {/* Brand */}
-      <div style={{ marginBottom: 20, padding: "0 6px", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-            <EverionLogo size={20} />
-            <h1 className="font-headline gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.04em" }}>
-              Everion Mind
-            </h1>
-          </div>
-          <div className="caps-label" style={{ marginTop: 3, opacity: 0.5 }}>Neural Interface</div>
-        </div>
+      <div
+        onClick={() => onNavigate("memory")}
+        className="press"
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "0 10px 16px", cursor: "pointer",
+        }}
+      >
+        <span className="f-serif" style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}>
+          Everion
+        </span>
+        <span
+          aria-hidden="true"
+          style={{
+            width: 5, height: 5, borderRadius: "50%", background: "var(--ember)",
+            animation: "design-breathe 3.5s ease-in-out infinite",
+            ["--b-low" as string]: "0.5",
+            ["--b-high" as string]: "1",
+          }}
+        />
       </div>
+
+      {/* Brain plate */}
+      <div
+        style={{
+          marginBottom: 12,
+          padding: "8px 10px",
+          display: "flex", alignItems: "center", gap: 8,
+          background: "var(--surface)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 8,
+        }}
+      >
+        <span
+          style={{
+            width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+            background: statusDotColor,
+          }}
+        />
+        <span
+          className="f-serif"
+          style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          title={activeBrainName}
+        >
+          {activeBrainName || "Your brain"}
+        </span>
+      </div>
+      {statusText && (
+        <div className="micro" style={{ padding: "0 10px 10px", color: isOffline ? "var(--ink-faint)" : "var(--ember)" }}>
+          {statusText}
+        </div>
+      )}
 
       {/* Brain switcher slot */}
       {children && (
-        <div style={{ marginBottom: 16, padding: "0 2px" }}>{children}</div>
+        <div style={{ marginBottom: 12, padding: "0 2px" }}>{children}</div>
       )}
 
-      {/* New Entry CTA */}
+      {/* Capture CTA — pill with plume, ember reserved for this primary */}
       <button
         onClick={onCapture}
-        className="press cta-glow"
+        className="press"
         style={{
           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          padding: "12px 14px", marginBottom: 22, marginLeft: 2, marginRight: 2,
-          borderRadius: "var(--radius-xl)",
-          background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-container))",
-          color: "var(--color-on-primary)",
-          fontFamily: "DM Sans, sans-serif", fontWeight: 700, fontSize: 14,
-          border: "none", cursor: "pointer", width: "calc(100% - 4px)",
+          padding: "0 14px", height: 40, minHeight: 40,
+          marginBottom: 18,
+          borderRadius: 8,
+          background: "var(--ember)",
+          color: "var(--ember-ink)",
+          fontFamily: "var(--f-sans)", fontWeight: 500, fontSize: 14,
+          border: "none", cursor: "pointer",
+          letterSpacing: "-0.005em",
         }}
       >
-        <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-        New Entry
+        {PLUME_ICON}
+        Remember
       </button>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", overflowX: "hidden" }} aria-label="Primary navigation">
-        <div className="caps-label" style={{ padding: "8px 14px 6px", opacity: 0.5 }}>Brain</div>
+      <nav
+        style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", overflowX: "hidden" }}
+        aria-label="Primary navigation"
+      >
         {navViews.map((item) => {
           const isActive = view === item.id;
           const icon = NAV_ICONS[item.id] || NAV_ICONS.capture;
@@ -118,9 +168,44 @@ export default function DesktopSidebar({
               key={item.id}
               onClick={() => onNavigate(item.id)}
               aria-current={isActive ? "page" : undefined}
-              className={`nav-item press ${isActive ? "active" : ""}`}
+              className="press"
+              style={{
+                position: "relative",
+                display: "flex", alignItems: "center", gap: 12,
+                width: "100%", padding: "0 14px",
+                minHeight: 40, height: 40,
+                borderRadius: 6,
+                fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+                color: isActive ? "var(--ink)" : "var(--ink-soft)",
+                background: isActive ? "var(--surface)" : "transparent",
+                border: "none", cursor: "pointer", textAlign: "left",
+                transition: "background 180ms, color 180ms",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "var(--surface)";
+                  e.currentTarget.style.color = "var(--ink)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--ink-soft)";
+                }
+              }}
             >
-              <span style={{ display: "flex", alignItems: "center" }}>{icon}</span>
+              {isActive && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute", left: -4, top: 8, bottom: 8,
+                    width: 2, background: "var(--ember)", borderRadius: 2,
+                  }}
+                />
+              )}
+              <span style={{ display: "flex", alignItems: "center", color: isActive ? "var(--ink)" : "var(--ink-faint)" }}>
+                {icon}
+              </span>
               <span style={{ flex: 1 }}>{item.l}</span>
             </button>
           );
@@ -128,49 +213,51 @@ export default function DesktopSidebar({
       </nav>
 
       {/* Footer */}
-      <div style={{ paddingTop: 16, borderTop: "1px solid var(--color-surface-container)", display: "flex", flexDirection: "column", gap: 4 }}>
+      <div
+        style={{
+          paddingTop: 12,
+          borderTop: "1px solid var(--line-soft)",
+          display: "flex", flexDirection: "column", gap: 2,
+        }}
+      >
         <button
           onClick={() => onNavigate("settings")}
-          className={`nav-item press ${view === "settings" ? "active" : ""}`}
+          className="press"
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            width: "100%", padding: "0 14px", minHeight: 40, height: 40,
+            borderRadius: 6,
+            fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+            color: view === "settings" ? "var(--ink)" : "var(--ink-soft)",
+            background: view === "settings" ? "var(--surface)" : "transparent",
+            border: "none", cursor: "pointer", textAlign: "left",
+          }}
         >
-          <span style={{ display: "flex", alignItems: "center" }}>{NAV_ICONS.settings}</span>
+          <span style={{ display: "flex", alignItems: "center", color: "var(--ink-faint)" }}>
+            {NAV_ICONS.settings}
+          </span>
           <span style={{ flex: 1 }}>Settings</span>
         </button>
 
         <button
           onClick={onToggleTheme}
-          className="nav-item press"
+          className="press"
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            width: "100%", padding: "0 14px", minHeight: 40, height: 40,
+            borderRadius: 6,
+            fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+            color: "var(--ink-soft)",
+            background: "transparent",
+            border: "none", cursor: "pointer", textAlign: "left",
+          }}
         >
-          <span style={{ display: "flex", alignItems: "center", color: "var(--color-on-surface-variant)" }}>
+          <span style={{ display: "flex", alignItems: "center", color: "var(--ink-faint)" }}>
             {isDark ? SUN_ICON : MOON_ICON}
           </span>
           <span style={{ flex: 1 }}>{isDark ? "Light" : "Dark"} mode</span>
-          <span style={{
-            width: 32, height: 18, borderRadius: 999,
-            background: "var(--color-surface-container-highest)",
-            position: "relative", display: "inline-block", flexShrink: 0,
-          }}>
-            <span style={{
-              position: "absolute", top: 2,
-              left: isDark ? 2 : 16,
-              width: 14, height: 14, borderRadius: "50%",
-              background: "var(--color-primary)",
-              transition: "left 0.25s",
-            }} />
-          </span>
         </button>
-
-        {statusText && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 14px" }}>
-            <div style={{
-              width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
-              background: isOffline ? "var(--color-error)" : "var(--color-secondary)",
-              boxShadow: isOffline ? "none" : "0 0 8px var(--color-secondary)",
-            }} />
-            <span className="caps-label" style={{ opacity: 0.6 }}>{statusText}</span>
-          </div>
-        )}
       </div>
     </aside>
   );

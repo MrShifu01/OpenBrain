@@ -1,10 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { loadPersistedTheme, persistTheme, resolveTheme } from "./lib/themeToggle";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { DesignThemeCtx } from "./design/DesignThemeContext";
 
-// Single source of truth for token values is index.css (@theme + light-mode overrides).
-// This context only manages the dark/light class on <html> and exposes the toggle.
-// Components must use CSS variables (var(--color-*)) — not JS color values.
+// Adapter over DesignThemeContext: when DesignThemeProvider is present, route
+// isDark/toggleTheme through it. When it isn't (e.g. in component tests that
+// only wrap with ThemeProvider), fall back to a local dark/light state so the
+// component still mounts.
 
 interface ThemeContextValue {
   isDark: boolean;
@@ -17,24 +18,39 @@ const ThemeCtx = createContext<ThemeContextValue>({
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(() => resolveTheme(loadPersistedTheme()) === "dark");
+  const design = useContext(DesignThemeCtx);
 
+  // Local fallback — only used when DesignThemeProvider is absent (tests).
+  const [localDark, setLocalDark] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem("openbrain_theme");
+      return v === "dark";
+    } catch {
+      return false;
+    }
+  });
+  const localToggle = useCallback(() => setLocalDark((d) => !d), []);
   useEffect(() => {
-    const root = document.documentElement;
-    const theme = isDark ? "dark" : "light";
-    root.setAttribute("data-theme", theme);
-    root.classList.toggle("dark", isDark);
-    root.classList.toggle("light", !isDark);
-    persistTheme(theme);
-  }, [isDark]);
+    if (design) return;
+    const html = document.documentElement;
+    html.classList.toggle("dark", localDark);
+    html.classList.toggle("light", !localDark);
+  }, [design, localDark]);
 
-  const toggleTheme = () => setIsDark((prev) => !prev);
+  const value: ThemeContextValue = design
+    ? { isDark: design.mode === "dark", toggleTheme: design.toggleMode }
+    : { isDark: localDark, toggleTheme: localToggle };
 
-  return <ThemeCtx.Provider value={{ isDark, toggleTheme }}>{children}</ThemeCtx.Provider>;
+  return <ThemeCtx.Provider value={value}>{children}</ThemeCtx.Provider>;
 }
 
 export const useTheme = () => useContext(ThemeCtx);
 
+// Legacy token snapshot — used only by the accessibility test suite as a
+// static contrast-ratio reference. Real runtime color comes from the active
+// design family in design/family-*.css (via --bg, --ink, --ember, etc.).
+// Values here are the Neural Obsidian / Alabaster snapshot the contrast
+// assertions were written against.
 export const DARK = {
   bg: "oklch(11% 0.010 60)",
   surface: "oklch(11% 0.010 60)",
