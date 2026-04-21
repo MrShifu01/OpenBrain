@@ -238,9 +238,16 @@ html.family-bronze body {
 }
 
 /* Chat view — responsive header & padding */
-.chat-topbar { padding: 18px 32px; min-height: 68px; }
+.chat-topbar { padding: 18px 32px; min-height: 72px; }
+.chat-topbar-search { display: flex; }
 @media (max-width: 1024px) {
   .chat-topbar { padding: 14px 20px; min-height: 56px; }
+  .chat-topbar-search { display: none !important; }
+}
+
+/* Memory filter row — compact padding on mobile */
+@media (max-width: 1024px) {
+  .memory-filter-row { padding: 10px 16px !important; gap: 8px !important; }
 }
 
 /* Capture sheet — bottom sheet on mobile, centered card on desktop.

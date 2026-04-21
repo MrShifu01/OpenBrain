@@ -252,7 +252,17 @@ function EverionContent({
             </div>
           )}
 
-          <OmniSearch entries={entries} onSelect={setSelected} onNavigate={appShell.setView} />
+          <OmniSearch
+            entries={entries}
+            onSelect={setSelected}
+            onNavigate={appShell.setView}
+            concepts={godNodes.map((c: any) => ({
+              id: c.id,
+              label: c.label,
+              count: Array.isArray(c.source_entries) ? c.source_entries.length : undefined,
+              source_entries: c.source_entries,
+            }))}
+          />
 
           <div key={appShell.view} className="animate-view-enter">
             {appShell.view === "memory" && (

@@ -16,7 +16,7 @@ const brain: Brain = { id: "b1", name: "Test Brain" };
 describe("DangerTab", () => {
   it("renders the delete brain button for owners", () => {
     render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner deleteAccount={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /delete this brain/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^delete brain$/i })).toBeInTheDocument();
   });
 
   it("does not render delete brain button for non-owners", () => {
@@ -28,13 +28,13 @@ describe("DangerTab", () => {
         deleteAccount={vi.fn()}
       />,
     );
-    expect(screen.queryByRole("button", { name: /delete this brain/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^delete brain$/i })).not.toBeInTheDocument();
   });
 
   it("shows confirm text after first click", () => {
     render(<DangerTab activeBrain={brain} deleteBrain={vi.fn()} isOwner deleteAccount={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /delete this brain/i }));
-    expect(screen.getByText(/tap again to confirm/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^delete brain$/i }));
+    expect(screen.getByText(/tap to confirm/i)).toBeInTheDocument();
   });
 
   it("calls deleteBrain on second click", async () => {
@@ -42,12 +42,12 @@ describe("DangerTab", () => {
     render(
       <DangerTab activeBrain={brain} deleteBrain={deleteBrain} isOwner deleteAccount={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /delete this brain/i }));
-    fireEvent.click(screen.getByRole("button", { name: /tap again/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^delete brain$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /tap to confirm/i }));
     expect(deleteBrain).toHaveBeenCalledWith("b1");
   });
 
-  it("always renders delete account button", () => {
+  it("always renders the export-and-delete account button", () => {
     render(
       <DangerTab
         activeBrain={brain}
@@ -56,10 +56,10 @@ describe("DangerTab", () => {
         deleteAccount={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: /delete account/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /export & delete/i })).toBeInTheDocument();
   });
 
-  it("shows export/delete modal after clicking delete account", () => {
+  it("shows export/delete modal after clicking export & delete", () => {
     render(
       <DangerTab
         activeBrain={brain}
@@ -68,7 +68,7 @@ describe("DangerTab", () => {
         deleteAccount={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /export & delete/i }));
     expect(screen.getByText(/export your data first/i)).toBeInTheDocument();
   });
 
@@ -82,7 +82,7 @@ describe("DangerTab", () => {
         deleteAccount={deleteAccount}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /delete account/i }));
+    fireEvent.click(screen.getByRole("button", { name: /export & delete/i }));
     fireEvent.click(screen.getByRole("button", { name: /delete without export/i }));
     expect(deleteAccount).toHaveBeenCalled();
   });

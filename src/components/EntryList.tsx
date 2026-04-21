@@ -517,70 +517,124 @@ export function VirtualGrid({
   );
 }
 
+function dayLabel(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - d.getTime();
+  const diffDays = Math.round(diffMs / 86400000);
+  if (diffDays === 0) return "today";
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) {
+    return d.toLocaleDateString(undefined, { weekday: "long" }).toLowerCase();
+  }
+  return d
+    .toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })
+    .toLowerCase();
+}
+
+function dayShort(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }).toLowerCase();
+}
+
 export function VirtualTimeline({
   sorted,
   setSelected,
-  typeIcons: _typeIcons = {},
+  typeIcons = {},
 }: {
   sorted: Entry[];
   setSelected: (e: Entry) => void;
   typeIcons?: Record<string, string>;
 }) {
-  const listRef = useRef<HTMLDivElement>(null);
-  // eslint-disable-next-line react-hooks/refs
-  const virtualizer = useWindowVirtualizer({
-    count: sorted.length,
-    estimateSize: () => 64,
-    overscan: 5,
-    scrollMargin: listRef.current?.offsetTop ?? 0, // eslint-disable-line react-hooks/refs
-  });
-  return (
-    <div ref={listRef} className="relative">
+  const byDay = useMemo(() => {
+    const m = new Map<string, Entry[]>();
+    for (const e of sorted) {
+      const iso = (e as any).created_at || (e as any).createdAt;
+      if (!iso) continue;
+      const key = String(iso).slice(0, 10);
+      const arr = m.get(key);
+      if (arr) arr.push(e);
+      else m.set(key, [e]);
+    }
+    return [...m.entries()];
+  }, [sorted]);
+
+  if (byDay.length === 0) {
+    return (
       <div
-        className="absolute top-0 bottom-0 left-6 w-px"
-        style={{ background: "var(--color-outline-variant)" }}
-      />
-      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-        {virtualizer.getVirtualItems().map((vItem) => {
-          const e = sorted[vItem.index];
-          return (
-            <button
-              key={e.id}
-              aria-label={`Open entry: ${e.title}`}
+        className="flex flex-col items-center justify-center"
+        style={{ padding: "80px 20px", textAlign: "center" }}
+      >
+        <h3
+          className="f-serif"
+          style={{ fontSize: 22, fontWeight: 450, color: "var(--ink)", margin: 0 }}
+        >
+          nothing on the timeline yet.
+        </h3>
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 15,
+            fontStyle: "italic",
+            color: "var(--ink-faint)",
+            margin: "8px 0 0",
+          }}
+        >
+          remember something.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ maxWidth: 820, margin: "0 auto" }}>
+      {byDay.map(([day, items]) => (
+        <section key={day} style={{ marginBottom: 48 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 14,
+              marginBottom: 16,
+            }}
+          >
+            <h3
+              className="f-serif"
               style={{
-                position: "absolute",
-                top: vItem.start - virtualizer.options.scrollMargin,
-                left: 0,
-                right: 0,
-              }}
-              className="group flex w-full cursor-pointer appearance-none items-center gap-4 border-0 bg-transparent py-2.5 pr-4 pl-4 text-left"
-              onClick={() => setSelected(e)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" || ev.key === " ") {
-                  ev.preventDefault();
-                  setSelected(e);
-                }
+                fontSize: 22,
+                fontStyle: "italic",
+                fontWeight: 450,
+                letterSpacing: "-0.005em",
+                color: "var(--ink)",
+                margin: 0,
               }}
             >
-              <div
-                className="z-10 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full"
-                style={{
-                  background: "var(--color-surface-container-low)",
-                  border: "2px solid var(--color-primary)",
-                }}
-              >
-                <div
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ background: "var(--color-primary)" }}
-                />
-              </div>
-              <div className="group-hover:bg-surface-container flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2 transition-colors">
-                <span className="text-on-surface truncate text-sm">{e.title}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              {dayLabel(day)}
+            </h3>
+            <div
+              aria-hidden="true"
+              style={{ flex: 1, height: 1, background: "var(--line-soft)" }}
+            />
+            <div
+              className="f-sans"
+              style={{ fontSize: 12, color: "var(--ink-faint)", flexShrink: 0 }}
+            >
+              {dayShort(day)}
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 12 }}>
+            {items.map((e) => (
+              <EntryCard
+                key={e.id}
+                entry={e}
+                onSelect={setSelected}
+                typeIcons={typeIcons}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

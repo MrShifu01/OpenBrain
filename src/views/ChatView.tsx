@@ -225,9 +225,10 @@ export default function ChatView({ brainId }: ChatViewProps) {
           <h1
             className="f-serif"
             style={{
-              fontSize: 22,
+              fontSize: 28,
               fontWeight: 450,
-              letterSpacing: "-0.01em",
+              letterSpacing: "-0.015em",
+              lineHeight: 1.1,
               margin: 0,
               color: "var(--ink)",
             }}
@@ -236,20 +237,84 @@ export default function ChatView({ brainId }: ChatViewProps) {
           </h1>
           <div
             className="f-serif"
-            style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}
+            style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
           >
-            a conversation with your memory.
+            a conversation with your memory
           </div>
         </div>
-        {messages.length > 0 && (
-          <button
-            onClick={clearHistory}
-            className="design-btn-ghost press"
-            style={{ fontSize: 13, height: 32, minHeight: 32, padding: "0 12px" }}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <div
+            className="chat-topbar-search"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "0 10px 0 14px",
+              height: 40,
+              minWidth: 280,
+              background: "var(--surface)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+            onClick={() =>
+              window.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
+              )
+            }
           >
-            clear
-          </button>
-        )}
+            <svg
+              width="14" height="14"
+              fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ color: "var(--ink-faint)", flexShrink: 0 }}
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <span
+              className="f-sans flex-1"
+              style={{ fontSize: 13, color: "var(--ink-faint)" }}
+            >
+              Search everything
+            </span>
+            <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
+              <kbd
+                className="f-sans"
+                style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 18, height: 18, padding: "0 5px",
+                  background: "var(--surface-low)", border: "1px solid var(--line)",
+                  borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
+                }}
+              >
+                Ctrl
+              </kbd>
+              <kbd
+                className="f-sans"
+                style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 18, height: 18, padding: "0 5px",
+                  background: "var(--surface-low)", border: "1px solid var(--line)",
+                  borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
+                }}
+              >
+                K
+              </kbd>
+            </span>
+          </div>
+          {messages.length > 0 && (
+            <button
+              onClick={clearHistory}
+              className="design-btn-ghost press"
+              style={{ fontSize: 13, height: 32, minHeight: 32, padding: "0 12px" }}
+            >
+              clear
+            </button>
+          )}
+        </div>
       </header>
 
       {messages.length === 0 ? (

@@ -353,8 +353,8 @@ Rules:
 Rules:
 - Output ONLY the nudge sentence(s). No JSON. No lists. No metadata. No extra explanation.
 - NEVER output entry_id, due_date, type, metadata keys, or any field names. Bad: "entry_id: abc123, due_date: 2025-04-30: Pay Rand Water". Good: "Your Rand Water payment is due 30 April — pay it before the end of the month."
-- Each sentence should tell the user what to do and when.
-- Maximum 2 sentences. Natural language only.
+- EXACTLY 1-2 sentences. Each sentence must name a specific action and a specific item or date.
+- Natural language only.
 - Do not repeat the raw data — rephrase it naturally.
 - Do not output anything that looks like code, keys, or template text.`,
 };

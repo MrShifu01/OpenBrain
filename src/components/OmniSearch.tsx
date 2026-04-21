@@ -2,10 +2,85 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import type { Entry } from "../types";
 import { scoreEntry } from "../lib/searchIndex";
 
+interface ConceptLike {
+  id?: string;
+  label: string;
+  count?: number;
+  /** Array of source entry ids, if the caller has them */
+  source_entries?: string[];
+}
+
 interface OmniSearchProps {
   entries: Entry[];
   onSelect: (entry: Entry) => void;
   onNavigate: (view: string) => void;
+  concepts?: ConceptLike[];
+}
+
+// Line-art entry-type glyph — 1.5px stroke, rounded joins.
+function TypeGlyph({ type }: { type?: string }) {
+  const common = {
+    width: 14,
+    height: 14,
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    viewBox: "0 0 24 24",
+    "aria-hidden": true as const,
+  };
+  switch (type) {
+    case "link":
+      return (
+        <svg {...common}>
+          <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+          <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+        </svg>
+      );
+    case "reminder":
+      return (
+        <svg {...common}>
+          <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case "idea":
+      return (
+        <svg {...common}>
+          <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V15h7v-1.1A6 6 0 0 0 12 3z" />
+        </svg>
+      );
+    case "contact":
+    case "person":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+        </svg>
+      );
+    case "file":
+    case "document":
+      return (
+        <svg {...common}>
+          <path d="M6 3h8l4 4v14H6z" />
+          <path d="M14 3v4h4" />
+        </svg>
+      );
+    case "secret":
+      return (
+        <svg {...common}>
+          <rect x="4" y="10" width="16" height="10" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common}>
+          <path d="M5 4h10l4 4v12H5z" />
+          <path d="M15 4v4h4M8 12h8M8 16h6" />
+        </svg>
+      );
+  }
 }
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
@@ -49,7 +124,7 @@ function Micro({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearchProps) {
+export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [] }: OmniSearchProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Entry[]>([]);
@@ -102,6 +177,9 @@ export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearch
   const filteredCommands = COMMANDS.filter(
     (c) => !query.trim() || c.label.toLowerCase().includes(query.toLowerCase()),
   );
+  const filteredConcepts = concepts
+    .filter((c) => !query.trim() || c.label.toLowerCase().includes(query.toLowerCase()))
+    .slice(0, 6);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     const total = results.length + filteredCommands.length;
@@ -278,10 +356,10 @@ export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearch
                           display: "flex",
                           width: "100%",
                           padding: "10px 20px",
-                          gap: 12,
+                          gap: 14,
                           textAlign: "left",
                           alignItems: "center",
-                          minHeight: 44,
+                          minHeight: 48,
                           background: active ? "var(--surface)" : "transparent",
                           border: "none",
                           cursor: "pointer",
@@ -294,27 +372,34 @@ export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearch
                         onMouseEnter={() => setHighlighted(i)}
                       >
                         <span
-                          className="f-sans"
                           style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
                             color: "var(--ink-faint)",
                             flexShrink: 0,
-                            minWidth: 56,
+                            display: "inline-flex",
                           }}
                         >
-                          {entry.type || "note"}
+                          <TypeGlyph type={entry.type} />
                         </span>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div
                             className="f-serif truncate"
-                            style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)" }}
+                            style={{ fontSize: 16, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em" }}
                           >
                             {entry.title}
                           </div>
-                          {entry.content && (
+                          {(entry.tags || []).length > 0 ? (
+                            <div
+                              className="f-serif truncate"
+                              style={{
+                                fontSize: 12,
+                                color: "var(--ink-faint)",
+                                fontStyle: "italic",
+                                marginTop: 2,
+                              }}
+                            >
+                              {(entry.tags || []).slice(0, 3).join(" · ")}
+                            </div>
+                          ) : entry.content ? (
                             <div
                               className="f-serif truncate"
                               style={{
@@ -326,13 +411,71 @@ export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearch
                             >
                               {entry.content.slice(0, 80)}
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </button>
                     </li>
                   );
                 })}
               </ul>
+            </>
+          )}
+
+          {/* Concepts section */}
+          {filteredConcepts.length > 0 && (
+            <>
+              <Micro style={{ padding: "14px 20px 6px" }}>concepts</Micro>
+              {filteredConcepts.map((c) => (
+                <button
+                  key={c.id ?? c.label}
+                  onClick={() => {
+                    onNavigate("graph");
+                    setOpen(false);
+                  }}
+                  className="press"
+                  style={{
+                    display: "flex",
+                    width: "100%",
+                    padding: "10px 20px",
+                    gap: 14,
+                    textAlign: "left",
+                    alignItems: "center",
+                    minHeight: 40,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: "var(--ember)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span
+                    className="f-serif"
+                    style={{
+                      fontSize: 15,
+                      fontStyle: "italic",
+                      color: "var(--ink)",
+                    }}
+                  >
+                    {c.label}
+                  </span>
+                  {(c.count != null || (c.source_entries && c.source_entries.length > 0)) && (
+                    <span
+                      className="f-sans"
+                      style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: 8 }}
+                    >
+                      {c.count ?? c.source_entries?.length ?? 0} entries
+                    </span>
+                  )}
+                </button>
+              ))}
             </>
           )}
 
@@ -382,7 +525,8 @@ export default function OmniSearch({ entries, onSelect, onNavigate }: OmniSearch
           )}
 
           {/* Empty state */}
-          {query.trim() && results.length + filteredCommands.length === 0 && (
+          {query.trim() &&
+            results.length + filteredConcepts.length + filteredCommands.length === 0 && (
             <div
               className="f-serif"
               style={{
