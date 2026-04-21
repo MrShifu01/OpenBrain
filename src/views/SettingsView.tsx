@@ -227,7 +227,8 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     });
   }, []);
 
-  const isAdmin = Boolean(ADMIN_EMAIL && email && email === ADMIN_EMAIL);
+  // If VITE_ADMIN_EMAIL is set, restrict to that email. Otherwise any logged-in user sees it.
+  const isAdmin = ADMIN_EMAIL ? (Boolean(email && email === ADMIN_EMAIL)) : Boolean(email);
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS, { id: "admin" as SectionId, label: "Admin" }]
     : BASE_SECTIONS;
