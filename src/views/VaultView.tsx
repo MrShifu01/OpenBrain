@@ -262,70 +262,178 @@ export default function VaultView({
   // ── Locked: passphrase entry ──
   if (status === "locked") {
     return (
-      <div
-        className="flex flex-col items-center space-y-5 px-4 py-12"
-        style={{ background: "var(--color-background)" }}
-      >
-        <div className="space-y-2 text-center">
-          <div className="text-4xl">🔒</div>
-          <h2
-            className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "var(--f-sans)" }}
-          >
-            Unlock Vault
-          </h2>
-          <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-            Enter your vault passphrase to view secrets
-          </p>
-        </div>
-
-        <input
-          ref={inputRef}
-          type="password"
-          value={passphrase}
-          onChange={(e) => {
-            setPassphrase(e.target.value);
-            setError("");
-          }}
-          onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-          placeholder="Vault passphrase"
-          className="text-on-surface placeholder:text-on-surface-variant w-full max-w-sm rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
-          style={{ borderColor: "var(--color-outline-variant)" }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-        />
-
-        {error && (
-          <p className="text-sm" style={{ color: "var(--color-error)" }}>
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={handleUnlock}
-          disabled={busy || !passphrase.trim()}
-          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+        <header
+          className="vault-topbar"
           style={{
-            background: "var(--color-primary)",
-            color: "var(--color-on-primary)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "18px 32px",
+            borderBottom: "1px solid var(--line-soft)",
+            minHeight: 72,
+            gap: 20,
           }}
         >
-          {busy ? "Unlocking..." : "Unlock"}
-        </button>
-
-        <button
-          onClick={goToRecovery}
-          className="text-xs transition-colors hover:underline"
-          style={{ color: "var(--color-on-surface-variant)" }}
+          <div>
+            <h1
+              className="f-serif"
+              style={{
+                fontSize: 28,
+                fontWeight: 450,
+                letterSpacing: "-0.015em",
+                lineHeight: 1.1,
+                margin: 0,
+                color: "var(--ink)",
+              }}
+            >
+              Vault
+            </h1>
+            <div
+              className="f-serif"
+              style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
+            >
+              locked.
+            </div>
+          </div>
+        </header>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 40,
+            position: "relative",
+            overflow: "hidden",
+          }}
         >
-          Forgot passphrase? Use recovery key
-        </button>
+          {/* Ambient halo + motes */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 600,
+              height: 600,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, var(--ember-wash) 0%, transparent 65%)",
+              pointerEvents: "none",
+              opacity: 0.4,
+            }}
+          />
 
-        {secrets.length > 0 && (
-          <p className="text-on-surface-variant text-xs">
-            {secrets.length} encrypted {secrets.length === 1 ? "entry" : "entries"} waiting
-          </p>
-        )}
+          <div style={{ position: "relative", maxWidth: 420, width: "100%", textAlign: "center" }}>
+            <div
+              aria-hidden="true"
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: "50%",
+                background: "var(--ember-wash)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 20,
+              }}
+            >
+              <svg
+                width="26" height="26"
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                style={{ color: "var(--ember)" }}
+              >
+                <rect x="4" y="10" width="16" height="10" rx="2" />
+                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+              </svg>
+            </div>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: 40,
+                fontWeight: 400,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+                margin: 0,
+                lineHeight: 1.05,
+              }}
+            >
+              locked.
+            </h2>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 16,
+                color: "var(--ink-soft)",
+                fontStyle: "italic",
+                margin: "12px 0 28px",
+                lineHeight: 1.5,
+              }}
+            >
+              {secrets.length > 0
+                ? `${secrets.length} encrypted ${secrets.length === 1 ? "entry" : "entries"}, waiting behind your passphrase.`
+                : "enter your passphrase to unlock."}
+            </p>
+
+            <input
+              ref={inputRef}
+              type="password"
+              value={passphrase}
+              onChange={(e) => {
+                setPassphrase(e.target.value);
+                setError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+              placeholder="passphrase"
+              className="design-input f-sans"
+              style={{
+                height: 48,
+                minHeight: 48,
+                fontSize: 16,
+                textAlign: "center",
+                letterSpacing: "0.1em",
+              }}
+            />
+
+            {error && (
+              <p
+                className="f-serif"
+                style={{ fontSize: 14, fontStyle: "italic", color: "var(--blood)", marginTop: 10 }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              onClick={handleUnlock}
+              disabled={busy || !passphrase.trim()}
+              className="design-btn-primary press"
+              style={{ width: "100%", height: 44, minHeight: 44, marginTop: 16 }}
+            >
+              {busy ? "unlocking…" : "Unlock"}
+            </button>
+
+            <button
+              onClick={goToRecovery}
+              className="press"
+              style={{
+                background: "transparent",
+                border: 0,
+                color: "var(--ink-faint)",
+                fontSize: 13,
+                fontStyle: "italic",
+                fontFamily: "var(--f-serif)",
+                marginTop: 18,
+                cursor: "pointer",
+              }}
+            >
+              forgot your passphrase? use recovery key.
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -334,63 +442,122 @@ export default function VaultView({
   if (status === "recovery") {
     return (
       <div
-        className="flex flex-col items-center space-y-5 px-4 py-12"
-        style={{ background: "var(--color-background)" }}
+        style={{
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 40,
+          background: "var(--bg)",
+        }}
       >
-        <div className="space-y-2 text-center">
-          <div className="text-4xl">🗝</div>
-          <h2
-            className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "var(--f-sans)" }}
+        <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+          <div
+            aria-hidden="true"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--ember-wash)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 20,
+            }}
           >
-            Recovery Key
+            <svg
+              width="26" height="26"
+              fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ color: "var(--ember)" }}
+            >
+              <circle cx="16" cy="12" r="3.5" />
+              <path d="M12.5 12H3M6 12v3M9 12v3M16 9V5" />
+            </svg>
+          </div>
+          <h2
+            className="f-serif"
+            style={{
+              fontSize: 32,
+              fontWeight: 400,
+              letterSpacing: "-0.02em",
+              color: "var(--ink)",
+              margin: 0,
+              lineHeight: 1.05,
+            }}
+          >
+            recovery key.
           </h2>
-          <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-            Enter the recovery key you saved when you set up your vault
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 15,
+              color: "var(--ink-soft)",
+              fontStyle: "italic",
+              margin: "12px 0 28px",
+              lineHeight: 1.5,
+            }}
+          >
+            enter the key you saved when you first set up your vault.
           </p>
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={recoveryInput}
+            onChange={(e) => {
+              setRecoveryInput(e.target.value.toUpperCase());
+              setError("");
+            }}
+            onKeyDown={(e) => e.key === "Enter" && handleRecoveryUnlock()}
+            placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
+            className="design-input"
+            style={{
+              height: 48,
+              minHeight: 48,
+              fontSize: 15,
+              textAlign: "center",
+              letterSpacing: "0.14em",
+              fontFamily: "var(--f-mono)",
+            }}
+          />
+
+          {error && (
+            <p
+              className="f-serif"
+              style={{ fontSize: 14, fontStyle: "italic", color: "var(--blood)", marginTop: 10 }}
+            >
+              {error}
+            </p>
+          )}
+
+          <button
+            onClick={handleRecoveryUnlock}
+            disabled={busy || !recoveryInput.trim()}
+            className="design-btn-primary press"
+            style={{ width: "100%", height: 44, minHeight: 44, marginTop: 16 }}
+          >
+            {busy ? "recovering…" : "Unlock with recovery key"}
+          </button>
+
+          <button
+            onClick={backToPassphrase}
+            className="press"
+            style={{
+              background: "transparent",
+              border: 0,
+              color: "var(--ink-faint)",
+              fontSize: 13,
+              fontStyle: "italic",
+              fontFamily: "var(--f-serif)",
+              marginTop: 18,
+              cursor: "pointer",
+            }}
+          >
+            back to passphrase
+          </button>
         </div>
-
-        <input
-          ref={inputRef}
-          type="text"
-          value={recoveryInput}
-          onChange={(e) => {
-            setRecoveryInput(e.target.value.toUpperCase());
-            setError("");
-          }}
-          onKeyDown={(e) => e.key === "Enter" && handleRecoveryUnlock()}
-          placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
-          className="text-on-surface placeholder:text-on-surface-variant w-full max-w-sm rounded-xl border bg-transparent px-3 py-2.5 text-center font-mono text-sm tracking-wider transition-colors outline-none"
-          style={{ borderColor: "var(--color-outline-variant)" }}
-          onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-          onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-        />
-
-        {error && (
-          <p className="text-sm" style={{ color: "var(--color-error)" }}>
-            {error}
-          </p>
-        )}
-
-        <button
-          onClick={handleRecoveryUnlock}
-          disabled={busy || !recoveryInput.trim()}
-          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-          style={{
-            background: "var(--color-primary)",
-            color: "var(--color-on-primary)",
-          }}
-        >
-          {busy ? "Recovering..." : "Unlock with recovery key"}
-        </button>
-
-        <button
-          onClick={backToPassphrase}
-          className="text-xs transition-colors hover:underline"
-          style={{ color: "var(--color-on-surface-variant)" }}
-        >
-          Back to passphrase
-        </button>
       </div>
     );
   }
@@ -404,50 +571,71 @@ export default function VaultView({
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="text-on-surface text-lg font-bold">🔐 Vault</h2>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            {decryptedSecrets.length} secret {decryptedSecrets.length === 1 ? "entry" : "entries"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={startAddSecret}
-            className="flex-1 rounded-xl px-3 py-2 text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-90 sm:flex-none"
-            style={{
-              background: "var(--color-primary)",
-              color: "var(--color-on-primary)",
-              minHeight: 40,
-            }}
-          >
-            + Add Secret
-          </button>
-          <button
-            onClick={() => {
-              setBulkMode((b) => !b);
-              setSelectedIds(new Set());
-            }}
-            className="rounded-xl border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-white/5"
-            style={{
-              color: bulkMode ? "var(--color-primary)" : "var(--color-on-surface-variant)",
-              borderColor: bulkMode ? "var(--color-primary)" : "var(--color-outline-variant)",
-              minHeight: 40,
-            }}
-          >
-            {bulkMode ? "Cancel" : "Select"}
-          </button>
-          <button
-            onClick={lockVault}
-            className="rounded-xl border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors hover:bg-white/5"
-            style={{
-              color: "var(--color-on-surface-variant)",
-              borderColor: "var(--color-outline-variant)",
-              minHeight: 40,
-            }}
-          >
-            Lock
-          </button>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+          padding: "18px 0 14px",
+          borderBottom: "1px solid var(--line-soft)",
+          marginBottom: 20,
+        }}
+      >
+        <div className="vault-header-row" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <h1
+              className="f-serif"
+              style={{
+                fontSize: 28,
+                fontWeight: 450,
+                letterSpacing: "-0.015em",
+                lineHeight: 1.1,
+                margin: 0,
+                color: "var(--ink)",
+              }}
+            >
+              Vault
+            </h1>
+            <div
+              className="f-serif"
+              style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
+            >
+              unlocked · {decryptedSecrets.length} secret
+              {decryptedSecrets.length === 1 ? "" : "s"}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button
+              onClick={startAddSecret}
+              className="design-btn-primary press"
+              style={{ height: 36, minHeight: 36, fontSize: 13 }}
+            >
+              + Add secret
+            </button>
+            <button
+              onClick={() => {
+                setBulkMode((b) => !b);
+                setSelectedIds(new Set());
+              }}
+              className="design-btn-secondary press"
+              style={{
+                height: 36,
+                minHeight: 36,
+                fontSize: 13,
+                color: bulkMode ? "var(--ember)" : undefined,
+                borderColor: bulkMode ? "var(--ember)" : undefined,
+              }}
+            >
+              {bulkMode ? "Cancel" : "Select"}
+            </button>
+            <button
+              onClick={lockVault}
+              className="design-btn-secondary press"
+              style={{ height: 36, minHeight: 36, fontSize: 13 }}
+            >
+              Lock
+            </button>
+          </div>
         </div>
       </div>
 

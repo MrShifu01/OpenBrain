@@ -26,31 +26,36 @@ describe("OnboardingModal — structure", () => {
 describe("OnboardingModal — welcome step", () => {
   it("shows welcome heading on first render", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    expect(screen.getByText("Welcome to Everion")).toBeInTheDocument();
+    expect(screen.getByText(/welcome in/i)).toBeInTheDocument();
   });
 
-  it("renders a 'Let's go' CTA on the welcome step", () => {
+  it("renders a primary CTA on the welcome step", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /let's go/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^begin$/i })).toBeInTheDocument();
   });
 
   it("shows no back button on the first step", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    expect(screen.queryByRole("button", { name: /back/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^back$/i })).toBeNull();
   });
 });
 
 describe("OnboardingModal — capture step", () => {
-  it("advancing from welcome reveals the capture textarea", () => {
+  it("advancing through welcome and name reveals the capture textarea", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /let's go/i }));
-    expect(screen.getByRole("textbox")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^begin$/i }));
+    // Name step: two "skip" buttons exist (header + step CTA).
+    // The step CTA sits at the bottom of the dialog and is the second one.
+    const skips = screen.getAllByRole("button", { name: /^skip$/i });
+    fireEvent.click(skips[skips.length - 1]);
+    expect(screen.getByPlaceholderText(/call supplier/i)).toBeInTheDocument();
   });
 
-  it("'Teach my brain' button is disabled when textarea is empty", () => {
+  it("'teach my brain' button is disabled when textarea is empty", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: /let's go/i }));
-    fireEvent.click(screen.getByRole("button", { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^begin$/i }));
+    const skips = screen.getAllByRole("button", { name: /^skip$/i });
+    fireEvent.click(skips[skips.length - 1]);
     const btn = screen.getByRole("button", { name: /teach my brain/i });
     expect(btn).toBeDisabled();
   });

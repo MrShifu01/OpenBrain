@@ -3,162 +3,177 @@ export default function PrivacyPolicy() {
     <div
       style={{
         minHeight: "100vh",
-        background: "var(--color-surface)",
-        color: "var(--color-on-surface)",
+        background: "var(--bg)",
+        color: "var(--ink)",
         fontFamily: "var(--f-sans)",
-        padding: "clamp(32px, 5vw, 64px) clamp(16px, 5vw, 48px)",
-        maxWidth: 720,
-        margin: "0 auto",
-        lineHeight: 1.7,
       }}
     >
-      <a
-        href="/"
+      {/* Brand header with back link */}
+      <header
         style={{
-          color: "var(--color-primary)",
-          fontSize: 13,
-          fontWeight: 500,
-          textDecoration: "none",
-          display: "inline-block",
-          marginBottom: 32,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "18px 40px",
+          borderBottom: "1px solid var(--line-soft)",
         }}
       >
-        ← Back
-      </a>
-
-      <h1
-        style={{
-          fontFamily: "var(--f-serif)",
-          fontSize: "clamp(26px, 4vw, 38px)",
-          fontWeight: 700,
-          letterSpacing: "-0.02em",
-          margin: "0 0 8px",
-        }}
-      >
-        Privacy Policy
-      </h1>
-      <p style={{ color: "var(--color-on-surface-variant)", fontSize: 13, margin: "0 0 40px" }}>
-        Last updated: April 2026
-      </p>
-
-      <Section title="Overview">
-        Everion is a personal knowledge management tool. This policy explains what data we collect,
-        how it is processed, and which third-party services receive it.
-      </Section>
-
-      <Section title="Data we collect">
-        <ul>
-          <li>Your email address and authentication credentials (stored in Supabase).</li>
-          <li>Entries, tags, links, and metadata you create inside the app.</li>
-          <li>Push notification subscription tokens (stored in Supabase).</li>
-          <li>
-            Error events and stack traces sent to Sentry for debugging. Personally identifiable
-            information (email, IP address) is <strong>not</strong> included in Sentry reports.
-          </li>
-        </ul>
-      </Section>
-
-      <Section title="Third-party services">
-        <p>Everion uses the following external services:</p>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--color-outline-variant)" }}>
-              <Th>Service</Th>
-              <Th>Purpose</Th>
-              <Th>Data sent</Th>
-            </tr>
-          </thead>
-          <tbody>
-            <Tr service="Supabase" purpose="Database, auth, file storage" data="All user data" />
-            <Tr service="Gemini (Google)" purpose="AI entry analysis, embeddings" data="Entry content" />
-            <Tr service="Groq" purpose="Fast AI inference (optional)" data="Entry content" />
-            <Tr service="Vercel" purpose="Hosting, edge functions" data="Request metadata" />
-            <Tr service="Sentry" purpose="Error monitoring" data="Stack traces (no PII)" />
-          </tbody>
-        </table>
-        <p style={{ marginTop: 12 }}>
-          AI providers process your entry content only to generate the requested response. We do not
-          use your data to train external AI models.
-        </p>
-      </Section>
-
-      <Section title="Data portability and deletion">
-        You can export all your entries at any time from Settings → Account → Export Your Data. You
-        can delete your account and all associated data from Settings → Account → Delete Account.
-        This is permanent and cannot be undone.
-      </Section>
-
-      <Section title="GDPR and POPIA">
-        If you are in the EU or South Africa, you have the right to access, correct, and delete your
-        personal data. Contact us at{" "}
-        <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--color-primary)" }}>
-          stander.christian@gmail.com
-        </a>{" "}
-        to exercise these rights.
-      </Section>
-
-      <Section title="Cookies and local storage">
-        Everion stores session tokens and user preferences in browser local storage. No advertising
-        or tracking cookies are used.
-      </Section>
-
-      <Section title="Contact">
-        Questions about this policy:{" "}
-        <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--color-primary)" }}>
-          stander.christian@gmail.com
+        <a
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            textDecoration: "none",
+            cursor: "pointer",
+          }}
+        >
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 20,
+              fontWeight: 450,
+              letterSpacing: "-0.01em",
+              color: "var(--ink)",
+            }}
+          >
+            Everion
+          </span>
+          <span
+            aria-hidden="true"
+            style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--ember)" }}
+          />
         </a>
-      </Section>
+        <a
+          href="/"
+          className="design-btn-ghost press"
+          style={{ fontSize: 13, height: 36, minHeight: 36, padding: "0 12px", textDecoration: "none" }}
+        >
+          ← back to home
+        </a>
+      </header>
+
+      <article
+        className="scrollbar-hide"
+        style={{
+          maxWidth: 720,
+          margin: "0 auto",
+          padding: "80px clamp(20px, 5vw, 48px) 120px",
+        }}
+      >
+        <div className="micro" style={{ marginBottom: 24 }}>Privacy</div>
+        <h1
+          className="f-serif"
+          style={{
+            fontSize: "clamp(40px, 7vw, 56px)",
+            lineHeight: 1.05,
+            fontWeight: 400,
+            margin: 0,
+            letterSpacing: "-0.02em",
+            color: "var(--ink)",
+          }}
+        >
+          Privacy.
+        </h1>
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 20,
+            lineHeight: 1.5,
+            color: "var(--ink-soft)",
+            fontStyle: "italic",
+            margin: "24px 0 56px",
+          }}
+        >
+          Everion is as private as a notebook in your drawer. Here's what that means, exactly.
+        </p>
+
+        <Section title="What we store">
+          Your entries, your concepts, your sync metadata. That's it. We do not store your device
+          ID, your IP beyond 24 hours, or any analytics about what you wrote.
+        </Section>
+
+        <Section title="End-to-end encryption">
+          Vault entries are encrypted on your device with a key derived from your passphrase. We
+          never see the key. If you forget it, we can't help you recover the vault — that's the
+          point.
+        </Section>
+
+        <Section title="AI processing">
+          When you chat with your memory, the entries relevant to your question are sent to the AI
+          provider of your choice (Anthropic, OpenAI, Google, or Groq — bring your own key).
+          Providers don't train on your data, under our agreements.
+        </Section>
+
+        <Section title="Third parties">
+          Supabase (database + auth), your chosen AI provider, Vercel (hosting), and Sentry (error
+          monitoring, no PII). No analytics services. No ad networks. No session replay.
+        </Section>
+
+        <Section title="Your rights">
+          Export, delete, transfer. All self-service, no email required. A full account delete
+          scrubs every row we have of you within 48 hours. GDPR and POPIA requests can go to
+          {" "}
+          <a
+            href="mailto:stander.christian@gmail.com"
+            style={{ color: "var(--ember)" }}
+          >
+            stander.christian@gmail.com
+          </a>
+          .
+        </Section>
+
+        <Section title="Cookies & local storage">
+          Everion stores session tokens and preferences in browser local storage. No advertising
+          cookies, no tracking cookies.
+        </Section>
+
+        <div style={{ height: 1, background: "var(--line-soft)", margin: "48px 0 20px" }} />
+        <div
+          className="f-serif"
+          style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          last touched 21 April 2026. write to{" "}
+          <a
+            href="mailto:stander.christian@gmail.com"
+            style={{ color: "var(--ember)" }}
+          >
+            stander.christian@gmail.com
+          </a>{" "}
+          if anything here isn't clear.
+        </div>
+      </article>
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section style={{ marginBottom: 32 }}>
+    <section style={{ marginBottom: 40 }}>
       <h2
+        className="f-serif"
         style={{
-          fontSize: 17,
-          fontWeight: 600,
-          margin: "0 0 10px",
-          color: "var(--color-on-surface)",
+          fontSize: 24,
+          lineHeight: 1.2,
+          fontWeight: 450,
+          letterSpacing: "-0.01em",
+          color: "var(--ink)",
+          margin: 0,
         }}
       >
         {title}
       </h2>
-      <div style={{ color: "var(--color-on-surface-variant)", fontSize: 14 }}>{children}</div>
+      <div
+        className="f-serif"
+        style={{
+          fontSize: 17,
+          lineHeight: 1.65,
+          color: "var(--ink-soft)",
+          marginTop: 12,
+        }}
+      >
+        {children}
+      </div>
     </section>
-  );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th
-      style={{
-        textAlign: "left",
-        padding: "6px 8px",
-        color: "var(--color-on-surface)",
-        fontWeight: 600,
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Tr({
-  service,
-  purpose,
-  data,
-}: {
-  service: string;
-  purpose: string;
-  data: string;
-}) {
-  return (
-    <tr style={{ borderBottom: "1px solid var(--color-outline-variant)" }}>
-      <td style={{ padding: "6px 8px" }}>{service}</td>
-      <td style={{ padding: "6px 8px" }}>{purpose}</td>
-      <td style={{ padding: "6px 8px" }}>{data}</td>
-    </tr>
   );
 }

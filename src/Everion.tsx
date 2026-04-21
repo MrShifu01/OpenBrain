@@ -39,6 +39,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
 import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
+const GraphView = lazy(() => import("./views/GraphView"));
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
 import { useAppShell, type AppShellState } from "./hooks/useAppShell";
 import { useDataLayer } from "./hooks/useDataLayer";
@@ -80,6 +81,9 @@ function Loader() {
 const NAV_VIEWS = [
   { id: "memory", l: "Memory", ic: "▦" },
   { id: "chat", l: "Chat", ic: "💬" },
+  { id: "graph", l: "Graph", ic: "✦" },
+  { id: "todos", l: "Todos", ic: "✓" },
+  { id: "vault", l: "Vault", ic: "🔐" },
 ];
 
 // ─── EverionContent ──────────────────────────────────────────────────────────
@@ -666,6 +670,11 @@ function EverionContent({
             {appShell.view === "chat" && (
               <Suspense fallback={<Loader />}>
                 <ChatView brainId={activeBrain?.id} />
+              </Suspense>
+            )}
+            {appShell.view === "graph" && (
+              <Suspense fallback={<Loader />}>
+                <GraphView openEntry={setSelected} />
               </Suspense>
             )}
             {appShell.view === "todos" && (

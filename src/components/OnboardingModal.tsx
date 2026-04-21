@@ -97,198 +97,360 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
     onComplete([], [], []);
   }
 
+  const steps: Step[] = ["welcome", "name", "capture", "processing", "query", "response", "celebration", "import"];
+  const stepIdx = steps.indexOf(step);
+
+  const titleSerif: React.CSSProperties = {
+    fontFamily: "var(--f-serif)",
+    fontSize: 32,
+    fontWeight: 400,
+    letterSpacing: "-0.02em",
+    lineHeight: 1.15,
+    color: "var(--ink)",
+    margin: 0,
+  };
+  const subtitleSerif: React.CSSProperties = {
+    fontFamily: "var(--f-serif)",
+    fontSize: 16,
+    lineHeight: 1.5,
+    color: "var(--ink-soft)",
+    fontStyle: "italic",
+    margin: "10px 0 28px",
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "var(--color-scrim)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "var(--scrim)", padding: 16 }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Onboarding"
-        className="relative w-full max-w-md rounded-2xl border p-6"
-        style={{ background: "var(--color-surface)", borderColor: "var(--color-outline-variant)" }}
+        className="relative anim-scale-in-design"
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          padding: "40px 36px 28px",
+          background: "var(--surface-high)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 18,
+          boxShadow: "var(--lift-3)",
+          overflow: "hidden",
+        }}
       >
-        {/* Skip button */}
-        <button
-          onClick={skip}
-          className="text-on-surface-variant hover:text-on-surface absolute top-4 right-4 text-xs font-medium"
-        >
-          Skip
-        </button>
-
-        {/* Step indicator */}
-        <div className="mb-5 flex justify-center gap-1.5">
-          {(["welcome", "capture", "processing", "query", "response", "celebration", "import"] as Step[]).map((s) => (
-            <div
-              key={s}
-              className="h-1 w-6 rounded-full"
+        {/* Top row: brand + progress + skip */}
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 24, gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+            <span
+              className="f-serif"
               style={{
-                background: s === step
-                  ? "var(--color-primary)"
-                  : "var(--color-surface-container-highest)",
+                fontSize: 18,
+                fontWeight: 450,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
               }}
+            >
+              Everion
+            </span>
+            <span
+              aria-hidden="true"
+              style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--ember)" }}
             />
-          ))}
+          </div>
+          <div
+            aria-hidden="true"
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              justifyContent: "center",
+            }}
+          >
+            {steps.map((_, i) => (
+              <span
+                key={i}
+                style={{
+                  width: 22,
+                  height: 2,
+                  borderRadius: 2,
+                  background: i <= stepIdx ? "var(--ember)" : "var(--line)",
+                  transition: "background 300ms",
+                }}
+              />
+            ))}
+          </div>
+          <button
+            onClick={skip}
+            className="f-sans press"
+            style={{
+              fontSize: 12,
+              color: "var(--ink-faint)",
+              background: "transparent",
+              border: 0,
+              padding: 0,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            Skip
+          </button>
         </div>
 
         {step === "welcome" && (
-          <div className="text-center">
-            <div className="mb-4 text-5xl">🧠</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "var(--f-serif)" }}>
-              Welcome to Everion
-            </h2>
-            <p className="text-on-surface-variant mb-6 text-sm">Let's teach your brain.</p>
+          <div>
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>welcome in.</h2>
+            <p style={subtitleSerif}>let's get you a room.</p>
             <button
               onClick={() => setStep("name")}
-              className="press-scale text-on-primary w-full rounded-xl py-3 text-sm font-semibold"
-              style={{ background: "var(--color-primary)" }}
+              className="design-btn-primary press"
+              style={{ width: "100%", height: 44, minHeight: 44 }}
             >
-              Let's go
+              begin
             </button>
           </div>
         )}
 
         {step === "name" && (
           <div>
-            <h3 className="text-on-surface mb-1 text-lg font-bold">What's your name?</h3>
-            <p className="text-on-surface-variant mb-3 text-xs">So your brain knows who it belongs to.</p>
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>what should we call you?</h2>
+            <p style={subtitleSerif}>just a first name is fine. this is private.</p>
             <input
               type="text"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && userName.trim() && (supabase.auth.updateUser({ data: { display_name: userName.trim() } }), setStep("capture"))}
-              placeholder="Your first name"
-              autoFocus
-              className="text-on-surface placeholder:text-on-surface-variant/40 w-full rounded-xl border px-4 py-3 text-sm outline-none"
-              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
-            />
-            <button
-              onClick={() => {
-                if (userName.trim()) supabase.auth.updateUser({ data: { display_name: userName.trim() } });
-                setStep("capture");
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && userName.trim()) {
+                  supabase.auth.updateUser({ data: { display_name: userName.trim() } });
+                  setStep("capture");
+                }
               }}
-              className="press-scale text-on-primary mt-3 w-full rounded-xl py-3 text-sm font-semibold"
-              style={{ background: "var(--color-primary)" }}
-            >
-              {userName.trim() ? "Continue" : "Skip for now"}
-            </button>
+              placeholder="your name"
+              autoFocus
+              className="f-serif"
+              style={{
+                width: "100%",
+                fontSize: 22,
+                lineHeight: 1.4,
+                padding: "8px 0 12px",
+                color: "var(--ink)",
+                background: "transparent",
+                border: 0,
+                borderBottom: "1px solid var(--line)",
+                borderRadius: 0,
+                outline: "none",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
+              <button
+                onClick={() => setStep("welcome")}
+                className="design-btn-ghost press"
+                style={{ fontSize: 13 }}
+              >
+                back
+              </button>
+              <button
+                onClick={() => {
+                  if (userName.trim())
+                    supabase.auth.updateUser({ data: { display_name: userName.trim() } });
+                  setStep("capture");
+                }}
+                className="design-btn-primary press"
+                style={{ fontSize: 14 }}
+              >
+                {userName.trim() ? "next" : "skip"}
+              </button>
+            </div>
           </div>
         )}
 
         {step === "capture" && (
           <div>
-            <h3 className="text-on-surface mb-1 text-lg font-bold">What's on your mind?</h3>
-            <p className="text-on-surface-variant mb-3 text-xs">Type 5-10 things — one thought per line.</p>
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>what's on your mind?</h2>
+            <p style={subtitleSerif}>type 5–10 thoughts, one per line. they become your first entries.</p>
             <textarea
               ref={textareaRef}
               value={thoughts}
               onChange={(e) => setThoughts(e.target.value)}
               rows={6}
-              placeholder={"Call supplier about delivery\nIdea: loyalty card system\nReminder: renew liquor licence\nNew burger recipe with truffle mayo\nStaff meeting Thursday 3pm"}
-              className="text-on-surface placeholder:text-on-surface-variant/30 w-full resize-none rounded-xl border p-3 text-sm outline-none"
-              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+              placeholder={"call supplier about delivery\nidea: loyalty card system\nreminder: renew licence\n…"}
+              className="f-serif"
+              style={{
+                width: "100%",
+                fontSize: 17,
+                lineHeight: 1.55,
+                resize: "none",
+                padding: "8px 0",
+                color: "var(--ink)",
+                background: "transparent",
+                border: 0,
+                borderBottom: "1px solid var(--line)",
+                borderRadius: 0,
+                outline: "none",
+                fontStyle: thoughts ? "normal" : "italic",
+              }}
             />
-            <button
-              onClick={handleBulkCapture}
-              disabled={!thoughts.trim()}
-              className="press-scale text-on-primary mt-3 w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-40"
-              style={{ background: "var(--color-primary)" }}
-            >
-              Teach my brain
-            </button>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
+              <button
+                onClick={() => setStep("name")}
+                className="design-btn-ghost press"
+                style={{ fontSize: 13 }}
+              >
+                back
+              </button>
+              <button
+                onClick={handleBulkCapture}
+                disabled={!thoughts.trim()}
+                className="design-btn-primary press"
+              >
+                teach my brain
+              </button>
+            </div>
           </div>
         )}
 
         {step === "processing" && (
-          <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
-            <p className="text-on-surface text-sm font-semibold">Teaching your brain...</p>
-            <p className="text-on-surface-variant text-xs">Processing {thoughts.split("\n").filter(Boolean).length} thoughts</p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "var(--ember)",
+                animation: "design-breathe 2.5s ease-in-out infinite",
+              }}
+            />
+            <p className="f-serif" style={{ fontSize: 18, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}>
+              teaching your brain…
+            </p>
+            <p className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}>
+              processing {thoughts.split("\n").filter(Boolean).length} thoughts
+            </p>
           </div>
         )}
 
         {step === "query" && (
           <div>
-            <h3 className="text-on-surface mb-1 text-lg font-bold">Now ask your brain something hard.</h3>
-            <p className="text-on-surface-variant mb-3 text-xs">See what your brain can do with what you just taught it.</p>
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>now ask your brain something hard.</h2>
+            <p style={subtitleSerif}>see what everion can do with what you just taught it.</p>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleQuery()}
-              className="text-on-surface w-full rounded-xl border px-4 py-3 text-sm outline-none"
-              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+              className="f-serif"
+              style={{
+                width: "100%",
+                fontSize: 20,
+                padding: "8px 0 12px",
+                color: "var(--ink)",
+                background: "transparent",
+                border: 0,
+                borderBottom: "1px solid var(--line)",
+                borderRadius: 0,
+                outline: "none",
+              }}
             />
-            <button
-              onClick={handleQuery}
-              disabled={!query.trim()}
-              className="press-scale text-on-primary mt-3 w-full rounded-xl py-3 text-sm font-semibold disabled:opacity-40"
-              style={{ background: "var(--color-primary)" }}
-            >
-              Ask my brain
-            </button>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
+              <button
+                onClick={() => setStep("capture")}
+                className="design-btn-ghost press"
+                style={{ fontSize: 13 }}
+              >
+                back
+              </button>
+              <button
+                onClick={handleQuery}
+                disabled={!query.trim()}
+                className="design-btn-primary press"
+              >
+                ask my brain
+              </button>
+            </div>
           </div>
         )}
 
         {step === "response" && (
           <div>
             {loading ? (
-              <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
-                <p className="text-on-surface text-sm font-semibold">Your brain is thinking...</p>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    background: "var(--ember)",
+                    animation: "design-breathe 2.5s ease-in-out infinite",
+                  }}
+                />
+                <p className="f-serif" style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}>
+                  thinking…
+                </p>
               </div>
             ) : (
-              <div>
-                <div
-                  className="mb-4 rounded-2xl border p-4"
+              <>
+                <div className="micro" style={{ marginBottom: 14 }}>your brain says</div>
+                <p
+                  className="f-serif"
                   style={{
-                    background: "color-mix(in oklch, var(--color-primary) 8%, var(--color-surface))",
-                    borderColor: "color-mix(in oklch, var(--color-primary) 18%, transparent)",
+                    fontSize: 17,
+                    lineHeight: 1.65,
+                    color: "var(--ink)",
+                    whiteSpace: "pre-wrap",
+                    margin: 0,
                   }}
                 >
-                  <p className="text-on-surface text-sm leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
-                </div>
+                  {aiResponse}
+                </p>
                 <button
                   onClick={() => setStep("celebration")}
-                  className="press-scale text-on-primary w-full rounded-xl py-3 text-sm font-semibold"
-                  style={{ background: "var(--color-primary)" }}
+                  className="design-btn-primary press"
+                  style={{ width: "100%", height: 44, minHeight: 44, marginTop: 32 }}
                 >
-                  Continue
+                  continue
                 </button>
-              </div>
+              </>
             )}
           </div>
         )}
 
         {step === "celebration" && (
-          <div className="text-center">
-            <div className="mb-4 animate-bounce text-5xl">✨</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "var(--f-serif)" }}>
-              That's your brain working.
-            </h2>
-            <p className="text-on-surface-variant mb-6 text-sm">
-              Imagine what it can do with 6 months of data.
+          <div>
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>that's your brain working.</h2>
+            <p style={subtitleSerif}>
+              imagine what it can do with six months of data.
             </p>
             <button
               onClick={() => setStep("import")}
-              className="press-scale text-on-primary w-full rounded-xl py-3 text-sm font-semibold"
-              style={{ background: "var(--color-primary)" }}
+              className="design-btn-primary press"
+              style={{ width: "100%", height: 44, minHeight: 44 }}
             >
-              Start exploring
+              start exploring
             </button>
           </div>
         )}
 
         {step === "import" && (
           <div>
-            <h3 className="text-on-surface mb-1 text-lg font-bold">Bring in your AI memories</h3>
-            <p className="text-on-surface-variant mb-4 text-xs">
-              If Claude or ChatGPT already knows you, import those memories now. You can also do this later in Settings → Profile.
+            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <h2 style={titleSerif}>bring your memories in.</h2>
+            <p style={subtitleSerif}>
+              if claude or chatgpt already knows you, import now. you can do this later in settings.
             </p>
             <MemoryImportPanel brainId={brainId} onImported={() => finish()} />
             <button
               onClick={finish}
-              className="mt-3 w-full py-2 text-xs font-medium"
-              style={{ color: "var(--color-on-surface-variant)" }}
+              className="design-btn-ghost press"
+              style={{ width: "100%", marginTop: 16, fontSize: 13 }}
             >
-              I'll do this later
+              i'll do this later
             </button>
           </div>
         )}

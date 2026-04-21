@@ -3,94 +3,175 @@ export default function TermsOfService() {
     <div
       style={{
         minHeight: "100vh",
-        background: "var(--color-surface)",
-        color: "var(--color-on-surface)",
+        background: "var(--bg)",
+        color: "var(--ink)",
         fontFamily: "var(--f-sans)",
-        padding: "clamp(32px, 5vw, 64px) clamp(16px, 5vw, 48px)",
-        maxWidth: 720,
-        margin: "0 auto",
-        lineHeight: 1.7,
       }}
     >
-      <a
-        href="/"
+      <header
         style={{
-          color: "var(--color-primary)",
-          fontSize: 13,
-          fontWeight: 500,
-          textDecoration: "none",
-          display: "inline-block",
-          marginBottom: 32,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "18px 40px",
+          borderBottom: "1px solid var(--line-soft)",
         }}
       >
-        ← Back
-      </a>
-
-      <h1 style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 700, marginBottom: 8 }}>
-        Terms of Service
-      </h1>
-      <p style={{ fontSize: 13, opacity: 0.5, marginBottom: 40 }}>Last updated: April 2026</p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        1. Acceptance
-      </h2>
-      <p>
-        By using Everion Mind you agree to these terms. If you do not agree, do not use the service.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        2. Description of Service
-      </h2>
-      <p>
-        Everion Mind is a personal knowledge management tool that lets you capture, organise, and
-        query information using AI. The service is provided as-is and may change at any time.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        3. Your Data
-      </h2>
-      <p>
-        You own all content you store. We do not sell your data. You can export or delete your data
-        at any time via Settings. Deleted entries are permanently purged after 30 days.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        4. Acceptable Use
-      </h2>
-      <p>
-        You may not use Everion Mind to store illegal content, to infringe third-party rights, or to
-        attempt to circumvent any security measure.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        5. Third-Party Services
-      </h2>
-      <p>
-        The app uses Supabase (database), Sentry (error monitoring), Vercel (hosting), Google
-        Gemini, and Groq for AI features. Your use is also subject to their respective terms.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        6. Disclaimer
-      </h2>
-      <p>
-        The service is provided "as is" without warranty of any kind. We are not liable for any loss
-        of data or damages arising from use of the service.
-      </p>
-
-      <h2 style={{ fontSize: 18, fontWeight: 600, marginTop: 32, marginBottom: 8 }}>
-        7. Contact
-      </h2>
-      <p>
-        Questions? Email{" "}
         <a
-          href="mailto:stander.christian@gmail.com"
-          style={{ color: "var(--color-primary)", textDecoration: "underline" }}
+          href="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            textDecoration: "none",
+            cursor: "pointer",
+          }}
         >
-          stander.christian@gmail.com
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 20,
+              fontWeight: 450,
+              letterSpacing: "-0.01em",
+              color: "var(--ink)",
+            }}
+          >
+            Everion
+          </span>
+          <span
+            aria-hidden="true"
+            style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--ember)" }}
+          />
         </a>
-        .
-      </p>
+        <a
+          href="/"
+          className="design-btn-ghost press"
+          style={{ fontSize: 13, height: 36, minHeight: 36, padding: "0 12px", textDecoration: "none" }}
+        >
+          ← back to home
+        </a>
+      </header>
+
+      <article
+        className="scrollbar-hide"
+        style={{
+          maxWidth: 720,
+          margin: "0 auto",
+          padding: "80px clamp(20px, 5vw, 48px) 120px",
+        }}
+      >
+        <div className="micro" style={{ marginBottom: 24 }}>Terms</div>
+        <h1
+          className="f-serif"
+          style={{
+            fontSize: "clamp(40px, 7vw, 56px)",
+            lineHeight: 1.05,
+            fontWeight: 400,
+            margin: 0,
+            letterSpacing: "-0.02em",
+            color: "var(--ink)",
+          }}
+        >
+          Terms.
+        </h1>
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 20,
+            lineHeight: 1.5,
+            color: "var(--ink-soft)",
+            fontStyle: "italic",
+            margin: "24px 0 56px",
+          }}
+        >
+          Plain English. If any of this needs a lawyer to explain, write to us and we'll fix it.
+        </p>
+
+        <Section title="The deal">
+          We give you a room. You put things in it. You own those things. We help you find them.
+        </Section>
+
+        <Section title="Your account">
+          One person per account. You're responsible for keeping your email secure. Magic links are
+          disposable — we'll email a fresh one every time.
+        </Section>
+
+        <Section title="What you can't do">
+          Nothing illegal. Nothing that tries to break our service for others. Nothing that's
+          someone else's copyrighted material they haven't let you store. Nothing that would make
+          us a courier for malware.
+        </Section>
+
+        <Section title="What we can't do">
+          Read your vault. Sell your data. Train on your writing. Keep your data if you ask us
+          not to.
+        </Section>
+
+        <Section title="Payments">
+          Pro is month-to-month. Cancel any time. We refund partial months if you ask politely.
+        </Section>
+
+        <Section title="If we change these terms">
+          We'll email you 30 days before anything material changes. Using Everion after that counts
+          as acceptance. If you disagree, export and leave — we won't be offended.
+        </Section>
+
+        <Section title="Third parties">
+          The app uses Supabase (database + auth), your chosen AI provider, Vercel (hosting), and
+          Sentry (error monitoring, no PII). Your use is also subject to their terms.
+        </Section>
+
+        <Section title="As-is">
+          The service is provided "as is" without warranty of any kind. We're not liable for loss
+          of data or damages arising from use of the service. Export regularly.
+        </Section>
+
+        <div style={{ height: 1, background: "var(--line-soft)", margin: "48px 0 20px" }} />
+        <div
+          className="f-serif"
+          style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          last touched 21 April 2026. write to{" "}
+          <a
+            href="mailto:stander.christian@gmail.com"
+            style={{ color: "var(--ember)" }}
+          >
+            stander.christian@gmail.com
+          </a>{" "}
+          if anything here isn't clear.
+        </div>
+      </article>
     </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom: 40 }}>
+      <h2
+        className="f-serif"
+        style={{
+          fontSize: 24,
+          lineHeight: 1.2,
+          fontWeight: 450,
+          letterSpacing: "-0.01em",
+          color: "var(--ink)",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h2>
+      <div
+        className="f-serif"
+        style={{
+          fontSize: 17,
+          lineHeight: 1.65,
+          color: "var(--ink-soft)",
+          marginTop: 12,
+        }}
+      >
+        {children}
+      </div>
+    </section>
   );
 }
