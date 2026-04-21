@@ -46,8 +46,8 @@ export default function GraphNode({
       onClick={onClick}
       style={{
         position: "absolute",
-        left: node.x - NODE_W / 2,
-        top: node.y - NODE_H / 2,
+        left: `calc(50% + ${node.x - NODE_W / 2}px)`,
+        top: `calc(50% + ${node.y - NODE_H / 2}px)`,
         width: NODE_W,
         height: NODE_H,
         background: selected

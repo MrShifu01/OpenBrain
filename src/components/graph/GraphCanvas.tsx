@@ -30,7 +30,7 @@ function useMotes(count: number): Mote[] {
   );
 }
 
-function edgePath(x1: number, y1: number, x2: number, y2: number): string {
+function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
   const dx = x2 - x1, dy = y2 - y1;
@@ -48,16 +48,13 @@ interface Props {
   onMoveNode: (id: string, x: number, y: number) => void;
 }
 
-// Large enough that the sim (centered at 0,0, radius ~800px) never clips
-const WORLD_W = 2400;
-const WORLD_H = 2000;
-
 export default function GraphCanvas({ nodes, edges, selected, onSelect, onMoveNode }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // pan = 0,0 means sim center (0,0) is at viewport center (via CSS left:50%/top:50%)
+  // panX/panY = 0 means sim origin (0,0) sits at viewport center.
+  // This is guaranteed by world div being inset:0 with transform-origin:center.
   const vpRef = useRef<Viewport>({ panX: 0, panY: 0, zoom: 0.8 });
   const [vp, setVpState] = useState<Viewport>({ panX: 0, panY: 0, zoom: 0.8 });
-  const motes = useMotes(30);
+  const motes = useMotes(28);
 
   const setVp = (next: Viewport | ((prev: Viewport) => Viewport)) => {
     const value = typeof next === "function" ? next(vpRef.current) : next;
@@ -85,14 +82,14 @@ export default function GraphCanvas({ nodes, edges, selected, onSelect, onMoveNo
     return ids;
   }, [selected, edges]);
 
-  // Wheel to zoom — centered on cursor, adjusted for world being at CSS 50%/50%
+  // Zoom toward cursor. cx/cy are measured relative to container center,
+  // matching the transform-origin:center coordinate system.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
-      // Cursor relative to the world origin (center of container)
       const cx = e.clientX - rect.left - rect.width / 2;
       const cy = e.clientY - rect.top - rect.height / 2;
       setVp((prev) => {
@@ -161,11 +158,6 @@ export default function GraphCanvas({ nodes, edges, selected, onSelect, onMoveNo
     dragRef.current = null;
   }
 
-  // The world div is anchored at the viewport center (left:50%, top:50%).
-  // The sim places nodes around (0,0), so they naturally appear centered.
-  // User pan/zoom shifts from that center position.
-  const worldTransform = `translate(${vp.panX}px, ${vp.panY}px) scale(${vp.zoom})`;
-
   return (
     <div
       ref={containerRef}
@@ -183,7 +175,7 @@ export default function GraphCanvas({ nodes, edges, selected, onSelect, onMoveNo
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {/* Ambient motes */}
+      {/* Motes — fixed to viewport */}
       <div aria-hidden="true" style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
         {motes.map((m, i) => (
           <div
@@ -216,63 +208,66 @@ export default function GraphCanvas({ nodes, edges, selected, onSelect, onMoveNo
         }}
       />
 
-      {/* World — anchored at viewport center, sim nodes are at (0,0) relative coords */}
+      {/*
+        World container.
+        - inset:0 fills the viewport exactly.
+        - transform-origin:center means scale(zoom) shrinks/grows around the
+          viewport center, so world (0,0) — the sim center — stays centered.
+        - translate(panX,panY) shifts from that centered baseline.
+        Children use calc(50% + Xpx) to anchor to the world origin.
+      */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transformOrigin: "0 0",
-          transform: worldTransform,
-          width: WORLD_W,
-          height: WORLD_H,
-          // Shift so (0,0) in world == top-left of this div's pre-transform position (center of viewport)
-          marginLeft: -WORLD_W / 2,
-          marginTop: -WORLD_H / 2,
+          inset: 0,
+          transformOrigin: "center center",
+          transform: `translate(${vp.panX}px, ${vp.panY}px) scale(${vp.zoom})`,
         }}
       >
-        {/* SVG edges */}
+        {/* SVG edge layer — anchored at world origin (50%,50%) */}
         <svg
           style={{
             position: "absolute",
-            left: WORLD_W / 2, top: WORLD_H / 2,
-            overflow: "visible", pointerEvents: "none",
-            width: 0, height: 0,
+            left: "50%",
+            top: "50%",
+            overflow: "visible",
+            pointerEvents: "none",
+            width: 0,
+            height: 0,
           }}
         >
           {edges.map((edge, i) => {
             const src = nodeMap.get(edge.source);
             const tgt = nodeMap.get(edge.target);
             if (!src || !tgt) return null;
-            const active = selected !== null && (edge.source === selected || edge.target === selected);
+            const active =
+              selected !== null &&
+              (edge.source === selected || edge.target === selected);
             return (
               <path
                 key={i}
-                d={edgePath(src.x, src.y, tgt.x, tgt.y)}
-                stroke={active ? "var(--ember)" : "#d4d4d4"}
+                d={bezierPath(src.x, src.y, tgt.x, tgt.y)}
+                stroke={active ? "var(--ember)" : "#c8c8c8"}
                 strokeWidth={active ? 1.5 : 1}
-                opacity={active ? 0.65 : 0.45}
+                opacity={active ? 0.7 : 0.5}
                 fill="none"
-                style={{ transition: "stroke 200ms, opacity 200ms, stroke-width 200ms" }}
+                style={{ transition: "stroke 200ms, opacity 200ms" }}
               />
             );
           })}
         </svg>
 
-        {/* Node cards — positioned relative to (WORLD_W/2, WORLD_H/2) which maps to (0,0) */}
-        {nodes.map((node) => {
-          const isFaded = selected !== null && !connectedIds.has(node.id);
-          return (
-            <GraphNode
-              key={node.id}
-              node={{ ...node, x: node.x + WORLD_W / 2, y: node.y + WORLD_H / 2 }}
-              selected={selected === node.id}
-              faded={isFaded}
-              onClick={() => onSelect(selected === node.id ? null : node.id)}
-              onPointerDown={(e) => onPointerDownNode(e, node.id)}
-            />
-          );
-        })}
+        {/* Node cards */}
+        {nodes.map((node) => (
+          <GraphNode
+            key={node.id}
+            node={node}
+            selected={selected === node.id}
+            faded={selected !== null && !connectedIds.has(node.id)}
+            onClick={() => onSelect(selected === node.id ? null : node.id)}
+            onPointerDown={(e) => onPointerDownNode(e, node.id)}
+          />
+        ))}
       </div>
 
       {/* Legend */}
