@@ -68,16 +68,7 @@ function ResultBlock({ result }: { result: TestResult }) {
   );
 }
 
-const SPLIT_TEST_INPUT = `John Smith 082 111 1111
-Jane Doe 083 222 2222
-Bob Jones 084 333 3333
-Alice Green 085 444 4444
-Charlie Brown 086 555 5555
-Diana Prince 087 666 6666
-Evan Rogers 088 777 7777
-Fiona Apple 089 888 8888
-George King 061 999 9999
-Helen Troy 062 000 0000`;
+const SPLIT_TEST_INPUT = `{"contacts":[{"id":"armand_loots","type":"person","category":"plumbing","name":"Armand Loots","phone":"+27836887174"},{"id":"dave_schoeman","type":"person","category":"irrigation","name":"Dave Schoeman","phone":"+27829643397"},{"id":"evert_venter","type":"person","category":"electrician","name":"Evert Venter","phone":"+27828027452","notes":"COC completed"},{"id":"conrad_van_rensburg","type":"person","category":"security","name":"Conrad van Rensburg","phone":"+27824636417","services":["alarm","cameras","beams"]},{"id":"tracking_alarm_services","type":"company","category":"security","name":"Tracking Alarm Services","phone":"+27824636417"},{"id":"hein_oasis_pools","type":"person","category":"pool_maintenance","name":"Hein (Oasis Pools)","phone":"+27843532439"},{"id":"euan_vosloo","type":"person","category":"pool_construction","name":"Euan Vosloo","phone":"+27825565474"},{"id":"lapas_garnett","type":"person","category":"lawn_service","name":"Lapas Garnett","phone":"+27824518077"},{"id":"thys_buhrmann","type":"person","category":"general_maintenance","name":"Thys Buhrmann","phone":"+27827722083"},{"id":"kobus_visser","type":"person","category":"garage","name":"Kobus Visser","phone":"+27827006827"}]}`;
 
 const CAPTURE_SYSTEM = `You classify and structure a raw text capture into one or more OpenBrain entries. Return ONLY valid JSON.
 SPLIT RULES: If the input contains 2 or more clearly distinct real-world entities (e.g. a person + their company, multiple ingredients, a vehicle + its insurance, a recipe + a supplier), return a JSON ARRAY of entries. A name alias for the same entity is NOT a split. Otherwise return a single JSON OBJECT.
@@ -217,7 +208,7 @@ export default function AdminTab() {
           model: "gemini-2.5-flash-lite",
           system: CAPTURE_SYSTEM,
           messages: [{ role: "user", content: SPLIT_TEST_INPUT }],
-          max_tokens: 2000,
+          max_tokens: 4000,
         }),
       });
       const ms = Date.now() - t0;
@@ -326,7 +317,7 @@ export default function AdminTab() {
     },
     {
       label: "Split entry — 10 phones",
-      hint: "sends 10 contacts to /api/llm with the real CAPTURE prompt and max_tokens 2000, then parses the JSON.",
+      hint: "sends a structured JSON of 10 contacts to /api/llm with the real CAPTURE prompt and max_tokens 4000, then parses the JSON.",
       btn: "Test split",
       result: splitResult,
       run: () => testSplitEntry(),
