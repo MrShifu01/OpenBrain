@@ -19,7 +19,7 @@ export default function GraphView({ openEntry }: GraphViewProps) {
 
   return (
     <div
-      style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}
+      style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)" }}
     >
       {/* Top bar */}
       <header
