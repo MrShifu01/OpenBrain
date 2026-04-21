@@ -268,66 +268,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         >
           Settings
         </h1>
-        <div
-          className="settings-topbar-search"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "0 10px 0 14px",
-            height: 40,
-            minWidth: 280,
-            background: "var(--surface)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 8,
-          }}
-        >
-          <svg
-            width="14" height="14"
-            fill="none" stroke="currentColor" strokeWidth="1.5"
-            strokeLinecap="round" strokeLinejoin="round"
-            viewBox="0 0 24 24"
-            style={{ color: "var(--ink-faint)", flexShrink: 0 }}
-            aria-hidden="true"
-          >
-            <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
-          </svg>
-          <input
-            readOnly
-            placeholder="Search everything"
-            onClick={() =>
-              window.dispatchEvent(
-                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
-              )
-            }
-            className="f-sans flex-1 border-none bg-transparent outline-none"
-            style={{ fontSize: 13, color: "var(--ink)", minWidth: 0, cursor: "pointer" }}
-          />
-          <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
-            <kbd
-              className="f-sans"
-              style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                minWidth: 18, height: 18, padding: "0 5px",
-                background: "var(--surface-low)", border: "1px solid var(--line)",
-                borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
-              }}
-            >
-              Ctrl
-            </kbd>
-            <kbd
-              className="f-sans"
-              style={{
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                minWidth: 18, height: 18, padding: "0 5px",
-                background: "var(--surface-low)", border: "1px solid var(--line)",
-                borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
-              }}
-            >
-              K
-            </kbd>
-          </span>
-        </div>
       </header>
 
       {/* Mobile tab strip — horizontal scroll */}
@@ -561,10 +501,8 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         .settings-content { padding: 32px 40px; }
         .settings-mobile-tabs { display: none; }
         .settings-desktop-nav { display: flex; }
-        .settings-topbar-search { display: flex; }
         @media (max-width: 1024px) {
           .settings-topbar { padding: 14px 20px; min-height: 56px; }
-          .settings-topbar-search { display: none !important; }
           .settings-mobile-tabs { display: flex !important; }
           .settings-desktop-nav { display: none !important; }
           .settings-content { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }

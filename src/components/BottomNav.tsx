@@ -31,7 +31,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        height: 68,
+        height: "calc(68px + env(safe-area-inset-bottom, 0px))",
       }}
     >
       {NAV_ITEMS.map((item) => {

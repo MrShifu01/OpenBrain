@@ -93,8 +93,8 @@ html.family-dusk body, html.family-paper body, html.family-bronze body {
 
 /* ── FAMILY FLAVOR TWEAKS ── */
 .family-paper .design-card { border-radius: 4px; box-shadow: none; }
-.family-paper .design-btn-primary { border-radius: 2px; }
-.family-paper .design-btn-secondary { border-radius: 2px; }
+.family-paper .design-btn-primary { border-radius: 8px; }
+.family-paper .design-btn-secondary { border-radius: 8px; }
 .family-paper .design-input { border-radius: 2px; }
 .family-paper .design-chip { border-radius: 2px; }
 .family-paper .f-serif { font-feature-settings: "liga", "dlig", "onum"; }
