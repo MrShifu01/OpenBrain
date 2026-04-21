@@ -230,3 +230,42 @@ html.family-paper body,
 html.family-bronze body {
   font-family: var(--f-sans);
 }
+
+/* Bottom nav — mobile only, hidden at lg (1024px+) */
+.bottom-nav-mobile { display: flex; }
+@media (min-width: 1024px) {
+  .bottom-nav-mobile { display: none !important; }
+}
+
+/* Chat view — responsive header & padding */
+.chat-topbar { padding: 18px 32px; min-height: 68px; }
+@media (max-width: 1024px) {
+  .chat-topbar { padding: 14px 20px; min-height: 56px; }
+}
+
+/* Capture sheet — bottom sheet on mobile, centered card on desktop.
+   --capture-y is set inline by the component for enter / drag animation. */
+.capture-sheet {
+  position: fixed;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-height: 85vh;
+  border-radius: 28px 28px 0 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  transform: translateY(var(--capture-y, 100%));
+}
+@media (min-width: 1024px) {
+  .capture-sheet {
+    left: 50%;
+    right: auto;
+    bottom: 48px;
+    width: 720px;
+    max-width: 96vw;
+    border-radius: 28px;
+    padding-bottom: 0;
+    transform: translate(-50%, var(--capture-y, 100%));
+  }
+}

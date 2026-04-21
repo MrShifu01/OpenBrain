@@ -206,16 +206,18 @@ export default function ChatView({ brainId }: ChatViewProps) {
   );
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg)" }}>
+    <div
+      className="chat-root"
+      style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg)" }}
+    >
       {/* ── Top bar ── */}
       <header
+        className="chat-topbar"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "18px 32px",
           borderBottom: "1px solid var(--line-soft)",
-          minHeight: 68,
           gap: 20,
         }}
       >

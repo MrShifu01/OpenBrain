@@ -23,10 +23,11 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
   return (
     <nav
       aria-label="Primary navigation"
+      className="bottom-nav-mobile"
       style={{
         position: "fixed", bottom: 0, left: 0, right: 0,
         zIndex: 50,
-        display: "flex", alignItems: "center", justifyContent: "space-around",
+        alignItems: "center", justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",

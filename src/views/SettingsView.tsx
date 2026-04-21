@@ -242,6 +242,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
 
   return (
     <div
+      className="settings-root"
       style={{
         height: "100%",
         background: "var(--bg)",
@@ -252,13 +253,12 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     >
       {/* Top bar */}
       <header
+        className="settings-topbar"
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "18px 32px",
           borderBottom: "1px solid var(--line-soft)",
-          minHeight: 68,
           background: "var(--bg)",
           gap: 20,
         }}
@@ -288,10 +288,58 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         </div>
       </header>
 
-      {/* Body: left nav + content */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      {/* Mobile tab strip — horizontal scroll */}
+      <nav
+        className="settings-mobile-tabs scrollbar-hide"
+        aria-label="Settings sections"
+        style={{
+          display: "none",
+          overflowX: "auto",
+          padding: "8px 12px",
+          borderBottom: "1px solid var(--line-soft)",
+          background: "var(--surface-low)",
+          gap: 4,
+        }}
+      >
+        {SECTIONS.map(({ id, label }) => {
+          const active = section === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setSection(id)}
+              aria-current={active ? "page" : undefined}
+              className="press"
+              style={{
+                flexShrink: 0,
+                padding: "0 14px",
+                height: 36,
+                minHeight: 36,
+                borderRadius: 999,
+                fontFamily: "var(--f-sans)",
+                fontSize: 13,
+                fontWeight: 500,
+                color: active
+                  ? "var(--ember)"
+                  : id === "danger"
+                    ? "var(--blood)"
+                    : "var(--ink-soft)",
+                background: active ? "var(--ember-wash)" : "transparent",
+                border: "1px solid",
+                borderColor: active ? "var(--ember)" : "transparent",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Body: left nav (desktop) + content */}
+      <div className="settings-body" style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <nav
-          className="scrollbar-hide"
+          className="settings-desktop-nav scrollbar-hide"
           style={{
             width: 220,
             flexShrink: 0,
@@ -334,14 +382,13 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         </nav>
 
         <div
-          className="scrollbar-hide"
+          className="settings-content scrollbar-hide"
           style={{
             flex: 1,
-            padding: "32px 40px",
             overflowY: "auto",
           }}
         >
-          <div style={{ maxWidth: 720 }}>
+          <div className="settings-content-inner" style={{ maxWidth: 720 }}>
             {section === "appearance" && (
               <>
                 <SectionHeader
@@ -453,6 +500,22 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           </div>
         </div>
       </div>
+
+      {/* Responsive CSS — scoped to SettingsView */}
+      <style>{`
+        .settings-topbar { padding: 18px 32px; min-height: 68px; }
+        .settings-content { padding: 32px 40px; }
+        .settings-mobile-tabs { display: none; }
+        .settings-desktop-nav { display: block; }
+        @media (max-width: 1024px) {
+          .settings-topbar { padding: 14px 20px; min-height: 56px; }
+          .settings-mobile-tabs { display: flex !important; }
+          .settings-desktop-nav { display: none !important; }
+          .settings-content { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
+          .settings-body { flex-direction: column; }
+          .settings-content-inner { max-width: 100%; }
+        }
+      `}</style>
     </div>
   );
 }

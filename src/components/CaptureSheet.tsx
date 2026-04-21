@@ -461,27 +461,19 @@ export default function CaptureSheet({
         role="dialog"
         aria-modal="true"
         aria-label={preview ? "Confirm entry" : "Remember something"}
-        className="fixed z-50 right-0 bottom-0 left-0 lg:right-auto lg:left-1/2 lg:-translate-x-1/2 lg:bottom-12"
+        className="capture-sheet"
         style={{
           background: "var(--surface-high)",
           border: "1px solid var(--line)",
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          borderBottomLeftRadius: 0,
-          borderBottomRightRadius: 0,
           boxShadow: "var(--lift-3)",
-          transform:
-            dragY > 0 ? `translateY(${dragY}px)` : visible ? "translateY(0)" : "translateY(100%)",
+          // CSS variable drives the Y portion; the .capture-sheet class adds the
+          // desktop centering translateX via a media query on the transform.
+          ["--capture-y" as string]:
+            dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
           transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
-          maxHeight: "85vh",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-          width: "100%",
-          ...(typeof window !== "undefined" && window.innerWidth >= 1024
-            ? { width: 720, maxWidth: "96vw", borderRadius: 28 }
-            : {}),
         }}
       >
         <div aria-live="polite" aria-atomic="true" className="sr-only">
