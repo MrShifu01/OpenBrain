@@ -257,26 +257,27 @@ function EverionContent({
           <div key={appShell.view} className="animate-view-enter">
             {appShell.view === "memory" && (
               <>
-                {/* Memory top bar — serif title, subtitle, Remember primary */}
+                {/* Memory top bar — title + inline search + Remember */}
                 <header
-                  className="hidden lg:flex"
+                  className="memory-topbar hidden lg:flex"
                   style={{
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "18px 32px",
                     borderBottom: "1px solid var(--line-soft)",
-                    minHeight: 68,
+                    minHeight: 80,
                     background: "var(--bg)",
                     gap: 20,
                   }}
                 >
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <h1
                       className="f-serif"
                       style={{
-                        fontSize: 22,
+                        fontSize: 28,
                         fontWeight: 450,
-                        letterSpacing: "-0.01em",
+                        letterSpacing: "-0.015em",
+                        lineHeight: 1.1,
                         margin: 0,
                         color: "var(--ink)",
                       }}
@@ -286,10 +287,10 @@ function EverionContent({
                     <div
                       className="f-serif"
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         color: "var(--ink-faint)",
                         fontStyle: "italic",
-                        marginTop: 2,
+                        marginTop: 4,
                       }}
                     >
                       {entriesLoaded && entries.length > 0
@@ -297,9 +298,229 @@ function EverionContent({
                         : "everything you've written down."}
                     </div>
                   </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "0 10px 0 14px",
+                        height: 40,
+                        minWidth: 280,
+                        background: "var(--surface)",
+                        border: "1px solid var(--line-soft)",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <svg
+                        width="14" height="14"
+                        fill="none" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                        style={{ color: "var(--ink-faint)", flexShrink: 0 }}
+                      >
+                        <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
+                      </svg>
+                      <input
+                        value={appShell.searchInput}
+                        onChange={(e) => appShell.setSearchInput(e.target.value)}
+                        placeholder="Search everything"
+                        className="f-sans flex-1 border-none bg-transparent outline-none"
+                        style={{
+                          fontSize: 13,
+                          color: "var(--ink)",
+                          minWidth: 0,
+                        }}
+                      />
+                      <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
+                        <kbd
+                          className="f-sans"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 18,
+                            height: 18,
+                            padding: "0 5px",
+                            background: "var(--surface-low)",
+                            border: "1px solid var(--line)",
+                            borderRadius: 4,
+                            fontSize: 11,
+                            color: "var(--ink-faint)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          Ctrl
+                        </kbd>
+                        <kbd
+                          className="f-sans"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minWidth: 18,
+                            height: 18,
+                            padding: "0 5px",
+                            background: "var(--surface-low)",
+                            border: "1px solid var(--line)",
+                            borderRadius: 4,
+                            fontSize: 11,
+                            color: "var(--ink-faint)",
+                            fontWeight: 500,
+                          }}
+                        >
+                          K
+                        </kbd>
+                      </span>
+                    </div>
+                    <button
+                      className="design-btn-primary press"
+                      onClick={() => appShell.setShowCapture(true)}
+                    >
+                      <svg
+                        width="14" height="14"
+                        fill="none" stroke="currentColor" strokeWidth="1.5"
+                        strokeLinecap="round" strokeLinejoin="round"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 5v14M5 12h14"/>
+                      </svg>
+                      Remember
+                    </button>
+                  </div>
+                </header>
+
+                {/* Filter row — Grid/Timeline + type pills + sort */}
+                <div
+                  className="memory-filter-row"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "14px 32px",
+                    borderBottom: "1px solid var(--line-soft)",
+                    background: "var(--bg)",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {/* Grid / Timeline segmented */}
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      padding: 3,
+                      background: "var(--surface-low)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 8,
+                      gap: 2,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {[
+                      { id: "memory", label: "Grid" },
+                      { id: "timeline", label: "Timeline" },
+                    ].map((v) => {
+                      const active = appShell.view === v.id;
+                      return (
+                        <button
+                          key={v.id}
+                          onClick={() => {
+                            appShell.setSelected(null);
+                            appShell.setView(v.id);
+                          }}
+                          className="press"
+                          aria-pressed={active}
+                          style={{
+                            padding: "6px 14px",
+                            minHeight: 28,
+                            borderRadius: 6,
+                            fontFamily: "var(--f-sans)",
+                            fontSize: 13,
+                            fontWeight: 500,
+                            background: active ? "var(--surface-high)" : "transparent",
+                            color: active ? "var(--ink)" : "var(--ink-faint)",
+                            border: active ? "1px solid var(--line-soft)" : "1px solid transparent",
+                            cursor: "pointer",
+                            transition: "all 180ms",
+                          }}
+                        >
+                          {v.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* vertical rule */}
+                  <span
+                    aria-hidden="true"
+                    style={{ width: 1, height: 22, background: "var(--line-soft)", flexShrink: 0 }}
+                  />
+
+                  {/* Type pills */}
+                  <div
+                    className="scrollbar-hide"
+                    style={{
+                      display: "flex",
+                      gap: 6,
+                      alignItems: "center",
+                      overflowX: "auto",
+                      minWidth: 0,
+                    }}
+                  >
+                    {["all", "note", "link", "reminder", "idea", "contact", "file"].map((t) => {
+                      const active = appShell.gridFilters.type === t;
+                      return (
+                        <button
+                          key={t}
+                          onClick={() =>
+                            appShell.setGridFilters({
+                              ...appShell.gridFilters,
+                              type: t,
+                              brainId: activeBrain?.id,
+                            })
+                          }
+                          className="press f-sans"
+                          style={{
+                            flexShrink: 0,
+                            padding: "0 14px",
+                            height: 32,
+                            minHeight: 32,
+                            borderRadius: 6,
+                            fontSize: 13,
+                            fontWeight: 500,
+                            background: active ? "var(--ember-wash)" : "var(--surface)",
+                            color: active ? "var(--ember)" : "var(--ink-soft)",
+                            border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
+                            cursor: "pointer",
+                            transition: "all 180ms",
+                          }}
+                        >
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ flex: 1 }} />
+
+                  {/* Sort cycle */}
                   <button
-                    className="design-btn-primary press"
-                    onClick={() => appShell.setShowCapture(true)}
+                    className="design-btn-ghost press"
+                    onClick={() => {
+                      const order: Array<"newest" | "oldest" | "pinned"> = [
+                        "newest",
+                        "oldest",
+                        "pinned",
+                      ];
+                      const idx = order.indexOf(appShell.gridFilters.sort as any);
+                      const next = order[(idx + 1) % order.length];
+                      appShell.setGridFilters({
+                        ...appShell.gridFilters,
+                        sort: next,
+                        brainId: activeBrain?.id,
+                      });
+                    }}
+                    style={{ fontSize: 13, height: 32, minHeight: 32, padding: "0 10px" }}
                   >
                     <svg
                       width="14" height="14"
@@ -308,61 +529,17 @@ function EverionContent({
                       viewBox="0 0 24 24"
                       aria-hidden="true"
                     >
-                      <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4"/>
+                      <path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3" />
                     </svg>
-                    Remember
+                    {appShell.gridFilters.sort === "oldest"
+                      ? "Oldest first"
+                      : appShell.gridFilters.sort === "pinned"
+                        ? "Pinned first"
+                        : "Recent first"}
                   </button>
-                </header>
-                <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32 space-y-3">
-                <div
-                  className="flex items-center gap-3 px-4"
-                  style={{
-                    background: "var(--surface-low)",
-                    border: "1px solid var(--line-soft)",
-                    borderRadius: 8,
-                    height: 40,
-                  }}
-                >
-                  <svg
-                    width="16" height="16"
-                    fill="none" stroke="currentColor" strokeWidth="1.5"
-                    strokeLinecap="round" strokeLinejoin="round"
-                    viewBox="0 0 24 24"
-                    style={{ color: "var(--ink-faint)", flexShrink: 0 }}
-                  >
-                    <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
-                  </svg>
-                  <input
-                    value={appShell.searchInput}
-                    onChange={(e) => appShell.setSearchInput(e.target.value)}
-                    placeholder="search everything…"
-                    className="f-serif flex-1 border-none bg-transparent outline-none"
-                    style={{
-                      fontSize: 15, fontStyle: appShell.searchInput ? "normal" : "italic",
-                      color: "var(--ink)",
-                    }}
-                  />
                 </div>
-                <GridFilters
-                  filters={appShell.gridFilters}
-                  availableTypes={availableEntryTypes}
-                  typeIcons={appShell.typeIcons}
-                  onChange={(f) => appShell.setGridFilters({ ...f, brainId: activeBrain?.id })}
-                  viewMode={appShell.gridViewMode}
-                  onViewModeChange={(mode) => {
-                    appShell.setGridViewMode(mode);
-                    localStorage.setItem("openbrain_viewmode", mode);
-                  }}
-                  activeCount={
-                    [
-                      appShell.gridFilters.type !== "all",
-                      appShell.gridFilters.date !== "all",
-                      appShell.gridFilters.sort !== "newest",
-                      !!appShell.gridFilters.concept,
-                    ].filter(Boolean).length
-                  }
-                  concepts={godNodes}
-                />
+
+                <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32 space-y-3">
 
                 {!entriesLoaded ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
