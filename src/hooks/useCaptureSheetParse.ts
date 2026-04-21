@@ -6,7 +6,7 @@ import { encryptEntry } from "../lib/crypto";
 import { extractTextFromFile } from "../lib/fileExtract";
 import { parseAISplitResponse } from "../lib/fileSplitter";
 import { parseVCF } from "../lib/vcfParser";
-import { runContactPipeline, saveContacts } from "../lib/contactPipeline";
+import { runContactPipeline, contactToEntryPayload } from "../lib/contactPipeline";
 import { PROMPTS } from "../config/prompts";
 import { showToast } from "../lib/notifications";
 import type { Entry } from "../types";
@@ -438,7 +438,9 @@ export function useCaptureSheetParse({
     setStatus(null);
   }, []);
 
-  // VCF contacts file — full pipeline: parse → AI categorize → save all contacts
+  // VCF contacts file — parse → AI categorize → save each contact through the
+  // identical path as a normal multi-entry capture so embedding, concept
+  // extraction, insight, and connection finding all fire via onCreated.
   const handleVcfFile = useCallback(
     async (file: File) => {
       setLoading(true);
@@ -454,27 +456,51 @@ export function useCaptureSheetParse({
           return;
         }
 
-        const originalCount = parsed.length + 0; // duplicates already removed inside parseVCF
         setStatus(`Categorising ${parsed.length} contacts with AI…`);
-        const result = await runContactPipeline(parsed, originalCount);
+        const result = await runContactPipeline(parsed, parsed.length);
+        const { contacts, insights } = result;
 
-        setStatus(`Saving ${result.contacts.length} contacts…`);
-        const { saved, failed } = await saveContacts(result.contacts, brainId);
+        setStatus(`Saving ${contacts.length} contacts…`);
+        const embedHeaders = getEmbedHeaders() ?? {};
+        let saved = 0;
+        let failed = 0;
 
-        // Fire onCreated with a placeholder so the list refreshes
-        onCreated({
-          id: Date.now().toString(),
-          title: `${saved} contacts imported`,
-          content: "",
-          type: "note" as Entry["type"],
-          metadata: {},
-          pinned: false,
-          importance: 0,
-          tags: [],
-          created_at: new Date().toISOString(),
-        } as Entry);
+        for (const contact of contacts) {
+          try {
+            const res = await authFetch("/api/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...embedHeaders },
+              body: JSON.stringify(contactToEntryPayload(contact, brainId)),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              // Same onCreated call as the normal multi-entry path — triggers
+              // concept extraction, insight generation, and connection finding
+              onCreated({
+                id: data?.id || Date.now().toString(),
+                title: contact.name,
+                content: "",
+                type: "person" as Entry["type"],
+                metadata: {
+                  phone: contact.phones[0],
+                  category: contact.category,
+                },
+                pinned: false,
+                importance: 0,
+                tags: contact.tags,
+                created_at: new Date().toISOString(),
+              } as Entry);
+              saved++;
+            } else {
+              console.error(`[vcf] Failed to save "${contact.name}": HTTP ${res.status}`);
+              failed++;
+            }
+          } catch (err) {
+            console.error(`[vcf] Error saving "${contact.name}":`, err);
+            failed++;
+          }
+        }
 
-        const { insights } = result;
         const topCat = insights.top_categories[0]?.category ?? "";
         const summary = [
           `${saved} contact${saved !== 1 ? "s" : ""} saved`,

@@ -1,5 +1,4 @@
 import { authFetch } from "./authFetch";
-import { getEmbedHeaders } from "./aiSettings";
 import { PROMPTS } from "../config/prompts";
 import type { ParsedContact } from "./vcfParser";
 
@@ -224,33 +223,5 @@ export function contactToEntryPayload(
   };
 }
 
-/** Save a batch of contacts to /api/capture and return created entry IDs */
-export async function saveContacts(
-  contacts: CategorizedContact[],
-  brainId?: string,
-): Promise<{ saved: number; failed: number }> {
-  const embedHeaders = getEmbedHeaders() ?? {};
-  let saved = 0;
-  let failed = 0;
-
-  for (const contact of contacts) {
-    try {
-      const res = await authFetch("/api/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...embedHeaders },
-        body: JSON.stringify(contactToEntryPayload(contact, brainId)),
-      });
-      if (res.ok) {
-        saved++;
-      } else {
-        console.error(`[contactPipeline] Failed to save "${contact.name}": HTTP ${res.status}`);
-        failed++;
-      }
-    } catch (err) {
-      console.error(`[contactPipeline] Error saving "${contact.name}":`, err);
-      failed++;
-    }
-  }
-
-  return { saved, failed };
-}
+// Saving is handled in useCaptureSheetParse.handleVcfFile so that onCreated
+// fires per contact, triggering concept extraction, insight, and connections.
