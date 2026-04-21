@@ -236,7 +236,7 @@ export function useCaptureSheetParse({
         const hasMultipleFiles = uploadedFiles.length > 1;
         const res = await callAI({
           system: hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE,
-          max_tokens: hasFiles ? 4000 : 800,
+          max_tokens: hasFiles ? 4000 : 2000,
           brainId,
           messages: [{ role: "user", content: input }],
         });
