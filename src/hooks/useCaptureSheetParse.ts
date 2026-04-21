@@ -5,6 +5,8 @@ import { getEmbedHeaders } from "../lib/aiSettings";
 import { encryptEntry } from "../lib/crypto";
 import { extractTextFromFile } from "../lib/fileExtract";
 import { parseAISplitResponse } from "../lib/fileSplitter";
+import { parseVCF } from "../lib/vcfParser";
+import { runContactPipeline, saveContacts } from "../lib/contactPipeline";
 import { PROMPTS } from "../config/prompts";
 import { showToast } from "../lib/notifications";
 import type { Entry } from "../types";
@@ -436,10 +438,79 @@ export function useCaptureSheetParse({
     setStatus(null);
   }, []);
 
+  // VCF contacts file — full pipeline: parse → AI categorize → save all contacts
+  const handleVcfFile = useCallback(
+    async (file: File) => {
+      setLoading(true);
+      setErrorDetail(null);
+      try {
+        setStatus(`Parsing ${file.name}…`);
+        const raw = new TextDecoder().decode(await file.arrayBuffer());
+        const parsed = parseVCF(raw);
+        if (parsed.length === 0) {
+          setErrorDetail("No contacts found in VCF file");
+          setLoading(false);
+          setStatus(null);
+          return;
+        }
+
+        const originalCount = parsed.length + 0; // duplicates already removed inside parseVCF
+        setStatus(`Categorising ${parsed.length} contacts with AI…`);
+        const result = await runContactPipeline(parsed, originalCount);
+
+        setStatus(`Saving ${result.contacts.length} contacts…`);
+        const { saved, failed } = await saveContacts(result.contacts, brainId);
+
+        // Fire onCreated with a placeholder so the list refreshes
+        onCreated({
+          id: Date.now().toString(),
+          title: `${saved} contacts imported`,
+          content: "",
+          type: "note" as Entry["type"],
+          metadata: {},
+          pinned: false,
+          importance: 0,
+          tags: [],
+          created_at: new Date().toISOString(),
+        } as Entry);
+
+        const { insights } = result;
+        const topCat = insights.top_categories[0]?.category ?? "";
+        const summary = [
+          `${saved} contact${saved !== 1 ? "s" : ""} saved`,
+          failed ? `${failed} failed` : null,
+          insights.duplicates_removed ? `${insights.duplicates_removed} duplicates skipped` : null,
+          topCat ? `top category: ${topCat.replace(/_/g, " ")}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        showToast(summary, "success");
+        setStatus("saved");
+        setTimeout(() => {
+          setStatus(null);
+          onClose();
+        }, 700);
+      } catch (e: any) {
+        const msg = `[vcf] ${e?.message || String(e)}`;
+        console.error(msg);
+        setErrorDetail(msg);
+        setStatus("error");
+      }
+      setLoading(false);
+    },
+    [brainId, onCreated, onClose],
+  );
+
   // Extract text from doc/pdf/excel — stores as uploaded file chip
   const handleDocFiles = useCallback(
     async (files: File[]) => {
       for (const file of files) {
+        const name = file.name.toLowerCase();
+        if (name.endsWith(".vcf") || file.type === "text/vcard" || file.type === "text/x-vcard") {
+          await handleVcfFile(file);
+          continue;
+        }
         if (file.type.startsWith("image/")) {
           await handleImageFile(file);
           continue;
@@ -462,7 +533,7 @@ export function useCaptureSheetParse({
         setStatus(null);
       }
     },
-    [handleImageFile],
+    [handleImageFile, handleVcfFile],
   );
 
   return {

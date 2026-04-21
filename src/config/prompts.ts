@@ -300,6 +300,27 @@ Return ONLY a valid JSON array:
 
 If the content is already a single focused topic, return it as a single entry. Never return an empty array — always extract at least one entry.`,
 
+  /** contactPipeline: batch-categorize parsed contacts from a VCF import */
+  CONTACT_CATEGORIZE: `You are categorizing personal contacts for a knowledge base. You receive a JSON array of contacts, each with name, company, title, and notes. For each contact in order, infer ONE category and relevant tags.
+
+Categories (pick ONE per contact):
+plumbing | electrician | irrigation | security | pool | lawn_service | general_maintenance | garage | personal | business | unknown
+
+Tags (pick MULTIPLE from):
+home_service | friend | contractor | emergency | supplier | family | colleague
+
+Inference rules:
+- Use notes as the primary signal (e.g. "fixes pipes" → plumbing, "COC" → electrician)
+- Use company name and job title as secondary signals
+- Use name keywords as weak signal only
+- If no signal → category: "unknown"
+- Confidence: 0.9+ for explicit notes, 0.7 for company/title match, 0.5 for keyword-only, 0.1 for unknown
+
+Return ONLY a valid JSON array in the SAME ORDER as the input. One object per contact:
+[{"category":"plumbing","tags":["home_service","contractor"],"confidence":0.92}]
+
+No markdown. No explanations. Array length must exactly match input length.`,
+
   /** connectionFinder.js: auto-link new entry to existing entries */
   CONNECTION_FINDER: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- BANNED labels (never use): "relates to", "related", "similar", "connected", "associated with", "linked to"\n- Two entries of the same type (e.g. two suppliers) are NOT connected unless one specifically supplies to the other\n- For each existing entry, ask: does the new entry supply to / employ / apply at / own it?\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{"from":"...","to":"...","rel":"..."}]\n- If no connections: []`,
 
