@@ -97,7 +97,7 @@ export default function DesktopSidebar({
           borderRadius: "var(--radius-xl)",
           background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-container))",
           color: "var(--color-on-primary)",
-          fontFamily: "Manrope, sans-serif", fontWeight: 700, fontSize: 14,
+          fontFamily: "DM Sans, sans-serif", fontWeight: 700, fontSize: 14,
           border: "none", cursor: "pointer", width: "calc(100% - 4px)",
         }}
       >

@@ -69,8 +69,8 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
               padding: "6px 4px",
               borderRadius: 14,
               border: "none", cursor: "pointer",
-              color: isActive ? "var(--color-secondary)" : "var(--color-on-surface-variant)",
-              background: isActive ? "oklch(74% 0.2 305 / 0.12)" : "transparent",
+              color: isActive ? "var(--color-primary)" : "var(--color-on-surface-variant)",
+              background: isActive ? "color-mix(in oklch, var(--color-primary) 12%, transparent)" : "transparent",
               transition: "all 0.2s",
             }}
           >

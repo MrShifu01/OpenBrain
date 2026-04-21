@@ -304,7 +304,7 @@ export default function LoginScreen(): JSX.Element {
             <div className="login-mobile-brand">
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                 <EverionLogo size={22} />
-                <span style={{ fontFamily: "'Manrope', system-ui, sans-serif", fontWeight: 700, fontSize: 20, color: "var(--color-on-surface)", letterSpacing: "-0.02em" }}>Everion</span>
+                <span style={{ fontFamily: "'DM Sans', system-ui, sans-serif", fontWeight: 700, fontSize: 20, color: "var(--color-on-surface)", letterSpacing: "-0.02em" }}>Everion</span>
               </div>
               <p style={{ fontSize: 13, color: "var(--color-primary)", margin: 0, fontWeight: 500 }}>
                 Your second brain — capture everything, find anything.
@@ -316,7 +316,7 @@ export default function LoginScreen(): JSX.Element {
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <h2
                   style={{
-                    fontFamily: "'Manrope', system-ui, sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: 24,
                     fontWeight: 700,
                     letterSpacing: "-0.02em",
@@ -389,7 +389,7 @@ export default function LoginScreen(): JSX.Element {
               <>
                 <h2
                   style={{
-                    fontFamily: "'Manrope', system-ui, sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: "-0.02em",
@@ -617,7 +617,7 @@ export default function LoginScreen(): JSX.Element {
               <div>
                 <h2
                   style={{
-                    fontFamily: "'Manrope', system-ui, sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: "-0.02em",
@@ -677,7 +677,7 @@ export default function LoginScreen(): JSX.Element {
               <>
                 <h2
                   style={{
-                    fontFamily: "'Manrope', system-ui, sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: 22,
                     fontWeight: 700,
                     letterSpacing: "-0.02em",
@@ -803,7 +803,7 @@ export default function LoginScreen(): JSX.Element {
               <div>
                 <h2
                   style={{
-                    fontFamily: "'Manrope', system-ui, sans-serif",
+                    fontFamily: "'DM Sans', system-ui, sans-serif",
                     fontSize: 22,
                     fontWeight: 700,
                     color: "var(--color-on-surface)",

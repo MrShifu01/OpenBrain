@@ -14,27 +14,27 @@ export default function LoadingScreen(): JSX.Element {
         <div style={{ position: "relative", width: 72, height: 72 }}>
           <div style={{
             position: "absolute", inset: -8,
-            background: "radial-gradient(circle, oklch(90.5% 0.095 196 / 0.22), oklch(74% 0.2 305 / 0.18), transparent 70%)",
+            background: "radial-gradient(circle, color-mix(in oklch, var(--color-primary) 22%, transparent), color-mix(in oklch, var(--color-tertiary) 18%, transparent), transparent 70%)",
             filter: "blur(14px)", borderRadius: "50%",
             animation: "hero-glow 3s ease-in-out infinite",
           }} />
           <div style={{
             position: "absolute", inset: 0,
             borderRadius: "50%",
-            border: "1px solid oklch(90.5% 0.095 196 / 0.25)",
+            border: "1px solid color-mix(in oklch, var(--color-primary) 25%, transparent)",
             animation: "ring-pulse 2.6s ease-in-out infinite",
           }} />
           <div style={{
             position: "absolute", inset: -10,
             borderRadius: "50%",
-            border: "1px dashed oklch(74% 0.2 305 / 0.2)",
+            border: "1px dashed color-mix(in oklch, var(--color-tertiary) 20%, transparent)",
             animation: "orbital-spin 18s linear infinite",
           }} />
           <div className="glass-panel" style={{
             position: "relative", width: 72, height: 72,
             borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
-            border: "1px solid oklch(90.5% 0.095 196 / 0.2)",
+            border: "1px solid color-mix(in oklch, var(--color-primary) 20%, transparent)",
             color: "var(--color-primary)",
           }}>
             <svg width={72 * 0.42} height={72 * 0.42} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
