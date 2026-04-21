@@ -134,6 +134,7 @@ No explanation, no punctuation, just one word.`,
     toggleExtraBrain,
   } = useEntryEdit({ entry, editing, onUpdate, onTypeIconChange, brains });
   const isSecret = entry.type === "secret";
+  const isPinned = !!(entry as any).pinned;
   const cfg = { ...(TC[editType as EntryType] || TC.note), i: resolveIcon(editType, typeIcons) };
 const [showFullContent, setShowFullContent] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
@@ -202,62 +203,186 @@ const [showFullContent, setShowFullContent] = useState(false);
         onClick={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header — bell + TYPE · time on left, action icons on right */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            padding: "16px 24px",
+            padding: "14px 18px 14px 24px",
             borderBottom: "1px solid var(--line-soft)",
-            gap: 12,
+            gap: 10,
             flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-faint)" }}>
-            <span style={{ fontSize: 14 }}>{cfg.i}</span>
+            {/* Small line-art bell/reminder glyph (uses entry type) */}
+            <svg
+              width="15" height="15"
+              fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              style={{ flexShrink: 0 }}
+            >
+              {editType === "reminder" ? (
+                <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0" />
+              ) : editType === "link" ? (
+                <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+              ) : editType === "idea" ? (
+                <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V15h7v-1.1A6 6 0 0 0 12 3z" />
+              ) : editType === "contact" || editType === "person" ? (
+                <>
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+                </>
+              ) : editType === "file" || editType === "document" ? (
+                <>
+                  <path d="M6 3h8l4 4v14H6z" />
+                  <path d="M14 3v4h4" />
+                </>
+              ) : editType === "secret" ? (
+                <>
+                  <rect x="4" y="10" width="16" height="10" rx="2" />
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                </>
+              ) : (
+                <>
+                  <path d="M5 4h10l4 4v12H5z" />
+                  <path d="M15 4v4h4M8 12h8M8 16h6" />
+                </>
+              )}
+            </svg>
             <span
               className="f-sans"
               style={{
                 fontSize: 11,
                 fontWeight: 600,
                 textTransform: "uppercase",
-                letterSpacing: "0.06em",
+                letterSpacing: "0.08em",
+                color: "var(--ink-soft)",
               }}
             >
               {editType}
             </span>
           </div>
-          {confidence.type && (() => {
-            const cl = confidence.type;
-            const color = cl === "extracted" ? "var(--moss)" : cl === "inferred" ? "var(--ember)" : "var(--blood)";
-            const label = cl === "extracted" ? "extracted" : cl === "inferred" ? "inferred" : "ambiguous";
-            return (
-              <span
-                className="f-sans"
-                style={{
-                  fontSize: 11,
-                  color,
-                  fontStyle: "italic",
-                }}
-              >
-                {label}
-              </span>
-            );
-          })()}
+          <span
+            aria-hidden="true"
+            style={{
+              width: 1,
+              height: 14,
+              background: "var(--line-soft)",
+              flexShrink: 0,
+              margin: "0 2px",
+            }}
+          />
+          <span
+            className="f-sans"
+            style={{ fontSize: 13, color: "var(--ink-faint)" }}
+          >
+            {(() => {
+              const iso = (entry as any).created_at || (entry as any).createdAt;
+              if (!iso) return "";
+              const then = new Date(iso).getTime();
+              const diff = Date.now() - then;
+              const m = Math.round(diff / 60000);
+              if (m < 1) return "just now";
+              if (m < 60) return `${m}m ago`;
+              const h = Math.round(m / 60);
+              if (h < 24) return `${h}h ago`;
+              const d = Math.round(h / 24);
+              if (d < 7) return `${d}d ago`;
+              if (d < 30) return `${Math.round(d / 7)}w ago`;
+              const mo = Math.round(d / 30);
+              if (mo < 12) return `${mo}mo ago`;
+              return `${Math.round(d / 365)}y ago`;
+            })()}
+          </span>
+
           <div style={{ flex: 1 }} />
+
           {!canWrite && (
             <span
               className="f-serif"
-              style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+              style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", marginRight: 4 }}
             >
               view only
             </span>
           )}
+
+          {/* Pin */}
+          {canWrite && onUpdate && (
+            <button
+              aria-label={isPinned ? "Unpin" : "Pin"}
+              className="design-btn-ghost press"
+              onClick={() => onUpdate(entry.id, { pinned: !isPinned })}
+              style={{
+                width: 32, height: 32, minHeight: 32, padding: 0,
+                color: isPinned ? "var(--ember)" : "var(--ink-faint)",
+              }}
+            >
+              <svg
+                width="16" height="16"
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
+              </svg>
+            </button>
+          )}
+
+          {/* Vault / lock */}
+          <button
+            aria-label={isSecret ? "Vault entry" : "Move to vault"}
+            className="design-btn-ghost press"
+            style={{
+              width: 32, height: 32, minHeight: 32, padding: 0,
+              color: isSecret ? "var(--ember)" : "var(--ink-faint)",
+            }}
+            onClick={() => {
+              if (canWrite && onUpdate) onUpdate(entry.id, { type: isSecret ? "note" : "secret" });
+            }}
+          >
+            <svg
+              width="16" height="16"
+              fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <rect x="4" y="10" width="16" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+          </button>
+
+          {/* More / edit */}
+          {canWrite && (
+            <button
+              aria-label="Edit"
+              className="design-btn-ghost press"
+              onClick={() => setEditing(true)}
+              style={{ width: 32, height: 32, minHeight: 32, padding: 0, color: "var(--ink-faint)" }}
+            >
+              <svg
+                width="16" height="16"
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="12" r="1" />
+                <circle cx="12" cy="12" r="1" />
+                <circle cx="18" cy="12" r="1" />
+              </svg>
+            </button>
+          )}
+
           <button
             aria-label="Close"
             className="design-btn-ghost press"
             onClick={editing ? () => setEditing(false) : onClose}
-            style={{ width: 32, height: 32, minHeight: 32, padding: 0 }}
+            style={{ width: 32, height: 32, minHeight: 32, padding: 0, color: "var(--ink-faint)" }}
           >
             <svg
               width="14" height="14"
@@ -477,35 +602,76 @@ const [showFullContent, setShowFullContent] = useState(false);
               </div>
             </div>
           ) : (
-            <div className="mt-1 space-y-4">
+            <div style={{ paddingTop: 8, display: "flex", flexDirection: "column", gap: 24 }}>
               {isSecret && !secretRevealed ? (
-                <div className="flex flex-col items-center gap-3 py-8 text-center">
-                  <div className="text-4xl">{vaultUnlocked ? "🔐" : "🔒"}</div>
-                  <p className="text-on-surface-variant text-sm">
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "32px 0",
+                    textAlign: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: "50%",
+                      background: "var(--ember-wash)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg
+                      width="24" height="24"
+                      fill="none" stroke="currentColor" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                      style={{ color: "var(--ember)" }}
+                      aria-hidden="true"
+                    >
+                      <rect x="4" y="10" width="16" height="10" rx="2" />
+                      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                    </svg>
+                  </div>
+                  <p
+                    className="f-serif"
+                    style={{
+                      fontSize: 16,
+                      fontStyle: "italic",
+                      color: "var(--ink-soft)",
+                      margin: 0,
+                    }}
+                  >
                     {vaultUnlocked
-                      ? "This entry is end-to-end encrypted"
-                      : "Unlock your Vault to view this secret"}
+                      ? "end-to-end encrypted. tap to reveal."
+                      : "unlock your vault to view this secret."}
                   </p>
-                  {vaultUnlocked ? (
+                  {vaultUnlocked && (
                     <button
-                      className="press-scale mt-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all"
-                      style={{
-                        background: "var(--color-primary)",
-                        color: "var(--color-on-primary)",
-                      }}
+                      className="design-btn-primary press"
                       onClick={() => setSecretRevealed(true)}
                     >
                       Reveal content
                     </button>
-                  ) : (
-                    <p className="text-on-surface-variant/50 mt-1 text-xs">
-                      Go to the Vault tab and enter your passphrase
-                    </p>
                   )}
                 </div>
               ) : (
                 <>
-                  <p className="text-on-surface/90 text-sm leading-relaxed whitespace-pre-wrap">
+                  {/* Body — serif 18/1.65, the redesign's "reading surface" */}
+                  <p
+                    className="f-serif"
+                    style={{
+                      fontSize: 18,
+                      lineHeight: 1.65,
+                      color: "var(--ink)",
+                      margin: 0,
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
                     {!showFullText && (editContent || "").length > CONTENT_PREVIEW_LIMIT
                       ? (editContent || "").slice(0, CONTENT_PREVIEW_LIMIT) + "…"
                       : editContent}
@@ -513,46 +679,72 @@ const [showFullContent, setShowFullContent] = useState(false);
                   {(editContent || "").length > CONTENT_PREVIEW_LIMIT && (
                     <button
                       onClick={() => setShowFullText((s) => !s)}
-                      className="mt-1 text-[11px] font-semibold"
-                      style={{ color: "var(--color-primary)" }}
+                      className="f-sans press"
+                      style={{
+                        alignSelf: "flex-start",
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "var(--ember)",
+                        background: "transparent",
+                        border: 0,
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
                     >
-                      {showFullText ? "Show less" : "Show more"}
+                      {showFullText ? "show less" : "show more"}
                     </button>
                   )}
-                  {meta.length > 0 && (
-                    <div
-                      className="space-y-2 rounded-xl p-3"
-                      style={{ background: "var(--color-surface-container)" }}
-                    >
-                      {meta.map(([k, v]) => {
-                        const cl = confidence[k] as string | undefined;
-                        const dotColor = cl === "extracted" ? "rgb(22,163,74)" : cl === "inferred" ? "rgb(217,119,6)" : cl === "ambiguous" ? "rgb(220,38,38)" : undefined;
-                        return (
-                          <div key={k} className="flex items-baseline gap-2 text-xs">
-                            <span
-                              className="flex-shrink-0 text-[10px] font-semibold tracking-widest uppercase"
-                              style={{ color: "var(--color-on-surface-variant)" }}
-                            >
-                              {dotColor && (
-                                <span
-                                  className="mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle"
-                                  style={{ background: dotColor }}
-                                  title={cl}
-                                />
-                              )}
-                              {k.replace(/_/g, " ")}:{" "}
-                            </span>
-                            <span className="text-on-surface/80">
-                              {Array.isArray(v) ? v.join(", ") : String(v)}
-                            </span>
-                          </div>
-                        );
-                      })}
+
+                  {/* Tags — #admin style chips */}
+                  {(entry.tags || []).length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {(entry.tags || []).map((t) => (
+                        <span
+                          key={t}
+                          className="design-chip f-sans"
+                          style={{ fontSize: 13 }}
+                        >
+                          #{t}
+                        </span>
+                      ))}
                     </div>
                   )}
+
+                  {/* Concepts — ember-wash chips under a CONCEPTS micro label */}
+                  {(() => {
+                    const rawConcepts =
+                      ((entry.metadata as any)?.concepts as unknown) ??
+                      (entry as any).concepts ??
+                      [];
+                    const concepts = Array.isArray(rawConcepts)
+                      ? rawConcepts.filter((c) => typeof c === "string")
+                      : [];
+                    if (concepts.length === 0) return null;
+                    return (
+                      <div>
+                        <div className="micro" style={{ marginBottom: 10 }}>
+                          Concepts
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {concepts.map((c: string) => (
+                            <span
+                              key={c}
+                              className="design-chip f-sans"
+                              style={{
+                                fontSize: 13,
+                                background: "var(--ember-wash)",
+                                color: "var(--ember)",
+                              }}
+                            >
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </>
               )}
-
             </div>
           )}
 
@@ -603,51 +795,57 @@ const [showFullContent, setShowFullContent] = useState(false);
         </div>
         {/* end scrollable body */}
 
-        {/* Action strip — Delete and Edit consolidated at bottom for thumb reach */}
-        {!editing && (canWrite && (onDelete || onUpdate)) && (
+        {/* Minimal bottom strip — Delete only (Edit lives in header ellipsis) */}
+        {!editing && canWrite && onDelete && (
           <div
-            className="flex flex-shrink-0 items-center gap-2 border-t px-5 py-3"
-            style={{ borderColor: "var(--color-outline-variant)" }}
+            style={{
+              display: "flex",
+              flexShrink: 0,
+              padding: "12px 24px",
+              borderTop: "1px solid var(--line-soft)",
+            }}
           >
-            {canWrite && onDelete && (
-              <button
-                className="press-scale rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  background: confirmingDelete
-                    ? "var(--color-error-container)"
-                    : "color-mix(in oklch, var(--color-error) 8%, transparent)",
-                  color: confirmingDelete
-                    ? "var(--color-on-error-container)"
-                    : "var(--color-error)",
-                  border: "1px solid color-mix(in oklch, var(--color-error) 20%, transparent)",
-                }}
-                onClick={async () => {
-                  if (!confirmingDelete) {
-                    setConfirmingDelete(true);
-                    confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
-                  } else {
-                    setDeleting(true);
-                    await onDelete(entry.id);
-                    setDeleting(false);
-                  }
-                }}
-                disabled={deleting}
+            <button
+              className="press f-sans"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "0 12px",
+                height: 30,
+                minHeight: 30,
+                borderRadius: 6,
+                background: confirmingDelete ? "var(--blood-wash)" : "transparent",
+                color: "var(--blood)",
+                border: `1px solid ${confirmingDelete ? "var(--blood)" : "transparent"}`,
+                fontSize: 12,
+                fontWeight: 500,
+                cursor: "pointer",
+                transition: "all 180ms",
+              }}
+              onClick={async () => {
+                if (!confirmingDelete) {
+                  setConfirmingDelete(true);
+                  confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+                } else {
+                  setDeleting(true);
+                  await onDelete(entry.id);
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+            >
+              <svg
+                width="12" height="12"
+                fill="none" stroke="currentColor" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
               >
-                {deleting ? "Deleting..." : confirmingDelete ? "Confirm delete?" : "Delete"}
-              </button>
-            )}
-            {canWrite && onUpdate && (
-              <button
-                className="press-scale ml-auto rounded-xl px-3 py-1.5 text-xs font-semibold transition-all"
-                style={{
-                  border: "1px solid var(--color-outline-variant)",
-                  color: "var(--color-on-surface-variant)",
-                }}
-                onClick={() => setEditing(true)}
-              >
-                Edit
-              </button>
-            )}
+                <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+              </svg>
+              {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
+            </button>
           </div>
         )}
       </div>
