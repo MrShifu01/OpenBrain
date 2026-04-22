@@ -37,7 +37,6 @@ const CaptureSheet = lazy(() => import("./components/CaptureSheet"));
 import DesktopSidebar from "./components/DesktopSidebar";
 import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
-import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
 const GraphView = lazy(() => import("./views/GraphView"));
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
@@ -181,11 +180,7 @@ function EverionContent({
     [setSelected],
   );
 
-  const allEntries = useMemo(
-    () => [...entries, ...vaultEntries],
-    [entries, vaultEntries],
-  );
-  const { conceptMap, godNodes } = useConceptGraph();
+  const { conceptMap } = useConceptGraph();
   const { isDark, toggleTheme } = useTheme();
   const { adminFlags } = useAdminDevMode();
   const ff = (key: FeatureFlagKey) => isFeatureEnabled(key, adminFlags);
@@ -292,20 +287,8 @@ function EverionContent({
             </div>
           )}
 
-          <OmniSearch
-            entries={allEntries}
-            onSelect={handleEntrySelect}
-            onNavigate={appShell.setView}
-            concepts={godNodes.map((c: any) => ({
-              id: c.id,
-              label: c.label,
-              count: Array.isArray(c.source_entries) ? c.source_entries.length : undefined,
-              source_entries: c.source_entries,
-            }))}
-          />
-
           <div key={appShell.view} className="animate-view-enter">
-            {appShell.view === "memory" && (
+            {(appShell.view === "memory" || appShell.view === "timeline") && (
               <>
                 {/* Memory top bar — title + inline search + Remember */}
                 <header
@@ -351,6 +334,7 @@ function EverionContent({
                   <button
                     className="design-btn-primary press"
                     onClick={() => appShell.setShowCapture(true)}
+                    style={{ borderRadius: 6 }}
                   >
                     <svg
                       width="14" height="14"
@@ -513,7 +497,16 @@ function EverionContent({
                   </button>
                 </div>
 
-                <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32 space-y-3">
+                {appShell.view === "timeline" && ff("timeline") && (
+                  <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32">
+                    <VirtualTimeline
+                      sorted={sortedTimeline}
+                      setSelected={handleEntrySelect}
+                      typeIcons={appShell.typeIcons}
+                    />
+                  </div>
+                )}
+                {appShell.view === "memory" && <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32 space-y-3">
 
                 {!entriesLoaded ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -623,7 +616,7 @@ function EverionContent({
                     </button>
                   </div>
                 )}
-                </div>
+                </div>}
               </>
             )}
 
@@ -641,15 +634,6 @@ function EverionContent({
               <Suspense fallback={<Loader />}>
                 <TodoView entries={entries} typeIcons={appShell.typeIcons} activeBrainId={activeBrain?.id} />
               </Suspense>
-            )}
-            {appShell.view === "timeline" && ff("timeline") && (
-              <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32">
-                <VirtualTimeline
-                  sorted={sortedTimeline}
-                  setSelected={handleEntrySelect}
-                  typeIcons={appShell.typeIcons}
-                />
-              </div>
             )}
             {appShell.view === "vault" && ff("vault") && (
               <Suspense fallback={<Loader />}>
