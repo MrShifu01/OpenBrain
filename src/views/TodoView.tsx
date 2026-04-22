@@ -170,10 +170,10 @@ function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void;
   return (
     <form
       onSubmit={submit}
-      className="flex items-end gap-2 rounded-2xl border px-3 py-2"
+      className="flex items-center gap-2 rounded-2xl border px-3 py-2"
       style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
     >
-      <CheckCircleIcon className="h-4 w-4 shrink-0 mb-1" style={{ color: "var(--ink-ghost)" }} />
+      <CheckCircleIcon className="h-4 w-4 shrink-0" style={{ color: "var(--ink-ghost)" }} />
       <textarea
         ref={inputRef}
         value={title}
@@ -195,7 +195,7 @@ function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void;
         value={dueDate}
         onChange={(e) => setDueDate(e.target.value)}
         disabled={busy}
-        className="shrink-0 rounded-lg border-none bg-transparent text-xs outline-none mb-0.5"
+        className="shrink-0 rounded-lg border-none bg-transparent text-xs outline-none"
         style={{ color: dueDate ? "var(--ember)" : "var(--ink-ghost)", fontFamily: "var(--f-sans)", cursor: "pointer" }}
       />
       <button
