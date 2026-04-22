@@ -293,6 +293,7 @@ function EverionContent({
             entries={allEntries}
             onSelect={handleEntrySelect}
             onNavigate={appShell.setView}
+            showGraph={ff("graph")}
             concepts={godNodes.map((c: any) => ({
               id: c.id,
               label: c.label,

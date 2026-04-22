@@ -15,6 +15,7 @@ interface OmniSearchProps {
   onSelect: (entry: Entry) => void;
   onNavigate: (view: string) => void;
   concepts?: ConceptLike[];
+  showGraph?: boolean;
 }
 
 // Line-art entry-type glyph — 1.5px stroke, rounded joins.
@@ -124,8 +125,9 @@ function Micro({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [] }: OmniSearchProps) {
+export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [], showGraph = false }: OmniSearchProps) {
   const [open, setOpen] = useState(false);
+  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Entry[]>([]);
   const [highlighted, setHighlighted] = useState(0);
@@ -383,8 +385,8 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
             </>
           )}
 
-          {/* Concepts section */}
-          {filteredConcepts.length > 0 && (
+          {/* Concepts section — only when graph feature is enabled */}
+          {showGraph && filteredConcepts.length > 0 && (
             <>
               <Micro style={{ padding: "14px 20px 6px" }}>concepts</Micro>
               {filteredConcepts.map((c) => (
@@ -441,8 +443,8 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
             </>
           )}
 
-          {/* Commands section */}
-          {filteredCommands.length > 0 && (
+          {/* Commands section — desktop only (no keyboard on mobile) */}
+          {!isMobile && filteredCommands.length > 0 && (
             <>
               <Micro style={{ padding: "14px 20px 6px" }}>commands</Micro>
               {filteredCommands.map((c, i) => {
@@ -488,7 +490,7 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
 
           {/* Empty state */}
           {query.trim() &&
-            results.length + filteredConcepts.length + filteredCommands.length === 0 && (
+            results.length + (showGraph ? filteredConcepts.length : 0) + (isMobile ? 0 : filteredCommands.length) === 0 && (
             <div
               className="f-serif"
               style={{
