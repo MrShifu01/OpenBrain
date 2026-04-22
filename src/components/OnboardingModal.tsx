@@ -163,17 +163,21 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
             aria-hidden="true"
             style={{
               flex: 1,
+              minWidth: 0,
               display: "flex",
               alignItems: "center",
-              gap: 6,
+              gap: 4,
               justifyContent: "center",
+              overflow: "hidden",
             }}
           >
             {steps.map((_, i) => (
               <span
                 key={i}
                 style={{
-                  width: 22,
+                  flex: "1 1 0",
+                  maxWidth: 22,
+                  minWidth: 4,
                   height: 2,
                   borderRadius: 2,
                   background: i <= stepIdx ? "var(--ember)" : "var(--line)",
