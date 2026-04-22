@@ -322,9 +322,9 @@ export default function LoginScreen(): JSX.Element {
                     width: "100%",
                     height: 48,
                     borderRadius: 10,
-                    border: "1px solid var(--color-outline-variant)",
-                    background: "var(--color-surface-container)",
-                    color: "var(--color-on-surface)",
+                    border: "1px solid var(--line)",
+                    background: "var(--surface)",
+                    color: "var(--ink)",
                     fontSize: 15,
                     fontWeight: 600,
                     cursor: loading ? "default" : "pointer",
@@ -347,9 +347,9 @@ export default function LoginScreen(): JSX.Element {
                 </button>
                 {/* ── divider ── */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flex: 1, height: 1, background: "var(--color-outline-variant)", opacity: 0.5 }} />
-                  <span style={{ fontSize: 12, color: "var(--color-on-surface-variant)", opacity: 0.6 }}>or</span>
-                  <div style={{ flex: 1, height: 1, background: "var(--color-outline-variant)", opacity: 0.5 }} />
+                  <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
+                  <span style={{ fontSize: 12, color: "var(--ink-ghost)" }}>or</span>
+                  <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
                 </div>
                 <button
                   onClick={switchToMagicLink}
@@ -359,8 +359,8 @@ export default function LoginScreen(): JSX.Element {
                     height: 48,
                     borderRadius: 10,
                     border: "none",
-                    background: "var(--color-primary)",
-                    color: "var(--color-on-primary)",
+                    background: "var(--ember)",
+                    color: "var(--ember-ink)",
                     fontSize: 15,
                     fontWeight: 600,
                     cursor: "pointer",
