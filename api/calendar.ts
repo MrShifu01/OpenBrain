@@ -141,6 +141,10 @@ async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (code) {
     return provider === "google" ? callbackGoogle(req, res) : callbackMicrosoft(req, res);
   }
+  const { token: queryToken } = req.query as Record<string, string>;
+  if (queryToken && !req.headers.authorization) {
+    req.headers.authorization = `Bearer ${queryToken}`;
+  }
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
   return provider === "google" ? initiateGoogle(res, user.id) : initiateMicrosoft(res, user.id);

@@ -110,11 +110,7 @@ export default function AccountTab({ email, brainId }: Props) {
     setLinkError(null);
     const { error: err } = await supabase.auth.linkIdentity({
       provider: "google",
-      options: {
-        redirectTo: window.location.origin,
-        scopes: "https://www.googleapis.com/auth/calendar",
-        queryParams: { access_type: "offline", prompt: "consent" },
-      },
+      options: { redirectTo: window.location.origin },
     });
     if (err) {
       setLinkError(err.message);

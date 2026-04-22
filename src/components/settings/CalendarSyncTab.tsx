@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
+import { supabase } from "../../lib/supabase";
 import { SettingsButton } from "./SettingsRow";
 
 interface Integration {
@@ -85,12 +86,16 @@ export default function CalendarSyncTab() {
     setDisconnecting(null);
   }
 
-  function connectGoogle() {
-    window.location.href = "/api/calendar-auth?provider=google";
+  async function connectGoogle() {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? "";
+    window.location.href = `/api/calendar-auth?provider=google&token=${encodeURIComponent(token)}`;
   }
 
-  function connectMicrosoft() {
-    window.location.href = "/api/calendar-auth?provider=microsoft";
+  async function connectMicrosoft() {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? "";
+    window.location.href = `/api/calendar-auth?provider=microsoft&token=${encodeURIComponent(token)}`;
   }
 
   const googleInt = integrations.find((i) => i.provider === "google");
