@@ -426,11 +426,11 @@ function AgendaList({ days, today }: { days: { key: string; date: Date; events: 
                 </p>
               )}
             </div>
-            <div className="flex-1 space-y-1.5 border-l pl-4" style={{ borderColor: isToday ? "var(--ember)" : "var(--line-soft)" }}>
+            <div className="min-w-0 flex-1 space-y-1.5 border-l pl-4" style={{ borderColor: isToday ? "var(--ember)" : "var(--line-soft)" }}>
               {events.map((ev) => {
                 const color = eventSourceColor(ev.source);
                 return (
-                  <div key={ev.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2" style={{ background: "var(--surface)" }}>
+                  <div key={ev.id} className="flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2" style={{ background: "var(--surface)" }}>
                     <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
                     <span className="flex-1 truncate text-sm" style={{ color: "var(--ink)" }}>{ev.title}</span>
                     {!ev.allDay && (
