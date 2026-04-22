@@ -13,4 +13,5 @@ export interface ApiResponse {
   json: (data: any) => void;
   end: () => void;
   setHeader: (name: string, value: string) => void;
+  redirect: (code: number, url: string) => void;
 }
