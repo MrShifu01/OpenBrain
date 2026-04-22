@@ -135,6 +135,27 @@ No explanation, no punctuation, just one word.`,
   } = useEntryEdit({ entry, editing, onUpdate, onTypeIconChange, brains });
   const isSecret = entry.type === "secret";
   const isPinned = !!(entry as any).pinned;
+  const isContact = entry.type === "contact" || entry.type === "person";
+
+  function saveToContacts() {
+    const meta = (entry.metadata || {}) as Record<string, string>;
+    const lines = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      `FN:${entry.title}`,
+      meta.phone ? `TEL:${meta.phone}` : "",
+      meta.email ? `EMAIL:${meta.email}` : "",
+      entry.content ? `NOTE:${entry.content.replace(/\n/g, "\\n")}` : "",
+      "END:VCARD",
+    ].filter(Boolean).join("\r\n");
+    const blob = new Blob([lines], { type: "text/vcard" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${entry.title.replace(/[^a-z0-9]/gi, "_")}.vcf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
   const cfg = { ...(TC[editType as EntryType] || TC.note), i: resolveIcon(editType, typeIcons) };
 const [showFullContent, setShowFullContent] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
@@ -795,57 +816,97 @@ const [showFullContent, setShowFullContent] = useState(false);
         </div>
         {/* end scrollable body */}
 
-        {/* Minimal bottom strip — Delete only (Edit lives in header ellipsis) */}
-        {!editing && canWrite && onDelete && (
+        {/* Minimal bottom strip — Delete + Save to Contacts */}
+        {!editing && (isContact || (canWrite && onDelete)) && (
           <div
             style={{
               display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               flexShrink: 0,
               padding: "12px 24px",
               borderTop: "1px solid var(--line-soft)",
             }}
           >
-            <button
-              className="press f-sans"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "0 12px",
-                height: 30,
-                minHeight: 30,
-                borderRadius: 6,
-                background: confirmingDelete ? "var(--blood-wash)" : "transparent",
-                color: "var(--blood)",
-                border: `1px solid ${confirmingDelete ? "var(--blood)" : "transparent"}`,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: "pointer",
-                transition: "all 180ms",
-              }}
-              onClick={async () => {
-                if (!confirmingDelete) {
-                  setConfirmingDelete(true);
-                  confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
-                } else {
-                  setDeleting(true);
-                  await onDelete(entry.id);
-                  setDeleting(false);
-                }
-              }}
-              disabled={deleting}
-            >
-              <svg
-                width="12" height="12"
-                fill="none" stroke="currentColor" strokeWidth="1.5"
-                strokeLinecap="round" strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
+            {isContact && (
+              <button
+                className="press f-sans"
+                onClick={saveToContacts}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "0 12px",
+                  height: 30,
+                  minHeight: 30,
+                  borderRadius: 6,
+                  background: "transparent",
+                  color: "var(--ink-soft)",
+                  border: "1px solid transparent",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 180ms",
+                }}
               >
-                <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
-              </svg>
-              {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
-            </button>
+                <svg
+                  width="12" height="12"
+                  fill="none" stroke="currentColor" strokeWidth="1.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                save to contacts
+              </button>
+            )}
+            {!isContact && <span />}
+            {canWrite && onDelete && (
+              <button
+                className="press f-sans"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "0 12px",
+                  height: 30,
+                  minHeight: 30,
+                  borderRadius: 6,
+                  background: confirmingDelete ? "var(--blood-wash)" : "transparent",
+                  color: "var(--blood)",
+                  border: `1px solid ${confirmingDelete ? "var(--blood)" : "transparent"}`,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "all 180ms",
+                }}
+                onClick={async () => {
+                  if (!confirmingDelete) {
+                    setConfirmingDelete(true);
+                    confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+                  } else {
+                    setDeleting(true);
+                    await onDelete(entry.id);
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleting}
+              >
+                <svg
+                  width="12" height="12"
+                  fill="none" stroke="currentColor" strokeWidth="1.5"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                </svg>
+                {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
+              </button>
+            )}
           </div>
         )}
       </div>
