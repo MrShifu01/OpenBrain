@@ -81,7 +81,7 @@ function entriesToCalEvents(entries: Entry[]): CalEvent[] {
   const events: CalEvent[] = [];
   entries.forEach((e) => {
     if (isDone(e)) return;
-    extractActionDates(e).forEach((d) => {
+    extractDates(e).forEach((d) => {
       const day = parseISO(d);
       events.push({
         id: `entry-${e.id}-${d}`,
@@ -110,10 +110,10 @@ function externalToCalEvents(exts: ExternalCalEvent[]): CalEvent[] {
 }
 
 /* ─── Recurring helper ─── */
-function addRecurring(entries: Entry[], add: (key: string, e: Entry) => void) {
+function addRecurring(entries: Entry[], add: (key: string, e: Entry) => void, targetYear?: number, targetMon?: number) {
   const now = new Date();
-  const year = now.getFullYear();
-  const mon = now.getMonth();
+  const year = targetYear ?? now.getFullYear();
+  const mon = targetMon ?? now.getMonth();
   const daysInMonth = new Date(year, mon + 1, 0).getDate();
   entries.forEach((e) => {
     if (isDone(e)) return;
@@ -487,8 +487,23 @@ function CalendarTab({
       if (!map[key]) map[key] = [];
       map[key].push(ev);
     });
+    // Add recurring entries for the currently viewed month
+    addRecurring(entries, (key, e) => {
+      if (!map[key]) map[key] = [];
+      if (!map[key].find((ev) => ev.id === `entry-${e.id}-recurring`)) {
+        map[key].push({
+          id: `entry-${e.id}-recurring`,
+          title: e.title,
+          start: startOfDay(parseISO(key)),
+          end: endOfDay(parseISO(key)),
+          allDay: true,
+          source: "entry",
+          entry: e,
+        });
+      }
+    }, year, month);
     return map;
-  }, [calEvents]);
+  }, [calEvents, entries, year, month]);
 
   const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const selectedEvents = selectedKey ? (eventMap[selectedKey] || []) : [];
@@ -580,16 +595,16 @@ function CalendarTab({
       {/* Month view */}
       {calView === "month" && (
         <div>
-          <div className="mb-1.5 grid grid-cols-7">
-            {DAY_ABBRS.map((d) => (
-              <div key={d} className="py-1 text-center text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-ghost)" }}>
-                {d}
-              </div>
-            ))}
-          </div>
-
           <div className="lg:flex lg:gap-4">
-            <div className="flex-1 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line-soft)" }}>
+            <div className="min-w-0 flex-1">
+            <div className="mb-1.5 grid grid-cols-7">
+              {DAY_ABBRS.map((d) => (
+                <div key={d} className="py-1 text-center text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-ghost)" }}>
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line-soft)" }}>
               {grid.map((row, ri) => (
                 <div key={ri} className="grid grid-cols-7" style={{ borderTop: ri > 0 ? "1px solid var(--line-soft)" : "none" }}>
                   {row.map((day, ci) => {
@@ -633,35 +648,15 @@ function CalendarTab({
                             {day.getDate()}
                           </span>
                         </div>
-                        {/* Desktop: event pills */}
-                        <div className="hidden w-full flex-col gap-0.5 sm:flex">
-                          {dayEvents.slice(0, 2).map((ev, i) => {
-                            const c = eventSourceColor(ev.source);
-                            return (
-                              <div
-                                key={i}
-                                className="w-full truncate rounded px-1 text-[10px] font-medium leading-relaxed"
-                                style={{
-                                  background: `color-mix(in oklch, ${c} 13%, var(--surface-high))`,
-                                  color: c,
-                                }}
-                              >
-                                {ev.title}
-                              </div>
-                            );
-                          })}
-                          {dayEvents.length > 2 && (
-                            <span className="pl-1 text-[9px]" style={{ color: "var(--ink-ghost)" }}>
-                              +{dayEvents.length - 2} more
-                            </span>
-                          )}
-                        </div>
-                        {/* Mobile: dots */}
+                        {/* Dots on all screen sizes */}
                         {dayEvents.length > 0 && (
-                          <div className="mt-auto flex justify-center gap-0.5 sm:hidden">
+                          <div className="mt-auto flex justify-center gap-0.5 pb-0.5">
                             {dayEvents.slice(0, 3).map((ev, i) => (
-                              <div key={i} className="h-1 w-1 rounded-full" style={{ background: eventSourceColor(ev.source) }} />
+                              <div key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: eventSourceColor(ev.source) }} />
                             ))}
+                            {dayEvents.length > 3 && (
+                              <div className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--ink-ghost)" }} />
+                            )}
                           </div>
                         )}
                       </button>
@@ -669,7 +664,8 @@ function CalendarTab({
                   })}
                 </div>
               ))}
-            </div>
+            </div>{/* end overflow-hidden rounded-2xl border */}
+            </div>{/* end min-w-0 flex-1 */}
 
             {/* Desktop day panel */}
             {selectedKey && (

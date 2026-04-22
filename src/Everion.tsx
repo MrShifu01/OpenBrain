@@ -3,6 +3,7 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useState,
   lazy,
   Suspense,
   type ReactNode,
@@ -71,6 +72,7 @@ const TodoView = lazyRetry(() => import("./views/TodoView"));
 const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
 const ChatView = lazyRetry(() => import("./views/ChatView"));
+const VaultRevealModal = lazyRetry(() => import("./components/VaultRevealModal"));
 function Loader() {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -125,6 +127,7 @@ interface EverionContentProps {
   filtered: Entry[];
   sortedTimeline: Entry[];
   availableEntryTypes: string[];
+  vaultEntries: Entry[];
 }
 
 function EverionContent({
@@ -161,9 +164,27 @@ function EverionContent({
   filtered,
   sortedTimeline,
   availableEntryTypes,
+  vaultEntries,
 }: EverionContentProps) {
   const { activeBrain, brains, setActiveBrain, refresh } = useBrain();
   const { entries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate } = useEntries();
+  const [selectedVaultEntry, setSelectedVaultEntry] = useState<Entry | null>(null);
+
+  const handleEntrySelect = useCallback(
+    (entry: Entry) => {
+      if (entry.type === "secret") {
+        setSelectedVaultEntry(entry);
+      } else {
+        setSelected(entry);
+      }
+    },
+    [setSelected],
+  );
+
+  const allEntries = useMemo(
+    () => [...entries, ...vaultEntries],
+    [entries, vaultEntries],
+  );
   const { conceptMap, godNodes } = useConceptGraph();
   const { isDark, toggleTheme } = useTheme();
   const { adminFlags } = useAdminDevMode();
@@ -272,8 +293,8 @@ function EverionContent({
           )}
 
           <OmniSearch
-            entries={entries}
-            onSelect={setSelected}
+            entries={allEntries}
+            onSelect={handleEntrySelect}
             onNavigate={appShell.setView}
             concepts={godNodes.map((c: any) => ({
               id: c.id,
@@ -548,10 +569,10 @@ function EverionContent({
                   <>
                     <VirtualGrid
                       filtered={filtered}
-                      setSelected={appShell.selectMode ? () => {} : setSelected}
+                      setSelected={appShell.selectMode ? () => {} : handleEntrySelect}
                       typeIcons={appShell.typeIcons}
-                      onPin={(e) => handleUpdate(e.id, { pinned: !e.pinned })}
-                      onDelete={(e) => handleDelete(e.id)}
+                      onPin={(e) => e.type !== "secret" && handleUpdate(e.id, { pinned: !e.pinned })}
+                      onDelete={(e) => e.type !== "secret" && handleDelete(e.id)}
                       selectMode={appShell.selectMode}
                       selectedIds={appShell.selectedIds}
                       onToggleSelect={appShell.toggleSelectId}
@@ -625,7 +646,7 @@ function EverionContent({
               <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32">
                 <VirtualTimeline
                   sorted={sortedTimeline}
-                  setSelected={setSelected}
+                  setSelected={handleEntrySelect}
                   typeIcons={appShell.typeIcons}
                 />
               </div>
@@ -827,6 +848,18 @@ function EverionContent({
               </div>
             )}
           </div>
+
+          <Suspense fallback={null}>
+            {selectedVaultEntry && (
+              <VaultRevealModal
+                entry={selectedVaultEntry}
+                cryptoKey={cryptoKey}
+                onClose={() => setSelectedVaultEntry(null)}
+                onVaultUnlock={handleVaultUnlock}
+                onGoToVault={() => { setSelectedVaultEntry(null); appShell.setView("vault"); }}
+              />
+            )}
+          </Suspense>
 
           <Suspense fallback={null}>
             {selected && (
@@ -1053,8 +1086,13 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
   const { tasks: bgTasks, processFiles: bgProcessFiles, queueDirectSave: bgQueueDirectSave, dismissTask: bgDismissTask, dismissAll: bgDismissAll } =
     useBackgroundCapture();
 
+  const allDisplayEntries = useMemo(
+    () => [...dataLayer.entries, ...dataLayer.vaultEntries],
+    [dataLayer.entries, dataLayer.vaultEntries],
+  );
+
   const filtered = useMemo(() => {
-    let r = dataLayer.entries;
+    let r = allDisplayEntries;
     if (appShell.workspace !== "all")
       r = r.filter((e) => {
         const ws = inferWorkspace(e);
@@ -1070,7 +1108,7 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
       result.sort((a, b) => scoreEntry(b, appShell.search) - scoreEntry(a, appShell.search));
     }
     return result;
-  }, [appShell.search, appShell.gridFilters, appShell.workspace, dataLayer.entries]);
+  }, [appShell.search, appShell.gridFilters, appShell.workspace, allDisplayEntries]);
 
   const sortedTimeline = useMemo(
     () =>
@@ -1186,6 +1224,7 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
             filtered={filtered}
             sortedTimeline={sortedTimeline}
             availableEntryTypes={availableEntryTypes}
+            vaultEntries={dataLayer.vaultEntries}
           />
         </ConceptGraphProvider>
       </BrainContext.Provider>

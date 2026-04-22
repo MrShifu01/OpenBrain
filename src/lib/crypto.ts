@@ -139,6 +139,31 @@ export async function decryptVaultKeyFromRecovery(
   }
 }
 
+const VAULT_SESSION_KEY = "em_vk_b64";
+
+export async function cacheVaultKey(key: CryptoKey): Promise<void> {
+  const raw = await crypto.subtle.exportKey("raw", key);
+  sessionStorage.setItem(VAULT_SESSION_KEY, btoa(String.fromCharCode(...new Uint8Array(raw))));
+}
+
+export async function getCachedVaultKey(): Promise<CryptoKey | null> {
+  const b64 = sessionStorage.getItem(VAULT_SESSION_KEY);
+  if (!b64) return null;
+  try {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    return await crypto.subtle.importKey("raw", bytes, { name: CIPHER, length: 256 }, true, [
+      "encrypt",
+      "decrypt",
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+export function hasCachedVaultKey(): boolean {
+  return !!sessionStorage.getItem(VAULT_SESSION_KEY);
+}
+
 interface EncryptableEntry {
   content?: string;
   metadata?: Record<string, unknown> | string;

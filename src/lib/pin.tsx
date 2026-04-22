@@ -69,7 +69,7 @@ async function _derivePbkdf2Hash(pin: string, saltHex: string): Promise<string> 
     .join("");
 }
 
-async function verifyPin(pin: string, stored?: string): Promise<boolean | null> {
+export async function verifyPin(pin: string, stored?: string): Promise<boolean | null> {
   const s = stored !== undefined ? stored : getStoredPinHash();
   if (!s) return false;
   if (!s.includes(":")) return null; // legacy SHA-256 format — caller handles migrate step

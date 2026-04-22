@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import { authFetch } from "../lib/authFetch";
 import { readEntriesCache, writeEntriesCache } from "../lib/entriesCache";
-import { decryptEntry } from "../lib/crypto";
+import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
 import { isFullyEnriched, getEnrichmentGaps, enrichEntry } from "../lib/enrichEntry";
@@ -42,6 +42,8 @@ export function useDataLayer({
   const [links, setLinks] = useState<any[]>(LINKS);
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
   const [vaultExists, setVaultExists] = useState(false);
+  const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
+  const vaultEntryIdsRef = useRef<Set<string>>(new Set());
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
   const [conceptEntryIds, setConceptEntryIds] = useState<Set<string>>(new Set());
@@ -79,6 +81,22 @@ export function useDataLayer({
       })
       .catch((err) => console.error("[OpenBrain] /api/vault check failed", err));
   }, []);
+
+  // Fetch vault entries for the memory feed (titles are plaintext; content stays encrypted)
+  const fetchVaultEntries = useCallback(async () => {
+    try {
+      const r = await authFetch("/api/vault-entries");
+      if (!r.ok) return;
+      const data: any[] = await r.json();
+      const fetched: Entry[] = data.map((e) => ({ ...e, type: "secret" as const, encrypted: true }));
+      vaultEntryIdsRef.current = new Set(fetched.map((e) => e.id));
+      setVaultEntries(fetched);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchVaultEntries();
+  }, [fetchVaultEntries]);
 
   const refreshEntries = useCallback(async () => {
     if (!activeBrainId) return;
@@ -143,9 +161,14 @@ export function useDataLayer({
   const handleVaultUnlock = useCallback((key: CryptoKey | null) => {
     setCryptoKey(key);
     if (key) {
+      cacheVaultKey(key).catch(() => {});
+      // Only decrypt legacy secrets in entries table; vault_entries stay PIN-gated
+      const vaultIds = vaultEntryIdsRef.current;
       setEntries((prev) => {
         Promise.all(
-          prev.map((e) => (e.type === "secret" ? decryptEntry(e as any, key!) : e)),
+          prev.map((e) =>
+            e.type === "secret" && !vaultIds.has(e.id) ? decryptEntry(e as any, key!) : e,
+          ),
         ).then((decrypted) => setEntries(decrypted as Entry[]));
         return prev;
       });
@@ -305,6 +328,7 @@ export function useDataLayer({
 
   return {
     entries,
+    vaultEntries,
     setEntries,
     entriesLoaded,
     refreshEntries,
