@@ -9,8 +9,8 @@ export default function FloatingCaptureButton({ onClick }: FloatingCaptureButton
   return (
     <button
       onClick={onClick}
-      aria-label="Remember something"
-      title="Remember (Ctrl+K)"
+      aria-label="Capture something"
+      title="Capture (Ctrl+K)"
       className="press fixed right-6 bottom-8 z-40 hidden lg:flex items-center gap-2"
       style={{
         height: 44, minHeight: 44, padding: "0 10px 0 18px",
@@ -31,7 +31,7 @@ export default function FloatingCaptureButton({ onClick }: FloatingCaptureButton
       >
         <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4"/>
       </svg>
-      <span className="f-serif" style={{ fontSize: 14, fontStyle: "italic" }}>remember…</span>
+      <span className="f-serif" style={{ fontSize: 14, fontStyle: "italic" }}>capture…</span>
       <span
         className="f-sans"
         style={{

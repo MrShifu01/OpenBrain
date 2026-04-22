@@ -2,6 +2,7 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
+import { FEATURE_FLAGS, getAdminFlags, setAdminFlag } from "../../lib/featureFlags";
 
 type TestStatus = "idle" | "running" | "pass" | "fail";
 
@@ -75,6 +76,106 @@ SPLIT RULES: If the input contains 2 or more clearly distinct real-world entitie
 Single: {"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"business"|"personal"|"both","confidence":{"type":"extracted"|"inferred"|"ambiguous","tags":"...","title":"...","content":"..."}}
 Multiple: [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"...","confidence":{...}}, ...]
 CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.phone.`;
+
+function FeatureFlagsSection() {
+  const [flags, setFlags] = useState(getAdminFlags);
+
+  const toggle = (key: string, val: boolean) => {
+    setAdminFlag(key, val);
+    setFlags(getAdminFlags());
+    window.dispatchEvent(new StorageEvent("storage", { key: "openbrain_admin_flags" }));
+  };
+
+  return (
+    <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}>
+      <div style={{ marginBottom: 14 }}>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          Feature Flags
+        </div>
+        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          Toggle individual features on for yourself before making them live in production.
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 6 }}>
+        {(Object.entries(FEATURE_FLAGS) as [string, { label: string; icon: string; prodEnabled: boolean }][]).map(
+          ([key, flag]) => {
+            const adminOn = flags[key] ?? false;
+            const visibleToYou = flag.prodEnabled || adminOn;
+            return (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: "var(--surface-low)",
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 8,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 14, color: "var(--ink-faint)" }}>{flag.icon}</span>
+                  <div>
+                    <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                      {flag.label}
+                    </span>
+                    <span
+                      className="f-sans"
+                      style={{
+                        marginLeft: 10,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        color: flag.prodEnabled ? "var(--ember)" : "var(--ink-faint)",
+                      }}
+                    >
+                      {flag.prodEnabled ? "Live" : "Dev only"}
+                    </span>
+                  </div>
+                </div>
+
+                {!flag.prodEnabled && (
+                  <button
+                    onClick={() => toggle(key, !adminOn)}
+                    className="press f-sans"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 7,
+                      padding: "5px 12px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: visibleToYou
+                        ? "color-mix(in oklch, var(--ember) 12%, transparent)"
+                        : "var(--surface)",
+                      color: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
+                      border: `1px solid ${visibleToYou ? "color-mix(in oklch, var(--ember) 30%, transparent)" : "var(--line-soft)"}`,
+                      cursor: "pointer",
+                      transition: "all 180ms",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 8, height: 8, borderRadius: "50%",
+                        background: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
+                        flexShrink: 0,
+                      }}
+                    />
+                    {visibleToYou ? "Visible to you" : "Hidden"}
+                  </button>
+                )}
+              </div>
+            );
+          }
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminTab() {
   const [authResult, setAuthResult] = useState<TestResult>({ status: "idle" });
@@ -326,6 +427,8 @@ export default function AdminTab() {
 
   return (
     <div>
+      <FeatureFlagsSection />
+
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
         <button
           onClick={runAll}

@@ -45,6 +45,8 @@ import { useDataLayer } from "./hooks/useDataLayer";
 import { useBrain } from "./context/BrainContext";
 import { useEntries } from "./context/EntriesContext";
 import type { Entry } from "./types";
+import { useAdminDevMode } from "./hooks/useAdminDevMode";
+import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "./lib/featureFlags";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 function lazyRetry(fn: () => Promise<any>) {
@@ -164,6 +166,18 @@ function EverionContent({
   const { entries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate } = useEntries();
   const { conceptMap, godNodes } = useConceptGraph();
   const { isDark, toggleTheme } = useTheme();
+  const { adminFlags } = useAdminDevMode();
+  const ff = (key: FeatureFlagKey) => isFeatureEnabled(key, adminFlags);
+  const visibleNavViews = NAV_VIEWS.filter(
+    (v) => !(v.id in FEATURE_FLAGS) || ff(v.id as FeatureFlagKey)
+  );
+
+  // If the active view gets disabled, fall back to memory
+  useEffect(() => {
+    if (appShell.view in FEATURE_FLAGS && !ff(appShell.view as FeatureFlagKey)) {
+      appShell.setView("memory");
+    }
+  }, [adminFlags, appShell.view, appShell.setView]);
 
   // Index concept names into the search index so grid search finds entries by concept
   useEffect(() => {
@@ -204,7 +218,9 @@ function EverionContent({
         pendingCount={pendingCount}
         entryCount={entries.length}
         onShowCreateBrain={() => {}}
-        navViews={NAV_VIEWS}
+        navViews={visibleNavViews}
+        searchInput={appShell.searchInput}
+        onSearchChange={appShell.setSearchInput}
       >
       </DesktopSidebar>
 
@@ -311,97 +327,21 @@ function EverionContent({
                         : "everything you've written down."}
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "0 10px 0 14px",
-                        height: 40,
-                        minWidth: 280,
-                        background: "var(--surface)",
-                        border: "1px solid var(--line-soft)",
-                        borderRadius: 8,
-                      }}
+                  <button
+                    className="design-btn-primary press"
+                    onClick={() => appShell.setShowCapture(true)}
+                  >
+                    <svg
+                      width="14" height="14"
+                      fill="none" stroke="currentColor" strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
-                      <svg
-                        width="14" height="14"
-                        fill="none" stroke="currentColor" strokeWidth="1.5"
-                        strokeLinecap="round" strokeLinejoin="round"
-                        viewBox="0 0 24 24"
-                        style={{ color: "var(--ink-faint)", flexShrink: 0 }}
-                      >
-                        <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
-                      </svg>
-                      <input
-                        value={appShell.searchInput}
-                        onChange={(e) => appShell.setSearchInput(e.target.value)}
-                        placeholder="Search everything"
-                        className="f-sans flex-1 border-none bg-transparent outline-none"
-                        style={{
-                          fontSize: 13,
-                          color: "var(--ink)",
-                          minWidth: 0,
-                        }}
-                      />
-                      <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
-                        <kbd
-                          className="f-sans"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minWidth: 18,
-                            height: 18,
-                            padding: "0 5px",
-                            background: "var(--surface-low)",
-                            border: "1px solid var(--line)",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            color: "var(--ink-faint)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          Ctrl
-                        </kbd>
-                        <kbd
-                          className="f-sans"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            minWidth: 18,
-                            height: 18,
-                            padding: "0 5px",
-                            background: "var(--surface-low)",
-                            border: "1px solid var(--line)",
-                            borderRadius: 4,
-                            fontSize: 11,
-                            color: "var(--ink-faint)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          K
-                        </kbd>
-                      </span>
-                    </div>
-                    <button
-                      className="design-btn-primary press"
-                      onClick={() => appShell.setShowCapture(true)}
-                    >
-                      <svg
-                        width="14" height="14"
-                        fill="none" stroke="currentColor" strokeWidth="1.5"
-                        strokeLinecap="round" strokeLinejoin="round"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path d="M12 5v14M5 12h14"/>
-                      </svg>
-                      Remember
-                    </button>
-                  </div>
+                      <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Capture
+                  </button>
                 </header>
 
                 {/* Filter row — Grid/Timeline + type pills + sort */}
@@ -601,7 +541,7 @@ function EverionContent({
                       className="design-btn-primary press"
                       style={{ marginTop: 8 }}
                     >
-                      Remember a thought
+                      Capture a thought
                     </button>
                   </div>
                 ) : filtered.length > 0 ? (
@@ -658,7 +598,7 @@ function EverionContent({
                       className="design-btn-secondary press"
                       style={{ marginTop: 8 }}
                     >
-                      Remember something new
+                      Capture something new
                     </button>
                   </div>
                 )}
@@ -666,22 +606,22 @@ function EverionContent({
               </>
             )}
 
-            {appShell.view === "chat" && (
+            {appShell.view === "chat" && ff("chat") && (
               <Suspense fallback={<Loader />}>
                 <ChatView brainId={activeBrain?.id} />
               </Suspense>
             )}
-            {appShell.view === "graph" && (
+            {appShell.view === "graph" && ff("graph") && (
               <Suspense fallback={<Loader />}>
                 <GraphView openEntry={setSelected} />
               </Suspense>
             )}
-            {appShell.view === "todos" && (
+            {appShell.view === "todos" && ff("todos") && (
               <Suspense fallback={<Loader />}>
                 <TodoView entries={entries} typeIcons={appShell.typeIcons} activeBrainId={activeBrain?.id} />
               </Suspense>
             )}
-            {appShell.view === "timeline" && (
+            {appShell.view === "timeline" && ff("timeline") && (
               <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32">
                 <VirtualTimeline
                   sorted={sortedTimeline}
@@ -690,7 +630,7 @@ function EverionContent({
                 />
               </div>
             )}
-            {appShell.view === "vault" && (
+            {appShell.view === "vault" && ff("vault") && (
               <Suspense fallback={<Loader />}>
                 <VaultView
                   entries={entries}

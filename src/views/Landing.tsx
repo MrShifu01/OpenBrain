@@ -337,7 +337,7 @@ function LandingDemo() {
               style={{ height: 34, minHeight: 34, fontSize: 13 }}
               onClick={() => setSaved(true)}
             >
-              Remember
+              Capture
             </button>
           </div>
         </div>

@@ -7,6 +7,12 @@ interface NavView {
   ic: string;
 }
 
+const SEARCH_ICON = (
+  <svg aria-hidden="true" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+    <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
+  </svg>
+);
+
 interface DesktopSidebarProps {
   activeBrainName: string;
   view: string;
@@ -19,6 +25,8 @@ interface DesktopSidebarProps {
   entryCount: number;
   onShowCreateBrain: () => void;
   navViews: NavView[];
+  searchInput: string;
+  onSearchChange: (v: string) => void;
   children?: ReactNode;
 }
 
@@ -59,6 +67,8 @@ export default function DesktopSidebar({
   pendingCount,
   onShowCreateBrain: _onShowCreateBrain,
   navViews,
+  searchInput,
+  onSearchChange,
   children,
 }: DesktopSidebarProps) {
   const isOffline = !isOnline;
@@ -152,8 +162,47 @@ export default function DesktopSidebar({
         }}
       >
         {PLUME_ICON}
-        Remember
+        Capture
       </button>
+
+      {/* Search */}
+      <div
+        style={{
+          display: "flex", alignItems: "center", gap: 8,
+          padding: "0 8px 0 12px", height: 36,
+          marginBottom: 14,
+          background: "var(--surface)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 8,
+          color: "var(--ink-faint)",
+        }}
+      >
+        {SEARCH_ICON}
+        <input
+          value={searchInput}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Search everything…"
+          style={{
+            flex: 1, minWidth: 0,
+            background: "transparent", border: "none", outline: "none",
+            fontFamily: "var(--f-sans)", fontSize: 13,
+            color: "var(--ink)",
+          }}
+        />
+        {searchInput && (
+          <button
+            onClick={() => onSearchChange("")}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--ink-faint)", padding: 0, lineHeight: 1,
+              fontSize: 16,
+            }}
+            aria-label="Clear search"
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       {/* Navigation */}
       <nav

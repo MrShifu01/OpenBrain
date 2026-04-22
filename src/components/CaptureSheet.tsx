@@ -460,7 +460,7 @@ export default function CaptureSheet({
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
-        aria-label={preview ? "Confirm entry" : "Remember something"}
+        aria-label={preview ? "Confirm entry" : "Capture something"}
         className="capture-sheet"
         style={{
           background: "var(--surface-high)",
@@ -1128,7 +1128,7 @@ export default function CaptureSheet({
                   style={{ height: 40, minHeight: 40 }}
                 >
                   {IconSend}
-                  {loading ? "Saving…" : "Remember"}
+                  {loading ? "Saving…" : "Capture"}
                 </button>
               </div>
             </div>

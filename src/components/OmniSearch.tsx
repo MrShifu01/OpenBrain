@@ -86,7 +86,7 @@ function TypeGlyph({ type }: { type?: string }) {
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
 const COMMANDS: { label: string; view: string; kbd: string[] }[] = [
-  { label: "Remember something", view: "capture", kbd: ["N"] },
+  { label: "Capture something", view: "capture", kbd: ["N"] },
   { label: "Go to chat", view: "chat", kbd: ["J"] },
   { label: "Go to graph", view: "graph", kbd: ["G"] },
   { label: "Open todos", view: "todos", kbd: ["T"] },
