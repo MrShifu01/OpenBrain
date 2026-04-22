@@ -54,7 +54,7 @@ export default function CalendarSyncTab() {
   const [msg, setMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    authFetch("/api/calendar/integrations")
+    authFetch("/api/calendar?action=integrations")
       .then((r) => r?.json?.())
       .then((d) => { if (Array.isArray(d)) setIntegrations(d); })
       .catch(() => null)
@@ -76,7 +76,7 @@ export default function CalendarSyncTab() {
 
   async function disconnect(provider: string) {
     setDisconnecting(provider);
-    await authFetch("/api/calendar/integrations", {
+    await authFetch("/api/calendar", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider }),
@@ -86,11 +86,11 @@ export default function CalendarSyncTab() {
   }
 
   function connectGoogle() {
-    window.location.href = "/api/auth/google-calendar";
+    window.location.href = "/api/calendar-auth?provider=google";
   }
 
   function connectMicrosoft() {
-    window.location.href = "/api/auth/microsoft-calendar";
+    window.location.href = "/api/calendar-auth?provider=microsoft";
   }
 
   const googleInt = integrations.find((i) => i.provider === "google");

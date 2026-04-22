@@ -602,7 +602,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   /* External calendar events (from Google/Outlook sync) */
   const [externalEvents, setExternalEvents] = useState<ExternalCalEvent[]>([]);
   useEffect(() => {
-    authFetch("/api/calendar/events")
+    authFetch("/api/calendar?action=events")
       .then((r) => r?.json?.())
       .then((d) => { if (Array.isArray(d?.events)) setExternalEvents(d.events); })
       .catch(() => null);
