@@ -1,22 +1,10 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { Calendar, dateFnsLocalizer, Views, type View } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay, parseISO, startOfDay, endOfDay } from "date-fns";
-import { enUS } from "date-fns/locale";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { parseISO, startOfDay, endOfDay } from "date-fns";
 import { TC, fmtD } from "../data/constants";
 import { resolveIcon } from "../lib/typeIcons";
 import { useEntries } from "../context/EntriesContext";
 import { authFetch } from "../lib/authFetch";
 import type { Entry } from "../types";
-import "../design/big-calendar.css";
-
-/* ─── date-fns localizer (week starts Monday) ─── */
-const localizer = dateFnsLocalizer({
-  format,
-  parse,
-  startOfWeek: (date: Date) => startOfWeek(date, { weekStartsOn: 1 }),
-  getDay,
-  locales: { "en-US": enUS },
-});
 
 /* ─── Date extraction ─── */
 const ALL_DATE_KEYS = [
@@ -342,83 +330,127 @@ function CheckCircleIcon({ className, style }: { className?: string; style?: Rea
   );
 }
 
-/* ─── Custom RBC toolbar ─── */
-function CalendarToolbar({
-  view,
-  onNavigate,
-  onView,
-  label,
-}: {
-  date?: Date;
-  view: View;
-  label: string;
-  onNavigate: (action: "PREV" | "NEXT" | "TODAY" | "DATE", newDate?: Date) => void;
-  onView: (view: View) => void;
-}) {
-  const views: { key: View; label: string }[] = [
-    { key: Views.MONTH, label: "Month" },
-    { key: Views.WEEK, label: "Week" },
-    { key: Views.DAY, label: "Day" },
-    { key: Views.AGENDA, label: "Agenda" },
+/* ─── Calendar helpers ─── */
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DAY_ABBRS = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+function eventSourceColor(source: CalEvent["source"]): string {
+  if (source === "entry") return "var(--ember)";
+  if (source === "google") return "oklch(54% 0.13 248)";
+  return "oklch(52% 0.10 192)";
+}
+
+function buildMonthGrid(year: number, month: number): (Date | null)[][] {
+  const first = new Date(year, month, 1);
+  const total = new Date(year, month + 1, 0).getDate();
+  const startOffset = (first.getDay() + 6) % 7; // Mon = 0
+  const cells: (Date | null)[] = [
+    ...Array(startOffset).fill(null),
+    ...Array.from({ length: total }, (_, i) => new Date(year, month, i + 1)),
   ];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const rows: (Date | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
+  return rows;
+}
 
+/* ─── Day detail panel ─── */
+function DayDetailPanel({
+  dateKey, events, onClose,
+}: { dateKey: string; events: CalEvent[]; onClose: () => void }) {
+  const date = new Date(dateKey + "T00:00:00");
+  const label = date.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" });
   return (
-    <div className="mb-3 flex items-center gap-3 flex-wrap">
-      {/* Nav */}
-      <div className="flex items-center gap-1">
+    <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold" style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}>{label}</p>
         <button
-          onClick={() => onNavigate("PREV")}
-          className="flex h-7 w-7 items-center justify-center rounded-full transition-colors"
-          style={{ color: "var(--ink-soft)", background: "transparent" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-        </button>
-        <button
-          onClick={() => onNavigate("TODAY")}
-          className="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
-          style={{ background: "var(--ember-wash)", color: "var(--ember)" }}
-        >
-          Today
-        </button>
-        <button
-          onClick={() => onNavigate("NEXT")}
-          className="flex h-7 w-7 items-center justify-center rounded-full transition-colors"
-          style={{ color: "var(--ink-soft)", background: "transparent" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-        >
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-          </svg>
-        </button>
+          onClick={onClose}
+          className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors"
+          style={{ color: "var(--ink-ghost)", background: "var(--surface-high)" }}
+          aria-label="Close"
+        >×</button>
       </div>
+      {events.length === 0 ? (
+        <p className="py-4 text-center text-xs" style={{ color: "var(--ink-ghost)" }}>Nothing scheduled</p>
+      ) : (
+        <div className="space-y-2">
+          {events.map((ev) => {
+            const color = eventSourceColor(ev.source);
+            const timeStr = ev.allDay
+              ? "All day"
+              : `${ev.start.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}–${ev.end.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}`;
+            const srcLabel = ev.source === "entry" ? "Todo" : ev.source === "google" ? "Google" : "Outlook";
+            return (
+              <div
+                key={ev.id}
+                className="flex items-start gap-3 rounded-xl p-3"
+                style={{ background: `color-mix(in oklch, ${color} 6%, var(--surface-low))` }}
+              >
+                <div className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-snug" style={{ color: "var(--ink)" }}>{ev.title}</p>
+                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>{timeStr} · {srcLabel}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Label */}
-      <span className="f-serif flex-1 text-base font-semibold" style={{ color: "var(--ink)", letterSpacing: "-0.01em" }}>
-        {label}
-      </span>
-
-      {/* View switcher */}
-      <div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: "var(--line-soft)" }}>
-        {views.map(({ key, label: vl }) => (
-          <button
-            key={key}
-            onClick={() => onView(key)}
-            className="px-3 py-1.5 text-xs font-medium transition-colors"
-            style={{
-              background: view === key ? "var(--ember)" : "var(--surface)",
-              color: view === key ? "var(--ember-ink)" : "var(--ink-soft)",
-              borderRight: key !== Views.AGENDA ? `1px solid var(--line-soft)` : "none",
-            }}
-          >
-            {vl}
-          </button>
-        ))}
+/* ─── Agenda view ─── */
+function AgendaList({ days, today }: { days: { key: string; date: Date; events: CalEvent[] }[]; today: string }) {
+  if (days.length === 0) {
+    return (
+      <div className="py-12 text-center" style={{ color: "var(--ink-ghost)" }}>
+        <p className="text-sm">No upcoming events in the next 60 days</p>
       </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      {days.map(({ key, date, events }) => {
+        const isToday = key === today;
+        return (
+          <div key={key} className="flex gap-4">
+            <div className="w-14 shrink-0 pt-0.5 text-right">
+              <p className="text-xs font-semibold leading-tight" style={{ color: isToday ? "var(--ember)" : "var(--ink-soft)", fontFamily: "var(--f-sans)" }}>
+                {isToday ? "Today" : date.toLocaleDateString("en-ZA", { weekday: "short" })}
+              </p>
+              {!isToday && (
+                <p className="text-[10px] leading-tight" style={{ color: "var(--ink-ghost)" }}>
+                  {date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+                </p>
+              )}
+            </div>
+            <div className="flex-1 space-y-1.5 border-l pl-4" style={{ borderColor: isToday ? "var(--ember)" : "var(--line-soft)" }}>
+              {events.map((ev) => {
+                const color = eventSourceColor(ev.source);
+                return (
+                  <div key={ev.id} className="flex items-center gap-2.5 rounded-xl px-3 py-2" style={{ background: "var(--surface)" }}>
+                    <div className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+                    <span className="flex-1 truncate text-sm" style={{ color: "var(--ink)" }}>{ev.title}</span>
+                    {!ev.allDay && (
+                      <span className="shrink-0 text-[10px]" style={{ color: "var(--ink-ghost)" }}>
+                        {ev.start.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    )}
+                    <span
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide"
+                      style={{ background: `color-mix(in oklch, ${color} 12%, var(--surface-high))`, color }}
+                    >
+                      {ev.source === "entry" ? "Todo" : ev.source === "google" ? "Google" : "Outlook"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -435,152 +467,245 @@ function CalendarTab({
   brainId?: string;
   onAdded: () => void;
 }) {
-  const [date, setDate] = useState(new Date());
-  const [view, setView] = useState<View>(Views.MONTH);
-  const [selectedEvent, setSelectedEvent] = useState<CalEvent | null>(null);
-  const [addDate, setAddDate] = useState<string>("");
+  const [navDate, setNavDate] = useState(new Date());
+  const [selectedKey, setSelectedKey] = useState<string | null>(toDateKey(new Date()));
+  const [calView, setCalView] = useState<"month" | "agenda">("month");
 
-  const events = useMemo(() => {
-    return [...entriesToCalEvents(entries), ...externalToCalEvents(externalEvents)];
-  }, [entries, externalEvents]);
+  const year = navDate.getFullYear();
+  const month = navDate.getMonth();
+  const today = toDateKey(new Date());
 
-  const eventStyleGetter = useCallback((event: CalEvent) => {
-    if (event.source === "entry") {
-      return {
-        style: {
-          background: "var(--ember)",
-          color: "var(--ember-ink)",
-          border: "none",
-          borderRadius: "4px",
-        },
-      };
+  const calEvents = useMemo(
+    () => [...entriesToCalEvents(entries), ...externalToCalEvents(externalEvents)],
+    [entries, externalEvents],
+  );
+
+  const eventMap = useMemo(() => {
+    const map: Record<string, CalEvent[]> = {};
+    calEvents.forEach((ev) => {
+      const key = toDateKey(ev.start);
+      if (!map[key]) map[key] = [];
+      map[key].push(ev);
+    });
+    return map;
+  }, [calEvents]);
+
+  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
+  const selectedEvents = selectedKey ? (eventMap[selectedKey] || []) : [];
+
+  const agendaDays = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(Date.now() + 60 * 86400000);
+    const days: { key: string; date: Date; events: CalEvent[] }[] = [];
+    const d = new Date(start);
+    while (d <= end) {
+      const key = toDateKey(d);
+      if (eventMap[key]?.length) days.push({ key, date: new Date(d), events: eventMap[key] });
+      d.setDate(d.getDate() + 1);
     }
-    return {
-      style: {
-        background: "var(--moss)",
-        color: "oklch(100% 0 0)",
-        border: "none",
-        borderRadius: "4px",
-      },
-    };
-  }, []);
-
-  const components = useMemo(() => ({
-    toolbar: (props: any) => (
-      <CalendarToolbar
-        date={props.date}
-        view={props.view}
-        label={props.label}
-        onNavigate={props.onNavigate}
-        onView={props.onView}
-      />
-    ),
-  }), []);
-
-  function handleSelectSlot({ start }: { start: Date }) {
-    const k = toDateKey(start);
-    setAddDate(k);
-  }
+    return days;
+  }, [eventMap]);
 
   return (
-    <div>
-      {/* Quick-add with pre-filled date from slot selection */}
-      <div className="mb-4">
-        <QuickAdd brainId={brainId} onAdded={onAdded} defaultDate={addDate} />
-      </div>
-
-      {/* External event legend */}
-      {externalEvents.length > 0 && (
-        <div className="mb-3 flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--ember)" }} />
-            <span className="text-[10px] font-medium" style={{ color: "var(--ink-faint)" }}>Todos</span>
-          </div>
-          {externalEvents.some((e) => e.provider === "google") && (
-            <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--moss)" }} />
-              <span className="text-[10px] font-medium" style={{ color: "var(--ink-faint)" }}>Google Calendar</span>
-            </div>
-          )}
-          {externalEvents.some((e) => e.provider === "microsoft") && (
-            <div className="flex items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--moss)" }} />
-              <span className="text-[10px] font-medium" style={{ color: "var(--ink-faint)" }}>Outlook</span>
-            </div>
-          )}
-        </div>
-      )}
+    <div className="space-y-4">
+      <QuickAdd brainId={brainId} onAdded={onAdded} />
 
       {externalEvents.length === 0 && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: "var(--line-soft)", background: "var(--surface)" }}>
-          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ color: "var(--ink-ghost)", flexShrink: 0 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-          </svg>
-          <span className="text-xs" style={{ color: "var(--ink-faint)" }}>
-            Connect Google or Outlook in{" "}
-            <strong style={{ color: "var(--ink-soft)", fontWeight: 600 }}>Settings → Calendar Sync</strong>{" "}
-            to see your events here.
-          </span>
-        </div>
+        <p className="text-xs" style={{ color: "var(--ink-ghost)" }}>
+          Connect Google or Outlook in{" "}
+          <strong style={{ color: "var(--ink-soft)", fontWeight: 600 }}>Settings → Calendar Sync</strong>{" "}
+          to see your events here.
+        </p>
       )}
 
-      {/* The calendar */}
-      <div style={{ height: "calc(100vh - 320px)", minHeight: 480 }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          date={date}
-          onNavigate={(d: Date) => setDate(d)}
-          view={view}
-          onView={(v: View) => setView(v)}
-          components={components}
-          eventPropGetter={eventStyleGetter as any}
-          selectable
-          onSelectSlot={handleSelectSlot}
-          onSelectEvent={(ev) => setSelectedEvent(ev as CalEvent)}
-          popup
-        />
+      {/* Toolbar */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setNavDate(new Date(year, month - 1, 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+          style={{ color: "var(--ink-soft)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          aria-label="Previous month"
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+
+        <h2 className="flex-1 text-base font-semibold" style={{ color: "var(--ink)", fontFamily: "var(--f-serif)", letterSpacing: "-0.01em" }}>
+          {MONTH_NAMES[month]} {year}
+        </h2>
+
+        <button
+          onClick={() => { setNavDate(new Date()); setSelectedKey(today); }}
+          className="rounded-full px-3 py-1 text-xs font-semibold"
+          style={{ background: "var(--ember-wash)", color: "var(--ember)" }}
+        >
+          Today
+        </button>
+
+        <button
+          onClick={() => setNavDate(new Date(year, month + 1, 1))}
+          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+          style={{ color: "var(--ink-soft)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          aria-label="Next month"
+        >
+          <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
+
+        <div className="flex overflow-hidden rounded-lg border" style={{ borderColor: "var(--line-soft)" }}>
+          {(["month", "agenda"] as const).map((v, i) => (
+            <button
+              key={v}
+              onClick={() => setCalView(v)}
+              className="px-3 py-1.5 text-xs font-medium capitalize transition-colors"
+              style={{
+                background: calView === v ? "var(--ember)" : "var(--surface)",
+                color: calView === v ? "var(--ember-ink)" : "var(--ink-soft)",
+                borderRight: i === 0 ? "1px solid var(--line-soft)" : "none",
+              }}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Event detail popup */}
-      {selectedEvent && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-          style={{ background: "var(--scrim)" }}
-          onClick={() => setSelectedEvent(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border p-5"
-            style={{ background: "var(--surface)", borderColor: "var(--line)", boxShadow: "var(--lift-3)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center gap-2">
-              <div
-                className="h-2.5 w-2.5 rounded-sm flex-shrink-0"
-                style={{ background: selectedEvent.source === "entry" ? "var(--ember)" : "var(--moss)" }}
-              />
-              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-faint)" }}>
-                {selectedEvent.source === "entry" ? "Todo" : selectedEvent.source === "google" ? "Google Calendar" : "Outlook"}
-              </span>
-            </div>
-            <p className="text-base font-semibold mb-1" style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}>
-              {selectedEvent.title}
-            </p>
-            <p className="text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
-              {selectedEvent.allDay
-                ? selectedEvent.start.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })
-                : `${selectedEvent.start.toLocaleDateString("en-ZA", { weekday: "short", day: "numeric", month: "short" })} · ${selectedEvent.start.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}–${selectedEvent.end.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}`}
-            </p>
-            <button
-              onClick={() => setSelectedEvent(null)}
-              className="w-full rounded-xl py-2 text-sm font-medium transition-colors"
-              style={{ background: "var(--surface-high)", color: "var(--ink-soft)" }}
-            >
-              Close
-            </button>
+      {/* Month view */}
+      {calView === "month" && (
+        <div>
+          <div className="mb-1.5 grid grid-cols-7">
+            {DAY_ABBRS.map((d) => (
+              <div key={d} className="py-1 text-center text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-ghost)" }}>
+                {d}
+              </div>
+            ))}
           </div>
+
+          <div className="lg:flex lg:gap-4">
+            <div className="flex-1 overflow-hidden rounded-2xl border" style={{ borderColor: "var(--line-soft)" }}>
+              {grid.map((row, ri) => (
+                <div key={ri} className="grid grid-cols-7" style={{ borderTop: ri > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                  {row.map((day, ci) => {
+                    if (!day) {
+                      return (
+                        <div
+                          key={`e${ci}`}
+                          style={{
+                            background: "var(--surface-low)",
+                            borderLeft: ci > 0 ? "1px solid var(--line-soft)" : "none",
+                            minHeight: 64,
+                          }}
+                        />
+                      );
+                    }
+                    const key = toDateKey(day);
+                    const dayEvents = eventMap[key] || [];
+                    const isToday = key === today;
+                    const isSel = key === selectedKey;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => setSelectedKey(isSel ? null : key)}
+                        className="flex flex-col p-1.5 text-left transition-colors sm:p-2"
+                        style={{
+                          background: isSel ? "color-mix(in oklch, var(--ember) 7%, var(--surface))" : "var(--surface)",
+                          borderLeft: ci > 0 ? "1px solid var(--line-soft)" : "none",
+                          minHeight: 64,
+                        }}
+                      >
+                        <div className="flex justify-end">
+                          <span
+                            className="flex h-[22px] w-[22px] items-center justify-center text-[11px] leading-none"
+                            style={{
+                              borderRadius: "50%",
+                              background: isToday ? "var(--ember)" : "transparent",
+                              color: isToday ? "var(--ember-ink)" : isSel ? "var(--ember)" : "var(--ink-soft)",
+                              fontWeight: isToday || isSel ? 700 : 500,
+                            }}
+                          >
+                            {day.getDate()}
+                          </span>
+                        </div>
+                        {/* Desktop: event pills */}
+                        <div className="hidden w-full flex-col gap-0.5 sm:flex">
+                          {dayEvents.slice(0, 2).map((ev, i) => {
+                            const c = eventSourceColor(ev.source);
+                            return (
+                              <div
+                                key={i}
+                                className="w-full truncate rounded px-1 text-[10px] font-medium leading-relaxed"
+                                style={{
+                                  background: `color-mix(in oklch, ${c} 13%, var(--surface-high))`,
+                                  color: c,
+                                }}
+                              >
+                                {ev.title}
+                              </div>
+                            );
+                          })}
+                          {dayEvents.length > 2 && (
+                            <span className="pl-1 text-[9px]" style={{ color: "var(--ink-ghost)" }}>
+                              +{dayEvents.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                        {/* Mobile: dots */}
+                        {dayEvents.length > 0 && (
+                          <div className="mt-auto flex justify-center gap-0.5 sm:hidden">
+                            {dayEvents.slice(0, 3).map((ev, i) => (
+                              <div key={i} className="h-1 w-1 rounded-full" style={{ background: eventSourceColor(ev.source) }} />
+                            ))}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop day panel */}
+            {selectedKey && (
+              <div className="hidden w-72 shrink-0 lg:block">
+                <DayDetailPanel dateKey={selectedKey} events={selectedEvents} onClose={() => setSelectedKey(null)} />
+              </div>
+            )}
+          </div>
+
+          {/* Mobile day panel */}
+          {selectedKey && (
+            <div className="mt-3 lg:hidden">
+              <DayDetailPanel dateKey={selectedKey} events={selectedEvents} onClose={() => setSelectedKey(null)} />
+            </div>
+          )}
+
+          {/* Legend */}
+          {externalEvents.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-3">
+              {[
+                { label: "Todos", color: "var(--ember)" },
+                ...(externalEvents.some((e) => e.provider === "google") ? [{ label: "Google", color: "oklch(54% 0.13 248)" }] : []),
+                ...(externalEvents.some((e) => e.provider === "microsoft") ? [{ label: "Outlook", color: "oklch(52% 0.10 192)" }] : []),
+              ].map(({ label, color }) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full" style={{ background: color }} />
+                  <span className="text-[10px] font-medium" style={{ color: "var(--ink-faint)" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Agenda view */}
+      {calView === "agenda" && <AgendaList days={agendaDays} today={today} />}
     </div>
   );
 }
