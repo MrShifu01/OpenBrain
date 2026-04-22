@@ -133,97 +133,6 @@ function addRecurring(entries: Entry[], add: (key: string, e: Entry) => void, ta
   });
 }
 
-/* ─── Mini calendar (list tab) ─── */
-function MiniCalendar({
-  dateMap, selectedDay, onSelectDay,
-}: { dateMap: Record<string, Entry[]>; selectedDay: string | null; onSelectDay: (k: string | null) => void; }) {
-  const [expanded, setExpanded] = useState(false);
-  const [month, setMonth] = useState<Date>(() => new Date());
-  const year = month.getFullYear();
-  const mon = month.getMonth();
-  const today = new Date().toISOString().slice(0, 10);
-
-  const firstDow = new Date(year, mon, 1).getDay();
-  const daysInMonth = new Date(year, mon + 1, 0).getDate();
-  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
-  const monthLabel = month.toLocaleDateString("en-ZA", { month: "short", year: "numeric" });
-  const dayKey = (d: number) => `${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  const eventCount = Object.keys(dateMap).filter((k) => k.startsWith(`${year}-${String(mon + 1).padStart(2, "0")}`)).length;
-
-  return (
-    <div className="overflow-hidden rounded-2xl border" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
-      <button
-        className="flex w-full cursor-pointer items-center justify-between px-4 py-3"
-        onClick={() => setExpanded((s) => !s)}
-      >
-        <div className="flex items-center gap-3">
-          <svg className="h-5 w-5 flex-shrink-0" style={{ color: "var(--ink-faint)" }} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-          </svg>
-          <div className="flex flex-col items-start">
-            <span className="text-sm font-semibold" style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}>{monthLabel}</span>
-            {eventCount > 0 && <span className="text-xs" style={{ color: "var(--ink-faint)" }}>· {eventCount} days with events</span>}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {expanded && (
-            <>
-              <button
-                className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-70"
-                style={{ color: "var(--ember)", background: "var(--ember-wash)" }}
-                onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon - 1, 1)); }}
-              >←</button>
-              <button
-                className="flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold transition-opacity hover:opacity-70"
-                style={{ color: "var(--ember)", background: "var(--ember-wash)" }}
-                onClick={(e) => { e.stopPropagation(); setMonth(new Date(year, mon + 1, 1)); }}
-              >→</button>
-            </>
-          )}
-          <span className="text-xs" style={{ color: "var(--ink-ghost)" }}>{expanded ? "▾" : "▸"}</span>
-        </div>
-      </button>
-
-      {expanded && (
-        <div className="px-3 pb-3">
-          <div className="mb-1 grid grid-cols-7 gap-1">
-            {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
-              <div key={i} className="py-1 text-center text-[10px] font-medium" style={{ color: "var(--ink-ghost)" }}>{d}</div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((day, i) => {
-              if (!day) return <div key={`e${i}`} />;
-              const key = dayKey(day);
-              const dots = dateMap[key] || [];
-              const isToday = key === today;
-              const isSel = key === selectedDay;
-              return (
-                <button
-                  key={key}
-                  className="relative flex aspect-square w-full flex-col items-center justify-center rounded-full text-xs transition-all"
-                  style={{
-                    background: isSel ? "var(--ember)" : "transparent",
-                    color: isSel ? "var(--ember-ink)" : isToday ? "var(--ember)" : "var(--ink-soft)",
-                    fontWeight: isSel || isToday ? 700 : 400,
-                    boxShadow: isToday && !isSel ? "inset 0 0 0 1.5px var(--ember)" : "none",
-                  }}
-                  onClick={() => onSelectDay(isSel ? null : key)}
-                >
-                  <span>{day}</span>
-                  {dots.length > 0 && !isSel && (
-                    <div className="absolute bottom-0.5 h-1 w-1 rounded-full" style={{ background: "var(--moss)" }} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 /* ─── Quick-add form ─── */
 function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void; defaultDate?: string }) {
   const [title, setTitle] = useState("");
@@ -840,7 +749,6 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   const ctx = useEntries();
   const entries = propEntries || ctx?.entries || [];
   const [tab, setTab] = useState<"list" | "calendar">("list");
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
   const [editState, setEditState] = useState<{ entry: Entry; rect: DOMRect } | null>(null);
 
@@ -862,14 +770,6 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
     if (!map[key]) map[key] = [];
     if (!map[key].find((x) => x.id === e.id)) map[key].push(e);
   };
-
-  const dateMap = useMemo(() => {
-    const map: Record<string, Entry[]> = {};
-    const add = mkAdd(map);
-    entries.forEach((e) => { if (!isDone(e)) extractDates(e).forEach((d) => add(d, e)); });
-    addRecurring(entries, add);
-    return map;
-  }, [entries]);
 
   const taskMap = useMemo(() => {
     const map: Record<string, Entry[]> = {};
@@ -915,7 +815,6 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   );
 
   const completed = useMemo(() => entries.filter(isDone), [entries]);
-  const selEntries = selectedDay ? dateMap[selectedDay] || [] : [];
   const weekItemCount = weekDays.reduce((n, d) => n + (taskMap[toDateKey(d)]?.length || 0), 0);
   const total = overdue.length + weekItemCount + todoList.length;
 
@@ -1052,42 +951,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
               <QuickAdd brainId={activeBrainId} onAdded={() => ctx?.refreshEntries()} />
             </div>
 
-            <MiniCalendar dateMap={dateMap} selectedDay={selectedDay} onSelectDay={setSelectedDay} />
-
-            {/* Selected day detail */}
-            {selectedDay && (
-              <div
-                className="mt-4 space-y-3 rounded-2xl border p-4"
-                style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
-              >
-                <p className="text-sm font-semibold" style={{ color: selEntries.length ? "var(--ember)" : "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
-                  {selEntries.length ? `${selEntries.length} item${selEntries.length > 1 ? "s" : ""} — ${selectedDay}` : `Nothing on ${selectedDay}`}
-                </p>
-                {selEntries.map((e) => {
-                  const cfg = TC[e.type] || TC.note;
-                  const eIcon = resolveIcon(e.type, typeIcons);
-                  return (
-                    <div key={e.id} className="flex items-start gap-3 rounded-xl border px-3 py-2" style={{ background: "var(--surface-low)", borderColor: "var(--line-soft)" }}>
-                      <div className="mt-0.5 flex shrink-0 items-center gap-1.5">
-                        <span className="text-base">{eIcon}</span>
-                        <span className="rounded-full px-2 py-0.5 text-[10px] font-medium capitalize" style={{ background: `${cfg.c}18`, color: cfg.c }}>
-                          {e.type}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm" style={{ color: "var(--ink)" }}>{e.title}</p>
-                        {e.content && (
-                          <p className="mt-0.5 truncate text-xs" style={{ color: "var(--ink-faint)" }}>{e.content.slice(0, 120)}</p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {!selectedDay && (
-              <div className="mt-6 space-y-6">
+            <div className="mt-6 space-y-6">
 
                 {/* Overdue */}
                 {overdue.length > 0 && (
@@ -1179,7 +1043,6 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                   </div>
                 )}
               </div>
-            )}
           </>
         )}
       </div>
