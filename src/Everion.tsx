@@ -661,7 +661,15 @@ function EverionContent({
                 />
               </Suspense>
             )}
-            {appShell.view === "settings" && <SettingsView onNavigate={appShell.setView} />}
+            {appShell.view === "settings" && (
+              <SettingsView
+                onNavigate={appShell.setView}
+                unenrichedDetails={unenrichedDetails}
+                enriching={enriching}
+                enrichProgress={enrichProgress}
+                runBulkEnrich={runBulkEnrich}
+              />
+            )}
             {appShell.view === "capture" && (
               <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:pb-8 pt-4 pb-32">
                 {(() => {

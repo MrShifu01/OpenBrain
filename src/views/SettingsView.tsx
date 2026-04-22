@@ -7,6 +7,7 @@ import BrainTab from "../components/settings/BrainTab";
 import StorageTab from "../components/settings/StorageTab";
 import DangerTab from "../components/settings/DangerTab";
 import ClaudeCodeTab from "../components/settings/ClaudeCodeTab";
+import EnrichmentTab from "../components/settings/EnrichmentTab";
 import CalendarSyncTab from "../components/settings/CalendarSyncTab";
 import NotificationSettings from "../components/NotificationSettings";
 import AppearanceTab from "../components/settings/AppearanceTab";
@@ -21,6 +22,7 @@ type SectionId =
   | "providers"
   | "notifications"
   | "storage"
+  | "enrichment"
   | "integrations"
   | "calendar"
   | "appearance"
@@ -36,6 +38,7 @@ const BASE_SECTIONS: { id: SectionId; label: string }[] = [
   { id: "providers", label: "AI providers" },
   { id: "notifications", label: "Notifications" },
   { id: "storage", label: "Storage" },
+  { id: "enrichment", label: "Enrichment" },
   { id: "integrations", label: "Integrations" },
   { id: "calendar", label: "Calendar sync" },
   { id: "appearance", label: "Appearance" },
@@ -214,11 +217,23 @@ function VaultRow({ onNavigate }: { onNavigate: (id: string) => void }) {
   );
 }
 
+interface GapDetail { id: string; title: string; gaps: string[] }
+
 interface SettingsViewProps {
   onNavigate?: (id: string) => void;
+  unenrichedDetails?: GapDetail[];
+  enriching?: boolean;
+  enrichProgress?: { done: number; total: number } | null;
+  runBulkEnrich?: () => Promise<void>;
 }
 
-export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
+export default function SettingsView({
+  onNavigate,
+  unenrichedDetails = [],
+  enriching = false,
+  enrichProgress = null,
+  runBulkEnrich = async () => {},
+}: SettingsViewProps = {}) {
   const { activeBrain, refresh } = useBrain();
   const [section, setSection] = useState<SectionId>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -449,6 +464,21 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   </div>
                 )}
                 {onNavigate && <VaultRow onNavigate={onNavigate} />}
+              </>
+            )}
+
+            {section === "enrichment" && (
+              <>
+                <SectionHeader
+                  title="Enrichment"
+                  subtitle="track which entries are missing embeddings, concepts, AI parsing, or insights — and trigger a manual run."
+                />
+                <EnrichmentTab
+                  unenrichedDetails={unenrichedDetails}
+                  enriching={enriching}
+                  enrichProgress={enrichProgress}
+                  runBulkEnrich={runBulkEnrich}
+                />
               </>
             )}
 

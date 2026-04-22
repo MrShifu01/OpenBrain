@@ -1,0 +1,196 @@
+interface GapDetail { id: string; title: string; gaps: string[] }
+
+interface EnrichmentTabProps {
+  unenrichedDetails: GapDetail[];
+  enriching: boolean;
+  enrichProgress: { done: number; total: number } | null;
+  runBulkEnrich: () => Promise<void>;
+}
+
+const GAP_META: { key: string; label: string; description: string }[] = [
+  { key: "embedding",  label: "Embedding",   description: "Vector embedding for semantic search" },
+  { key: "concepts",   label: "Concepts",     description: "Knowledge graph connections" },
+  { key: "parsed",     label: "AI Parsing",   description: "Structured metadata extracted by AI" },
+  { key: "insight",    label: "Insight",      description: "AI-generated insight summary" },
+];
+
+export default function EnrichmentTab({
+  unenrichedDetails,
+  enriching,
+  enrichProgress,
+  runBulkEnrich,
+}: EnrichmentTabProps) {
+  const total = unenrichedDetails.length;
+  const allDone = total === 0 && !enriching;
+
+  const gapCounts = Object.fromEntries(
+    GAP_META.map(({ key }) => [
+      key,
+      unenrichedDetails.filter((d) => d.gaps.includes(key)).length,
+    ]),
+  );
+
+  const progressPct = enrichProgress
+    ? Math.round((enrichProgress.done / enrichProgress.total) * 100)
+    : 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+      {/* Status card */}
+      <div
+        className="rounded-2xl border"
+        style={{ background: "var(--surface)", borderColor: "var(--line-soft)", overflow: "hidden" }}
+      >
+        {/* Header row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 20px",
+            borderBottom: allDone ? "none" : "1px solid var(--line-soft)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: allDone ? "var(--moss)" : "var(--ember)",
+                flexShrink: 0,
+              }}
+            />
+            <span
+              className="f-sans"
+              style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}
+            >
+              {allDone
+                ? "All entries fully enriched"
+                : `${total} entr${total === 1 ? "y" : "ies"} need enrichment`}
+            </span>
+          </div>
+          {!allDone && (
+            <span
+              className="f-sans"
+              style={{
+                fontSize: 11,
+                color: "var(--ink-ghost)",
+                background: "var(--surface-high)",
+                borderRadius: 999,
+                padding: "2px 10px",
+              }}
+            >
+              {unenrichedDetails.length} / {unenrichedDetails.length + (enrichProgress?.done ?? 0)} remaining
+            </span>
+          )}
+        </div>
+
+        {/* Per-gap breakdown */}
+        {!allDone && (
+          <div style={{ padding: "4px 0 8px" }}>
+            {GAP_META.map(({ key, label, description }) => {
+              const count = gapCounts[key] ?? 0;
+              return (
+                <div
+                  key={key}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    padding: "8px 20px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                      background: count > 0 ? "var(--ember)" : "var(--moss)",
+                    }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}>
+                      {label}
+                    </span>
+                    <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 6 }}>
+                      {description}
+                    </span>
+                  </div>
+                  <span
+                    className="f-sans"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: count > 0 ? "var(--ember)" : "var(--ink-ghost)",
+                      minWidth: 28,
+                      textAlign: "right",
+                    }}
+                  >
+                    {count > 0 ? count : "✓"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Progress bar */}
+      {enriching && enrichProgress && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              height: 4,
+              borderRadius: 999,
+              background: "var(--line-soft)",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                background: "var(--ember)",
+                borderRadius: 999,
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
+          <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)" }}>
+            Enriching {enrichProgress.done} of {enrichProgress.total} entries…
+          </span>
+        </div>
+      )}
+
+      {/* Enrich Now button */}
+      {!allDone && (
+        <button
+          onClick={runBulkEnrich}
+          disabled={enriching || total === 0}
+          className="f-sans"
+          style={{
+            alignSelf: "flex-start",
+            padding: "9px 20px",
+            borderRadius: 12,
+            fontSize: 13,
+            fontWeight: 600,
+            background: enriching ? "var(--surface-high)" : "var(--ember)",
+            color: enriching ? "var(--ink-ghost)" : "var(--ember-ink)",
+            cursor: enriching ? "not-allowed" : "pointer",
+            opacity: enriching ? 0.7 : 1,
+            transition: "opacity 0.2s",
+            border: "none",
+          }}
+        >
+          {enriching
+            ? `Enriching… ${progressPct}%`
+            : `Enrich ${total} entr${total === 1 ? "y" : "ies"} now`}
+        </button>
+      )}
+
+      {allDone && (
+        <p className="f-sans" style={{ fontSize: 13, color: "var(--ink-ghost)" }}>
+          New entries are enriched automatically in the background. Come back here if you ever see gaps.
+        </p>
+      )}
+    </div>
+  );
+}
