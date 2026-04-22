@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { parseISO, startOfDay, endOfDay } from "date-fns";
+import { parseISO, startOfDay, endOfDay, format } from "date-fns";
+import * as chrono from "chrono-node";
 import { TC, fmtD } from "../data/constants";
 import { resolveIcon } from "../lib/typeIcons";
 import { useEntries } from "../context/EntriesContext";
@@ -135,9 +136,17 @@ function addRecurring(entries: Entry[], add: (key: string, e: Entry) => void, ta
 /* ─── Quick-add form ─── */
 function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void; defaultDate?: string }) {
   const [title, setTitle] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Parse natural language date from the title as the user types
+  const parsed = useMemo(() => {
+    if (!title.trim()) return null;
+    const results = chrono.parse(title, new Date(), { forwardDate: true });
+    if (!results.length) return null;
+    const r = results[0];
+    return { date: r.date(), text: r.text };
+  }, [title]);
 
   function autoResize() {
     const el = inputRef.current;
@@ -148,18 +157,19 @@ function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const t = title.trim();
-    if (!t || !brainId) return;
+    const raw = title.trim();
+    if (!raw || !brainId) return;
     setBusy(true);
+    // Strip the recognised date phrase from the title
+    const cleanTitle = parsed ? raw.replace(parsed.text, "").replace(/\s{2,}/g, " ").trim() || raw : raw;
     const metadata: Record<string, string> = { status: "todo" };
-    if (dueDate) metadata.due_date = dueDate;
+    if (parsed) metadata.due_date = format(parsed.date, "yyyy-MM-dd");
     await authFetch("/api/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ p_title: t, p_type: "todo", p_brain_id: brainId, p_metadata: metadata }),
+      body: JSON.stringify({ p_title: cleanTitle, p_type: "todo", p_brain_id: brainId, p_metadata: metadata }),
     }).catch(() => null);
     setTitle("");
-    setDueDate("");
     setBusy(false);
     onAdded();
     const el = inputRef.current;
@@ -173,30 +183,31 @@ function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void;
       style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
     >
       <CheckCircleIcon className="h-4 w-4 shrink-0" style={{ color: "var(--ink-ghost)" }} />
-      <textarea
-        ref={inputRef}
-        value={title}
-        rows={1}
-        onChange={(e) => { setTitle(e.target.value); autoResize(); }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(e as any); }
-        }}
-        placeholder="Add a todo…"
-        disabled={busy}
-        className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-        style={{
-          color: "var(--ink)", fontFamily: "var(--f-sans)",
-          resize: "none", overflow: "hidden", lineHeight: "1.5",
-        }}
-      />
-      <input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-        disabled={busy}
-        className="shrink-0 rounded-lg border-none bg-transparent text-xs outline-none"
-        style={{ color: dueDate ? "var(--ember)" : "var(--ink-ghost)", fontFamily: "var(--f-sans)", cursor: "pointer" }}
-      />
+      <div className="min-w-0 flex-1">
+        <textarea
+          ref={inputRef}
+          value={title}
+          rows={1}
+          onChange={(e) => { setTitle(e.target.value); autoResize(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(e as any); }
+          }}
+          placeholder="Add a todo… (e.g. 'Call John next Thursday')"
+          disabled={busy}
+          className="w-full bg-transparent text-sm outline-none"
+          style={{
+            color: "var(--ink)", fontFamily: "var(--f-sans)",
+            resize: "none", overflow: "hidden", lineHeight: "1.5",
+          }}
+        />
+        {parsed && (
+          <div className="flex items-center gap-1 mt-0.5">
+            <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
+              📅 {format(parsed.date, "EEE, d MMM")}
+            </span>
+          </div>
+        )}
+      </div>
       <button
         type="submit"
         disabled={busy || !title.trim()}
