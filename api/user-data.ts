@@ -3,6 +3,7 @@ import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import crypto from "crypto";
+import webpush from "web-push";
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -17,6 +18,7 @@ const MAX_CHARS = 8000;
 //   /api/notification-prefs → /api/user-data?resource=prefs
 //   /api/push-subscribe     → /api/user-data?resource=push
 //   /api/brains             → /api/user-data?resource=brains
+//   /api/cron/daily         → /api/user-data?resource=cron-daily
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
   const resource = req.query.resource as string | undefined;
@@ -29,6 +31,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "prefs") return handleNotificationPrefs(req, res);
   if (resource === "push") return handlePushSubscribe(req, res);
   if (resource === "brains") return handleBrains(req, res);
+  if (resource === "cron-daily") return handleCronDaily(req, res);
   // Default: memory
   return handleMemory(req, res);
 }
@@ -529,4 +532,65 @@ async function handlePushSubscribe(req: ApiRequest, res: ApiResponse): Promise<v
   }
 
   return res.status(405).json({ error: "Method not allowed" });
+}
+
+// ── /api/cron/daily (rewritten to /api/user-data?resource=cron-daily) ──
+// Scheduled at 18:00 UTC (20:00 SAST) via vercel.json. Sends push to all users with daily_enabled.
+async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void> {
+  const auth = (req.headers as any).authorization as string | undefined;
+  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return void res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const subject = process.env.VAPID_SUBJECT;
+  const pub = process.env.VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !pub || !priv) {
+    return void res.status(500).json({ error: "VAPID env vars not set" });
+  }
+  webpush.setVapidDetails(subject, pub, priv);
+
+  const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
+  const users: any[] = [];
+  let page = 1;
+  while (true) {
+    const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, { headers: adminHdrs });
+    if (!r.ok) break;
+    const data = await r.json();
+    const batch: any[] = data.users ?? [];
+    users.push(...batch);
+    if (batch.length < 50) break;
+    page++;
+  }
+
+  const results = { sent: 0, skipped: 0, errors: 0 };
+
+  for (const user of users) {
+    const meta = user.user_metadata ?? {};
+    const prefs = meta.notification_prefs ?? {};
+    const sub = meta.push_subscription;
+
+    if (!prefs.daily_enabled || !sub?.endpoint || !sub?.keys) { results.skipped++; continue; }
+
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: sub.keys },
+        JSON.stringify({ title: "Everion", body: "What's worth remembering from today?", url: "/capture" }),
+      );
+      results.sent++;
+    } catch (err: any) {
+      console.error(`[cron/daily] push failed for ${user.id}:`, err.message);
+      if (err.statusCode === 410 || err.statusCode === 404) {
+        const { push_subscription: _rm, ...rest } = meta;
+        await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...adminHdrs },
+          body: JSON.stringify({ user_metadata: rest }),
+        });
+      }
+      results.errors++;
+    }
+  }
+
+  return void res.status(200).json(results);
 }

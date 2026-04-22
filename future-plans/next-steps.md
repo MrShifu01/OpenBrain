@@ -252,6 +252,7 @@ By now: 200–500 paying users, $1–3K MRR, clear picture of who the power user
 - At 500 paying users: upgrade Supabase compute (Small, +$15/mo).
 - Watch Vercel bandwidth — 1TB cap approaching.
 - Enable Semantic Caching (`roadmap.md` sub-project 3) for `/v1/context` responses once latency tail shows repeat queries.
+- **Upgrade to Vercel Pro** when public launch happens. Currently on Hobby (crons run once/day at a fixed UTC time). Pro enables hourly cron execution so each user's `daily_time` + `daily_timezone` preference in notification settings is actually respected. The handler already supports per-user timezone matching — just needs the hourly schedule to work.
 
 ---
 

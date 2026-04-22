@@ -281,11 +281,7 @@ export default function NotificationSettings(): JSX.Element {
         <>
           <SettingsRow
             label="Daily capture prompt"
-            hint={
-              prefs.daily_enabled
-                ? "a nightly nudge to capture what's worth remembering."
-                : "a nightly nudge to capture what's worth remembering."
-            }
+            hint="a nightly nudge at 20:00 to capture what's worth remembering."
           >
             <SettingsToggle
               value={prefs.daily_enabled}
@@ -293,37 +289,6 @@ export default function NotificationSettings(): JSX.Element {
               ariaLabel="Daily capture prompt"
             />
           </SettingsRow>
-          {prefs.daily_enabled && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 10,
-                padding: "4px 0 16px",
-                borderBottom: "1px solid var(--line-soft)",
-                marginBottom: 0,
-              }}
-            >
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="micro">time</span>
-                <input
-                  type="time"
-                  value={prefs.daily_time}
-                  style={inputStyle}
-                  onChange={(e) => savePref({ daily_time: e.target.value })}
-                />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}>
-                <span className="micro">timezone</span>
-                <input
-                  type="text"
-                  value={prefs.daily_timezone}
-                  style={inputStyle}
-                  onChange={(e) => savePref({ daily_timezone: e.target.value })}
-                />
-              </label>
-            </div>
-          )}
 
           <SettingsRow
             label="Quiet nudge"
