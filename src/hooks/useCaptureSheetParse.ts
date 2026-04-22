@@ -236,8 +236,10 @@ export function useCaptureSheetParse({
       try {
         const hasFiles = uploadedFiles.length > 0;
         const hasMultipleFiles = uploadedFiles.length > 1;
+        const todayISO = new Date().toISOString().slice(0, 10);
+        const basePrompt = hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE;
         const res = await callAI({
-          system: hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE,
+          system: `Today's date is ${todayISO}.\n\n${basePrompt}`,
           max_tokens: 4000,
           brainId,
           messages: [{ role: "user", content: input }],

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type ReactNode } from "react";
+import { useState, useMemo, useRef } from "react";
 import { TC, fmtD } from "../data/constants";
 import { resolveIcon } from "../lib/typeIcons";
 import { useEntries } from "../context/EntriesContext";
@@ -256,97 +256,102 @@ interface TodoViewProps {
   activeBrainId?: string;
 }
 
+function addRecurring(entries: Entry[], add: (key: string, e: Entry) => void) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const mon = now.getMonth();
+  const daysInMonth = new Date(year, mon + 1, 0).getDate();
+  entries.forEach((e) => {
+    if (isDone(e)) return;
+    const m = (e.metadata || {}) as Record<string, unknown>;
+    let rawDay = (m.day_of_week || m.weekday || m.recurring_day || "").toString().toLowerCase().trim();
+    if (!rawDay) {
+      const text = `${e.title || ""} ${e.content || ""}`.toLowerCase();
+      const match = text.match(/every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i);
+      if (match) rawDay = match[1];
+    }
+    const dowIndex = DOW[rawDay];
+    if (dowIndex === undefined) return;
+    for (let d = 1; d <= daysInMonth; d++) {
+      if (new Date(year, mon, d).getDay() === dowIndex)
+        add(`${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`, e);
+    }
+  });
+}
+
 export default function TodoView({ entries: propEntries, typeIcons = {}, activeBrainId }: TodoViewProps) {
   const ctx = useEntries();
   const entries = propEntries || ctx?.entries || [];
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
+  const mkAdd = (map: Record<string, Entry[]>) => (key: string, e: Entry) => {
+    if (!map[key]) map[key] = [];
+    if (!map[key].find((x) => x.id === e.id)) map[key].push(e);
+  };
+
+  /* Calendar dots — all date types */
   const dateMap = useMemo(() => {
     const map: Record<string, Entry[]> = {};
-    const addTo = (key: string, entry: Entry) => {
-      if (!map[key]) map[key] = [];
-      if (!map[key].find((e) => e.id === entry.id)) map[key].push(entry);
-    };
-
-    entries.forEach((e: Entry) => {
-      if (isDone(e)) return;
-      const dates = extractDates(e);
-      dates.forEach((d) => addTo(d, e));
-    });
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const mon = now.getMonth();
-    entries.forEach((e: Entry) => {
-      if (isDone(e)) return;
-      const m = (e.metadata || {}) as Record<string, unknown>;
-      let rawDay = (m.day_of_week || m.weekday || m.recurring_day || "").toString().toLowerCase().trim();
-      if (!rawDay) {
-        const text = `${e.title || ""} ${e.content || ""}`.toLowerCase();
-        const dayMatch = text.match(/every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i);
-        if (dayMatch) rawDay = dayMatch[1];
-      }
-      const dowIndex = DOW[rawDay];
-      if (dowIndex === undefined) return;
-      for (let d = 1; d <= new Date(year, mon + 1, 0).getDate(); d++) {
-        if (new Date(year, mon, d).getDay() === dowIndex) {
-          addTo(`${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`, e);
-        }
-      }
-    });
-
+    const add = mkAdd(map);
+    entries.forEach((e) => { if (!isDone(e)) extractDates(e).forEach((d) => add(d, e)); });
+    addRecurring(entries, add);
     return map;
   }, [entries]);
 
-  const { today, tomorrow, thisWeek, overdue, todoList } = useMemo(() => {
-    const now = new Date();
-    const todayKey = toDateKey(now);
-    const tom = new Date(now);
-    tom.setDate(tom.getDate() + 1);
-    const tomorrowKey = toDateKey(tom);
-    const endOfWeek = new Date(now);
-    endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
-    const endOfWeekKey = toDateKey(endOfWeek);
-
-    const today: TodoItem[] = [];
-    const tomorrow: TodoItem[] = [];
-    const thisWeek: TodoItem[] = [];
-    const overdue: TodoItem[] = [];
-    // All active todos (type=todo, not done, regardless of date)
-    const todoList: Entry[] = [];
-
-    entries.forEach((entry: Entry) => {
-      if (isDone(entry)) return;
-
-      // Collect pure todos with no date into todoList
-      if (entry.type === "todo") {
-        const actionDates = extractActionDates(entry);
-        if (actionDates.length === 0) {
-          todoList.push(entry);
-          return;
-        }
-      }
-
-      // Use action-only dates for timed sections
-      const dates = entry.type === "todo" ? extractActionDates(entry) : extractActionDates(entry);
-      dates.forEach((dateStr) => {
-        const item = { entry, dateStr };
-        if (dateStr === todayKey) today.push(item);
-        else if (dateStr === tomorrowKey) tomorrow.push(item);
-        else if (dateStr > tomorrowKey && dateStr <= endOfWeekKey) thisWeek.push(item);
-        else if (dateStr < todayKey) overdue.push(item);
-      });
-    });
-
-    const byDate = (a: TodoItem, b: TodoItem) => a.dateStr.localeCompare(b.dateStr);
-    thisWeek.sort(byDate);
-    overdue.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
-
-    return { today, tomorrow, thisWeek, overdue, todoList };
+  /* Task map — action dates + recurring (drives weekly sections) */
+  const taskMap = useMemo(() => {
+    const map: Record<string, Entry[]> = {};
+    const add = mkAdd(map);
+    entries.forEach((e) => { if (!isDone(e)) extractActionDates(e).forEach((d) => add(d, e)); });
+    addRecurring(entries, add);
+    return map;
   }, [entries]);
 
+  /* Current ISO week Mon–Sun + today key (stable: no deps) */
+  const { weekDays, mondayKey, todayKey } = useMemo(() => {
+    const now = new Date();
+    const todayKey = toDateKey(now);
+    const dow = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
+    monday.setHours(0, 0, 0, 0);
+    const weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      return d;
+    });
+    return { weekDays, mondayKey: toDateKey(monday), todayKey };
+  }, []);
+
+  /* Overdue: action dates before this week's Monday */
+  const overdue = useMemo(() => {
+    const seen = new Set<string>();
+    return entries
+      .filter((e) => !isDone(e))
+      .flatMap((e) => extractActionDates(e).map((d) => ({ entry: e, dateStr: d })))
+      .filter(({ entry, dateStr }) => {
+        if (dateStr >= mondayKey) return false;
+        const k = `${entry.id}-${dateStr}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+  }, [entries, mondayKey]);
+
+  /* Undated plain todos */
+  const todoList = useMemo(
+    () => entries.filter((e) => !isDone(e) && e.type === "todo" && extractActionDates(e).length === 0),
+    [entries],
+  );
+
+  /* Completed entries */
+  const completed = useMemo(() => entries.filter(isDone), [entries]);
+
   const selEntries = selectedDay ? dateMap[selectedDay] || [] : [];
-  const total = today.length + tomorrow.length + thisWeek.length + overdue.length + todoList.length;
+  const weekItemCount = weekDays.reduce((n, d) => n + (taskMap[toDateKey(d)]?.length || 0), 0);
+  const total = overdue.length + weekItemCount + todoList.length;
 
   function renderItem({ entry, dateStr }: TodoItem, showDate: boolean) {
     const tc = TC[entry.type] || TC.note;
@@ -378,40 +383,22 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
     );
   }
 
-  function renderTodoItem(entry: Entry) {
+  function renderEntryRow(entry: Entry) {
     const done = isDone(entry);
-    const tc = TC.todo;
+    const tc = TC[entry.type] || TC.todo;
+    const icon = resolveIcon(entry.type, typeIcons);
     return (
       <div key={entry.id} className="flex items-center gap-3 py-2.5">
         <CheckButton entry={entry} ctx={ctx} />
+        {icon && <span className="mt-0.5 text-base shrink-0">{icon}</span>}
         <div className="min-w-0 flex-1">
           <p className={`truncate text-sm font-medium ${done ? "line-through opacity-50" : "text-[var(--color-on-surface)]"}`}>
             {entry.title}
           </p>
         </div>
         <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize" style={{ background: `${tc.c}18`, color: tc.c }}>
-          todo
+          {entry.type}
         </span>
-      </div>
-    );
-  }
-
-  function renderSection(title: string, icon: ReactNode, items: TodoItem[], showDate: boolean, accentColor?: string) {
-    if (items.length === 0) return null;
-    return (
-      <div>
-        <div className="mb-3 flex items-center gap-2">
-          <span className="flex-shrink-0 leading-none">{icon}</span>
-          <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: accentColor || "var(--color-on-surface-variant)" }}>
-            {title}
-          </p>
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}>
-            {items.length}
-          </span>
-        </div>
-        <div className="divide-y" style={{ borderColor: "var(--color-outline-variant)" }}>
-          {items.map((item) => renderItem(item, showDate))}
-        </div>
       </div>
     );
   }
@@ -427,12 +414,12 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
             Todos
           </h1>
           <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}>
-            {total > 0 ? `${total} items` : "your focused task list"}
+            {total > 0 ? `${total} active · ${completed.length} done` : "your focused task list"}
           </div>
         </div>
       </header>
-      <div style={{ padding: "16px 24px 120px", maxWidth: 780, margin: "0 auto" }}>
 
+      <div style={{ padding: "16px 24px 120px", maxWidth: 780, margin: "0 auto" }}>
         {/* Quick-add */}
         <div className="mb-4">
           <QuickAdd brainId={activeBrainId} onAdded={() => ctx?.refreshEntries()} />
@@ -474,44 +461,102 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
           </div>
         )}
 
-        {/* Empty state */}
-        {!selectedDay && total === 0 && (
-          <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 text-5xl">☑️</div>
-            <p className="text-on-surface mb-1 text-lg font-semibold" style={{ fontFamily: "var(--f-sans)" }}>All clear</p>
-            <p className="max-w-xs text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-              Add todos above, or they'll appear automatically when entries have due dates.
-            </p>
-          </div>
-        )}
+        {!selectedDay && (
+          <div className="mt-6 space-y-6">
 
-        {!selectedDay && total > 0 && (
-          <div className="mt-6 space-y-8">
-            {/* Undated todos */}
-            {todoList.length > 0 && (
+            {/* Overdue */}
+            {overdue.length > 0 && (
               <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <span className="block h-2 w-2 flex-shrink-0 rounded-full" style={{ background: "var(--color-primary)" }} />
-                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--color-primary)" }}>
-                    To Do
-                  </p>
-                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}>
-                    {todoList.length}
-                  </span>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="block h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-error)" }} />
+                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--color-error)" }}>Overdue</p>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}>{overdue.length}</span>
                 </div>
-                <div className="divide-y" style={{ borderColor: "var(--color-outline-variant)" }}>
-                  {todoList.map((e) => renderTodoItem(e))}
+                <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+                  {overdue.map((item) => renderItem(item, true))}
                 </div>
               </div>
             )}
-            {renderSection("Overdue", <span className="block h-2 w-2 flex-shrink-0 rounded-full" style={{ background: "var(--color-error)" }} />, overdue, true, "var(--color-error)")}
-            {renderSection("Today", <span className="block h-2 w-2 flex-shrink-0 rounded-full" style={{ background: "var(--color-primary)" }} />, today, false, "var(--color-primary)")}
-            {renderSection("Tomorrow", <span className="block h-2 w-2 flex-shrink-0 rounded-full" style={{ background: "var(--color-status-medium)" }} />, tomorrow, false, "var(--color-status-medium)")}
-            {renderSection("This week",
-              <svg className="h-3.5 w-3.5" style={{ color: "var(--color-on-surface-variant)" }} fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>,
-              thisWeek, true
+
+            {/* Weekly day-by-day */}
+            {weekDays.map((dayDate) => {
+              const key = toDateKey(dayDate);
+              const isToday = key === todayKey;
+              const isPast = key < todayKey;
+              const items = taskMap[key] || [];
+              const dayLabel = dayDate.toLocaleDateString("en-ZA", { weekday: "short" });
+              const dateLabel = dayDate.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+
+              return (
+                <div key={key} style={{ opacity: isPast ? 0.5 : 1 }}>
+                  <div className="mb-2 flex items-center gap-2">
+                    {isToday && (
+                      <span className="f-sans shrink-0" style={{ background: "var(--ember)", color: "var(--ember-ink)", borderRadius: 999, padding: "1px 8px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                        Today
+                      </span>
+                    )}
+                    <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: isToday ? "var(--ink)" : "var(--ink-soft)" }}>
+                      {dayLabel}
+                    </span>
+                    <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>{dateLabel}</span>
+                    {items.length > 0 && (
+                      <span className="f-sans ml-auto" style={{ fontSize: 10, color: "var(--ink-faint)" }}>{items.length}</span>
+                    )}
+                  </div>
+                  {items.length > 0 ? (
+                    <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+                      {items.map((entry) => renderItem({ entry, dateStr: key }, false))}
+                    </div>
+                  ) : (
+                    <div style={{ height: 1, background: "var(--line-soft)", margin: "4px 2px" }} />
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Undated todos */}
+            {todoList.length > 0 && (
+              <div>
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="block h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-primary)" }} />
+                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--color-primary)" }}>To Do</p>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}>{todoList.length}</span>
+                </div>
+                <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+                  {todoList.map((e) => renderEntryRow(e))}
+                </div>
+              </div>
+            )}
+
+            {/* Completed — collapsible */}
+            {completed.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowCompleted((s) => !s)}
+                  className="flex w-full items-center gap-2 py-1"
+                >
+                  <span className="block h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--ink-faint)" }} />
+                  <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--ink-faint)" }}>Completed</p>
+                  <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--color-primary-container)", color: "var(--color-on-surface-variant)" }}>{completed.length}</span>
+                  <span className="f-sans ml-auto text-xs" style={{ color: "var(--ink-faint)" }}>{showCompleted ? "▾" : "▸"}</span>
+                </button>
+                {showCompleted && (
+                  <div className="mt-2 divide-y rounded-2xl border px-3" style={{ background: "var(--color-surface-container)", borderColor: "var(--color-outline-variant)" }}>
+                    {completed.map((e) => renderEntryRow(e))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {total === 0 && completed.length === 0 && (
+              <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
+                <div className="mb-4 text-5xl">☑️</div>
+                <p className="text-on-surface mb-1 text-lg font-semibold" style={{ fontFamily: "var(--f-sans)" }}>All clear</p>
+                <p className="max-w-xs text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+                  Add todos above, or they'll appear automatically when entries have due dates.
+                </p>
+              </div>
             )}
           </div>
         )}
