@@ -288,27 +288,27 @@ function QuickAdd({ brainId, onAdded }: { brainId?: string; onAdded: () => void;
 
 /* ─── Checkbox ─── */
 function CheckButton({ entry, ctx }: { entry: Entry; ctx: ReturnType<typeof useEntries> }) {
-  const [busy, setBusy] = useState(false);
-  const done = isDone(entry);
+  const serverDone = isDone(entry);
+  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const done = optimistic ?? serverDone;
 
-  async function toggle() {
+  function toggle() {
     if (!ctx?.handleUpdate) return;
-    setBusy(true);
-    await ctx.handleUpdate(entry.id, {
+    setOptimistic(!done);
+    ctx.handleUpdate(entry.id, {
       metadata: { ...(entry.metadata || {}), status: done ? "todo" : "done" },
-    }).catch(() => null);
-    setBusy(false);
+    }).catch(() => setOptimistic(null));
   }
 
   return (
     <button
       onClick={toggle}
-      disabled={busy}
-      className="shrink-0 flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all"
+      className="shrink-0 flex items-center justify-center rounded-full border-2 transition-all"
       style={{
+        width: 20, height: 20, minWidth: 20, minHeight: 20,
         borderColor: done ? "var(--ember)" : "var(--line)",
         background: done ? "var(--ember)" : "transparent",
-        cursor: busy ? "wait" : "pointer",
+        cursor: "pointer",
       }}
       aria-label={done ? "Mark incomplete" : "Mark done"}
     >
