@@ -31,7 +31,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        height: "calc(68px + env(safe-area-inset-bottom, 0px))",
+        height: "calc(56px + env(safe-area-inset-bottom, 0px))",
       }}
     >
       {NAV_ITEMS.map((item) => {
@@ -68,7 +68,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
             className="press"
             style={{
               display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              padding: "8px 12px", minHeight: 56, flex: 1,
+              padding: "6px 12px", minHeight: 48, flex: 1,
               border: "none", cursor: "pointer",
               background: "transparent",
               color: isActive ? "var(--ember)" : "var(--ink-faint)",
