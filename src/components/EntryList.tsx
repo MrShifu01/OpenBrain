@@ -82,194 +82,115 @@ const EntryCard = memo(function EntryCard({
   const emoji = resolveIcon(e.type, typeIcons);
   const createdAt = (e as any).created_at || (e as any).createdAt;
 
+  const [swipeX, setSwipeX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const startSwipeRef = useRef(0);
+  const draggingRef = useRef(false);
+
+  const ACTION_W = 72;
+  const actionCount = (onPin ? 1 : 0) + (onDelete ? 1 : 0);
+  const TOTAL_W = actionCount * ACTION_W;
+  const isOpen = swipeX < -10;
+
+  function onTouchStart(ev: React.TouchEvent) {
+    touchStartRef.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+    startSwipeRef.current = swipeX;
+    draggingRef.current = false;
+  }
+
+  function onTouchMove(ev: React.TouchEvent) {
+    if (TOTAL_W === 0) return;
+    const dx = ev.touches[0].clientX - touchStartRef.current.x;
+    const dy = ev.touches[0].clientY - touchStartRef.current.y;
+    if (!draggingRef.current) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      draggingRef.current = true;
+      setDragging(true);
+    }
+    setSwipeX(Math.min(0, Math.max(-TOTAL_W, startSwipeRef.current + dx)));
+  }
+
+  function onTouchEnd() {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setDragging(false);
+    setSwipeX((prev) => (prev < -(TOTAL_W / 2) ? -TOTAL_W : 0));
+  }
+
   return (
-    <article
-      tabIndex={0}
-      onClick={() => (selectMode ? onToggleSelect?.(e.id) : onSelect(e))}
-      onKeyDown={(ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          selectMode ? onToggleSelect?.(e.id) : onSelect(e);
-        }
-      }}
-      aria-label={`Open entry: ${e.title}`}
-      aria-selected={selectMode ? selected : undefined}
-      {...(isPinned ? { "data-pinned": "true" } : {})}
-      {...(importance > 0 ? { "data-importance": String(importance) } : {})}
-      className={`entry-card ${isCritical ? "entry-card--critical" : isPinned ? "entry-card--pinned" : ""} group press relative cursor-pointer`}
+    <div
+      className={isCritical ? "entry-card--critical" : isPinned ? "entry-card--pinned" : ""}
       style={{
-        padding: 20,
+        position: "relative",
+        overflow: "hidden",
         borderRadius: 12,
-        borderWidth: 1,
-        borderStyle: "solid",
-        borderColor: selected ? "var(--ember)" : "var(--line-soft)",
-        borderLeft: isPinned ? "2px solid var(--ember)" : "1px solid var(--line-soft)",
-        background: selected ? "var(--ember-wash)" : "var(--surface)",
-        transition: "background 180ms, border-color 180ms",
+        border: `1px solid ${selected ? "var(--ember)" : "var(--line-soft)"}`,
+        borderLeft: isPinned ? "2px solid var(--ember)" : undefined,
+        transition: "border-color 180ms",
       }}
     >
-      {selectMode && (
+      {/* Swipe action panel — revealed behind the card */}
+      {TOTAL_W > 0 && (
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
-            top: 12,
-            right: 12,
-            width: 20,
-            height: 20,
-            minHeight: 20,
-            borderRadius: 4,
-            border: `1px solid ${selected ? "var(--ember)" : "var(--line)"}`,
-            background: selected ? "var(--ember)" : "var(--surface-high)",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: TOTAL_W,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {selected && (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ember-ink)" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4 10-10" />
-            </svg>
-          )}
-        </div>
-      )}
-
-      {/* Top row: type glyph + label + time + markers */}
-      <div
-        className="f-sans"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 10,
-          color: "var(--ink-faint)",
-          fontSize: 12,
-        }}
-      >
-        <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">{emoji}</span>
-        <span
-          style={{
-            fontSize: 11,
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            fontWeight: 600,
-          }}
-        >
-          {e.type}
-        </span>
-        <span style={{ marginLeft: "auto", fontSize: 12 }}>{relTime(createdAt)}</span>
-        {isPinned && <span style={{ color: "var(--ember)" }}>{IconPin}</span>}
-        {isVault && <span>{IconVault}</span>}
-      </div>
-
-      <h3
-        className="f-serif line-clamp-2"
-        style={{
-          fontSize: 18,
-          lineHeight: 1.25,
-          fontWeight: 450,
-          letterSpacing: "-0.005em",
-          color: "var(--ink)",
-          margin: 0,
-        }}
-      >
-        {e.title}
-      </h3>
-      {isVault ? (
-        <p
-          className="f-serif"
-          style={{
-            fontSize: 14,
-            fontStyle: "italic",
-            color: "var(--ink-faint)",
-            margin: "8px 0 0",
-          }}
-        >
-          encrypted — tap to reveal.
-        </p>
-      ) : e.content ? (
-        <p
-          className="f-serif line-clamp-3"
-          style={{
-            fontSize: 15,
-            lineHeight: 1.55,
-            color: "var(--ink-soft)",
-            margin: "8px 0 0",
-          }}
-        >
-          {e.content as string}
-        </p>
-      ) : null}
-
-      {concepts && concepts.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 14 }}>
-          {concepts.slice(0, 3).map((c) => (
-            <span
-              key={c}
-              className="design-chip f-sans"
-              style={{ height: 20, fontSize: 11, padding: "0 8px" }}
-            >
-              {c}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Quick actions — visible only on hover */}
-      {(onPin || onDelete) && (
-        <div
-          className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-          style={{
-            marginTop: 12,
-            paddingTop: 10,
-            borderTop: "1px solid var(--line-soft)",
           }}
         >
           {onPin && (
             <button
-              onClick={(ev) => {
-                ev.stopPropagation();
-                onPin(e);
-              }}
-              aria-label={isPinned ? "Unpin" : "Pin"}
-              className="design-btn-ghost press"
+              onClick={(ev) => { ev.stopPropagation(); onPin(e); setSwipeX(0); }}
               style={{
-                fontSize: 12,
-                height: 28,
-                minHeight: 28,
-                padding: "0 8px",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                background: "var(--ember)",
+                border: "none",
+                cursor: "pointer",
+                color: "#fff",
+                fontFamily: "var(--f-sans)",
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
               }}
             >
-              {IconPin}
-              <span>{isPinned ? "Unpin" : "Pin"}</span>
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
+              </svg>
+              {isPinned ? "Unpin" : "Pin"}
             </button>
           )}
           {onDelete && (
             <button
-              onClick={(ev) => {
-                ev.stopPropagation();
-                onDelete(e);
-              }}
-              aria-label="Delete"
-              className="entry-card__delete press"
+              onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
               style={{
-                marginLeft: "auto",
-                fontSize: 12,
-                height: 28,
-                minHeight: 28,
-                padding: "0 8px",
-                borderRadius: 6,
-                color: "var(--blood)",
-                background: "transparent",
-                border: 0,
-                cursor: "pointer",
-                display: "inline-flex",
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
+                justifyContent: "center",
                 gap: 6,
+                background: "var(--blood)",
+                border: "none",
+                cursor: "pointer",
+                color: "#fff",
                 fontFamily: "var(--f-sans)",
-                fontWeight: 500,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
               }}
             >
-              <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
                 <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
               </svg>
               Delete
@@ -277,7 +198,198 @@ const EntryCard = memo(function EntryCard({
           )}
         </div>
       )}
-    </article>
+
+      {/* Card content — slides left on swipe */}
+      <article
+        tabIndex={0}
+        onClick={() => {
+          if (isOpen) { setSwipeX(0); return; }
+          selectMode ? onToggleSelect?.(e.id) : onSelect(e);
+        }}
+        onKeyDown={(ev) => {
+          if (ev.key === "Escape") { setSwipeX(0); return; }
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            selectMode ? onToggleSelect?.(e.id) : onSelect(e);
+          }
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        aria-label={`Open entry: ${e.title}`}
+        aria-selected={selectMode ? selected : undefined}
+        {...(isPinned ? { "data-pinned": "true" } : {})}
+        {...(importance > 0 ? { "data-importance": String(importance) } : {})}
+        className={`entry-card ${isCritical ? "entry-card--critical" : isPinned ? "entry-card--pinned" : ""} group press relative cursor-pointer`}
+        style={{
+          padding: 20,
+          background: selected ? "var(--ember-wash)" : "var(--surface)",
+          transform: `translateX(${swipeX}px)`,
+          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
+          touchAction: dragging ? "none" : "pan-y",
+          willChange: dragging ? "transform" : "auto",
+        }}
+      >
+        {selectMode && (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              right: 12,
+              width: 20,
+              height: 20,
+              minHeight: 20,
+              borderRadius: 4,
+              border: `1px solid ${selected ? "var(--ember)" : "var(--line)"}`,
+              background: selected ? "var(--ember)" : "var(--surface-high)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {selected && (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ember-ink)" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4 10-10" />
+              </svg>
+            )}
+          </div>
+        )}
+
+        {/* Top row: type glyph + label + time + markers */}
+        <div
+          className="f-sans"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 10,
+            color: "var(--ink-faint)",
+            fontSize: 12,
+          }}
+        >
+          <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">{emoji}</span>
+          <span
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontWeight: 600,
+            }}
+          >
+            {e.type}
+          </span>
+          <span style={{ marginLeft: "auto", fontSize: 12 }}>{relTime(createdAt)}</span>
+          {isPinned && <span style={{ color: "var(--ember)" }}>{IconPin}</span>}
+          {isVault && <span>{IconVault}</span>}
+        </div>
+
+        <h3
+          className="f-serif line-clamp-2"
+          style={{
+            fontSize: 18,
+            lineHeight: 1.25,
+            fontWeight: 450,
+            letterSpacing: "-0.005em",
+            color: "var(--ink)",
+            margin: 0,
+          }}
+        >
+          {e.title}
+        </h3>
+        {isVault ? (
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 14,
+              fontStyle: "italic",
+              color: "var(--ink-faint)",
+              margin: "8px 0 0",
+            }}
+          >
+            encrypted — tap to reveal.
+          </p>
+        ) : e.content ? (
+          <p
+            className="f-serif line-clamp-3"
+            style={{
+              fontSize: 15,
+              lineHeight: 1.55,
+              color: "var(--ink-soft)",
+              margin: "8px 0 0",
+            }}
+          >
+            {e.content as string}
+          </p>
+        ) : null}
+
+        {concepts && concepts.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 14 }}>
+            {concepts.slice(0, 3).map((c) => (
+              <span
+                key={c}
+                className="design-chip f-sans"
+                style={{ height: 20, fontSize: 11, padding: "0 8px" }}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Desktop hover-reveal quick actions */}
+        {(onPin || onDelete) && (
+          <div
+            className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            style={{
+              marginTop: 12,
+              paddingTop: 10,
+              borderTop: "1px solid var(--line-soft)",
+            }}
+          >
+            {onPin && (
+              <button
+                onClick={(ev) => { ev.stopPropagation(); onPin(e); }}
+                aria-label={isPinned ? "Unpin" : "Pin"}
+                className="design-btn-ghost press"
+                style={{ fontSize: 12, height: 28, minHeight: 28, padding: "0 8px" }}
+              >
+                {IconPin}
+                <span>{isPinned ? "Unpin" : "Pin"}</span>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+                aria-label="Delete"
+                className="entry-card__delete press"
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 12,
+                  height: 28,
+                  minHeight: 28,
+                  padding: "0 8px",
+                  borderRadius: 6,
+                  color: "var(--blood)",
+                  background: "transparent",
+                  border: 0,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "var(--f-sans)",
+                  fontWeight: 500,
+                }}
+              >
+                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                </svg>
+                Delete
+              </button>
+            )}
+          </div>
+        )}
+      </article>
+    </div>
   );
 });
 

@@ -378,7 +378,7 @@ function EverionContent({
                     flexWrap: "wrap",
                   }}
                 >
-                  {/* Grid / Timeline segmented */}
+                  {/* Grid / List / Timeline segmented */}
                   <div
                     style={{
                       display: "inline-flex",
@@ -391,16 +391,30 @@ function EverionContent({
                     }}
                   >
                     {[
-                      { id: "memory", label: "Grid" },
+                      { id: "memory-grid", label: "Grid" },
+                      { id: "memory-list", label: "List" },
                       { id: "timeline", label: "Timeline" },
                     ].map((v) => {
-                      const active = appShell.view === v.id;
+                      const active =
+                        v.id === "timeline"
+                          ? appShell.view === "timeline"
+                          : v.id === "memory-grid"
+                            ? appShell.view === "memory" && appShell.gridViewMode === "grid"
+                            : appShell.view === "memory" && appShell.gridViewMode === "list";
                       return (
                         <button
                           key={v.id}
                           onClick={() => {
                             appShell.setSelected(null);
-                            appShell.setView(v.id);
+                            if (v.id === "timeline") {
+                              appShell.setView("timeline");
+                            } else if (v.id === "memory-grid") {
+                              appShell.setView("memory");
+                              appShell.setGridViewMode("grid");
+                            } else {
+                              appShell.setView("memory");
+                              appShell.setGridViewMode("list");
+                            }
                           }}
                           className="press"
                           aria-pressed={active}
