@@ -155,6 +155,8 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       }
     } catch (e: any) {
       setMsg({ text: `Scan failed: ${e?.message ?? "network error"}`, ok: false });
+      await fetchIntegration();
+      await refreshEntries();
     } finally {
       setScanning(false);
     }

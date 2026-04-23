@@ -1,5 +1,10 @@
 {
   "framework": "vite",
+  "functions": {
+    "api/gmail.ts":     { "maxDuration": 300 },
+    "api/user-data.ts": { "maxDuration": 300 },
+    "api/llm.ts":       { "maxDuration": 300 }
+  },
   "crons": [
     { "path": "/api/cron/daily", "schedule": "0 18 * * *" }
   ],
