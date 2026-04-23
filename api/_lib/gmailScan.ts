@@ -113,10 +113,17 @@ async function fetchAndExtractAttachments(
         const result = await mammoth.extractRawText({ buffer });
         text = result.value ?? "";
       } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-        const mod = await import("xlsx");
-        const XLSX = (mod as any).default ?? mod;
-        const wb = XLSX.read(buffer, { type: "buffer" });
-        text = wb.SheetNames.map((n: string) => XLSX.utils.sheet_to_csv(wb.Sheets[n])).join("\n\n");
+        const ExcelJS = ((await import("exceljs")) as any).default ?? (await import("exceljs"));
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        const csvLines: string[] = [];
+        wb.eachSheet((sheet: any) => {
+          sheet.eachRow((row: any) => {
+            csvLines.push((row.values as any[]).slice(1).map((v: any) => String(v ?? "")).join(","));
+          });
+          csvLines.push("");
+        });
+        text = csvLines.join("\n").trim();
       } else if (name.endsWith(".pdf") || att.mimeType === "application/pdf") {
         if (geminiKey) text = await extractViaGemini(buffer, "application/pdf", geminiKey);
       } else if (att.mimeType.startsWith("image/")) {

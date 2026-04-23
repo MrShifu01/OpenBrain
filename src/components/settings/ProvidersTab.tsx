@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { updateProviderSettings, getAnthropicKey, getAnthropicModel, getOpenAIKey, getOpenAIModel, getGeminiKey, getGeminiByokModel, getGroqKey } from "../../lib/aiSettings";
-import SettingsRow, { SettingsButton } from "./SettingsRow";
+import { SettingsButton } from "./SettingsRow";
 
 const ANTHROPIC_MODELS = [
   { id: "claude-opus-4-7", label: "Claude Opus 4.7" },

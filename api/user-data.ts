@@ -509,7 +509,12 @@ async function handlePushSubscribe(req: ApiRequest, res: ApiResponse): Promise<v
   const meta = current.user_metadata ?? {};
 
   if (req.method === "POST") {
-    const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    let body: any;
+    try {
+      body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+    } catch {
+      return res.status(400).json({ error: "Invalid JSON" });
+    }
     const { endpoint, keys, userAgent } = body;
     if (!endpoint) return res.status(400).json({ error: "endpoint required" });
     const r = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {

@@ -245,7 +245,7 @@ export default function App(): JSX.Element {
   if (isAdminRoute) {
     if (!isAdmin) {
       window.location.replace("/");
-      return null;
+      return <></>;
     }
     return (
       <ThemeProvider>

@@ -1020,14 +1020,14 @@ export default function CaptureSheet({
                   onClick={toggleVault}
                   className="design-btn-ghost press"
                   aria-label="Save to vault"
-                  aria-pressed={activeTab === "secret"}
+                  aria-pressed={(activeTab as string) === "secret"}
                   style={{
                     width: 40,
                     height: 40,
                     minHeight: 40,
                     padding: 0,
                     color:
-                      activeTab === "secret" ? "var(--ember)" : cryptoKey ? "var(--ink-faint)" : "var(--ink-ghost)",
+                      (activeTab as string) === "secret" ? "var(--ember)" : cryptoKey ? "var(--ink-faint)" : "var(--ink-ghost)",
                   }}
                   title={cryptoKey ? "Save to vault" : "Unlock vault first"}
                 >

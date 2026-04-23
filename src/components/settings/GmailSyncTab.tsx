@@ -83,7 +83,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastDebug, setLastDebug] = useState<ScanDebug | null>(null);
   const [reviewItems, setReviewItems] = useState<ScanResultItem[]>([]);
-  const [deepScan, setDeepScan] = useState<{
+  const [_deepScan, setDeepScan] = useState<{
     active: boolean;
     processed: number;
     created: number;
@@ -162,7 +162,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     }
   }
 
-  async function handleDeepScan() {
+  async function _handleDeepScan() {
     deepScanCancel.current = false;
     setDeepScan({ active: true, processed: 0, created: 0, total: 0 });
     setMsg(null);
@@ -217,7 +217,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     }
   }
 
-  function stopDeepScan() {
+  function _stopDeepScan() {
     deepScanCancel.current = true;
   }
 

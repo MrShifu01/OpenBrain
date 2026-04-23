@@ -38,16 +38,16 @@ describe("api/entries — soft delete", () => {
   beforeEach(async () => {
     vi.resetModules();
 
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({
       rateLimit: vi.fn().mockResolvedValue(true),
     }));
-    vi.mock("../../api/_lib/checkBrainAccess.js", () => ({
+    vi.doMock("../../api/_lib/checkBrainAccess.js", () => ({
       checkBrainAccess: vi.fn().mockResolvedValue(true),
     }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({
       applySecurityHeaders: vi.fn(),
     }));
 

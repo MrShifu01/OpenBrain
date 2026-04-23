@@ -2,6 +2,48 @@
 
 ---
 
+## [AUDIT] Full App Audit — 2026-04-23 (pass 8)
+**Tags**: AUDIT
+
+### Overall Score: 82/100 — B
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 87 |
+| Performance | 84 |
+| Architecture | 82 |
+| Code Quality / Types | 70 |
+| UX / UI | 85 |
+| Maintainability | 78 |
+| User Perspective | 84 |
+
+### Progress since pass 7 (81/100)
+- ✅ `worker-src blob:` added to CSP — FIXED
+- ✅ `aria-live="polite"` on ChatView messages container — FIXED
+- ✅ Tests improved: 12 failing → 3 failing
+- ✅ FeedView.tsx (1,755 lines) — DELETED (was MEDIUM finding)
+- ✅ DetailModal.tsx: 1,037 → 982 lines (continued reduction)
+- ❌ `xlsx` HIGH CVEs — STILL PRESENT (2 high: prototype pollution + ReDoS)
+- ❌ TypeScript compilation REGRESSED — 25+ errors (`ConfidenceLevel` undefined, `getConceptsForEntry` not exported, App.tsx null type, dead code accumulation)
+
+### CRITICAL & HIGH Findings
+
+**[HIGH]** TypeScript compilation fails with 25+ errors: `ConfidenceLevel` referenced in `types.ts:48` but never declared; `getConceptsForEntry` used in `EntryHealthPanel.tsx:3` and `surpriseScore.ts:3` but not exported from `conceptGraph.ts:126`; `App.tsx:248` null return type; `DesktopSidebar.test.tsx` missing 2 required props.
+
+**[HIGH]** `xlsx` — 2 unpatched HIGH CVEs (prototype pollution + ReDoS). No upstream fix.
+
+**[HIGH]** `api/user-data.ts:512` — `JSON.parse(req.body)` not in try-catch; malformed push-subscribe body causes unhandled 500.
+
+### Top 5 Actions
+1. [HIGH] Fix TypeScript compilation: declare `ConfidenceLevel`, export `getConceptsForEntry`, fix App.tsx null return, update DesktopSidebar test props
+2. [HIGH] Replace `xlsx` with `exceljs` (unpatched CVEs, CI audit blocked)
+3. [HIGH] Wrap `api/user-data.ts:512` JSON.parse in try-catch → return 400
+4. [MEDIUM] Fix 3 failing tests: LoadingScreen brand text, getTypeConfig subscription fallback, enrichEntry phase isolation
+5. [MEDIUM] Move vi.mock() calls to module top level in pin/entries API tests (future Vitest breaking change)
+
+---
+
 ## [AUDIT] Full App Audit — 2026-04-20 (pass 7)
 **Tags**: AUDIT
 

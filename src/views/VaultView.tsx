@@ -660,7 +660,7 @@ export default function VaultView({
         <div className="space-y-3">
           {decryptedSecrets.map((e) => {
             const revealed = revealedIds.has(e.id);
-            const meta = Object.entries(e.metadata || {}).filter(
+            const _meta = Object.entries(e.metadata || {}).filter(
               ([k]) => k !== "category" && k !== "status",
             );
             return (

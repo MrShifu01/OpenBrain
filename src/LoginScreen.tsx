@@ -1,5 +1,5 @@
 import { type JSX, useMemo } from "react";
-function BrainIcon({ size = 24, style }: { size?: number; style?: React.CSSProperties }) {
+function _BrainIcon({ size = 24, style }: { size?: number; style?: React.CSSProperties }) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={style} aria-hidden="true">
       <path d="M12 18V5" /><path d="M15 13a4.17 4.17 0 0 1-3-4 4.17 4.17 0 0 1-3 4" />
@@ -61,7 +61,7 @@ interface Feature {
   desc: string;
 }
 
-const FEATURES: Feature[] = [
+const _FEATURES: Feature[] = [
   {
     Icon: PersonIcon,
     label: "Personal brain",

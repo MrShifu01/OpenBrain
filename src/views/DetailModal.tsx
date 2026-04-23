@@ -126,14 +126,14 @@ No explanation, no punctuation, just one word.`,
 
   const {
     saving,
-    editExtraBrainIds,
-    extraBrainsLoaded,
+    editExtraBrainIds: _editExtraBrainIds,
+    extraBrainsLoaded: _extraBrainsLoaded,
     shareMsg,
     setShareMsg,
-    editBrainId,
+    editBrainId: _editBrainId,
     handleSave,
     handleShare,
-    toggleExtraBrain,
+    toggleExtraBrain: _toggleExtraBrain,
   } = useEntryEdit({ entry, editing, onUpdate, onTypeIconChange, brains });
   const isSecret = entry.type === "secret";
   const isPinned = !!(entry as any).pinned;
@@ -197,12 +197,12 @@ No explanation, no punctuation, just one word.`,
     a.click();
     URL.revokeObjectURL(url);
   }
-  const cfg = { ...(TC[editType as EntryType] || TC.note), i: resolveIcon(editType, typeIcons) };
+  const _cfg = { ...(TC[editType as EntryType] || TC.note), i: resolveIcon(editType, typeIcons) };
 const [showFullContent, setShowFullContent] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
   const CONTENT_PREVIEW_LIMIT = 300;
-  const meta = Object.entries(entry.metadata || {}).filter(([k]) => !SKIP_META_KEYS.has(k));
-  const confidence = (entry.metadata?.confidence || {}) as Record<string, string>;
+  const _meta = Object.entries(entry.metadata || {}).filter(([k]) => !SKIP_META_KEYS.has(k));
+  const _confidence = (entry.metadata?.confidence || {}) as Record<string, string>;
 
   useEffect(() => {
     return () => {

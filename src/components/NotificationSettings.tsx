@@ -69,9 +69,7 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
-function toggleClasses(_on: boolean): string {
-  // Kept so early-return branches (iOS guard / unsupported) compile; the main
-  // return now uses SettingsToggle from the SettingsRow primitives.
+function _toggleClasses(_on: boolean): string {
   return "";
 }
 

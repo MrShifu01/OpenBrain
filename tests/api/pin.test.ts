@@ -39,11 +39,11 @@ beforeEach(() => {
 describe("POST /api/pin?action=setup", () => {
   it("stores hash and salt, returns ok", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
@@ -54,11 +54,11 @@ describe("POST /api/pin?action=setup", () => {
 
   it("rejects invalid hash (not 64 hex chars)", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
     await handler(makeReq({ body: { hash: "short", salt: "b".repeat(32) } }), res);
@@ -67,11 +67,11 @@ describe("POST /api/pin?action=setup", () => {
 
   it("rejects invalid salt", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
     await handler(makeReq({ body: { hash: "a".repeat(64), salt: "x" } }), res);
@@ -82,11 +82,11 @@ describe("POST /api/pin?action=setup", () => {
 describe("POST /api/pin?action=verify", () => {
   it("returns valid:true when hash matches", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     const hash = "a".repeat(64);
     mockFetch.mockResolvedValue({ ok: true, json: async () => [{ pin_hash: hash }] });
     const { default: handler } = await import("../../api/user-data.js");
@@ -97,11 +97,11 @@ describe("POST /api/pin?action=verify", () => {
 
   it("returns valid:false when hash doesn't match", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [{ pin_hash: "b".repeat(64) }] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
@@ -114,11 +114,11 @@ describe("POST /api/pin?action=verify", () => {
 
   it("returns noPinSet when no record", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();
@@ -133,11 +133,11 @@ describe("POST /api/pin?action=verify", () => {
 describe("DELETE /api/pin?action=delete", () => {
   it("clears pin_hash and returns ok", async () => {
     vi.resetModules();
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
+    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
       verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
     }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    vi.mock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
     mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
     const { default: handler } = await import("../../api/user-data.js");
     const res = makeRes();

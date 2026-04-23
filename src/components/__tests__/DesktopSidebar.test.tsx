@@ -12,6 +12,8 @@ const baseProps = {
   isOnline: true,
   pendingCount: 0,
   entryCount: 5,
+  searchInput: "",
+  onSearchChange: vi.fn(),
   onShowCreateBrain: vi.fn(),
   navViews: [
     { id: "grid", l: "Brains", ic: "grid" },

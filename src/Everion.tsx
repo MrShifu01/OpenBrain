@@ -19,7 +19,6 @@ import { useOfflineSync } from "./hooks/useOfflineSync";
 import { useNudge } from "./hooks/useNudge";
 import { searchIndex, indexEntryConcepts, scoreEntry } from "./lib/searchIndex";
 import { applyEntryFilters, getEntryTypes } from "./lib/entryFilters";
-import GridFilters from "./components/GridFilters";
 import { inferWorkspace } from "./lib/workspaceInfer";
 import { EntriesContext } from "./context/EntriesContext";
 import { BrainContext } from "./context/BrainContext";
@@ -144,7 +143,7 @@ function EverionContent({
   enrichCurrentEntry,
   enrichLog,
   runBulkEnrich,
-  unenrichedCount,
+  unenrichedCount: _unenrichedCount,
   unenrichedDetails,
   handleCreated,
   handleCreatedBulk,
@@ -169,10 +168,10 @@ function EverionContent({
   bgDismissAll,
   filtered,
   sortedTimeline,
-  availableEntryTypes,
+  availableEntryTypes: _availableEntryTypes,
   vaultEntries,
 }: EverionContentProps) {
-  const { activeBrain, brains, setActiveBrain, refresh } = useBrain();
+  const { activeBrain, brains, setActiveBrain: _setActiveBrain, refresh: _refresh } = useBrain();
   const { entries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate } = useEntries();
   const [selectedVaultEntry, setSelectedVaultEntry] = useState<Entry | null>(null);
 

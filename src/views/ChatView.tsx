@@ -302,7 +302,7 @@ export default function ChatView({ brainId }: ChatViewProps) {
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [sharedIdx, setSharedIdx] = useState<number | null>(null);
-  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [_voiceStatus, setVoiceStatus] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);

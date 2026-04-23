@@ -19,12 +19,13 @@ interface Enrichment {
   concepts_count?: number;
   has_related?: boolean;
   has_insight?: boolean;
+  parsed?: boolean;
 }
 
 interface Props {
   entry: Entry;
   brainId: string;
-  entries: Entry[];
+  entries?: Entry[];
   metaKeys: string[];
   entryConcepts: Concept[];
   hasRelated: boolean;
@@ -38,7 +39,7 @@ function getEnrichment(entry: Entry): Enrichment {
 
 function buildItems(
   entry: Entry,
-  entries: Entry[],
+  _entries: Entry[],
   metaKeys: string[],
   entryConcepts: Concept[],
   hasRelated: boolean,

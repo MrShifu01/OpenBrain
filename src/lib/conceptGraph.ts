@@ -123,12 +123,12 @@ export function mergeGraph(existing: ConceptGraph, incoming: ConceptGraph): Conc
 }
 
 /** Get all concepts that reference a given entry */
-function getConceptsForEntry(graph: ConceptGraph, entryId: string): Concept[] {
+export function getConceptsForEntry(graph: ConceptGraph, entryId: string): Concept[] {
   return graph.concepts.filter((c) => c.source_entries.includes(entryId));
 }
 
 /** Get entries related to a given entry via shared concepts */
-function getRelatedEntries(
+export function getRelatedEntries(
   graph: ConceptGraph,
   entryId: string,
 ): Array<{ entryId: string; sharedConcepts: string[] }> {
@@ -169,7 +169,7 @@ export function getGodNodes(
 }
 
 /** Simple label propagation community detection */
-function detectCommunities(
+export function detectCommunities(
   graph: ConceptGraph,
 ): Array<{ clusterId: string; conceptIds: string[]; entryIds: string[] }> {
   const labels = new Map<string, string>();
@@ -296,7 +296,7 @@ export async function saveGraphToDB(brainId: string, graph: ConceptGraph): Promi
 
 
 /** Phase 7: Apply user feedback to strengthen/weaken relationship confidence */
-async function applyFeedback(
+export async function applyFeedback(
   brainId: string,
   action: "accept" | "reject",
   entryIdA: string,
