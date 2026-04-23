@@ -311,12 +311,13 @@ async function handleCompletion(
 // ── Chat handlers ─────────────────────────────────────────────────────────────
 
 async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, provider: ProviderConfig): Promise<void> {
+  const t0 = Date.now();
   const { message, brain_id, history, confirmed, pending_action } = ctx;
 
   if (confirmed && pending_action?.tool && pending_action?.args) {
     const result = await execTool(pending_action.tool, pending_action.args, user.id, brain_id);
     const action = pending_action.tool === "delete_entry" ? "deleted" : "updated";
-    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, result }] });
+    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, args: pending_action.args, result }], _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 0 } });
   }
 
   const safeHistory = (Array.isArray(history) ? history : [])
@@ -327,7 +328,7 @@ async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, p
     { role: "user", parts: [{ text: message }] },
   ];
 
-  const toolCalls: Array<{ tool: string; result: unknown }> = [];
+  const toolCalls: Array<{ tool: string; args: unknown; result: unknown }> = [];
 
   for (let round = 0; round < 5; round++) {
     const body = {
@@ -341,7 +342,7 @@ async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, p
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     );
     const gemData: any = await gemRes.json();
-    if (!gemRes.ok) { console.error("[chat/gemini]", gemRes.status, JSON.stringify(gemData)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again." }); }
+    if (!gemRes.ok) { console.error("[chat/gemini]", gemRes.status, JSON.stringify(gemData)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again.", _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1, error: String(gemRes.status) + ": " + JSON.stringify(gemData).slice(0, 500) } }); }
 
     const parts: any[] = gemData.candidates?.[0]?.content?.parts || [];
     const funcCall = parts.find((p: any) => p.functionCall);
@@ -349,7 +350,7 @@ async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, p
     if (!funcCall) {
       const textParts = parts.filter((p: any) => !p.thought && p.text);
       const reply = textParts.map((p: any) => p.text).join("").trim() || parts.map((p: any) => p.text || "").join("").trim();
-      return res.status(200).json({ reply, tool_calls: toolCalls });
+      return res.status(200).json({ reply, tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     const { name: toolName, args: toolArgs } = funcCall.functionCall;
@@ -359,26 +360,27 @@ async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, p
       const label = title ? `${toolName === "delete_entry" ? "Delete" : "Update"} "${title}"` : `${toolName === "delete_entry" ? "Delete" : "Update"} entry (${toolArgs.id?.slice(0, 8)}…)`;
       const confirmText = parts.filter((p: any) => p.text).map((p: any) => p.text).join("").trim()
         || (toolName === "delete_entry" ? "I'm about to delete this entry. Confirm?" : "I'm about to update this entry. Confirm?");
-      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label } });
+      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label }, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     let toolResult: unknown;
     try { toolResult = await execTool(toolName, toolArgs, user.id, brain_id); } catch (e: any) { toolResult = { error: e.message || "Tool execution failed" }; }
-    toolCalls.push({ tool: toolName, result: toolResult });
+    toolCalls.push({ tool: toolName, args: toolArgs, result: toolResult });
     contents.push({ role: "model", parts: [{ functionCall: { name: toolName, args: toolArgs } }] });
     contents.push({ role: "user", parts: [{ functionResponse: { name: toolName, response: { result: toolResult } } }] });
   }
 
-  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls });
+  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 5 } });
 }
 
 async function handleAnthropicChat(res: ApiResponse, user: any, ctx: ChatContext, provider: ProviderConfig): Promise<void> {
+  const t0 = Date.now();
   const { message, brain_id, history, confirmed, pending_action } = ctx;
 
   if (confirmed && pending_action?.tool && pending_action?.args) {
     const result = await execTool(pending_action.tool, pending_action.args, user.id, brain_id);
     const action = pending_action.tool === "delete_entry" ? "deleted" : "updated";
-    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, result }] });
+    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, args: pending_action.args, result }], _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 0 } });
   }
 
   const safeHistory = (Array.isArray(history) ? history : [])
@@ -390,7 +392,7 @@ async function handleAnthropicChat(res: ApiResponse, user: any, ctx: ChatContext
   ];
 
   const tools = toAnthropicTools(CHAT_TOOLS);
-  const toolCalls: Array<{ tool: string; result: unknown }> = [];
+  const toolCalls: Array<{ tool: string; args: unknown; result: unknown }> = [];
 
   for (let round = 0; round < 5; round++) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -399,14 +401,14 @@ async function handleAnthropicChat(res: ApiResponse, user: any, ctx: ChatContext
       body: JSON.stringify({ model: provider.model, max_tokens: 2000, system: SERVER_PROMPTS.CHAT_AGENT, tools, messages }),
     });
     const data: any = await r.json();
-    if (!r.ok) { console.error("[chat/anthropic]", r.status, JSON.stringify(data)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again." }); }
+    if (!r.ok) { console.error("[chat/anthropic]", r.status, JSON.stringify(data)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again.", _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1, error: String(r.status) + ": " + JSON.stringify(data).slice(0, 500) } }); }
 
     const content: any[] = data.content || [];
     const toolUseBlock = content.find((c: any) => c.type === "tool_use");
 
     if (!toolUseBlock) {
       const reply = content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim();
-      return res.status(200).json({ reply, tool_calls: toolCalls });
+      return res.status(200).json({ reply, tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     const { id: toolUseId, name: toolName, input: toolArgs } = toolUseBlock;
@@ -416,26 +418,27 @@ async function handleAnthropicChat(res: ApiResponse, user: any, ctx: ChatContext
       const label = title ? `${toolName === "delete_entry" ? "Delete" : "Update"} "${title}"` : `${toolName === "delete_entry" ? "Delete" : "Update"} entry (${toolArgs.id?.slice(0, 8)}…)`;
       const confirmText = content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim()
         || (toolName === "delete_entry" ? "I'm about to delete this entry. Confirm?" : "I'm about to update this entry. Confirm?");
-      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label } });
+      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label }, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     let toolResult: unknown;
     try { toolResult = await execTool(toolName, toolArgs, user.id, brain_id); } catch (e: any) { toolResult = { error: e.message || "Tool execution failed" }; }
-    toolCalls.push({ tool: toolName, result: toolResult });
+    toolCalls.push({ tool: toolName, args: toolArgs, result: toolResult });
     messages.push({ role: "assistant", content });
     messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: toolUseId, content: JSON.stringify(toolResult) }] });
   }
 
-  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls });
+  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 5 } });
 }
 
 async function handleOpenAIChat(res: ApiResponse, user: any, ctx: ChatContext, provider: ProviderConfig): Promise<void> {
+  const t0 = Date.now();
   const { message, brain_id, history, confirmed, pending_action } = ctx;
 
   if (confirmed && pending_action?.tool && pending_action?.args) {
     const result = await execTool(pending_action.tool, pending_action.args, user.id, brain_id);
     const action = pending_action.tool === "delete_entry" ? "deleted" : "updated";
-    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, result }] });
+    return res.status(200).json({ reply: `Done — entry ${action}.`, tool_calls: [{ tool: pending_action.tool, args: pending_action.args, result }], _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 0 } });
   }
 
   const safeHistory = (Array.isArray(history) ? history : [])
@@ -448,7 +451,7 @@ async function handleOpenAIChat(res: ApiResponse, user: any, ctx: ChatContext, p
   ];
 
   const tools = toOpenAITools(CHAT_TOOLS);
-  const toolCalls: Array<{ tool: string; result: unknown }> = [];
+  const toolCalls: Array<{ tool: string; args: unknown; result: unknown }> = [];
 
   for (let round = 0; round < 5; round++) {
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -457,11 +460,11 @@ async function handleOpenAIChat(res: ApiResponse, user: any, ctx: ChatContext, p
       body: JSON.stringify({ model: provider.model, max_tokens: 2000, messages, tools, tool_choice: "auto" }),
     });
     const data: any = await r.json();
-    if (!r.ok) { console.error("[chat/openai]", r.status, JSON.stringify(data)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again." }); }
+    if (!r.ok) { console.error("[chat/openai]", r.status, JSON.stringify(data)); return res.status(200).json({ reply: "Sorry, something went wrong. Please try again.", _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1, error: String(r.status) + ": " + JSON.stringify(data).slice(0, 500) } }); }
 
     const msg = data.choices?.[0]?.message;
     if (!msg?.tool_calls?.length) {
-      return res.status(200).json({ reply: msg?.content?.trim() || "No response.", tool_calls: toolCalls });
+      return res.status(200).json({ reply: msg?.content?.trim() || "No response.", tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     const toolCall = msg.tool_calls[0];
@@ -473,17 +476,17 @@ async function handleOpenAIChat(res: ApiResponse, user: any, ctx: ChatContext, p
       const title = await fetchEntryTitle(toolArgs.id, brain_id);
       const label = title ? `${toolName === "delete_entry" ? "Delete" : "Update"} "${title}"` : `${toolName === "delete_entry" ? "Delete" : "Update"} entry (${toolArgs.id?.slice(0, 8)}…)`;
       const confirmText = msg?.content?.trim() || (toolName === "delete_entry" ? "I'm about to delete this entry. Confirm?" : "I'm about to update this entry. Confirm?");
-      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label } });
+      return res.status(200).json({ reply: confirmText, pending_action: { tool: toolName, args: toolArgs, label }, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: round + 1 } });
     }
 
     let toolResult: unknown;
     try { toolResult = await execTool(toolName, toolArgs, user.id, brain_id); } catch (e: any) { toolResult = { error: e.message || "Tool execution failed" }; }
-    toolCalls.push({ tool: toolName, result: toolResult });
+    toolCalls.push({ tool: toolName, args: toolArgs, result: toolResult });
     messages.push(msg);
     messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(toolResult) });
   }
 
-  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls });
+  return res.status(200).json({ reply: "I ran into an issue completing that. Please try again.", tool_calls: toolCalls, _debug: { provider: provider.provider, model: provider.model, latency_ms: Date.now() - t0, rounds: 5 } });
 }
 
 async function handleChat(req: ApiRequest, res: ApiResponse, user: any, provider: ProviderConfig): Promise<void> {

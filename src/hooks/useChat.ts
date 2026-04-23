@@ -1,11 +1,20 @@
 import { useState, useCallback, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 
+export interface DebugInfo {
+  provider: string;
+  model: string;
+  latency_ms: number;
+  rounds: number;
+  error?: string;
+}
+
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   ts: string;
-  tool_calls?: Array<{ tool: string; result: unknown }>;
+  tool_calls?: Array<{ tool: string; args?: unknown; result: unknown }>;
+  debug?: DebugInfo;
 }
 
 export interface PendingAction {
@@ -75,7 +84,7 @@ export function useChat(brainId: string | undefined) {
       const data = await res.json();
 
       if (data.pending_action) {
-        const assistantMsg: ChatMessage = { role: "assistant", content: data.reply, ts: new Date().toISOString() };
+        const assistantMsg: ChatMessage = { role: "assistant", content: data.reply, ts: new Date().toISOString(), debug: data._debug };
         const updated = [...nextMessages, assistantMsg];
         setMessages(updated);
         saveHistory(brainId, updated);
@@ -87,6 +96,7 @@ export function useChat(brainId: string | undefined) {
           content: data.reply || "No response.",
           ts: new Date().toISOString(),
           tool_calls: data.tool_calls,
+          debug: data._debug,
         };
         const updated = [...nextMessages, assistantMsg];
         setMessages(updated);
