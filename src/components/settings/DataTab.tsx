@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { authFetch } from "../../lib/authFetch";
+import { entryRepo } from "../../lib/entryRepo";
 import { KEYS } from "../../lib/storageKeys";
 import TrashView from "../../views/TrashView";
 import MemoryImportPanel from "../MemoryImportPanel";
@@ -56,10 +57,9 @@ export default function DataTab({ brainId, activeBrain }: Props) {
   }, []);
 
   async function fetchAllEntries() {
-    const r = await authFetch("/api/entries");
-    if (!r.ok) throw new Error("Failed to fetch entries");
-    const data = await r.json();
-    return Array.isArray(data) ? data : (data?.entries ?? []);
+    const entries = await entryRepo.list();
+    if (!entries.length) throw new Error("No entries to export");
+    return entries;
   }
 
   async function handleExportJSON() {

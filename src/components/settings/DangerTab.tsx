@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { authFetch } from "../../lib/authFetch";
+import { entryRepo } from "../../lib/entryRepo";
 import type { Brain } from "../../types";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
 
@@ -32,8 +33,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
     setClearingTrash(true);
     setTrashMsg(null);
     try {
-      const r = await authFetch("/api/entries?action=empty-trash", { method: "POST" });
-      setTrashMsg(r.ok ? "trash cleared." : "could not clear trash right now.");
+      const ok = await entryRepo.emptyTrash();
+      setTrashMsg(ok ? "trash cleared." : "could not clear trash right now.");
     } catch {
       setTrashMsg("could not clear trash right now.");
     }

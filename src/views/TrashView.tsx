@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { authFetch } from "../lib/authFetch";
+import { entryRepo } from "../lib/entryRepo";
 import { getTypeConfig } from "../data/constants";
 import type { Entry } from "../types";
 
@@ -20,13 +20,8 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
 
   const load = async () => {
     setLoading(true);
-    const params = new URLSearchParams({ trash: "true" });
-    if (brainId) params.set("brain_id", brainId);
-    const res = await authFetch(`/api/entries?${params}`).catch(() => null);
-    if (res?.ok) {
-      const data = await res.json();
-      setEntries(Array.isArray(data) ? data : (data.entries ?? []));
-    }
+    const fetched = await entryRepo.list({ brainId, trash: true });
+    setEntries(fetched);
     setLoading(false);
   };
 
@@ -36,12 +31,7 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
 
   const restore = async (entry: Entry) => {
     setBusy(entry.id);
-    const res = await authFetch(`/api/entries?action=restore`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entry.id }),
-    }).catch(() => null);
-    if (res?.ok) {
+    if (await entryRepo.restore(entry.id)) {
       setEntries((prev) => prev.filter((e) => e.id !== entry.id));
       onRestore?.(entry);
     }
@@ -51,12 +41,9 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
   const deletePermanently = async (entry: Entry) => {
     if (!confirm(`Permanently delete "${entry.title}"? This cannot be undone.`)) return;
     setBusy(entry.id);
-    const res = await authFetch(`/api/entries?permanent=true`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entry.id }),
-    }).catch(() => null);
-    if (res?.ok) setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    if (await entryRepo.deletePermanent(entry.id)) {
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    }
     setBusy(null);
   };
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction, RefObject } from "react";
 import { authFetch } from "../lib/authFetch";
+import { entryRepo } from "../lib/entryRepo";
 import { readEntriesCache, writeEntriesCache } from "../lib/entriesCache";
 import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
@@ -91,9 +92,7 @@ export function useDataLayer({
     setEntriesLoaded(false);
     try {
       // Phase 1: first 20 entries for fast first-paint
-      const r1 = await authFetch(`/api/entries?brain_id=${encodeURIComponent(activeBrainId)}&limit=20`);
-      const data1 = r1.ok ? await r1.json() : null;
-      const initial: Entry[] = Array.isArray(data1) ? data1 : (data1?.entries ?? []);
+      const initial = await entryRepo.list({ brainId: activeBrainId, limit: 20 });
       if (initial.length > 0) {
         setEntries(initial);
         initial.filter((e) => e.type !== "secret").forEach(indexEntry);
@@ -103,11 +102,8 @@ export function useDataLayer({
     }
 
     // Phase 2: full load in background — no skeleton, UI already visible
-    authFetch(`/api/entries?brain_id=${encodeURIComponent(activeBrainId)}&limit=1000`)
-      .then(async (r2) => {
-        if (!r2.ok) return;
-        const data2 = await r2.json();
-        const all: Entry[] = Array.isArray(data2) ? data2 : (data2?.entries ?? []);
+    entryRepo.list({ brainId: activeBrainId, limit: 1000 })
+      .then((all) => {
         if (all.length > 0) {
           setEntries(all);
           writeEntriesCache(all);

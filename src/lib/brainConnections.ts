@@ -1,4 +1,5 @@
 import { authFetch } from "./authFetch";
+import { entryRepo } from "./entryRepo";
 import { callAI } from "./ai";
 import { PROMPTS } from "../config/prompts";
 import {
@@ -126,14 +127,9 @@ export async function generateEntryInsight(
   if (insightText.length < 20) throw new Error("AI returned an empty or too-short insight");
 
   // Merge ai_insight into the source entry's metadata (server merges with existing metadata)
-  const patchRes = await authFetch("/api/entries", {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id: entry.id, metadata: { ai_insight: insightText } }),
-  });
-  if (!patchRes.ok) {
-    const errText = await patchRes.text().catch(() => String(patchRes.status));
-    throw new Error(`Failed to save insight (${patchRes.status}): ${errText.slice(0, 200)}`);
+  const ok = await entryRepo.patch(entry.id, { metadata: { ai_insight: insightText } });
+  if (!ok) {
+    throw new Error("Failed to save insight");
   }
 
   return insightText;
