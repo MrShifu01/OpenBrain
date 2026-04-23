@@ -190,7 +190,10 @@ export async function fetchRecentEmails(
     : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000); // 25h safety window for daily scans
 
   const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-  listUrl.searchParams.set("q", `in:inbox after:${sinceUnix}`);
+  listUrl.searchParams.set(
+    "q",
+    `in:inbox after:${sinceUnix} -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`,
+  );
   listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 500)));
 
   const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });

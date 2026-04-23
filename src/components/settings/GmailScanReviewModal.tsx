@@ -1,8 +1,11 @@
 import { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { authFetch } from "../../lib/authFetch";
 
 export interface ScanResultItem {
   entryId: string;
+  groupIds: string[];
+  groupCount: number;
   title: string;
   summary: string;
   from: string;
@@ -73,13 +76,11 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
 
   function triggerReject(capturedIdx: number) {
     const item = capped[capturedIdx];
-    // Delete all entries in this sender group from the DB
     authFetch("/api/gmail?action=delete-entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entryIds: item.groupIds }),
     }).catch(() => {});
-    // Generate + save exclusion rule
     authFetch("/api/gmail?action=ignore", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -133,10 +134,18 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
     : "none";
 
   if (done) {
-    return (
+    return createPortal(
       <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center"
-        style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.55)",
+          backdropFilter: "blur(4px)",
+        }}
       >
         <div
           style={{
@@ -154,7 +163,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           </h3>
           <p className="f-serif" style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", lineHeight: 1.6, margin: "0 0 28px" }}>
             {rulesAdded > 0
-              ? `${rulesAdded} exclusion rule${rulesAdded !== 1 ? "s" : ""} added to your preferences — future scans will be smarter.`
+              ? `${rulesAdded} exclusion rule${rulesAdded !== 1 ? "s" : ""} added — future scans will be smarter.`
               : "No changes made — your preferences are unchanged."}
           </p>
           <button
@@ -175,195 +184,219 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
             Done
           </button>
         </div>
-      </div>
+      </div>,
+      document.body,
     );
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-end"
-      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        background: "rgba(0,0,0,0.88)",
+        backdropFilter: "blur(6px)",
+        overflow: "hidden",
+      }}
     >
+      {/* Top bar */}
       <div
         style={{
-          width: "100%",
-          maxWidth: 480,
-          height: "88vh",
+          flexShrink: 0,
           display: "flex",
-          flexDirection: "column",
-          padding: "20px 20px 32px",
-          boxSizing: "border-box",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 20px 12px",
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4" style={{ flexShrink: 0 }}>
-          <div>
-            <h3 className="f-serif" style={{ margin: 0, fontSize: 19, fontWeight: 450, color: "#fff" }}>
-              Review captures
-            </h3>
-            <p className="f-sans" style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
-              Keep what's useful · skip the rest
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="f-sans" style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>
-              {index + 1} / {capped.length}
-            </span>
-            <button
-              onClick={onClose}
-              className="f-sans"
-              style={{
-                background: "rgba(255,255,255,0.12)",
-                border: "none",
-                borderRadius: 999,
-                color: "rgba(255,255,255,0.7)",
-                fontSize: 13,
-                fontWeight: 500,
-                padding: "5px 12px",
-                cursor: "pointer",
-              }}
-            >
-              Skip all
-            </button>
-          </div>
+        <div>
+          <h3 className="f-serif" style={{ margin: 0, fontSize: 18, fontWeight: 450, color: "#fff" }}>
+            Review captures
+          </h3>
+          <p className="f-sans" style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+            {index + 1} of {capped.length}
+          </p>
         </div>
+        <button
+          onClick={onClose}
+          className="f-sans"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: "none",
+            background: "rgba(255,255,255,0.15)",
+            color: "#fff",
+            fontSize: 18,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
 
-        {/* Progress bar */}
-        <div style={{ height: 3, borderRadius: 999, background: "rgba(255,255,255,0.15)", marginBottom: 16, flexShrink: 0 }}>
-          <div
-            style={{
-              height: "100%",
-              borderRadius: 999,
-              background: "var(--ember)",
-              width: `${((index) / capped.length) * 100}%`,
-              transition: "width 300ms ease-out",
-            }}
-          />
+      {/* Progress bar */}
+      <div style={{ height: 3, background: "rgba(255,255,255,0.12)", flexShrink: 0, margin: "0 20px" }}>
+        <div
+          style={{
+            height: "100%",
+            borderRadius: 999,
+            background: "var(--ember)",
+            width: `${(index / capped.length) * 100}%`,
+            transition: "width 300ms ease-out",
+          }}
+        />
+      </div>
+
+      {/* Swipe instruction row */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "10px 24px 6px",
+        }}
+      >
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: "var(--blood)", display: "flex", alignItems: "center", gap: 5 }}>
+          <span style={{ fontSize: 18 }}>👈</span> Remove it
         </div>
+        <div className="f-sans" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
+          swipe the card
+        </div>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: "var(--moss)", display: "flex", alignItems: "center", gap: 5 }}>
+          Keep it <span style={{ fontSize: 18 }}>👉</span>
+        </div>
+      </div>
 
-        {/* Card stack */}
-        <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+      {/* Card stack */}
+      <div style={{ flex: 1, minHeight: 0, position: "relative", margin: "0 16px" }}>
 
-          {/* Back card */}
-          {next && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: 20,
-                background: "var(--surface)",
-                border: "1px solid var(--line-soft)",
-                transform: `scale(${backScale}) translateY(${backY}px)`,
-                transition: transitioning ? "transform 300ms ease-out" : "none",
-                transformOrigin: "bottom center",
-                overflow: "hidden",
-                padding: "28px 24px",
-                boxSizing: "border-box",
-              }}
-            >
-              <CardContent item={next} dragX={0} />
-            </div>
-          )}
-
-          {/* Front card — draggable */}
+        {/* Back card */}
+        {next && (
           <div
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
             style={{
               position: "absolute",
               inset: 0,
               borderRadius: 20,
-              background: "var(--bg)",
+              background: "var(--surface)",
               border: "1px solid var(--line-soft)",
-              transform: `translateX(${dragX}px) rotate(${dragX * 0.03}deg)`,
-              transition: cardTransition,
+              transform: `scale(${backScale}) translateY(${backY}px)`,
+              transition: transitioning ? "transform 300ms ease-out" : "none",
               transformOrigin: "bottom center",
               overflow: "hidden",
-              padding: "28px 24px",
+              padding: "24px 20px",
               boxSizing: "border-box",
-              cursor: exiting ? "default" : "grab",
-              userSelect: "none",
-              touchAction: "none",
             }}
           >
-            {/* KEEP label */}
-            <div
-              style={{
-                position: "absolute",
-                top: 28,
-                left: 20,
-                opacity: keepOpacity,
-                transform: "rotate(-12deg)",
-                border: "2.5px solid var(--moss)",
-                borderRadius: 6,
-                padding: "3px 10px",
-                color: "var(--moss)",
-                fontFamily: "var(--f-sans)",
-                fontSize: 20,
-                fontWeight: 800,
-                letterSpacing: "0.06em",
-                pointerEvents: "none",
-                zIndex: 2,
-              }}
-            >
-              KEEP
-            </div>
-
-            {/* SKIP label */}
-            <div
-              style={{
-                position: "absolute",
-                top: 28,
-                right: 20,
-                opacity: skipOpacity,
-                transform: "rotate(12deg)",
-                border: "2.5px solid var(--blood)",
-                borderRadius: 6,
-                padding: "3px 10px",
-                color: "var(--blood)",
-                fontFamily: "var(--f-sans)",
-                fontSize: 20,
-                fontWeight: 800,
-                letterSpacing: "0.06em",
-                pointerEvents: "none",
-                zIndex: 2,
-              }}
-            >
-              SKIP
-            </div>
-
-            <CardContent item={current} dragX={dragX} />
+            <CardContent item={next} dragX={0} />
           </div>
-        </div>
+        )}
 
-        {/* Hint text */}
-        <p
-          className="f-sans"
+        {/* Front card */}
+        <div
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
           style={{
-            textAlign: "center",
-            fontSize: 12,
-            color: "rgba(255,255,255,0.4)",
-            margin: "14px 0 16px",
-            flexShrink: 0,
+            position: "absolute",
+            inset: 0,
+            borderRadius: 20,
+            background: "var(--bg)",
+            border: "1px solid var(--line-soft)",
+            transform: `translateX(${dragX}px) rotate(${dragX * 0.03}deg)`,
+            transition: cardTransition,
+            transformOrigin: "bottom center",
+            overflow: "hidden",
+            padding: "24px 20px",
+            boxSizing: "border-box",
+            cursor: exiting ? "default" : "grab",
+            userSelect: "none",
+            touchAction: "none",
           }}
         >
-          ← skip this type &nbsp;·&nbsp; keep it →
-        </p>
+          {/* KEEP stamp */}
+          <div
+            style={{
+              position: "absolute",
+              top: 24,
+              left: 16,
+              opacity: keepOpacity,
+              transform: "rotate(-12deg)",
+              border: "3px solid var(--moss)",
+              borderRadius: 6,
+              padding: "2px 10px",
+              color: "var(--moss)",
+              fontFamily: "var(--f-sans)",
+              fontSize: 18,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            KEEP ✓
+          </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center justify-center gap-10" style={{ flexShrink: 0 }}>
+          {/* REMOVE stamp */}
+          <div
+            style={{
+              position: "absolute",
+              top: 24,
+              right: 16,
+              opacity: skipOpacity,
+              transform: "rotate(12deg)",
+              border: "3px solid var(--blood)",
+              borderRadius: 6,
+              padding: "2px 10px",
+              color: "var(--blood)",
+              fontFamily: "var(--f-sans)",
+              fontSize: 18,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            REMOVE ✕
+          </div>
+
+          <CardContent item={current} dragX={dragX} />
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div
+        style={{
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 32,
+          padding: "16px 20px 32px",
+        }}
+      >
+        {/* Remove button */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
           <button
-            onClick={() => { setTransitioning(true); triggerReject(index); }}
+            onClick={() => triggerReject(index)}
             disabled={!!exiting}
             className="press"
             style={{
-              width: 62,
-              height: 62,
+              width: 64,
+              height: 64,
               borderRadius: "50%",
-              border: "2px solid var(--blood)",
-              background: "rgba(0,0,0,0.3)",
+              border: "2.5px solid var(--blood)",
+              background: "rgba(0,0,0,0.35)",
               color: "var(--blood)",
               fontSize: 26,
               display: "flex",
@@ -371,23 +404,26 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
               justifyContent: "center",
               cursor: "pointer",
               backdropFilter: "blur(8px)",
-              transition: "transform 120ms, background 120ms",
             }}
-            aria-label="Skip this type"
+            aria-label="Remove"
           >
-            ✕
+            👎
           </button>
+          <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, color: "var(--blood)", letterSpacing: "0.05em" }}>REMOVE</span>
+        </div>
 
+        {/* Keep button */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
           <button
-            onClick={() => { setTransitioning(true); triggerAccept(index); }}
+            onClick={() => triggerAccept(index)}
             disabled={!!exiting}
             className="press"
             style={{
-              width: 62,
-              height: 62,
+              width: 64,
+              height: 64,
               borderRadius: "50%",
-              border: "2px solid var(--moss)",
-              background: "rgba(0,0,0,0.3)",
+              border: "2.5px solid var(--moss)",
+              background: "rgba(0,0,0,0.35)",
               color: "var(--moss)",
               fontSize: 26,
               display: "flex",
@@ -395,15 +431,16 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
               justifyContent: "center",
               cursor: "pointer",
               backdropFilter: "blur(8px)",
-              transition: "transform 120ms, background 120ms",
             }}
-            aria-label="Keep this type"
+            aria-label="Keep"
           >
-            ✓
+            👍
           </button>
+          <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, color: "var(--moss)", letterSpacing: "0.05em" }}>KEEP</span>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -413,8 +450,8 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Category badge */}
-      <div style={{ marginBottom: 20, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      {/* Badges */}
+      <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
         <span
           className="f-sans"
           style={{
@@ -458,7 +495,6 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
               borderRadius: 999,
               background: "var(--blood-wash)",
               color: "var(--blood)",
-              marginLeft: 6,
             }}
           >
             Urgent
@@ -466,14 +502,13 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         )}
       </div>
 
-      {/* Title */}
       <h2
         className="f-serif"
         style={{
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 500,
           color: "var(--ink)",
-          margin: "0 0 8px",
+          margin: "0 0 6px",
           lineHeight: 1.25,
           letterSpacing: "-0.01em",
         }}
@@ -481,38 +516,35 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         {item.title}
       </h2>
 
-      {/* Sender */}
       <p
         className="f-serif"
         style={{
           fontSize: 13,
           color: "var(--ink-faint)",
           fontStyle: "italic",
-          margin: "0 0 20px",
+          margin: "0 0 14px",
           lineHeight: 1.4,
         }}
       >
         {senderName}
       </p>
 
-      {/* Summary */}
       {item.summary && (
         <p
           className="f-sans"
           style={{
-            fontSize: 14,
+            fontSize: 13,
             color: "var(--ink-soft)",
             lineHeight: 1.6,
-            margin: "0 0 20px",
+            margin: "0 0 14px",
           }}
         >
           {item.summary}
         </p>
       )}
 
-      {/* Amount / due date chips */}
       {(item.amount || item.dueDate) && (
-        <div className="flex gap-2 flex-wrap" style={{ marginBottom: 20 }}>
+        <div className="flex gap-2 flex-wrap" style={{ marginBottom: 14 }}>
           {item.amount && (
             <span
               className="f-sans"
@@ -548,12 +580,13 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         </div>
       )}
 
-      {/* Drag hint on first card — shown only when not dragging */}
       <div style={{ flex: 1 }} />
+
+      {/* Drag dots */}
       <div
         style={{
           borderTop: "1px solid var(--line-soft)",
-          paddingTop: 14,
+          paddingTop: 12,
           display: "flex",
           justifyContent: "center",
           gap: 6,
@@ -563,13 +596,7 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            style={{
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: "var(--ink-ghost)",
-              display: "block",
-            }}
+            style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--ink-ghost)", display: "block" }}
           />
         ))}
       </div>
