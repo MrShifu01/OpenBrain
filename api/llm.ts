@@ -304,7 +304,7 @@ async function handleChat(req: ApiRequest, res: ApiResponse, user: any): Promise
       contents,
       tools: [{ functionDeclarations: CHAT_TOOLS }],
       systemInstruction: { parts: [{ text: SERVER_PROMPTS.CHAT_AGENT }] },
-      generationConfig: { maxOutputTokens: 2000, thinkingConfig: { thinkingLevel: "medium" } },
+      generationConfig: { maxOutputTokens: 2000 },
     };
 
     const gemRes = await fetch(
@@ -379,7 +379,7 @@ async function handleGemini(res: ApiResponse, { messages, max_tokens, system }: 
   }));
   const body: Record<string, any> = {
     contents,
-    generationConfig: { maxOutputTokens: max_tokens || 1000, thinkingConfig: { thinkingLevel: "medium" } },
+    generationConfig: { maxOutputTokens: max_tokens || 1000 },
   };
   if (system) body.systemInstruction = { parts: [{ text: system.slice(0, 10000) }] };
 
@@ -423,7 +423,7 @@ async function handleExtractFile(req: ApiRequest, res: ApiResponse): Promise<voi
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { maxOutputTokens: 4096, thinkingConfig: { thinkingLevel: "medium" } } }),
+        body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { maxOutputTokens: 4096 } }),
       }
     );
     const d: any = await r.json();
