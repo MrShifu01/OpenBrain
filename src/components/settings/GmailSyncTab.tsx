@@ -65,6 +65,9 @@ interface ScanDebug {
   repairedBrainId: number;
   attachmentsExtracted: number;
   subjects: string[];
+  classifierUsed?: string;
+  classifierError?: string;
+  classifierModel?: string;
 }
 
 export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
@@ -431,6 +434,20 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             <span style={{ color: lastDebug.hasAnthropicKey ? "var(--moss)" : "var(--blood)" }}>{lastDebug.hasAnthropicKey ? "present" : "MISSING"}</span>
             <span style={{ color: "var(--ink-soft)" }}>Gemini key</span>
             <span style={{ color: lastDebug.hasGeminiKey ? "var(--moss)" : "var(--blood)" }}>{lastDebug.hasGeminiKey ? "present" : "MISSING"}</span>
+            {lastDebug.classifierUsed && (
+              <>
+                <span style={{ color: "var(--ink-soft)" }}>Classifier used</span>
+                <span style={{ color: lastDebug.classifierUsed === "none" ? "var(--blood)" : "var(--moss)" }}>
+                  {lastDebug.classifierUsed}{lastDebug.classifierModel ? ` (${lastDebug.classifierModel})` : ""}
+                </span>
+              </>
+            )}
+            {lastDebug.classifierError && (
+              <>
+                <span style={{ color: "var(--blood)", fontWeight: 600 }}>Classifier error</span>
+                <span style={{ color: "var(--blood)", wordBreak: "break-all" }}>{lastDebug.classifierError}</span>
+              </>
+            )}
             {lastDebug.tokenRefreshFailed && (
               <>
                 <span style={{ color: "var(--blood)", fontWeight: 600 }}>Token</span>

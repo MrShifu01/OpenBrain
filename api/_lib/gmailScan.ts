@@ -299,28 +299,38 @@ async function fetchMessageDetail(token: string, id: string): Promise<any | null
   };
 }
 
-async function classifyWithGemini(prompt: string, geminiKey: string): Promise<any[]> {
+async function classifyWithGemini(
+  prompt: string,
+  geminiKey: string,
+): Promise<{ results: any[]; error?: string; model: string }> {
   const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
-  const r = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 8192 },
-      }),
-    },
-  );
-  if (!r.ok) return [];
-  const data = await r.json();
-  const text: string = (data.candidates?.[0]?.content?.parts ?? [])
-    .map((p: any) => p.text ?? "").join("").trim();
   try {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 8192 },
+        }),
+      },
+    );
+    if (!r.ok) {
+      const errText = await r.text().catch(() => "");
+      const msg = `HTTP ${r.status}: ${errText.slice(0, 300)}`;
+      console.error(`[gmail-classify:gemini] ${msg}`);
+      return { results: [], error: msg, model };
+    }
+    const data = await r.json();
+    const text: string = (data.candidates?.[0]?.content?.parts ?? [])
+      .map((p: any) => p.text ?? "").join("").trim();
+    if (!text) return { results: [], error: "empty response", model };
     const match = text.match(/\[[\s\S]*\]/);
-    return match ? JSON.parse(match[0]) : [];
-  } catch {
-    return [];
+    if (!match) return { results: [], error: `no JSON array in: ${text.slice(0, 100)}`, model };
+    return { results: JSON.parse(match[0]), model };
+  } catch (e: any) {
+    return { results: [], error: String(e?.message ?? e), model };
   }
 }
 
@@ -663,6 +673,9 @@ export interface ScanDebug {
   repairedBrainId: number;
   attachmentsExtracted: number;
   subjects: string[];
+  classifierUsed: string;
+  classifierError: string;
+  classifierModel: string;
 }
 
 export async function scanGmailForUser(
@@ -683,6 +696,9 @@ export async function scanGmailForUser(
     repairedBrainId: 0,
     attachmentsExtracted: 0,
     subjects: [],
+    classifierUsed: "",
+    classifierError: "",
+    classifierModel: "",
   };
 
   const token = await refreshGmailToken(integration);
@@ -720,9 +736,18 @@ export async function scanGmailForUser(
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   const prompt = buildPrompt(emails, prefs);
-  const classified = geminiKey
-    ? await classifyWithGemini(prompt, geminiKey)
-    : await classifyWithLLM(prompt);
+  let classified: any[];
+  if (geminiKey) {
+    const { results, error, model } = await classifyWithGemini(prompt, geminiKey);
+    classified = results;
+    debug.classifierUsed = "gemini";
+    debug.classifierModel = model;
+    debug.classifierError = error ?? "";
+  } else {
+    classified = await classifyWithLLM(prompt);
+    debug.classifierUsed = process.env.ANTHROPIC_API_KEY ? "anthropic" : "none";
+    debug.classifierModel = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
+  }
   debug.classified = classified.length;
   if (!classified.length) return { created: 0, debug, entries: [] };
 
