@@ -1,4 +1,4 @@
-import { useMemo, useRef, memo, useState, useEffect } from "react";
+import React, { useMemo, useRef, memo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { Entry } from "../types";
 import { resolveIcon } from "../lib/typeIcons";
@@ -302,104 +302,205 @@ const EntryRow = memo(function EntryRow({
 }) {
   const isPinned = !!(e as any).pinned;
   const emoji = resolveIcon(e.type, typeIcons);
+
+  const [swipeX, setSwipeX] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const startSwipeRef = useRef(0);
+  const draggingRef = useRef(false);
+
+  const ACTION_W = 64;
+  const actionCount = (onPin ? 1 : 0) + (onDelete ? 1 : 0);
+  const TOTAL_W = actionCount * ACTION_W;
+  const isOpen = swipeX < -10;
+
+  function onTouchStart(ev: React.TouchEvent) {
+    touchStartRef.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+    startSwipeRef.current = swipeX;
+    draggingRef.current = false;
+  }
+
+  function onTouchMove(ev: React.TouchEvent) {
+    if (TOTAL_W === 0) return;
+    const dx = ev.touches[0].clientX - touchStartRef.current.x;
+    const dy = ev.touches[0].clientY - touchStartRef.current.y;
+    if (!draggingRef.current) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      if (Math.abs(dy) > Math.abs(dx)) return;
+      draggingRef.current = true;
+      setDragging(true);
+    }
+    setSwipeX(Math.min(0, Math.max(-TOTAL_W, startSwipeRef.current + dx)));
+  }
+
+  function onTouchEnd() {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setDragging(false);
+    setSwipeX((prev) => (prev < -(TOTAL_W / 2) ? -TOTAL_W : 0));
+  }
+
   return (
-    <article
-      tabIndex={0}
-      onClick={() => (selectMode ? onToggleSelect?.(e.id) : onSelect(e))}
-      onKeyDown={(ev) => {
-        if (ev.key === "Enter" || ev.key === " ") {
-          ev.preventDefault();
-          selectMode ? onToggleSelect?.(e.id) : onSelect(e);
-        }
-      }}
-      aria-label={`Open entry: ${e.title}`}
-      {...(isPinned ? { "data-pinned": "true" } : {})}
-      className="group press flex w-full cursor-pointer items-center gap-3"
+    <div
       style={{
-        padding: "12px 16px",
+        position: "relative",
+        overflow: "hidden",
         borderRadius: 10,
         background: "var(--surface)",
         border: `1px solid ${selected ? "var(--ember)" : "var(--line-soft)"}`,
         borderLeft: isPinned ? "2px solid var(--ember)" : undefined,
-        transition: "background 180ms, border-color 180ms",
+        transition: "border-color 180ms",
       }}
     >
-      <span style={{ fontSize: 14, flexShrink: 0 }} aria-hidden="true">{emoji}</span>
-      <span
-        className="f-sans"
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: "var(--ink-faint)",
-          flexShrink: 0,
-        }}
-      >
-        {e.type}
-      </span>
-      {isPinned && <span style={{ color: "var(--ember)", flexShrink: 0 }}>{IconPin}</span>}
-      <span
-        className="f-serif min-w-0 flex-1 truncate"
-        style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)" }}
-      >
-        {e.title}
-      </span>
-      {(onPin || onDelete) && (
-        <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      {/* Swipe action panel — sits behind the row, revealed on swipe */}
+      {TOTAL_W > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: TOTAL_W,
+            display: "flex",
+          }}
+        >
           {onPin && (
             <button
-              onClick={(ev) => {
-                ev.stopPropagation();
-                onPin(e);
+              onClick={(ev) => { ev.stopPropagation(); onPin(e); setSwipeX(0); }}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                background: "var(--ember)",
+                border: "none",
+                cursor: "pointer",
+                color: "#fff",
+                fontFamily: "var(--f-sans)",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
               }}
-              aria-label={isPinned ? "Unpin" : "Pin"}
-              className="press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
-              style={{ color: "var(--color-on-surface-variant)" }}
             >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
-                />
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
               </svg>
+              {isPinned ? "Unpin" : "Pin"}
             </button>
           )}
           {onDelete && (
             <button
-              onClick={(ev) => {
-                ev.stopPropagation();
-                onDelete(e);
+              onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                background: "var(--blood)",
+                border: "none",
+                cursor: "pointer",
+                color: "#fff",
+                fontFamily: "var(--f-sans)",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
               }}
-              aria-label="Delete"
-              className="entry-card__delete press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
-              style={{ color: "var(--color-on-surface-variant)" }}
             >
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
-                />
+              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
               </svg>
+              Delete
             </button>
           )}
         </div>
       )}
-    </article>
+
+      {/* Row content — slides left on swipe */}
+      <article
+        tabIndex={0}
+        onClick={() => {
+          if (isOpen) { setSwipeX(0); return; }
+          selectMode ? onToggleSelect?.(e.id) : onSelect(e);
+        }}
+        onKeyDown={(ev) => {
+          if (ev.key === "Escape") { setSwipeX(0); return; }
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            selectMode ? onToggleSelect?.(e.id) : onSelect(e);
+          }
+        }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        aria-label={`Open entry: ${e.title}`}
+        {...(isPinned ? { "data-pinned": "true" } : {})}
+        className="group press flex w-full cursor-pointer items-center gap-3"
+        style={{
+          padding: "12px 16px",
+          background: "var(--surface)",
+          transform: `translateX(${swipeX}px)`,
+          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1)",
+          touchAction: dragging ? "none" : "pan-y",
+          willChange: dragging ? "transform" : "auto",
+        }}
+      >
+        <span style={{ fontSize: 14, flexShrink: 0 }} aria-hidden="true">{emoji}</span>
+        <span
+          className="f-sans"
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            color: "var(--ink-faint)",
+            flexShrink: 0,
+          }}
+        >
+          {e.type}
+        </span>
+        {isPinned && <span style={{ color: "var(--ember)", flexShrink: 0 }}>{IconPin}</span>}
+        <span
+          className="f-serif min-w-0 flex-1 truncate"
+          style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)" }}
+        >
+          {e.title}
+        </span>
+        {/* Desktop hover-reveal actions */}
+        {(onPin || onDelete) && (
+          <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {onPin && (
+              <button
+                onClick={(ev) => { ev.stopPropagation(); onPin(e); }}
+                aria-label={isPinned ? "Unpin" : "Pin"}
+                className="press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                </svg>
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+                aria-label="Delete"
+                className="entry-card__delete press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+      </article>
+    </div>
   );
 });
 
