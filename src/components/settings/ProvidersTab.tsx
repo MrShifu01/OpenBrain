@@ -42,57 +42,55 @@ export default function ProvidersTab(_props?: { activeBrain?: any }) {
   const maskKey = (k?: string | null) =>
     k && k.length > 6 ? `${k.slice(0, 6)}…${k.slice(-4)}` : k ?? "";
 
-  // Server-managed providers surface as "routed via server" rather than a
-  // user-editable key. Stored legacy keys show their mask + a Remove button.
-  const providers: {
-    label: string;
-    connected: boolean;
-    hint: string;
-    button: { label: string; onClick?: () => void; disabled?: boolean };
-  }[] = [
-    {
-      label: "Anthropic",
-      connected: true,
-      hint: "managed by everion — routed via our server.",
-      button: { label: "Managed", disabled: true },
-    },
-    {
-      label: "OpenAI",
-      connected: true,
-      hint: "managed by everion — routed via our server.",
-      button: { label: "Managed", disabled: true },
-    },
-    {
-      label: "Groq",
-      connected: !!groqKey,
-      hint: groqKey ? maskKey(groqKey) : "not set",
-      button: { label: groqKey ? "Rotate" : "Add key" },
-    },
-    {
-      label: "Google Gemini",
-      connected: !!geminiKey,
-      hint: geminiKey ? maskKey(geminiKey) : "not set",
-      button: { label: geminiKey ? "Rotate" : "Add key" },
-    },
-  ];
-
   return (
     <div>
-      {providers.map((p, idx) => (
+      {/* Claude — BYOK, not provided by Everion */}
+      <SettingsRow
+        label="Claude"
+        hint="bring your own Anthropic key to use Claude models."
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <StatusDot on={false} />
+          <SettingsButton disabled>Add key</SettingsButton>
+        </div>
+      </SettingsRow>
+
+      {/* OpenAI — BYOK, not provided by Everion */}
+      <SettingsRow
+        label="OpenAI"
+        hint="bring your own OpenAI key to use GPT models."
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <StatusDot on={false} />
+          <SettingsButton disabled>Add key</SettingsButton>
+        </div>
+      </SettingsRow>
+
+      {/* Groq — BYOK, functional */}
+      <SettingsRow
+        label="Groq"
+        hint={groqKey ? maskKey(groqKey) : "bring your own Groq key for fast voice transcription."}
+        last={!hasStoredKeys && !geminiKey}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <StatusDot on={!!groqKey} />
+          <SettingsButton>{groqKey ? "Rotate" : "Add key"}</SettingsButton>
+        </div>
+      </SettingsRow>
+
+      {/* Google Gemini — BYOK override key */}
+      {geminiKey && (
         <SettingsRow
-          key={p.label}
-          label={p.label}
-          hint={p.hint}
-          last={idx === providers.length - 1 && !hasStoredKeys}
+          label="Google Gemini"
+          hint={maskKey(geminiKey)}
+          last={!hasStoredKeys}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <StatusDot on={p.connected} />
-            <SettingsButton onClick={p.button.onClick} disabled={p.button.disabled}>
-              {p.button.label}
-            </SettingsButton>
+            <StatusDot on />
+            <SettingsButton>Rotate</SettingsButton>
           </div>
         </SettingsRow>
-      ))}
+      )}
 
       {hasStoredKeys && (
         <SettingsRow
@@ -105,6 +103,7 @@ export default function ProvidersTab(_props?: { activeBrain?: any }) {
           </SettingsButton>
         </SettingsRow>
       )}
+
       {clearMsg && (
         <p
           className="f-sans"
