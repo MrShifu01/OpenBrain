@@ -1,56 +1,44 @@
 /**
  * POST /api/feedback
  *
- * Two modes depending on `type` in the request body:
+ * Three modes depending on `type` in the request body:
  *
  * 1. Chat feedback (default, type omitted):
  *    Stores a rated chat interaction and optionally learns a knowledge shortcut.
  *    Body: brain_id, query, answer, retrieved_entry_ids, top_entry_ids, feedback (1|-1), confidence
  *
- * 2. Insight correction (type === "insight_correction"):
+ * 2. Merge feedback (type === "merge_feedback"):
+ *    Records user guidance for entry-merge decisions.
+ *    Body: brain_id, titles, note
+ *
+ * 3. Insight correction (type === "insight_correction"):
  *    User down-thumbed a "wow" insight and wrote a correction.
  *    The LLM identifies which brain entries caused the wrong insight and patches them.
  *    Body: brain_id, headline, detail, correction
  *    Response: { fixed_count: number }
  */
 import type { ApiRequest, ApiResponse } from "./_lib/types";
-import { verifyAuth } from "./_lib/verifyAuth.js";
-import { rateLimit } from "./_lib/rateLimit.js";
-import { checkBrainAccess } from "./_lib/checkBrainAccess.js";
-import { applySecurityHeaders } from "./_lib/securityHeaders.js";
+import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_lib/withAuth.js";
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { learnKnowledgeShortcut } from "./_lib/feedback.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
-const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const SB_HEADERS: Record<string, string> = {
-  "Content-Type": "application/json",
-  apikey: SB_KEY,
-  Authorization: `Bearer ${SB_KEY}`,
-};
-
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 
-export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
-  applySecurityHeaders(res);
-
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
-
-  const user: any = await verifyAuth(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-  const { type } = req.body ?? {};
-
-  if (type === "insight_correction") return handleInsightCorrection(req, res, user);
-  if (type === "merge_feedback") return handleMergeFeedback(req, res, user);
-  return handleChatFeedback(req, res, user);
-}
+export default withAuth(
+  { methods: ["POST"], rateLimit: 30 },
+  async (ctx) => {
+    const { type } = ctx.req.body ?? {};
+    if (type === "insight_correction") return handleInsightCorrection(ctx);
+    if (type === "merge_feedback") return handleMergeFeedback(ctx);
+    return handleChatFeedback(ctx);
+  },
+);
 
 // ── Mode 1: Chat feedback ────────────────────────────────────────────────────
 
-async function handleChatFeedback(req: ApiRequest, res: ApiResponse, user: any): Promise<void> {
+async function handleChatFeedback({ req, res, user }: HandlerContext): Promise<void> {
   const {
     brain_id,
     query,
@@ -61,30 +49,26 @@ async function handleChatFeedback(req: ApiRequest, res: ApiResponse, user: any):
     confidence = "medium",
   } = req.body ?? {};
 
-  if (!brain_id || typeof brain_id !== "string" || brain_id.length > 100) {
-    return res.status(400).json({ error: "Invalid brain_id" });
-  }
   if (!query || typeof query !== "string" || query.length > 2000) {
-    return res.status(400).json({ error: "Invalid query" });
+    throw new ApiError(400, "Invalid query");
   }
   if (!answer || typeof answer !== "string" || answer.length > 20000) {
-    return res.status(400).json({ error: "Invalid answer" });
+    throw new ApiError(400, "Invalid answer");
   }
   if (feedback !== 1 && feedback !== -1) {
-    return res.status(400).json({ error: "feedback must be 1 or -1" });
+    throw new ApiError(400, "feedback must be 1 or -1");
   }
   if (!["high", "medium", "low"].includes(confidence)) {
-    return res.status(400).json({ error: "confidence must be high, medium, or low" });
+    throw new ApiError(400, "confidence must be high, medium, or low");
   }
   const retrievedIds: string[] = Array.isArray(retrieved_entry_ids) ? retrieved_entry_ids.slice(0, 100) : [];
   const topIds: string[] = Array.isArray(top_entry_ids) ? top_entry_ids.slice(0, 20) : [];
 
-  const hasAccess = await checkBrainAccess(user.id, brain_id);
-  if (!hasAccess) return res.status(403).json({ error: "Forbidden" });
+  await requireBrainAccess(user.id, brain_id);
 
   const insertRes = await fetch(`${SB_URL}/rest/v1/query_feedback`, {
     method: "POST",
-    headers: SB_HEADERS,
+    headers: sbHeaders(),
     body: JSON.stringify({
       brain_id,
       query: query.trim(),
@@ -99,7 +83,7 @@ async function handleChatFeedback(req: ApiRequest, res: ApiResponse, user: any):
   if (!insertRes.ok) {
     const err = await insertRes.text().catch(() => String(insertRes.status));
     console.error("[feedback:insert]", err);
-    return res.status(502).json({ error: "Failed to store feedback" });
+    throw new ApiError(502, "Failed to store feedback");
   }
 
   if (feedback === 1 && confidence === "high" && topIds.length > 0) {
@@ -108,26 +92,22 @@ async function handleChatFeedback(req: ApiRequest, res: ApiResponse, user: any):
     });
   }
 
-  return res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true });
 }
 
 // ── Mode 2: Merge feedback ───────────────────────────────────────────────────
 
-async function handleMergeFeedback(req: ApiRequest, res: ApiResponse, user: any): Promise<void> {
+async function handleMergeFeedback({ req, res, user }: HandlerContext): Promise<void> {
   const { brain_id, titles, note } = req.body ?? {};
-  if (!brain_id || typeof brain_id !== "string" || brain_id.length > 100) {
-    return res.status(400).json({ error: "Invalid brain_id" });
-  }
   if (!note || typeof note !== "string" || note.length < 1 || note.length > 1000) {
-    return res.status(400).json({ error: "note required (max 1000 chars)" });
+    throw new ApiError(400, "note required (max 1000 chars)");
   }
-  const hasAccess = await checkBrainAccess(user.id, brain_id);
-  if (!hasAccess) return res.status(403).json({ error: "Forbidden" });
+  await requireBrainAccess(user.id, brain_id);
 
   const titleStr = Array.isArray(titles) ? titles.join(" + ") : "";
   await fetch(`${SB_URL}/rest/v1/query_feedback`, {
     method: "POST",
-    headers: SB_HEADERS,
+    headers: sbHeaders(),
     body: JSON.stringify({
       brain_id,
       query: `[merge_guidance] ${titleStr}`.slice(0, 500),
@@ -139,7 +119,7 @@ async function handleMergeFeedback(req: ApiRequest, res: ApiResponse, user: any)
     }),
   }).catch((e: any) => console.error("[feedback:merge]", e?.message));
 
-  return res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true });
 }
 
 // ── Mode 3: Insight correction ───────────────────────────────────────────────
@@ -157,33 +137,30 @@ Rules:
 - Return [] if no entries need changing
 - Return only the JSON array, no explanation`;
 
-async function handleInsightCorrection(req: ApiRequest, res: ApiResponse, user: any): Promise<void> {
+async function handleInsightCorrection({ req, res, user }: HandlerContext): Promise<void> {
   const { brain_id, headline, detail, correction } = req.body ?? {};
 
-  if (!brain_id || typeof brain_id !== "string" || brain_id.length > 100) {
-    return res.status(400).json({ error: "Invalid brain_id" });
-  }
   if (!headline || typeof headline !== "string" || headline.length > 500) {
-    return res.status(400).json({ error: "Invalid headline" });
+    throw new ApiError(400, "Invalid headline");
   }
   if (!correction || typeof correction !== "string" || correction.length < 1 || correction.length > 1000) {
-    return res.status(400).json({ error: "correction required (max 1000 chars)" });
+    throw new ApiError(400, "correction required (max 1000 chars)");
   }
+  await requireBrainAccess(user.id, brain_id);
 
-  const hasAccess = await checkBrainAccess(user.id, brain_id);
-  if (!hasAccess) return res.status(403).json({ error: "Forbidden" });
+  if (!GEMINI_API_KEY) throw new ApiError(500, "AI not configured");
 
-  if (!GEMINI_API_KEY) return res.status(500).json({ error: "AI not configured" });
-
-  // Fetch entries
   const entriesRes = await fetch(
     `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&select=id,title,content&order=created_at.desc&limit=80`,
     { headers: sbHeadersNoContent() },
   );
-  if (!entriesRes.ok) return res.status(502).json({ error: "Failed to fetch entries" });
+  if (!entriesRes.ok) throw new ApiError(502, "Failed to fetch entries");
 
   const entries: Array<{ id: string; title: string; content: string }> = await entriesRes.json();
-  if (!entries.length) return res.status(200).json({ fixed_count: 0 });
+  if (!entries.length) {
+    res.status(200).json({ fixed_count: 0 });
+    return;
+  }
 
   const validIds = new Set(entries.map((e) => e.id));
 
@@ -198,7 +175,6 @@ User's correction: "${correction}"
 Brain entries to review:
 ${entriesSummary}`;
 
-  // Call LLM
   let fixes: Array<{ id: string; content: string }> = [];
   try {
     const llmRes = await fetch(
@@ -237,7 +213,6 @@ ${entriesSummary}`;
     console.error("[feedback:insight_correction:llm]", e?.message);
   }
 
-  // Apply patches
   let fixed_count = 0;
   for (const fix of fixes) {
     try {
@@ -256,5 +231,5 @@ ${entriesSummary}`;
     }
   }
 
-  return res.status(200).json({ fixed_count });
+  res.status(200).json({ fixed_count });
 }

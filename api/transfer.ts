@@ -4,70 +4,51 @@
  *
  * Both routes are rewritten to /api/transfer via vercel.json.
  */
-import type { ApiRequest, ApiResponse } from "./_lib/types";
-import { verifyAuth } from "./_lib/verifyAuth.js";
-import { rateLimit } from "./_lib/rateLimit.js";
-import { checkBrainAccess } from "./_lib/checkBrainAccess.js";
-import { applySecurityHeaders } from "./_lib/securityHeaders.js";
+import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_lib/withAuth.js";
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const EXPORT_FIELDS = "id,title,content,type,tags,metadata,importance,pinned,created_at";
 const IMPORT_LIMIT = 2000;
 
-export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
-  applySecurityHeaders(res);
-  if (req.method === "GET") return handleExport(req, res);
-  if (req.method === "POST") return handleImport(req, res);
-  return res.status(405).json({ error: "Method not allowed" });
-}
+export default withAuth(
+  {
+    methods: ["GET", "POST"],
+    rateLimit: (req) => (req.method === "POST" ? 5 : 10),
+  },
+  async (ctx) => {
+    if (ctx.req.method === "GET") return handleExport(ctx);
+    return handleImport(ctx);
+  },
+);
 
 // ── GET /api/export?brain_id=<id> ──
-async function handleExport(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (!(await rateLimit(req, 10))) return res.status(429).json({ error: "Too many requests" });
-
-  const user: any = await verifyAuth(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-
+async function handleExport({ req, res, user }: HandlerContext): Promise<void> {
   const brain_id = req.query.brain_id as string | undefined;
-  if (!brain_id || typeof brain_id !== "string" || brain_id.length > 100) {
-    return res.status(400).json({ error: "brain_id required" });
-  }
-
-  const access = await checkBrainAccess(user.id, brain_id);
-  if (!access) return res.status(403).json({ error: "Forbidden" });
+  await requireBrainAccess(user.id, brain_id);
 
   const r = await fetch(
-    `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&select=${EXPORT_FIELDS}&order=created_at.asc&limit=10000`,
+    `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id!)}&select=${EXPORT_FIELDS}&order=created_at.asc&limit=10000`,
     { headers: sbHeadersNoContent() },
   );
-  if (!r.ok) return res.status(502).json({ error: "Database error" });
+  if (!r.ok) throw new ApiError(502, "Database error");
 
   const entries = await r.json();
-  return res.status(200).json({ entries, exported_at: new Date().toISOString(), brain_id });
+  res.status(200).json({ entries, exported_at: new Date().toISOString(), brain_id });
 }
 
 // ── POST /api/import ──
-async function handleImport(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (!(await rateLimit(req, 5))) return res.status(429).json({ error: "Too many requests" });
-
-  const user: any = await verifyAuth(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-
+async function handleImport({ req, res, user }: HandlerContext): Promise<void> {
   const { brain_id, entries } = req.body || {};
 
-  if (!brain_id || typeof brain_id !== "string" || brain_id.length > 100) {
-    return res.status(400).json({ error: "brain_id required" });
-  }
   if (!Array.isArray(entries) || entries.length === 0) {
-    return res.status(400).json({ error: "entries array required" });
+    throw new ApiError(400, "entries array required");
   }
   if (entries.length > IMPORT_LIMIT) {
-    return res.status(400).json({ error: `Too many entries — max ${IMPORT_LIMIT} per import` });
+    throw new ApiError(400, `Too many entries — max ${IMPORT_LIMIT} per import`);
   }
 
-  const access = await checkBrainAccess(user.id, brain_id);
-  if (!access) return res.status(403).json({ error: "Forbidden" });
+  await requireBrainAccess(user.id, brain_id);
 
   const rows = entries
     .filter((e: any) => e && typeof e === "object" && e.title)
@@ -83,9 +64,7 @@ async function handleImport(req: ApiRequest, res: ApiResponse): Promise<void> {
       pinned: Boolean(e.pinned),
     }));
 
-  if (rows.length === 0) {
-    return res.status(400).json({ error: "No valid entries to import" });
-  }
+  if (rows.length === 0) throw new ApiError(400, "No valid entries to import");
 
   const r = await fetch(`${SB_URL}/rest/v1/entries`, {
     method: "POST",
@@ -96,8 +75,8 @@ async function handleImport(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!r.ok) {
     const err = await r.text().catch(() => String(r.status));
     console.error("[transfer:import]", err);
-    return res.status(502).json({ error: "Import failed" });
+    throw new ApiError(502, "Import failed");
   }
 
-  return res.status(200).json({ ok: true, imported: rows.length });
+  res.status(200).json({ ok: true, imported: rows.length });
 }
