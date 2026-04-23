@@ -43,6 +43,7 @@ export async function enrichEntry(
   entry: Entry,
   brainId: string,
   onUpdate: (id: string, changes: any) => Promise<void>,
+  onPhase?: (phase: string) => void,
 ): Promise<EnrichError[]> {
   const errors: EnrichError[] = [];
   // Free tier with no BYOK: skip all LLM steps — embedding still runs below
@@ -58,6 +59,7 @@ export async function enrichEntry(
 
   // ── AI Parsing ─────────────────────────────────────────────────────────
   if (!parsed && llmAvailable) {
+    onPhase?.("parsed");
     try {
       const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
       const res = await authFetch("/api/llm", {
@@ -142,6 +144,7 @@ export async function enrichEntry(
 
   // ── Embedding ──────────────────────────────────────────────────────────
   if (!embedded) {
+    onPhase?.("embedding");
     try {
       const res = await authFetch("/api/embed", {
         method: "POST",
@@ -164,6 +167,7 @@ export async function enrichEntry(
 
   // ── Concepts ───────────────────────────────────────────────────────────
   if (!concepts && llmAvailable) {
+    onPhase?.("concepts");
     try {
       const { extractEntryConnections } = await import("../lib/brainConnections");
       await extractEntryConnections(
@@ -190,6 +194,7 @@ export async function enrichEntry(
 
   // ── Insight ────────────────────────────────────────────────────────────
   if (!insight && llmAvailable) {
+    onPhase?.("insight");
     try {
       const { generateEntryInsight } = await import("../lib/brainConnections");
       await generateEntryInsight(

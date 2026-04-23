@@ -234,6 +234,8 @@ interface SettingsViewProps {
   enriching?: boolean;
   enrichProgress?: { done: number; total: number } | null;
   enrichErrors?: { id: string; title: string; errors: EnrichError[] }[];
+  enrichCurrentEntry?: { idx: number; total: number; title: string; phase: string } | null;
+  enrichLog?: { ts: number; level: "info" | "error"; message: string }[];
   runBulkEnrich?: () => Promise<void>;
 }
 
@@ -243,6 +245,8 @@ export default function SettingsView({
   enriching = false,
   enrichProgress = null,
   enrichErrors = [],
+  enrichCurrentEntry = null,
+  enrichLog = [],
   runBulkEnrich = async () => {},
 }: SettingsViewProps = {}) {
   const { activeBrain, refresh } = useBrain();
@@ -456,6 +460,8 @@ export default function SettingsView({
                   enriching={enriching}
                   enrichProgress={enrichProgress}
                   enrichErrors={enrichErrors}
+                  enrichCurrentEntry={enrichCurrentEntry}
+                  enrichLog={enrichLog}
                   isAdmin={isAdmin}
                   runBulkEnrich={runBulkEnrich}
                 />

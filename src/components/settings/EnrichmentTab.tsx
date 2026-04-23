@@ -1,11 +1,15 @@
 interface GapDetail { id: string; title: string; gaps: string[] }
 interface EnrichError { step: string; message: string }
+interface EnrichLogEntry { ts: number; level: "info" | "error"; message: string }
+interface EnrichingEntry { idx: number; total: number; title: string; phase: string }
 
 interface EnrichmentTabProps {
   unenrichedDetails: GapDetail[];
   enriching: boolean;
   enrichProgress: { done: number; total: number } | null;
   enrichErrors?: { id: string; title: string; errors: EnrichError[] }[];
+  enrichCurrentEntry?: EnrichingEntry | null;
+  enrichLog?: EnrichLogEntry[];
   isAdmin?: boolean;
   runBulkEnrich: () => Promise<void>;
 }
@@ -17,11 +21,18 @@ const GAP_META: { key: string; label: string; description: string }[] = [
   { key: "insight",    label: "Insight",      description: "AI-generated insight summary" },
 ];
 
+function fmtTime(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
 export default function EnrichmentTab({
   unenrichedDetails,
   enriching,
   enrichProgress,
   enrichErrors = [],
+  enrichCurrentEntry = null,
+  enrichLog = [],
   isAdmin = false,
   runBulkEnrich,
 }: EnrichmentTabProps) {
@@ -198,46 +209,165 @@ export default function EnrichmentTab({
         </p>
       )}
 
-      {isAdmin && enrichErrors.length > 0 && (
+      {/* ── Admin debug panel ───────────────────────────────────────────── */}
+      {isAdmin && (
         <div
           style={{
-            marginTop: 8,
-            borderRadius: 8,
-            border: "1px solid var(--blood)",
-            background: "var(--blood-wash)",
-            padding: "14px 16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
+            borderRadius: 10,
+            border: "1px solid var(--line-soft)",
+            background: "var(--surface-high)",
+            overflow: "hidden",
           }}
         >
-          <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--blood)", opacity: 0.7 }}>
-            Admin · Enrichment errors
-          </span>
-          {enrichErrors.map(({ id, title, errors }) => (
-            <div key={id} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-soft)" }}>
-                {title}
+          {/* Panel header */}
+          <div
+            style={{
+              padding: "8px 14px",
+              borderBottom: "1px solid var(--line-soft)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <span
+              className="f-sans"
+              style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-ghost)" }}
+            >
+              Admin · Enrichment Debug
+            </span>
+            {enrichErrors.length > 0 && (
+              <span
+                className="f-sans"
+                style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: "var(--blood)", background: "var(--blood-wash)",
+                  borderRadius: 999, padding: "2px 8px",
+                }}
+              >
+                {enrichErrors.length} error{enrichErrors.length !== 1 ? "s" : ""}
               </span>
-              {errors.map((e, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+            )}
+          </div>
+
+          {/* Live current entry (while enriching) */}
+          {enriching && enrichCurrentEntry && (
+            <div
+              style={{
+                padding: "10px 14px",
+                borderBottom: "1px solid var(--line-soft)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              {/* Pulsing dot */}
+              <div
+                style={{
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: "var(--ember)", flexShrink: 0,
+                  animation: "pulse 1.2s ease-in-out infinite",
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-soft)" }}>
+                  {enrichCurrentEntry.title}
+                </span>
+                <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}>
+                  {enrichCurrentEntry.idx}/{enrichCurrentEntry.total} · {enrichCurrentEntry.phase}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Error list */}
+          {enrichErrors.length > 0 && (
+            <div style={{ padding: "10px 14px", borderBottom: enrichLog.length > 0 ? "1px solid var(--line-soft)" : "none" }}>
+              {enrichErrors.map(({ id, title, errors }) => (
+                <div key={id} style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
+                  <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "var(--blood)" }}>
+                    {title}
+                  </span>
+                  {errors.map((e, i) => (
+                    <div key={i} style={{ display: "flex", gap: 7, alignItems: "baseline" }}>
+                      <span
+                        className="f-sans"
+                        style={{
+                          fontSize: 10, fontWeight: 700, color: "var(--blood)",
+                          background: "var(--blood-wash)", borderRadius: 3,
+                          padding: "1px 5px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em",
+                        }}
+                      >
+                        {e.step}
+                      </span>
+                      <span
+                        className="f-sans"
+                        style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-mono)", wordBreak: "break-all" }}
+                      >
+                        {e.message}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Event log */}
+          {enrichLog.length > 0 ? (
+            <div
+              style={{
+                maxHeight: 200,
+                overflowY: "auto",
+                padding: "8px 0",
+              }}
+            >
+              {enrichLog.map((entry, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    padding: "2px 14px",
+                    alignItems: "baseline",
+                  }}
+                >
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 10, color: "var(--ink-ghost)", fontFamily: "var(--f-mono)", flexShrink: 0, userSelect: "none" }}
+                  >
+                    {fmtTime(entry.ts)}
+                  </span>
                   <span
                     className="f-sans"
                     style={{
-                      fontSize: 11, fontWeight: 600, color: "var(--blood)",
-                      background: "var(--blood-wash)", borderRadius: 3,
-                      padding: "1px 6px", flexShrink: 0,
+                      fontSize: 10, fontWeight: 700, flexShrink: 0, userSelect: "none",
+                      color: entry.level === "error" ? "var(--blood)" : "var(--ink-ghost)",
                     }}
                   >
-                    {e.step}
+                    {entry.level === "error" ? "ERR" : "   "}
                   </span>
-                  <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", fontFamily: "var(--f-mono)", wordBreak: "break-all" }}>
-                    {e.message}
+                  <span
+                    className="f-sans"
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "var(--f-mono)",
+                      color: entry.level === "error" ? "var(--blood)" : "var(--ink-soft)",
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {entry.message}
                   </span>
                 </div>
               ))}
             </div>
-          ))}
+          ) : (
+            <div style={{ padding: "12px 14px" }}>
+              <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", fontFamily: "var(--f-mono)" }}>
+                {enriching ? "Running…" : "No log yet — run enrichment to see events here."}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -47,6 +47,12 @@ export function useDataLayer({
   const [enriching, setEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
   const [enrichErrors, setEnrichErrors] = useState<{ id: string; title: string; errors: EnrichError[] }[]>([]);
+  const [enrichCurrentEntry, setEnrichCurrentEntry] = useState<{ idx: number; total: number; title: string; phase: string } | null>(null);
+  const [enrichLog, setEnrichLog] = useState<{ ts: number; level: "info" | "error"; message: string }[]>([]);
+
+  const appendLog = useCallback((level: "info" | "error", message: string) => {
+    setEnrichLog((prev) => [{ ts: Date.now(), level, message }, ...prev]);
+  }, []);
   const [conceptEntryIds, setConceptEntryIds] = useState<Set<string>>(new Set());
 
   // Load concept graph entry IDs so unenriched detection matches the health panel
@@ -300,20 +306,38 @@ export function useDataLayer({
     if (unenriched.length === 0) return;
     setEnriching(true);
     setEnrichErrors([]);
+    setEnrichLog([]);
     setEnrichProgress({ done: 0, total: unenriched.length });
-    for (let i = 0; i < unenriched.length; i++) {
-      const errs = await enrichEntry(unenriched[i], activeBrainId, silentUpdate);
-      if (errs.length > 0) {
-        setEnrichErrors((prev) => [...prev, { id: unenriched[i].id, title: unenriched[i].title || "(untitled)", errors: errs }]);
+    try {
+      for (let i = 0; i < unenriched.length; i++) {
+        const entry = unenriched[i];
+        const title = entry.title || "(untitled)";
+        setEnrichCurrentEntry({ idx: i + 1, total: unenriched.length, title, phase: "starting" });
+        appendLog("info", `[${i + 1}/${unenriched.length}] ${title}`);
+        let errs: EnrichError[] = [];
+        try {
+          errs = await enrichEntry(entry, activeBrainId, silentUpdate, (phase) => {
+            setEnrichCurrentEntry({ idx: i + 1, total: unenriched.length, title, phase });
+          });
+        } catch (err) {
+          errs = [{ step: "unknown", message: String((err as any)?.message ?? err) }];
+        }
+        if (errs.length > 0) {
+          setEnrichErrors((prev) => [...prev, { id: entry.id, title, errors: errs }]);
+          for (const e of errs) appendLog("error", `  ${e.step}: ${e.message}`);
+        }
+        setEnrichProgress({ done: i + 1, total: unenriched.length });
+        if ((i + 1) % 3 === 0) await refreshConceptIds();
+        if (i < unenriched.length - 1) await new Promise((r) => setTimeout(r, 5000));
       }
-      setEnrichProgress({ done: i + 1, total: unenriched.length });
-      if ((i + 1) % 3 === 0) await refreshConceptIds();
-      if (i < unenriched.length - 1) await new Promise((r) => setTimeout(r, 5000));
+      appendLog("info", `Complete — ${unenriched.length} processed`);
+    } finally {
+      await refreshConceptIds();
+      setEnriching(false);
+      setEnrichProgress(null);
+      setEnrichCurrentEntry(null);
     }
-    await refreshConceptIds();
-    setEnriching(false);
-    setEnrichProgress(null);
-  }, [activeBrainId, entries, enriching, silentUpdate, conceptEntryIds, refreshConceptIds]);
+  }, [activeBrainId, entries, enriching, silentUpdate, conceptEntryIds, refreshConceptIds, appendLog]);
 
   const handleCreated = useCallback(
     (newEntry: Entry) => {
@@ -374,6 +398,8 @@ export function useDataLayer({
     enriching,
     enrichProgress,
     enrichErrors,
+    enrichCurrentEntry,
+    enrichLog,
     runBulkEnrich,
     unenrichedDetails,
     unenrichedCount,

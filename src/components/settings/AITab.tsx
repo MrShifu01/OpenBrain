@@ -15,6 +15,8 @@ interface Props {
   enriching: boolean;
   enrichProgress: { done: number; total: number } | null;
   enrichErrors?: { id: string; title: string; errors: EnrichError[] }[];
+  enrichCurrentEntry?: { idx: number; total: number; title: string; phase: string } | null;
+  enrichLog?: { ts: number; level: "info" | "error"; message: string }[];
   isAdmin?: boolean;
   runBulkEnrich: () => Promise<void>;
 }
@@ -94,6 +96,8 @@ export default function AITab({
   enriching,
   enrichProgress,
   enrichErrors = [],
+  enrichCurrentEntry = null,
+  enrichLog = [],
   isAdmin = false,
   runBulkEnrich,
 }: Props) {
@@ -122,6 +126,8 @@ export default function AITab({
           enriching={enriching}
           enrichProgress={enrichProgress}
           enrichErrors={enrichErrors}
+          enrichCurrentEntry={enrichCurrentEntry}
+          enrichLog={enrichLog}
           isAdmin={isAdmin}
           runBulkEnrich={runBulkEnrich}
         />
