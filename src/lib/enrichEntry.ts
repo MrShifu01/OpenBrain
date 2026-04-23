@@ -1,6 +1,7 @@
 import { authFetch } from "./authFetch";
 import type { Entry } from "../types";
 import { SKIP_META_KEYS } from "./entryConstants";
+import { hasAIAccess } from "./aiSettings";
 
 export function isFullyEnriched(
   entry: Entry,
@@ -44,6 +45,8 @@ export async function enrichEntry(
   onUpdate: (id: string, changes: any) => Promise<void>,
 ): Promise<EnrichError[]> {
   const errors: EnrichError[] = [];
+  // Free tier with no BYOK: skip all LLM steps — embedding still runs below
+  const llmAvailable = hasAIAccess();
   const { PROMPTS } = await import("../config/prompts");
   const e = (entry.metadata as any)?.enrichment ?? {};
   const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
@@ -54,7 +57,7 @@ export async function enrichEntry(
   const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
 
   // ── AI Parsing ─────────────────────────────────────────────────────────
-  if (!parsed) {
+  if (!parsed && llmAvailable) {
     try {
       const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
       const res = await authFetch("/api/llm", {
@@ -160,7 +163,7 @@ export async function enrichEntry(
   }
 
   // ── Concepts ───────────────────────────────────────────────────────────
-  if (!concepts) {
+  if (!concepts && llmAvailable) {
     try {
       const { extractEntryConnections } = await import("../lib/brainConnections");
       await extractEntryConnections(
@@ -186,7 +189,7 @@ export async function enrichEntry(
   }
 
   // ── Insight ────────────────────────────────────────────────────────────
-  if (!insight) {
+  if (!insight && llmAvailable) {
     try {
       const { generateEntryInsight } = await import("../lib/brainConnections");
       await generateEntryInsight(

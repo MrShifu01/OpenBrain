@@ -1,6 +1,17 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useChat } from "../hooks/useChat";
 import { cn } from "../lib/cn";
+import { hasAIAccess } from "../lib/aiSettings";
+
+function useHasAIAccess() {
+  const [access, setAccess] = useState(() => hasAIAccess());
+  useEffect(() => {
+    const handler = () => setAccess(hasAIAccess());
+    window.addEventListener("aiSettingsLoaded", handler);
+    return () => window.removeEventListener("aiSettingsLoaded", handler);
+  }, []);
+  return access;
+}
 
 const EXAMPLE_PROMPTS = [
   "what's coming up in the next thirty days?",
@@ -129,7 +140,21 @@ const IconCheck = (
 );
 
 export default function ChatView({ brainId }: ChatViewProps) {
+  const aiAvailable = useHasAIAccess();
   const { messages, loading, pendingAction, send, confirm, cancel, clearHistory } = useChat(brainId);
+
+  if (!aiAvailable) {
+    return (
+      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", background: "var(--bg)", textAlign: "center", gap: 16 }}>
+        <p className="f-serif" style={{ fontSize: 22, fontStyle: "italic", color: "var(--ink-soft)", lineHeight: 1.4, margin: 0, maxWidth: 400 }}>
+          Chat needs an AI provider.
+        </p>
+        <p className="f-sans" style={{ fontSize: 14, color: "var(--ink-ghost)", margin: 0, maxWidth: 360, lineHeight: 1.6 }}>
+          Add your own API key in Settings → AI → BYOK, or upgrade to a Pro plan for managed access.
+        </p>
+      </div>
+    );
+  }
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
