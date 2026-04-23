@@ -255,6 +255,7 @@ export default function SettingsView({
   const [email, setEmail] = useState(() => {
     try { return localStorage.getItem("everion_email") || ""; } catch { return ""; }
   });
+  const [apiOpen, setApiOpen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -474,13 +475,46 @@ export default function SettingsView({
                   title="Integrations"
                   subtitle="external connections and developer access."
                 />
-                <CalendarSyncTab />
+                <CalendarSyncTab isAdmin={isAdmin} />
                 <div style={{ margin: "32px 0 24px", borderTop: "1px solid var(--line-soft)" }} />
                 <div className="micro" style={{ marginBottom: 16 }}>Gmail</div>
-                <GmailSyncTab />
+                <GmailSyncTab isAdmin={isAdmin} />
                 <div style={{ margin: "32px 0 24px", borderTop: "1px solid var(--line-soft)" }} />
-                <div className="micro" style={{ marginBottom: 16 }}>API & Developer</div>
-                <ClaudeCodeTab />
+                <button
+                  onClick={() => setApiOpen((o) => !o)}
+                  className="f-sans press"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    width: "100%",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "0 0 16px",
+                    gap: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-faint)",
+                  }}
+                >
+                  API & Developer
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 10 10"
+                    style={{
+                      marginLeft: "auto",
+                      transform: apiOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 200ms",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                  </svg>
+                </button>
+                {apiOpen && <ClaudeCodeTab />}
               </>
             )}
 

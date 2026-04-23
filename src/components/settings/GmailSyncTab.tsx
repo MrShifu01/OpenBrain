@@ -49,7 +49,7 @@ function formatLastScan(ts: string | null): string {
   return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
 
-export default function GmailSyncTab() {
+export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [integration, setIntegration] = useState<GmailIntegration | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -143,28 +143,23 @@ export default function GmailSyncTab() {
 
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 24,
           padding: "18px 0",
           borderBottom: integration ? "1px solid var(--line-soft)" : "none",
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div className="f-serif" style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 16, fontWeight: 450, color: "var(--ink)" }}>
             <StatusDot on={!!integration} />
             <GmailIcon />
             <span>Gmail</span>
           </div>
-          <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}>
-            {integration
-              ? `Connected as ${integration.gmail_email ?? "unknown"} · last scan ${formatLastScan(integration.last_scanned_at)}`
-              : "Scan your inbox for invoices, deadlines, and action items."}
-          </div>
         </div>
-
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}>
+          {integration
+            ? `Connected as ${integration.gmail_email ?? "unknown"} · last scan ${formatLastScan(integration.last_scanned_at)}`
+            : "Scan your inbox for invoices, deadlines, and action items."}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           {integration ? (
             <>
               <SettingsButton onClick={handleScanNow} disabled={scanning}>
@@ -234,26 +229,28 @@ export default function GmailSyncTab() {
         </div>
       )}
 
-      <div
-        className="f-sans"
-        style={{
-          marginTop: 16,
-          padding: "12px 14px",
-          borderRadius: 10,
-          fontSize: 12,
-          color: "var(--ink-faint)",
-          lineHeight: 1.6,
-          background: "var(--surface)",
-          border: "1px solid var(--line-soft)",
-        }}
-      >
-        <span style={{ fontWeight: 600, color: "var(--ink-soft)" }}>Setup required — </span>
-        Gmail scanning uses the same Google OAuth credentials as Calendar. Ensure{" "}
-        <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_ID</code> and{" "}
-        <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_SECRET</code> are set, and that the Gmail API is enabled in Google Cloud Console with the redirect URI{" "}
-        <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GMAIL_REDIRECT_URI</code> registered.
-        Scans run automatically once daily.
-      </div>
+      {isAdmin && (
+        <div
+          className="f-sans"
+          style={{
+            marginTop: 16,
+            padding: "12px 14px",
+            borderRadius: 10,
+            fontSize: 12,
+            color: "var(--ink-faint)",
+            lineHeight: 1.6,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+          }}
+        >
+          <span style={{ fontWeight: 600, color: "var(--ink-soft)" }}>Setup required — </span>
+          Gmail scanning uses the same Google OAuth credentials as Calendar. Ensure{" "}
+          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_ID</code> and{" "}
+          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_SECRET</code> are set, and that the Gmail API is enabled in Google Cloud Console with the redirect URI{" "}
+          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GMAIL_REDIRECT_URI</code> registered.
+          Scans run automatically once daily.
+        </div>
+      )}
 
       {modalMode && (
         <GmailSetupModal

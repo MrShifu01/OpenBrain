@@ -1,12 +1,17 @@
+import { generateEmbedding, buildEntryText } from "./generateEmbedding.js";
+import { computeCompletenessScore } from "./completeness.js";
+
 export interface GmailPreferences {
   categories: string[];
   custom: string;
+  lookbackDays?: 1 | 7 | 30;
 }
 
 export function defaultPreferences(): GmailPreferences {
   return {
     categories: ["invoices", "action-required", "subscription-renewal", "appointment", "deadline"],
     custom: "",
+    lookbackDays: 7,
   };
 }
 
@@ -167,13 +172,32 @@ async function getUserBrainId(userId: string): Promise<string | null> {
   return rows[0]?.id ?? null;
 }
 
-export async function scanGmailForUser(integration: any): Promise<{ created: number }> {
+async function fetchImportedMessageIds(userId: string): Promise<Set<string>> {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&metadata->>source=eq.gmail&deleted_at=is.null&select=metadata`,
+    { headers: SB_HEADERS },
+  );
+  if (!r.ok) return new Set();
+  const rows: any[] = await r.json();
+  return new Set(rows.map((e) => e.metadata?.gmail_message_id).filter(Boolean));
+}
+
+export async function scanGmailForUser(
+  integration: any,
+  manual = false,
+): Promise<{ created: number }> {
   const token = await refreshGmailToken(integration);
   if (!token) return { created: 0 };
 
-  const sinceMs = integration.last_scanned_at
-    ? new Date(integration.last_scanned_at).getTime()
-    : undefined;
+  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
+
+  // Manual scans use the configured look-back window; cron uses last_scanned_at.
+  let sinceMs: number | undefined;
+  if (manual && prefs.lookbackDays) {
+    sinceMs = Date.now() - prefs.lookbackDays * 24 * 60 * 60 * 1000;
+  } else if (integration.last_scanned_at) {
+    sinceMs = new Date(integration.last_scanned_at).getTime();
+  }
 
   const emails = await fetchRecentEmails(token, sinceMs);
 
@@ -185,41 +209,69 @@ export async function scanGmailForUser(integration: any): Promise<{ created: num
 
   if (!emails.length) return { created: 0 };
 
-  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
   const classified = await classifyWithLLM(buildPrompt(emails, prefs));
   if (!classified.length) return { created: 0 };
 
+  // Fetch already-imported message IDs to prevent duplicates.
+  const importedIds = await fetchImportedMessageIds(integration.user_id);
+
   const brainId = await getUserBrainId(integration.user_id);
   let created = 0;
+  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
 
   for (const match of classified) {
     const email = emails[match.index];
     if (!email) continue;
-    const entry: Record<string, any> = {
-      user_id: integration.user_id,
-      title: match.title ?? email.subject,
-      content: match.summary ?? "",
-      type: "gmail-flag",
-      tags: [match.type ?? "gmail"],
-      metadata: {
-        source: "gmail",
-        gmail_message_id: email.id,
-        gmail_from: email.from,
-        gmail_subject: email.subject,
-        gmail_date: email.date,
-        email_type: match.type,
-        due_date: match.due_date ?? null,
-        amount: match.amount ?? null,
-        urgency: match.urgency ?? "medium",
-      },
+    if (importedIds.has(email.id)) continue;
+
+    const title = match.title ?? email.subject;
+    const content = match.summary ?? "";
+    const type = "gmail-flag";
+    const tags = [match.type ?? "gmail"];
+    const metadata: Record<string, any> = {
+      source: "gmail",
+      gmail_message_id: email.id,
+      gmail_from: email.from,
+      gmail_subject: email.subject,
+      gmail_date: email.date,
+      email_type: match.type,
+      due_date: match.due_date ?? null,
+      amount: match.amount ?? null,
+      urgency: match.urgency ?? "medium",
+      completeness_score: computeCompletenessScore(title, content, type, tags, {}),
     };
+
+    const entry: Record<string, any> = { user_id: integration.user_id, title, content, type, tags, metadata };
     if (brainId) entry.brain_id = brainId;
-    await fetch(`${SB_URL}/rest/v1/entries`, {
+
+    const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
       method: "POST",
-      headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+      headers: { ...SB_HEADERS, Prefer: "return=representation" },
       body: JSON.stringify(entry),
     });
+    if (!insertRes.ok) continue;
+
+    const rows: any[] = await insertRes.json();
+    const inserted = rows[0];
     created++;
+    importedIds.add(email.id); // prevent re-importing within same scan batch
+
+    if (inserted?.id && geminiKey) {
+      try {
+        const embedding = await generateEmbedding(buildEntryText({ title, content, tags }), geminiKey);
+        await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
+          method: "PATCH",
+          headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+          body: JSON.stringify({
+            embedding: `[${embedding.join(",")}]`,
+            embedded_at: new Date().toISOString(),
+            embedding_provider: "google",
+          }),
+        });
+      } catch (err) {
+        console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err);
+      }
+    }
   }
 
   return { created };

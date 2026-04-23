@@ -14,6 +14,7 @@ export const TC: Record<string, TypeConfig> = {
   task: { i: "✅", c: "var(--color-primary)" },
   todo: { i: "☑️", c: "var(--color-primary)" },
   secret: { i: "🔐", c: "var(--color-error)" },
+  "gmail-flag": { i: "📧", c: "var(--color-primary)" },
 };
 export const PC: Record<Priority, PriorityConfig> = {
   high: {

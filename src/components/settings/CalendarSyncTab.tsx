@@ -48,7 +48,7 @@ function MicrosoftIcon() {
   );
 }
 
-export default function CalendarSyncTab() {
+export default function CalendarSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
@@ -243,20 +243,22 @@ export default function CalendarSyncTab() {
         </div>
       </div>
 
-      <div
-        className="mt-6 rounded-xl border p-4 text-xs"
-        style={{ borderColor: "var(--line-soft)", background: "var(--surface)", color: "var(--ink-faint)", lineHeight: 1.6 }}
-      >
-        <p className="mb-1 font-semibold" style={{ color: "var(--ink-soft)" }}>Setup required</p>
-        <p>
-          Calendar sync requires OAuth credentials to be configured by your administrator in the environment variables.
-          Google needs <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_ID</code>,{" "}
-          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_SECRET</code>, and{" "}
-          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_REDIRECT_URI</code>.
-          Microsoft needs <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>MICROSOFT_CLIENT_ID</code>,{" "}
-          <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>MICROSOFT_CLIENT_SECRET</code>.
-        </p>
-      </div>
+      {isAdmin && (
+        <div
+          className="mt-6 rounded-xl border p-4 text-xs"
+          style={{ borderColor: "var(--line-soft)", background: "var(--surface)", color: "var(--ink-faint)", lineHeight: 1.6 }}
+        >
+          <p className="mb-1 font-semibold" style={{ color: "var(--ink-soft)" }}>Setup required</p>
+          <p>
+            Calendar sync requires OAuth credentials to be configured by your administrator in the environment variables.
+            Google needs <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_ID</code>,{" "}
+            <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_CLIENT_SECRET</code>, and{" "}
+            <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>GOOGLE_REDIRECT_URI</code>.
+            Microsoft needs <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>MICROSOFT_CLIENT_ID</code>,{" "}
+            <code style={{ fontFamily: "var(--f-mono)", background: "var(--surface-high)", padding: "1px 4px", borderRadius: 3 }}>MICROSOFT_CLIENT_SECRET</code>.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

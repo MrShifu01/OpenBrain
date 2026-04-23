@@ -3,6 +3,7 @@ import { useState } from "react";
 interface GmailPreferences {
   categories: string[];
   custom: string;
+  lookbackDays?: 1 | 7 | 30;
 }
 
 interface Category {
@@ -37,6 +38,9 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
     initialPreferences?.categories ?? DEFAULT_CATEGORIES,
   );
   const [custom, setCustom] = useState(initialPreferences?.custom ?? "");
+  const [lookbackDays, setLookbackDays] = useState<1 | 7 | 30>(
+    initialPreferences?.lookbackDays ?? 7,
+  );
   const [saving, setSaving] = useState(false);
 
   function toggle(id: string) {
@@ -44,7 +48,7 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
   }
 
   async function handleSubmit() {
-    const prefs: GmailPreferences = { categories: selected, custom: custom.trim() };
+    const prefs: GmailPreferences = { categories: selected, custom: custom.trim(), lookbackDays };
     if (mode === "connect") {
       onConnect?.(prefs);
     } else {
@@ -158,6 +162,50 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
               outline: "none",
             }}
           />
+        </div>
+
+        {/* Look-back period */}
+        <div style={{ marginBottom: 24 }}>
+          <div
+            className="f-sans"
+            style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 8 }}
+          >
+            Manual scan look-back window
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {([1, 7, 30] as const).map((d) => {
+              const label = d === 1 ? "1 day" : d === 7 ? "1 week" : "1 month";
+              const active = lookbackDays === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setLookbackDays(d)}
+                  className="press f-sans"
+                  style={{
+                    flex: 1,
+                    height: 34,
+                    borderRadius: 8,
+                    border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
+                    background: active ? "var(--ember-wash)" : "var(--surface)",
+                    color: active ? "var(--ember)" : "var(--ink-soft)",
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 400,
+                    cursor: "pointer",
+                    transition: "background 150ms, border-color 150ms, color 150ms",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p
+            className="f-serif"
+            style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic" }}
+          >
+            How far back to search when you tap "Scan now". The daily cron always scans since the last run.
+          </p>
         </div>
 
         {/* Actions */}
