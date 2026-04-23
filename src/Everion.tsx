@@ -909,7 +909,7 @@ function EverionContent({
             )}
           </Suspense>
 
-          {lastAction && (
+          {lastAction && lastAction.type === "delete" && (
             <UndoToast
               action={lastAction}
               onUndo={handleUndo}
