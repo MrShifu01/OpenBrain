@@ -54,10 +54,12 @@ interface ScanDebug {
   emailsFetched: number;
   classified: number;
   skippedDuplicates: number;
+  skippedSubjects: string[];
   insertErrors: number;
   tokenRefreshFailed: boolean;
   hasAnthropicKey: boolean;
   hasGeminiKey: boolean;
+  repairedBrainId: number;
   subjects: string[];
 }
 
@@ -269,6 +271,12 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             <span>{lastDebug.classified}</span>
             <span style={{ color: "var(--ink-soft)" }}>Skipped (duplicates)</span>
             <span>{lastDebug.skippedDuplicates}</span>
+            {lastDebug.repairedBrainId > 0 && (
+              <>
+                <span style={{ color: "var(--moss)", fontWeight: 600 }}>Repaired</span>
+                <span style={{ color: "var(--moss)" }}>{lastDebug.repairedBrainId} orphaned gmail entr{lastDebug.repairedBrainId === 1 ? "y" : "ies"} assigned to brain</span>
+              </>
+            )}
             <span style={{ color: "var(--ink-soft)" }}>Insert errors</span>
             <span style={{ color: lastDebug.insertErrors > 0 ? "var(--blood)" : "var(--ink-faint)" }}>{lastDebug.insertErrors}</span>
             <span style={{ color: "var(--ink-soft)" }}>Anthropic key</span>
@@ -282,6 +290,14 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
               </>
             )}
           </div>
+          {lastDebug.skippedSubjects.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>Already in Everion (skipped):</div>
+              <ul style={{ margin: 0, padding: "0 0 0 16px", color: "var(--ink-faint)" }}>
+                {lastDebug.skippedSubjects.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
           {lastDebug.subjects.length > 0 && (
             <div style={{ marginTop: 10 }}>
               <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>Subjects seen (first {lastDebug.subjects.length}):</div>

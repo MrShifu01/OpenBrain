@@ -191,10 +191,12 @@ export interface ScanDebug {
   emailsFetched: number;
   classified: number;
   skippedDuplicates: number;
+  skippedSubjects: string[];
   insertErrors: number;
   tokenRefreshFailed: boolean;
   hasAnthropicKey: boolean;
   hasGeminiKey: boolean;
+  repairedBrainId: number;
   subjects: string[];
 }
 
@@ -207,10 +209,12 @@ export async function scanGmailForUser(
     emailsFetched: 0,
     classified: 0,
     skippedDuplicates: 0,
+    skippedSubjects: [],
     insertErrors: 0,
     tokenRefreshFailed: false,
     hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
     hasGeminiKey: !!(process.env.GEMINI_API_KEY ?? "").trim(),
+    repairedBrainId: 0,
     subjects: [],
   };
 
@@ -253,13 +257,32 @@ export async function scanGmailForUser(
   const importedIds = await fetchImportedMessageIds(integration.user_id);
 
   const brainId = await getUserBrainId(integration.user_id);
+
+  // Repair: assign brain_id to any existing gmail entries that are missing it.
+  if (brainId) {
+    const orphanRes = await fetch(
+      `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(integration.user_id)}&metadata->>source=eq.gmail&brain_id=is.null&deleted_at=is.null&select=id`,
+      { headers: SB_HEADERS },
+    );
+    if (orphanRes.ok) {
+      const orphans: { id: string }[] = await orphanRes.json();
+      for (const orphan of orphans) {
+        await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(orphan.id)}`, {
+          method: "PATCH",
+          headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+          body: JSON.stringify({ brain_id: brainId }),
+        });
+        debug.repairedBrainId++;
+      }
+    }
+  }
   let created = 0;
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
 
   for (const match of classified) {
     const email = emails[match.index];
     if (!email) continue;
-    if (importedIds.has(email.id)) { debug.skippedDuplicates++; continue; }
+    if (importedIds.has(email.id)) { debug.skippedDuplicates++; debug.skippedSubjects.push(email.subject); continue; }
 
     const title = match.title ?? email.subject;
     const content = match.summary ?? "";
