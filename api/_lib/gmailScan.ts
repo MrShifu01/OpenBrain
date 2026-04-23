@@ -332,7 +332,7 @@ export async function deepScanBatch(
   params: { cursor?: string; sinceMs: number; activeBrainId?: string },
 ): Promise<DeepScanResult> {
   const token = await refreshGmailToken(integration);
-  if (!token) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true };
+  if (!token) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: 0 };
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
@@ -340,7 +340,7 @@ export async function deepScanBatch(
 
   // Fetch a page of 100 message IDs, pre-filtered by subject keywords
   const { ids, nextCursor, totalEstimate } = await fetchEmailPage(token, params.sinceMs, 100, params.cursor, subjectFilter);
-  if (!ids.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true };
+  if (!ids.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: 0 };
 
   // Fetch full details in groups of 10 to stay within Gmail quota
   const messages: any[] = [];
@@ -743,7 +743,6 @@ export async function scanGmailForUser(
   }
   let created = 0;
   const scanEntries: ScanResultItem[] = [];
-  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
 
   for (const match of classified) {
     const email = emails[match.index];
