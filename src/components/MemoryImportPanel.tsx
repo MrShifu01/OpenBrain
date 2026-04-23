@@ -2,7 +2,7 @@ import { useState } from "react";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import { parseAISplitResponse } from "../lib/fileSplitter";
-import { AI_MEMORY_PROMPT } from "../lib/aiMemoryPrompt";
+import { PROMPTS } from "../config/prompts";
 import { SettingsButton } from "./settings/SettingsRow";
 
 interface Props {
@@ -18,7 +18,7 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   function copyPrompt() {
-    navigator.clipboard.writeText(AI_MEMORY_PROMPT).then(() => {
+    navigator.clipboard.writeText(PROMPTS.AI_MEMORY_EXPORT).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
