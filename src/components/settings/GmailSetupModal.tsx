@@ -308,7 +308,7 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
       style={{
         width: 20,
         height: 20,
-        borderRadius: 6,
+        borderRadius: "50%",
         border: `2px solid ${checked ? "var(--ember)" : "var(--line-soft)"}`,
         background: checked ? "var(--ember)" : "transparent",
         display: "flex",

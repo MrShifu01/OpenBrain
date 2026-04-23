@@ -53,19 +53,6 @@ export default function CalendarSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [googleLinked, setGoogleLinked] = useState(false);
-  const [linkingGoogle, setLinkingGoogle] = useState(false);
-  const [linkError, setLinkError] = useState<string | null>(null);
-
-  async function handleLinkGoogle() {
-    setLinkingGoogle(true);
-    setLinkError(null);
-    const { error: err } = await supabase.auth.linkIdentity({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (err) { setLinkError(err.message); setLinkingGoogle(false); }
-  }
 
   function fetchIntegrations() {
     return authFetch("/api/calendar?action=integrations")
@@ -88,10 +75,6 @@ export default function CalendarSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     }
 
     fetchIntegrations().finally(() => setLoading(false));
-
-    supabase.auth.getUserIdentities().then(({ data }) => {
-      setGoogleLinked((data?.identities ?? []).some((id) => id.provider === "google"));
-    });
   }, []);
 
   async function disconnect(provider: string) {
@@ -122,7 +105,7 @@ export default function CalendarSyncTab({ isAdmin }: { isAdmin?: boolean }) {
 
   if (loading) {
     return (
-      <div style={{ padding: "24px", color: "var(--ink-faint)", fontSize: 13 }}>
+      <div style={{ padding: "24px 0", color: "var(--ink-faint)", fontSize: 13 }}>
         Loading…
       </div>
     );
@@ -130,40 +113,6 @@ export default function CalendarSyncTab({ isAdmin }: { isAdmin?: boolean }) {
 
   return (
     <div>
-      {/* Google account identity link — prerequisite for calendar OAuth */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 24,
-          padding: "18px 0",
-          borderBottom: "1px solid var(--line-soft)",
-          marginBottom: 4,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="f-serif" style={{ fontSize: 16, fontWeight: 450, color: "var(--ink)" }}>
-            Google account
-          </div>
-          <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}>
-            {googleLinked ? "Linked — required for Google Calendar." : "Link your Google account to enable calendar sync."}
-          </div>
-          {linkError && (
-            <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: "4px 0 0" }}>{linkError}</p>
-          )}
-        </div>
-        <div style={{ flexShrink: 0 }}>
-          {googleLinked ? (
-            <span style={{ fontSize: 12, color: "var(--moss)", fontWeight: 500 }}>Linked</span>
-          ) : (
-            <SettingsButton onClick={handleLinkGoogle} disabled={linkingGoogle}>
-              {linkingGoogle ? "Redirecting…" : "Link Google"}
-            </SettingsButton>
-          )}
-        </div>
-      </div>
-
       {msg && (
         <div
           className="mb-4 rounded-xl px-4 py-3 text-sm"

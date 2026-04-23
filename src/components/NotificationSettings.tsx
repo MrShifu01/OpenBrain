@@ -189,7 +189,7 @@ export default function NotificationSettings(): JSX.Element {
   const isStatusError =
     statusMsg && (statusMsg.includes("Failed") || statusMsg.includes("not configured"));
 
-  if (loading) return <div className="text-on-surface-variant p-6 text-[13px]">Loading…</div>;
+  if (loading) return <div className="text-on-surface-variant py-6 text-[13px]">Loading…</div>;
 
   // iOS not in standalone → show home screen instructions
   if (iosNoStandalone) {

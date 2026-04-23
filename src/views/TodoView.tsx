@@ -1005,7 +1005,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <div key={key} style={{ opacity: isPast ? 0.5 : 1 }}>
                       <div className="mb-2 flex items-center gap-2">
                         {isToday && (
-                          <span className="f-sans shrink-0" style={{ background: "var(--ember)", color: "var(--ember-ink)", borderRadius: 999, padding: "1px 8px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                          <span className="f-sans shrink-0 inline-flex items-center justify-center" style={{ background: "var(--ember)", color: "var(--ember-ink)", borderRadius: 999, padding: "3px 8px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>
                             Today
                           </span>
                         )}
