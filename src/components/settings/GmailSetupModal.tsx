@@ -283,7 +283,7 @@ function CategoryRow({
         cursor: "pointer",
       }}
     >
-      <div style={{ paddingTop: 2, flexShrink: 0 }}>
+      <div style={{ paddingTop: 2, flexShrink: 0, alignSelf: "flex-start", lineHeight: 0 }}>
         <Checkbox checked={checked} onChange={() => onToggle(cat.id)} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -308,16 +308,23 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
       style={{
         width: 20,
         height: 20,
+        minWidth: 20,
+        minHeight: 20,
+        maxHeight: 20,
         borderRadius: "50%",
         border: `2px solid ${checked ? "var(--ember)" : "var(--line-soft)"}`,
         background: checked ? "var(--ember)" : "transparent",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        alignSelf: "flex-start",
         transition: "background 150ms, border-color 150ms",
         flexShrink: 0,
         padding: 0,
         cursor: "pointer",
+        appearance: "none",
+        WebkitAppearance: "none",
+        boxSizing: "content-box",
       }}
     >
       {checked && (
