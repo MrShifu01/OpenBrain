@@ -50,14 +50,18 @@ export async function refreshGmailToken(integration: any): Promise<string | null
   return t.access_token;
 }
 
-export async function fetchRecentEmails(token: string, sinceMs?: number): Promise<any[]> {
+export async function fetchRecentEmails(
+  token: string,
+  sinceMs?: number,
+  maxFetch = 50,
+): Promise<any[]> {
   const sinceUnix = sinceMs
     ? Math.floor(sinceMs / 1000)
     : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000); // 25h safety window for daily scans
 
   const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
   listUrl.searchParams.set("q", `in:inbox after:${sinceUnix}`);
-  listUrl.searchParams.set("maxResults", "50");
+  listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 100)));
 
   const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
   if (!listRes.ok) return [];
@@ -66,7 +70,7 @@ export async function fetchRecentEmails(token: string, sinceMs?: number): Promis
   if (!messages.length) return [];
 
   const results = await Promise.all(
-    messages.slice(0, 30).map(async ({ id }) => {
+    messages.slice(0, maxFetch).map(async ({ id }) => {
       const r = await fetch(
         `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}` +
           `?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`,
@@ -193,13 +197,15 @@ export async function scanGmailForUser(
 
   // Manual scans use the configured look-back window; cron uses last_scanned_at.
   let sinceMs: number | undefined;
-  if (manual && prefs.lookbackDays) {
-    sinceMs = Date.now() - prefs.lookbackDays * 24 * 60 * 60 * 1000;
+  if (manual) {
+    const days = prefs.lookbackDays ?? 7;
+    sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
   } else if (integration.last_scanned_at) {
     sinceMs = new Date(integration.last_scanned_at).getTime();
   }
 
-  const emails = await fetchRecentEmails(token, sinceMs);
+  // Manual scans look back further so fetch more messages.
+  const emails = await fetchRecentEmails(token, sinceMs, manual ? 100 : 50);
 
   await fetch(`${SB_URL}/rest/v1/gmail_integrations?id=eq.${integration.id}`, {
     method: "PATCH",
