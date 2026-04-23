@@ -959,12 +959,6 @@ export default function CaptureSheet({
                 alignItems: "center",
               }}
             >
-              <span
-                className="micro"
-                style={{ marginRight: 4 }}
-              >
-                inferred
-              </span>
               {SHEET_TYPE_CHIPS.map((t) => {
                 const active = inferredType === t;
                 return (
@@ -1063,24 +1057,9 @@ export default function CaptureSheet({
                   {IconCamera}
                 </button>
                 <button
-                  onClick={() => imgRef.current?.click()}
-                  disabled={loading}
-                  aria-label="Upload image"
-                  className="design-btn-ghost press lg:hidden"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    minHeight: 40,
-                    padding: 0,
-                    color: "var(--ink-faint)",
-                  }}
-                >
-                  {IconAttach}
-                </button>
-                <button
                   onClick={() => docRef.current?.click()}
                   disabled={loading}
-                  aria-label="Add documents"
+                  aria-label="Attach files"
                   className="design-btn-ghost press"
                   style={{
                     width: 40,

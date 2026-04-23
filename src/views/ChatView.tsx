@@ -1,8 +1,49 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useChat, type ChatMessage, type DebugInfo } from "../hooks/useChat";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
+import { useEntries } from "../context/EntriesContext";
+import type { Entry } from "../types";
 import { cn } from "../lib/cn";
 import { hasAIAccess } from "../lib/aiSettings";
+
+const SUGGESTIONS_TTL = 86_400_000; // 24 h
+
+function cacheKey(brainId: string | undefined) {
+  return `everion_chat_suggestions_${brainId ?? "default"}`;
+}
+
+function readSuggestionsCache(brainId: string | undefined): string[] | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(brainId));
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    return Date.now() - ts < SUGGESTIONS_TTL ? data : null;
+  } catch { return null; }
+}
+
+function writeSuggestionsCache(brainId: string | undefined, data: string[]) {
+  try {
+    localStorage.setItem(cacheKey(brainId), JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
+function derivePrompts(entries: Entry[]): string[] {
+  const out: string[] = [];
+  const types = new Set(entries.map((e) => e.type));
+  const contacts = entries.filter((e) => e.type === "contact" || e.type === "person");
+  const hasUpcoming = entries.some(
+    (e) => e.metadata?.due_date || e.metadata?.event_date || e.metadata?.deadline,
+  );
+  if (hasUpcoming)           out.push("what's coming up soon?");
+  if (types.has("reminder")) out.push("what still needs doing?");
+  if (contacts.length > 0)   out.push(`what do i know about ${contacts[0].title.split(" ")[0]}?`);
+  if (types.has("idea"))     out.push("any unactioned ideas?");
+  if (types.has("link"))     out.push("what links have i saved?");
+  if (entries.length > 15)   out.push("find any duplicates to merge");
+  if (types.has("note"))     out.push("summarise my recent notes");
+  if (contacts.length > 1)   out.push("who should i follow up with?");
+  return out.slice(0, 4);
+}
 
 function useHasAIAccess() {
   const [access, setAccess] = useState(() => hasAIAccess());
@@ -14,12 +55,6 @@ function useHasAIAccess() {
   return access;
 }
 
-const EXAMPLE_PROMPTS = [
-  "what's coming up in the next thirty days?",
-  "do i have Avela's bank details?",
-  "what's missing from my staff entries?",
-  "find any duplicates i should merge",
-];
 
 const TOOL_LABELS: Record<string, string> = {
   retrieve_memory: "searched memory",
@@ -234,6 +269,17 @@ export default function ChatView({ brainId }: ChatViewProps) {
   const aiAvailable = useHasAIAccess();
   const { isAdmin } = useAdminDevMode();
   const { messages, loading, pendingAction, send, confirm, cancel, clearHistory } = useChat(brainId);
+  const { entries, entriesLoaded } = useEntries();
+  const [noMemoryToast, setNoMemoryToast] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(() => readSuggestionsCache(brainId) ?? []);
+
+  useEffect(() => {
+    if (!entriesLoaded || entries.length === 0) return;
+    if (readSuggestionsCache(brainId) !== null) return; // still fresh
+    const fresh = derivePrompts(entries);
+    writeSuggestionsCache(brainId, fresh);
+    setSuggestions(fresh);
+  }, [entriesLoaded, brainId]);
 
   if (!aiAvailable) {
     return (
@@ -260,9 +306,14 @@ export default function ChatView({ brainId }: ChatViewProps) {
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || loading) return;
+    if (entriesLoaded && entries.length === 0) {
+      setNoMemoryToast(true);
+      setTimeout(() => setNoMemoryToast(false), 3000);
+      return;
+    }
     setInput("");
     send(text);
-  }, [input, loading, send]);
+  }, [input, loading, send, entries, entriesLoaded]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -297,6 +348,8 @@ export default function ChatView({ brainId }: ChatViewProps) {
     setSharedIdx(idx);
     setTimeout(() => setSharedIdx(null), 1500);
   }, []);
+
+  const noMemory = entriesLoaded && entries.length === 0;
 
   const Composer = (
     <div
@@ -349,7 +402,6 @@ export default function ChatView({ brainId }: ChatViewProps) {
         </button>
         <button
           onClick={handleSend}
-          disabled={!input.trim() || loading}
           aria-label="Send message"
           className="press"
           style={{
@@ -357,14 +409,15 @@ export default function ChatView({ brainId }: ChatViewProps) {
             height: 36,
             minHeight: 36,
             borderRadius: 8,
-            background: input.trim() ? "var(--ember)" : "var(--surface-high)",
-            color: input.trim() ? "var(--ember-ink)" : "var(--ink-faint)",
+            background: input.trim() && !noMemory ? "var(--ember)" : "var(--surface-high)",
+            color: input.trim() && !noMemory ? "var(--ember-ink)" : "var(--ink-faint)",
             border: 0,
-            cursor: input.trim() && !loading ? "pointer" : "not-allowed",
+            cursor: !input.trim() || loading ? "not-allowed" : noMemory ? "not-allowed" : "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             transition: "background 180ms",
+            opacity: noMemory ? 0.45 : 1,
           }}
         >
           {IconSend}
@@ -378,6 +431,30 @@ export default function ChatView({ brainId }: ChatViewProps) {
       className="chat-root"
       style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg)" }}
     >
+      {noMemoryToast && (
+        <div
+          className="f-serif anim-fade-in-design"
+          style={{
+            position: "fixed",
+            bottom: 110,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "var(--surface-high)",
+            border: "1px solid var(--line)",
+            borderRadius: 10,
+            padding: "10px 20px",
+            zIndex: 200,
+            fontSize: 14,
+            fontStyle: "italic",
+            color: "var(--ink-soft)",
+            boxShadow: "var(--lift-2)",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          add memories before chatting.
+        </div>
+      )}
       {/* ── Top bar ── */}
       <header
         className="chat-topbar"
@@ -504,62 +581,85 @@ export default function ChatView({ brainId }: ChatViewProps) {
               textAlign: "center",
             }}
           >
-            <p
-              className="f-serif"
-              style={{
-                fontSize: 22,
-                fontStyle: "italic",
-                color: "var(--ink-soft)",
-                lineHeight: 1.4,
-                margin: 0,
-                letterSpacing: "-0.005em",
-              }}
-            >
-              Ask me anything about what you've written down.
-            </p>
-
-            <div
-              style={{
-                marginTop: 40,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 8,
-                width: "100%",
-              }}
-            >
-              {EXAMPLE_PROMPTS.map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => handleExampleClick(prompt)}
-                  disabled={loading}
-                  className="press"
+            {noMemory ? (
+              <p
+                className="f-serif"
+                style={{
+                  fontSize: 18,
+                  fontStyle: "italic",
+                  color: "var(--ink-ghost)",
+                  lineHeight: 1.5,
+                  margin: 0,
+                  letterSpacing: "-0.005em",
+                }}
+              >
+                add some memories before you start chatting.
+              </p>
+            ) : (
+              <>
+                <p
+                  className="f-serif"
                   style={{
-                    textAlign: "left",
-                    padding: "12px 14px",
-                    borderRadius: 10,
-                    background: "var(--surface)",
-                    border: "1px solid var(--line-soft)",
-                    color: "var(--ink-soft)",
-                    fontFamily: "var(--f-serif)",
-                    fontSize: 14,
-                    lineHeight: 1.45,
+                    fontSize: 22,
                     fontStyle: "italic",
-                    cursor: "pointer",
-                    transition: "background 180ms, border-color 180ms, color 180ms",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--surface-high)";
-                    e.currentTarget.style.color = "var(--ink)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "var(--surface)";
-                    e.currentTarget.style.color = "var(--ink-soft)";
+                    color: "var(--ink-soft)",
+                    lineHeight: 1.4,
+                    margin: 0,
+                    letterSpacing: "-0.005em",
                   }}
                 >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+                  Ask me anything about what you've written down.
+                </p>
+
+                {suggestions.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 40,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                      width: "100%",
+                    }}
+                  >
+                    {suggestions.map((prompt) => (
+                      <button
+                        key={prompt}
+                        onClick={() => handleExampleClick(prompt)}
+                        disabled={loading}
+                        className="press"
+                        style={{
+                          textAlign: "left",
+                          padding: "12px 16px",
+                          borderRadius: 10,
+                          background: "var(--surface)",
+                          border: "1px solid var(--line-soft)",
+                          color: "var(--ink-soft)",
+                          fontFamily: "var(--f-serif)",
+                          fontSize: 14,
+                          lineHeight: 1,
+                          fontStyle: "italic",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          transition: "background 180ms, border-color 180ms, color 180ms",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "var(--surface-high)";
+                          e.currentTarget.style.color = "var(--ink)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "var(--surface)";
+                          e.currentTarget.style.color = "var(--ink-soft)";
+                        }}
+                      >
+                        {prompt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
           {Composer}
         </div>
