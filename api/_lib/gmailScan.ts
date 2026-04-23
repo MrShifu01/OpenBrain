@@ -185,7 +185,7 @@ export async function fetchRecentEmails(
   sinceMs?: number,
   maxFetch = 50,
   subjectFilter?: string,
-): Promise<any[]> {
+): Promise<{ emails: any[]; totalGmailCount: number }> {
   const sinceUnix = sinceMs
     ? Math.floor(sinceMs / 1000)
     : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000);
@@ -196,10 +196,12 @@ export async function fetchRecentEmails(
   listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 500)));
 
   const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
-  if (!listRes.ok) return [];
+  if (!listRes.ok) return { emails: [], totalGmailCount: 0 };
 
-  const messages: { id: string }[] = (await listRes.json()).messages ?? [];
-  if (!messages.length) return [];
+  const listData = await listRes.json();
+  const totalGmailCount: number = listData.resultSizeEstimate ?? 0;
+  const messages: { id: string }[] = listData.messages ?? [];
+  if (!messages.length) return { emails: [], totalGmailCount };
 
   // Fetch in groups of 10 — Gmail quota is 250 units/sec; each messages.get = 5 units
   const results: any[] = [];
@@ -230,7 +232,7 @@ export async function fetchRecentEmails(
     if (i + 10 < Math.min(messages.length, maxFetch)) await sleep(150);
   }
 
-  return results;
+  return { emails: results, totalGmailCount };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -663,8 +665,10 @@ function extractSenderKey(from: string): string {
 
 export interface ScanDebug {
   sinceDate: string;
+  totalGmailCount: number;
   emailsFetched: number;
   classified: number;
+  created: number;
   skippedDuplicates: number;
   skippedSubjects: string[];
   insertErrors: number;
@@ -686,8 +690,10 @@ export async function scanGmailForUser(
 ): Promise<{ created: number; debug: ScanDebug; entries: ScanResultItem[] }> {
   const debug: ScanDebug = {
     sinceDate: "",
+    totalGmailCount: 0,
     emailsFetched: 0,
     classified: 0,
+    created: 0,
     skippedDuplicates: 0,
     skippedSubjects: [],
     insertErrors: 0,
@@ -723,7 +729,8 @@ export async function scanGmailForUser(
   // Manual scans look back further so fetch more messages.
   // Subject filter pre-screens at the Gmail API level before fetching full content.
   const subjectFilter = buildSubjectFilter(prefs.categories);
-  const emails = await fetchRecentEmails(token, sinceMs, manual ? 200 : 50, subjectFilter);
+  const { emails, totalGmailCount } = await fetchRecentEmails(token, sinceMs, manual ? 200 : 50, subjectFilter);
+  debug.totalGmailCount = totalGmailCount;
   debug.emailsFetched = emails.length;
   debug.subjects = emails.slice(0, 10).map((e) => e.subject);
 
@@ -826,6 +833,7 @@ export async function scanGmailForUser(
     const rows: any[] = await insertRes.json();
     const inserted = rows[0];
     created++;
+    debug.created++;
     importedIds.add(email.id);
     scanEntries.push({
       entryId: inserted?.id ?? "",

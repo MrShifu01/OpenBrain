@@ -54,8 +54,10 @@ function formatLastScan(ts: string | null): string {
 
 interface ScanDebug {
   sinceDate: string;
+  totalGmailCount: number;
   emailsFetched: number;
   classified: number;
+  created: number;
   skippedDuplicates: number;
   skippedSubjects: string[];
   insertErrors: number;
@@ -414,10 +416,14 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 16px", color: "var(--ink-faint)" }}>
             <span style={{ color: "var(--ink-soft)" }}>Since</span>
             <span>{lastDebug.sinceDate}</span>
+            <span style={{ color: "var(--ink-soft)" }}>Total emails in Gmail</span>
+            <span>{lastDebug.totalGmailCount}</span>
             <span style={{ color: "var(--ink-soft)" }}>Emails fetched</span>
             <span style={{ color: lastDebug.emailsFetched === 0 ? "var(--blood)" : "var(--ink)" }}>{lastDebug.emailsFetched}</span>
-            <span style={{ color: "var(--ink-soft)" }}>Classified as relevant</span>
+            <span style={{ color: "var(--ink-soft)" }}>Flagged as important</span>
             <span>{lastDebug.classified}</span>
+            <span style={{ color: "var(--ink-soft)" }}>Classified & ready for review</span>
+            <span style={{ color: lastDebug.created > 0 ? "var(--moss)" : "var(--ink-faint)" }}>{lastDebug.created}</span>
             <span style={{ color: "var(--ink-soft)" }}>Skipped (duplicates)</span>
             <span>{lastDebug.skippedDuplicates}</span>
             {lastDebug.repairedBrainId > 0 && (
@@ -460,14 +466,6 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
               <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>Already in Everion (skipped):</div>
               <ul style={{ margin: 0, padding: "0 0 0 16px", color: "var(--ink-faint)" }}>
                 {lastDebug.skippedSubjects.map((s, i) => <li key={i}>{s}</li>)}
-              </ul>
-            </div>
-          )}
-          {lastDebug.subjects.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ color: "var(--ink-soft)", marginBottom: 4 }}>Subjects seen (first {lastDebug.subjects.length}):</div>
-              <ul style={{ margin: 0, padding: "0 0 0 16px", color: "var(--ink-faint)" }}>
-                {lastDebug.subjects.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
             </div>
           )}
