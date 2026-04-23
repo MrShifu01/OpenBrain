@@ -326,7 +326,8 @@ async function classifyWithGemini(
     const text: string = (data.candidates?.[0]?.content?.parts ?? [])
       .map((p: any) => p.text ?? "").join("").trim();
     if (!text) return { results: [], error: "empty response", model };
-    const match = text.match(/\[[\s\S]*\]/);
+    const stripped = text.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "").trim();
+    const match = stripped.match(/\[[\s\S]*\]/);
     if (!match) return { results: [], error: `no JSON array in: ${text.slice(0, 100)}`, model };
     return { results: JSON.parse(match[0]), model };
   } catch (e: any) {
