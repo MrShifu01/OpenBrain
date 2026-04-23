@@ -383,6 +383,18 @@ async function fetchImportedMessageIds(userId: string): Promise<Set<string>> {
   return new Set(rows.map((e) => e.metadata?.gmail_message_id).filter(Boolean));
 }
 
+export interface ScanResultItem {
+  entryId: string;
+  title: string;
+  summary: string;
+  from: string;
+  subject: string;
+  emailType: string;
+  urgency: string;
+  amount?: string | null;
+  dueDate?: string | null;
+}
+
 export interface ScanDebug {
   sinceDate: string;
   emailsFetched: number;
@@ -402,7 +414,7 @@ export async function scanGmailForUser(
   integration: any,
   manual = false,
   activeBrainId?: string,
-): Promise<{ created: number; debug: ScanDebug }> {
+): Promise<{ created: number; debug: ScanDebug; entries: ScanResultItem[] }> {
   const debug: ScanDebug = {
     sinceDate: "",
     emailsFetched: 0,
@@ -421,7 +433,7 @@ export async function scanGmailForUser(
   const token = await refreshGmailToken(integration);
   if (!token) {
     debug.tokenRefreshFailed = true;
-    return { created: 0, debug };
+    return { created: 0, debug, entries: [] };
   }
 
   const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
@@ -447,11 +459,11 @@ export async function scanGmailForUser(
     body: JSON.stringify({ last_scanned_at: new Date().toISOString() }),
   });
 
-  if (!emails.length) return { created: 0, debug };
+  if (!emails.length) return { created: 0, debug, entries: [] };
 
   const classified = await classifyWithLLM(buildPrompt(emails, prefs));
   debug.classified = classified.length;
-  if (!classified.length) return { created: 0, debug };
+  if (!classified.length) return { created: 0, debug, entries: [] };
 
   // Fetch already-imported message IDs to prevent duplicates.
   const importedIds = await fetchImportedMessageIds(integration.user_id);
@@ -477,6 +489,7 @@ export async function scanGmailForUser(
     }
   }
   let created = 0;
+  const scanEntries: ScanResultItem[] = [];
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
 
   for (const match of classified) {
@@ -527,7 +540,18 @@ export async function scanGmailForUser(
     const rows: any[] = await insertRes.json();
     const inserted = rows[0];
     created++;
-    importedIds.add(email.id); // prevent re-importing within same scan batch
+    importedIds.add(email.id);
+    scanEntries.push({
+      entryId: inserted?.id ?? "",
+      title,
+      summary: content,
+      from: email.from,
+      subject: email.subject,
+      emailType: match.type ?? "",
+      urgency: match.urgency ?? "medium",
+      amount: match.amount ?? null,
+      dueDate: match.due_date ?? null,
+    });
 
     if (inserted?.id && geminiKey) {
       try {
@@ -548,7 +572,7 @@ export async function scanGmailForUser(
     }
   }
 
-  return { created, debug };
+  return { created, debug, entries: scanEntries };
 }
 
 export async function runGmailScanAllUsers(): Promise<{ users: number; created: number; errors: number }> {

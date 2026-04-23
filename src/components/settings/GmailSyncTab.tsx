@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import GmailSetupModal from "./GmailSetupModal";
+import GmailScanReviewModal, { type ScanResultItem } from "./GmailScanReviewModal";
 import { useEntries } from "../../context/EntriesContext";
 import { useBrain } from "../../context/BrainContext";
 
@@ -76,6 +77,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [scanning, setScanning] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastDebug, setLastDebug] = useState<ScanDebug | null>(null);
+  const [reviewItems, setReviewItems] = useState<ScanResultItem[]>([]);
 
   function fetchIntegration() {
     return authFetch("/api/gmail?action=integration")
@@ -127,7 +129,11 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       const data = await r?.json?.();
       const created: number = data?.created ?? 0;
       if (data?.debug) setLastDebug(data.debug);
-      setMsg({ text: created === 0 ? "No new items found." : `${created} new item${created !== 1 ? "s" : ""} flagged.`, ok: created > 0 });
+      if (created > 0 && Array.isArray(data?.entries) && data.entries.length > 0) {
+        setReviewItems(data.entries);
+      } else {
+        setMsg({ text: created === 0 ? "No new items found." : `${created} new item${created !== 1 ? "s" : ""} flagged.`, ok: created > 0 });
+      }
       await fetchIntegration();
       if (created > 0) await refreshEntries();
     } catch {
@@ -351,6 +357,16 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           onClose={() => setModalMode(null)}
           onConnect={handleConnect}
           onSave={handleSavePreferences}
+        />
+      )}
+
+      {reviewItems.length > 0 && (
+        <GmailScanReviewModal
+          items={reviewItems}
+          onClose={() => {
+            setReviewItems([]);
+            setMsg({ text: `${reviewItems.length} new item${reviewItems.length !== 1 ? "s" : ""} flagged.`, ok: true });
+          }}
         />
       )}
     </div>
