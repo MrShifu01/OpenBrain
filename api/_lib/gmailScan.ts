@@ -61,7 +61,7 @@ export async function fetchRecentEmails(
 
   const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
   listUrl.searchParams.set("q", `in:inbox after:${sinceUnix}`);
-  listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 100)));
+  listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 500)));
 
   const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
   if (!listRes.ok) return [];
@@ -119,7 +119,7 @@ function buildPrompt(emails: any[], prefs: GmailPreferences): string {
     .map((c) => `- **${CATEGORY_LABELS[c] ?? c}** (type="${c}"): ${CATEGORY_DESCRIPTIONS[c]}`)
     .join("\n");
   const customLine = prefs.custom?.trim()
-    ? `\n- **Custom** (type="custom"): ${prefs.custom.trim()}`
+    ? `\nAdditional instructions (follow exactly): ${prefs.custom.trim()}`
     : "";
   const emailBlocks = emails
     .map((e, i) => `[${i}] From: ${e.from}\nSubject: ${e.subject}\nDate: ${e.date}\nPreview: ${e.snippet}`)
@@ -127,7 +127,7 @@ function buildPrompt(emails: any[], prefs: GmailPreferences): string {
 
   return `You are an email classifier for a personal knowledge system. Identify emails matching ANY of these categories:
 
-${catLines}${customLine}
+${catLines}
 
 Return a JSON array of matches. Return [] if nothing matches. ONLY valid JSON, no prose.
 
@@ -135,6 +135,7 @@ urgency: "high"=due within 3 days or overdue, "medium"=due within 2 weeks, "low"
 Set due_date (ISO date or null) and amount (e.g. "$150.00" or null) from what you find.
 
 Format: [{"index":0,"type":"invoices","title":"Invoice from Acme – $150 due 30 Apr","due_date":"2026-04-30","amount":"$150.00","urgency":"high","summary":"One sentence."}]
+${customLine}
 
 Emails:
 ${emailBlocks}`;
@@ -152,7 +153,7 @@ async function classifyWithLLM(prompt: string): Promise<any[]> {
     },
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 2048,
+      max_tokens: 8192,
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -237,7 +238,7 @@ export async function scanGmailForUser(
   debug.sinceDate = sinceMs ? new Date(sinceMs).toISOString() : "last 25h (default)";
 
   // Manual scans look back further so fetch more messages.
-  const emails = await fetchRecentEmails(token, sinceMs, manual ? 100 : 50);
+  const emails = await fetchRecentEmails(token, sinceMs, manual ? 500 : 50);
   debug.emailsFetched = emails.length;
   debug.subjects = emails.slice(0, 10).map((e) => e.subject);
 
