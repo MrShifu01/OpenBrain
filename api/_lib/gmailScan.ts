@@ -496,7 +496,8 @@ export async function scanGmailForUser(
       title = refined.title;
       summary = refined.content;
     }
-    const content = [summary, attachmentText].filter(Boolean).join("\n\n");
+    // content = clean LLM summary only; raw attachment text goes to metadata for search/embed
+    const content = summary;
     const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
     const tags = [match.type ?? "gmail"];
     const metadata: Record<string, any> = {
@@ -511,6 +512,7 @@ export async function scanGmailForUser(
       urgency: match.urgency ?? "medium",
       completeness_score: computeCompletenessScore(title, content, type, tags, {}),
     };
+    if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
 
     const entry: Record<string, any> = { user_id: integration.user_id, title, content, type, tags, metadata };
     if (brainId) entry.brain_id = brainId;
@@ -529,7 +531,8 @@ export async function scanGmailForUser(
 
     if (inserted?.id && geminiKey) {
       try {
-        const embedding = await generateEmbedding(buildEntryText({ title, content, tags }), geminiKey);
+        const embedContent = attachmentText ? [content, attachmentText].filter(Boolean).join("\n\n") : content;
+        const embedding = await generateEmbedding(buildEntryText({ title, content: embedContent, tags }), geminiKey);
         await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
           method: "PATCH",
           headers: { ...SB_HEADERS, Prefer: "return=minimal" },

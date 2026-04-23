@@ -810,8 +810,8 @@ const [showFullContent, setShowFullContent] = useState(false);
             </div>
           )}
 
-          {/* Full Content drawer — shown when full_text or raw_content is stored */}
-          {!editing && (typeof entry.metadata?.full_text === "string" || typeof entry.metadata?.raw_content === "string") && (
+          {/* Full Content drawer — shown when full_text, raw_content, or attachment_text is stored */}
+          {!editing && (typeof entry.metadata?.full_text === "string" || typeof entry.metadata?.raw_content === "string" || typeof entry.metadata?.attachment_text === "string") && (
             <div className="pt-1">
               <button
                 onClick={() => setShowFullContent((s) => !s)}
@@ -833,7 +833,7 @@ const [showFullContent, setShowFullContent] = useState(false);
                   style={{ background: "var(--color-surface-container)" }}
                 >
                   <p className="text-on-surface/80 whitespace-pre-wrap text-xs leading-relaxed">
-                    {String(entry.metadata.full_text ?? entry.metadata.raw_content)}
+                    {String(entry.metadata.full_text ?? entry.metadata.raw_content ?? entry.metadata.attachment_text)}
                   </p>
                 </div>
               )}
