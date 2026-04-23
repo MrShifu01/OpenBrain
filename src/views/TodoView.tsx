@@ -49,6 +49,10 @@ function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function fmtTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 function isDone(entry: Entry): boolean {
   return (entry.metadata as any)?.status === "done";
 }
@@ -804,6 +808,16 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
     return map;
   }, [entries]);
 
+  const calEventMap = useMemo(() => {
+    const map: Record<string, ExternalCalEvent[]> = {};
+    externalEvents.forEach((ev) => {
+      const key = ev.start.slice(0, 10);
+      if (!map[key]) map[key] = [];
+      map[key].push(ev);
+    });
+    return map;
+  }, [externalEvents]);
+
   const { weekDays, mondayKey, todayKey } = useMemo(() => {
     const now = new Date();
     const todayKey = toDateKey(now);
@@ -873,6 +887,25 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
         )}
         <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize" style={{ background: `${tc.c}18`, color: tc.c }}>
           {entry.type}
+        </span>
+      </div>
+    );
+  }
+
+  function renderCalEventRow(ev: ExternalCalEvent) {
+    const timeLabel = ev.allDay ? null : fmtTime(ev.start);
+    return (
+      <div key={ev.id} className="flex items-center gap-3 py-2.5">
+        <span style={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--moss)", display: "block" }} />
+        </span>
+        <span className="text-base shrink-0" style={{ lineHeight: 1 }}>📅</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium" style={{ color: "var(--ink)" }}>{ev.title}</p>
+          {timeLabel && <p className="mt-0.5 text-xs" style={{ color: "var(--ink-faint)" }}>{timeLabel}</p>}
+        </div>
+        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--moss-wash)", color: "var(--moss)" }}>
+          event
         </span>
       </div>
     );
@@ -998,6 +1031,8 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                   const isToday = key === todayKey;
                   const isPast = key < todayKey;
                   const items = taskMap[key] || [];
+                  const events = calEventMap[key] || [];
+                  const hasContent = items.length > 0 || events.length > 0;
                   const dayLabel = dayDate.toLocaleDateString("en-ZA", { weekday: "short" });
                   const dateLabel = dayDate.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
 
@@ -1005,18 +1040,19 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <div key={key} style={{ opacity: isPast ? 0.5 : 1 }}>
                       <div className="mb-2 flex items-center gap-2">
                         {isToday && (
-                          <span className="f-sans shrink-0 inline-flex items-center justify-center" style={{ background: "var(--ember)", color: "var(--ember-ink)", borderRadius: 999, padding: "3px 8px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>
+                          <span className="f-sans shrink-0 inline-flex items-center justify-center" style={{ background: "var(--ember)", color: "var(--ember-ink)", borderRadius: 999, padding: "4px 8px 3px", fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", lineHeight: 1 }}>
                             Today
                           </span>
                         )}
                         <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: isToday ? "var(--ink)" : "var(--ink-soft)" }}>{dayLabel}</span>
                         <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>{dateLabel}</span>
-                        {items.length > 0 && (
-                          <span className="f-sans ml-auto" style={{ fontSize: 10, color: "var(--ink-faint)" }}>{items.length}</span>
+                        {hasContent && (
+                          <span className="f-sans ml-auto" style={{ fontSize: 10, color: "var(--ink-faint)" }}>{events.length + items.length}</span>
                         )}
                       </div>
-                      {items.length > 0 ? (
+                      {hasContent ? (
                         <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
+                          {events.map(renderCalEventRow)}
                           {items.map((entry) => renderItem({ entry, dateStr: key }, false))}
                         </div>
                       ) : (
