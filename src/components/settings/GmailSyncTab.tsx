@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
@@ -78,6 +78,12 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastDebug, setLastDebug] = useState<ScanDebug | null>(null);
   const [reviewItems, setReviewItems] = useState<ScanResultItem[]>([]);
+  const [deepScan, setDeepScan] = useState<{
+    active: boolean;
+    processed: number;
+    created: number;
+  } | null>(null);
+  const deepScanCancel = useRef(false);
 
   function fetchIntegration() {
     return authFetch("/api/gmail?action=integration")
@@ -143,6 +149,63 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     }
   }
 
+  async function handleDeepScan() {
+    deepScanCancel.current = false;
+    setDeepScan({ active: true, processed: 0, created: 0 });
+    setMsg(null);
+
+    const sinceMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
+    let cursor: string | undefined;
+    let totalProcessed = 0;
+    let totalCreated = 0;
+    const allEntries: ScanResultItem[] = [];
+
+    try {
+      while (!deepScanCancel.current) {
+        const r = await authFetch("/api/gmail?action=deep-scan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cursor, sinceMs, brain_id: activeBrain?.id ?? null }),
+        });
+        const data = await r?.json?.();
+        if (!data) break;
+
+        totalProcessed += data.processed ?? 0;
+        totalCreated += data.created ?? 0;
+        if (Array.isArray(data.entries)) allEntries.push(...data.entries);
+
+        setDeepScan({ active: true, processed: totalProcessed, created: totalCreated });
+
+        if (data.done || !data.nextCursor) break;
+        cursor = data.nextCursor;
+
+        // 2-second pause between batches — respects Gemini Flash Lite free-tier rate limits
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    } catch {
+      // silently stop; show whatever we found
+    }
+
+    setDeepScan(null);
+
+    if (deepScanCancel.current) {
+      setMsg({ text: `Scan stopped. ${totalCreated} item${totalCreated !== 1 ? "s" : ""} found so far.`, ok: totalCreated > 0 });
+      if (allEntries.length > 0) setReviewItems(groupBySender(allEntries));
+      return;
+    }
+
+    await refreshEntries();
+    if (allEntries.length > 0) {
+      setReviewItems(groupBySender(allEntries));
+    } else {
+      setMsg({ text: `Deep scan complete — ${totalProcessed} emails scanned, no new items found.`, ok: false });
+    }
+  }
+
+  function stopDeepScan() {
+    deepScanCancel.current = true;
+  }
+
   async function handleDisconnect() {
     setDisconnecting(true);
     await authFetch("/api/gmail", { method: "DELETE" }).catch(() => null);
@@ -195,13 +258,16 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           {integration ? (
             <>
-              <SettingsButton onClick={handleScanNow} disabled={scanning}>
+              <SettingsButton onClick={handleScanNow} disabled={scanning || !!deepScan}>
                 {scanning ? "Scanning…" : "Scan now"}
               </SettingsButton>
-              <SettingsButton onClick={() => setModalMode("edit")}>
+              <SettingsButton onClick={handleDeepScan} disabled={scanning || !!deepScan}>
+                Deep Scan (1 year)
+              </SettingsButton>
+              <SettingsButton onClick={() => setModalMode("edit")} disabled={!!deepScan}>
                 Preferences
               </SettingsButton>
-              <SettingsButton onClick={handleDisconnect} disabled={disconnecting} danger>
+              <SettingsButton onClick={handleDisconnect} disabled={disconnecting || !!deepScan} danger>
                 {disconnecting ? "Disconnecting…" : "Disconnect"}
               </SettingsButton>
             </>
@@ -209,6 +275,50 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             <SettingsButton onClick={() => setModalMode("connect")}>Connect</SettingsButton>
           )}
         </div>
+
+        {deepScan && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: "16px 18px",
+              borderRadius: 12,
+              background: "var(--surface)",
+              border: "1px solid var(--line-soft)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--ember)", animation: "pulse-dot 1.2s ease-in-out infinite" }} />
+                Deep Scanning…
+              </div>
+              <button
+                onClick={stopDeepScan}
+                className="f-sans"
+                style={{ fontSize: 12, fontWeight: 600, color: "var(--blood)", background: "var(--blood-wash)", border: "1px solid var(--blood)", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}
+              >
+                Stop
+              </button>
+            </div>
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6 }}>
+              <span style={{ color: "var(--ink-soft)" }}>{deepScan.processed.toLocaleString()}</span> emails scanned
+              {deepScan.created > 0 && (
+                <> · <span style={{ color: "var(--moss)", fontWeight: 600 }}>{deepScan.created} item{deepScan.created !== 1 ? "s" : ""} found</span></>
+              )}
+            </div>
+            <div style={{ marginTop: 10, height: 3, borderRadius: 999, background: "var(--surface-high)", overflow: "hidden", position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  height: "100%",
+                  width: "40%",
+                  borderRadius: 999,
+                  background: "var(--ember)",
+                  animation: "loading-sweep 1.5s ease-in-out infinite",
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Active categories summary */}
@@ -371,6 +481,21 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       )}
     </div>
   );
+}
+
+function groupBySender(entries: ScanResultItem[]): ScanResultItem[] {
+  const map = new Map<string, ScanResultItem>();
+  for (const item of entries) {
+    const key = item.from.replace(/<.*>/, "").trim().toLowerCase() || item.from.toLowerCase();
+    const existing = map.get(key);
+    if (existing) {
+      existing.groupIds.push(...item.groupIds);
+      existing.groupCount += item.groupCount;
+    } else {
+      map.set(key, { ...item });
+    }
+  }
+  return Array.from(map.values());
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

@@ -18,6 +18,7 @@ import {
   type GmailPreferences,
   defaultPreferences,
   scanGmailForUser,
+  deepScanBatch,
 } from "./_lib/gmailScan.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
@@ -228,6 +229,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       headers: SB_HEADERS,
     });
     return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === "POST" && action === "deep-scan") {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`,
+      { headers: SB_HEADERS },
+    );
+    const rows: any[] = r.ok ? await r.json() : [];
+    if (!rows[0]) return res.status(404).json({ error: "No Gmail integration found" });
+    const { cursor, sinceMs, brain_id } = req.body ?? {};
+    const result = await deepScanBatch(rows[0], {
+      cursor: typeof cursor === "string" ? cursor : undefined,
+      sinceMs: typeof sinceMs === "number" ? sinceMs : Date.now() - 365 * 24 * 60 * 60 * 1000,
+      activeBrainId: typeof brain_id === "string" ? brain_id : undefined,
+    });
+    return res.status(200).json(result);
   }
 
   if (req.method === "POST" && action === "ignore") {

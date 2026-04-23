@@ -227,6 +227,223 @@ export async function fetchRecentEmails(
   return results.filter(Boolean);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchEmailPage(
+  token: string,
+  sinceMs: number,
+  pageSize: number,
+  cursor?: string,
+): Promise<{ ids: string[]; nextCursor: string | null }> {
+  const sinceUnix = Math.floor(sinceMs / 1000);
+  const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
+  url.searchParams.set(
+    "q",
+    `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`,
+  );
+  url.searchParams.set("maxResults", String(pageSize));
+  if (cursor) url.searchParams.set("pageToken", cursor);
+  const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+  if (!r.ok) return { ids: [], nextCursor: null };
+  const data = await r.json();
+  return {
+    ids: (data.messages ?? []).map((m: { id: string }) => m.id),
+    nextCursor: data.nextPageToken ?? null,
+  };
+}
+
+async function fetchMessageDetail(token: string, id: string): Promise<any | null> {
+  const r = await fetch(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!r.ok) return null;
+  const msg = await r.json();
+  const hdrs: Record<string, string> = {};
+  for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
+  const body = extractBodyFromPayload(msg.payload);
+  return {
+    id,
+    from: hdrs.from ?? "",
+    subject: hdrs.subject ?? "(no subject)",
+    date: hdrs.date ?? "",
+    body: body.slice(0, 3000),
+    attachments: listAttachments(msg.payload),
+  };
+}
+
+async function classifyWithGemini(prompt: string, geminiKey: string): Promise<any[]> {
+  const model = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+  const r = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 8192 },
+      }),
+    },
+  );
+  if (!r.ok) return [];
+  const data = await r.json();
+  const text: string = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p: any) => p.text ?? "").join("").trim();
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    return match ? JSON.parse(match[0]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export interface DeepScanResult {
+  nextCursor: string | null;
+  processed: number;
+  created: number;
+  entries: ScanResultItem[];
+  done: boolean;
+}
+
+export async function deepScanBatch(
+  integration: any,
+  params: { cursor?: string; sinceMs: number; activeBrainId?: string },
+): Promise<DeepScanResult> {
+  const token = await refreshGmailToken(integration);
+  if (!token) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true };
+
+  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
+
+  // Fetch a page of 60 message IDs
+  const { ids, nextCursor } = await fetchEmailPage(token, params.sinceMs, 60, params.cursor);
+  if (!ids.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true };
+
+  // Fetch full details in groups of 10 to stay within Gmail quota
+  const messages: any[] = [];
+  for (let i = 0; i < ids.length; i += 10) {
+    const chunk = ids.slice(i, i + 10);
+    const results = await Promise.all(chunk.map((id) => fetchMessageDetail(token, id)));
+    messages.push(...results.filter(Boolean));
+    if (i + 10 < ids.length) await sleep(150);
+  }
+
+  if (!messages.length) return { nextCursor, processed: ids.length, created: 0, entries: [], done: !nextCursor };
+
+  // Classify — prefer Gemini, fall back to Claude
+  const prompt = buildPrompt(messages, prefs);
+  const classified = geminiKey
+    ? await classifyWithGemini(prompt, geminiKey)
+    : await classifyWithLLM(prompt);
+
+  if (!classified.length) {
+    return { nextCursor, processed: messages.length, created: 0, entries: [], done: !nextCursor };
+  }
+
+  const importedIds = await fetchImportedMessageIds(integration.user_id);
+  const brainId = params.activeBrainId ?? await getUserBrainId(integration.user_id);
+
+  let created = 0;
+  const scanEntries: ScanResultItem[] = [];
+
+  for (const match of classified) {
+    const email = messages[match.index];
+    if (!email || importedIds.has(email.id)) continue;
+
+    const title = match.title ?? email.subject;
+    const summary = match.summary ?? "";
+    const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
+    const tags = [match.type ?? "gmail"];
+    const metadata: Record<string, any> = {
+      source: "gmail",
+      gmail_message_id: email.id,
+      gmail_from: email.from,
+      gmail_subject: email.subject,
+      gmail_date: email.date,
+      email_type: match.type,
+      due_date: match.due_date ?? null,
+      amount: match.amount ?? null,
+      urgency: match.urgency ?? "medium",
+      completeness_score: computeCompletenessScore(title, summary, type, tags, {}),
+    };
+
+    const entry: Record<string, any> = {
+      user_id: integration.user_id,
+      title,
+      content: summary,
+      type,
+      tags,
+      metadata,
+    };
+    if (brainId) entry.brain_id = brainId;
+
+    const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
+      method: "POST",
+      headers: { ...SB_HEADERS, Prefer: "return=representation" },
+      body: JSON.stringify(entry),
+    });
+    if (!insertRes.ok) continue;
+
+    const rows: any[] = await insertRes.json();
+    const inserted = rows[0];
+    created++;
+    importedIds.add(email.id);
+    scanEntries.push({
+      entryId: inserted?.id ?? "",
+      groupIds: [inserted?.id ?? ""],
+      groupCount: 1,
+      title,
+      summary,
+      from: email.from,
+      subject: email.subject,
+      emailType: match.type ?? "",
+      urgency: match.urgency ?? "medium",
+      amount: match.amount ?? null,
+      dueDate: match.due_date ?? null,
+    });
+
+    // Fire-and-forget embedding
+    if (inserted?.id && geminiKey) {
+      generateEmbedding(buildEntryText({ title, content: summary, tags }), geminiKey)
+        .then((vec) =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+            body: JSON.stringify({
+              embedding: `[${vec.join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: "google",
+            }),
+          }),
+        )
+        .catch(() => {});
+    }
+  }
+
+  // Group by sender
+  const groupMap = new Map<string, ScanResultItem>();
+  for (const item of scanEntries) {
+    const key = extractSenderKey(item.from);
+    const existing = groupMap.get(key);
+    if (existing) {
+      existing.groupIds.push(...item.groupIds);
+      existing.groupCount++;
+    } else {
+      groupMap.set(key, { ...item });
+    }
+  }
+
+  return {
+    nextCursor,
+    processed: messages.length,
+    created,
+    entries: Array.from(groupMap.values()),
+    done: !nextCursor,
+  };
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   "invoices":             "Invoices & bills",
   "action-required":      "Action required",
