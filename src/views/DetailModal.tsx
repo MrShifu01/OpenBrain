@@ -68,6 +68,8 @@ export default function DetailModal({
   const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [aiMsg, setAiMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [ignoringEmail, setIgnoringEmail] = useState(false);
+  const [ignoreMsg, setIgnoreMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const typeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,6 +138,32 @@ No explanation, no punctuation, just one word.`,
   const isSecret = entry.type === "secret";
   const isPinned = !!(entry as any).pinned;
   const isContact = entry.type === "contact" || entry.type === "person";
+  const isGmailEntry = entry.type === "gmail-flag" || (entry.metadata as any)?.source === "gmail";
+
+  async function handleIgnoreEmail() {
+    setIgnoringEmail(true);
+    setIgnoreMsg(null);
+    try {
+      const r = await authFetch("/api/gmail?action=ignore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: (entry.metadata as any)?.gmail_subject,
+          from: (entry.metadata as any)?.gmail_from,
+          email_type: (entry.metadata as any)?.email_type,
+          content_preview: entry.content?.slice(0, 300),
+        }),
+      });
+      if (r?.ok) {
+        setIgnoreMsg({ text: "Rule saved ✓", ok: true });
+      } else {
+        setIgnoreMsg({ text: "Failed — try again", ok: false });
+      }
+    } catch {
+      setIgnoreMsg({ text: "Failed — try again", ok: false });
+    }
+    setIgnoringEmail(false);
+  }
 
   function saveToContacts() {
     const meta = (entry.metadata || {}) as Record<string, string>;
@@ -830,7 +858,7 @@ const [showFullContent, setShowFullContent] = useState(false);
         {/* end scrollable body */}
 
         {/* Minimal bottom strip — Delete + Save to Contacts */}
-        {!editing && (isContact || (canWrite && onDelete)) && (
+        {!editing && (isContact || (canWrite && onDelete) || isGmailEntry) && (
           <div
             style={{
               display: "flex",
@@ -876,7 +904,33 @@ const [showFullContent, setShowFullContent] = useState(false);
                 save to contacts
               </button>
             )}
-            {!isContact && <span />}
+            {!isContact && isGmailEntry && (
+              <button
+                className="press f-sans"
+                onClick={handleIgnoreEmail}
+                disabled={ignoringEmail || ignoreMsg?.ok === true}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "0 12px",
+                  height: 30,
+                  minHeight: 30,
+                  borderRadius: 6,
+                  background: "transparent",
+                  color: ignoreMsg?.ok ? "var(--moss)" : ignoreMsg ? "var(--blood)" : "var(--ink-soft)",
+                  border: "1px solid transparent",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: ignoringEmail || ignoreMsg?.ok ? "default" : "pointer",
+                  transition: "all 180ms",
+                  opacity: ignoringEmail ? 0.6 : 1,
+                }}
+              >
+                {ignoringEmail ? "Adding rule…" : ignoreMsg ? ignoreMsg.text : "Ignore future emails like this"}
+              </button>
+            )}
+            {!isContact && !isGmailEntry && <span />}
             {canWrite && onDelete && (
               <button
                 className="press f-sans"

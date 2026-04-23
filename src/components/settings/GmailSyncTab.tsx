@@ -62,6 +62,7 @@ interface ScanDebug {
   hasAnthropicKey: boolean;
   hasGeminiKey: boolean;
   repairedBrainId: number;
+  attachmentsExtracted: number;
   subjects: string[];
 }
 
@@ -288,6 +289,8 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             )}
             <span style={{ color: "var(--ink-soft)" }}>Insert errors</span>
             <span style={{ color: lastDebug.insertErrors > 0 ? "var(--blood)" : "var(--ink-faint)" }}>{lastDebug.insertErrors}</span>
+            <span style={{ color: "var(--ink-soft)" }}>Attachments extracted</span>
+            <span>{lastDebug.attachmentsExtracted}</span>
             <span style={{ color: "var(--ink-soft)" }}>Anthropic key</span>
             <span style={{ color: lastDebug.hasAnthropicKey ? "var(--moss)" : "var(--blood)" }}>{lastDebug.hasAnthropicKey ? "present" : "MISSING"}</span>
             <span style={{ color: "var(--ink-soft)" }}>Gemini key</span>

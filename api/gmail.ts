@@ -37,6 +37,45 @@ function gmailRedirectUri(): string {
   return process.env.GMAIL_REDIRECT_URI ?? `${process.env.APP_URL ?? ""}/api/gmail-auth?provider=google`;
 }
 
+async function generateIgnoreRule(params: {
+  subject?: string;
+  from?: string;
+  email_type?: string;
+  content_preview?: string;
+}): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return `Ignore emails from ${params.from ?? "this sender"}.`;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+      max_tokens: 150,
+      messages: [{
+        role: "user",
+        content: `Generate a single, broad exclusion rule (one sentence) for a personal email scanning system.
+The rule should instruct the scanner to ignore similar emails in future.
+
+Email details:
+- From: ${params.from ?? "unknown"}
+- Subject: ${params.subject ?? ""}
+- Type: ${params.email_type ?? ""}
+- Preview: ${params.content_preview ?? ""}
+
+Write ONE concise rule starting with "Ignore" that broadly captures the pattern (e.g. sender domain, email type, subject pattern).
+Return only the rule text, no explanation.`,
+      }],
+    }),
+  });
+  if (!res.ok) return `Ignore emails from ${params.from ?? "this sender"}.`;
+  const data = await res.json();
+  return (data.content?.[0]?.text ?? "").trim() || `Ignore emails from ${params.from ?? "this sender"}.`;
+}
+
 /* ── OAuth ── */
 
 function initiateGoogle(res: ApiResponse, userId: string, preferences: GmailPreferences) {
@@ -178,6 +217,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const brainId = typeof req.body?.brain_id === "string" ? req.body.brain_id : undefined;
     const result = await scanGmailForUser(rows[0], true, brainId);
     return res.status(200).json(result);
+  }
+
+  if (req.method === "POST" && action === "ignore") {
+    const { subject, from, email_type, content_preview } = req.body ?? {};
+    const rule = await generateIgnoreRule({ subject, from, email_type, content_preview });
+    const intRes = await fetch(
+      `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=preferences`,
+      { headers: SB_HEADERS },
+    );
+    const rows: any[] = intRes.ok ? await intRes.json() : [];
+    if (!rows[0]) return res.status(404).json({ error: "No Gmail integration found" });
+    const prefs = rows[0].preferences ?? { categories: [], custom: "" };
+    const existing = (prefs.custom ?? "").trim();
+    const newCustom = existing ? `${existing}\n${rule}` : rule;
+    await fetch(`${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}`, {
+      method: "PATCH",
+      headers: SB_HEADERS,
+      body: JSON.stringify({ preferences: { ...prefs, custom: newCustom } }),
+    });
+    return res.status(200).json({ ok: true, rule });
   }
 
   return res.status(405).json({ error: "Method not allowed" });

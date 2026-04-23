@@ -244,6 +244,16 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   "signing-requests":     "DocuSign, HelloSign, Adobe Sign, or other e-signature requests",
 };
 
+const GMAIL_TYPE_MAP: Record<string, string> = {
+  "invoices":             "invoice",
+  "action-required":      "action-required",
+  "subscription-renewal": "subscription",
+  "appointment":          "appointment",
+  "deadline":             "deadline",
+  "delivery":             "delivery",
+  "signing-requests":     "signing-request",
+};
+
 function buildPrompt(emails: any[], prefs: GmailPreferences): string {
   const catLines = prefs.categories
     .filter((c) => CATEGORY_DESCRIPTIONS[c])
@@ -304,6 +314,54 @@ async function classifyWithLLM(prompt: string): Promise<any[]> {
   } catch {
     return [];
   }
+}
+
+async function refineWithAttachments(
+  emailSubject: string,
+  emailBody: string,
+  attachmentText: string,
+  emailType: string,
+  currentTitle: string,
+  currentSummary: string,
+): Promise<{ title: string; content: string }> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return { title: currentTitle, content: currentSummary };
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
+      max_tokens: 512,
+      messages: [{
+        role: "user",
+        content: `Refine this email entry using the attachment content.
+
+Email subject: ${emailSubject}
+Category: ${emailType}
+Body excerpt: ${emailBody.slice(0, 800)}
+Attachment text: ${attachmentText.slice(0, 3000)}
+
+Return ONLY valid JSON: {"title":"...","content":"..."}
+title: concise and specific (max 80 chars), include key details like amounts or dates
+content: 2-3 sentences summarising what matters (amounts, deadlines, parties, action needed)`,
+      }],
+    }),
+  });
+  if (!res.ok) return { title: currentTitle, content: currentSummary };
+  const data = await res.json();
+  const text: string = data.content?.[0]?.text ?? "";
+  try {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (m) {
+      const parsed = JSON.parse(m[0]);
+      if (parsed.title && parsed.content) return { title: parsed.title, content: parsed.content };
+    }
+  } catch {}
+  return { title: currentTitle, content: currentSummary };
 }
 
 async function getUserBrainId(userId: string): Promise<string | null> {
@@ -426,14 +484,20 @@ export async function scanGmailForUser(
     if (!email) continue;
     if (importedIds.has(email.id)) { debug.skippedDuplicates++; debug.skippedSubjects.push(email.subject); continue; }
 
-    const title = match.title ?? email.subject;
+    let title = match.title ?? email.subject;
+    let summary = match.summary ?? "";
     const emailAttachments: AttachmentInfo[] = email.attachments ?? [];
     const attachmentText = emailAttachments.length
       ? await fetchAndExtractAttachments(token, email.id, emailAttachments, geminiKey)
       : "";
     debug.attachmentsExtracted += emailAttachments.length;
-    const content = [match.summary, attachmentText].filter(Boolean).join("\n\n");
-    const type = "gmail-flag";
+    if (attachmentText) {
+      const refined = await refineWithAttachments(email.subject, email.body, attachmentText, match.type, title, summary);
+      title = refined.title;
+      summary = refined.content;
+    }
+    const content = [summary, attachmentText].filter(Boolean).join("\n\n");
+    const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
     const tags = [match.type ?? "gmail"];
     const metadata: Record<string, any> = {
       source: "gmail",
