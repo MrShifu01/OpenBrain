@@ -366,7 +366,7 @@ async function handleGeminiChat(res: ApiResponse, user: any, ctx: ChatContext, p
     let toolResult: unknown;
     try { toolResult = await execTool(toolName, toolArgs, user.id, brain_id); } catch (e: any) { toolResult = { error: e.message || "Tool execution failed" }; }
     toolCalls.push({ tool: toolName, args: toolArgs, result: toolResult });
-    contents.push({ role: "model", parts: [{ functionCall: { name: toolName, args: toolArgs } }] });
+    contents.push({ role: "model", parts });
     contents.push({ role: "user", parts: [{ functionResponse: { name: toolName, response: { result: toolResult } } }] });
   }
 
