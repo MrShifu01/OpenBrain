@@ -273,16 +273,13 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           {integration ? (
             <>
-              <SettingsButton onClick={handleScanNow} disabled={scanning || !!deepScan}>
+              <SettingsButton onClick={handleScanNow} disabled={scanning}>
                 {scanning ? "Scanning…" : "Scan now"}
               </SettingsButton>
-              <SettingsButton onClick={handleDeepScan} disabled={scanning || !!deepScan}>
-                Deep Scan (1 year)
-              </SettingsButton>
-              <SettingsButton onClick={() => setModalMode("edit")} disabled={!!deepScan}>
+              <SettingsButton onClick={() => setModalMode("edit")}>
                 Preferences
               </SettingsButton>
-              <SettingsButton onClick={handleDisconnect} disabled={disconnecting || !!deepScan} danger>
+              <SettingsButton onClick={handleDisconnect} disabled={disconnecting} danger>
                 {disconnecting ? "Disconnecting…" : "Disconnect"}
               </SettingsButton>
             </>
@@ -291,66 +288,6 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           )}
         </div>
 
-        {deepScan && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: "16px 18px",
-              borderRadius: 12,
-              background: "var(--surface)",
-              border: "1px solid var(--line-soft)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-              <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--ember)", animation: "pulse-dot 1.2s ease-in-out infinite" }} />
-                Deep Scanning…
-              </div>
-              <button
-                onClick={stopDeepScan}
-                className="f-sans"
-                style={{ fontSize: 12, fontWeight: 600, color: "var(--blood)", background: "var(--blood-wash)", border: "1px solid var(--blood)", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}
-              >
-                Stop
-              </button>
-            </div>
-            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6 }}>
-              <span style={{ color: "var(--ink-soft)" }}>{deepScan.processed.toLocaleString()}</span>
-              {deepScan.total > 0 && deepScan.total > deepScan.processed
-                ? <> of ~<span style={{ color: "var(--ink-soft)" }}>{deepScan.total.toLocaleString()}</span></>
-                : null
-              }
-              {" "}emails scanned
-              {deepScan.created > 0 && (
-                <> · <span style={{ color: "var(--moss)", fontWeight: 600 }}>{deepScan.created} item{deepScan.created !== 1 ? "s" : ""} found</span></>
-              )}
-            </div>
-            <div style={{ marginTop: 10, height: 3, borderRadius: 999, background: "var(--surface-high)", overflow: "hidden", position: "relative" }}>
-              {deepScan.total > 0 ? (
-                <div
-                  style={{
-                    height: "100%",
-                    borderRadius: 999,
-                    background: "var(--ember)",
-                    width: `${Math.min((deepScan.processed / deepScan.total) * 100, 100)}%`,
-                    transition: "width 400ms ease-out",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    position: "absolute",
-                    height: "100%",
-                    width: "40%",
-                    borderRadius: 999,
-                    background: "var(--ember)",
-                    animation: "loading-sweep 1.5s ease-in-out infinite",
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Active categories summary */}
