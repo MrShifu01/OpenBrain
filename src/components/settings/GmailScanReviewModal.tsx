@@ -73,6 +73,13 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
 
   function triggerReject(capturedIdx: number) {
     const item = capped[capturedIdx];
+    // Delete all entries in this sender group from the DB
+    authFetch("/api/gmail?action=delete-entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entryIds: item.groupIds }),
+    }).catch(() => {});
+    // Generate + save exclusion rule
     authFetch("/api/gmail?action=ignore", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -407,7 +414,7 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Category badge */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
         <span
           className="f-sans"
           style={{
@@ -423,6 +430,22 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         >
           {TYPE_LABELS[item.emailType] ?? item.emailType}
         </span>
+        {item.groupCount > 1 && (
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: "var(--surface-high)",
+              color: "var(--ink-soft)",
+              border: "1px solid var(--line-soft)",
+            }}
+          >
+            ×{item.groupCount} from same sender
+          </span>
+        )}
         {item.urgency === "high" && (
           <span
             className="f-sans"

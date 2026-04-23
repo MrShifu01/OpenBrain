@@ -385,6 +385,8 @@ async function fetchImportedMessageIds(userId: string): Promise<Set<string>> {
 
 export interface ScanResultItem {
   entryId: string;
+  groupIds: string[];   // all entry IDs in this sender group (including entryId)
+  groupCount: number;
   title: string;
   summary: string;
   from: string;
@@ -393,6 +395,11 @@ export interface ScanResultItem {
   urgency: string;
   amount?: string | null;
   dueDate?: string | null;
+}
+
+function extractSenderKey(from: string): string {
+  const match = from.match(/<([^>]+)>/);
+  return (match ? match[1] : from).toLowerCase().trim();
 }
 
 export interface ScanDebug {
@@ -543,6 +550,8 @@ export async function scanGmailForUser(
     importedIds.add(email.id);
     scanEntries.push({
       entryId: inserted?.id ?? "",
+      groupIds: [],
+      groupCount: 1,
       title,
       summary: content,
       from: email.from,
@@ -572,7 +581,20 @@ export async function scanGmailForUser(
     }
   }
 
-  return { created, debug, entries: scanEntries };
+  // Group by sender so the review modal shows one card per sender
+  const groupMap = new Map<string, ScanResultItem>();
+  for (const item of scanEntries) {
+    const key = extractSenderKey(item.from);
+    const existing = groupMap.get(key);
+    if (existing) {
+      existing.groupIds.push(item.entryId);
+      existing.groupCount++;
+    } else {
+      groupMap.set(key, { ...item, groupIds: [item.entryId] });
+    }
+  }
+
+  return { created, debug, entries: Array.from(groupMap.values()) };
 }
 
 export async function runGmailScanAllUsers(): Promise<{ users: number; created: number; errors: number }> {

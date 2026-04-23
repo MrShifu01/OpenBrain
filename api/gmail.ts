@@ -219,6 +219,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     return res.status(200).json(result);
   }
 
+  if (req.method === "POST" && action === "delete-entries") {
+    const { entryIds } = req.body ?? {};
+    if (!Array.isArray(entryIds) || entryIds.length === 0) return res.status(400).json({ error: "entryIds required" });
+    const ids = entryIds.map((id: string) => encodeURIComponent(id)).join(",");
+    await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&user_id=eq.${user.id}`, {
+      method: "DELETE",
+      headers: SB_HEADERS,
+    });
+    return res.status(200).json({ ok: true });
+  }
+
   if (req.method === "POST" && action === "ignore") {
     const { subject, from, email_type, content_preview } = req.body ?? {};
     const rule = await generateIgnoreRule({ subject, from, email_type, content_preview });
