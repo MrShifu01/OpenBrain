@@ -416,7 +416,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "2px 16px", color: "var(--ink-faint)" }}>
             <span style={{ color: "var(--ink-soft)" }}>Since</span>
             <span>{lastDebug.sinceDate}</span>
-            <span style={{ color: "var(--ink-soft)" }}>Total emails in Gmail</span>
+            <span style={{ color: "var(--ink-soft)" }}>Matched subject filter</span>
             <span>{lastDebug.totalGmailCount}</span>
             <span style={{ color: "var(--ink-soft)" }}>Emails fetched</span>
             <span style={{ color: lastDebug.emailsFetched === 0 ? "var(--blood)" : "var(--ink)" }}>{lastDebug.emailsFetched}</span>
