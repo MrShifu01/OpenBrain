@@ -1,21 +1,45 @@
 import { authFetch } from "./authFetch";
 import type { Entry } from "../types";
 import { SKIP_META_KEYS } from "./entryConstants";
-import { hasAIAccess } from "./aiSettings";
+import { aiSettings } from "./aiSettings";
+
+export interface EnrichError { step: string; message: string }
+
+type OnUpdate = (id: string, changes: any) => Promise<void>;
+type OnPhase = (phase: string) => void;
+
+interface StepFlags {
+  embedded: boolean;
+  concepts: boolean;
+  parsed: boolean;
+  insight: boolean;
+}
+
+function readFlags(entry: Entry): StepFlags {
+  const e = (entry.metadata as any)?.enrichment ?? {};
+  const metaKeys = Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k));
+  return {
+    embedded: e.embedded ?? Boolean((entry as any).embedded_at),
+    concepts: (e.concepts_count ?? 0) > 0,
+    parsed: e.parsed === true || metaKeys.length > 0,
+    insight: !!(entry.metadata as any)?.ai_insight || e.has_insight === true,
+  };
+}
+
+/** Merge an enrichment patch into an entry's metadata.enrichment without clobbering siblings. */
+function mergeEnrichmentFlags(entry: Entry, patch: Record<string, unknown>): Record<string, unknown> {
+  const existing = (entry.metadata as any)?.enrichment ?? {};
+  return { ...(entry.metadata ?? {}), enrichment: { ...existing, ...patch } };
+}
 
 export function isFullyEnriched(
   entry: Entry,
   _allEntries: Entry[],
   entryIdsWithConcepts?: Set<string>,
 ): boolean {
-  const e = (entry.metadata as any)?.enrichment ?? {};
-  const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
-  const concepts = (e.concepts_count ?? 0) > 0 || (entryIdsWithConcepts?.has(entry.id) ?? false);
-  const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
-  const parsed =
-    e.parsed === true ||
-    Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k)).length > 0;
-  return embedded && concepts && insight && parsed;
+  const f = readFlags(entry);
+  const hasConcepts = f.concepts || (entryIdsWithConcepts?.has(entry.id) ?? false);
+  return f.embedded && hasConcepts && f.insight && f.parsed;
 }
 
 export function getEnrichmentGaps(
@@ -23,197 +47,193 @@ export function getEnrichmentGaps(
   _allEntries: Entry[],
   entryIdsWithConcepts?: Set<string>,
 ): string[] {
-  const e = (entry.metadata as any)?.enrichment ?? {};
+  const f = readFlags(entry);
   const gaps: string[] = [];
-  if (!(e.embedded ?? Boolean((entry as any).embedded_at))) gaps.push("embedding");
-  const hasConcepts = (e.concepts_count ?? 0) > 0 || (entryIdsWithConcepts?.has(entry.id) ?? false);
-  if (!hasConcepts) gaps.push("concepts");
-  const hasInsight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
-  if (!hasInsight) gaps.push("insight");
-  const parsed =
-    e.parsed === true ||
-    Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k)).length > 0;
-  if (!parsed) gaps.push("parsed");
+  if (!f.embedded) gaps.push("embedding");
+  if (!f.concepts && !(entryIdsWithConcepts?.has(entry.id) ?? false)) gaps.push("concepts");
+  if (!f.insight) gaps.push("insight");
+  if (!f.parsed) gaps.push("parsed");
   return gaps;
 }
 
-export interface EnrichError { step: string; message: string }
+/**
+ * Parse an LLM response that should contain a JSON object or array.
+ * Handles: markdown fences, truncated responses (via brace-counting salvage).
+ * Returns null if no usable JSON could be extracted.
+ */
+export function parseAIJSON(rawAI: string): any | null {
+  const aiText = rawAI.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
+  // Try full array/object first
+  const fullMatch = aiText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+  if (fullMatch) {
+    try {
+      const p = JSON.parse(fullMatch[0]);
+      return Array.isArray(p) ? p[0] : p;
+    } catch { /* fall through */ }
+  }
+  // Brace-counting: extract first complete {...} from a truncated response
+  const start = aiText.indexOf("{");
+  if (start === -1) return null;
+  let depth = 0;
+  for (let i = start; i < aiText.length; i++) {
+    if (aiText[i] === "{") depth++;
+    else if (aiText[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(aiText.slice(start, i + 1)); } catch { return null; }
+      }
+    }
+  }
+  return null;
+}
+
+// ── Step: AI parsing ─────────────────────────────────────────────────────────
+
+async function runParseStep(entry: Entry, onUpdate: OnUpdate): Promise<{ entry: Entry; error?: EnrichError }> {
+  const { PROMPTS } = await import("../config/prompts");
+  const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
+  try {
+    const res = await authFetch("/api/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system: PROMPTS.CAPTURE,
+        messages: [{ role: "user", content: rawText }],
+        max_tokens: 1500,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.status.toString());
+      return { entry, error: { step: "parsed", message: `HTTP ${res.status}: ${body}` } };
+    }
+    const data = await res.json();
+    const rawAI: string = data?.content?.[0]?.text || data?.text || "";
+    const result = parseAIJSON(rawAI);
+
+    if (result && (result.type || result.title || result.content)) {
+      if (!result.type) result.type = "note";
+      const newMeta = { ...(result.metadata || {}) };
+      delete newMeta.confidence;
+      if (rawText.length > 200 && !newMeta.full_text) newMeta.full_text = rawText;
+      const existing = (entry.metadata as any)?.enrichment ?? {};
+      const mergedMeta = {
+        ...(entry.metadata ?? {}),
+        ...newMeta,
+        enrichment: { ...existing, parsed: true },
+      };
+      const patch = {
+        type: result.type,
+        content: result.content || entry.content,
+        metadata: mergedMeta,
+      };
+      await onUpdate(entry.id, patch);
+      return { entry: { ...entry, ...patch } as Entry };
+    }
+
+    if (entry.title && (entry.content || "").length > 10) {
+      // AI produced no usable JSON but entry already has enough — mark parsed anyway so we move on
+      const patch = { metadata: mergeEnrichmentFlags(entry, { parsed: true }) };
+      await onUpdate(entry.id, patch);
+      return { entry: { ...entry, metadata: patch.metadata } as Entry };
+    }
+
+    const preview = rawAI.slice(0, 120) || "(empty response)";
+    return { entry, error: { step: "parsed", message: `AI returned no usable JSON: ${preview}` } };
+  } catch (err) {
+    return { entry, error: { step: "parsed", message: String((err as any)?.message ?? err) } };
+  }
+}
+
+// ── Step: embedding ──────────────────────────────────────────────────────────
+
+async function runEmbedStep(entry: Entry, onUpdate: OnUpdate): Promise<EnrichError | null> {
+  try {
+    const res = await authFetch("/api/embed", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: entry.id }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => res.status.toString());
+      return { step: "embedding", message: `HTTP ${res.status}: ${body}` };
+    }
+    await onUpdate(entry.id, { metadata: mergeEnrichmentFlags(entry, { embedded: true }) });
+    return null;
+  } catch (err) {
+    return { step: "embedding", message: String((err as any)?.message ?? err) };
+  }
+}
+
+// ── Step: concept extraction ────────────────────────────────────────────────
+
+async function runConceptsStep(entry: Entry, brainId: string, onUpdate: OnUpdate): Promise<EnrichError | null> {
+  try {
+    const { extractEntryConnections } = await import("./brainConnections");
+    await extractEntryConnections(
+      { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
+      brainId,
+    );
+    await onUpdate(entry.id, {
+      metadata: mergeEnrichmentFlags(entry, { concepts_count: 1, has_related: true }),
+    });
+    return null;
+  } catch (err) {
+    return { step: "concepts", message: String((err as any)?.message ?? err) };
+  }
+}
+
+// ── Step: insight generation ────────────────────────────────────────────────
+
+async function runInsightStep(entry: Entry, brainId: string, onUpdate: OnUpdate): Promise<EnrichError | null> {
+  try {
+    const { generateEntryInsight } = await import("./brainConnections");
+    await generateEntryInsight(
+      { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
+      brainId,
+    );
+    await onUpdate(entry.id, { metadata: mergeEnrichmentFlags(entry, { has_insight: true }) });
+    return null;
+  } catch (err) {
+    return { step: "insight", message: String((err as any)?.message ?? err) };
+  }
+}
+
+// ── Orchestrator ─────────────────────────────────────────────────────────────
 
 export async function enrichEntry(
   entry: Entry,
   brainId: string,
-  onUpdate: (id: string, changes: any) => Promise<void>,
-  onPhase?: (phase: string) => void,
+  onUpdate: OnUpdate,
+  onPhase?: OnPhase,
 ): Promise<EnrichError[]> {
   const errors: EnrichError[] = [];
-  // Free tier with no BYOK: skip all LLM steps — embedding still runs below
-  const llmAvailable = hasAIAccess();
-  const { PROMPTS } = await import("../config/prompts");
-  const e = (entry.metadata as any)?.enrichment ?? {};
-  const embedded = e.embedded ?? Boolean((entry as any).embedded_at);
-  const concepts = (e.concepts_count ?? 0) > 0;
-  const parsed =
-    e.parsed === true ||
-    Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k)).length > 0;
-  const insight = !!(entry.metadata as any)?.ai_insight || e.has_insight === true;
+  const llmAvailable = aiSettings.get().hasAIAccess;
+  let current = entry;
+  const flags = readFlags(current);
 
-  // ── AI Parsing ─────────────────────────────────────────────────────────
-  if (!parsed && llmAvailable) {
+  if (!flags.parsed && llmAvailable) {
     onPhase?.("parsed");
-    try {
-      const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
-      const res = await authFetch("/api/llm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system: PROMPTS.CAPTURE,
-          messages: [{ role: "user", content: rawText }],
-          max_tokens: 1500,
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => res.status.toString());
-        errors.push({ step: "parsed", message: `HTTP ${res.status}: ${body}` });
-      } else {
-        const data = await res.json();
-        const rawAI: string = data?.content?.[0]?.text || data?.text || "";
-        const aiText = rawAI.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
-        let result: any = null;
-        // Try full array/object first, then fall back to first complete object
-        // (handles responses truncated by max_tokens before the closing bracket)
-        const fullMatch = aiText.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
-        if (fullMatch) {
-          try {
-            const p = JSON.parse(fullMatch[0]);
-            result = Array.isArray(p) ? p[0] : p;
-          } catch { /* fall through to brace-counting extraction */ }
-        }
-        if (!result) {
-          // Walk the string counting braces to extract the first complete {...}
-          const start = aiText.indexOf("{");
-          if (start !== -1) {
-            let depth = 0;
-            for (let i = start; i < aiText.length; i++) {
-              if (aiText[i] === "{") depth++;
-              else if (aiText[i] === "}") {
-                depth--;
-                if (depth === 0) {
-                  try { result = JSON.parse(aiText.slice(start, i + 1)); } catch { /* give up */ }
-                  break;
-                }
-              }
-            }
-          }
-        }
-        const existingEnrichment = (entry.metadata as any)?.enrichment ?? {};
-        // Accept the result if it has any usable field; default type to "note" if omitted
-        if (result && (result.type || result.title || result.content)) {
-          if (!result.type) result.type = "note";
-          const newMeta = { ...(result.metadata || {}) };
-          delete newMeta.confidence;
-          if (rawText.length > 200 && !newMeta.full_text) newMeta.full_text = rawText;
-          const mergedMeta = {
-            ...(entry.metadata ?? {}),
-            ...newMeta,
-            enrichment: { ...existingEnrichment, parsed: true },
-          };
-          await onUpdate(entry.id, {
-            type: result.type,
-            content: result.content || entry.content,
-            metadata: mergedMeta,
-          });
-          entry = { ...entry, type: result.type, content: result.content || entry.content, metadata: mergedMeta };
-        } else if (entry.title && (entry.content || "").length > 10) {
-          // AI failed to return structured JSON (prompt injection, model confusion, etc.)
-          // Entry already has usable content — mark as parsed so it doesn't block enrichment.
-          await onUpdate(entry.id, {
-            metadata: {
-              ...(entry.metadata ?? {}),
-              enrichment: { ...existingEnrichment, parsed: true },
-            },
-          });
-        } else {
-          const preview = rawAI.slice(0, 120) || "(empty response)";
-          errors.push({ step: "parsed", message: `AI returned no usable JSON: ${preview}` });
-        }
-      }
-    } catch (err) {
-      errors.push({ step: "parsed", message: String((err as any)?.message ?? err) });
-    }
+    const { entry: next, error } = await runParseStep(current, onUpdate);
+    current = next;
+    if (error) errors.push(error);
   }
 
-  // ── Embedding ──────────────────────────────────────────────────────────
-  if (!embedded) {
+  if (!flags.embedded) {
     onPhase?.("embedding");
-    try {
-      const res = await authFetch("/api/embed", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entry_id: entry.id }),
-      });
-      if (res.ok) {
-        const existing = (entry.metadata as any)?.enrichment ?? {};
-        await onUpdate(entry.id, {
-          metadata: { ...(entry.metadata ?? {}), enrichment: { ...existing, embedded: true } },
-        });
-      } else {
-        const body = await res.text().catch(() => res.status.toString());
-        errors.push({ step: "embedding", message: `HTTP ${res.status}: ${body}` });
-      }
-    } catch (err) {
-      errors.push({ step: "embedding", message: String((err as any)?.message ?? err) });
-    }
+    const error = await runEmbedStep(current, onUpdate);
+    if (error) errors.push(error);
   }
 
-  // ── Concepts ───────────────────────────────────────────────────────────
-  if (!concepts && llmAvailable) {
+  if (!flags.concepts && llmAvailable) {
     onPhase?.("concepts");
-    try {
-      const { extractEntryConnections } = await import("../lib/brainConnections");
-      await extractEntryConnections(
-        {
-          id: entry.id,
-          title: entry.title,
-          content: entry.content || "",
-          type: entry.type,
-          tags: entry.tags || [],
-        },
-        brainId,
-      );
-      const existing = (entry.metadata as any)?.enrichment ?? {};
-      await onUpdate(entry.id, {
-        metadata: {
-          ...(entry.metadata ?? {}),
-          enrichment: { ...existing, concepts_count: 1, has_related: true },
-        },
-      });
-    } catch (err) {
-      errors.push({ step: "concepts", message: String((err as any)?.message ?? err) });
-    }
+    const error = await runConceptsStep(current, brainId, onUpdate);
+    if (error) errors.push(error);
   }
 
-  // ── Insight ────────────────────────────────────────────────────────────
-  if (!insight && llmAvailable) {
+  if (!flags.insight && llmAvailable) {
     onPhase?.("insight");
-    try {
-      const { generateEntryInsight } = await import("../lib/brainConnections");
-      await generateEntryInsight(
-        {
-          id: entry.id,
-          title: entry.title,
-          content: entry.content || "",
-          type: entry.type,
-          tags: entry.tags || [],
-        },
-        brainId,
-      );
-      const existing = (entry.metadata as any)?.enrichment ?? {};
-      await onUpdate(entry.id, {
-        metadata: { ...(entry.metadata ?? {}), enrichment: { ...existing, has_insight: true } },
-      });
-    } catch (err) {
-      errors.push({ step: "insight", message: String((err as any)?.message ?? err) });
-    }
+    const error = await runInsightStep(current, brainId, onUpdate);
+    if (error) errors.push(error);
   }
 
   return errors;
