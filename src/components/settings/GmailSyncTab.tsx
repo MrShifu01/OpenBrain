@@ -304,7 +304,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             </div>
             <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6 }}>
               <span style={{ color: "var(--ink-soft)" }}>{deepScan.processed.toLocaleString()}</span>
-              {deepScan.total > 0
+              {deepScan.total > 0 && deepScan.total > deepScan.processed
                 ? <> of ~<span style={{ color: "var(--ink-soft)" }}>{deepScan.total.toLocaleString()}</span></>
                 : null
               }

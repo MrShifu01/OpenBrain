@@ -184,16 +184,15 @@ export async function fetchRecentEmails(
   token: string,
   sinceMs?: number,
   maxFetch = 50,
+  subjectFilter?: string,
 ): Promise<any[]> {
   const sinceUnix = sinceMs
     ? Math.floor(sinceMs / 1000)
-    : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000); // 25h safety window for daily scans
+    : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000);
 
+  const baseQ = `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`;
   const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-  listUrl.searchParams.set(
-    "q",
-    `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`,
-  );
+  listUrl.searchParams.set("q", subjectFilter ? `${baseQ} ${subjectFilter}` : baseQ);
   listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 500)));
 
   const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
@@ -202,29 +201,36 @@ export async function fetchRecentEmails(
   const messages: { id: string }[] = (await listRes.json()).messages ?? [];
   if (!messages.length) return [];
 
-  const results = await Promise.all(
-    messages.slice(0, maxFetch).map(async ({ id }) => {
-      const r = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (!r.ok) return null;
-      const msg = await r.json();
-      const hdrs: Record<string, string> = {};
-      for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
-      const body = extractBodyFromPayload(msg.payload);
-      return {
-        id,
-        from: hdrs.from ?? "",
-        subject: hdrs.subject ?? "(no subject)",
-        date: hdrs.date ?? "",
-        body: body.slice(0, 3000),
-        attachments: listAttachments(msg.payload),
-      };
-    }),
-  );
+  // Fetch in groups of 10 — Gmail quota is 250 units/sec; each messages.get = 5 units
+  const results: any[] = [];
+  for (let i = 0; i < Math.min(messages.length, maxFetch); i += 10) {
+    const chunk = messages.slice(i, i + 10);
+    const group = await Promise.all(
+      chunk.map(async ({ id }) => {
+        const r = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (!r.ok) return null;
+        const msg = await r.json();
+        const hdrs: Record<string, string> = {};
+        for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
+        const body = extractBodyFromPayload(msg.payload);
+        return {
+          id,
+          from: hdrs.from ?? "",
+          subject: hdrs.subject ?? "(no subject)",
+          date: hdrs.date ?? "",
+          body: body.slice(0, 3000),
+          attachments: listAttachments(msg.payload),
+        };
+      }),
+    );
+    results.push(...group.filter(Boolean));
+    if (i + 10 < Math.min(messages.length, maxFetch)) await sleep(150);
+  }
 
-  return results.filter(Boolean);
+  return results;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -698,7 +704,9 @@ export async function scanGmailForUser(
   debug.sinceDate = sinceMs ? new Date(sinceMs).toISOString() : "last 25h (default)";
 
   // Manual scans look back further so fetch more messages.
-  const emails = await fetchRecentEmails(token, sinceMs, manual ? 500 : 50);
+  // Subject filter pre-screens at the Gmail API level before fetching full content.
+  const subjectFilter = buildSubjectFilter(prefs.categories);
+  const emails = await fetchRecentEmails(token, sinceMs, manual ? 200 : 50, subjectFilter);
   debug.emailsFetched = emails.length;
   debug.subjects = emails.slice(0, 10).map((e) => e.subject);
 
