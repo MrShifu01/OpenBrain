@@ -4,6 +4,7 @@ import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import GmailSetupModal from "./GmailSetupModal";
 import { useEntries } from "../../context/EntriesContext";
+import { useBrain } from "../../context/BrainContext";
 
 interface GmailIntegration {
   id: string;
@@ -66,6 +67,7 @@ interface ScanDebug {
 
 export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const { refreshEntries } = useEntries();
+  const { activeBrain } = useBrain();
   const [integration, setIntegration] = useState<GmailIntegration | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
@@ -116,7 +118,11 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     setMsg(null);
     setLastDebug(null);
     try {
-      const r = await authFetch("/api/gmail?action=scan", { method: "POST" });
+      const r = await authFetch("/api/gmail?action=scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brain_id: activeBrain?.id ?? null }),
+      });
       const data = await r?.json?.();
       const created: number = data?.created ?? 0;
       if (data?.debug) setLastDebug(data.debug);

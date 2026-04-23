@@ -343,6 +343,7 @@ export interface ScanDebug {
 export async function scanGmailForUser(
   integration: any,
   manual = false,
+  activeBrainId?: string,
 ): Promise<{ created: number; debug: ScanDebug }> {
   const debug: ScanDebug = {
     sinceDate: "",
@@ -397,7 +398,7 @@ export async function scanGmailForUser(
   // Fetch already-imported message IDs to prevent duplicates.
   const importedIds = await fetchImportedMessageIds(integration.user_id);
 
-  const brainId = await getUserBrainId(integration.user_id);
+  const brainId = activeBrainId ?? await getUserBrainId(integration.user_id);
 
   // Repair: assign brain_id to any existing gmail entries that are missing it.
   if (brainId) {

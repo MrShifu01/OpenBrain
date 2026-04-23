@@ -175,7 +175,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     );
     const rows: any[] = r.ok ? await r.json() : [];
     if (!rows[0]) return res.status(404).json({ error: "No Gmail integration found" });
-    const result = await scanGmailForUser(rows[0], true);
+    const brainId = typeof req.body?.brain_id === "string" ? req.body.brain_id : undefined;
+    const result = await scanGmailForUser(rows[0], true, brainId);
     return res.status(200).json(result);
   }
 
