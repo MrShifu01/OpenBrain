@@ -231,26 +231,45 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Keywords per category used to pre-filter Gmail before LLM classification.
+// Drastically reduces the corpus — only fetches emails likely to be relevant.
+const CATEGORY_SUBJECT_KEYWORDS: Record<string, string[]> = {
+  "invoices":             ["invoice", "payment", "bill", "receipt", "statement", "amount due", "pro forma"],
+  "action-required":      ["action required", "response required", "approve", "urgent", "submit", "confirm"],
+  "subscription-renewal": ["subscription", "renewal", "free trial", "cancel", "expires", "auto-renew"],
+  "appointment":          ["appointment", "booking", "reservation", "confirmed", "reminder"],
+  "deadline":             ["deadline", "due date", "expires", "overdue", "final notice", "last day"],
+  "delivery":             ["delivery", "shipped", "tracking", "dispatched", "arrival", "collection"],
+  "signing-requests":     ["sign", "signature", "docusign", "hellosign", "adobe sign"],
+};
+
+function buildSubjectFilter(categories: string[]): string {
+  const keywords = [...new Set(categories.flatMap((c) => CATEGORY_SUBJECT_KEYWORDS[c] ?? []))];
+  if (!keywords.length) return "";
+  const parts = keywords.map((k) => (k.includes(" ") ? `"${k}"` : k)).join(" OR ");
+  return `subject:(${parts})`;
+}
+
 async function fetchEmailPage(
   token: string,
   sinceMs: number,
   pageSize: number,
   cursor?: string,
-): Promise<{ ids: string[]; nextCursor: string | null }> {
+  subjectFilter?: string,
+): Promise<{ ids: string[]; nextCursor: string | null; totalEstimate: number }> {
   const sinceUnix = Math.floor(sinceMs / 1000);
   const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-  url.searchParams.set(
-    "q",
-    `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`,
-  );
+  const baseFilter = `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`;
+  url.searchParams.set("q", subjectFilter ? `${baseFilter} ${subjectFilter}` : baseFilter);
   url.searchParams.set("maxResults", String(pageSize));
   if (cursor) url.searchParams.set("pageToken", cursor);
   const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) return { ids: [], nextCursor: null };
+  if (!r.ok) return { ids: [], nextCursor: null, totalEstimate: 0 };
   const data = await r.json();
   return {
     ids: (data.messages ?? []).map((m: { id: string }) => m.id),
     nextCursor: data.nextPageToken ?? null,
+    totalEstimate: data.resultSizeEstimate ?? 0,
   };
 }
 
@@ -305,6 +324,7 @@ export interface DeepScanResult {
   created: number;
   entries: ScanResultItem[];
   done: boolean;
+  totalEstimate: number;
 }
 
 export async function deepScanBatch(
@@ -316,9 +336,10 @@ export async function deepScanBatch(
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
   const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
+  const subjectFilter = buildSubjectFilter(prefs.categories);
 
-  // Fetch a page of 60 message IDs
-  const { ids, nextCursor } = await fetchEmailPage(token, params.sinceMs, 60, params.cursor);
+  // Fetch a page of 100 message IDs, pre-filtered by subject keywords
+  const { ids, nextCursor, totalEstimate } = await fetchEmailPage(token, params.sinceMs, 100, params.cursor, subjectFilter);
   if (!ids.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true };
 
   // Fetch full details in groups of 10 to stay within Gmail quota
@@ -330,16 +351,16 @@ export async function deepScanBatch(
     if (i + 10 < ids.length) await sleep(150);
   }
 
-  if (!messages.length) return { nextCursor, processed: ids.length, created: 0, entries: [], done: !nextCursor };
+  if (!messages.length) return { nextCursor, processed: ids.length, created: 0, entries: [], done: !nextCursor, totalEstimate };
 
-  // Classify — prefer Gemini, fall back to Claude
+  // Gemini primary; Anthropic only as BYOK fallback
   const prompt = buildPrompt(messages, prefs);
   const classified = geminiKey
     ? await classifyWithGemini(prompt, geminiKey)
     : await classifyWithLLM(prompt);
 
   if (!classified.length) {
-    return { nextCursor, processed: messages.length, created: 0, entries: [], done: !nextCursor };
+    return { nextCursor, processed: messages.length, created: 0, entries: [], done: !nextCursor, totalEstimate };
   }
 
   const importedIds = await fetchImportedMessageIds(integration.user_id);
@@ -441,6 +462,7 @@ export async function deepScanBatch(
     created,
     entries: Array.from(groupMap.values()),
     done: !nextCursor,
+    totalEstimate,
   };
 }
 
@@ -688,7 +710,11 @@ export async function scanGmailForUser(
 
   if (!emails.length) return { created: 0, debug, entries: [] };
 
-  const classified = await classifyWithLLM(buildPrompt(emails, prefs));
+  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+  const prompt = buildPrompt(emails, prefs);
+  const classified = geminiKey
+    ? await classifyWithGemini(prompt, geminiKey)
+    : await classifyWithLLM(prompt);
   debug.classified = classified.length;
   if (!classified.length) return { created: 0, debug, entries: [] };
 

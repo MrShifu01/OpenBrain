@@ -82,6 +82,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     active: boolean;
     processed: number;
     created: number;
+    total: number;
   } | null>(null);
   const deepScanCancel = useRef(false);
 
@@ -151,13 +152,14 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
 
   async function handleDeepScan() {
     deepScanCancel.current = false;
-    setDeepScan({ active: true, processed: 0, created: 0 });
+    setDeepScan({ active: true, processed: 0, created: 0, total: 0 });
     setMsg(null);
 
     const sinceMs = Date.now() - 365 * 24 * 60 * 60 * 1000;
     let cursor: string | undefined;
     let totalProcessed = 0;
     let totalCreated = 0;
+    let totalEstimate = 0;
     const allEntries: ScanResultItem[] = [];
 
     try {
@@ -172,15 +174,16 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
 
         totalProcessed += data.processed ?? 0;
         totalCreated += data.created ?? 0;
+        if (data.totalEstimate > totalEstimate) totalEstimate = data.totalEstimate;
         if (Array.isArray(data.entries)) allEntries.push(...data.entries);
 
-        setDeepScan({ active: true, processed: totalProcessed, created: totalCreated });
+        setDeepScan({ active: true, processed: totalProcessed, created: totalCreated, total: totalEstimate });
 
         if (data.done || !data.nextCursor) break;
         cursor = data.nextCursor;
 
-        // 2-second pause between batches — respects Gemini Flash Lite free-tier rate limits
-        await new Promise((r) => setTimeout(r, 2000));
+        // 500ms between batches — server already rate-limits message fetches internally
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch {
       // silently stop; show whatever we found
@@ -189,7 +192,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     setDeepScan(null);
 
     if (deepScanCancel.current) {
-      setMsg({ text: `Scan stopped. ${totalCreated} item${totalCreated !== 1 ? "s" : ""} found so far.`, ok: totalCreated > 0 });
+      setMsg({ text: `Scan stopped at ${totalProcessed.toLocaleString()} emails. ${totalCreated} item${totalCreated !== 1 ? "s" : ""} found.`, ok: totalCreated > 0 });
       if (allEntries.length > 0) setReviewItems(groupBySender(allEntries));
       return;
     }
@@ -198,7 +201,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     if (allEntries.length > 0) {
       setReviewItems(groupBySender(allEntries));
     } else {
-      setMsg({ text: `Deep scan complete — ${totalProcessed} emails scanned, no new items found.`, ok: false });
+      setMsg({ text: `Deep scan complete — ${totalProcessed.toLocaleString()} emails scanned, no new items found.`, ok: false });
     }
   }
 
@@ -300,22 +303,39 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
               </button>
             </div>
             <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", lineHeight: 1.6 }}>
-              <span style={{ color: "var(--ink-soft)" }}>{deepScan.processed.toLocaleString()}</span> emails scanned
+              <span style={{ color: "var(--ink-soft)" }}>{deepScan.processed.toLocaleString()}</span>
+              {deepScan.total > 0
+                ? <> of ~<span style={{ color: "var(--ink-soft)" }}>{deepScan.total.toLocaleString()}</span></>
+                : null
+              }
+              {" "}emails scanned
               {deepScan.created > 0 && (
                 <> · <span style={{ color: "var(--moss)", fontWeight: 600 }}>{deepScan.created} item{deepScan.created !== 1 ? "s" : ""} found</span></>
               )}
             </div>
             <div style={{ marginTop: 10, height: 3, borderRadius: 999, background: "var(--surface-high)", overflow: "hidden", position: "relative" }}>
-              <div
-                style={{
-                  position: "absolute",
-                  height: "100%",
-                  width: "40%",
-                  borderRadius: 999,
-                  background: "var(--ember)",
-                  animation: "loading-sweep 1.5s ease-in-out infinite",
-                }}
-              />
+              {deepScan.total > 0 ? (
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: 999,
+                    background: "var(--ember)",
+                    width: `${Math.min((deepScan.processed / deepScan.total) * 100, 100)}%`,
+                    transition: "width 400ms ease-out",
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    position: "absolute",
+                    height: "100%",
+                    width: "40%",
+                    borderRadius: 999,
+                    background: "var(--ember)",
+                    animation: "loading-sweep 1.5s ease-in-out infinite",
+                  }}
+                />
+              )}
             </div>
           </div>
         )}
