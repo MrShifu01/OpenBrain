@@ -153,6 +153,21 @@ const IconCopy = (
 const RICH_PATTERN =
   /(\+\d[\d\s\-]{8,13}\d|\b0\d{9}\b|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}|https?:\/\/[^\s<>]+)/g;
 
+const PHONE_RE = /(\+\d[\d\s\-]{8,13}\d|\b0\d{9}\b)/;
+const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/;
+
+function firstPhone(text: string): string | null {
+  const m = text.match(PHONE_RE);
+  if (!m) return null;
+  const digits = m[0].replace(/\D/g, "");
+  return digits.startsWith("0") ? "27" + digits.slice(1) : digits;
+}
+
+function firstEmail(text: string): string | null {
+  const m = text.match(EMAIL_RE);
+  return m ? m[0] : null;
+}
+
 function renderRichText(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   let last = 0;
@@ -190,18 +205,28 @@ function renderRichText(text: string): React.ReactNode[] {
 }
 
 const IconCheck = (
-  <svg
-    width="12"
-    height="12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
+  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M5 12l4 4 10-10" />
+  </svg>
+);
+
+const IconShare = (
+  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+    <path d="M12 3v11M8 7l4-4 4 4" />
+  </svg>
+);
+
+const IconPhone = (
+  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.77h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.4a16 16 0 0 0 5.67 5.67l.95-.95a2 2 0 0 1 2.11-.45c.908.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+
+const IconEmail = (
+  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m2 7 10 7 10-7" />
   </svg>
 );
 
@@ -224,6 +249,7 @@ export default function ChatView({ brainId }: ChatViewProps) {
   }
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [sharedIdx, setSharedIdx] = useState<number | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -260,6 +286,16 @@ export default function ChatView({ brainId }: ChatViewProps) {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx(null), 1500);
     });
+  }, []);
+
+  const handleShare = useCallback(async (text: string, idx: number) => {
+    if (navigator.share) {
+      try { await navigator.share({ text }); } catch { return; }
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    setSharedIdx(idx);
+    setTimeout(() => setSharedIdx(null), 1500);
   }, []);
 
   const Composer = (
@@ -541,7 +577,18 @@ export default function ChatView({ brainId }: ChatViewProps) {
             aria-live="polite"
           >
             <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 28 }}>
-              {messages.map((msg, i) => (
+              {messages.map((msg, i) => {
+                const phone = msg.role === "assistant" ? firstPhone(msg.content) : null;
+                const email = msg.role === "assistant" ? firstEmail(msg.content) : null;
+                const actionBtnStyle = (color: string): React.CSSProperties => ({
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  height: 26, minHeight: 26, padding: "0 10px", borderRadius: 4,
+                  background: "transparent", border: "1px solid var(--line-soft)",
+                  color, fontFamily: "var(--f-sans)", fontSize: 11, fontWeight: 500,
+                  cursor: "pointer", transition: "color 180ms, border-color 180ms",
+                  textDecoration: "none",
+                });
+                return (
                 <div
                   key={i}
                   className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
@@ -619,32 +666,40 @@ export default function ChatView({ brainId }: ChatViewProps) {
                         {renderRichText(msg.content)}
                       </div>
 
-                      <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
+                      <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
                         <button
                           onClick={() => handleCopy(msg.content, i)}
                           className="press"
                           aria-label="Copy response"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                            height: 26,
-                            minHeight: 26,
-                            padding: "0 10px",
-                            borderRadius: 4,
-                            background: "transparent",
-                            border: "1px solid var(--line-soft)",
-                            color: copiedIdx === i ? "var(--moss)" : "var(--ink-faint)",
-                            fontFamily: "var(--f-sans)",
-                            fontSize: 11,
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            transition: "color 180ms, border-color 180ms",
-                          }}
+                          style={actionBtnStyle(copiedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
                         >
                           {copiedIdx === i ? IconCheck : IconCopy}
                           {copiedIdx === i ? "copied" : "copy"}
                         </button>
+                        <button
+                          onClick={() => handleShare(msg.content, i)}
+                          className="press"
+                          aria-label="Share response"
+                          style={actionBtnStyle(sharedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
+                        >
+                          {sharedIdx === i ? IconCheck : IconShare}
+                          {sharedIdx === i ? "shared" : "share"}
+                        </button>
+                        {phone && (
+                          <a href={`tel:+${phone}`} className="press" aria-label="Call" style={actionBtnStyle("var(--ink-faint)")}>
+                            {IconPhone} call
+                          </a>
+                        )}
+                        {phone && (
+                          <a href={`https://wa.me/${phone}`} target="_blank" rel="noopener noreferrer" className="press" aria-label="WhatsApp" style={actionBtnStyle("var(--ink-faint)")}>
+                            wa
+                          </a>
+                        )}
+                        {email && (
+                          <a href={`mailto:${email}`} className="press" aria-label="Email" style={actionBtnStyle("var(--ink-faint)")}>
+                            {IconEmail} email
+                          </a>
+                        )}
                       </div>
                       {isAdmin && msg.debug && (
                         <AdminDebugPanel debug={msg.debug} toolCalls={msg.tool_calls} />
@@ -652,7 +707,8 @@ export default function ChatView({ brainId }: ChatViewProps) {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Thinking state */}
               {loading && (
