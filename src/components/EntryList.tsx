@@ -129,6 +129,8 @@ const EntryCard = memo(function EntryCard({
         border: `1px solid ${selected ? "var(--ember)" : "var(--line-soft)"}`,
         borderLeft: isPinned ? "2px solid var(--ember)" : undefined,
         transition: "border-color 180ms",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* Swipe action panel — revealed behind the card */}
@@ -223,6 +225,7 @@ const EntryCard = memo(function EntryCard({
         className={`entry-card ${isCritical ? "entry-card--critical" : isPinned ? "entry-card--pinned" : ""} group press relative cursor-pointer`}
         style={{
           padding: 20,
+          flex: 1,
           background: selected ? "var(--ember-wash)" : "var(--surface)",
           transform: `translateX(${swipeX}px)`,
           transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
