@@ -213,12 +213,10 @@ const BASE_EXCLUSIONS =
   "-in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats -category:promotions -category:social";
 
 // Returns the categories to use for filtering/classification.
-// - categories selected → use them
-// - nothing selected + custom rules → custom-only (no predefined categories)
-// - nothing selected + no custom rules → fall back to all known categories
+// Empty selection always falls back to all known categories so the LLM has
+// positive match criteria. Custom rules are exclusion hints applied on top.
 function getEffectiveCategories(prefs: GmailPreferences): string[] {
   if (prefs.categories.length > 0) return prefs.categories;
-  if (prefs.custom?.trim()) return [];
   return Object.keys(CATEGORY_DESCRIPTIONS);
 }
 
@@ -460,19 +458,15 @@ function buildPrompt(blocks: ThreadBlock[], prefs: GmailPreferences): string {
   const effectiveCategories = getEffectiveCategories(prefs);
   const hasCustom = !!prefs.custom?.trim();
 
-  let catLines = effectiveCategories
+  const catLines = effectiveCategories
     .filter((c) => CATEGORY_DESCRIPTIONS[c])
     .map((c) => `- **${CATEGORY_LABELS[c] ?? c}** (type="${c}"): ${CATEGORY_DESCRIPTIONS[c]}`)
     .join("\n");
 
-  // Custom-only mode: no predefined categories — inject a synthetic one so the LLM
-  // has a match target; actual criteria come entirely from the custom instructions.
-  if (!catLines && hasCustom) {
-    catLines = `- **Custom** (type="custom"): see additional instructions below.`;
-  }
-
+  // Custom rules are negative scoring signals, not hard blocks — the LLM should
+  // still capture an email if it is clearly important despite matching a hint.
   const customLine = hasCustom
-    ? `\nAdditional instructions (follow exactly): ${prefs.custom.trim()}`
+    ? `\nScoring hints (negative signals — use judgment, do not hard-block clearly important emails):\n${prefs.custom.trim()}`
     : "";
 
   const threadBlocks = blocks

@@ -59,8 +59,10 @@ async function generateIgnoreRule(params: {
       max_tokens: 150,
       messages: [{
         role: "user",
-        content: `Generate a single, broad exclusion rule (one sentence) for a personal email scanning system.
-The rule should instruct the scanner to ignore similar emails in future.
+        content: `Generate a specific exclusion rule for a personal email scanning system.
+
+The rule must describe WHAT TYPE of email to ignore based on its content, subject, or purpose — NOT the sender's address or domain.
+The same sender may send both wanted and unwanted emails, so address-based rules block too much.
 
 Email details:
 - From: ${params.from ?? "unknown"}
@@ -68,7 +70,9 @@ Email details:
 - Type: ${params.email_type ?? ""}
 - Preview: ${params.content_preview ?? ""}
 
-Write ONE concise rule starting with "Ignore" that broadly captures the pattern (e.g. sender domain, email type, subject pattern).
+Write ONE sentence starting with "Ignore" that targets the specific content pattern or email purpose.
+Bad: "Ignore emails from capitec.co.za" (blocks everything from that sender)
+Good: "Ignore Capitec promotional emails about credit card offers or insurance"
 Return only the rule text, no explanation.`,
       }],
     }),
@@ -226,22 +230,13 @@ const authedHandler = withAuth(
     }
 
     if (req.method === "POST" && action === "delete-entries") {
-      const { entryIds, from } = req.body ?? {};
+      const { entryIds } = req.body ?? {};
       if (!Array.isArray(entryIds) || entryIds.length === 0) return void res.status(400).json({ error: "entryIds required" });
       const ids = entryIds.map((id: string) => encodeURIComponent(id)).join(",");
       await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&user_id=eq.${user.id}`, {
         method: "DELETE",
         headers: SB_HEADERS,
       });
-      if (typeof from === "string") {
-        const email = (from.match(/<([^>]+)>/) ?? [])[1]?.trim() ?? from.trim();
-        if (email.includes("@")) {
-          await fetch(
-            `${SB_URL}/rest/v1/entries?user_id=eq.${user.id}&metadata->>source=eq.gmail&metadata->>gmail_from=like.*${encodeURIComponent(email)}*&deleted_at=is.null`,
-            { method: "DELETE", headers: SB_HEADERS },
-          );
-        }
-      }
       return void res.status(200).json({ ok: true });
     }
 
