@@ -70,6 +70,36 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## Self-Debugging Access
+
+When the user reports an error or asks to investigate a problem, use these resources directly before asking for more details.
+
+### Supabase (project: `wfvoqpdfzkqnenzjxhui`)
+Use `mcp__claude_ai_Supabase__*` tools:
+- **SQL queries**: `execute_sql` — check schema, row counts, RLS policies, missing columns
+- **API logs** (last 24h): `get_logs` with `service: "api"` — see all HTTP calls including failed PostgREST queries, auth failures, 4xx/5xx errors
+- **Auth logs**: `get_logs` with `service: "auth"`
+- **Postgres logs**: `get_logs` with `service: "postgres"`
+- **Apply migrations**: `apply_migration` for DDL changes
+
+Key facts:
+- Service role key bypasses RLS; Vercel functions use it (node user-agent in logs)
+- Browser SDK calls show as iPhone/Chrome Safari user-agents
+- `entry_brains` and `audit_log` tables do NOT exist — errors from them are expected/silent
+- `user_usage` has no row for new billing periods → 406 on `.single()` (fixed with `.maybeSingle()`)
+
+### Vercel
+Use `mcp__plugin_vercel_vercel__authenticate` to start OAuth if not already authenticated.
+- Function logs show errors from serverless functions
+- 12-function hard limit — never add a new `api/*.ts` file
+- Rewrites in `vercel.json` map `/api/brains` → `/api/user-data?resource=brains`, etc.
+
+### GitHub
+Use `Bash` with `gh` CLI:
+- `gh run list` — recent CI runs
+- `gh run view <id>` — check failed steps
+- `gh pr list` / `gh pr view` — PRs
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.

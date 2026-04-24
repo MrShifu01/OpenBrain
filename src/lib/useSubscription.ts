@@ -55,7 +55,7 @@ export function useSubscription(): SubscriptionState {
           .select("captures,chats,voice,improve")
           .eq("user_id", user.id)
           .eq("period", period)
-          .single(),
+          .maybeSingle(),
       ]);
 
       if (cancelled) return;
