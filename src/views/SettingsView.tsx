@@ -636,7 +636,7 @@ export default function SettingsView({
             )}
 
             {preloaded.has("integrations") && (
-              <>
+              <div style={{ display: section === "integrations" ? "block" : "none" }}>
                 <SectionHeader
                   title="Integrations"
                   subtitle="external connections and developer access."
@@ -691,7 +691,7 @@ export default function SettingsView({
                   </svg>
                 </button>
                 {apiOpen && <ClaudeCodeTab />}
-              </>
+              </div>
             )}
 
             {preloaded.has("security") && (
