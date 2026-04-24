@@ -39,7 +39,7 @@ async function _upstashLimited(key: string, windowMs: number, limit: number): Pr
   const now = Date.now();
   const windowStart = now - windowMs;
   const setKey = `rl:${key}`;
-  const member = `${now}:${crypto.randomUUID().slice(0, 8)}`;
+  const member = `${now}:${Math.random().toString(36).slice(2, 8)}`;
 
   // Pipeline: trim old, add new, count, set TTL
   const pipeline: (string | number)[][] = [
