@@ -81,7 +81,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
     authFetch("/api/gmail?action=delete-entries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entryIds: item.groupIds }),
+      body: JSON.stringify({ entryIds: item.groupIds, from: item.from }),
     }).catch(() => {});
     authFetch("/api/gmail?action=ignore", {
       method: "POST",
@@ -257,7 +257,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
             className="f-serif"
             style={{ margin: 0, fontSize: 17, fontWeight: 450, color: "oklch(94% 0.01 55)" }}
           >
-            Review captures
+            Review Gmail Captures
           </h3>
           <p
             className="f-sans"
@@ -277,16 +277,21 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           style={{
             width: 32,
             height: 32,
+            minWidth: 32,
+            minHeight: 32,
             borderRadius: "50%",
             border: "1px solid oklch(94% 0.01 55 / 0.18)",
             background: "transparent",
             color: "oklch(94% 0.01 55 / 0.55)",
             fontSize: 13,
+            padding: 0,
+            lineHeight: 1,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: "pointer",
             flexShrink: 0,
+            aspectRatio: "1",
           }}
           aria-label="Close"
         >

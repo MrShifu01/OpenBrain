@@ -355,7 +355,12 @@ function extractEmail(header: string): string {
 }
 
 function extractName(header: string): string {
-  return header.replace(/<.*>/, "").trim().replace(/^["']|["']$/g, "");
+  const m = header.match(/^([^<]+?)\s*</);
+  if (m) {
+    const name = m[1].trim().replace(/^["']|["']$/g, "");
+    if (name && !name.includes("@")) return name;
+  }
+  return "";
 }
 
 function normalizeSubject(s: string): string {
@@ -481,11 +486,15 @@ Return a JSON array of matches. Return [] if nothing matches. ONLY valid JSON, n
 For each match extract the FINAL state of the thread — the outstanding action, decision, or obligation after the whole conversation. If earlier messages set up an action that was later cancelled or completed, do NOT flag the thread.
 
 urgency: "high"=due within 3 days or overdue, "medium"=due within 2 weeks, "low"=otherwise.
-Set due_date (ISO date or null) and amount (e.g. "$150.00" or null) from what you find.
-title: concise, includes amount/deadline/key detail (max 80 chars).
-summary: one sentence capturing the outstanding obligation from the thread.
+Extract from the email text wherever found:
+- due_date: ISO date or null
+- amount: monetary total/balance/invoice amount (e.g. "R1,200.00") or null
+- account_number: bank account or customer account number or null
+- reference_number: invoice/statement/order/reference number or null
+title: specific and informative (max 80 chars) — include sender name + amount or deadline. Do NOT copy the subject line verbatim.
+summary: one sentence capturing the outstanding obligation including key numbers found.
 
-Format: [{"index":0,"type":"invoices","title":"Invoice from Acme – $150 due 30 Apr","due_date":"2026-04-30","amount":"$150.00","urgency":"high","summary":"One sentence."}]
+Format: [{"index":0,"type":"invoices","title":"Acme Corp – R1,200 due 30 Apr","due_date":"2026-04-30","amount":"R1,200.00","account_number":"62012345678","reference_number":"INV-2026-001","urgency":"high","summary":"One sentence."}]
 ${customLine}
 
 Threads:
@@ -559,16 +568,47 @@ async function classifyWithLLM(prompt: string): Promise<any[]> {
   }
 }
 
-async function refineWithAttachments(
+interface DeepExtractResult {
+  title: string;
+  content: string;
+  amount: string | null;
+  account_number: string | null;
+  reference_number: string | null;
+  invoice_number: string | null;
+  name: string | null;
+  cellphone: string | null;
+  landline: string | null;
+  address: string | null;
+  id_number: string | null;
+  contact_name: string | null;
+  due_date: string | null;
+  renewal_date: string | null;
+  expiry_date: string | null;
+}
+
+async function deepExtractEntry(
   emailSubject: string,
   emailBody: string,
+  emailFrom: string,
   attachmentText: string,
   emailType: string,
   currentTitle: string,
   currentSummary: string,
-): Promise<{ title: string; content: string }> {
+  currentAmount: string | null,
+): Promise<DeepExtractResult> {
+  const fallback: DeepExtractResult = {
+    title: currentTitle, content: currentSummary, amount: currentAmount,
+    account_number: null, reference_number: null, invoice_number: null,
+    name: null, cellphone: null, landline: null, address: null,
+    id_number: null, contact_name: null, due_date: null, renewal_date: null, expiry_date: null,
+  };
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return { title: currentTitle, content: currentSummary };
+  if (!apiKey) return fallback;
+
+  const sourceText = attachmentText
+    ? `Body:\n${emailBody.slice(0, 1200)}\n\nAttachment:\n${attachmentText.slice(0, 3000)}`
+    : `Body:\n${emailBody.slice(0, 2000)}`;
+
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -578,36 +618,71 @@ async function refineWithAttachments(
     },
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
-      max_tokens: 512,
+      max_tokens: 768,
       messages: [{
         role: "user",
-        content: `Refine this email entry using the attachment content.
+        content: `Extract structured data from this ${emailType} email. Return ONLY valid JSON, no prose.
 
-Email subject: ${emailSubject}
-Category: ${emailType}
-Body excerpt: ${emailBody.slice(0, 800)}
-Attachment text: ${attachmentText.slice(0, 3000)}
+From: ${emailFrom}
+Subject: ${emailSubject}
+${sourceText}
 
-Return ONLY valid JSON: {"title":"...","content":"..."}
-title: concise and specific (max 80 chars), include key details like amounts or dates
-content: 2-3 sentences summarising what matters (amounts, deadlines, parties, action needed)`,
+Return this exact shape (use null for any field not found):
+{"title":"...","content":"...","amount":null,"account_number":null,"reference_number":null,"invoice_number":null,"name":null,"contact_name":null,"cellphone":null,"landline":null,"address":null,"id_number":null,"due_date":null,"renewal_date":null,"expiry_date":null}
+
+Field rules:
+- title: specific (max 80 chars) — sender name + key detail (amount, deadline, or action). Never copy subject verbatim.
+- content: 2–3 sentences — outstanding action, amounts, deadlines, parties, and reference numbers.
+- amount: total amount due/owed (e.g. "R1,200.00") or null
+- account_number: bank or customer account number or null
+- reference_number: invoice/statement/order/PO reference or null
+- invoice_number: invoice number if distinct from reference_number, or null
+- name: full legal name of the person referenced (account holder, recipient) or null
+- contact_name: display/trading name of the sender company or person or null
+- cellphone: mobile/cell phone number or null
+- landline: landline/office phone number or null
+- address: physical or postal address or null
+- id_number: South African ID number or passport number or null
+- due_date: ISO date (YYYY-MM-DD) when payment/action is due or null
+- renewal_date: ISO date when subscription/policy renews or null
+- expiry_date: ISO date when something expires or null`,
       }],
     }),
   });
-  if (!res.ok) return { title: currentTitle, content: currentSummary };
+  if (!res.ok) return fallback;
   const data = await res.json();
   const text: string = data.content?.[0]?.text ?? "";
   try {
     const m = text.match(/\{[\s\S]*\}/);
     if (m) {
-      const parsed = JSON.parse(m[0]);
-      if (parsed.title && parsed.content) return { title: parsed.title, content: parsed.content };
+      const p = JSON.parse(m[0]);
+      return {
+        title: p.title || currentTitle,
+        content: p.content || currentSummary,
+        amount: p.amount || currentAmount,
+        account_number: p.account_number || null,
+        reference_number: p.reference_number || null,
+        invoice_number: p.invoice_number || null,
+        name: p.name || null,
+        cellphone: p.cellphone || null,
+        landline: p.landline || null,
+        address: p.address || null,
+        id_number: p.id_number || null,
+        contact_name: p.contact_name || null,
+        due_date: p.due_date || null,
+        renewal_date: p.renewal_date || null,
+        expiry_date: p.expiry_date || null,
+      };
     }
   } catch (e) {
-    console.debug("[gmailScan] AI rewrite JSON parse failed", e);
+    console.debug("[gmailScan] deepExtractEntry parse failed", e);
   }
-  return { title: currentTitle, content: currentSummary };
+  return fallback;
 }
+
+const DEEP_EXTRACT_TYPES = new Set([
+  "invoices", "action-required", "signing-requests", "deadline", "appointment", "subscription-renewal",
+]);
 
 // ── Relevance score (deterministic, no extra LLM call) ──────────────────────
 
@@ -711,19 +786,21 @@ async function upsertGmailContact(
     }
   }
 
+  const displayName = name && !name.includes("@") ? name : null;
   const entry: Record<string, any> = {
     user_id: userId,
-    title: name,
-    content: `Gmail contact — ${email}`,
+    title: displayName ?? email,
+    content: displayName ? `${displayName} · ${email}` : email,
     type: "contact",
     tags: ["contact", "gmail"],
     metadata: {
       source: "gmail",
       contact_email: email,
-      contact_name: name,
+      contact_name: displayName ?? email,
       first_seen_at: interactionDate,
       last_interaction_at: interactionDate,
       interaction_count: 1,
+      enrichment: { parsed: true },
     },
   };
   if (brainId) entry.brain_id = brainId;
@@ -896,21 +973,52 @@ async function persistMatches(
 
       let title = match.title ?? block.primary.subject;
       let summary = match.summary ?? "";
+      let extractedAmount: string | null = match.amount ?? null;
+      let accountNumber: string | null = match.account_number ?? null;
+      let referenceNumber: string | null = match.reference_number ?? null;
+      let invoiceNumber: string | null = null;
+      let extractedName: string | null = null;
+      let cellphone: string | null = null;
+      let landline: string | null = null;
+      let address: string | null = null;
+      let idNumber: string | null = null;
+      let contactName: string | null = null;
+      let deepDueDate: string | null = match.due_date ?? null;
+      let renewalDate: string | null = null;
+      let expiryDate: string | null = null;
+
       const attachmentText = block.attachments.length
         ? await fetchAndExtractAttachments(token, block.primary.id, block.attachments, geminiKey)
         : "";
       debug.attachmentsExtracted += block.attachments.length;
-      if (attachmentText) {
-        const refined = await refineWithAttachments(
+
+      // Always deep-extract for structured types — parses body + attachments for rich fields
+      if (DEEP_EXTRACT_TYPES.has(match.type)) {
+        const extracted = await deepExtractEntry(
           block.primary.subject,
           block.primary.body,
+          block.primary.from,
           attachmentText,
           match.type,
           title,
           summary,
+          extractedAmount,
         );
-        title = refined.title;
-        summary = refined.content;
+        title = extracted.title;
+        summary = extracted.content;
+        extractedAmount = extracted.amount;
+        accountNumber = extracted.account_number;
+        referenceNumber = extracted.reference_number;
+        invoiceNumber = extracted.invoice_number;
+        extractedName = extracted.name;
+        cellphone = extracted.cellphone;
+        landline = extracted.landline;
+        address = extracted.address;
+        idNumber = extracted.id_number;
+        contactName = extracted.contact_name;
+        deepDueDate = extracted.due_date ?? deepDueDate;
+        renewalDate = extracted.renewal_date;
+        expiryDate = extracted.expiry_date;
       }
 
       const content = summary;
@@ -926,13 +1034,24 @@ async function persistMatches(
         gmail_subject: block.primary.subject,
         gmail_date: block.primary.date,
         email_type: match.type,
-        due_date: match.due_date ?? null,
-        amount: match.amount ?? null,
+        due_date: deepDueDate,
+        amount: extractedAmount,
         urgency: match.urgency ?? "medium",
         relevance_score: relevanceScore,
         completeness_score: computeCompletenessScore(title, content, type, tags, {}),
-        enrichment: { parsed: false },
+        enrichment: { parsed: true },
       };
+      if (accountNumber) metadata.account_number = accountNumber;
+      if (referenceNumber) metadata.reference_number = referenceNumber;
+      if (invoiceNumber) metadata.invoice_number = invoiceNumber;
+      if (extractedName) metadata.name = extractedName;
+      if (contactName) metadata.contact_name = contactName;
+      if (cellphone) metadata.cellphone = cellphone;
+      if (landline) metadata.landline = landline;
+      if (address) metadata.address = address;
+      if (idNumber) metadata.id_number = idNumber;
+      if (renewalDate) metadata.renewal_date = renewalDate;
+      if (expiryDate) metadata.expiry_date = expiryDate;
       if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
 
       const entry: Record<string, any> = {

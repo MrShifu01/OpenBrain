@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { clearAISettingsCache } from "../../lib/aiSettings";
+import { clearAISettingsCache, aiSettings } from "../../lib/aiSettings";
 import SettingsRow, { SettingsButton, SettingsText } from "./SettingsRow";
+import { deriveTierId, TIERS } from "../../lib/tiers";
 
 interface Props {
   email: string;
@@ -53,6 +54,17 @@ export default function AccountTab({ email }: Props) {
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
 
+  const s = aiSettings.get();
+  const hasByok = !!(s.anthropicKey || s.openaiKey || s.groqKey);
+  const tierId = deriveTierId(s.plan, hasByok);
+  const tier = TIERS.find((t) => t.id === tierId)!;
+
+  const initials = (profile.display_name || email || "?")
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
@@ -93,6 +105,24 @@ export default function AccountTab({ email }: Props) {
 
   return (
     <div>
+      {/* Profile card */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 0 20px", borderBottom: "1px solid var(--line-soft)", marginBottom: 4 }}>
+        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--ember-wash)", border: "1px solid var(--line-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <span className="f-serif" style={{ fontSize: 18, fontWeight: 500, color: "var(--ember)", letterSpacing: "-0.02em" }}>{initials}</span>
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="f-serif" style={{ fontSize: 15, fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {profile.display_name || email}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+            <span className="f-sans" style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "var(--ember-wash)", color: "var(--ember)", letterSpacing: "0.04em" }}>
+              {tier.label}
+            </span>
+            <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-faint)", fontStyle: "italic" }}>{tier.subtitle}</span>
+          </div>
+        </div>
+      </div>
+
       <SettingsRow label="Email" hint="we only email you when a magic link is requested.">
         <SettingsText>{email || "—"}</SettingsText>
       </SettingsRow>

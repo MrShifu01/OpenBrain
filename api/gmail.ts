@@ -226,13 +226,22 @@ const authedHandler = withAuth(
     }
 
     if (req.method === "POST" && action === "delete-entries") {
-      const { entryIds } = req.body ?? {};
+      const { entryIds, from } = req.body ?? {};
       if (!Array.isArray(entryIds) || entryIds.length === 0) return void res.status(400).json({ error: "entryIds required" });
       const ids = entryIds.map((id: string) => encodeURIComponent(id)).join(",");
       await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&user_id=eq.${user.id}`, {
         method: "DELETE",
         headers: SB_HEADERS,
       });
+      if (typeof from === "string") {
+        const email = (from.match(/<([^>]+)>/) ?? [])[1]?.trim() ?? from.trim();
+        if (email.includes("@")) {
+          await fetch(
+            `${SB_URL}/rest/v1/entries?user_id=eq.${user.id}&metadata->>source=eq.gmail&metadata->>gmail_from=like.*${encodeURIComponent(email)}*&deleted_at=is.null`,
+            { method: "DELETE", headers: SB_HEADERS },
+          );
+        }
+      }
       return void res.status(200).json({ ok: true });
     }
 

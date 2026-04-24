@@ -40,20 +40,39 @@ ICON RULES: Choose ONE emoji that best represents the type — not the specific 
 
 EXTRACTION RULES:
 FULL TEXT RULE (do not skip): If the entry has detailed instructions, steps, fields, or long body text (recipes, procedures, documents), put the full original text verbatim into metadata.full_text. Do NOT truncate it.
-CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.phone. Any email MUST go into metadata.email. Do not leave them in content only.
-- Put phone numbers, IDs into metadata
-- Dates: extract into specific metadata fields:
-  - metadata.due_date or metadata.deadline: for deadlines, expiry dates, due dates (YYYY-MM-DD)
-  - metadata.expiry_date: for licence expiry, document expiry, subscription expiry (YYYY-MM-DD)
-  - metadata.event_date: for events, appointments, matches, games (YYYY-MM-DD)
-  - metadata.day_of_week: for recurring weekly events like "every Wednesday" → "wednesday"
-  - metadata.day_of_month: for recurring monthly events like "every 1st of the month" → 1 (integer 1–31)
-  - metadata.date: for any other specific date mentioned (YYYY-MM-DD)
-- If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
-- If an amount due, total, balance, or invoice total is mentioned → metadata.amount (e.g. "R1,027.83")
-- If a bank account number or account number is mentioned → metadata.account_number
-- If an invoice number, statement number, or reference number is mentioned → metadata.reference_number
-- If a contact name (person to contact) is mentioned → metadata.contact_name
+
+CRITICAL — scan the ENTIRE input for every field below. Extract each one if present. If a field is not found, omit it entirely (no null values). These are the only metadata fields that matter:
+
+CONTACT & IDENTITY (always extract if found):
+- metadata.name — full name of the primary person mentioned (not the user, but the contact or subject)
+- metadata.cellphone — mobile/cell phone number (any format)
+- metadata.landline — landline/office phone number (if distinct from cellphone)
+- metadata.email — any email address
+- metadata.address — full physical address or street address
+- metadata.id_number — South African ID number, passport number, or any national identity number
+- metadata.contact_name — name of a person to contact (if different from metadata.name)
+
+FINANCIAL (always extract if found):
+- metadata.amount — total amount due, invoice total, balance, or payment amount (e.g. "R1,027.83")
+- metadata.price — unit price or cost (e.g. "R85/kg", "R120 per case")
+- metadata.unit — unit of measure for price (e.g. "kg", "case", "per month")
+- metadata.account_number — bank account number, customer account number, or debit order account
+- metadata.reference_number — payment reference, statement number, order number, or PO number
+- metadata.invoice_number — invoice number specifically (if distinct from reference_number)
+
+DATES (always extract if found, format YYYY-MM-DD):
+- metadata.due_date — payment due date or task deadline
+- metadata.renewal_date — subscription or contract renewal date
+- metadata.expiry_date — document, licence, or subscription expiry
+- metadata.event_date — appointment, booking, or event date
+- metadata.day_of_week — for recurring weekly items (e.g. "wednesday")
+- metadata.day_of_month — for recurring monthly items, integer 1–31
+- metadata.date — any other specific date mentioned
+
+OTHER:
+- metadata.url — any web link or URL
+- metadata.status — status if mentioned (e.g. "pending", "paid", "active")
+
 - Title: max 60 chars
 - Content: ALWAYS a clean 1-3 sentence human-readable summary or description. NEVER paste raw extracted text, assembly steps, or lists into content. Write it as prose.
 

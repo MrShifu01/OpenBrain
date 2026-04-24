@@ -1,5 +1,6 @@
 import type { AppShellState } from "./hooks/useAppShell";
 import NotificationBell from "./components/NotificationBell";
+import TierPreviewToggle from "./components/TierPreviewToggle";
 import type { AppNotification } from "./hooks/useNotifications";
 
 interface Props {
@@ -13,12 +14,14 @@ interface Props {
   onMarkNotificationRead?: (id: string) => void;
   onDismissAllNotifications?: () => void;
   onAcceptMerge?: (n: AppNotification) => void;
+  isAdmin?: boolean;
 }
 
 export default function MemoryHeader({
   appShell, entries, entriesLoaded, activeBrainId,
   notifications = [], unreadCount = 0,
   onDismissNotification, onMarkNotificationRead, onDismissAllNotifications, onAcceptMerge,
+  isAdmin,
 }: Props) {
   return (
     <>
@@ -63,6 +66,7 @@ export default function MemoryHeader({
               : "everything you've written down."}
           </div>
         </div>
+        {isAdmin && <TierPreviewToggle />}
         {onDismissNotification && (
           <NotificationBell
             notifications={notifications}

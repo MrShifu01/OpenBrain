@@ -7,35 +7,31 @@ import type { Entry, Brain } from "../types";
 
 // ── Metadata highlights ───────────────────────────────────────────────────────
 
-const META_SKIP = new Set([
-  "source", "embedding_provider", "embedded_at", "gmail_message_id",
-  "gmail_thread_id", "gmail_thread_size", "gmail_participants",
-  "completeness_score", "attachment_text", "full_text", "raw_content",
-  "concepts", "confidence", "workspace", "email_type",
-  // Gmail/AI internal fields — not useful in the detail card
-  "gmail_date", "gmail_subject", "gmail_labels",
-  "ai_insight", "insight", "relevance_score", "urgency",
-]);
 
 const META_PRIORITY: { key: string; label: string }[] = [
+  { key: "name",             label: "Name"        },
+  { key: "contact_name",     label: "Contact"     },
   { key: "amount",           label: "Amount"      },
   { key: "price",            label: "Price"       },
   { key: "account_number",   label: "Account"     },
   { key: "reference_number", label: "Reference"   },
   { key: "reference",        label: "Reference"   },
+  { key: "invoice_number",   label: "Invoice"     },
   { key: "due_date",         label: "Due date"    },
   { key: "deadline",         label: "Deadline"    },
   { key: "expiry_date",      label: "Expires"     },
   { key: "renewal_date",     label: "Renews"      },
   { key: "event_date",       label: "Date"        },
   { key: "date",             label: "Date"        },
+  { key: "cellphone",        label: "Cell"        },
   { key: "phone",            label: "Phone"       },
+  { key: "landline",         label: "Landline"    },
   { key: "email",            label: "Email"       },
+  { key: "address",          label: "Address"     },
   { key: "id_number",        label: "ID Number"   },
   { key: "national_id",      label: "ID Number"   },
   { key: "url",              label: "Link"        },
   { key: "status",           label: "Status"      },
-  { key: "gmail_from",       label: "From"        },
 ];
 
 const DATE_KEYS = new Set(["due_date", "deadline", "expiry_date", "renewal_date", "event_date", "date"]);
@@ -56,24 +52,12 @@ function pickTopMetaFields(meta: Record<string, unknown>): { label: string; valu
   const usedLabels = new Set<string>();
 
   for (const { key, label } of META_PRIORITY) {
-    if (result.length >= 5) break;
+    if (result.length >= 8) break;
     if (usedLabels.has(label)) continue;
     const v = meta[key];
     if (v == null) continue;
     const str = String(v).trim();
     if (!str || str === "null" || str === "undefined" || str === "0") continue;
-    result.push({ label, value: fmtMetaValue(key, str), key });
-    usedLabels.add(label);
-  }
-
-  for (const [key, val] of Object.entries(meta)) {
-    if (result.length >= 5) break;
-    if (META_SKIP.has(key) || META_PRIORITY.some((p) => p.key === key)) continue;
-    if (val == null || typeof val === "object") continue;
-    const str = String(val).trim();
-    if (!str || str === "null" || str === "undefined") continue;
-    const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    if (usedLabels.has(label)) continue;
     result.push({ label, value: fmtMetaValue(key, str), key });
     usedLabels.add(label);
   }
@@ -885,7 +869,7 @@ No explanation, no punctuation, just one word.`,
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                           {fields.map(({ label, value, key }) => {
                             const isEmail = key === "email";
-                            const isPhone = key === "phone";
+                            const isPhone = key === "phone" || key === "cellphone" || key === "landline";
                             const isUrl   = key === "url";
                             const isAccent = isEmail || isPhone || isUrl;
                             const inner = (
