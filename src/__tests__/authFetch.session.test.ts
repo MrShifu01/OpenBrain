@@ -65,8 +65,12 @@ describe("session token caching", () => {
     await authFetch("/api/b");
 
     expect(mockGetSession).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[0][1]).toMatchObject({ headers: { Authorization: "Bearer tok-first" } });
-    expect(mockFetch.mock.calls[1][1]).toMatchObject({ headers: { Authorization: "Bearer tok-second" } });
+    expect(mockFetch.mock.calls[0][1]).toMatchObject({
+      headers: { Authorization: "Bearer tok-first" },
+    });
+    expect(mockFetch.mock.calls[1][1]).toMatchObject({
+      headers: { Authorization: "Bearer tok-second" },
+    });
   });
 
   it("sends no Authorization header when there is no active session", async () => {
@@ -75,7 +79,9 @@ describe("session token caching", () => {
     await authFetch("/api/anon");
 
     const [, opts] = mockFetch.mock.calls[0];
-    expect((opts as RequestInit & { headers: Record<string, string> }).headers?.Authorization).toBeUndefined();
+    expect(
+      (opts as RequestInit & { headers: Record<string, string> }).headers?.Authorization,
+    ).toBeUndefined();
   });
 });
 

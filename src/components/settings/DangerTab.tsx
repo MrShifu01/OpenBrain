@@ -285,21 +285,14 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
             label={`Delete this brain`}
             hint={
               <>
-                permanently remove <strong style={{ color: "var(--ink-soft)" }}>{activeBrain.name}</strong>{" "}
-                and all its entries.
+                permanently remove{" "}
+                <strong style={{ color: "var(--ink-soft)" }}>{activeBrain.name}</strong> and all its
+                entries.
               </>
             }
           >
-            <SettingsButton
-              onClick={handleDeleteBrain}
-              disabled={deletingBrain}
-              danger
-            >
-              {deletingBrain
-                ? "Deleting…"
-                : confirmDeleteBrain
-                  ? "Tap to confirm"
-                  : "Delete brain"}
+            <SettingsButton onClick={handleDeleteBrain} disabled={deletingBrain} danger>
+              {deletingBrain ? "Deleting…" : confirmDeleteBrain ? "Tap to confirm" : "Delete brain"}
             </SettingsButton>
           </SettingsRow>
         )}

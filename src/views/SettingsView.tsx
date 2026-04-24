@@ -43,7 +43,15 @@ const BASE_SECTIONS: { id: SectionId; label: string }[] = [
   { id: "danger", label: "Danger zone" },
 ];
 
-function SectionHeader({ title, subtitle, danger }: { title: string; subtitle?: string; danger?: boolean }) {
+function SectionHeader({
+  title,
+  subtitle,
+  danger,
+}: {
+  title: string;
+  subtitle?: string;
+  danger?: boolean;
+}) {
   return (
     <div style={{ marginBottom: 24 }}>
       <h2
@@ -103,12 +111,15 @@ function LearningStatusCard({ brainId }: { brainId: string }) {
       <div className="f-serif" style={{ fontSize: 16, fontWeight: 450, color: "var(--ink)" }}>
         Brain learning
       </div>
-      <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}>
+      <div
+        className="f-serif"
+        style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}
+      >
         {count === 0
           ? "no decisions recorded yet. your edits to entry titles, types, and tags will teach the AI your preferences."
           : count < 10
-          ? `${count} decision${count === 1 ? "" : "s"} recorded. ${10 - count} more until summarisation kicks in.`
-          : `${count} decisions recorded — chat and capture now adapt to your patterns.`}
+            ? `${count} decision${count === 1 ? "" : "s"} recorded. ${10 - count} more until summarisation kicks in.`
+            : `${count} decisions recorded — chat and capture now adapt to your patterns.`}
       </div>
     </div>
   );
@@ -132,10 +143,17 @@ function AuditCard({ brainId }: { brainId: string }) {
         body: JSON.stringify({ brain_id: brainId }),
       });
       const raw = await r.text();
-      if (!r.ok) { setState({ status: "error", message: `HTTP ${r.status}: ${raw}` }); return; }
+      if (!r.ok) {
+        setState({ status: "error", message: `HTTP ${r.status}: ${raw}` });
+        return;
+      }
       let parsed: { flagged: number; entries: Record<string, any[] | null> };
-      try { parsed = JSON.parse(raw); }
-      catch { setState({ status: "error", message: `Invalid JSON response:\n${raw}` }); return; }
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        setState({ status: "error", message: `Invalid JSON response:\n${raw}` });
+        return;
+      }
       setState({ status: "done", flagged: parsed.flagged, entries: parsed.entries, raw });
     } catch (e: any) {
       setState({ status: "error", message: String(e?.message ?? e) });
@@ -152,12 +170,17 @@ function AuditCard({ brainId }: { brainId: string }) {
         marginTop: 16,
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
+      <div
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}
+      >
         <div>
           <div className="f-serif" style={{ fontSize: 16, fontWeight: 450, color: "var(--ink)" }}>
             Quality audit
           </div>
-          <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}>
+          <div
+            className="f-serif"
+            style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 3 }}
+          >
             ai analysis of your 25 newest entries.
           </div>
         </div>
@@ -209,7 +232,9 @@ function AuditCard({ brainId }: { brainId: string }) {
                   color: "var(--ink-soft)",
                 }}
               >
-                <p style={{ margin: 0, fontFamily: "var(--f-mono)", opacity: 0.5, fontSize: 11 }}>{id}</p>
+                <p style={{ margin: 0, fontFamily: "var(--f-mono)", opacity: 0.5, fontSize: 11 }}>
+                  {id}
+                </p>
                 {flags.map((f, i) => (
                   <p key={i} style={{ margin: "2px 0 0" }}>
                     <span style={{ fontWeight: 600, color: "var(--ink)" }}>{f.type}</span>
@@ -232,7 +257,10 @@ function AuditCard({ brainId }: { brainId: string }) {
             borderRadius: 8,
           }}
         >
-          <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--blood)" }}>
+          <p
+            className="f-sans"
+            style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--blood)" }}
+          >
             Audit failed
           </p>
           <pre
@@ -261,9 +289,16 @@ function VaultRow({ onNavigate }: { onNavigate: (id: string) => void }) {
   );
 }
 
-interface GapDetail { id: string; title: string; gaps: string[] }
+interface GapDetail {
+  id: string;
+  title: string;
+  gaps: string[];
+}
 
-interface EnrichError { step: string; message: string }
+interface EnrichError {
+  step: string;
+  message: string;
+}
 
 interface SettingsViewProps {
   onNavigate?: (id: string) => void;
@@ -294,7 +329,11 @@ export default function SettingsView({
     return "appearance";
   });
   const [email, setEmail] = useState(() => {
-    try { return localStorage.getItem("everion_email") || ""; } catch { return ""; }
+    try {
+      return localStorage.getItem("everion_email") || "";
+    } catch {
+      return "";
+    }
   });
   const [apiOpen, setApiOpen] = useState(false);
 
@@ -302,11 +341,15 @@ export default function SettingsView({
     supabase.auth.getUser().then(({ data: { user } }) => {
       const e = user?.email || "";
       setEmail(e);
-      try { if (e) localStorage.setItem("everion_email", e); } catch { /* ignore */ }
+      try {
+        if (e) localStorage.setItem("everion_email", e);
+      } catch {
+        /* ignore */
+      }
     });
   }, []);
 
-  const isAdmin = ADMIN_EMAIL ? (Boolean(email && email === ADMIN_EMAIL)) : Boolean(email);
+  const isAdmin = ADMIN_EMAIL ? Boolean(email && email === ADMIN_EMAIL) : Boolean(email);
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS, { id: "admin" as SectionId, label: "Admin" }]
     : BASE_SECTIONS;
@@ -378,7 +421,11 @@ export default function SettingsView({
                 fontFamily: "var(--f-sans)",
                 fontSize: 13,
                 fontWeight: 500,
-                color: active ? "var(--ember)" : id === "danger" ? "var(--blood)" : "var(--ink-soft)",
+                color: active
+                  ? "var(--ember)"
+                  : id === "danger"
+                    ? "var(--blood)"
+                    : "var(--ink-soft)",
                 background: active ? "var(--ember-wash)" : "transparent",
                 border: "1px solid",
                 borderColor: active ? "var(--ember)" : "transparent",
@@ -428,16 +475,23 @@ export default function SettingsView({
                   fontFamily: "var(--f-sans)",
                   fontSize: 14,
                   fontWeight: 500,
-                  color: active ? "var(--ink)" : id === "danger" ? "var(--blood)" : "var(--ink-soft)",
+                  color: active
+                    ? "var(--ink)"
+                    : id === "danger"
+                      ? "var(--blood)"
+                      : "var(--ink-soft)",
                   background: active ? "var(--surface-high)" : "transparent",
                   border: "none",
                   cursor: "pointer",
                   transition: "background 180ms, color 180ms",
                 }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "var(--ink)"; }}
+                onMouseEnter={(e) => {
+                  if (!active) e.currentTarget.style.color = "var(--ink)";
+                }}
                 onMouseLeave={(e) => {
                   if (!active) {
-                    e.currentTarget.style.color = id === "danger" ? "var(--blood)" : "var(--ink-soft)";
+                    e.currentTarget.style.color =
+                      id === "danger" ? "var(--blood)" : "var(--ink-soft)";
                   }
                 }}
               >
@@ -449,7 +503,6 @@ export default function SettingsView({
 
         <div className="settings-content scrollbar-hide" style={{ flex: 1, overflowY: "auto" }}>
           <div className="settings-content-inner" style={{ maxWidth: 720 }}>
-
             {section === "appearance" && (
               <>
                 <SectionHeader
@@ -478,20 +531,14 @@ export default function SettingsView({
 
             {section === "data" && (
               <>
-                <SectionHeader
-                  title="Data"
-                  subtitle="imports, exports, and your entry archive."
-                />
+                <SectionHeader title="Data" subtitle="imports, exports, and your entry archive." />
                 <DataTab brainId={activeBrain?.id} activeBrain={activeBrain ?? undefined} />
               </>
             )}
 
             {section === "ai" && (
               <>
-                <SectionHeader
-                  title="AI"
-                  subtitle="model providers and enrichment pipeline."
-                />
+                <SectionHeader title="AI" subtitle="model providers and enrichment pipeline." />
                 <AITab
                   activeBrain={activeBrain ?? undefined}
                   unenrichedDetails={unenrichedDetails}
@@ -521,7 +568,9 @@ export default function SettingsView({
                 />
                 <CalendarSyncTab isAdmin={isAdmin} />
                 <div style={{ margin: "32px 0 24px", borderTop: "1px solid var(--line-soft)" }} />
-                <div className="micro" style={{ marginBottom: 16 }}>Gmail</div>
+                <div className="micro" style={{ marginBottom: 16 }}>
+                  Gmail
+                </div>
                 <GmailSyncTab isAdmin={isAdmin} />
                 <div style={{ margin: "32px 0 24px", borderTop: "1px solid var(--line-soft)" }} />
                 <button
@@ -555,7 +604,14 @@ export default function SettingsView({
                       flexShrink: 0,
                     }}
                   >
-                    <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                    <path
+                      d="M2 3.5L5 6.5L8 3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
                   </svg>
                 </button>
                 {apiOpen && <ClaudeCodeTab />}
@@ -596,7 +652,9 @@ export default function SettingsView({
                 />
                 <DangerTab
                   activeBrain={activeBrain}
-                  deleteBrain={async (_id: string) => { /* single brain — no-op */ }}
+                  deleteBrain={async (_id: string) => {
+                    /* single brain — no-op */
+                  }}
                   isOwner={true}
                   deleteAccount={async () => {
                     const session = await supabase.auth.getSession();
@@ -614,7 +672,6 @@ export default function SettingsView({
                 />
               </>
             )}
-
           </div>
         </div>
       </div>

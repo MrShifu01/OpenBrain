@@ -25,9 +25,13 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
       aria-label="Primary navigation"
       className="bottom-nav-mobile"
       style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
         zIndex: 50,
-        alignItems: "center", justifyContent: "space-around",
+        alignItems: "center",
+        justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
@@ -45,13 +49,20 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
               aria-label="New entry"
               className="press"
               style={{
-                width: 56, height: 56, minHeight: 56, marginTop: -28, flexShrink: 0,
+                width: 56,
+                height: 56,
+                minHeight: 56,
+                marginTop: -28,
+                flexShrink: 0,
                 borderRadius: "50%",
                 background: "var(--ember)",
                 color: "var(--ember-ink)",
-                display: "flex", alignItems: "center", justifyContent: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
                 boxShadow: "var(--lift-2)",
-                border: "none", cursor: "pointer",
+                border: "none",
+                cursor: "pointer",
               }}
             >
               {item.icon}
@@ -67,9 +78,15 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
             aria-current={isActive ? "page" : undefined}
             className="press"
             style={{
-              display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-              padding: "6px 12px", minHeight: 48, flex: 1,
-              border: "none", cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 12px",
+              minHeight: 48,
+              flex: 1,
+              border: "none",
+              cursor: "pointer",
               background: "transparent",
               color: isActive ? "var(--ember)" : "var(--ink-faint)",
               transition: "color 180ms",
@@ -78,7 +95,11 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
             <span style={{ display: "flex", alignItems: "center" }}>{item.icon}</span>
             <span
               className="f-sans"
-              style={{ fontSize: 11, fontWeight: 500, color: isActive ? "var(--ember)" : "var(--ink-faint)" }}
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: isActive ? "var(--ember)" : "var(--ink-faint)",
+              }}
             >
               {item.label}
             </span>

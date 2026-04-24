@@ -51,7 +51,11 @@ export default function VaultRevealModal({
 
   async function handleSubmit() {
     if (stage === "setup-new") {
-      if (pin.length !== 4) { setPinError("Must be 4 digits"); doShake(); return; }
+      if (pin.length !== 4) {
+        setPinError("Must be 4 digits");
+        doShake();
+        return;
+      }
       setNewPin(pin);
       setPin("");
       setPinError("");
@@ -59,7 +63,12 @@ export default function VaultRevealModal({
       return;
     }
     if (stage === "setup-confirm") {
-      if (pin !== newPin) { setPin(""); setPinError("PINs don't match"); doShake(); return; }
+      if (pin !== newPin) {
+        setPin("");
+        setPinError("PINs don't match");
+        doShake();
+        return;
+      }
       setStage("busy");
       await setupPin(newPin);
       setPin("");
@@ -83,7 +92,10 @@ export default function VaultRevealModal({
       key = await getCachedVaultKey();
       if (key) onVaultUnlock(key);
     }
-    if (!key) { setStage("no-cache"); return; }
+    if (!key) {
+      setStage("no-cache");
+      return;
+    }
     try {
       const dec = await decryptEntry(entry as any, key);
       setContent((dec.content as string) || "");
@@ -107,7 +119,9 @@ export default function VaultRevealModal({
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ background: "var(--color-scrim)" }}
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
         <div
           role="dialog"
@@ -119,18 +133,27 @@ export default function VaultRevealModal({
             maxHeight: "90vh",
             overflowY: "auto",
           }}
-          onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+          }}
         >
           {/* Header */}
           <div className="mb-5 text-center">
             <div className="mb-2 text-[28px]">
-              {stage === "revealed" ? "🔓" : stage === "setup-new" || stage === "setup-confirm" ? "🔑" : "🔒"}
+              {stage === "revealed"
+                ? "🔓"
+                : stage === "setup-new" || stage === "setup-confirm"
+                  ? "🔑"
+                  : "🔒"}
             </div>
             <h3 className="m-0 text-[17px] font-bold" style={{ color: "var(--color-on-surface)" }}>
-              {stage === "revealed" ? entry.title
-                : stage === "setup-new" ? "Set a PIN"
-                : stage === "setup-confirm" ? "Confirm PIN"
-                : "Secret"}
+              {stage === "revealed"
+                ? entry.title
+                : stage === "setup-new"
+                  ? "Set a PIN"
+                  : stage === "setup-confirm"
+                    ? "Confirm PIN"
+                    : "Secret"}
             </h3>
             {stage !== "revealed" && (
               <p className="mt-1 mb-0 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
@@ -152,7 +175,9 @@ export default function VaultRevealModal({
           {/* Setup new PIN */}
           {(stage === "setup-new" || stage === "setup-confirm") && (
             <>
-              <label htmlFor="vrm-pin" className="sr-only">{stage === "setup-new" ? "New PIN" : "Confirm PIN"}</label>
+              <label htmlFor="vrm-pin" className="sr-only">
+                {stage === "setup-new" ? "New PIN" : "Confirm PIN"}
+              </label>
               <input
                 ref={inputRef}
                 id="vrm-pin"
@@ -160,14 +185,27 @@ export default function VaultRevealModal({
                 inputMode="numeric"
                 maxLength={4}
                 value={pin}
-                onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setPinError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit();
+                }}
                 placeholder="• • • •"
                 style={pinInputStyle(!!pinError)}
               />
-              <p role="alert" className="mt-2 mb-0 min-h-[1em] text-center text-[11px]" style={{ color: "var(--color-error)" }}>{pinError}</p>
+              <p
+                role="alert"
+                className="mt-2 mb-0 min-h-[1em] text-center text-[11px]"
+                style={{ color: "var(--color-error)" }}
+              >
+                {pinError}
+              </p>
               <div className="mt-4 flex gap-2">
-                <button onClick={onClose} style={btnSecStyle}>Cancel</button>
+                <button onClick={onClose} style={btnSecStyle}>
+                  Cancel
+                </button>
                 <button onClick={handleSubmit} style={btnPrimStyle}>
                   {stage === "setup-new" ? "Next" : "Set PIN"}
                 </button>
@@ -178,10 +216,15 @@ export default function VaultRevealModal({
           {/* PIN entry */}
           {stage === "pin" && (
             <>
-              <p className="mb-3 text-center text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+              <p
+                className="mb-3 text-center text-xs"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
                 Enter your PIN to view
               </p>
-              <label htmlFor="vrm-pin" className="sr-only">PIN</label>
+              <label htmlFor="vrm-pin" className="sr-only">
+                PIN
+              </label>
               <input
                 ref={inputRef}
                 id="vrm-pin"
@@ -189,17 +232,30 @@ export default function VaultRevealModal({
                 inputMode="numeric"
                 maxLength={4}
                 value={pin}
-                onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setPinError(""); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+                  setPinError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSubmit();
+                }}
                 placeholder="• • • •"
                 style={pinInputStyle(!!pinError)}
               />
-              <p role="alert" className="mt-2 mb-0 min-h-[1em] text-center text-[11px]" style={{ color: "var(--color-error)" }}>
+              <p
+                role="alert"
+                className="mt-2 mb-0 min-h-[1em] text-center text-[11px]"
+                style={{ color: "var(--color-error)" }}
+              >
                 {pinError}
               </p>
               <div className="mt-4 flex gap-2">
-                <button onClick={onClose} style={btnSecStyle}>Cancel</button>
-                <button onClick={handleSubmit} style={btnPrimStyle}>Reveal</button>
+                <button onClick={onClose} style={btnSecStyle}>
+                  Cancel
+                </button>
+                <button onClick={handleSubmit} style={btnPrimStyle}>
+                  Reveal
+                </button>
               </div>
             </>
           )}
@@ -235,9 +291,22 @@ export default function VaultRevealModal({
                 <div style={{ marginBottom: 12 }}>
                   {Object.entries(meta).map(([k, v]) =>
                     v ? (
-                      <div key={k} style={{ display: "flex", gap: 8, fontSize: 13, marginBottom: 4 }}>
-                        <span style={{ color: "var(--color-on-surface-variant)", minWidth: 80, fontFamily: "var(--f-sans)" }}>{k}</span>
-                        <span style={{ color: "var(--color-on-surface)", wordBreak: "break-all" }}>{String(v)}</span>
+                      <div
+                        key={k}
+                        style={{ display: "flex", gap: 8, fontSize: 13, marginBottom: 4 }}
+                      >
+                        <span
+                          style={{
+                            color: "var(--color-on-surface-variant)",
+                            minWidth: 80,
+                            fontFamily: "var(--f-sans)",
+                          }}
+                        >
+                          {k}
+                        </span>
+                        <span style={{ color: "var(--color-on-surface)", wordBreak: "break-all" }}>
+                          {String(v)}
+                        </span>
                       </div>
                     ) : null,
                   )}
@@ -247,7 +316,9 @@ export default function VaultRevealModal({
                 <button onClick={() => copy(content)} style={btnSecStyle}>
                   {copied ? "Copied!" : "Copy"}
                 </button>
-                <button onClick={onClose} style={btnPrimStyle}>Done</button>
+                <button onClick={onClose} style={btnPrimStyle}>
+                  Done
+                </button>
               </div>
             </>
           )}
@@ -255,12 +326,25 @@ export default function VaultRevealModal({
           {/* Vault locked — no session cache */}
           {stage === "no-cache" && (
             <>
-              <p className="mb-4 text-center text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
+              <p
+                className="mb-4 text-center text-sm"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
                 Open the Vault tab and enter your passphrase first, then come back here.
               </p>
               <div className="flex gap-2">
-                <button onClick={onClose} style={btnSecStyle}>Cancel</button>
-                <button onClick={() => { onClose(); onGoToVault(); }} style={btnPrimStyle}>Go to Vault</button>
+                <button onClick={onClose} style={btnSecStyle}>
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    onClose();
+                    onGoToVault();
+                  }}
+                  style={btnPrimStyle}
+                >
+                  Go to Vault
+                </button>
               </div>
             </>
           )}
@@ -271,7 +355,9 @@ export default function VaultRevealModal({
               <p className="mb-4 text-center text-sm" style={{ color: "var(--color-error)" }}>
                 Could not decrypt this entry. Your vault key may have changed.
               </p>
-              <button onClick={onClose} style={{ ...btnPrimStyle, width: "100%" }}>Close</button>
+              <button onClick={onClose} style={{ ...btnPrimStyle, width: "100%" }}>
+                Close
+              </button>
             </>
           )}
         </div>

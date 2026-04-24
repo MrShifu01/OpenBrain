@@ -68,7 +68,12 @@ function buildItems(
     {
       key: "parsing",
       label: "AI Parsing",
-      note: metaKeys.length > 0 ? `${metaKeys.length} structured fields` : e.parsed ? "Classified" : "No structured fields found",
+      note:
+        metaKeys.length > 0
+          ? `${metaKeys.length} structured fields`
+          : e.parsed
+            ? "Classified"
+            : "No structured fields found",
       status: metaKeys.length > 0 || e.parsed ? "pass" : "fail",
     },
     {
@@ -126,7 +131,10 @@ function StatusDot({ status }: { status: ItemStatus }) {
   return (
     <span
       className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px]"
-      style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}
+      style={{
+        background: "var(--color-surface-container)",
+        color: "var(--color-on-surface-variant)",
+      }}
     >
       ?
     </span>
@@ -144,7 +152,7 @@ export function EntryHealthPanel({
   onUpdate,
 }: Props) {
   const [items, setItems] = useState<HealthItem[]>(() =>
-    buildItems(entry, entries, metaKeys, entryConcepts, hasRelated),
+    buildItems(entry, entries ?? [], metaKeys, entryConcepts, hasRelated),
   );
   const [running, setRunning] = useState(false);
   const [allDone, setAllDone] = useState(false);
@@ -193,7 +201,10 @@ export function EntryHealthPanel({
             });
             if (!res.ok) {
               const d = await res.json().catch(() => ({}));
-              update("parsing", { status: "fail", detail: (d as any).error || `HTTP ${res.status}` });
+              update("parsing", {
+                status: "fail",
+                detail: (d as any).error || `HTTP ${res.status}`,
+              });
               return;
             }
             const data = await res.json();
@@ -206,10 +217,15 @@ export function EntryHealthPanel({
               try {
                 const p = JSON.parse(jsonMatch[0]);
                 result = Array.isArray(p) ? p[0] : p;
-              } catch { /* fall through to fallback */ }
+              } catch {
+                /* fall through to fallback */
+              }
             }
             if (!result?.type) {
-              update("parsing", { status: "fail", detail: "AI did not return structured data — try again" });
+              update("parsing", {
+                status: "fail",
+                detail: "AI did not return structured data — try again",
+              });
               return;
             }
             const newMeta = { ...(result.metadata || {}) };
@@ -229,7 +245,10 @@ export function EntryHealthPanel({
               },
             });
             const fieldCount = Object.keys(newMeta).filter((k) => k !== "full_text").length;
-            update("parsing", { status: "pass", note: fieldCount > 0 ? `${fieldCount} structured fields` : "Classified" });
+            update("parsing", {
+              status: "pass",
+              note: fieldCount > 0 ? `${fieldCount} structured fields` : "Classified",
+            });
           } catch (e: any) {
             update("parsing", { status: "fail", detail: e?.message || "Failed" });
           }
@@ -250,7 +269,10 @@ export function EntryHealthPanel({
               saveEnrichmentFlag({ embedded: true });
             } else {
               const d = await res.json().catch(() => ({}));
-              update("embedding", { status: "fail", detail: (d as any).error || `HTTP ${res.status}` });
+              update("embedding", {
+                status: "fail",
+                detail: (d as any).error || `HTTP ${res.status}`,
+              });
             }
           } catch (e: any) {
             update("embedding", { status: "fail", detail: e?.message || "Network error" });
@@ -289,7 +311,11 @@ export function EntryHealthPanel({
               });
               saveEnrichmentFlag({ concepts_count: freshConcepts.length, has_related: hasRel });
             } else {
-              update("concepts", { status: "fail", note: "No concepts extracted", detail: "AI returned none" });
+              update("concepts", {
+                status: "fail",
+                note: "No concepts extracted",
+                detail: "AI returned none",
+              });
               update("related", { status: "fail", note: "Depends on concepts" });
             }
           } catch (e: any) {
@@ -338,10 +364,7 @@ export function EntryHealthPanel({
           <StatusDot status={item.status} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span
-                className="text-xs font-semibold"
-                style={{ color: "var(--color-on-surface)" }}
-              >
+              <span className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
                 {item.label}
               </span>
               {item.readOnly && (
@@ -359,9 +382,7 @@ export function EntryHealthPanel({
             <p
               className="text-[10px] leading-tight"
               style={{
-                color: item.detail
-                  ? "var(--color-error)"
-                  : "var(--color-on-surface-variant)",
+                color: item.detail ? "var(--color-error)" : "var(--color-on-surface-variant)",
               }}
             >
               {item.detail || item.note}
@@ -378,13 +399,12 @@ export function EntryHealthPanel({
             className="w-full rounded-xl py-2.5 text-xs font-semibold transition-all disabled:opacity-50"
             style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
-            {running ? "Enriching…" : `Fix ${fixable.length} missing item${fixable.length > 1 ? "s" : ""}`}
+            {running
+              ? "Enriching…"
+              : `Fix ${fixable.length} missing item${fixable.length > 1 ? "s" : ""}`}
           </button>
         ) : allDone || passCount === items.length ? (
-          <p
-            className="text-center text-[11px] font-semibold"
-            style={{ color: "rgb(22 163 74)" }}
-          >
+          <p className="text-center text-[11px] font-semibold" style={{ color: "rgb(22 163 74)" }}>
             ✓ Fully enriched
           </p>
         ) : null}

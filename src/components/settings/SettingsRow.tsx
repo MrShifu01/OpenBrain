@@ -78,10 +78,7 @@ export function SettingsValue({ children }: { children: ReactNode }) {
 /** Secondary sans value — used for right-side plain text like "hanno@everion.app". */
 export function SettingsText({ children }: { children: ReactNode }) {
   return (
-    <span
-      className="f-sans"
-      style={{ fontSize: 14, color: "var(--ink)" }}
-    >
+    <span className="f-sans" style={{ fontSize: 14, color: "var(--ink)" }}>
       {children}
     </span>
   );

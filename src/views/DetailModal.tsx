@@ -1,20 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TC } from "../data/constants";
-import { resolveIcon } from "../lib/typeIcons";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
-import type { Entry, Brain, EntryType } from "../types";
-import { SKIP_META_KEYS } from "../lib/entryConstants";
-
-
-interface DetailLink {
-  from: string;
-  to: string;
-  rel?: string;
-  similarity?: number;
-}
+import type { Entry, Brain } from "../types";
 
 interface DetailModalProps {
   entry: Entry;
@@ -22,12 +11,9 @@ interface DetailModalProps {
   onDelete?: (id: string) => void | Promise<void>;
   onUpdate?: (id: string, changes: any) => Promise<void>;
   onReorder?: (entry: any) => void;
-  entries?: Entry[];
-  links?: DetailLink[];
   canWrite?: boolean;
   brains?: Brain[];
   vaultUnlocked?: boolean;
-  typeIcons?: Record<string, string>;
   onTypeIconChange?: (type: string, icon: string) => void;
 }
 
@@ -37,12 +23,9 @@ export default function DetailModal({
   onDelete,
   onUpdate,
   onReorder,
-  entries = [],
-  links = [],
   canWrite = true,
   brains = [],
   vaultUnlocked = false,
-  typeIcons = {},
   onTypeIconChange,
 }: DetailModalProps) {
   const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,7 +46,7 @@ export default function DetailModal({
   const [editTitle, setEditTitle] = useState(entry.title);
   const [editContent, setEditContent] = useState(entry.content ?? "");
   const [editType, setEditType] = useState<string>(entry.type);
-  const [editTags, setEditTags] = useState((entry.tags || []).join(", "));
+  const [editTags] = useState((entry.tags || []).join(", "));
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
@@ -123,7 +106,6 @@ No explanation, no punctuation, just one word.`,
     setAiTyping(false);
   }
 
-
   const {
     saving,
     editExtraBrainIds: _editExtraBrainIds,
@@ -169,14 +151,13 @@ No explanation, no punctuation, just one word.`,
     const meta = (entry.metadata || {}) as Record<string, string>;
     const content = entry.content ?? "";
 
-    const phone = meta.phone
-      || (content.match(/(?:phone|tel|cell|mobile)[:\s]+([+\d][\d\s().+-]{6,})/i)?.[1]?.trim())
-      || (content.match(/(\+\d[\d\s().+-]{6,})/)?.[1]?.trim())
-      || "";
+    const phone =
+      meta.phone ||
+      content.match(/(?:phone|tel|cell|mobile)[:\s]+([+\d][\d\s().+-]{6,})/i)?.[1]?.trim() ||
+      content.match(/(\+\d[\d\s().+-]{6,})/)?.[1]?.trim() ||
+      "";
 
-    const email = meta.email
-      || (content.match(/[\w.+-]+@[\w-]+\.\w+/)?.[0])
-      || "";
+    const email = meta.email || content.match(/[\w.+-]+@[\w-]+\.\w+/)?.[0] || "";
 
     const lines = [
       "BEGIN:VCARD",
@@ -187,7 +168,9 @@ No explanation, no punctuation, just one word.`,
       email ? `EMAIL:${email}` : "",
       content ? `NOTE:${content.replace(/\n/g, "\\n")}` : "",
       "END:VCARD",
-    ].filter(Boolean).join("\r\n");
+    ]
+      .filter(Boolean)
+      .join("\r\n");
 
     const blob = new Blob([lines], { type: "text/vcard" });
     const url = URL.createObjectURL(blob);
@@ -197,12 +180,12 @@ No explanation, no punctuation, just one word.`,
     a.click();
     URL.revokeObjectURL(url);
   }
-  const _cfg = { ...(TC[editType as EntryType] || TC.note), i: resolveIcon(editType, typeIcons) };
-const [showFullContent, setShowFullContent] = useState(false);
+  const [showFullContent, setShowFullContent] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
   const CONTENT_PREVIEW_LIMIT = 300;
-  const _meta = Object.entries(entry.metadata || {}).filter(([k]) => !SKIP_META_KEYS.has(k));
-  const _confidence = (entry.metadata?.confidence || {}) as Record<string, string>;
+  // Freeze "now" at mount so the relative-time display doesn't recompute
+  // impurely on every render (React Compiler rule) — modal is ephemeral anyway.
+  const [mountedAt] = useState(() => Date.now());
 
   useEffect(() => {
     return () => {
@@ -279,9 +262,13 @@ const [showFullContent, setShowFullContent] = useState(false);
           <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-faint)" }}>
             {/* Small line-art bell/reminder glyph (uses entry type) */}
             <svg
-              width="15" height="15"
-              fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round"
+              width="15"
+              height="15"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               viewBox="0 0 24 24"
               aria-hidden="true"
               style={{ flexShrink: 0 }}
@@ -337,15 +324,12 @@ const [showFullContent, setShowFullContent] = useState(false);
               margin: "0 2px",
             }}
           />
-          <span
-            className="f-sans"
-            style={{ fontSize: 13, color: "var(--ink-faint)" }}
-          >
+          <span className="f-sans" style={{ fontSize: 13, color: "var(--ink-faint)" }}>
             {(() => {
               const iso = (entry as any).created_at || (entry as any).createdAt;
               if (!iso) return "";
               const then = new Date(iso).getTime();
-              const diff = Date.now() - then;
+              const diff = mountedAt - then;
               const m = Math.round(diff / 60000);
               if (m < 1) return "just now";
               if (m < 60) return `${m}m ago`;
@@ -365,7 +349,12 @@ const [showFullContent, setShowFullContent] = useState(false);
           {!canWrite && (
             <span
               className="f-serif"
-              style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", marginRight: 4 }}
+              style={{
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                marginRight: 4,
+              }}
             >
               view only
             </span>
@@ -378,14 +367,21 @@ const [showFullContent, setShowFullContent] = useState(false);
               className="design-btn-ghost press"
               onClick={() => onUpdate(entry.id, { pinned: !isPinned })}
               style={{
-                width: 32, height: 32, minHeight: 32, padding: 0,
+                width: 32,
+                height: 32,
+                minHeight: 32,
+                padding: 0,
                 color: isPinned ? "var(--ember)" : "var(--ink-faint)",
               }}
             >
               <svg
-                width="16" height="16"
-                fill="none" stroke="currentColor" strokeWidth="1.5"
-                strokeLinecap="round" strokeLinejoin="round"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
@@ -399,7 +395,10 @@ const [showFullContent, setShowFullContent] = useState(false);
             aria-label={isSecret ? "Vault entry" : "Move to vault"}
             className="design-btn-ghost press"
             style={{
-              width: 32, height: 32, minHeight: 32, padding: 0,
+              width: 32,
+              height: 32,
+              minHeight: 32,
+              padding: 0,
               color: isSecret ? "var(--ember)" : "var(--ink-faint)",
             }}
             onClick={() => {
@@ -407,9 +406,13 @@ const [showFullContent, setShowFullContent] = useState(false);
             }}
           >
             <svg
-              width="16" height="16"
-              fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round"
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
@@ -424,12 +427,22 @@ const [showFullContent, setShowFullContent] = useState(false);
               aria-label="Edit"
               className="design-btn-ghost press"
               onClick={() => setEditing(true)}
-              style={{ width: 32, height: 32, minHeight: 32, padding: 0, color: "var(--ink-faint)" }}
+              style={{
+                width: 32,
+                height: 32,
+                minHeight: 32,
+                padding: 0,
+                color: "var(--ink-faint)",
+              }}
             >
               <svg
-                width="16" height="16"
-                fill="none" stroke="currentColor" strokeWidth="1.5"
-                strokeLinecap="round" strokeLinejoin="round"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
@@ -447,13 +460,17 @@ const [showFullContent, setShowFullContent] = useState(false);
             style={{ width: 32, height: 32, minHeight: 32, padding: 0, color: "var(--ink-faint)" }}
           >
             <svg
-              width="14" height="14"
-              fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               viewBox="0 0 24 24"
               aria-hidden="true"
             >
-              <path d="M6 6l12 12M18 6L6 18"/>
+              <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>
         </div>
@@ -688,9 +705,13 @@ const [showFullContent, setShowFullContent] = useState(false);
                     }}
                   >
                     <svg
-                      width="24" height="24"
-                      fill="none" stroke="currentColor" strokeWidth="1.5"
-                      strokeLinecap="round" strokeLinejoin="round"
+                      width="24"
+                      height="24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       viewBox="0 0 24 24"
                       style={{ color: "var(--ember)" }}
                       aria-hidden="true"
@@ -761,11 +782,7 @@ const [showFullContent, setShowFullContent] = useState(false);
                   {(entry.tags || []).length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {(entry.tags || []).map((t) => (
-                        <span
-                          key={t}
-                          className="design-chip f-sans"
-                          style={{ fontSize: 13 }}
-                        >
+                        <span key={t} className="design-chip f-sans" style={{ fontSize: 13 }}>
                           #{t}
                         </span>
                       ))}
@@ -811,34 +828,44 @@ const [showFullContent, setShowFullContent] = useState(false);
           )}
 
           {/* Full Content drawer — shown when full_text, raw_content, or attachment_text is stored */}
-          {!editing && (typeof entry.metadata?.full_text === "string" || typeof entry.metadata?.raw_content === "string" || typeof entry.metadata?.attachment_text === "string") && (
-            <div className="pt-1">
-              <button
-                onClick={() => setShowFullContent((s) => !s)}
-                className="flex w-full items-center justify-between py-1"
-              >
-                <span
-                  className="text-[10px] font-semibold tracking-widest uppercase"
-                  style={{ color: "var(--color-on-surface-variant)" }}
+          {!editing &&
+            (typeof entry.metadata?.full_text === "string" ||
+              typeof entry.metadata?.raw_content === "string" ||
+              typeof entry.metadata?.attachment_text === "string") && (
+              <div className="pt-1">
+                <button
+                  onClick={() => setShowFullContent((s) => !s)}
+                  className="flex w-full items-center justify-between py-1"
                 >
-                  Full Content
-                </span>
-                <span className="text-[10px]" style={{ color: "var(--color-on-surface-variant)" }}>
-                  {showFullContent ? "▲" : "▼"}
-                </span>
-              </button>
-              {showFullContent && (
-                <div
-                  className="mt-2 rounded-xl p-3"
-                  style={{ background: "var(--color-surface-container)" }}
-                >
-                  <p className="text-on-surface/80 whitespace-pre-wrap text-xs leading-relaxed">
-                    {String(entry.metadata.full_text ?? entry.metadata.raw_content ?? entry.metadata.attachment_text)}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                  <span
+                    className="text-[10px] font-semibold tracking-widest uppercase"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    Full Content
+                  </span>
+                  <span
+                    className="text-[10px]"
+                    style={{ color: "var(--color-on-surface-variant)" }}
+                  >
+                    {showFullContent ? "▲" : "▼"}
+                  </span>
+                </button>
+                {showFullContent && (
+                  <div
+                    className="mt-2 rounded-xl p-3"
+                    style={{ background: "var(--color-surface-container)" }}
+                  >
+                    <p className="text-on-surface/80 text-xs leading-relaxed whitespace-pre-wrap">
+                      {String(
+                        entry.metadata.full_text ??
+                          entry.metadata.raw_content ??
+                          entry.metadata.attachment_text,
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Quick Actions */}
           {!editing && (
@@ -853,7 +880,6 @@ const [showFullContent, setShowFullContent] = useState(false);
               onShareMsg={setShareMsg}
             />
           )}
-
         </div>
         {/* end scrollable body */}
 
@@ -891,9 +917,13 @@ const [showFullContent, setShowFullContent] = useState(false);
                 }}
               >
                 <svg
-                  width="12" height="12"
-                  fill="none" stroke="currentColor" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   viewBox="0 0 24 24"
                   aria-hidden="true"
                 >
@@ -918,7 +948,11 @@ const [showFullContent, setShowFullContent] = useState(false);
                   minHeight: 30,
                   borderRadius: 6,
                   background: "transparent",
-                  color: ignoreMsg?.ok ? "var(--moss)" : ignoreMsg ? "var(--blood)" : "var(--ink-soft)",
+                  color: ignoreMsg?.ok
+                    ? "var(--moss)"
+                    : ignoreMsg
+                      ? "var(--blood)"
+                      : "var(--ink-soft)",
                   border: "1px solid transparent",
                   fontSize: 12,
                   fontWeight: 500,
@@ -927,7 +961,11 @@ const [showFullContent, setShowFullContent] = useState(false);
                   opacity: ignoringEmail ? 0.6 : 1,
                 }}
               >
-                {ignoringEmail ? "Adding rule…" : ignoreMsg ? ignoreMsg.text : "Ignore future emails like this"}
+                {ignoringEmail
+                  ? "Adding rule…"
+                  : ignoreMsg
+                    ? ignoreMsg.text
+                    : "Ignore future emails like this"}
               </button>
             )}
             {!isContact && !isGmailEntry && <span />}
@@ -963,9 +1001,13 @@ const [showFullContent, setShowFullContent] = useState(false);
                 disabled={deleting}
               >
                 <svg
-                  width="12" height="12"
-                  fill="none" stroke="currentColor" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                   viewBox="0 0 24 24"
                   aria-hidden="true"
                 >

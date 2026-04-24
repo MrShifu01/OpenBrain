@@ -14,13 +14,48 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-  { id: "invoices",             label: "Invoices & bills",                      hint: "payment requests, amounts due, billing statements",         priority: "high" },
-  { id: "action-required",      label: "Action-required emails",                hint: "approve, sign, respond, submit by a deadline",              priority: "high" },
-  { id: "subscription-renewal", label: "Subscription renewals & trial endings", hint: "renewal notices, trial expiry, subscription changes",        priority: "high" },
-  { id: "appointment",          label: "Booking & appointment confirmations",    hint: "travel, medical, restaurant, events, services",             priority: "high" },
-  { id: "deadline",             label: "Deadlines mentioned in emails",          hint: "any cutoff date or time-sensitive request",                 priority: "high" },
-  { id: "delivery",             label: "Delivery & collection notices",          hint: "package tracking, ready-for-collection alerts",             priority: "medium" },
-  { id: "signing-requests",     label: "Contract & document signing",            hint: "DocuSign, HelloSign, Adobe Sign, e-signature requests",     priority: "medium" },
+  {
+    id: "invoices",
+    label: "Invoices & bills",
+    hint: "payment requests, amounts due, billing statements",
+    priority: "high",
+  },
+  {
+    id: "action-required",
+    label: "Action-required emails",
+    hint: "approve, sign, respond, submit by a deadline",
+    priority: "high",
+  },
+  {
+    id: "subscription-renewal",
+    label: "Subscription renewals & trial endings",
+    hint: "renewal notices, trial expiry, subscription changes",
+    priority: "high",
+  },
+  {
+    id: "appointment",
+    label: "Booking & appointment confirmations",
+    hint: "travel, medical, restaurant, events, services",
+    priority: "high",
+  },
+  {
+    id: "deadline",
+    label: "Deadlines mentioned in emails",
+    hint: "any cutoff date or time-sensitive request",
+    priority: "high",
+  },
+  {
+    id: "delivery",
+    label: "Delivery & collection notices",
+    hint: "package tracking, ready-for-collection alerts",
+    priority: "medium",
+  },
+  {
+    id: "signing-requests",
+    label: "Contract & document signing",
+    hint: "DocuSign, HelloSign, Adobe Sign, e-signature requests",
+    priority: "medium",
+  },
 ];
 
 const DEFAULT_CATEGORIES = CATEGORIES.filter((c) => c.priority === "high").map((c) => c.id);
@@ -33,7 +68,13 @@ interface Props {
   onSave?: (preferences: GmailPreferences) => Promise<void>;
 }
 
-export default function GmailSetupModal({ mode, initialPreferences, onClose, onConnect, onSave }: Props) {
+export default function GmailSetupModal({
+  mode,
+  initialPreferences,
+  onClose,
+  onConnect,
+  onSave,
+}: Props) {
   const [selected, setSelected] = useState<string[]>(
     initialPreferences?.categories ?? DEFAULT_CATEGORIES,
   );
@@ -44,7 +85,7 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
   const [saving, setSaving] = useState(false);
 
   function toggle(id: string) {
-    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   async function handleSubmit() {
@@ -66,7 +107,9 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center"
       style={{ background: "rgba(0,0,0,0.45)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         role="dialog"
@@ -83,7 +126,9 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
           padding: "28px 28px 24px",
           boxSizing: "border-box",
         }}
-        onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
       >
         {/* Header */}
         <div style={{ marginBottom: 20 }}>
@@ -91,14 +136,26 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
             <GmailIcon />
             <h3
               className="f-serif"
-              style={{ margin: 0, fontSize: 20, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.01em" }}
+              style={{
+                margin: 0,
+                fontSize: 20,
+                fontWeight: 450,
+                color: "var(--ink)",
+                letterSpacing: "-0.01em",
+              }}
             >
               {mode === "connect" ? "Connect Gmail" : "Email preferences"}
             </h3>
           </div>
           <p
             className="f-serif"
-            style={{ margin: 0, fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", lineHeight: 1.5 }}
+            style={{
+              margin: 0,
+              fontSize: 14,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+              lineHeight: 1.5,
+            }}
           >
             {mode === "connect"
               ? "Choose which types of emails Everion should flag for you."
@@ -110,12 +167,24 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
         <div style={{ marginBottom: 8 }}>
           <div
             className="f-sans"
-            style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-faint)", marginBottom: 10 }}
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--ink-faint)",
+              marginBottom: 10,
+            }}
           >
             Recommended
           </div>
           {highCats.map((cat) => (
-            <CategoryRow key={cat.id} cat={cat} checked={selected.includes(cat.id)} onToggle={toggle} />
+            <CategoryRow
+              key={cat.id}
+              cat={cat}
+              checked={selected.includes(cat.id)}
+              onToggle={toggle}
+            />
           ))}
         </div>
 
@@ -123,12 +192,25 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
         <div style={{ marginBottom: 20 }}>
           <div
             className="f-sans"
-            style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--ink-faint)", marginBottom: 10, marginTop: 16 }}
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "var(--ink-faint)",
+              marginBottom: 10,
+              marginTop: 16,
+            }}
           >
             Optional
           </div>
           {midCats.map((cat) => (
-            <CategoryRow key={cat.id} cat={cat} checked={selected.includes(cat.id)} onToggle={toggle} />
+            <CategoryRow
+              key={cat.id}
+              cat={cat}
+              checked={selected.includes(cat.id)}
+              onToggle={toggle}
+            />
           ))}
         </div>
 
@@ -137,7 +219,13 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
           <label
             htmlFor="gmail-custom"
             className="f-sans"
-            style={{ display: "block", fontSize: 13, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 6 }}
+            style={{
+              display: "block",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "var(--ink-soft)",
+              marginBottom: 6,
+            }}
           >
             Other — describe anything else to look for
           </label>
@@ -202,9 +290,15 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
           </div>
           <p
             className="f-serif"
-            style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic" }}
+            style={{
+              margin: "6px 0 0",
+              fontSize: 12,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+            }}
           >
-            How far back to search when you tap "Scan now". The daily cron always scans since the last run.
+            How far back to search when you tap "Scan now". The daily cron always scans since the
+            last run.
           </p>
         </div>
 
@@ -252,10 +346,16 @@ export default function GmailSetupModal({ mode, initialPreferences, onClose, onC
         {mode === "connect" && (
           <p
             className="f-sans"
-            style={{ margin: "14px 0 0", fontSize: 12, color: "var(--ink-faint)", textAlign: "center", lineHeight: 1.5 }}
+            style={{
+              margin: "14px 0 0",
+              fontSize: 12,
+              color: "var(--ink-faint)",
+              textAlign: "center",
+              lineHeight: 1.5,
+            }}
           >
-            You'll be redirected to Google to grant read-only inbox access.
-            Everion never stores email content — only extracted summaries.
+            You'll be redirected to Google to grant read-only inbox access. Everion never stores
+            email content — only extracted summaries.
           </p>
         )}
       </div>
@@ -287,10 +387,16 @@ function CategoryRow({
         <Checkbox checked={checked} onChange={() => onToggle(cat.id)} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="f-serif" style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em" }}>
+        <div
+          className="f-serif"
+          style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em" }}
+        >
           {cat.label}
         </div>
-        <div className="f-serif" style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}>
+        <div
+          className="f-serif"
+          style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}
+        >
           {cat.hint}
         </div>
       </div>
@@ -329,7 +435,13 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
     >
       {checked && (
         <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-          <path d="M1 4.5L4 7.5L10 1" stroke="var(--ember-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <path
+            d="M1 4.5L4 7.5L10 1"
+            stroke="var(--ember-ink)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       )}
     </button>
@@ -339,8 +451,14 @@ function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => voi
 function GmailIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-      <path d="M2 6C2 4.9 2.9 4 4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6Z" fill="#EA4335" fillOpacity="0.15" stroke="#EA4335" strokeWidth="1.5"/>
-      <path d="M2 6L12 13L22 6" stroke="#EA4335" strokeWidth="1.5" strokeLinecap="round"/>
+      <path
+        d="M2 6C2 4.9 2.9 4 4 4H20C21.1 4 22 4.9 22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6Z"
+        fill="#EA4335"
+        fillOpacity="0.15"
+        stroke="#EA4335"
+        strokeWidth="1.5"
+      />
+      <path d="M2 6L12 13L22 6" stroke="#EA4335" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

@@ -69,10 +69,6 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
-function _toggleClasses(_on: boolean): string {
-  return "";
-}
-
 export default function NotificationSettings(): JSX.Element {
   const [permission, setPermission] = useState<string>(
     "Notification" in window ? Notification.permission : "unsupported",
@@ -331,7 +327,9 @@ export default function NotificationSettings(): JSX.Element {
                   onChange={(e) => savePref({ nudge_time: e.target.value })}
                 />
               </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}>
+              <label
+                style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}
+              >
                 <span className="micro">timezone</span>
                 <input
                   type="text"

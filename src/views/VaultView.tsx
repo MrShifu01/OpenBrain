@@ -95,10 +95,7 @@ export default function VaultView({
       >
         <div className="space-y-2 text-center">
           <div className="text-4xl">🔐</div>
-          <h2
-            className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "var(--f-sans)" }}
-          >
+          <h2 className="text-on-surface text-xl font-bold" style={{ fontFamily: "var(--f-sans)" }}>
             Set up your Vault
           </h2>
           <p
@@ -186,10 +183,7 @@ export default function VaultView({
       >
         <div className="space-y-2 text-center">
           <div className="text-4xl">🗝</div>
-          <h2
-            className="text-on-surface text-xl font-bold"
-            style={{ fontFamily: "var(--f-sans)" }}
-          >
+          <h2 className="text-on-surface text-xl font-bold" style={{ fontFamily: "var(--f-sans)" }}>
             Your Recovery Key
           </h2>
           <p
@@ -262,7 +256,14 @@ export default function VaultView({
   // ── Locked: passphrase entry ──
   if (status === "locked") {
     return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--bg)",
+        }}
+      >
         <header
           className="vault-topbar"
           style={{
@@ -340,9 +341,13 @@ export default function VaultView({
               }}
             >
               <svg
-                width="26" height="26"
-                fill="none" stroke="currentColor" strokeWidth="1.5"
-                strokeLinecap="round" strokeLinejoin="round"
+                width="26"
+                height="26"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
                 viewBox="0 0 24 24"
                 style={{ color: "var(--ember)" }}
               >
@@ -466,9 +471,13 @@ export default function VaultView({
             }}
           >
             <svg
-              width="26" height="26"
-              fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round"
+              width="26"
+              height="26"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               viewBox="0 0 24 24"
               style={{ color: "var(--ember)" }}
             >
@@ -581,7 +590,10 @@ export default function VaultView({
           marginBottom: 20,
         }}
       >
-        <div className="vault-header-row" style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div
+          className="vault-header-row"
+          style={{ display: "flex", alignItems: "center", gap: 16 }}
+        >
           <div style={{ minWidth: 0, flex: 1 }}>
             <h1
               className="f-serif"
@@ -660,9 +672,6 @@ export default function VaultView({
         <div className="space-y-3">
           {decryptedSecrets.map((e) => {
             const revealed = revealedIds.has(e.id);
-            const _meta = Object.entries(e.metadata || {}).filter(
-              ([k]) => k !== "category" && k !== "status",
-            );
             return (
               <div
                 key={e.id}
@@ -803,7 +812,7 @@ export default function VaultView({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md overflow-hidden rounded-t-2xl sm:rounded-2xl border"
+            className="w-full max-w-md overflow-hidden rounded-t-2xl border sm:rounded-2xl"
             style={{
               background: "var(--color-surface-container-low)",
               borderColor: "var(--color-outline-variant)",
@@ -813,7 +822,10 @@ export default function VaultView({
               maxHeight: "calc(100dvh - 12px)",
             }}
           >
-            <div className="border-b p-4" style={{ borderColor: "var(--color-outline-variant)", flexShrink: 0 }}>
+            <div
+              className="border-b p-4"
+              style={{ borderColor: "var(--color-outline-variant)", flexShrink: 0 }}
+            >
               <div className="flex items-center justify-between">
                 <h3 className="text-on-surface text-base font-bold">➕ Add Secret</h3>
                 <button
@@ -831,7 +843,13 @@ export default function VaultView({
 
             <div
               className="space-y-3 p-4"
-              style={{ overflowY: "auto", WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" } as React.CSSProperties}
+              style={
+                {
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                  overscrollBehavior: "contain",
+                } as React.CSSProperties
+              }
             >
               <div className="space-y-1">
                 <label
@@ -958,7 +976,11 @@ export default function VaultView({
 
             <div
               className="flex items-center gap-2 border-t p-3"
-              style={{ borderColor: "var(--color-outline-variant)", flexShrink: 0, paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}
+              style={{
+                borderColor: "var(--color-outline-variant)",
+                flexShrink: 0,
+                paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+              }}
             >
               <button
                 onClick={() => !addBusy && setShowAddSecret(false)}

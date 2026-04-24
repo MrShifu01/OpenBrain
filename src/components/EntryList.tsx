@@ -148,7 +148,11 @@ const EntryCard = memo(function EntryCard({
         >
           {onPin && (
             <button
-              onClick={(ev) => { ev.stopPropagation(); onPin(e); setSwipeX(0); }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onPin(e);
+                setSwipeX(0);
+              }}
               style={{
                 flex: 1,
                 display: "flex",
@@ -166,7 +170,16 @@ const EntryCard = memo(function EntryCard({
                 letterSpacing: "0.04em",
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
                 <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
               </svg>
               {isPinned ? "Unpin" : "Pin"}
@@ -174,7 +187,10 @@ const EntryCard = memo(function EntryCard({
           )}
           {onDelete && (
             <button
-              onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onDelete(e);
+              }}
               style={{
                 flex: 1,
                 display: "flex",
@@ -192,7 +208,16 @@ const EntryCard = memo(function EntryCard({
                 letterSpacing: "0.04em",
               }}
             >
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <svg
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
                 <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
               </svg>
               Delete
@@ -205,11 +230,17 @@ const EntryCard = memo(function EntryCard({
       <article
         tabIndex={0}
         onClick={() => {
-          if (isOpen) { setSwipeX(0); return; }
+          if (isOpen) {
+            setSwipeX(0);
+            return;
+          }
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }}
         onKeyDown={(ev) => {
-          if (ev.key === "Escape") { setSwipeX(0); return; }
+          if (ev.key === "Escape") {
+            setSwipeX(0);
+            return;
+          }
           if (ev.key === "Enter" || ev.key === " ") {
             ev.preventDefault();
             selectMode ? onToggleSelect?.(e.id) : onSelect(e);
@@ -228,7 +259,9 @@ const EntryCard = memo(function EntryCard({
           flex: 1,
           background: selected ? "var(--ember-wash)" : "var(--surface)",
           transform: `translateX(${swipeX}px)`,
-          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
+          transition: dragging
+            ? "none"
+            : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
           touchAction: dragging ? "none" : "pan-y",
           willChange: dragging ? "transform" : "auto",
         }}
@@ -251,7 +284,14 @@ const EntryCard = memo(function EntryCard({
             }}
           >
             {selected && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ember-ink)" strokeWidth="2">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--ember-ink)"
+                strokeWidth="2"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12l4 4 10-10" />
               </svg>
             )}
@@ -270,7 +310,9 @@ const EntryCard = memo(function EntryCard({
             fontSize: 12,
           }}
         >
-          <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">{emoji}</span>
+          <span style={{ fontSize: 13, lineHeight: 1 }} aria-hidden="true">
+            {emoji}
+          </span>
           <span
             style={{
               fontSize: 11,
@@ -351,7 +393,10 @@ const EntryCard = memo(function EntryCard({
           >
             {onPin && (
               <button
-                onClick={(ev) => { ev.stopPropagation(); onPin(e); }}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onPin(e);
+                }}
                 aria-label={isPinned ? "Unpin" : "Pin"}
                 className="design-btn-ghost press"
                 style={{ fontSize: 12, height: 28, minHeight: 28, padding: "0 8px" }}
@@ -362,7 +407,10 @@ const EntryCard = memo(function EntryCard({
             )}
             {onDelete && (
               <button
-                onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onDelete(e);
+                }}
                 aria-label="Delete"
                 className="entry-card__delete press"
                 style={{
@@ -383,7 +431,17 @@ const EntryCard = memo(function EntryCard({
                   fontWeight: 500,
                 }}
               >
-                <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
                 </svg>
                 Delete
@@ -482,7 +540,11 @@ const EntryRow = memo(function EntryRow({
         >
           {onPin && (
             <button
-              onClick={(ev) => { ev.stopPropagation(); onPin(e); setSwipeX(0); }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onPin(e);
+                setSwipeX(0);
+              }}
               style={{
                 flex: 1,
                 display: "flex",
@@ -500,7 +562,16 @@ const EntryRow = memo(function EntryRow({
                 letterSpacing: "0.04em",
               }}
             >
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
                 <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
               </svg>
               {isPinned ? "Unpin" : "Pin"}
@@ -508,7 +579,10 @@ const EntryRow = memo(function EntryRow({
           )}
           {onDelete && (
             <button
-              onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+              onClick={(ev) => {
+                ev.stopPropagation();
+                onDelete(e);
+              }}
               style={{
                 flex: 1,
                 display: "flex",
@@ -526,7 +600,16 @@ const EntryRow = memo(function EntryRow({
                 letterSpacing: "0.04em",
               }}
             >
-              <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <svg
+                width="15"
+                height="15"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
                 <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
               </svg>
               Delete
@@ -539,11 +622,17 @@ const EntryRow = memo(function EntryRow({
       <article
         tabIndex={0}
         onClick={() => {
-          if (isOpen) { setSwipeX(0); return; }
+          if (isOpen) {
+            setSwipeX(0);
+            return;
+          }
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }}
         onKeyDown={(ev) => {
-          if (ev.key === "Escape") { setSwipeX(0); return; }
+          if (ev.key === "Escape") {
+            setSwipeX(0);
+            return;
+          }
           if (ev.key === "Enter" || ev.key === " ") {
             ev.preventDefault();
             selectMode ? onToggleSelect?.(e.id) : onSelect(e);
@@ -564,7 +653,9 @@ const EntryRow = memo(function EntryRow({
           willChange: dragging ? "transform" : "auto",
         }}
       >
-        <span style={{ fontSize: 14, flexShrink: 0 }} aria-hidden="true">{emoji}</span>
+        <span style={{ fontSize: 14, flexShrink: 0 }} aria-hidden="true">
+          {emoji}
+        </span>
         <span
           className="f-sans"
           style={{
@@ -590,25 +681,51 @@ const EntryRow = memo(function EntryRow({
           <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             {onPin && (
               <button
-                onClick={(ev) => { ev.stopPropagation(); onPin(e); }}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onPin(e);
+                }}
                 aria-label={isPinned ? "Unpin" : "Pin"}
                 className="press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
+                  />
                 </svg>
               </button>
             )}
             {onDelete && (
               <button
-                onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+                onClick={(ev) => {
+                  ev.stopPropagation();
+                  onDelete(e);
+                }}
                 aria-label="Delete"
                 className="entry-card__delete press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
-                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                <svg
+                  className="h-3.5 w-3.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                  />
                 </svg>
               </button>
             )}
@@ -841,12 +958,7 @@ export function VirtualTimeline({
           </div>
           <div style={{ display: "grid", gap: 12 }}>
             {items.map((e) => (
-              <EntryCard
-                key={e.id}
-                entry={e}
-                onSelect={setSelected}
-                typeIcons={typeIcons}
-              />
+              <EntryCard key={e.id} entry={e} onSelect={setSelected} typeIcons={typeIcons} />
             ))}
           </div>
         </section>

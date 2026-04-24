@@ -7,7 +7,7 @@ import tsParser from '@typescript-eslint/parser'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'api', 'supabase/functions/**']),
+  globalIgnores(['dist', 'api', 'supabase/functions/**', 'scripts/mock-prompt-audit/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

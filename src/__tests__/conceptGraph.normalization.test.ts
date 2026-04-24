@@ -72,12 +72,16 @@ describe("normalize — punctuation and case", () => {
 describe("mergeGraph — concept deduplication", () => {
   const base: ConceptGraph = {
     version: 2,
-    concepts: [{ id: "smiths practice", label: "Smith's Practice", source_entries: ["e1"], frequency: 1 }],
+    concepts: [
+      { id: "smiths practice", label: "Smith's Practice", source_entries: ["e1"], frequency: 1 },
+    ],
     relationships: [],
   };
   const incoming: ConceptGraph = {
     version: 2,
-    concepts: [{ id: "smiths practice", label: "Smiths Practice", source_entries: ["e2"], frequency: 1 }],
+    concepts: [
+      { id: "smiths practice", label: "Smiths Practice", source_entries: ["e2"], frequency: 1 },
+    ],
     relationships: [],
   };
 

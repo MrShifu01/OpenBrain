@@ -20,7 +20,9 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   if (_sessionCache && Date.now() < _sessionCache.expiresAt) {
     token = _sessionCache.token;
   } else {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (session?.access_token) {
       _sessionCache = { token: session.access_token, expiresAt: Date.now() + TTL_MS };
       token = session.access_token;

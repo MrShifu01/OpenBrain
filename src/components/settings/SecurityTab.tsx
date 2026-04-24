@@ -2,7 +2,14 @@ import { useState } from "react";
 import { getStoredPinHash, verifyPin, setupPin, clearStoredPin } from "../../lib/pin";
 import SettingsRow from "./SettingsRow";
 
-type Mode = "idle" | "create-new" | "create-confirm" | "change-verify" | "change-new" | "change-confirm" | "busy";
+type Mode =
+  | "idle"
+  | "create-new"
+  | "create-confirm"
+  | "change-verify"
+  | "change-new"
+  | "change-confirm"
+  | "busy";
 
 export default function SecurityTab() {
   const [mode, setMode] = useState<Mode>("idle");
@@ -17,29 +24,63 @@ export default function SecurityTab() {
     setPin("");
     setSavedPin("");
     setError("");
-    if (msg) { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); }
+    if (msg) {
+      setSuccess(msg);
+      setTimeout(() => setSuccess(""), 3000);
+    }
   }
 
   async function handleSubmit() {
     if (mode === "create-new") {
-      if (pin.length !== 4) { setError("Must be 4 digits"); return; }
-      setSavedPin(pin); setPin(""); setError(""); setMode("create-confirm");
+      if (pin.length !== 4) {
+        setError("Must be 4 digits");
+        return;
+      }
+      setSavedPin(pin);
+      setPin("");
+      setError("");
+      setMode("create-confirm");
     } else if (mode === "create-confirm") {
-      if (pin !== savedPin) { setPin(""); setError("PINs don't match"); return; }
+      if (pin !== savedPin) {
+        setPin("");
+        setError("PINs don't match");
+        return;
+      }
       setMode("busy");
       await setupPin(savedPin);
       reset("PIN set successfully");
     } else if (mode === "change-verify") {
-      if (pin.length !== 4) { setError("Must be 4 digits"); return; }
+      if (pin.length !== 4) {
+        setError("Must be 4 digits");
+        return;
+      }
       setMode("busy");
       const ok = await verifyPin(pin);
-      if (!ok) { setPin(""); setError("Wrong PIN"); setMode("change-verify"); return; }
-      setSavedPin(""); setPin(""); setError(""); setMode("change-new");
+      if (!ok) {
+        setPin("");
+        setError("Wrong PIN");
+        setMode("change-verify");
+        return;
+      }
+      setSavedPin("");
+      setPin("");
+      setError("");
+      setMode("change-new");
     } else if (mode === "change-new") {
-      if (pin.length !== 4) { setError("Must be 4 digits"); return; }
-      setSavedPin(pin); setPin(""); setError(""); setMode("change-confirm");
+      if (pin.length !== 4) {
+        setError("Must be 4 digits");
+        return;
+      }
+      setSavedPin(pin);
+      setPin("");
+      setError("");
+      setMode("change-confirm");
     } else if (mode === "change-confirm") {
-      if (pin !== savedPin) { setPin(""); setError("PINs don't match"); return; }
+      if (pin !== savedPin) {
+        setPin("");
+        setError("PINs don't match");
+        return;
+      }
       setMode("busy");
       await setupPin(savedPin);
       reset("PIN changed successfully");
@@ -72,24 +113,50 @@ export default function SecurityTab() {
     <div className="space-y-4">
       <SettingsRow
         label="Vault PIN"
-        hint={hasPin ? "A 4-digit PIN protects your vault secrets." : "No PIN set. Add one to protect your vault."}
+        hint={
+          hasPin
+            ? "A 4-digit PIN protects your vault secrets."
+            : "No PIN set. Add one to protect your vault."
+        }
       >
         {!hasPin && mode === "idle" && (
-          <button onClick={() => { setMode("create-new"); setError(""); }} style={primBtn}>
+          <button
+            onClick={() => {
+              setMode("create-new");
+              setError("");
+            }}
+            style={primBtn}
+          >
             Set PIN
           </button>
         )}
         {hasPin && mode === "idle" && (
           <div className="flex gap-2">
-            <button onClick={() => { setMode("change-verify"); setError(""); }} style={secBtn}>Change</button>
-            <button onClick={handleRemove} style={dangerBtn}>Remove</button>
+            <button
+              onClick={() => {
+                setMode("change-verify");
+                setError("");
+              }}
+              style={secBtn}
+            >
+              Change
+            </button>
+            <button onClick={handleRemove} style={dangerBtn}>
+              Remove
+            </button>
           </div>
         )}
       </SettingsRow>
 
       {isForm && (
-        <div className="rounded-2xl border p-4 space-y-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
-          <p className="text-sm font-medium" style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}>
+        <div
+          className="space-y-3 rounded-2xl border p-4"
+          style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
+        >
+          <p
+            className="text-sm font-medium"
+            style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}
+          >
             {titles[mode]}
           </p>
           <input
@@ -98,8 +165,14 @@ export default function SecurityTab() {
             maxLength={4}
             autoFocus
             value={pin}
-            onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }}
-            onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); if (e.key === "Escape") reset(); }}
+            onChange={(e) => {
+              setPin(e.target.value.replace(/\D/g, "").slice(0, 4));
+              setError("");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSubmit();
+              if (e.key === "Escape") reset();
+            }}
             placeholder="• • • •"
             style={{
               width: "100%",
@@ -116,34 +189,62 @@ export default function SecurityTab() {
               outline: "none",
             }}
           />
-          {error && <p className="text-xs text-center" style={{ color: "var(--blood)" }}>{error}</p>}
+          {error && (
+            <p className="text-center text-xs" style={{ color: "var(--blood)" }}>
+              {error}
+            </p>
+          )}
           <div className="flex gap-2">
-            <button onClick={() => reset()} style={secBtn}>Cancel</button>
-            <button onClick={handleSubmit} style={primBtn}>{btnLabels[mode]}</button>
+            <button onClick={() => reset()} style={secBtn}>
+              Cancel
+            </button>
+            <button onClick={handleSubmit} style={primBtn}>
+              {btnLabels[mode]}
+            </button>
           </div>
         </div>
       )}
 
       {mode === "busy" && (
-        <p className="text-sm text-center" style={{ color: "var(--ink-faint)" }}>Saving…</p>
+        <p className="text-center text-sm" style={{ color: "var(--ink-faint)" }}>
+          Saving…
+        </p>
       )}
 
       {success && (
-        <p className="text-sm text-center" style={{ color: "var(--moss)" }}>{success}</p>
+        <p className="text-center text-sm" style={{ color: "var(--moss)" }}>
+          {success}
+        </p>
       )}
     </div>
   );
 }
 
 const primBtn: React.CSSProperties = {
-  cursor: "pointer", borderRadius: 8, border: "none", padding: "7px 16px",
-  fontSize: 13, fontWeight: 700, background: "var(--ember)", color: "var(--ember-ink)",
+  cursor: "pointer",
+  borderRadius: 8,
+  border: "none",
+  padding: "7px 16px",
+  fontSize: 13,
+  fontWeight: 700,
+  background: "var(--ember)",
+  color: "var(--ember-ink)",
 };
 const secBtn: React.CSSProperties = {
-  cursor: "pointer", borderRadius: 8, border: "1px solid var(--line-soft)", padding: "7px 16px",
-  fontSize: 13, background: "var(--surface)", color: "var(--ink-soft)",
+  cursor: "pointer",
+  borderRadius: 8,
+  border: "1px solid var(--line-soft)",
+  padding: "7px 16px",
+  fontSize: 13,
+  background: "var(--surface)",
+  color: "var(--ink-soft)",
 };
 const dangerBtn: React.CSSProperties = {
-  cursor: "pointer", borderRadius: 8, border: "1px solid var(--blood)", padding: "7px 16px",
-  fontSize: 13, background: "transparent", color: "var(--blood)",
+  cursor: "pointer",
+  borderRadius: 8,
+  border: "1px solid var(--blood)",
+  padding: "7px 16px",
+  fontSize: 13,
+  background: "transparent",
+  color: "var(--blood)",
 };

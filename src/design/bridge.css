@@ -4,7 +4,9 @@
    Any component still using var(--color-surface), var(--primary), etc. is restyled automatically.
 */
 
-html.family-dusk, html.family-paper, html.family-bronze {
+html.family-dusk,
+html.family-paper,
+html.family-bronze {
   /* Tailwind 4 @theme tokens the existing components consume */
   --color-background: var(--bg);
   --color-surface: var(--surface);
@@ -119,7 +121,9 @@ html.family-bronze .nav-item {
   color: var(--ink-soft);
   font-weight: 500;
   padding: 10px 14px;
-  transition: background 180ms ease, color 180ms ease;
+  transition:
+    background 180ms ease,
+    color 180ms ease;
 }
 html.family-dusk .nav-item:hover,
 html.family-paper .nav-item:hover,
@@ -232,24 +236,43 @@ html.family-bronze body {
 }
 
 /* Bottom nav — mobile only, hidden at lg (1024px+) */
-.bottom-nav-mobile { display: flex; }
+.bottom-nav-mobile {
+  display: flex;
+}
 @media (min-width: 1024px) {
-  .bottom-nav-mobile { display: none !important; }
+  .bottom-nav-mobile {
+    display: none !important;
+  }
 }
 
 /* Chat view — responsive header & padding */
-.chat-topbar { padding: 18px 32px; min-height: 72px; }
-.chat-topbar-search { display: flex; }
+.chat-topbar {
+  padding: 18px 32px;
+  min-height: 72px;
+}
+.chat-topbar-search {
+  display: flex;
+}
 @media (max-width: 1024px) {
-  .chat-topbar { padding: 14px 20px; min-height: 56px; }
-  .chat-topbar-search { display: none !important; }
+  .chat-topbar {
+    padding: 14px 20px;
+    min-height: 56px;
+  }
+  .chat-topbar-search {
+    display: none !important;
+  }
   /* Push composer above fixed bottom nav (68px) on mobile */
-  .chat-composer { padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important; }
+  .chat-composer {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom, 0px)) !important;
+  }
 }
 
 /* Memory filter row — compact padding on mobile */
 @media (max-width: 1024px) {
-  .memory-filter-row { padding: 10px 16px !important; gap: 8px !important; }
+  .memory-filter-row {
+    padding: 10px 16px !important;
+    gap: 8px !important;
+  }
 }
 
 /* Capture sheet — bottom sheet on mobile, centered card on desktop.

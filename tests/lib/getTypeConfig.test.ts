@@ -36,7 +36,7 @@ describe("getTypeConfig", () => {
   });
 
   it("never returns null or undefined for any input", () => {
-    const types = ["restaurant", "vehicle", "subscription", "unknown", "", "xyz"];
+    const types = ["restaurant", "vehicle", "unknown", "", "xyz"];
     for (const type of types) {
       const result = getTypeConfig(type);
       expect(result).toBeDefined();
@@ -47,11 +47,11 @@ describe("getTypeConfig", () => {
   it("returns fallback icon 🏷️ for unknown types", () => {
     expect(getTypeConfig("restaurant").i).toBe("🏷️");
     expect(getTypeConfig("vehicle").i).toBe("🏷️");
-    expect(getTypeConfig("subscription").i).toBe("🏷️");
+    expect(getTypeConfig("unknown-xyz").i).toBe("🏷️");
   });
 
   it("unknown type colour is from the fixed palette", () => {
-    const unknownTypes = ["restaurant", "vehicle", "subscription", "company", "project"];
+    const unknownTypes = ["restaurant", "vehicle", "company", "project"];
     for (const type of unknownTypes) {
       const result = getTypeConfig(type);
       expect(TYPE_COLOURS).toContain(result.c);

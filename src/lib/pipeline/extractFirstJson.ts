@@ -5,7 +5,9 @@ export function extractFirstJson(raw: string): unknown | null {
   if (fullMatch) {
     try {
       return JSON.parse(fullMatch[0]);
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
 
   const start = stripped.indexOf("{");
@@ -16,7 +18,11 @@ export function extractFirstJson(raw: string): unknown | null {
     else if (stripped[i] === "}") {
       depth--;
       if (depth === 0) {
-        try { return JSON.parse(stripped.slice(start, i + 1)); } catch { return null; }
+        try {
+          return JSON.parse(stripped.slice(start, i + 1));
+        } catch {
+          return null;
+        }
       }
     }
   }

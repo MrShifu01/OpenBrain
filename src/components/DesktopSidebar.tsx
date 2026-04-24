@@ -8,8 +8,19 @@ interface NavView {
 }
 
 const SEARCH_ICON = (
-  <svg aria-hidden="true" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <circle cx="11" cy="11" r="6.5"/><path d="m20 20-3.5-3.5"/>
+  <svg
+    aria-hidden="true"
+    width="13"
+    height="13"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+  >
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-3.5-3.5" />
   </svg>
 );
 
@@ -41,18 +52,49 @@ const NAV_ICONS: Record<string, ReactNode> = {
 };
 
 const SUN_ICON = (
-  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>
+  <svg
+    aria-hidden="true"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+  >
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
   </svg>
 );
 const MOON_ICON = (
-  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z"/>
+  <svg
+    aria-hidden="true"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+  >
+    <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" />
   </svg>
 );
 const PLUME_ICON = (
-  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-    <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4"/>
+  <svg
+    aria-hidden="true"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+  >
+    <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4" />
   </svg>
 );
 
@@ -73,7 +115,11 @@ export default function DesktopSidebar({
 }: DesktopSidebarProps) {
   const isOffline = !isOnline;
   const isSyncing = isOnline && pendingCount > 0;
-  const statusDotColor = isOffline ? "var(--ink-faint)" : isSyncing ? "var(--ember)" : "var(--moss)";
+  const statusDotColor = isOffline
+    ? "var(--ink-faint)"
+    : isSyncing
+      ? "var(--ember)"
+      : "var(--moss)";
   const statusText = isOffline ? "offline" : isSyncing ? `${pendingCount} pending` : null;
 
   return (
@@ -91,17 +137,26 @@ export default function DesktopSidebar({
         onClick={() => onNavigate("memory")}
         className="press"
         style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "0 10px 16px", cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "0 10px 16px",
+          cursor: "pointer",
         }}
       >
-        <span className="f-serif" style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}>
+        <span
+          className="f-serif"
+          style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}
+        >
           Everion
         </span>
         <span
           aria-hidden="true"
           style={{
-            width: 5, height: 5, borderRadius: "50%", background: "var(--ember)",
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            background: "var(--ember)",
             animation: "design-breathe 3.5s ease-in-out infinite",
             ["--b-low" as string]: "0.5",
             ["--b-high" as string]: "1",
@@ -114,7 +169,9 @@ export default function DesktopSidebar({
         style={{
           marginBottom: 12,
           padding: "8px 10px",
-          display: "flex", alignItems: "center", gap: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
           background: "var(--surface)",
           border: "1px solid var(--line-soft)",
           borderRadius: 8,
@@ -122,42 +179,61 @@ export default function DesktopSidebar({
       >
         <span
           style={{
-            width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+            width: 6,
+            height: 6,
+            borderRadius: "50%",
+            flexShrink: 0,
             background: statusDotColor,
           }}
         />
         <span
           className="f-serif"
-          style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{
+            fontSize: 14,
+            fontStyle: "italic",
+            color: "var(--ink)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
           title={activeBrainName}
         >
           {activeBrainName || "Your brain"}
         </span>
       </div>
       {statusText && (
-        <div className="micro" style={{ padding: "0 10px 10px", color: isOffline ? "var(--ink-faint)" : "var(--ember)" }}>
+        <div
+          className="micro"
+          style={{ padding: "0 10px 10px", color: isOffline ? "var(--ink-faint)" : "var(--ember)" }}
+        >
           {statusText}
         </div>
       )}
 
       {/* Brain switcher slot */}
-      {children && (
-        <div style={{ marginBottom: 12, padding: "0 2px" }}>{children}</div>
-      )}
+      {children && <div style={{ marginBottom: 12, padding: "0 2px" }}>{children}</div>}
 
       {/* Capture CTA — pill with plume, ember reserved for this primary */}
       <button
         onClick={onCapture}
         className="press"
         style={{
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          padding: "0 14px", height: 40, minHeight: 40,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          padding: "0 14px",
+          height: 40,
+          minHeight: 40,
           marginBottom: 18,
           borderRadius: 8,
           background: "var(--ember)",
           color: "var(--ember-ink)",
-          fontFamily: "var(--f-sans)", fontWeight: 500, fontSize: 14,
-          border: "none", cursor: "pointer",
+          fontFamily: "var(--f-sans)",
+          fontWeight: 500,
+          fontSize: 14,
+          border: "none",
+          cursor: "pointer",
           letterSpacing: "-0.005em",
         }}
       >
@@ -168,8 +244,11 @@ export default function DesktopSidebar({
       {/* Search */}
       <div
         style={{
-          display: "flex", alignItems: "center", gap: 8,
-          padding: "0 8px 0 12px", height: 36,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "0 8px 0 12px",
+          height: 36,
           marginBottom: 14,
           background: "var(--surface)",
           border: "1px solid var(--line-soft)",
@@ -183,9 +262,13 @@ export default function DesktopSidebar({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search everything…"
           style={{
-            flex: 1, minWidth: 0,
-            background: "transparent", border: "none", outline: "none",
-            fontFamily: "var(--f-sans)", fontSize: 13,
+            flex: 1,
+            minWidth: 0,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            fontFamily: "var(--f-sans)",
+            fontSize: 13,
             color: "var(--ink)",
           }}
         />
@@ -193,8 +276,12 @@ export default function DesktopSidebar({
           <button
             onClick={() => onSearchChange("")}
             style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "var(--ink-faint)", padding: 0, lineHeight: 1,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--ink-faint)",
+              padding: 0,
+              lineHeight: 1,
               fontSize: 16,
             }}
             aria-label="Clear search"
@@ -206,7 +293,14 @@ export default function DesktopSidebar({
 
       {/* Navigation */}
       <nav
-        style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto", overflowX: "hidden" }}
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          overflowY: "auto",
+          overflowX: "hidden",
+        }}
         aria-label="Primary navigation"
       >
         {navViews.map((item) => {
@@ -220,14 +314,22 @@ export default function DesktopSidebar({
               className="press"
               style={{
                 position: "relative",
-                display: "flex", alignItems: "center", gap: 12,
-                width: "100%", padding: "0 14px",
-                minHeight: 40, height: 40,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                width: "100%",
+                padding: "0 14px",
+                minHeight: 40,
+                height: 40,
                 borderRadius: 6,
-                fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+                fontFamily: "var(--f-sans)",
+                fontSize: 14,
+                fontWeight: 500,
                 color: isActive ? "var(--ink)" : "var(--ink-soft)",
                 background: isActive ? "var(--surface)" : "transparent",
-                border: "none", cursor: "pointer", textAlign: "left",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "left",
                 transition: "background 180ms, color 180ms",
               }}
               onMouseEnter={(e) => {
@@ -247,12 +349,23 @@ export default function DesktopSidebar({
                 <span
                   aria-hidden="true"
                   style={{
-                    position: "absolute", left: -4, top: 8, bottom: 8,
-                    width: 2, background: "var(--ember)", borderRadius: 2,
+                    position: "absolute",
+                    left: -4,
+                    top: 8,
+                    bottom: 8,
+                    width: 2,
+                    background: "var(--ember)",
+                    borderRadius: 2,
                   }}
                 />
               )}
-              <span style={{ display: "flex", alignItems: "center", color: isActive ? "var(--ink)" : "var(--ink-faint)" }}>
+              <span
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  color: isActive ? "var(--ink)" : "var(--ink-faint)",
+                }}
+              >
                 {icon}
               </span>
               <span style={{ flex: 1 }}>{item.l}</span>
@@ -266,20 +379,31 @@ export default function DesktopSidebar({
         style={{
           paddingTop: 12,
           borderTop: "1px solid var(--line-soft)",
-          display: "flex", flexDirection: "column", gap: 2,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
         }}
       >
         <button
           onClick={() => onNavigate("settings")}
           className="press"
           style={{
-            display: "flex", alignItems: "center", gap: 12,
-            width: "100%", padding: "0 14px", minHeight: 40, height: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            padding: "0 14px",
+            minHeight: 40,
+            height: 40,
             borderRadius: 6,
-            fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+            fontFamily: "var(--f-sans)",
+            fontSize: 14,
+            fontWeight: 500,
             color: view === "settings" ? "var(--ink)" : "var(--ink-soft)",
             background: view === "settings" ? "var(--surface)" : "transparent",
-            border: "none", cursor: "pointer", textAlign: "left",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
           }}
         >
           <span style={{ display: "flex", alignItems: "center", color: "var(--ink-faint)" }}>
@@ -293,13 +417,22 @@ export default function DesktopSidebar({
           className="press"
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
           style={{
-            display: "flex", alignItems: "center", gap: 12,
-            width: "100%", padding: "0 14px", minHeight: 40, height: 40,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            padding: "0 14px",
+            minHeight: 40,
+            height: 40,
             borderRadius: 6,
-            fontFamily: "var(--f-sans)", fontSize: 14, fontWeight: 500,
+            fontFamily: "var(--f-sans)",
+            fontSize: 14,
+            fontWeight: 500,
             color: "var(--ink-soft)",
             background: "transparent",
-            border: "none", cursor: "pointer", textAlign: "left",
+            border: "none",
+            cursor: "pointer",
+            textAlign: "left",
           }}
         >
           <span style={{ display: "flex", alignItems: "center", color: "var(--ink-faint)" }}>

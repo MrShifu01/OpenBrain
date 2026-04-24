@@ -147,10 +147,7 @@ describe("search handler", () => {
     const res = makeRes();
     await handler(req as any, res as any);
 
-    expect(generateEmbedding).toHaveBeenCalledWith(
-      "burger recipe",
-      "test-gemini-key",
-    );
+    expect(generateEmbedding).toHaveBeenCalledWith("burger recipe", "test-gemini-key");
     expect(mockFetch).toHaveBeenCalled();
     const fetchUrl = mockFetch.mock.calls[0][0] as string;
     expect(fetchUrl).toContain("match_entries");

@@ -40,17 +40,31 @@ export function ConnectionsPanel({
     return (
       <div className="space-y-4 pt-1">
         <div>
-          <div className="mb-2 h-2.5 w-16 animate-pulse rounded-full" style={{ background: "var(--color-outline-variant)" }} />
+          <div
+            className="mb-2 h-2.5 w-16 animate-pulse rounded-full"
+            style={{ background: "var(--color-outline-variant)" }}
+          />
           <div className="flex flex-wrap gap-1.5">
             {[48, 64, 40].map((w) => (
-              <div key={w} className="h-5 animate-pulse rounded-full" style={{ width: w, background: "var(--color-outline-variant)" }} />
+              <div
+                key={w}
+                className="h-5 animate-pulse rounded-full"
+                style={{ width: w, background: "var(--color-outline-variant)" }}
+              />
             ))}
           </div>
         </div>
         <div>
-          <div className="mb-2 h-2.5 w-24 animate-pulse rounded-full" style={{ background: "var(--color-outline-variant)" }} />
+          <div
+            className="mb-2 h-2.5 w-24 animate-pulse rounded-full"
+            style={{ background: "var(--color-outline-variant)" }}
+          />
           {[1, 2].map((i) => (
-            <div key={i} className="mb-1.5 h-8 animate-pulse rounded-lg" style={{ background: "var(--color-outline-variant)" }} />
+            <div
+              key={i}
+              className="mb-1.5 h-8 animate-pulse rounded-lg"
+              style={{ background: "var(--color-outline-variant)" }}
+            />
           ))}
         </div>
       </div>

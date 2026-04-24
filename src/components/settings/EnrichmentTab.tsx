@@ -1,7 +1,23 @@
-interface GapDetail { id: string; title: string; gaps: string[] }
-interface EnrichError { step: string; message: string }
-interface EnrichLogEntry { ts: number; level: "info" | "error"; message: string }
-interface EnrichingEntry { idx: number; total: number; title: string; phase: string }
+interface GapDetail {
+  id: string;
+  title: string;
+  gaps: string[];
+}
+interface EnrichError {
+  step: string;
+  message: string;
+}
+interface EnrichLogEntry {
+  ts: number;
+  level: "info" | "error";
+  message: string;
+}
+interface EnrichingEntry {
+  idx: number;
+  total: number;
+  title: string;
+  phase: string;
+}
 
 interface EnrichmentTabProps {
   unenrichedDetails: GapDetail[];
@@ -15,10 +31,10 @@ interface EnrichmentTabProps {
 }
 
 const GAP_META: { key: string; label: string; description: string }[] = [
-  { key: "embedding",  label: "Embedding",   description: "Vector embedding for semantic search" },
-  { key: "concepts",   label: "Concepts",     description: "Knowledge graph connections" },
-  { key: "parsed",     label: "AI Parsing",   description: "Structured metadata extracted by AI" },
-  { key: "insight",    label: "Insight",      description: "AI-generated insight summary" },
+  { key: "embedding", label: "Embedding", description: "Vector embedding for semantic search" },
+  { key: "concepts", label: "Concepts", description: "Knowledge graph connections" },
+  { key: "parsed", label: "AI Parsing", description: "Structured metadata extracted by AI" },
+  { key: "insight", label: "Insight", description: "AI-generated insight summary" },
 ];
 
 function fmtTime(ts: number): string {
@@ -40,10 +56,7 @@ export default function EnrichmentTab({
   const allDone = total === 0 && !enriching;
 
   const gapCounts = Object.fromEntries(
-    GAP_META.map(({ key }) => [
-      key,
-      unenrichedDetails.filter((d) => d.gaps.includes(key)).length,
-    ]),
+    GAP_META.map(({ key }) => [key, unenrichedDetails.filter((d) => d.gaps.includes(key)).length]),
   );
 
   const progressPct = enrichProgress
@@ -52,11 +65,14 @@ export default function EnrichmentTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
       {/* Status card */}
       <div
         className="rounded-2xl border"
-        style={{ background: "var(--surface)", borderColor: "var(--line-soft)", overflow: "hidden" }}
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--line-soft)",
+          overflow: "hidden",
+        }}
       >
         {/* Header row */}
         <div
@@ -71,15 +87,14 @@ export default function EnrichmentTab({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div
               style={{
-                width: 8, height: 8, borderRadius: "50%",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
                 background: allDone ? "var(--moss)" : "var(--ember)",
                 flexShrink: 0,
               }}
             />
-            <span
-              className="f-sans"
-              style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}
-            >
+            <span className="f-sans" style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
               {allDone
                 ? "All entries fully enriched"
                 : `${total} entr${total === 1 ? "y" : "ies"} need enrichment`}
@@ -96,7 +111,8 @@ export default function EnrichmentTab({
                 padding: "2px 10px",
               }}
             >
-              {unenrichedDetails.length} / {unenrichedDetails.length + (enrichProgress?.done ?? 0)} remaining
+              {unenrichedDetails.length} / {unenrichedDetails.length + (enrichProgress?.done ?? 0)}{" "}
+              remaining
             </span>
           )}
         </div>
@@ -118,15 +134,24 @@ export default function EnrichmentTab({
                 >
                   <div
                     style={{
-                      width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      flexShrink: 0,
                       background: count > 0 ? "var(--ember)" : "var(--moss)",
                     }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}>
+                    <span
+                      className="f-sans"
+                      style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}
+                    >
                       {label}
                     </span>
-                    <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 6 }}>
+                    <span
+                      className="f-sans"
+                      style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 6 }}
+                    >
                       {description}
                     </span>
                   </div>
@@ -152,8 +177,18 @@ export default function EnrichmentTab({
       {/* Progress bar — shown while enriching, replaces the button */}
       {enriching && enrichProgress && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            <span className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-soft)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+            }}
+          >
+            <span
+              className="f-sans"
+              style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-soft)" }}
+            >
               Enriching…
             </span>
             <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-ghost)" }}>
@@ -205,7 +240,8 @@ export default function EnrichmentTab({
 
       {allDone && (
         <p className="f-sans" style={{ fontSize: 13, color: "var(--ink-ghost)" }}>
-          New entries are enriched automatically in the background. Come back here if you ever see gaps.
+          New entries are enriched automatically in the background. Come back here if you ever see
+          gaps.
         </p>
       )}
 
@@ -232,7 +268,13 @@ export default function EnrichmentTab({
           >
             <span
               className="f-sans"
-              style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-ghost)" }}
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--ink-ghost)",
+              }}
             >
               Admin · Enrichment Debug
             </span>
@@ -240,9 +282,14 @@ export default function EnrichmentTab({
               <span
                 className="f-sans"
                 style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
-                  color: "var(--blood)", background: "var(--blood-wash)",
-                  borderRadius: 999, padding: "2px 8px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--blood)",
+                  background: "var(--blood-wash)",
+                  borderRadius: 999,
+                  padding: "2px 8px",
                 }}
               >
                 {enrichErrors.length} error{enrichErrors.length !== 1 ? "s" : ""}
@@ -264,16 +311,25 @@ export default function EnrichmentTab({
               {/* Pulsing dot */}
               <div
                 style={{
-                  width: 7, height: 7, borderRadius: "50%",
-                  background: "var(--ember)", flexShrink: 0,
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "var(--ember)",
+                  flexShrink: 0,
                   animation: "pulse 1.2s ease-in-out infinite",
                 }}
               />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-soft)" }}>
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-soft)" }}
+                >
                   {enrichCurrentEntry.title}
                 </span>
-                <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}>
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}
+                >
                   {enrichCurrentEntry.idx}/{enrichCurrentEntry.total} · {enrichCurrentEntry.phase}
                 </span>
               </div>
@@ -282,10 +338,21 @@ export default function EnrichmentTab({
 
           {/* Error list */}
           {enrichErrors.length > 0 && (
-            <div style={{ padding: "10px 14px", borderBottom: enrichLog.length > 0 ? "1px solid var(--line-soft)" : "none" }}>
+            <div
+              style={{
+                padding: "10px 14px",
+                borderBottom: enrichLog.length > 0 ? "1px solid var(--line-soft)" : "none",
+              }}
+            >
               {enrichErrors.map(({ id, title, errors }) => (
-                <div key={id} style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
-                  <span className="f-sans" style={{ fontSize: 12, fontWeight: 600, color: "var(--blood)" }}>
+                <div
+                  key={id}
+                  style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}
+                >
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 12, fontWeight: 600, color: "var(--blood)" }}
+                  >
                     {title}
                   </span>
                   {errors.map((e, i) => (
@@ -293,16 +360,27 @@ export default function EnrichmentTab({
                       <span
                         className="f-sans"
                         style={{
-                          fontSize: 10, fontWeight: 700, color: "var(--blood)",
-                          background: "var(--blood-wash)", borderRadius: 3,
-                          padding: "1px 5px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.06em",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: "var(--blood)",
+                          background: "var(--blood-wash)",
+                          borderRadius: 3,
+                          padding: "1px 5px",
+                          flexShrink: 0,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
                         }}
                       >
                         {e.step}
                       </span>
                       <span
                         className="f-sans"
-                        style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-mono)", wordBreak: "break-all" }}
+                        style={{
+                          fontSize: 11,
+                          color: "var(--ink-faint)",
+                          fontFamily: "var(--f-mono)",
+                          wordBreak: "break-all",
+                        }}
                       >
                         {e.message}
                       </span>
@@ -334,14 +412,23 @@ export default function EnrichmentTab({
                 >
                   <span
                     className="f-sans"
-                    style={{ fontSize: 10, color: "var(--ink-ghost)", fontFamily: "var(--f-mono)", flexShrink: 0, userSelect: "none" }}
+                    style={{
+                      fontSize: 10,
+                      color: "var(--ink-ghost)",
+                      fontFamily: "var(--f-mono)",
+                      flexShrink: 0,
+                      userSelect: "none",
+                    }}
                   >
                     {fmtTime(entry.ts)}
                   </span>
                   <span
                     className="f-sans"
                     style={{
-                      fontSize: 10, fontWeight: 700, flexShrink: 0, userSelect: "none",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      flexShrink: 0,
+                      userSelect: "none",
                       color: entry.level === "error" ? "var(--blood)" : "var(--ink-ghost)",
                     }}
                   >
@@ -363,7 +450,10 @@ export default function EnrichmentTab({
             </div>
           ) : (
             <div style={{ padding: "12px 14px" }}>
-              <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", fontFamily: "var(--f-mono)" }}>
+              <span
+                className="f-sans"
+                style={{ fontSize: 11, color: "var(--ink-ghost)", fontFamily: "var(--f-mono)" }}
+              >
                 {enriching ? "Running…" : "No log yet — run enrichment to see events here."}
               </span>
             </div>

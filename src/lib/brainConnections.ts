@@ -2,11 +2,7 @@ import { authFetch } from "./authFetch";
 import { entryRepo } from "./entryRepo";
 import { callAI } from "./ai";
 import { PROMPTS } from "../config/prompts";
-import {
-  extractConcepts,
-  extractRelationships,
-  loadGraphFromDB,
-} from "./conceptGraph";
+import { extractConcepts, extractRelationships, loadGraphFromDB } from "./conceptGraph";
 import { writeConceptsToGraph } from "./graphWriter";
 
 const ENTRY_CONCEPTS_PROMPT = PROMPTS.ENTRY_CONCEPTS;
@@ -33,8 +29,12 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
   try {
     const rawContent = (entry as any).metadata?.raw_content;
     const bodyText = rawContent
-      ? String(rawContent).replace(/[\r\n]+/g, " ").slice(0, 500)
-      : String(entry.content || "").replace(/[\r\n]+/g, " ").slice(0, 300);
+      ? String(rawContent)
+          .replace(/[\r\n]+/g, " ")
+          .slice(0, 500)
+      : String(entry.content || "")
+          .replace(/[\r\n]+/g, " ")
+          .slice(0, 300);
     const entryText = `id:${entry.id} type:${entry.type || "note"} title:${entry.title}\n${bodyText}`;
     const aiRes = await callAI({
       max_tokens: 1024,
@@ -62,19 +62,30 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
     } catch {
       // Truncated response — salvage complete objects from partial arrays
       const salvageArray = (key: string): any[] => {
-        const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"));
+        const m = text.match(
+          new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"),
+        );
         if (!m) return [];
         const items: any[] = [];
         const objRe = /\{[^{}]*\}/g;
         let om: RegExpExecArray | null;
         while ((om = objRe.exec(m[1])) !== null) {
-          try { items.push(JSON.parse(om[0])); } catch { /* skip */ }
+          try {
+            items.push(JSON.parse(om[0]));
+          } catch {
+            /* skip */
+          }
         }
         return items;
       };
       parsed = { concepts: salvageArray("concepts"), relationships: salvageArray("relationships") };
       if (parsed.concepts.length > 0) {
-        console.log("[concepts] salvaged", parsed.concepts.length, "concepts from truncated response for", entry.id);
+        console.log(
+          "[concepts] salvaged",
+          parsed.concepts.length,
+          "concepts from truncated response for",
+          entry.id,
+        );
       }
     }
 
@@ -98,10 +109,7 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
  * source entry — no separate entry row is created.
  * Returns the insight text so callers can update local state.
  */
-export async function generateEntryInsight(
-  entry: EntryRef,
-  brainId: string,
-): Promise<string> {
+export async function generateEntryInsight(entry: EntryRef, brainId: string): Promise<string> {
   const graph = await loadGraphFromDB(brainId);
   const topConcepts = graph.concepts
     .sort((a, b) => (b.frequency || 0) - (a.frequency || 0))
@@ -147,13 +155,19 @@ function parseConceptsChunk(text: string): { concepts: any[]; relationships: any
   } catch {
     // Truncated — salvage complete items from partial arrays
     const salvageArray = (key: string): any[] => {
-      const m = text.match(new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"));
+      const m = text.match(
+        new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"),
+      );
       if (!m) return [];
       const items: any[] = [];
       const objRe = /\{[^{}]*\}/g;
       let om: RegExpExecArray | null;
       while ((om = objRe.exec(m[1])) !== null) {
-        try { items.push(JSON.parse(om[0])); } catch { /* skip */ }
+        try {
+          items.push(JSON.parse(om[0]));
+        } catch {
+          /* skip */
+        }
       }
       return items;
     };
@@ -175,15 +189,16 @@ export async function buildBrainConnections(
   const status = onStatus ?? (() => {});
   status("Fetching entries…");
   try {
-    const res = await authFetch(
-      `/api/entries?brain_id=${encodeURIComponent(brainId)}&limit=150`,
-    );
+    const res = await authFetch(`/api/entries?brain_id=${encodeURIComponent(brainId)}&limit=150`);
     if (!res.ok) throw new Error("Could not fetch entries");
     const body = await res.json();
     const allEntries: any[] = Array.isArray(body) ? body : (body.entries ?? []);
     // Exclude insights from concept/connection building
     const entries = allEntries.filter((e) => e.type !== "insight");
-    if (entries.length === 0) { status("No entries found."); return; }
+    if (entries.length === 0) {
+      status("No entries found.");
+      return;
+    }
 
     // ── Phase 1: Concept graph — process in chunks of 20 ──
     const CHUNK = 20;
@@ -199,7 +214,12 @@ export async function buildBrainConnections(
       status(`Building concept graph — chunk ${chunkNum}/${totalChunks}…`);
 
       const summary = chunk
-        .map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").replace(/[\r\n]+/g, " ").slice(0, 150)}`)
+        .map(
+          (e) =>
+            `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "")
+              .replace(/[\r\n]+/g, " ")
+              .slice(0, 150)}`,
+        )
         .join("\n");
 
       const aiRes = await callAI({
@@ -208,7 +228,10 @@ export async function buildBrainConnections(
         brainId,
         messages: [{ role: "user", content: `Brain entries:\n\n${summary}` }],
       });
-      if (!aiRes.ok) { console.warn("[buildBrain] concept AI error", aiRes.status); continue; }
+      if (!aiRes.ok) {
+        console.warn("[buildBrain] concept AI error", aiRes.status);
+        continue;
+      }
       const raw = await aiRes.json();
       const text: string = raw?.content?.[0]?.text || raw?.text || "";
       const { concepts: newC, relationships: newR } = parseConceptsChunk(text);
@@ -233,7 +256,12 @@ export async function buildBrainConnections(
       status(`Building entry connections — chunk ${chunkNum}/${linkChunks}…`);
 
       const summary = chunk
-        .map((e) => `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "").replace(/[\r\n]+/g, " ").slice(0, 200)}`)
+        .map(
+          (e) =>
+            `[${e.id}] (${e.type}) ${e.title}: ${String(e.content || "")
+              .replace(/[\r\n]+/g, " ")
+              .slice(0, 200)}`,
+        )
         .join("\n");
 
       const aiRes = await callAI({
@@ -241,7 +269,10 @@ export async function buildBrainConnections(
         system: BATCH_LINKS_PROMPT,
         messages: [{ role: "user", content: summary }],
       });
-      if (!aiRes.ok) { console.warn("[buildBrain] links AI error", aiRes.status); continue; }
+      if (!aiRes.ok) {
+        console.warn("[buildBrain] links AI error", aiRes.status);
+        continue;
+      }
       const raw = await aiRes.json();
       const text: string = raw?.content?.[0]?.text || raw?.text || "";
       const match = text.match(/\[[\s\S]*\]/);
@@ -251,7 +282,12 @@ export async function buildBrainConnections(
         const links: Array<{ from: string; to: string; rel: string }> = JSON.parse(match[0]);
         if (!Array.isArray(links) || links.length === 0) continue;
         const valid = links.filter(
-          (l) => l.from && l.to && l.rel && typeof l.rel === "string" && /^[a-zA-Z0-9 _\-']{1,50}$/.test(l.rel),
+          (l) =>
+            l.from &&
+            l.to &&
+            l.rel &&
+            typeof l.rel === "string" &&
+            /^[a-zA-Z0-9 _\-']{1,50}$/.test(l.rel),
         );
         if (!valid.length) continue;
         await authFetch("/api/save-links", {
@@ -260,10 +296,14 @@ export async function buildBrainConnections(
           body: JSON.stringify({ links: valid, brain_id: brainId }),
         });
         totalLinks += valid.length;
-      } catch { /* skip bad chunk */ }
+      } catch {
+        /* skip bad chunk */
+      }
     }
 
-    status(`Done — ${totalConcepts} concepts, ${totalRels} concept relationships, ${totalLinks} entry connections saved.`);
+    status(
+      `Done — ${totalConcepts} concepts, ${totalRels} concept relationships, ${totalLinks} entry connections saved.`,
+    );
   } catch (e: any) {
     status(`Error: ${e.message}`);
   }
@@ -282,7 +322,10 @@ export async function findAndSaveConnections(
     const candidates = existingEntries
       .filter((e) => e.id !== newEntry.id)
       .slice(0, 30)
-      .map((e) => `[${e.id}] (${e.type || "note"}) ${e.title}: ${String(e.content || "").slice(0, 100)}`)
+      .map(
+        (e) =>
+          `[${e.id}] (${e.type || "note"}) ${e.title}: ${String(e.content || "").slice(0, 100)}`,
+      )
       .join("\n");
     if (!candidates) return;
 
@@ -300,7 +343,12 @@ export async function findAndSaveConnections(
     const links: Array<{ from: string; to: string; rel: string }> = JSON.parse(match[0]);
     if (!Array.isArray(links) || links.length === 0) return;
     const valid = links.filter(
-      (l) => l.from && l.to && l.rel && typeof l.rel === "string" && /^[a-zA-Z0-9 _\-']{1,50}$/.test(l.rel),
+      (l) =>
+        l.from &&
+        l.to &&
+        l.rel &&
+        typeof l.rel === "string" &&
+        /^[a-zA-Z0-9 _\-']{1,50}$/.test(l.rel),
     );
     if (!valid.length) return;
     await authFetch("/api/save-links", {
@@ -308,5 +356,7 @@ export async function findAndSaveConnections(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ links: valid, brain_id: brainId }),
     });
-  } catch { /* fire-and-forget, never throws */ }
+  } catch {
+    /* fire-and-forget, never throws */
+  }
 }

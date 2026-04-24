@@ -15,12 +15,12 @@ export const TC: Record<string, TypeConfig> = {
   todo: { i: "☑️", c: "var(--color-primary)" },
   secret: { i: "🔐", c: "var(--color-error)" },
   "gmail-flag": { i: "📧", c: "var(--color-primary)" },
-  "invoice": { i: "💰", c: "var(--color-primary)" },
+  invoice: { i: "💰", c: "var(--color-primary)" },
   "action-required": { i: "⚡", c: "var(--color-status-medium)" },
-  "subscription": { i: "🔄", c: "var(--color-primary)" },
-  "appointment": { i: "📅", c: "var(--color-secondary)" },
-  "deadline": { i: "⏰", c: "var(--color-status-medium)" },
-  "delivery": { i: "📦", c: "var(--color-secondary)" },
+  subscription: { i: "🔄", c: "var(--color-primary)" },
+  appointment: { i: "📅", c: "var(--color-secondary)" },
+  deadline: { i: "⏰", c: "var(--color-status-medium)" },
+  delivery: { i: "📦", c: "var(--color-secondary)" },
   "signing-request": { i: "✍️", c: "var(--color-primary)" },
 };
 export const PC: Record<Priority, PriorityConfig> = {

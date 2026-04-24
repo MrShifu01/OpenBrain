@@ -35,7 +35,14 @@ interface UseCaptureSheetParseOptions {
   cryptoKey?: CryptoKey | null;
   onCreated: (entry: Entry) => void;
   onClose: () => void;
-  onBackgroundSave?: (entry: { title: string; content: string; type: string; tags: string[]; metadata: Record<string, any>; rawContent?: string }) => void;
+  onBackgroundSave?: (entry: {
+    title: string;
+    content: string;
+    type: string;
+    tags: string[];
+    metadata: Record<string, any>;
+    rawContent?: string;
+  }) => void;
 }
 
 export function useCaptureSheetParse({
@@ -160,7 +167,9 @@ export function useCaptureSheetParse({
         const metaWithConfidence = {
           ...(parsed.metadata || {}),
           ...(parsed.confidence ? { confidence: parsed.confidence } : {}),
-          ...(rawContent && rawContent.length > 150 ? { raw_content: rawContent.slice(0, 8000) } : {}),
+          ...(rawContent && rawContent.length > 150
+            ? { raw_content: rawContent.slice(0, 8000) }
+            : {}),
         };
         const res = await authFetch("/api/capture", {
           method: "POST",
@@ -227,13 +236,16 @@ export function useCaptureSheetParse({
       setErrorDetail(null);
 
       if (!isOnline) {
-        await doSave({
-          title: input.slice(0, 60),
-          content: input,
-          type: "note",
-          tags: [],
-          metadata: {},
-        }, input);
+        await doSave(
+          {
+            title: input.slice(0, 60),
+            content: input,
+            type: "note",
+            tags: [],
+            metadata: {},
+          },
+          input,
+        );
         return;
       }
 
@@ -347,7 +359,14 @@ export function useCaptureSheetParse({
                   title: entry.title,
                   content: entry.content || "",
                   type: (entry.type || "note") as Entry["type"],
-                  metadata: { ...(entry.metadata || {}), enrichment: { embedded: !result.embed_error, concepts_count: 0, has_insight: false } },
+                  metadata: {
+                    ...(entry.metadata || {}),
+                    enrichment: {
+                      embedded: !result.embed_error,
+                      concepts_count: 0,
+                      has_insight: false,
+                    },
+                  },
                   pinned: false,
                   importance: 0,
                   tags: entry.tags || [],
@@ -406,33 +425,63 @@ export function useCaptureSheetParse({
   const confirmSave = useCallback(
     (onRestoreText?: (text: string) => void) => {
       if (!preview || !previewTitle.trim()) return;
-      const editedTags = previewTags.split(",").map((t) => t.trim()).filter(Boolean);
+      const editedTags = previewTags
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
       // Record what the user overrode vs what the AI originally suggested —
       // feeds learningEngine so future prompts adapt to this user's corrections.
       if (brainId) {
         const aiTitle = preview.title ?? "";
         const aiType = preview.type ?? "note";
-        const aiTagsNorm = [...(preview.tags ?? [])].map((t) => String(t).trim()).sort().join(",");
+        const aiTagsNorm = [...(preview.tags ?? [])]
+          .map((t) => String(t).trim())
+          .sort()
+          .join(",");
         const userTagsNorm = [...editedTags].sort().join(",");
 
         if (aiTitle && previewTitle.trim() !== aiTitle) {
-          recordDecision(brainId, { source: "capture", type: "TITLE_EDIT", action: "edit", field: "title", originalValue: aiTitle, finalValue: previewTitle.trim() });
+          recordDecision(brainId, {
+            source: "capture",
+            type: "TITLE_EDIT",
+            action: "edit",
+            field: "title",
+            originalValue: aiTitle,
+            finalValue: previewTitle.trim(),
+          });
         }
         if (previewType !== aiType) {
-          recordDecision(brainId, { source: "capture", type: "TYPE_MISMATCH", action: "edit", field: "type", originalValue: aiType, finalValue: previewType });
+          recordDecision(brainId, {
+            source: "capture",
+            type: "TYPE_MISMATCH",
+            action: "edit",
+            field: "type",
+            originalValue: aiType,
+            finalValue: previewType,
+          });
         }
         if (userTagsNorm !== aiTagsNorm) {
-          recordDecision(brainId, { source: "capture", type: "TAG_EDIT", action: "edit", field: "tags", originalValue: aiTagsNorm, finalValue: userTagsNorm });
+          recordDecision(brainId, {
+            source: "capture",
+            type: "TAG_EDIT",
+            action: "edit",
+            field: "tags",
+            originalValue: aiTagsNorm,
+            finalValue: userTagsNorm,
+          });
         }
       }
 
-      doSave({
-        ...preview,
-        title: previewTitle.trim(),
-        type: previewType,
-        tags: editedTags,
-      }, rawContentRef.current);
+      doSave(
+        {
+          ...preview,
+          title: previewTitle.trim(),
+          type: previewType,
+          tags: editedTags,
+        },
+        rawContentRef.current,
+      );
       void onRestoreText;
     },
     [preview, previewTitle, previewTags, previewType, doSave, brainId],

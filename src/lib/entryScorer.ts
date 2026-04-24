@@ -7,7 +7,10 @@ export interface EntryShape {
 }
 
 export function scoreEntryForQuery(entry: EntryShape, query: string): number {
-  const q = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+  const q = query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
   if (!q) return 0;
   const terms = q.split(/\s+/).filter(Boolean);
 
@@ -30,7 +33,10 @@ export function scoreEntryForQuery(entry: EntryShape, query: string): number {
 
   let titleHits = 0;
   for (const t of terms) {
-    if (title.includes(t)) { score += 20; titleHits++; }
+    if (title.includes(t)) {
+      score += 20;
+      titleHits++;
+    }
     if (tags.includes(t)) score += 15;
     if (type.includes(t)) score += 5;
     if (content.includes(t)) score += 3;

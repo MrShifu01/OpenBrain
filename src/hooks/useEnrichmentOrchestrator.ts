@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { RefObject } from "react";
-import { isFullyEnriched, getEnrichmentGaps, enrichEntry, type EnrichError } from "../lib/enrichEntry";
+import {
+  isFullyEnriched,
+  getEnrichmentGaps,
+  enrichEntry,
+  type EnrichError,
+} from "../lib/enrichEntry";
 import { loadGraphFromDB } from "../lib/conceptGraph";
 import type { Entry } from "../types";
 
@@ -18,10 +23,21 @@ export function useEnrichmentOrchestrator({
   onSilentUpdate,
 }: UseEnrichmentOrchestratorParams) {
   const [enriching, setEnriching] = useState(false);
-  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(null);
-  const [enrichErrors, setEnrichErrors] = useState<{ id: string; title: string; errors: EnrichError[] }[]>([]);
-  const [enrichCurrentEntry, setEnrichCurrentEntry] = useState<{ idx: number; total: number; title: string; phase: string } | null>(null);
-  const [enrichLog, setEnrichLog] = useState<{ ts: number; level: "info" | "error"; message: string }[]>([]);
+  const [enrichProgress, setEnrichProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
+  const [enrichErrors, setEnrichErrors] = useState<
+    { id: string; title: string; errors: EnrichError[] }[]
+  >([]);
+  const [enrichCurrentEntry, setEnrichCurrentEntry] = useState<{
+    idx: number;
+    total: number;
+    title: string;
+    phase: string;
+  } | null>(null);
+  const [enrichLog, setEnrichLog] = useState<
+    { ts: number; level: "info" | "error"; message: string }[]
+  >([]);
   const [conceptEntryIds, setConceptEntryIds] = useState<Set<string>>(new Set());
 
   const updateAdapter = useCallback(
@@ -40,7 +56,9 @@ export function useEnrichmentOrchestrator({
       const graph = await loadGraphFromDB(activeBrainId);
       const ids = new Set<string>(graph.concepts.flatMap((c) => c.source_entries ?? []));
       setConceptEntryIds(ids);
-    } catch {}
+    } catch (e) {
+      console.debug("[useEnrichmentOrchestrator] refreshConceptIds failed", e);
+    }
   }, [activeBrainId]);
 
   useEffect(() => {
@@ -48,7 +66,9 @@ export function useEnrichmentOrchestrator({
   }, [refreshConceptIds]);
 
   const enrichingRef = useRef(enriching);
-  useEffect(() => { enrichingRef.current = enriching; }, [enriching]);
+  useEffect(() => {
+    enrichingRef.current = enriching;
+  }, [enriching]);
 
   const autoEnrichBrainRef = useRef<string | null>(null);
 
@@ -74,7 +94,9 @@ export function useEnrichmentOrchestrator({
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [entriesLoaded, activeBrainId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const entries = entriesRef.current;
@@ -95,7 +117,9 @@ export function useEnrichmentOrchestrator({
   const runBulkEnrich = useCallback(async () => {
     if (!activeBrainId || enriching) return;
     const currentEntries = entriesRef.current;
-    const unenriched = currentEntries.filter((e) => !isFullyEnriched(e, currentEntries, conceptEntryIds));
+    const unenriched = currentEntries.filter(
+      (e) => !isFullyEnriched(e, currentEntries, conceptEntryIds),
+    );
     if (unenriched.length === 0) return;
     setEnriching(true);
     setEnrichErrors([]);
@@ -130,7 +154,15 @@ export function useEnrichmentOrchestrator({
       setEnrichProgress(null);
       setEnrichCurrentEntry(null);
     }
-  }, [activeBrainId, enriching, updateAdapter, conceptEntryIds, refreshConceptIds, appendLog, entriesRef]);
+  }, [
+    activeBrainId,
+    enriching,
+    updateAdapter,
+    conceptEntryIds,
+    refreshConceptIds,
+    appendLog,
+    entriesRef,
+  ]);
 
   return {
     enriching,

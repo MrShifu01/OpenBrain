@@ -32,7 +32,6 @@ export type ConfidenceLevel = "extracted" | "inferred";
 
 export type Workspace = "business" | "personal" | "both";
 
-
 interface EntryMetadata {
   phone?: string;
   email?: string;
@@ -124,4 +123,3 @@ export interface OfflineOp {
   created_at: string;
   tempId?: string;
 }
-

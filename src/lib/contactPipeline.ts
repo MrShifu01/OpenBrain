@@ -75,10 +75,12 @@ async function categorizeBatch(contacts: ParsedContact[]): Promise<AICategoryRes
   if (!res.ok) throw new Error(`AI categorization HTTP ${res.status}`);
 
   const data = await res.json();
-  const text: string =
-    data?.content?.[0]?.text ?? data?.choices?.[0]?.message?.content ?? "";
+  const text: string = data?.content?.[0]?.text ?? data?.choices?.[0]?.message?.content ?? "";
 
-  const match = text.replace(/```json|```/g, "").trim().match(/\[[\s\S]*\]/);
+  const match = text
+    .replace(/```json|```/g, "")
+    .trim()
+    .match(/\[[\s\S]*\]/);
   if (!match) throw new Error("No JSON array in categorization response");
 
   const parsed: AICategoryResult[] = JSON.parse(match[0]);
@@ -86,10 +88,7 @@ async function categorizeBatch(contacts: ParsedContact[]): Promise<AICategoryRes
 }
 
 function fallbackCategory(c: ParsedContact): AICategoryResult {
-  const haystack = [c.name, c.company, c.title, c.notes]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+  const haystack = [c.name, c.company, c.title, c.notes].filter(Boolean).join(" ").toLowerCase();
 
   const rules: [RegExp, ContactCategory][] = [
     [/\bplumb/i, "plumbing"],
@@ -103,7 +102,8 @@ function fallbackCategory(c: ParsedContact): AICategoryResult {
   ];
 
   for (const [re, cat] of rules) {
-    if (re.test(haystack)) return { category: cat, tags: ["home_service", "contractor"], confidence: 0.55 };
+    if (re.test(haystack))
+      return { category: cat, tags: ["home_service", "contractor"], confidence: 0.55 };
   }
   return { category: "unknown", tags: [], confidence: 0.1 };
 }

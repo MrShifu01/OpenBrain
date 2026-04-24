@@ -5,7 +5,7 @@ import LoadingScreen from "../../src/components/LoadingScreen";
 describe("LoadingScreen", () => {
   it("renders the Everion brand name", () => {
     render(<LoadingScreen />);
-    expect(screen.getByText("EverionMind")).toBeInTheDocument();
+    expect(screen.getByText("Everion Mind")).toBeInTheDocument();
   });
 
   it("renders the animated loading bar", () => {

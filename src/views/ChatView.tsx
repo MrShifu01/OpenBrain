@@ -19,13 +19,17 @@ function readSuggestionsCache(brainId: string | undefined): string[] | null {
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw);
     return Date.now() - ts < SUGGESTIONS_TTL ? data : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function writeSuggestionsCache(brainId: string | undefined, data: string[]) {
   try {
     localStorage.setItem(cacheKey(brainId), JSON.stringify({ data, ts: Date.now() }));
-  } catch {}
+  } catch (e) {
+    console.debug("[ChatView] suggestions cache write failed (quota or JSON)", e);
+  }
 }
 
 function derivePrompts(entries: Entry[]): string[] {
@@ -35,14 +39,14 @@ function derivePrompts(entries: Entry[]): string[] {
   const hasUpcoming = entries.some(
     (e) => e.metadata?.due_date || e.metadata?.event_date || e.metadata?.deadline,
   );
-  if (hasUpcoming)           out.push("what's coming up soon?");
+  if (hasUpcoming) out.push("what's coming up soon?");
   if (types.has("reminder")) out.push("what still needs doing?");
-  if (contacts.length > 0)   out.push(`what do i know about ${contacts[0].title.split(" ")[0]}?`);
-  if (types.has("idea"))     out.push("any unactioned ideas?");
-  if (types.has("link"))     out.push("what links have i saved?");
-  if (entries.length > 15)   out.push("find any duplicates to merge");
-  if (types.has("note"))     out.push("summarise my recent notes");
-  if (contacts.length > 1)   out.push("who should i follow up with?");
+  if (contacts.length > 0) out.push(`what do i know about ${contacts[0].title.split(" ")[0]}?`);
+  if (types.has("idea")) out.push("any unactioned ideas?");
+  if (types.has("link")) out.push("what links have i saved?");
+  if (entries.length > 15) out.push("find any duplicates to merge");
+  if (types.has("note")) out.push("summarise my recent notes");
+  if (contacts.length > 1) out.push("who should i follow up with?");
   return out.slice(0, 4);
 }
 
@@ -55,7 +59,6 @@ function useHasAIAccess() {
   }, []);
   return access;
 }
-
 
 const TOOL_LABELS: Record<string, string> = {
   retrieve_memory: "searched memory",
@@ -70,10 +73,29 @@ const TOOL_LABELS: Record<string, string> = {
 function ToolCallDebug({ tc }: { tc: NonNullable<ChatMessage["tool_calls"]>[number] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ border: "1px solid var(--line-soft)", borderRadius: 6, overflow: "hidden", fontFamily: "monospace" }}>
+    <div
+      style={{
+        border: "1px solid var(--line-soft)",
+        borderRadius: 6,
+        overflow: "hidden",
+        fontFamily: "monospace",
+      }}
+    >
       <button
         onClick={() => setOpen((o) => !o)}
-        style={{ width: "100%", textAlign: "left", padding: "5px 10px", background: "var(--surface-low)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--ink-soft)", fontSize: 11 }}
+        style={{
+          width: "100%",
+          textAlign: "left",
+          padding: "5px 10px",
+          background: "var(--surface-low)",
+          border: "none",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          color: "var(--ink-soft)",
+          fontSize: 11,
+        }}
       >
         <span style={{ color: "var(--ember)", fontWeight: 600, flexShrink: 0 }}>fn</span>
         <span style={{ fontWeight: 600 }}>{tc.tool}</span>
@@ -83,13 +105,55 @@ function ToolCallDebug({ tc }: { tc: NonNullable<ChatMessage["tool_calls"]>[numb
         <div style={{ borderTop: "1px solid var(--line-soft)", fontSize: 11 }}>
           {tc.args != null && (
             <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--line-soft)" }}>
-              <div style={{ color: "var(--ink-ghost)", marginBottom: 3, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>args</div>
-              <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--ink-soft)", maxHeight: 180, overflow: "auto" }}>{JSON.stringify(tc.args, null, 2)}</pre>
+              <div
+                style={{
+                  color: "var(--ink-ghost)",
+                  marginBottom: 3,
+                  fontSize: 10,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                }}
+              >
+                args
+              </div>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  color: "var(--ink-soft)",
+                  maxHeight: 180,
+                  overflow: "auto",
+                }}
+              >
+                {JSON.stringify(tc.args, null, 2)}
+              </pre>
             </div>
           )}
           <div style={{ padding: "6px 10px" }}>
-            <div style={{ color: "var(--ink-ghost)", marginBottom: 3, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.06em" }}>result</div>
-            <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all", color: "var(--ink-soft)", maxHeight: 180, overflow: "auto" }}>{JSON.stringify(tc.result, null, 2)}</pre>
+            <div
+              style={{
+                color: "var(--ink-ghost)",
+                marginBottom: 3,
+                fontSize: 10,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+              }}
+            >
+              result
+            </div>
+            <pre
+              style={{
+                margin: 0,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+                color: "var(--ink-soft)",
+                maxHeight: 180,
+                overflow: "auto",
+              }}
+            >
+              {JSON.stringify(tc.result, null, 2)}
+            </pre>
           </div>
         </div>
       )}
@@ -97,14 +161,32 @@ function ToolCallDebug({ tc }: { tc: NonNullable<ChatMessage["tool_calls"]>[numb
   );
 }
 
-function AdminDebugPanel({ debug, toolCalls }: { debug: DebugInfo; toolCalls?: ChatMessage["tool_calls"] }) {
+function AdminDebugPanel({
+  debug,
+  toolCalls,
+}: {
+  debug: DebugInfo;
+  toolCalls?: ChatMessage["tool_calls"];
+}) {
   const [open, setOpen] = useState(false);
   const hasTools = toolCalls && toolCalls.length > 0;
   return (
     <div style={{ marginTop: 10, borderTop: "1px dashed var(--line-soft)", paddingTop: 8 }}>
       <button
         onClick={() => setOpen((o) => !o)}
-        style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--ink-ghost)", fontFamily: "monospace", fontSize: 11, flexWrap: "wrap" }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: 0,
+          color: "var(--ink-ghost)",
+          fontFamily: "monospace",
+          fontSize: 11,
+          flexWrap: "wrap",
+        }}
       >
         <span style={{ color: "var(--ember)", opacity: 0.7, fontSize: 10 }}>⬡</span>
         <span>{debug.provider}</span>
@@ -113,19 +195,47 @@ function AdminDebugPanel({ debug, toolCalls }: { debug: DebugInfo; toolCalls?: C
         <span style={{ opacity: 0.4 }}>·</span>
         <span>{debug.latency_ms}ms</span>
         <span style={{ opacity: 0.4 }}>·</span>
-        <span>{debug.rounds} {debug.rounds === 1 ? "round" : "rounds"}</span>
-        {hasTools && <><span style={{ opacity: 0.4 }}>·</span><span>{toolCalls.length} tool{toolCalls.length !== 1 ? "s" : ""}</span></>}
-        {debug.error && <><span style={{ opacity: 0.4 }}>·</span><span style={{ color: "var(--blood)" }}>error</span></>}
+        <span>
+          {debug.rounds} {debug.rounds === 1 ? "round" : "rounds"}
+        </span>
+        {hasTools && (
+          <>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span>
+              {toolCalls.length} tool{toolCalls.length !== 1 ? "s" : ""}
+            </span>
+          </>
+        )}
+        {debug.error && (
+          <>
+            <span style={{ opacity: 0.4 }}>·</span>
+            <span style={{ color: "var(--blood)" }}>error</span>
+          </>
+        )}
         <span style={{ opacity: 0.4, fontSize: 10, marginLeft: 2 }}>{open ? "▲" : "▼"}</span>
       </button>
       {open && (
         <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
           {debug.error && (
-            <div style={{ padding: "6px 10px", borderRadius: 6, background: "var(--blood-wash)", border: "1px solid var(--blood)", fontFamily: "monospace", fontSize: 11, color: "var(--blood)", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+            <div
+              style={{
+                padding: "6px 10px",
+                borderRadius: 6,
+                background: "var(--blood-wash)",
+                border: "1px solid var(--blood)",
+                fontFamily: "monospace",
+                fontSize: 11,
+                color: "var(--blood)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-all",
+              }}
+            >
               {debug.error}
             </div>
           )}
-          {toolCalls?.map((tc, i) => <ToolCallDebug key={i} tc={tc} />)}
+          {toolCalls?.map((tc, i) => (
+            <ToolCallDebug key={i} tc={tc} />
+          ))}
         </div>
       )}
     </div>
@@ -192,10 +302,10 @@ const IconCopy = (
 );
 
 const RICH_PATTERN =
-  /(\+\d[\d\s\-]{8,13}\d|\b0\d{9}\b|[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}|https?:\/\/[^\s<>]+)/g;
+  /(\+\d[\d\s-]{8,13}\d|\b0\d{9}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|https?:\/\/[^\s<>]+)/g;
 
-const PHONE_RE = /(\+\d[\d\s\-]{8,13}\d|\b0\d{9}\b)/;
-const EMAIL_RE = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/;
+const PHONE_RE = /(\+\d[\d\s-]{8,13}\d|\b0\d{9}\b)/;
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
 function firstPhone(text: string): string | null {
   const m = text.match(PHONE_RE);
@@ -219,24 +329,49 @@ function renderRichText(text: string): React.ReactNode[] {
     const raw = m[0];
     if (raw.startsWith("http")) {
       parts.push(
-        <a key={m.index} href={raw} target="_blank" rel="noopener noreferrer"
-           style={{ color: "var(--ember)", textDecoration: "underline" }}>{raw}</a>
+        <a
+          key={m.index}
+          href={raw}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{ color: "var(--ember)", textDecoration: "underline" }}
+        >
+          {raw}
+        </a>,
       );
     } else if (raw.includes("@")) {
       parts.push(
-        <a key={m.index} href={`mailto:${raw}`}
-           style={{ color: "var(--ember)", textDecoration: "underline" }}>{raw}</a>
+        <a
+          key={m.index}
+          href={`mailto:${raw}`}
+          style={{ color: "var(--ember)", textDecoration: "underline" }}
+        >
+          {raw}
+        </a>,
       );
     } else {
       const digits = raw.replace(/\D/g, "");
       const intl = digits.startsWith("0") ? `27${digits.slice(1)}` : digits;
       parts.push(
         <span key={m.index}>
-          <a href={`tel:+${intl}`} style={{ color: "var(--ember)", textDecoration: "underline" }}>{raw}</a>
-          <a href={`https://wa.me/${intl}`} target="_blank" rel="noopener noreferrer"
-             className="f-sans"
-             style={{ marginLeft: 6, fontSize: 11, color: "var(--ink-faint)", verticalAlign: "middle" }}>wa</a>
-        </span>
+          <a href={`tel:+${intl}`} style={{ color: "var(--ember)", textDecoration: "underline" }}>
+            {raw}
+          </a>
+          <a
+            href={`https://wa.me/${intl}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="f-sans"
+            style={{
+              marginLeft: 6,
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              verticalAlign: "middle",
+            }}
+          >
+            wa
+          </a>
+        </span>,
       );
     }
     last = m.index + raw.length;
@@ -246,26 +381,66 @@ function renderRichText(text: string): React.ReactNode[] {
 }
 
 const IconCheck = (
-  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+  <svg
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
     <path d="M5 12l4 4 10-10" />
   </svg>
 );
 
 const IconShare = (
-  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+  <svg
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
     <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
     <path d="M12 3v11M8 7l4-4 4 4" />
   </svg>
 );
 
 const IconPhone = (
-  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+  <svg
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 2.77h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.4a16 16 0 0 0 5.67 5.67l.95-.95a2 2 0 0 1 2.11-.45c.908.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
   </svg>
 );
 
 const IconEmail = (
-  <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+  <svg
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
     <rect x="2" y="4" width="20" height="16" rx="2" />
     <path d="m2 7 10 7 10-7" />
   </svg>
@@ -274,10 +449,13 @@ const IconEmail = (
 export default function ChatView({ brainId }: ChatViewProps) {
   const aiAvailable = useHasAIAccess();
   const { isAdmin } = useAdminDevMode();
-  const { messages, loading, pendingAction, send, confirm, cancel, clearHistory } = useChat(brainId);
+  const { messages, loading, pendingAction, send, confirm, cancel, clearHistory } =
+    useChat(brainId);
   const { entries, entriesLoaded } = useEntries();
   const [noMemoryToast, setNoMemoryToast] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>(() => readSuggestionsCache(brainId) ?? []);
+  const [suggestions, setSuggestions] = useState<string[]>(
+    () => readSuggestionsCache(brainId) ?? [],
+  );
 
   useEffect(() => {
     if (!entriesLoaded || entries.length === 0) return;
@@ -287,18 +465,6 @@ export default function ChatView({ brainId }: ChatViewProps) {
     setSuggestions(fresh);
   }, [entriesLoaded, brainId]);
 
-  if (!aiAvailable) {
-    return (
-      <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 24px", background: "var(--bg)", textAlign: "center", gap: 16 }}>
-        <p className="f-serif" style={{ fontSize: 22, fontStyle: "italic", color: "var(--ink-soft)", lineHeight: 1.4, margin: 0, maxWidth: 400 }}>
-          Chat needs an AI provider.
-        </p>
-        <p className="f-sans" style={{ fontSize: 14, color: "var(--ink-ghost)", margin: 0, maxWidth: 360, lineHeight: 1.6 }}>
-          Add your own API key in Settings → AI → BYOK, or upgrade to a Pro plan for managed access.
-        </p>
-      </div>
-    );
-  }
   const [input, setInput] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [sharedIdx, setSharedIdx] = useState<number | null>(null);
@@ -363,7 +529,11 @@ export default function ChatView({ brainId }: ChatViewProps) {
 
   const handleShare = useCallback(async (text: string, idx: number) => {
     if (navigator.share) {
-      try { await navigator.share({ text }); } catch { return; }
+      try {
+        await navigator.share({ text });
+      } catch {
+        return;
+      }
     } else {
       await navigator.clipboard.writeText(text);
     }
@@ -372,6 +542,50 @@ export default function ChatView({ brainId }: ChatViewProps) {
   }, []);
 
   const noMemory = entriesLoaded && entries.length === 0;
+
+  if (!aiAvailable) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "40px 24px",
+          background: "var(--bg)",
+          textAlign: "center",
+          gap: 16,
+        }}
+      >
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 22,
+            fontStyle: "italic",
+            color: "var(--ink-soft)",
+            lineHeight: 1.4,
+            margin: 0,
+            maxWidth: 400,
+          }}
+        >
+          Chat needs an AI provider.
+        </p>
+        <p
+          className="f-sans"
+          style={{
+            fontSize: 14,
+            color: "var(--ink-ghost)",
+            margin: 0,
+            maxWidth: 360,
+            lineHeight: 1.6,
+          }}
+        >
+          Add your own API key in Settings → AI → BYOK, or upgrade to a Pro plan for managed access.
+        </p>
+      </div>
+    );
+  }
 
   const Composer = (
     <div
@@ -477,7 +691,13 @@ export default function ChatView({ brainId }: ChatViewProps) {
   return (
     <div
       className="chat-root"
-      style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0, background: "var(--bg)" }}
+      style={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+        background: "var(--bg)",
+      }}
     >
       {noMemoryToast && (
         <div
@@ -557,9 +777,13 @@ export default function ChatView({ brainId }: ChatViewProps) {
             }
           >
             <svg
-              width="14" height="14"
-              fill="none" stroke="currentColor" strokeWidth="1.5"
-              strokeLinecap="round" strokeLinejoin="round"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
               viewBox="0 0 24 24"
               style={{ color: "var(--ink-faint)", flexShrink: 0 }}
               aria-hidden="true"
@@ -567,20 +791,25 @@ export default function ChatView({ brainId }: ChatViewProps) {
               <circle cx="11" cy="11" r="6.5" />
               <path d="m20 20-3.5-3.5" />
             </svg>
-            <span
-              className="f-sans flex-1"
-              style={{ fontSize: 13, color: "var(--ink-faint)" }}
-            >
+            <span className="f-sans flex-1" style={{ fontSize: 13, color: "var(--ink-faint)" }}>
               Search everything
             </span>
             <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
               <kbd
                 className="f-sans"
                 style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  minWidth: 18, height: 18, padding: "0 5px",
-                  background: "var(--surface-low)", border: "1px solid var(--line)",
-                  borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  background: "var(--surface-low)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  color: "var(--ink-faint)",
+                  fontWeight: 500,
                 }}
               >
                 Ctrl
@@ -588,10 +817,18 @@ export default function ChatView({ brainId }: ChatViewProps) {
               <kbd
                 className="f-sans"
                 style={{
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  minWidth: 18, height: 18, padding: "0 5px",
-                  background: "var(--surface-low)", border: "1px solid var(--line)",
-                  borderRadius: 4, fontSize: 11, color: "var(--ink-faint)", fontWeight: 500,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  background: "var(--surface-low)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 4,
+                  fontSize: 11,
+                  color: "var(--ink-faint)",
+                  fontWeight: 500,
                 }}
               >
                 K
@@ -612,10 +849,7 @@ export default function ChatView({ brainId }: ChatViewProps) {
 
       {messages.length === 0 ? (
         /* ── Empty state ── */
-        <div
-          className="flex flex-1 flex-col"
-          style={{ minHeight: 0, alignItems: "center" }}
-        >
+        <div className="flex flex-1 flex-col" style={{ minHeight: 0, alignItems: "center" }}>
           <div
             style={{
               flex: 1,
@@ -724,137 +958,178 @@ export default function ChatView({ brainId }: ChatViewProps) {
             }}
             aria-live="polite"
           >
-            <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 28 }}>
+            <div
+              style={{
+                maxWidth: 820,
+                margin: "0 auto",
+                display: "flex",
+                flexDirection: "column",
+                gap: 28,
+              }}
+            >
               {messages.map((msg, i) => {
                 const phone = msg.role === "assistant" ? firstPhone(msg.content) : null;
                 const email = msg.role === "assistant" ? firstEmail(msg.content) : null;
                 const actionBtnStyle = (color: string): React.CSSProperties => ({
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  height: 26, minHeight: 26, padding: "0 10px", borderRadius: 4,
-                  background: "transparent", border: "1px solid var(--line-soft)",
-                  color, fontFamily: "var(--f-sans)", fontSize: 11, fontWeight: 500,
-                  cursor: "pointer", transition: "color 180ms, border-color 180ms",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: 26,
+                  minHeight: 26,
+                  padding: "0 10px",
+                  borderRadius: 4,
+                  background: "transparent",
+                  border: "1px solid var(--line-soft)",
+                  color,
+                  fontFamily: "var(--f-sans)",
+                  fontSize: 11,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  transition: "color 180ms, border-color 180ms",
                   textDecoration: "none",
                 });
                 return (
-                <div
-                  key={i}
-                  className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-                >
-                  {msg.role === "user" ? (
-                    /* User bubble — sans, right-aligned */
-                    <div
-                      className="f-sans"
-                      style={{
-                        background: "var(--surface-high)",
-                        border: "1px solid var(--line-soft)",
-                        padding: "12px 18px",
-                        borderRadius: 18,
-                        maxWidth: "70%",
-                        fontSize: 15,
-                        lineHeight: 1.5,
-                        color: "var(--ink)",
-                        whiteSpace: "pre-wrap",
-                      }}
-                    >
-                      {msg.content}
-                    </div>
-                  ) : (
-                    /* Assistant — serif, no bubble, just prose */
-                    <div style={{ maxWidth: "90%" }}>
-                      {msg.tool_calls && msg.tool_calls.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
-                          {msg.tool_calls.map((tc, j) => (
-                            <span
-                              key={j}
-                              className="f-sans"
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: 8,
-                                padding: "6px 12px",
-                                minHeight: 28,
-                                height: 28,
-                                border: "1px solid var(--line-soft)",
-                                borderRadius: 999,
-                                background: "var(--surface-low)",
-                                color: "var(--ink-faint)",
-                                fontSize: 12,
-                              }}
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                              >
-                                <circle cx="11" cy="11" r="6.5" />
-                                <path d="m20 20-3.5-3.5" />
-                              </svg>
-                              {TOOL_LABELS[tc.tool] ?? tc.tool}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
+                  <div
+                    key={i}
+                    className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+                  >
+                    {msg.role === "user" ? (
+                      /* User bubble — sans, right-aligned */
                       <div
-                        className="f-serif"
+                        className="f-sans"
                         style={{
-                          fontSize: 18,
-                          lineHeight: 1.65,
+                          background: "var(--surface-high)",
+                          border: "1px solid var(--line-soft)",
+                          padding: "12px 18px",
+                          borderRadius: 18,
+                          maxWidth: "70%",
+                          fontSize: 15,
+                          lineHeight: 1.5,
                           color: "var(--ink)",
                           whiteSpace: "pre-wrap",
                         }}
                       >
-                        {renderRichText(msg.content)}
+                        {msg.content}
                       </div>
+                    ) : (
+                      /* Assistant — serif, no bubble, just prose */
+                      <div style={{ maxWidth: "90%" }}>
+                        {msg.tool_calls && msg.tool_calls.length > 0 && (
+                          <div
+                            style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}
+                          >
+                            {msg.tool_calls.map((tc, j) => (
+                              <span
+                                key={j}
+                                className="f-sans"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  padding: "6px 12px",
+                                  minHeight: 28,
+                                  height: 28,
+                                  border: "1px solid var(--line-soft)",
+                                  borderRadius: 999,
+                                  background: "var(--surface-low)",
+                                  color: "var(--ink-faint)",
+                                  fontSize: 12,
+                                }}
+                              >
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="1.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  viewBox="0 0 24 24"
+                                  aria-hidden="true"
+                                >
+                                  <circle cx="11" cy="11" r="6.5" />
+                                  <path d="m20 20-3.5-3.5" />
+                                </svg>
+                                {TOOL_LABELS[tc.tool] ?? tc.tool}
+                              </span>
+                            ))}
+                          </div>
+                        )}
 
-                      <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-                        <button
-                          onClick={() => handleCopy(msg.content, i)}
-                          className="press"
-                          aria-label="Copy response"
-                          style={actionBtnStyle(copiedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
+                        <div
+                          className="f-serif"
+                          style={{
+                            fontSize: 18,
+                            lineHeight: 1.65,
+                            color: "var(--ink)",
+                            whiteSpace: "pre-wrap",
+                          }}
                         >
-                          {copiedIdx === i ? IconCheck : IconCopy}
-                          {copiedIdx === i ? "copied" : "copy"}
-                        </button>
-                        <button
-                          onClick={() => handleShare(msg.content, i)}
-                          className="press"
-                          aria-label="Share response"
-                          style={actionBtnStyle(sharedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
-                        >
-                          {sharedIdx === i ? IconCheck : IconShare}
-                          {sharedIdx === i ? "shared" : "share"}
-                        </button>
-                        {phone && (
-                          <a href={`tel:+${phone}`} className="press" aria-label="Call" style={actionBtnStyle("var(--ink-faint)")}>
-                            {IconPhone} call
-                          </a>
-                        )}
-                        {phone && (
-                          <a href={`https://wa.me/${phone}`} target="_blank" rel="noopener noreferrer" className="press" aria-label="WhatsApp" style={actionBtnStyle("var(--ink-faint)")}>
-                            wa
-                          </a>
-                        )}
-                        {email && (
-                          <a href={`mailto:${email}`} className="press" aria-label="Email" style={actionBtnStyle("var(--ink-faint)")}>
-                            {IconEmail} email
-                          </a>
+                          {renderRichText(msg.content)}
+                        </div>
+
+                        <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
+                          <button
+                            onClick={() => handleCopy(msg.content, i)}
+                            className="press"
+                            aria-label="Copy response"
+                            style={actionBtnStyle(
+                              copiedIdx === i ? "var(--moss)" : "var(--ink-faint)",
+                            )}
+                          >
+                            {copiedIdx === i ? IconCheck : IconCopy}
+                            {copiedIdx === i ? "copied" : "copy"}
+                          </button>
+                          <button
+                            onClick={() => handleShare(msg.content, i)}
+                            className="press"
+                            aria-label="Share response"
+                            style={actionBtnStyle(
+                              sharedIdx === i ? "var(--moss)" : "var(--ink-faint)",
+                            )}
+                          >
+                            {sharedIdx === i ? IconCheck : IconShare}
+                            {sharedIdx === i ? "shared" : "share"}
+                          </button>
+                          {phone && (
+                            <a
+                              href={`tel:+${phone}`}
+                              className="press"
+                              aria-label="Call"
+                              style={actionBtnStyle("var(--ink-faint)")}
+                            >
+                              {IconPhone} call
+                            </a>
+                          )}
+                          {phone && (
+                            <a
+                              href={`https://wa.me/${phone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="press"
+                              aria-label="WhatsApp"
+                              style={actionBtnStyle("var(--ink-faint)")}
+                            >
+                              wa
+                            </a>
+                          )}
+                          {email && (
+                            <a
+                              href={`mailto:${email}`}
+                              className="press"
+                              aria-label="Email"
+                              style={actionBtnStyle("var(--ink-faint)")}
+                            >
+                              {IconEmail} email
+                            </a>
+                          )}
+                        </div>
+                        {isAdmin && msg.debug && (
+                          <AdminDebugPanel debug={msg.debug} toolCalls={msg.tool_calls} />
                         )}
                       </div>
-                      {isAdmin && msg.debug && (
-                        <AdminDebugPanel debug={msg.debug} toolCalls={msg.tool_calls} />
-                      )}
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 );
               })}
 

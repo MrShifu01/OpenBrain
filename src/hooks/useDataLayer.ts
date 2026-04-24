@@ -49,14 +49,15 @@ export function useDataLayer({
 
   // Keep a ref of entries for the enrichment orchestrator (avoids restarting on every render)
   const entriesRef = useRef<Entry[]>(entries);
-  useEffect(() => { entriesRef.current = entries; }, [entries]);
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   // Load entries cache on mount
   useEffect(() => {
     readEntriesCache()
       .then((cached) => {
-        if (cached && cached.length > 0)
-          setEntries((prev) => (prev.length === 0 ? cached : prev));
+        if (cached && cached.length > 0) setEntries((prev) => (prev.length === 0 ? cached : prev));
       })
       .catch((err) => console.error("[OpenBrain] readEntriesCache failed", err));
   }, []);
@@ -77,10 +78,16 @@ export function useDataLayer({
       const r = await authFetch("/api/vault-entries");
       if (!r.ok) return;
       const data: any[] = await r.json();
-      const fetched: Entry[] = data.map((e) => ({ ...e, type: "secret" as const, encrypted: true }));
+      const fetched: Entry[] = data.map((e) => ({
+        ...e,
+        type: "secret" as const,
+        encrypted: true,
+      }));
       vaultEntryIdsRef.current = new Set(fetched.map((e) => e.id));
       setVaultEntries(fetched);
-    } catch {}
+    } catch (e) {
+      console.debug("[useDataLayer] fetchVaultEntries failed", e);
+    }
   }, []);
 
   useEffect(() => {
@@ -102,7 +109,8 @@ export function useDataLayer({
     }
 
     // Phase 2: full load in background — no skeleton, UI already visible
-    entryRepo.list({ brainId: activeBrainId, limit: 1000 })
+    entryRepo
+      .list({ brainId: activeBrainId, limit: 1000 })
       .then((all) => {
         if (all.length > 0) {
           setEntries(all);
@@ -201,8 +209,14 @@ export function useDataLayer({
     async (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => {
       const entry = entries.find((e) => e.id === id);
       const notSilent = !options?.silent;
-      const titleChanged = notSilent && (changes as any).title !== undefined && (changes as any).title !== entry?.title;
-      const contentChanged = notSilent && (changes as any).content !== undefined && (changes as any).content !== entry?.content;
+      const titleChanged =
+        notSilent &&
+        (changes as any).title !== undefined &&
+        (changes as any).title !== entry?.title;
+      const contentChanged =
+        notSilent &&
+        (changes as any).content !== undefined &&
+        (changes as any).content !== entry?.content;
       await _handleUpdateBase(id, changes, options);
       if ((titleChanged || contentChanged) && activeBrainId && entry) {
         const updatedEntry = {
@@ -214,24 +228,21 @@ export function useDataLayer({
             enrichment: { embedded: false, concepts_count: 0, has_insight: false, parsed: false },
           },
         } as Entry;
-        setTimeout(() => enrichEntry(updatedEntry, activeBrainId, silentUpdate).catch(() => {}), 1000);
+        setTimeout(
+          () => enrichEntry(updatedEntry, activeBrainId, silentUpdate).catch(() => {}),
+          1000,
+        );
       }
     },
     [_handleUpdateBase, entries, activeBrainId, silentUpdate],
   );
 
   /** Stable callback for useOfflineSync onEntryIdUpdate. */
-  const patchEntryId = useCallback(
-    (tempId: string, realId: string) => {
-      setEntries((prev) => prev.map((e) => (e.id === tempId ? { ...e, id: realId } : e)));
-    },
-    [],
-  );
+  const patchEntryId = useCallback((tempId: string, realId: string) => {
+    setEntries((prev) => prev.map((e) => (e.id === tempId ? { ...e, id: realId } : e)));
+  }, []);
 
-  const addLinks = useCallback(
-    (newLinks: any[]) => setLinks((prev) => [...prev, ...newLinks]),
-    [],
-  );
+  const addLinks = useCallback((newLinks: any[]) => setLinks((prev) => [...prev, ...newLinks]), []);
 
   const {
     enriching,

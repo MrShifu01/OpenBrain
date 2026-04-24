@@ -258,10 +258,7 @@ export function EntryQuickActions({
   if (!actions.length) return null;
 
   return (
-    <div
-      className="mt-4 pt-4"
-      style={{ borderTop: "1px solid var(--color-outline-variant)" }}
-    >
+    <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--color-outline-variant)" }}>
       <div className="flex flex-wrap gap-2">{actions}</div>
       {shareMsg && (
         <p className="mt-2 text-center text-xs" style={{ color: "var(--color-primary)" }}>

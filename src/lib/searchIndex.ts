@@ -42,7 +42,10 @@ export function removeFromIndex(entryId: string): void {
 }
 
 export function searchIndex(query: string): Set<string> | null {
-  const q = query.toLowerCase().replace(/[^a-z0-9\s]/g, " ").trim();
+  const q = query
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .trim();
   if (!q) return null;
   // Split query into parts; each part must appear as a substring of an indexed token
   const parts = q.split(/\s+/).filter((p) => p.length >= 1);

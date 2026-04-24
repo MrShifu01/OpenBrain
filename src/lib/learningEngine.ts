@@ -303,7 +303,6 @@ export function getDecisionCount(brainId: string): number {
   return readDecisions(brainId).length;
 }
 
-
 /* ─── Utilities ─── */
 
 /** Find the most common element in an array. */

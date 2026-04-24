@@ -16,24 +16,23 @@ interface LandingProps {
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
 function Motes({ count = 44 }: { count?: number }) {
-  const motes = useMemo(
-    () =>
-      Array.from({ length: count }, () => {
-        const size = 1 + Math.random() * 3;
-        return {
-          size,
-          top: Math.random() * 100,
-          left: Math.random() * 100,
-          dx: (Math.random() - 0.5) * 60 + "px",
-          dy: (Math.random() - 0.5) * 80 + "px",
-          dur: 14 + Math.random() * 18,
-          delay: Math.random() * -20,
-          op: 0.06 + Math.random() * 0.12,
-          bHigh: 0.06 + Math.random() * 0.12,
-          bLow: 0.02 + Math.random() * 0.05,
-        };
-      }),
-    [count],
+  const [motes] = useState(() =>
+    Array.from({ length: count }, () => {
+      const size = 1 + Math.random() * 3;
+      return {
+        size,
+        top: Math.random() * 100,
+        left: Math.random() * 100,
+        dx: (Math.random() - 0.5) * 60 + "px",
+        dy: (Math.random() - 0.5) * 80 + "px",
+        dur: 14 + Math.random() * 18,
+        delay: Math.random() * -20,
+        op: 0.06 + Math.random() * 0.12,
+        bHigh: 0.06 + Math.random() * 0.12,
+        bLow: 0.02 + Math.random() * 0.05,
+        breatheDur: 8 + Math.random() * 6,
+      };
+    }),
   );
   return (
     <div className="motes" aria-hidden="true">
@@ -52,7 +51,7 @@ function Motes({ count = 44 }: { count?: number }) {
             ["--dy" as string]: m.dy,
             ["--b-high" as string]: String(m.bHigh),
             ["--b-low" as string]: String(m.bLow),
-            animation: `design-drift ${m.dur}s ease-in-out infinite ${m.delay}s, design-breathe ${8 + Math.random() * 6}s ease-in-out infinite`,
+            animation: `design-drift ${m.dur}s ease-in-out infinite ${m.delay}s, design-breathe ${m.breatheDur}s ease-in-out infinite`,
           }}
         />
       ))}
@@ -357,7 +356,13 @@ function LandingDemo() {
             {saved ? "● saved · concepts extracted" : "○ preview — unsaved"}
           </div>
           <div
-            style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 16 }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+              marginBottom: 16,
+            }}
           >
             {concepts.map((c) => (
               <span key={c} className="design-chip f-sans" style={{ fontSize: 12 }}>
@@ -386,7 +391,15 @@ function LandingDemo() {
   );
 }
 
-function FooterCol({ title, links, go }: { title: string; links: [string, string][]; go: (to: string) => void }) {
+function FooterCol({
+  title,
+  links,
+  go,
+}: {
+  title: string;
+  links: [string, string][];
+  go: (to: string) => void;
+}) {
   return (
     <div>
       <Micro style={{ marginBottom: 14 }}>{title}</Micro>
@@ -523,12 +536,22 @@ export default function Landing({ onAuth }: LandingProps) {
         </div>
         <nav
           className="landing-nav-links f-sans"
-          style={{ display: "flex", alignItems: "center", gap: 24, fontSize: 13, color: "var(--ink-faint)" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 24,
+            fontSize: 13,
+            color: "var(--ink-faint)",
+          }}
         >
           <a className="press" onClick={() => goto("landing#what")} style={{ cursor: "pointer" }}>
             What it is
           </a>
-          <a className="press" onClick={() => goto("landing#pricing")} style={{ cursor: "pointer" }}>
+          <a
+            className="press"
+            onClick={() => goto("landing#pricing")}
+            style={{ cursor: "pointer" }}
+          >
             Pricing
           </a>
           <a className="press" onClick={() => goto("privacy")} style={{ cursor: "pointer" }}>
@@ -586,7 +609,8 @@ export default function Landing({ onAuth }: LandingProps) {
           }}
         >
           <div className="micro anim-fade-up" style={{ marginBottom: 24, animationDelay: "50ms" }}>
-            <span style={{ color: "var(--ember)" }}>●</span> A quiet place for the things you want to remember
+            <span style={{ color: "var(--ember)" }}>●</span> A quiet place for the things you want
+            to remember
           </div>
           <h1
             className="f-serif anim-fade-up"
@@ -729,7 +753,9 @@ export default function Landing({ onAuth }: LandingProps) {
           }}
         >
           It is the place where the thought goes —{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>and then stays findable.</span>
+          <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
+            and then stays findable.
+          </span>
         </h2>
         <p
           className="f-serif"

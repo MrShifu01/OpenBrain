@@ -125,9 +125,16 @@ function Micro({ children, style }: { children: React.ReactNode; style?: React.C
   );
 }
 
-export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [], showGraph = false }: OmniSearchProps) {
+export default function OmniSearch({
+  entries,
+  onSelect,
+  onNavigate,
+  concepts = [],
+  showGraph = false,
+}: OmniSearchProps) {
   const [open, setOpen] = useState(false);
-  const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+  const isMobile =
+    typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Entry[]>([]);
   const [highlighted, setHighlighted] = useState(0);
@@ -296,15 +303,16 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
               : ""}
         </div>
 
-        <div
-          className="scrollbar-hide"
-          style={{ maxHeight: 480, overflowY: "auto" }}
-        >
+        <div className="scrollbar-hide" style={{ maxHeight: 480, overflowY: "auto" }}>
           {/* Entries section */}
           {results.length > 0 && (
             <>
               <Micro style={{ padding: "14px 20px 6px" }}>entries</Micro>
-              <ul id="omnisearch-listbox" role="listbox" style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              <ul
+                id="omnisearch-listbox"
+                role="listbox"
+                style={{ margin: 0, padding: 0, listStyle: "none" }}
+              >
                 {results.map((entry, i) => {
                   const active = i === highlighted;
                   return (
@@ -347,7 +355,12 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div
                             className="f-serif truncate"
-                            style={{ fontSize: 16, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em" }}
+                            style={{
+                              fontSize: 16,
+                              fontWeight: 450,
+                              color: "var(--ink)",
+                              letterSpacing: "-0.005em",
+                            }}
                           >
                             {entry.title}
                           </div>
@@ -490,20 +503,23 @@ export default function OmniSearch({ entries, onSelect, onNavigate, concepts = [
 
           {/* Empty state */}
           {query.trim() &&
-            results.length + (showGraph ? filteredConcepts.length : 0) + (isMobile ? 0 : filteredCommands.length) === 0 && (
-            <div
-              className="f-serif"
-              style={{
-                padding: 32,
-                textAlign: "center",
-                fontSize: 15,
-                color: "var(--ink-faint)",
-                fontStyle: "italic",
-              }}
-            >
-              nothing here yet. try a looser word.
-            </div>
-          )}
+            results.length +
+              (showGraph ? filteredConcepts.length : 0) +
+              (isMobile ? 0 : filteredCommands.length) ===
+              0 && (
+              <div
+                className="f-serif"
+                style={{
+                  padding: 32,
+                  textAlign: "center",
+                  fontSize: 15,
+                  color: "var(--ink-faint)",
+                  fontStyle: "italic",
+                }}
+              >
+                nothing here yet. try a looser word.
+              </div>
+            )}
         </div>
       </div>
     </div>

@@ -47,7 +47,13 @@ export default function PrivacyPolicy() {
         <a
           href="/"
           className="design-btn-ghost press"
-          style={{ fontSize: 13, height: 36, minHeight: 36, padding: "0 12px", textDecoration: "none" }}
+          style={{
+            fontSize: 13,
+            height: 36,
+            minHeight: 36,
+            padding: "0 12px",
+            textDecoration: "none",
+          }}
         >
           ← back to home
         </a>
@@ -61,7 +67,9 @@ export default function PrivacyPolicy() {
           padding: "80px clamp(20px, 5vw, 48px) 120px",
         }}
       >
-        <div className="micro" style={{ marginBottom: 24 }}>Privacy</div>
+        <div className="micro" style={{ marginBottom: 24 }}>
+          Privacy
+        </div>
         <h1
           className="f-serif"
           style={{
@@ -112,12 +120,8 @@ export default function PrivacyPolicy() {
 
         <Section title="Your rights">
           Export, delete, transfer. All self-service, no email required. A full account delete
-          scrubs every row we have of you within 48 hours. GDPR and POPIA requests can go to
-          {" "}
-          <a
-            href="mailto:stander.christian@gmail.com"
-            style={{ color: "var(--ember)" }}
-          >
+          scrubs every row we have of you within 48 hours. GDPR and POPIA requests can go to{" "}
+          <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>
           .
@@ -134,10 +138,7 @@ export default function PrivacyPolicy() {
           style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
         >
           last touched 21 April 2026. write to{" "}
-          <a
-            href="mailto:stander.christian@gmail.com"
-            style={{ color: "var(--ember)" }}
-          >
+          <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>{" "}
           if anything here isn't clear.

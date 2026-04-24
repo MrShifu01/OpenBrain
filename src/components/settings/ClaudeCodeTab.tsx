@@ -18,7 +18,11 @@ async function authHeaders(): Promise<Record<string, string>> {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "Never";
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function ClaudeCodeTab() {
@@ -43,7 +47,9 @@ export default function ClaudeCodeTab() {
     }
   }, []);
 
-  useEffect(() => { fetchKeys(); }, [fetchKeys]);
+  useEffect(() => {
+    fetchKeys();
+  }, [fetchKeys]);
 
   async function generate() {
     if (!newKeyName.trim()) return;
@@ -57,7 +63,10 @@ export default function ClaudeCodeTab() {
         body: JSON.stringify({ name: newKeyName.trim() }),
       });
       const data = await r.json();
-      if (!r.ok) { setError(data.error || "Failed to generate key"); return; }
+      if (!r.ok) {
+        setError(data.error || "Failed to generate key");
+        return;
+      }
       setRevealedKey({ name: data.name, key: data.key });
       setNewKeyName("");
       setShowForm(false);
@@ -91,7 +100,12 @@ export default function ClaudeCodeTab() {
         hint="connect your AI assistant (Claude Code, ChatGPT, Cursor) to your memory."
       >
         {!showForm && (
-          <SettingsButton onClick={() => { setShowForm(true); setError(""); }}>
+          <SettingsButton
+            onClick={() => {
+              setShowForm(true);
+              setError("");
+            }}
+          >
             + New key
           </SettingsButton>
         )}
@@ -128,7 +142,11 @@ export default function ClaudeCodeTab() {
               {generating ? "Generating…" : "Generate"}
             </SettingsButton>
             <SettingsButton
-              onClick={() => { setShowForm(false); setNewKeyName(""); setError(""); }}
+              onClick={() => {
+                setShowForm(false);
+                setNewKeyName("");
+                setError("");
+              }}
             >
               Cancel
             </SettingsButton>
@@ -139,8 +157,11 @@ export default function ClaudeCodeTab() {
       {/* One-time key reveal */}
       {revealedKey && (
         <div
-          className="rounded-xl p-3 space-y-2"
-          style={{ background: "var(--color-surface-container)", border: "1px solid var(--color-outline-variant)" }}
+          className="space-y-2 rounded-xl p-3"
+          style={{
+            background: "var(--color-surface-container)",
+            border: "1px solid var(--color-outline-variant)",
+          }}
         >
           <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
             {revealedKey.name} — copy this key now, you won't see it again
@@ -148,14 +169,20 @@ export default function ClaudeCodeTab() {
           <div className="flex items-center gap-2">
             <code
               className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
-              style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+              style={{
+                background: "var(--color-surface-container-high)",
+                color: "var(--color-on-surface)",
+              }}
             >
               {revealedKey.key}
             </code>
             <button
               onClick={copyKey}
               className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-              style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+              style={{
+                background: "var(--color-primary-container)",
+                color: "var(--color-on-primary-container)",
+              }}
             >
               {copied ? "Copied!" : "Copy"}
             </button>
@@ -167,19 +194,27 @@ export default function ClaudeCodeTab() {
             <div className="flex items-center gap-2">
               <code
                 className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
-                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                style={{
+                  background: "var(--color-surface-container-high)",
+                  color: "var(--color-on-surface)",
+                }}
               >
                 https://everion.smashburgerbar.co.za/v1/
               </code>
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText("https://everion.smashburgerbar.co.za/v1/").then(() => {
-                    setCopiedSnippet("url");
-                    setTimeout(() => setCopiedSnippet(null), 2000);
-                  });
+                  navigator.clipboard
+                    .writeText("https://everion.smashburgerbar.co.za/v1/")
+                    .then(() => {
+                      setCopiedSnippet("url");
+                      setTimeout(() => setCopiedSnippet(null), 2000);
+                    });
                 }}
                 className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-                style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                style={{
+                  background: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
+                }}
               >
                 {copiedSnippet === "url" ? "Copied!" : "Copy"}
               </button>
@@ -191,8 +226,11 @@ export default function ClaudeCodeTab() {
             </p>
             <div className="relative">
               <pre
-                className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16 whitespace-pre-wrap"
-                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                className="overflow-x-auto rounded-xl px-3 py-2 pr-16 text-xs whitespace-pre-wrap"
+                style={{
+                  background: "var(--color-surface-container-high)",
+                  color: "var(--color-on-surface)",
+                }}
               >{`Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):
 
 ## Everion Memory
@@ -213,7 +251,10 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                   });
                 }}
                 className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                style={{
+                  background: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
+                }}
               >
                 {copiedSnippet === "claude-md" ? "✓" : "Copy"}
               </button>
@@ -269,12 +310,19 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
           </p>
 
           <details className="group">
-            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <summary
+              className="cursor-pointer py-1 text-xs select-none"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               REST API — all tools & languages →
             </summary>
             <div className="mt-2 space-y-3">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                All endpoints are <code className="text-xs">POST</code> to <code className="text-xs">https://everion.smashburgerbar.co.za/v1/&lt;action&gt;</code> with your key as a Bearer token.
+                All endpoints are <code className="text-xs">POST</code> to{" "}
+                <code className="text-xs">
+                  https://everion.smashburgerbar.co.za/v1/&lt;action&gt;
+                </code>{" "}
+                with your key as a Bearer token.
               </p>
 
               {(
@@ -314,14 +362,25 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                 const curl = `curl -X POST https://everion.smashburgerbar.co.za/v1/${id} \\\n  -H "Authorization: Bearer <your_key>" \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
                 return (
                   <div key={id} className="space-y-1">
-                    <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
-                      <code className="font-mono" style={{ color: "var(--color-primary)" }}>/{id}</code> — {label}
+                    <p
+                      className="text-xs font-semibold"
+                      style={{ color: "var(--color-on-surface)" }}
+                    >
+                      <code className="font-mono" style={{ color: "var(--color-primary)" }}>
+                        /{id}
+                      </code>{" "}
+                      — {label}
                     </p>
                     <div className="relative">
                       <pre
-                        className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
-                        style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
-                      >{curl}</pre>
+                        className="overflow-x-auto rounded-xl px-3 py-2 pr-16 text-xs"
+                        style={{
+                          background: "var(--color-surface-container-high)",
+                          color: "var(--color-on-surface)",
+                        }}
+                      >
+                        {curl}
+                      </pre>
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(curl).then(() => {
@@ -330,12 +389,18 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                           });
                         }}
                         className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                        style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                        style={{
+                          background: "var(--color-primary-container)",
+                          color: "var(--color-on-primary-container)",
+                        }}
                       >
                         {copiedSnippet === id ? "✓" : "Copy"}
                       </button>
                     </div>
-                    <p className="text-xs font-mono opacity-60 pl-1" style={{ color: "var(--color-on-surface)" }}>
+                    <p
+                      className="pl-1 font-mono text-xs opacity-60"
+                      style={{ color: "var(--color-on-surface)" }}
+                    >
                       Returns: {response}
                     </p>
                   </div>
@@ -345,17 +410,24 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
           </details>
 
           <details className="group">
-            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <summary
+              className="cursor-pointer py-1 text-xs select-none"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               Claude Code (REST API via CLAUDE.md) →
             </summary>
             <div className="mt-2 space-y-2">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                Paste this into Claude Code chat — it will set up your <code className="text-xs">~/.claude/CLAUDE.md</code> automatically:
+                Paste this into Claude Code chat — it will set up your{" "}
+                <code className="text-xs">~/.claude/CLAUDE.md</code> automatically:
               </p>
               <div className="relative">
                 <pre
-                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16 whitespace-pre-wrap"
-                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                  className="overflow-x-auto rounded-xl px-3 py-2 pr-16 text-xs whitespace-pre-wrap"
+                  style={{
+                    background: "var(--color-surface-container-high)",
+                    color: "var(--color-on-surface)",
+                  }}
                 >{`Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):
 
 ## Everion Memory
@@ -369,57 +441,80 @@ When I share new facts worth remembering, save them without being asked:
 curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`}</pre>
                 <button
                   onClick={() => {
-                    const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d \'{"query": "<relevant topic>", "limit": 8}\'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d \'{"title": "<short title>", "content": "<detail>", "type": "note"}\'`;
+                    const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`;
                     navigator.clipboard.writeText(prompt).then(() => {
                       setCopiedSnippet("claude-md-guide");
                       setTimeout(() => setCopiedSnippet(null), 2000);
                     });
                   }}
                   className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                 >
                   {copiedSnippet === "claude-md-guide" ? "✓" : "Copy"}
                 </button>
               </div>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                Replace <code className="text-xs">&lt;your_key&gt;</code> with your actual <code className="text-xs">em_</code> key before pasting.
+                Replace <code className="text-xs">&lt;your_key&gt;</code> with your actual{" "}
+                <code className="text-xs">em_</code> key before pasting.
               </p>
             </div>
           </details>
 
           <details className="group">
-            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <summary
+              className="cursor-pointer py-1 text-xs select-none"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               Claude Code / Cursor (MCP) →
             </summary>
             <div className="mt-2 space-y-2">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                One-liner install — replace <code className="text-xs">&lt;your_key&gt;</code> then run in terminal:
+                One-liner install — replace <code className="text-xs">&lt;your_key&gt;</code> then
+                run in terminal:
               </p>
               <div className="relative">
                 <pre
-                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
-                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                  className="overflow-x-auto rounded-xl px-3 py-2 pr-16 text-xs"
+                  style={{
+                    background: "var(--color-surface-container-high)",
+                    color: "var(--color-on-surface)",
+                  }}
                 >{`claude mcp add --transport http everionmind https://everion.smashburgerbar.co.za/api/mcp \\\n  -H "Authorization: Bearer <your_key>"`}</pre>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`claude mcp add --transport http everionmind https://everion.smashburgerbar.co.za/api/mcp -H "Authorization: Bearer <your_key>"`).then(() => {
-                      setCopiedSnippet("mcp-install");
-                      setTimeout(() => setCopiedSnippet(null), 2000);
-                    });
+                    navigator.clipboard
+                      .writeText(
+                        `claude mcp add --transport http everionmind https://everion.smashburgerbar.co.za/api/mcp -H "Authorization: Bearer <your_key>"`,
+                      )
+                      .then(() => {
+                        setCopiedSnippet("mcp-install");
+                        setTimeout(() => setCopiedSnippet(null), 2000);
+                      });
                   }}
                   className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                 >
                   {copiedSnippet === "mcp-install" ? "✓" : "Copy"}
                 </button>
               </div>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                Or add manually to <code className="text-xs">~/.claude/claude_desktop_config.json</code> (Claude) / <code className="text-xs">~/.cursor/mcp.json</code> (Cursor):
+                Or add manually to{" "}
+                <code className="text-xs">~/.claude/claude_desktop_config.json</code> (Claude) /{" "}
+                <code className="text-xs">~/.cursor/mcp.json</code> (Cursor):
               </p>
               <div className="relative">
                 <pre
-                  className="rounded-xl px-3 py-2 text-xs overflow-x-auto pr-16"
-                  style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                  className="overflow-x-auto rounded-xl px-3 py-2 pr-16 text-xs"
+                  style={{
+                    background: "var(--color-surface-container-high)",
+                    color: "var(--color-on-surface)",
+                  }}
                 >{`{
   "mcpServers": {
     "everionmind": {
@@ -433,13 +528,20 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
 }`}</pre>
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(`{\n  "mcpServers": {\n    "everionmind": {\n      "type": "http",\n      "url": "https://everion.smashburgerbar.co.za/api/mcp",\n      "headers": {\n        "Authorization": "Bearer <your_key>"\n      }\n    }\n  }\n}`).then(() => {
-                      setCopiedSnippet("mcp-json");
-                      setTimeout(() => setCopiedSnippet(null), 2000);
-                    });
+                    navigator.clipboard
+                      .writeText(
+                        `{\n  "mcpServers": {\n    "everionmind": {\n      "type": "http",\n      "url": "https://everion.smashburgerbar.co.za/api/mcp",\n      "headers": {\n        "Authorization": "Bearer <your_key>"\n      }\n    }\n  }\n}`,
+                      )
+                      .then(() => {
+                        setCopiedSnippet("mcp-json");
+                        setTimeout(() => setCopiedSnippet(null), 2000);
+                      });
                   }}
                   className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{ background: "var(--color-primary-container)", color: "var(--color-on-primary-container)" }}
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                 >
                   {copiedSnippet === "mcp-json" ? "✓" : "Copy"}
                 </button>
@@ -448,43 +550,59 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
           </details>
 
           <details className="group">
-            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <summary
+              className="cursor-pointer py-1 text-xs select-none"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               ChatGPT (Custom GPT Actions) →
             </summary>
             <div className="mt-2 space-y-2">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                1. Open ChatGPT → Explore GPTs → Create a GPT → Configure → Add actions.<br />
+                1. Open ChatGPT → Explore GPTs → Create a GPT → Configure → Add actions.
+                <br />
                 2. Import from URL:
               </p>
               <code
                 className="block rounded-lg px-3 py-2 text-xs break-all"
-                style={{ background: "var(--color-surface-container-high)", color: "var(--color-on-surface)" }}
+                style={{
+                  background: "var(--color-surface-container-high)",
+                  color: "var(--color-on-surface)",
+                }}
               >
                 https://everion.smashburgerbar.co.za/openapi.json
               </code>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-                3. Under Authentication, choose <strong>API Key</strong>, type <strong>Bearer</strong>, paste your key.<br />
+                3. Under Authentication, choose <strong>API Key</strong>, type{" "}
+                <strong>Bearer</strong>, paste your key.
+                <br />
                 4. Save and test: ask your GPT "what's in my Everion?" or "what's due this week?".
               </p>
             </div>
           </details>
 
           <details className="group">
-            <summary className="cursor-pointer text-xs select-none py-1" style={{ color: "var(--color-on-surface-variant)" }}>
+            <summary
+              className="cursor-pointer py-1 text-xs select-none"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               Saving to Everion via chat →
             </summary>
             <div className="mt-2 space-y-1">
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 Once connected, tell your AI assistant to save information naturally:
               </p>
-              <ul className="text-xs space-y-1 list-none pl-2" style={{ color: "var(--color-on-surface)" }}>
+              <ul
+                className="list-none space-y-1 pl-2 text-xs"
+                style={{ color: "var(--color-on-surface)" }}
+              >
                 <li>"Add this to Everion: John's number is 082 555 1234"</li>
                 <li>"Save this idea to my memory: [your idea]"</li>
                 <li>"Store this recipe in Everion"</li>
                 <li>"Remember that my passport expires 2027-03-15"</li>
               </ul>
-              <p className="text-xs mt-1" style={{ color: "var(--color-on-surface-variant)" }}>
-                The AI will use the <strong>create_entry</strong> tool to save it with the right type and tags.
+              <p className="mt-1 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+                The AI will use the <strong>create_entry</strong> tool to save it with the right
+                type and tags.
               </p>
             </div>
           </details>

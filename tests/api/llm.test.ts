@@ -39,13 +39,6 @@ describe("api/llm — transcribe action", () => {
   beforeEach(async () => {
     process.env.GROQ_API_KEY = "test-groq-key";
     vi.resetModules();
-    // Re-mock after resetModules
-    vi.mock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.mock("../../api/_lib/rateLimit.js", () => ({
-      rateLimit: vi.fn().mockResolvedValue(true),
-    }));
     const mod = await import("../../api/llm.js");
     handler = mod.default;
   });
@@ -56,7 +49,6 @@ describe("api/llm — transcribe action", () => {
     await handler(req, res);
     expect(res.status).toHaveBeenCalledWith(405);
   });
-
 
   it("returns 400 when audio field is missing", async () => {
     const req = makeReq({
@@ -103,4 +95,3 @@ describe("api/llm — transcribe action", () => {
     expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 10);
   });
 });
-

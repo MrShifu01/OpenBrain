@@ -35,14 +35,18 @@ async function parseKeepFiles(files: FileList): Promise<ReturnType<typeof conver
           const note: KeepNote = JSON.parse(await zf.async("text"));
           const entry = convertKeepNote(note);
           if (entry) entries.push(entry);
-        } catch { /* skip malformed */ }
+        } catch {
+          /* skip malformed */
+        }
       }
     } else if (file.name.endsWith(".json")) {
       try {
         const note: KeepNote = JSON.parse(await file.text());
         const entry = convertKeepNote(note);
         if (entry) entries.push(entry);
-      } catch { /* skip malformed */ }
+      } catch {
+        /* skip malformed */
+      }
     }
   }
   return entries;
@@ -91,7 +95,9 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
         totalImported += data.imported ?? entries.slice(i, i + BATCH).length;
       }
       setStatus(`imported:${totalImported}`);
-    } catch { setStatus("error"); }
+    } catch {
+      setStatus("error");
+    }
 
     setImporting(false);
     setTimeout(() => setStatus(null), 5000);
@@ -99,26 +105,47 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
 
   const statusMsg = status?.startsWith("imported:")
     ? `${status.split(":")[1]} notes imported`
-    : status === "empty" ? "No valid Keep notes found"
-    : status === "error" ? "Import failed"
-    : null;
+    : status === "empty"
+      ? "No valid Keep notes found"
+      : status === "error"
+        ? "Import failed"
+        : null;
   const statusOk = status?.startsWith("imported:");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div>
-        <div className="micro" style={{ marginBottom: 4 }}>Google Keep</div>
-        <p className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}>
-          Upload a Google Takeout <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.zip</strong> or individual Keep <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.json</strong> files. Trashed notes are skipped.
+        <div className="micro" style={{ marginBottom: 4 }}>
+          Google Keep
+        </div>
+        <p
+          className="f-serif"
+          style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}
+        >
+          Upload a Google Takeout{" "}
+          <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.zip</strong> or
+          individual Keep{" "}
+          <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.json</strong> files.
+          Trashed notes are skipped.
         </p>
       </div>
-      <input type="file" accept=".zip,.json" multiple ref={fileRef} onChange={handleFiles} className="hidden" />
+      <input
+        type="file"
+        accept=".zip,.json"
+        multiple
+        ref={fileRef}
+        onChange={handleFiles}
+        className="hidden"
+      />
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <SettingsButton onClick={() => fileRef.current?.click()} disabled={importing}>
           {importing ? "Importing…" : "Import Keep notes"}
         </SettingsButton>
         {statusMsg && (
-          <p className="f-sans" style={{ fontSize: 12, color: statusOk ? "var(--moss)" : "var(--blood)", margin: 0 }}>
+          <p
+            className="f-sans"
+            style={{ fontSize: 12, color: statusOk ? "var(--moss)" : "var(--blood)", margin: 0 }}
+          >
             {statusMsg}
           </p>
         )}

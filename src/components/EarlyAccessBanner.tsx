@@ -17,15 +17,24 @@ export function EarlyAccessBanner() {
     >
       <span className="text-base">🎉</span>
       <p className="text-on-surface-variant flex-1 text-xs">
-        <span className="text-on-surface font-semibold">Free during early access.</span>{" "}
-        Starter plan coming soon. Early users get 50% off.
+        <span className="text-on-surface font-semibold">Free during early access.</span> Starter
+        plan coming soon. Early users get 50% off.
       </p>
       <button
-        onClick={() => { localStorage.setItem(DISMISS_KEY, "1"); setDismissed(true); }}
+        onClick={() => {
+          localStorage.setItem(DISMISS_KEY, "1");
+          setDismissed(true);
+        }}
         aria-label="Dismiss"
         className="text-on-surface-variant/50 hover:text-on-surface flex-shrink-0"
       >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>

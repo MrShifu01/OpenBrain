@@ -18,8 +18,11 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
-      style={{ background: "var(--color-surface-container-high)", borderTop: "1px solid var(--color-outline-variant)" }}
+      className="fixed right-0 bottom-0 left-0 z-50 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
+      style={{
+        background: "var(--color-surface-container-high)",
+        borderTop: "1px solid var(--color-outline-variant)",
+      }}
     >
       <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
         This app uses{" "}
@@ -27,7 +30,12 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
           Sentry
         </a>{" "}
         for error tracking and{" "}
-        <a href="https://vercel.com/docs/speed-insights" target="_blank" rel="noopener noreferrer" className="underline">
+        <a
+          href="https://vercel.com/docs/speed-insights"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
           Vercel Speed Insights
         </a>{" "}
         for performance monitoring. No personal data is collected.{" "}
@@ -39,7 +47,10 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
         <button
           onClick={() => decide("declined")}
           className="rounded-lg px-4 py-2 text-sm font-medium"
-          style={{ background: "var(--color-surface-container)", color: "var(--color-on-surface-variant)" }}
+          style={{
+            background: "var(--color-surface-container)",
+            color: "var(--color-on-surface-variant)",
+          }}
         >
           Decline
         </button>

@@ -30,9 +30,11 @@ export function createPipeline(hooks: PipelineHooks): EnrichmentPipeline {
 
       if (hooks.getEntries) {
         const entries = hooks.getEntries();
-        import("../brainConnections").then(({ findAndSaveConnections }) => {
-          findAndSaveConnections(entry, entries, brainId).catch(() => {});
-        }).catch(() => {});
+        import("../brainConnections")
+          .then(({ findAndSaveConnections }) => {
+            findAndSaveConnections(entry, entries, brainId).catch(() => {});
+          })
+          .catch(() => {});
       }
     },
 
@@ -43,10 +45,19 @@ export function createPipeline(hooks: PipelineHooks): EnrichmentPipeline {
         let currentPhase = "starting";
         let errors: EnrichError[] = [];
 
-        yield { idx: i + 1, total: entries.length, done: i, title, phase: currentPhase, errors: [] };
+        yield {
+          idx: i + 1,
+          total: entries.length,
+          done: i,
+          title,
+          phase: currentPhase,
+          errors: [],
+        };
 
         try {
-          errors = await enrichEntry(entry, brainId, hooks.onUpdate, (p) => { currentPhase = p; });
+          errors = await enrichEntry(entry, brainId, hooks.onUpdate, (p) => {
+            currentPhase = p;
+          });
         } catch (err) {
           errors = [{ step: "unknown", message: String((err as any)?.message ?? err) }];
         }

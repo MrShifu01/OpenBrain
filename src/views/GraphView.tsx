@@ -8,7 +8,11 @@ interface GraphViewProps {
 
 function formatDate(iso?: string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return new Date(iso).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 export default function GraphView({ openEntry }: GraphViewProps) {
@@ -20,7 +24,12 @@ export default function GraphView({ openEntry }: GraphViewProps) {
   return (
     <div
       className="graph-root"
-      style={{ height: "100dvh", display: "flex", flexDirection: "column", background: "var(--bg)" }}
+      style={{
+        height: "100dvh",
+        display: "flex",
+        flexDirection: "column",
+        background: "var(--bg)",
+      }}
     >
       {/* Top bar */}
       <header
@@ -40,8 +49,12 @@ export default function GraphView({ openEntry }: GraphViewProps) {
           <h1
             className="f-serif"
             style={{
-              fontSize: 28, fontWeight: 450, letterSpacing: "-0.015em",
-              lineHeight: 1.1, margin: 0, color: "var(--ink)",
+              fontSize: 28,
+              fontWeight: 450,
+              letterSpacing: "-0.015em",
+              lineHeight: 1.1,
+              margin: 0,
+              color: "var(--ink)",
             }}
           >
             Graph
@@ -61,32 +74,56 @@ export default function GraphView({ openEntry }: GraphViewProps) {
           /* Loading state — don't flash empty sky while entries are in flight */
           <div
             style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               background: "var(--surface-dim)",
             }}
           >
-            <div className="f-serif" style={{ fontSize: 15, fontStyle: "italic", color: "var(--ink-faint)" }}>
+            <div
+              className="f-serif"
+              style={{ fontSize: 15, fontStyle: "italic", color: "var(--ink-faint)" }}
+            >
               mapping your memory…
             </div>
           </div>
         ) : nodes.length === 0 ? (
           <div
             style={{
-              flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              textAlign: "center", padding: 40, gap: 8,
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: 40,
+              gap: 8,
               background: "var(--surface-dim)",
             }}
           >
             <h3
               className="f-serif"
-              style={{ fontSize: 26, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em", margin: 0 }}
+              style={{
+                fontSize: 26,
+                fontWeight: 450,
+                color: "var(--ink)",
+                letterSpacing: "-0.005em",
+                margin: 0,
+              }}
             >
               the night sky is empty.
             </h3>
             <p
               className="f-serif"
-              style={{ fontSize: 15, fontStyle: "italic", color: "var(--ink-faint)", margin: 0, maxWidth: 360, lineHeight: 1.5 }}
+              style={{
+                fontSize: 15,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                margin: 0,
+                maxWidth: 360,
+                lineHeight: 1.5,
+              }}
             >
               remember a few things and they'll start to map themselves.
             </p>
@@ -133,8 +170,12 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                 <h2
                   className="f-serif"
                   style={{
-                    fontSize: 22, fontWeight: 450, letterSpacing: "-0.01em",
-                    margin: 0, color: "var(--ink)", lineHeight: 1.25,
+                    fontSize: 22,
+                    fontWeight: 450,
+                    letterSpacing: "-0.01em",
+                    margin: 0,
+                    color: "var(--ink)",
+                    lineHeight: 1.25,
                   }}
                 >
                   {selectedEntry.title}
@@ -142,7 +183,12 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                 {selectedEntry.created_at && (
                   <div
                     className="f-serif"
-                    style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 6 }}
+                    style={{
+                      fontSize: 12,
+                      color: "var(--ink-faint)",
+                      fontStyle: "italic",
+                      marginTop: 6,
+                    }}
                   >
                     {formatDate(selectedEntry.created_at)}
                   </div>
@@ -154,8 +200,17 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                 className="design-btn-ghost press"
                 style={{ width: 32, height: 32, minHeight: 32, padding: 0, flexShrink: 0 }}
               >
-                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5"
-                  strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" aria-hidden="true">
+                <svg
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
               </button>
@@ -167,8 +222,11 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                 <p
                   className="f-serif"
                   style={{
-                    fontSize: 14, color: "var(--ink-soft)", lineHeight: 1.65,
-                    margin: 0, whiteSpace: "pre-wrap",
+                    fontSize: 14,
+                    color: "var(--ink-soft)",
+                    lineHeight: 1.65,
+                    margin: 0,
+                    whiteSpace: "pre-wrap",
                   }}
                 >
                   {selectedEntry.content as string}

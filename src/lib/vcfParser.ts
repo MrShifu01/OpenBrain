@@ -83,7 +83,12 @@ export function parseVCF(text: string): ParsedContact[] {
 
     const emails = lines
       .filter((l) => /^EMAIL/i.test(l))
-      .map((l) => l.replace(/^[^:]+:/, "").trim().toLowerCase())
+      .map((l) =>
+        l
+          .replace(/^[^:]+:/, "")
+          .trim()
+          .toLowerCase(),
+      )
       .filter(Boolean);
 
     // ORG can be "Company;Department"
@@ -93,11 +98,7 @@ export function parseVCF(text: string): ParsedContact[] {
     // NOTE: unescape \n and \,
     const noteRaw = getValues(lines, "NOTE")[0] ?? "";
     const notes =
-      noteRaw
-        .replace(/\\n/gi, "\n")
-        .replace(/\\,/g, ",")
-        .replace(/\\;/g, ";")
-        .trim() || undefined;
+      noteRaw.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";").trim() || undefined;
 
     // ADR: PO;EXT;STREET;CITY;REGION;POSTAL;COUNTRY
     const addresses = lines

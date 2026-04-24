@@ -13,6 +13,11 @@ vi.mock("../lib/brainConnections", () => ({
   generateEntryInsight: vi.fn().mockResolvedValue(undefined),
 }));
 
+// aiSettings gates the parsed/concepts/insight phases on hasAIAccess — force it true
+vi.mock("../lib/aiSettings", () => ({
+  aiSettings: { get: () => ({ hasAIAccess: true }) },
+}));
+
 import { enrichEntry } from "../lib/enrichEntry";
 import type { Entry } from "../types";
 

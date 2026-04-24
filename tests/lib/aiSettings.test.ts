@@ -16,11 +16,16 @@ vi.mock("../../src/lib/supabase", () => ({
 vi.mock("../../src/data/constants", () => ({ MODEL: "gemini-2.5-flash-lite" }));
 
 import {
-  getGroqKey, setGroqKey,
-  getGeminiKey, setGeminiKey,
-  getEmbedProvider, setEmbedProvider,
-  getEmbedHeaders, isAIConfigured,
-  loadUserAISettings, _resetForTests,
+  getGroqKey,
+  setGroqKey,
+  getGeminiKey,
+  setGeminiKey,
+  getEmbedProvider,
+  setEmbedProvider,
+  getEmbedHeaders,
+  isAIConfigured,
+  loadUserAISettings,
+  _resetForTests,
 } from "../../src/lib/aiSettings";
 import { KEYS } from "../../src/lib/storageKeys";
 
@@ -30,21 +35,46 @@ beforeEach(() => {
 });
 
 describe("getGroqKey / setGroqKey", () => {
-  it("returns null when nothing set", () => { expect(getGroqKey()).toBeNull(); });
-  it("set then get returns value", () => { setGroqKey("gsk-abc"); expect(getGroqKey()).toBe("gsk-abc"); });
-  it("value NOT written to localStorage", () => { setGroqKey("gsk-abc"); expect(localStorage.getItem(KEYS.GROQ_KEY)).toBeNull(); });
-  it("set null clears memory", () => { setGroqKey("gsk-abc"); setGroqKey(null); expect(getGroqKey()).toBeNull(); });
+  it("returns null when nothing set", () => {
+    expect(getGroqKey()).toBeNull();
+  });
+  it("set then get returns value", () => {
+    setGroqKey("gsk-abc");
+    expect(getGroqKey()).toBe("gsk-abc");
+  });
+  it("value NOT written to localStorage", () => {
+    setGroqKey("gsk-abc");
+    expect(localStorage.getItem(KEYS.GROQ_KEY)).toBeNull();
+  });
+  it("set null clears memory", () => {
+    setGroqKey("gsk-abc");
+    setGroqKey(null);
+    expect(getGroqKey()).toBeNull();
+  });
 });
 
 describe("getGeminiKey / setGeminiKey", () => {
-  it("returns null when nothing set", () => { expect(getGeminiKey()).toBeNull(); });
-  it("set then get returns value", () => { setGeminiKey("AIza-gem"); expect(getGeminiKey()).toBe("AIza-gem"); });
-  it("value NOT written to localStorage", () => { setGeminiKey("AIza-gem"); expect(localStorage.getItem(KEYS.GEMINI_KEY)).toBeNull(); });
+  it("returns null when nothing set", () => {
+    expect(getGeminiKey()).toBeNull();
+  });
+  it("set then get returns value", () => {
+    setGeminiKey("AIza-gem");
+    expect(getGeminiKey()).toBe("AIza-gem");
+  });
+  it("value NOT written to localStorage", () => {
+    setGeminiKey("AIza-gem");
+    expect(localStorage.getItem(KEYS.GEMINI_KEY)).toBeNull();
+  });
 });
 
 describe("getEmbedProvider", () => {
-  it("always returns google", () => { expect(getEmbedProvider()).toBe("google"); });
-  it("setEmbedProvider is a no-op", () => { setEmbedProvider("openai"); expect(getEmbedProvider()).toBe("google"); });
+  it("always returns google", () => {
+    expect(getEmbedProvider()).toBe("google");
+  });
+  it("setEmbedProvider is a no-op", () => {
+    setEmbedProvider("openai");
+    expect(getEmbedProvider()).toBe("google");
+  });
 });
 
 describe("getEmbedHeaders", () => {
@@ -59,7 +89,9 @@ describe("getEmbedHeaders", () => {
 });
 
 describe("isAIConfigured", () => {
-  it("always returns true", () => { expect(isAIConfigured()).toBe(true); });
+  it("always returns true", () => {
+    expect(isAIConfigured()).toBe(true);
+  });
 });
 
 describe("loadUserAISettings", () => {

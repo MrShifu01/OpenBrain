@@ -38,7 +38,9 @@ function markDiscovered(brainId: string): void {
     if (!localStorage.getItem(DISCOVERY_KEY(brainId))) {
       localStorage.setItem(DISCOVERY_KEY(brainId), String(Date.now()));
     }
-  } catch { /* quota */ }
+  } catch {
+    /* quota */
+  }
 }
 
 export default function SurprisingConnections({
@@ -68,10 +70,7 @@ export default function SurprisingConnections({
 
   return (
     <div className="space-y-0">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 py-2"
-      >
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 py-2">
         <svg
           className="h-3 w-3 transition-transform duration-200"
           style={{
@@ -120,10 +119,7 @@ export default function SurprisingConnections({
                     {s.entryA.title}
                   </span>
                 </button>
-                <span
-                  className="flex-shrink-0 text-xs"
-                  style={{ color: "var(--color-primary)" }}
-                >
+                <span className="flex-shrink-0 text-xs" style={{ color: "var(--color-primary)" }}>
                   \u27f7
                 </span>
                 <button

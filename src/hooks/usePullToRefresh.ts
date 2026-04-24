@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 const THRESHOLD = 64; // px of pull needed to trigger refresh
-const MAX_PULL = 96;  // max visual pull distance (rubber-bands here)
+const MAX_PULL = 96; // max visual pull distance (rubber-bands here)
 
 /**
  * Attaches global touch listeners to implement pull-to-refresh on window scroll.

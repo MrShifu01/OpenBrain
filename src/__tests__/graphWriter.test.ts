@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
-const { mockLoadGraphFromDB, mockSaveGraphToDB, mockMergeGraph, mockValidateGraph } = vi.hoisted(() => ({
-  mockLoadGraphFromDB: vi.fn(),
-  mockSaveGraphToDB: vi.fn(),
-  mockMergeGraph: vi.fn(),
-  mockValidateGraph: vi.fn(),
-}));
+const { mockLoadGraphFromDB, mockSaveGraphToDB, mockMergeGraph, mockValidateGraph } = vi.hoisted(
+  () => ({
+    mockLoadGraphFromDB: vi.fn(),
+    mockSaveGraphToDB: vi.fn(),
+    mockMergeGraph: vi.fn(),
+    mockValidateGraph: vi.fn(),
+  }),
+);
 
 vi.mock("../lib/conceptGraph", () => ({
   loadGraphFromDB: mockLoadGraphFromDB,

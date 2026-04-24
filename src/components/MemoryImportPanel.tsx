@@ -37,7 +37,13 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
     setImporting(true);
     let imported = 0;
     let failed = 0;
-    const importedEntries: Array<{ id: string; title: string; content: string; type: string; tags: string[] }> = [];
+    const importedEntries: Array<{
+      id: string;
+      title: string;
+      content: string;
+      type: string;
+      tags: string[];
+    }> = [];
 
     const { extractEntryConnections, generateEntryInsight, findAndSaveConnections } =
       await import("../lib/brainConnections");
@@ -72,8 +78,12 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
             findAndSaveConnections(entryObj, [...importedEntries], brainId).catch(() => {});
             importedEntries.push(entryObj);
           }
-        } else { failed++; }
-      } catch { failed++; }
+        } else {
+          failed++;
+        }
+      } catch {
+        failed++;
+      }
     }
 
     setImporting(false);
@@ -85,17 +95,23 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <div className="micro" style={{ marginBottom: 8 }}>Step 1 — copy this prompt into Claude or ChatGPT</div>
-        <SettingsButton onClick={copyPrompt}>
-          {copied ? "✓ Copied!" : "Copy prompt"}
-        </SettingsButton>
+        <div className="micro" style={{ marginBottom: 8 }}>
+          Step 1 — copy this prompt into Claude or ChatGPT
+        </div>
+        <SettingsButton onClick={copyPrompt}>{copied ? "✓ Copied!" : "Copy prompt"}</SettingsButton>
       </div>
 
       <div>
-        <div className="micro" style={{ marginBottom: 8 }}>Step 2 — paste the JSON result here</div>
+        <div className="micro" style={{ marginBottom: 8 }}>
+          Step 2 — paste the JSON result here
+        </div>
         <textarea
           value={json}
-          onChange={(e) => { setJson(e.target.value); setError(null); setResult(null); }}
+          onChange={(e) => {
+            setJson(e.target.value);
+            setError(null);
+            setResult(null);
+          }}
           rows={5}
           placeholder="Paste the JSON array the AI returned here…"
           className="f-serif"
@@ -117,10 +133,19 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
       </div>
 
       {error && (
-        <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>{error}</p>
+        <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>
+          {error}
+        </p>
       )}
       {result && (
-        <p className="f-sans" style={{ fontSize: 12, color: result.failed > 0 ? "var(--ember)" : "var(--moss)", margin: 0 }}>
+        <p
+          className="f-sans"
+          style={{
+            fontSize: 12,
+            color: result.failed > 0 ? "var(--ember)" : "var(--moss)",
+            margin: 0,
+          }}
+        >
           {result.imported} {result.imported === 1 ? "memory" : "memories"} imported
           {result.failed > 0 ? `, ${result.failed} failed` : ""}
         </p>
@@ -130,7 +155,7 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
         onClick={handleImport}
         disabled={!json.trim() || importing}
         className="design-btn-primary press"
-        style={{ width: "100%", opacity: (!json.trim() || importing) ? 0.4 : 1 }}
+        style={{ width: "100%", opacity: !json.trim() || importing ? 0.4 : 1 }}
       >
         {importing ? "Importing…" : "Import memories"}
       </button>

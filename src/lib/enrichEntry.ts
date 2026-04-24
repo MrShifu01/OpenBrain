@@ -3,7 +3,10 @@ import type { Entry } from "../types";
 import { SKIP_META_KEYS } from "./entryConstants";
 import { aiSettings } from "./aiSettings";
 
-export interface EnrichError { step: string; message: string }
+export interface EnrichError {
+  step: string;
+  message: string;
+}
 
 type OnUpdate = (id: string, changes: any) => Promise<void>;
 type OnPhase = (phase: string) => void;
@@ -27,7 +30,10 @@ function readFlags(entry: Entry): StepFlags {
 }
 
 /** Merge an enrichment patch into an entry's metadata.enrichment without clobbering siblings. */
-function mergeEnrichmentFlags(entry: Entry, patch: Record<string, unknown>): Record<string, unknown> {
+function mergeEnrichmentFlags(
+  entry: Entry,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
   const existing = (entry.metadata as any)?.enrichment ?? {};
   return { ...(entry.metadata ?? {}), enrichment: { ...existing, ...patch } };
 }
@@ -69,7 +75,9 @@ export function parseAIJSON(rawAI: string): any | null {
     try {
       const p = JSON.parse(fullMatch[0]);
       return Array.isArray(p) ? p[0] : p;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   // Brace-counting: extract first complete {...} from a truncated response
   const start = aiText.indexOf("{");
@@ -80,7 +88,11 @@ export function parseAIJSON(rawAI: string): any | null {
     else if (aiText[i] === "}") {
       depth--;
       if (depth === 0) {
-        try { return JSON.parse(aiText.slice(start, i + 1)); } catch { return null; }
+        try {
+          return JSON.parse(aiText.slice(start, i + 1));
+        } catch {
+          return null;
+        }
       }
     }
   }
@@ -89,7 +101,10 @@ export function parseAIJSON(rawAI: string): any | null {
 
 // ── Step: AI parsing ─────────────────────────────────────────────────────────
 
-async function runParseStep(entry: Entry, onUpdate: OnUpdate): Promise<{ entry: Entry; error?: EnrichError }> {
+async function runParseStep(
+  entry: Entry,
+  onUpdate: OnUpdate,
+): Promise<{ entry: Entry; error?: EnrichError }> {
   const { PROMPTS } = await import("../config/prompts");
   const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
   try {
@@ -166,11 +181,21 @@ async function runEmbedStep(entry: Entry, onUpdate: OnUpdate): Promise<EnrichErr
 
 // ── Step: concept extraction ────────────────────────────────────────────────
 
-async function runConceptsStep(entry: Entry, brainId: string, onUpdate: OnUpdate): Promise<EnrichError | null> {
+async function runConceptsStep(
+  entry: Entry,
+  brainId: string,
+  onUpdate: OnUpdate,
+): Promise<EnrichError | null> {
   try {
     const { extractEntryConnections } = await import("./brainConnections");
     await extractEntryConnections(
-      { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
+      {
+        id: entry.id,
+        title: entry.title,
+        content: entry.content || "",
+        type: entry.type,
+        tags: entry.tags || [],
+      },
       brainId,
     );
     await onUpdate(entry.id, {
@@ -184,11 +209,21 @@ async function runConceptsStep(entry: Entry, brainId: string, onUpdate: OnUpdate
 
 // ── Step: insight generation ────────────────────────────────────────────────
 
-async function runInsightStep(entry: Entry, brainId: string, onUpdate: OnUpdate): Promise<EnrichError | null> {
+async function runInsightStep(
+  entry: Entry,
+  brainId: string,
+  onUpdate: OnUpdate,
+): Promise<EnrichError | null> {
   try {
     const { generateEntryInsight } = await import("./brainConnections");
     await generateEntryInsight(
-      { id: entry.id, title: entry.title, content: entry.content || "", type: entry.type, tags: entry.tags || [] },
+      {
+        id: entry.id,
+        title: entry.title,
+        content: entry.content || "",
+        type: entry.type,
+        tags: entry.tags || [],
+      },
       brainId,
     );
     await onUpdate(entry.id, { metadata: mergeEnrichmentFlags(entry, { has_insight: true }) });

@@ -140,7 +140,9 @@ export default function GridFilters({
           {hasActive && (
             <button
               type="button"
-              onClick={() => onChange({ type: "all", date: "all", sort: "newest", concept: undefined })}
+              onClick={() =>
+                onChange({ type: "all", date: "all", sort: "newest", concept: undefined })
+              }
               className="press-scale text-on-surface-variant flex-shrink-0 text-xs opacity-60 transition-opacity hover:opacity-100"
             >
               Clear all

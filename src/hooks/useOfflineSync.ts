@@ -92,7 +92,11 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
                 await putFailed(op).then(() => getAllFailed().then(setFailedOps));
               } else {
                 await remove(op.id);
-                await enqueue({ ...op, retryCount, nextRetryAt: Date.now() + Math.pow(2, retryCount) * 1000 } as OfflineOp);
+                await enqueue({
+                  ...op,
+                  retryCount,
+                  nextRetryAt: Date.now() + Math.pow(2, retryCount) * 1000,
+                } as OfflineOp);
               }
               continue;
             }

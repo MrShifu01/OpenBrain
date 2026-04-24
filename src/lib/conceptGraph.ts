@@ -31,12 +31,7 @@ function normalize(label: string): string {
 
 /** Truncate to max 3 words — safety net for AI label drift. Possessives are normalised by normalize(). */
 function sanitizeConceptLabel(label: string): string {
-  return label
-    .replace(/\s+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .slice(0, 3)
-    .join(" ");
+  return label.replace(/\s+/g, " ").trim().split(/\s+/).slice(0, 3).join(" ");
 }
 
 /** Parse AI-returned concepts into typed Concept[] */
@@ -113,9 +108,7 @@ export function mergeGraph(existing: ConceptGraph, incoming: ConceptGraph): Conc
     else {
       const ex = relMap.get(k)!;
       ex.confidence_score = Math.max(ex.confidence_score, r.confidence_score);
-      ex.evidence_entries = [
-        ...new Set([...ex.evidence_entries, ...r.evidence_entries]),
-      ];
+      ex.evidence_entries = [...new Set([...ex.evidence_entries, ...r.evidence_entries])];
     }
   }
 
@@ -147,11 +140,7 @@ export function getRelatedEntries(
 }
 
 /** Get top N concepts by degree (number of relationships) — "god nodes" */
-export function getGodNodes(
-  graph: ConceptGraph,
-  topN = 10,
-  filter?: Set<string>,
-): Concept[] {
+export function getGodNodes(graph: ConceptGraph, topN = 10, filter?: Set<string>): Concept[] {
   const GENERIC = new Set(["note", "task", "item", "thing", "entry", "other", "general"]);
   const degree = new Map<string, number>();
   for (const r of graph.relationships) {
@@ -198,9 +187,15 @@ export function detectCommunities(
       let best = labels.get(c.id)!;
       let bestCount = 0;
       for (const [l, count] of freq) {
-        if (count > bestCount) { best = l; bestCount = count; }
+        if (count > bestCount) {
+          best = l;
+          bestCount = count;
+        }
       }
-      if (best !== labels.get(c.id)) { labels.set(c.id, best); changed = true; }
+      if (best !== labels.get(c.id)) {
+        labels.set(c.id, best);
+        changed = true;
+      }
     }
     if (!changed) break;
   }
@@ -251,7 +246,11 @@ export async function loadGraphFromDB(brainId: string): Promise<ConceptGraph> {
     // Only overwrite localStorage if DB has actual data — don't wipe a valid local cache
     // with an empty DB response (e.g. migration not yet applied or first save pending)
     if (graph.concepts.length > 0 || graph.relationships.length > 0) {
-      try { localStorage.setItem(GRAPH_KEY(brainId), JSON.stringify(graph)); } catch { /* quota */ }
+      try {
+        localStorage.setItem(GRAPH_KEY(brainId), JSON.stringify(graph));
+      } catch {
+        /* quota */
+      }
       return graph;
     }
     // DB is empty — prefer local cache if it has data
@@ -273,12 +272,18 @@ export async function loadGraphFromDB(brainId: string): Promise<ConceptGraph> {
 export async function saveGraphToDB(brainId: string, graph: ConceptGraph): Promise<void> {
   const versionedGraph = { ...graph, version: 2 };
   // Mark dirty before attempting write so a crash mid-write is recoverable
-  try { localStorage.setItem(DIRTY_KEY(brainId), "1"); } catch { /* quota */ }
+  try {
+    localStorage.setItem(DIRTY_KEY(brainId), "1");
+  } catch {
+    /* quota */
+  }
   // Update cache immediately for fast reads
   try {
     localStorage.setItem(GRAPH_KEY(brainId), JSON.stringify(versionedGraph));
     window.dispatchEvent(new CustomEvent("concept-graph-updated", { detail: { brainId } }));
-  } catch { /* quota */ }
+  } catch {
+    /* quota */
+  }
   // Persist to DB
   try {
     await authFetch("/api/graph", {
@@ -287,13 +292,16 @@ export async function saveGraphToDB(brainId: string, graph: ConceptGraph): Promi
       body: JSON.stringify({ brain_id: brainId, graph: versionedGraph }),
     });
     // Clear dirty flag on success
-    try { localStorage.removeItem(DIRTY_KEY(brainId)); } catch { /* quota */ }
+    try {
+      localStorage.removeItem(DIRTY_KEY(brainId));
+    } catch {
+      /* quota */
+    }
   } catch (err) {
     console.error("[conceptGraph] DB save failed, cached locally:", err);
     // Dirty flag remains set — will retry on next loadGraphFromDB
   }
 }
-
 
 /** Phase 7: Apply user feedback to strengthen/weaken relationship confidence */
 export async function applyFeedback(
@@ -305,8 +313,10 @@ export async function applyFeedback(
   const graph = loadGraph(brainId);
   const delta = action === "accept" ? 0.1 : -0.15;
   for (const rel of graph.relationships) {
-    const srcEntries = graph.concepts.find((c) => c.id === rel.source_concept)?.source_entries || [];
-    const tgtEntries = graph.concepts.find((c) => c.id === rel.target_concept)?.source_entries || [];
+    const srcEntries =
+      graph.concepts.find((c) => c.id === rel.source_concept)?.source_entries || [];
+    const tgtEntries =
+      graph.concepts.find((c) => c.id === rel.target_concept)?.source_entries || [];
     if (
       (srcEntries.includes(entryIdA) && tgtEntries.includes(entryIdB)) ||
       (srcEntries.includes(entryIdB) && tgtEntries.includes(entryIdA))

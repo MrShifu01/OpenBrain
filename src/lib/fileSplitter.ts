@@ -59,7 +59,7 @@ export function parseAISplitResponse(raw: string): SplitEntry[] {
   const candidate = jsonMatch ? jsonMatch[1] : cleaned;
 
   const normalise = (parsed: any): SplitEntry[] => {
-    const arr = Array.isArray(parsed) ? parsed : (parsed?.title ? [parsed] : []);
+    const arr = Array.isArray(parsed) ? parsed : parsed?.title ? [parsed] : [];
     return arr
       .filter((e: any) => e && typeof e.title === "string" && e.title.trim())
       .map((e: any) => ({

@@ -15,12 +15,18 @@ function loadPref(key: string, fallback: boolean): boolean {
     const v = localStorage.getItem(key);
     if (v === "true") return true;
     if (v === "false") return false;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return fallback;
 }
 
 function savePref(key: string, value: boolean) {
-  try { localStorage.setItem(key, String(value)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* ignore */
+  }
 }
 
 export default function BrainTab({ activeBrain }: Props) {
@@ -39,7 +45,10 @@ export default function BrainTab({ activeBrain }: Props) {
       >
         <SettingsToggle
           value={conceptOn}
-          onChange={(v) => { setConceptOn(v); savePref(CONCEPT_KEY, v); }}
+          onChange={(v) => {
+            setConceptOn(v);
+            savePref(CONCEPT_KEY, v);
+          }}
           ariaLabel="Concept extraction"
         />
       </SettingsRow>
@@ -47,7 +56,10 @@ export default function BrainTab({ activeBrain }: Props) {
       <SettingsRow label="Embeddings" hint="used for semantic search. stored on device." last>
         <SettingsToggle
           value={embedOn}
-          onChange={(v) => { setEmbedOn(v); savePref(EMBEDDINGS_KEY, v); }}
+          onChange={(v) => {
+            setEmbedOn(v);
+            savePref(EMBEDDINGS_KEY, v);
+          }}
           ariaLabel="Embeddings"
         />
       </SettingsRow>

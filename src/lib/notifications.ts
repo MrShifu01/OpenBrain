@@ -23,4 +23,3 @@ export function onToast(callback: ToastListener): () => void {
 export function captureError(err: unknown, context: string = ""): void {
   console.error(`[OpenBrain:${context}]`, err);
 }
-

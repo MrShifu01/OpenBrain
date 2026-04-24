@@ -46,7 +46,13 @@ export default function TermsOfService() {
         <a
           href="/"
           className="design-btn-ghost press"
-          style={{ fontSize: 13, height: 36, minHeight: 36, padding: "0 12px", textDecoration: "none" }}
+          style={{
+            fontSize: 13,
+            height: 36,
+            minHeight: 36,
+            padding: "0 12px",
+            textDecoration: "none",
+          }}
         >
           ← back to home
         </a>
@@ -60,7 +66,9 @@ export default function TermsOfService() {
           padding: "80px clamp(20px, 5vw, 48px) 120px",
         }}
       >
-        <div className="micro" style={{ marginBottom: 24 }}>Terms</div>
+        <div className="micro" style={{ marginBottom: 24 }}>
+          Terms
+        </div>
         <h1
           className="f-serif"
           style={{
@@ -98,13 +106,13 @@ export default function TermsOfService() {
 
         <Section title="What you can't do">
           Nothing illegal. Nothing that tries to break our service for others. Nothing that's
-          someone else's copyrighted material they haven't let you store. Nothing that would make
-          us a courier for malware.
+          someone else's copyrighted material they haven't let you store. Nothing that would make us
+          a courier for malware.
         </Section>
 
         <Section title="What we can't do">
-          Read your vault. Sell your data. Train on your writing. Keep your data if you ask us
-          not to.
+          Read your vault. Sell your data. Train on your writing. Keep your data if you ask us not
+          to.
         </Section>
 
         <Section title="Payments">
@@ -122,8 +130,8 @@ export default function TermsOfService() {
         </Section>
 
         <Section title="As-is">
-          The service is provided "as is" without warranty of any kind. We're not liable for loss
-          of data or damages arising from use of the service. Export regularly.
+          The service is provided "as is" without warranty of any kind. We're not liable for loss of
+          data or damages arising from use of the service. Export regularly.
         </Section>
 
         <div style={{ height: 1, background: "var(--line-soft)", margin: "48px 0 20px" }} />
@@ -132,10 +140,7 @@ export default function TermsOfService() {
           style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
         >
           last touched 21 April 2026. write to{" "}
-          <a
-            href="mailto:stander.christian@gmail.com"
-            style={{ color: "var(--ember)" }}
-          >
+          <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>{" "}
           if anything here isn't clear.

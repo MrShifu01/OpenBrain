@@ -14,7 +14,15 @@ interface OnboardingModalProps {
   brainId?: string;
 }
 
-type Step = "welcome" | "name" | "capture" | "processing" | "query" | "response" | "celebration" | "import";
+type Step =
+  | "welcome"
+  | "name"
+  | "capture"
+  | "processing"
+  | "query"
+  | "response"
+  | "celebration"
+  | "import";
 
 export default function OnboardingModal({ onComplete, brainId }: OnboardingModalProps) {
   const [step, setStep] = useState<Step>("welcome");
@@ -83,7 +91,11 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         }),
       });
       const data = await r.json();
-      setAiResponse(data.content || data.text || "Your brain is still learning. Add more thoughts and try again!");
+      setAiResponse(
+        data.content ||
+          data.text ||
+          "Your brain is still learning. Add more thoughts and try again!",
+      );
     } catch (err) {
       console.error("[onboarding] query failed", err);
       setAiResponse("Something went wrong. You can try asking your brain later from the Ask tab.");
@@ -97,7 +109,16 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
     onComplete([], [], []);
   }
 
-  const steps: Step[] = ["welcome", "name", "capture", "processing", "query", "response", "celebration", "import"];
+  const steps: Step[] = [
+    "welcome",
+    "name",
+    "capture",
+    "processing",
+    "query",
+    "response",
+    "celebration",
+    "import",
+  ];
   const stepIdx = steps.indexOf(step);
 
   const titleSerif: React.CSSProperties = {
@@ -127,7 +148,7 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         role="dialog"
         aria-modal="true"
         aria-label="Onboarding"
-        className="relative anim-scale-in-design"
+        className="anim-scale-in-design relative"
         style={{
           width: "100%",
           maxWidth: "min(520px, calc(100vw - 32px))",
@@ -205,7 +226,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "welcome" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>welcome in.</h2>
             <p style={subtitleSerif}>let's get you a room.</p>
             <button
@@ -220,7 +243,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "name" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>what should we call you?</h2>
             <p style={subtitleSerif}>just a first name is fine. this is private.</p>
             <input
@@ -274,15 +299,21 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "capture" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>what's on your mind?</h2>
-            <p style={subtitleSerif}>type 5–10 thoughts, one per line. they become your first entries.</p>
+            <p style={subtitleSerif}>
+              type 5–10 thoughts, one per line. they become your first entries.
+            </p>
             <textarea
               ref={textareaRef}
               value={thoughts}
               onChange={(e) => setThoughts(e.target.value)}
               rows={6}
-              placeholder={"call supplier about delivery\nidea: loyalty card system\nreminder: renew licence\n…"}
+              placeholder={
+                "call supplier about delivery\nidea: loyalty card system\nreminder: renew licence\n…"
+              }
               className="f-serif"
               style={{
                 width: "100%",
@@ -319,7 +350,15 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         )}
 
         {step === "processing" && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 12,
+              padding: "40px 0",
+            }}
+          >
             <span
               aria-hidden="true"
               style={{
@@ -330,10 +369,16 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 animation: "design-breathe 2.5s ease-in-out infinite",
               }}
             />
-            <p className="f-serif" style={{ fontSize: 18, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}>
+            <p
+              className="f-serif"
+              style={{ fontSize: 18, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}
+            >
               teaching your brain…
             </p>
-            <p className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}>
+            <p
+              className="f-serif"
+              style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}
+            >
               processing {thoughts.split("\n").filter(Boolean).length} thoughts
             </p>
           </div>
@@ -341,7 +386,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "query" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>now ask your brain something hard.</h2>
             <p style={subtitleSerif}>see what everion can do with what you just taught it.</p>
             <input
@@ -383,7 +430,15 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         {step === "response" && (
           <div>
             {loading ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 0" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "40px 0",
+                }}
+              >
                 <span
                   aria-hidden="true"
                   style={{
@@ -394,13 +449,18 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                     animation: "design-breathe 2.5s ease-in-out infinite",
                   }}
                 />
-                <p className="f-serif" style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}>
+                <p
+                  className="f-serif"
+                  style={{ fontSize: 16, fontStyle: "italic", color: "var(--ink-soft)", margin: 0 }}
+                >
                   thinking…
                 </p>
               </div>
             ) : (
               <>
-                <div className="micro" style={{ marginBottom: 14 }}>your brain says</div>
+                <div className="micro" style={{ marginBottom: 14 }}>
+                  your brain says
+                </div>
                 <p
                   className="f-serif"
                   style={{
@@ -427,11 +487,11 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "celebration" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>that's your brain working.</h2>
-            <p style={subtitleSerif}>
-              imagine what it can do with six months of data.
-            </p>
+            <p style={subtitleSerif}>imagine what it can do with six months of data.</p>
             <button
               onClick={() => setStep("import")}
               className="design-btn-primary press"
@@ -444,7 +504,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "import" && (
           <div>
-            <div className="micro" style={{ marginBottom: 20 }}>step {stepIdx + 1} of {steps.length}</div>
+            <div className="micro" style={{ marginBottom: 20 }}>
+              step {stepIdx + 1} of {steps.length}
+            </div>
             <h2 style={titleSerif}>bring your memories in.</h2>
             <p style={subtitleSerif}>
               if claude or chatgpt already knows you, import now. you can do this later in settings.

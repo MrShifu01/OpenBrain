@@ -10,7 +10,11 @@ import type { Entry } from "../types";
 
 function normalizeTags(tags: unknown): string {
   if (!Array.isArray(tags)) return "";
-  return [...tags].map((t) => String(t).trim()).filter(Boolean).sort().join(",");
+  return [...tags]
+    .map((t) => String(t).trim())
+    .filter(Boolean)
+    .sort()
+    .join(",");
 }
 
 interface UseEntryActionsParams {

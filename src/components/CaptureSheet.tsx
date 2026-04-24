@@ -148,6 +148,45 @@ const IconArrowLeft = (
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
+function VoiceWaveform() {
+  const [bars] = useState(() =>
+    Array.from({ length: 32 }, () => ({
+      height: 4 + Math.random() * 20,
+      opacity: 0.3 + Math.random() * 0.6,
+      dur: 0.6 + Math.random() * 1.4,
+      delay: Math.random() * 2,
+    })),
+  );
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        marginTop: 12,
+        height: 28,
+      }}
+      aria-hidden="true"
+    >
+      {bars.map((b, i) => (
+        <span
+          key={i}
+          style={{
+            width: 2,
+            height: b.height,
+            background: "var(--ember)",
+            opacity: b.opacity,
+            borderRadius: 2,
+            animation: `design-breathe ${b.dur}s ease-in-out infinite`,
+            animationDelay: `-${b.delay}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function CaptureSheet({
   isOpen,
   onClose,
@@ -445,8 +484,7 @@ export default function CaptureSheet({
           boxShadow: "var(--lift-3)",
           // CSS variable drives the Y portion; the .capture-sheet class adds the
           // desktop centering translateX via a media query on the transform.
-          ["--capture-y" as string]:
-            dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
+          ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
           transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
           display: "flex",
           flexDirection: "column",
@@ -454,7 +492,7 @@ export default function CaptureSheet({
         }}
       >
         <div aria-live="polite" aria-atomic="true" className="sr-only">
-          {loading ? "Processing your entry…" : status ?? ""}
+          {loading ? "Processing your entry…" : (status ?? "")}
         </div>
 
         {/* Drag handle (mobile) */}
@@ -759,7 +797,11 @@ export default function CaptureSheet({
                 borderTop: "1px solid var(--line-soft)",
               }}
             >
-              <button onClick={toggleVault} className="design-btn-secondary press" style={{ flex: 1 }}>
+              <button
+                onClick={toggleVault}
+                className="design-btn-secondary press"
+                style={{ flex: 1 }}
+              >
                 Back
               </button>
               <button
@@ -872,34 +914,7 @@ export default function CaptureSheet({
               )}
 
               {/* Voice waveform — horizontal motes line while recording */}
-              {listening && (
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 4,
-                    marginTop: 12,
-                    height: 28,
-                  }}
-                  aria-hidden="true"
-                >
-                  {Array.from({ length: 32 }, (_, i) => (
-                    <span
-                      key={i}
-                      style={{
-                        width: 2,
-                        height: 4 + Math.random() * 20,
-                        background: "var(--ember)",
-                        opacity: 0.3 + Math.random() * 0.6,
-                        borderRadius: 2,
-                        animation: `design-breathe ${0.6 + Math.random() * 1.4}s ease-in-out infinite`,
-                        animationDelay: `-${Math.random() * 2}s`,
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+              {listening && <VoiceWaveform />}
 
               {/* Saved whisper */}
               {showSavedWhisper && (
@@ -1027,7 +1042,11 @@ export default function CaptureSheet({
                     minHeight: 40,
                     padding: 0,
                     color:
-                      (activeTab as string) === "secret" ? "var(--ember)" : cryptoKey ? "var(--ink-faint)" : "var(--ink-ghost)",
+                      (activeTab as string) === "secret"
+                        ? "var(--ember)"
+                        : cryptoKey
+                          ? "var(--ink-faint)"
+                          : "var(--ink-ghost)",
                   }}
                   title={cryptoKey ? "Save to vault" : "Unlock vault first"}
                 >

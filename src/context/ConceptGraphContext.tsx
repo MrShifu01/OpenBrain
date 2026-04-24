@@ -1,4 +1,12 @@
-import { createContext, useContext, useMemo, useCallback, useState, useEffect, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useCallback,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
 import { loadGraph, getGodNodes } from "../lib/conceptGraph";
 import type { ConceptGraph } from "../lib/conceptGraph";
 import type { Concept } from "../types";
@@ -34,7 +42,7 @@ export function ConceptGraphProvider({
     if (!activeBrainId) return null;
     const g = loadGraph(activeBrainId);
     return g.concepts.length > 0 ? g : null;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeBrainId, tick]);
 
   const conceptMap = useMemo(() => {

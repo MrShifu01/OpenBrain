@@ -27,7 +27,7 @@ export const SIM_CY = 0;
 const REPULSION = 5000;
 const SPRING_K = 0.02;
 const REST_LEN = 90;
-const CENTER_K = 0.010;
+const CENTER_K = 0.01;
 const DAMPING = 0.82;
 const ALPHA_DECAY = 0.97;
 const MIN_ALPHA = 0.005;
@@ -48,7 +48,8 @@ function runSim(nodes: SimNode[], edges: GEdge[]): SimNode[] {
 
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
-        const a = nodes[i], b = nodes[j];
+        const a = nodes[i],
+          b = nodes[j];
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d2 = Math.max(dx * dx + dy * dy, 1);
@@ -56,8 +57,10 @@ function runSim(nodes: SimNode[], edges: GEdge[]): SimNode[] {
         const f = (REPULSION * alpha) / d2;
         const fx = (f * dx) / d;
         const fy = (f * dy) / d;
-        a.vx -= fx; a.vy -= fy;
-        b.vx += fx; b.vy += fy;
+        a.vx -= fx;
+        a.vy -= fy;
+        b.vx += fx;
+        b.vy += fy;
       }
     }
 
@@ -71,8 +74,10 @@ function runSim(nodes: SimNode[], edges: GEdge[]): SimNode[] {
       const f = SPRING_K * (d - REST_LEN) * alpha;
       const fx = (f * dx) / d;
       const fy = (f * dy) / d;
-      src.vx += fx; src.vy += fy;
-      tgt.vx -= fx; tgt.vy -= fy;
+      src.vx += fx;
+      src.vy += fy;
+      tgt.vx -= fx;
+      tgt.vy -= fy;
     }
 
     for (const node of nodes) {
@@ -103,7 +108,8 @@ function buildGraph(
     const relevant = concept.source_entries.filter((id) => displayIds.has(id));
     for (let i = 0; i < relevant.length; i++) {
       for (let j = i + 1; j < relevant.length; j++) {
-        const a = relevant[i], b = relevant[j];
+        const a = relevant[i],
+          b = relevant[j];
         const key = a < b ? `${a}|${b}` : `${b}|${a}`;
         pairWeight.set(key, (pairWeight.get(key) ?? 0) + 1);
       }

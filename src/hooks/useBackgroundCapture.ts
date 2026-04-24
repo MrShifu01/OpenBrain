@@ -44,7 +44,9 @@ function salvageTruncatedArray(text: string): ParsedEntry[] {
     try {
       const obj = JSON.parse(m[0]);
       if (obj && typeof obj === "object" && !Array.isArray(obj)) entries.push(obj);
-    } catch { /* skip incomplete object */ }
+    } catch {
+      /* skip incomplete object */
+    }
   }
   return entries;
 }
@@ -206,7 +208,9 @@ export function useBackgroundCapture() {
                   ...(entry.metadata || {}),
                   // For split entries the content IS the relevant portion — don't store the whole file.
                   // For single-entry captures store the raw original so "Full Content" shows the source.
-                  ...(!isSplit && rawText && rawText.length > 150 ? { raw_content: rawText.slice(0, 8000) } : {}),
+                  ...(!isSplit && rawText && rawText.length > 150
+                    ? { raw_content: rawText.slice(0, 8000) }
+                    : {}),
                 },
                 p_tags: entry.tags || [],
                 p_brain_id: brainId,
@@ -220,7 +224,14 @@ export function useBackgroundCapture() {
                 title: entry.title,
                 content: entry.content || "",
                 type: (entry.type || "note") as Entry["type"],
-                metadata: { ...(entry.metadata || {}), enrichment: { embedded: !result.embed_error, concepts_count: 0, has_insight: false } },
+                metadata: {
+                  ...(entry.metadata || {}),
+                  enrichment: {
+                    embedded: !result.embed_error,
+                    concepts_count: 0,
+                    has_insight: false,
+                  },
+                },
                 pinned: false,
                 importance: 0,
                 tags: entry.tags || [],
@@ -245,12 +256,22 @@ export function useBackgroundCapture() {
 
   const queueDirectSave = useCallback(
     async (
-      entry: { title: string; content: string; type: string; tags: string[]; metadata: Record<string, any>; rawContent?: string },
+      entry: {
+        title: string;
+        content: string;
+        type: string;
+        tags: string[];
+        metadata: Record<string, any>;
+        rawContent?: string;
+      },
       brainId: string | undefined,
       onCreated: (e: Entry) => void,
     ) => {
       const taskId = String(++taskIdRef.current);
-      setTasks((prev) => [...prev, { id: taskId, filename: entry.title, status: "saving" as TaskStatus }]);
+      setTasks((prev) => [
+        ...prev,
+        { id: taskId, filename: entry.title, status: "saving" as TaskStatus },
+      ]);
       try {
         const embedHeaders = getEmbedHeaders();
         const metadata = {
@@ -278,7 +299,10 @@ export function useBackgroundCapture() {
             title: entry.title,
             content: entry.content,
             type: (entry.type || "note") as Entry["type"],
-            metadata: { ...metadata, enrichment: { embedded: !result.embed_error, concepts_count: 0, has_insight: false } },
+            metadata: {
+              ...metadata,
+              enrichment: { embedded: !result.embed_error, concepts_count: 0, has_insight: false },
+            },
             pinned: false,
             importance: 0,
             tags: entry.tags || [],

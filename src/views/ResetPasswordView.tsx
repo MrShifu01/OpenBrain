@@ -15,12 +15,21 @@ export default function ResetPasswordView({ onDone }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
-    if (password !== confirm) { setError("Passwords don't match."); return; }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords don't match.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      setError(error.message);
+      return;
+    }
     setDone(true);
     setTimeout(onDone, 1500);
   }
@@ -40,7 +49,13 @@ export default function ResetPasswordView({ onDone }: Props) {
       <div style={{ width: "100%", maxWidth: 400 }}>
         <h1
           className="f-serif"
-          style={{ fontSize: 28, fontWeight: 450, margin: "0 0 8px", letterSpacing: "-0.015em", color: "var(--ink, #f0ede6)" }}
+          style={{
+            fontSize: 28,
+            fontWeight: 450,
+            margin: "0 0 8px",
+            letterSpacing: "-0.015em",
+            color: "var(--ink, #f0ede6)",
+          }}
         >
           Set a new password
         </h1>
@@ -53,7 +68,10 @@ export default function ResetPasswordView({ onDone }: Props) {
             Password updated — redirecting…
           </p>
         ) : (
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: "flex", flexDirection: "column", gap: 12 }}
+          >
             <input
               type="password"
               placeholder="New password"

@@ -64,9 +64,7 @@ export function useAppShell({
   // Search & filter
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [workspace] = useState(
-    () => localStorage.getItem("openbrain_workspace") || "all",
-  );
+  const [workspace] = useState(() => localStorage.getItem("openbrain_workspace") || "all");
   const [gridFilters, setGridFilters] = useState<EntryFilterState>({
     type: "all",
     date: "all",

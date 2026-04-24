@@ -17,13 +17,18 @@ import type { Session } from "@supabase/auth-js";
 const PENDING_INVITE_KEY = "ob_pending_invite";
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
 
-function getHashTokens(): { access_token: string; refresh_token: string; type: string | null } | null {
+function getHashTokens(): {
+  access_token: string;
+  refresh_token: string;
+  type: string | null;
+} | null {
   const hash = window.location.hash.substring(1);
   if (!hash) return null;
   const params = new URLSearchParams(hash);
   const access_token = params.get("access_token");
   const refresh_token = params.get("refresh_token");
-  if (access_token && refresh_token) return { access_token, refresh_token, type: params.get("type") };
+  if (access_token && refresh_token)
+    return { access_token, refresh_token, type: params.get("type") };
   return null;
 }
 

@@ -13,9 +13,12 @@ vi.mock("../supabase", () => ({ supabase: { from: mockFrom } }));
 vi.mock("../../data/constants", () => ({ MODEL: "gemini-2.5-flash-lite" }));
 
 import {
-  setGroqKey, getGroqKey,
-  setGeminiKey, getGeminiKey,
-  setEmbedProvider, getEmbedProvider,
+  setGroqKey,
+  getGroqKey,
+  setGeminiKey,
+  getGeminiKey,
+  setEmbedProvider,
+  getEmbedProvider,
   loadUserAISettings,
   _resetForTests,
 } from "../aiSettings";
@@ -35,9 +38,18 @@ beforeEach(() => {
 });
 
 describe("localStorage writes", () => {
-  it("setGroqKey stores key", () => { setGroqKey("gsk_test"); expect(getGroqKey()).toBe("gsk_test"); });
-  it("setGeminiKey stores key", () => { setGeminiKey("AIza_test"); expect(getGeminiKey()).toBe("AIza_test"); });
-  it("setEmbedProvider is a no-op — always google", () => { setEmbedProvider("other"); expect(getEmbedProvider()).toBe("google"); });
+  it("setGroqKey stores key", () => {
+    setGroqKey("gsk_test");
+    expect(getGroqKey()).toBe("gsk_test");
+  });
+  it("setGeminiKey stores key", () => {
+    setGeminiKey("AIza_test");
+    expect(getGeminiKey()).toBe("AIza_test");
+  });
+  it("setEmbedProvider is a no-op — always google", () => {
+    setEmbedProvider("other");
+    expect(getEmbedProvider()).toBe("google");
+  });
 });
 
 describe("Supabase upsert on set", () => {

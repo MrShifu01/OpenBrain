@@ -16,7 +16,14 @@ function ResultBlock({ result }: { result: TestResult }) {
   if (result.status === "idle") return null;
   if (result.status === "running") {
     return (
-      <div style={{ marginTop: 10, fontFamily: "var(--f-mono)", fontSize: 12, color: "var(--ink-faint)" }}>
+      <div
+        style={{
+          marginTop: 10,
+          fontFamily: "var(--f-mono)",
+          fontSize: 12,
+          color: "var(--ink-faint)",
+        }}
+      >
         running…
       </div>
     );
@@ -32,7 +39,14 @@ function ResultBlock({ result }: { result: TestResult }) {
         border: `1px solid ${pass ? "var(--line-soft)" : "var(--blood)"}`,
       }}
     >
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: result.detail ? 6 : 0 }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          marginBottom: result.detail ? 6 : 0,
+        }}
+      >
         <span
           style={{
             fontFamily: "var(--f-mono)",
@@ -87,7 +101,9 @@ function FeatureFlagsSection() {
   };
 
   return (
-    <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}>
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
       <div style={{ marginBottom: 14 }}>
         <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
           Feature Flags
@@ -98,80 +114,88 @@ function FeatureFlagsSection() {
       </div>
 
       <div style={{ display: "grid", gap: 6 }}>
-        {(Object.entries(FEATURE_FLAGS) as [string, { label: string; icon: string; prodEnabled: boolean }][]).map(
-          ([key, flag]) => {
-            const adminOn = flags[key] ?? false;
-            const visibleToYou = flag.prodEnabled || adminOn;
-            return (
-              <div
-                key={key}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 14px",
-                  background: "var(--surface-low)",
-                  border: "1px solid var(--line-soft)",
-                  borderRadius: 8,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 14, color: "var(--ink-faint)" }}>{flag.icon}</span>
-                  <div>
-                    <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
-                      {flag.label}
-                    </span>
-                    <span
-                      className="f-sans"
-                      style={{
-                        marginLeft: 10,
-                        fontSize: 11,
-                        fontWeight: 600,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.06em",
-                        color: flag.prodEnabled ? "var(--ember)" : "var(--ink-faint)",
-                      }}
-                    >
-                      {flag.prodEnabled ? "Live" : "Dev only"}
-                    </span>
-                  </div>
-                </div>
-
-                {!flag.prodEnabled && (
-                  <button
-                    onClick={() => toggle(key, !adminOn)}
-                    className="press f-sans"
+        {(
+          Object.entries(FEATURE_FLAGS) as [
+            string,
+            { label: string; icon: string; prodEnabled: boolean },
+          ][]
+        ).map(([key, flag]) => {
+          const adminOn = flags[key] ?? false;
+          const visibleToYou = flag.prodEnabled || adminOn;
+          return (
+            <div
+              key={key}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+                background: "var(--surface-low)",
+                border: "1px solid var(--line-soft)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 14, color: "var(--ink-faint)" }}>{flag.icon}</span>
+                <div>
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+                  >
+                    {flag.label}
+                  </span>
+                  <span
+                    className="f-sans"
                     style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 7,
-                      padding: "5px 12px",
-                      borderRadius: 6,
-                      fontSize: 12,
+                      marginLeft: 10,
+                      fontSize: 11,
                       fontWeight: 600,
-                      background: visibleToYou
-                        ? "color-mix(in oklch, var(--ember) 12%, transparent)"
-                        : "var(--surface)",
-                      color: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
-                      border: `1px solid ${visibleToYou ? "color-mix(in oklch, var(--ember) 30%, transparent)" : "var(--line-soft)"}`,
-                      cursor: "pointer",
-                      transition: "all 180ms",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: flag.prodEnabled ? "var(--ember)" : "var(--ink-faint)",
                     }}
                   >
-                    <span
-                      style={{
-                        width: 8, height: 8, borderRadius: "50%",
-                        background: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
-                        flexShrink: 0,
-                      }}
-                    />
-                    {visibleToYou ? "Visible to you" : "Hidden"}
-                  </button>
-                )}
+                    {flag.prodEnabled ? "Live" : "Dev only"}
+                  </span>
+                </div>
               </div>
-            );
-          }
-        )}
+
+              {!flag.prodEnabled && (
+                <button
+                  onClick={() => toggle(key, !adminOn)}
+                  className="press f-sans"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 7,
+                    padding: "5px 12px",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: visibleToYou
+                      ? "color-mix(in oklch, var(--ember) 12%, transparent)"
+                      : "var(--surface)",
+                    color: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
+                    border: `1px solid ${visibleToYou ? "color-mix(in oklch, var(--ember) 30%, transparent)" : "var(--line-soft)"}`,
+                    cursor: "pointer",
+                    transition: "all 180ms",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  {visibleToYou ? "Visible to you" : "Hidden"}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -188,14 +212,21 @@ export default function AdminTab() {
     setAuthResult({ status: "running" });
     const t0 = Date.now();
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const {
+        data: { session },
+        error,
+      } = await supabase.auth.getSession();
       const ms = Date.now() - t0;
       if (error) {
         setAuthResult({ status: "fail", latencyMs: ms, detail: `Auth error: ${error.message}` });
         return false;
       }
       if (!session) {
-        setAuthResult({ status: "fail", latencyMs: ms, detail: "No session — user is not authenticated." });
+        setAuthResult({
+          status: "fail",
+          latencyMs: ms,
+          detail: "No session — user is not authenticated.",
+        });
         return false;
       }
       const now = Math.floor(Date.now() / 1000);
@@ -216,7 +247,11 @@ export default function AdminTab() {
       });
       return !expired;
     } catch (e: any) {
-      setAuthResult({ status: "fail", latencyMs: Date.now() - t0, detail: String(e?.message ?? e) });
+      setAuthResult({
+        status: "fail",
+        latencyMs: Date.now() - t0,
+        detail: String(e?.message ?? e),
+      });
       return false;
     }
   }
@@ -230,15 +265,19 @@ export default function AdminTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           model: "gemini-2.5-flash-lite",
-          messages: [{ role: "user", content: 'Reply with exactly the word: OK' }],
-          system: 'Reply with exactly the word: OK',
+          messages: [{ role: "user", content: "Reply with exactly the word: OK" }],
+          system: "Reply with exactly the word: OK",
           max_tokens: 10,
         }),
       });
       const ms = Date.now() - t0;
       const text = await res.text();
       let parsed: any = null;
-      try { parsed = JSON.parse(text); } catch { /* raw text */ }
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        /* raw text */
+      }
 
       if (!res.ok) {
         setLlmResult({
@@ -250,9 +289,7 @@ export default function AdminTab() {
       }
 
       const aiText =
-        parsed?.content?.[0]?.text ??
-        parsed?.choices?.[0]?.message?.content ??
-        "(no text field)";
+        parsed?.content?.[0]?.text ?? parsed?.choices?.[0]?.message?.content ?? "(no text field)";
       setLlmResult({
         status: "pass",
         latencyMs: ms,
@@ -283,7 +320,11 @@ export default function AdminTab() {
       const ms = Date.now() - t0;
       const text = await res.text();
       if (!res.ok) {
-        setCaptureResult({ status: "fail", latencyMs: ms, detail: `HTTP ${res.status}\n\n${text}` });
+        setCaptureResult({
+          status: "fail",
+          latencyMs: ms,
+          detail: `HTTP ${res.status}\n\n${text}`,
+        });
         return false;
       }
       setCaptureResult({
@@ -293,7 +334,11 @@ export default function AdminTab() {
       });
       return true;
     } catch (e: any) {
-      setCaptureResult({ status: "fail", latencyMs: Date.now() - t0, detail: String(e?.message ?? e) });
+      setCaptureResult({
+        status: "fail",
+        latencyMs: Date.now() - t0,
+        detail: String(e?.message ?? e),
+      });
       return false;
     }
   }
@@ -315,7 +360,11 @@ export default function AdminTab() {
       const ms = Date.now() - t0;
       const text = await res.text();
       let parsed: any = null;
-      try { parsed = JSON.parse(text); } catch { /* raw text */ }
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        /* raw text */
+      }
 
       if (!res.ok) {
         setSplitResult({
@@ -326,10 +375,7 @@ export default function AdminTab() {
         return false;
       }
 
-      const aiText =
-        parsed?.content?.[0]?.text ??
-        parsed?.choices?.[0]?.message?.content ??
-        "";
+      const aiText = parsed?.content?.[0]?.text ?? parsed?.choices?.[0]?.message?.content ?? "";
 
       // Attempt to parse the AI JSON response (same logic as useCaptureSheetParse)
       let entries: any[] = [];
@@ -362,7 +408,7 @@ export default function AdminTab() {
       }
 
       const titlesWithPhones = entries.map(
-        (e: any) => `• ${e.title ?? "(no title)"} — phone: ${e.metadata?.phone ?? "(missing)"}`
+        (e: any) => `• ${e.title ?? "(no title)"} — phone: ${e.metadata?.phone ?? "(missing)"}`,
       );
 
       setSplitResult({
@@ -380,7 +426,11 @@ export default function AdminTab() {
       });
       return true;
     } catch (e: any) {
-      setSplitResult({ status: "fail", latencyMs: Date.now() - t0, detail: String(e?.message ?? e) });
+      setSplitResult({
+        status: "fail",
+        latencyMs: Date.now() - t0,
+        detail: String(e?.message ?? e),
+      });
       return false;
     }
   }
@@ -394,7 +444,13 @@ export default function AdminTab() {
     setRunning(false);
   }
 
-  const sections: { label: string; hint: string; btn: string; result: TestResult; run: () => void }[] = [
+  const sections: {
+    label: string;
+    hint: string;
+    btn: string;
+    result: TestResult;
+    run: () => void;
+  }[] = [
     {
       label: "Auth token",
       hint: "verifies the session JWT is present and not expired.",

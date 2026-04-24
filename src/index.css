@@ -16,7 +16,7 @@
 /* ── Theme Tokens — Neural Obsidian (dark default) ── */
 @theme {
   /* Surfaces — warm charcoal, hue 60–65° */
-  --color-background: oklch(24% 0.010 62);
+  --color-background: oklch(24% 0.01 62);
   --color-surface: oklch(28% 0.013 62);
   --color-surface-dim: oklch(18% 0.008 60);
   --color-surface-container-lowest: oklch(21% 0.008 60);
@@ -42,8 +42,8 @@
   --color-on-secondary-container: oklch(96% 0.007 80);
 
   /* Tertiary — Sage */
-  --color-tertiary: oklch(62% 0.10 145);
-  --color-tertiary-dim: oklch(54% 0.10 145);
+  --color-tertiary: oklch(62% 0.1 145);
+  --color-tertiary-dim: oklch(54% 0.1 145);
   --color-tertiary-container: oklch(20% 0.04 140);
   --color-on-tertiary: oklch(15% 0.005 65);
   --color-on-tertiary-container: oklch(75% 0.08 145);
@@ -153,8 +153,8 @@ html:not(.dark) {
   --color-on-secondary-container: oklch(42% 0.015 75);
 
   /* Tertiary — Sage (light) */
-  --color-tertiary: oklch(44% 0.10 145);
-  --color-tertiary-dim: oklch(38% 0.10 145);
+  --color-tertiary: oklch(44% 0.1 145);
+  --color-tertiary-dim: oklch(38% 0.1 145);
   --color-tertiary-container: oklch(92% 0.04 145);
   --color-on-tertiary: oklch(100% 0 0);
   --color-on-tertiary-container: oklch(28% 0.08 145);
@@ -188,59 +188,133 @@ html:not(.dark) {
 
 /* ── Keyframes ── */
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes slide-up {
-  from { transform: translateY(6px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 @keyframes slide-in-from-right {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 @keyframes slide-in-from-bottom {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }
 @keyframes zoom-in-95 {
-  from { transform: scale(0.97); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 @keyframes loading-sweep {
-  0%   { transform: translateX(-200%); }
-  100% { transform: translateX(300%); }
+  0% {
+    transform: translateX(-200%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }
 @keyframes typing-dot {
-  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-3px); }
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 @keyframes pulse-dot {
-  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
-  40% { transform: scale(1); opacity: 1; }
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 @keyframes orbital-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @keyframes ring-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.08); opacity: 1; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
 }
 @keyframes hero-glow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 0.9; }
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
 }
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* View transition */
@@ -255,8 +329,16 @@ html:not(.dark) {
   pointer-events: none;
   z-index: 0;
   background-image:
-    radial-gradient(circle at 18% 28%, color-mix(in oklch, var(--color-primary) 10%, transparent) 0%, transparent 42%),
-    radial-gradient(circle at 82% 72%, color-mix(in oklch, var(--color-tertiary) 10%, transparent) 0%, transparent 42%);
+    radial-gradient(
+      circle at 18% 28%,
+      color-mix(in oklch, var(--color-primary) 10%, transparent) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 82% 72%,
+      color-mix(in oklch, var(--color-tertiary) 10%, transparent) 0%,
+      transparent 42%
+    );
 }
 
 /* ── Grain texture overlay ── */
@@ -393,7 +475,11 @@ html:not(.dark) .nav-glow {
   color: var(--color-primary);
   font-weight: 600;
   border-left-color: var(--color-primary);
-  background: linear-gradient(90deg, color-mix(in oklch, var(--color-primary) 10%, transparent), transparent);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklch, var(--color-primary) 10%, transparent),
+    transparent
+  );
 }
 
 /* ── Press interaction ── */
@@ -423,10 +509,20 @@ html:not(.dark) .nav-glow {
 }
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-outline); }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline-variant);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-outline);
+}
 
 /* ── Selection ── */
 ::selection {
@@ -440,7 +536,9 @@ html:not(.dark) .nav-glow {
   outline-offset: 2px;
   border-radius: 6px;
 }
-:focus:not(:focus-visible) { outline: none; }
+:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* No focus outlines on text inputs — handled by the app's own styling */
 input:focus,
@@ -454,14 +552,17 @@ select:focus-visible {
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
 }
 
 /* ── Base styles ── */
-html, body {
+html,
+body {
   min-height: 100dvh;
   background: var(--color-background);
   color: var(--color-on-surface);
@@ -476,11 +577,20 @@ body {
 
 /* Prevent iOS auto-zoom */
 @media (max-width: 1024px) {
-  input, textarea, select { font-size: 16px !important; }
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* Minimum 44px touch targets */
-button, [role="button"], input[type="checkbox"], input[type="radio"] { min-height: 44px; }
+button,
+[role="button"],
+input[type="checkbox"],
+input[type="radio"] {
+  min-height: 44px;
+}
 
 /* ── Typing indicator ── */
 .typing-dot {
@@ -490,16 +600,39 @@ button, [role="button"], input[type="checkbox"], input[type="radio"] { min-heigh
   background: var(--color-tertiary);
   animation: pulse-dot 1.2s infinite ease-in-out;
 }
-.typing-dot:nth-child(2) { animation-delay: 0.15s; }
-.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 /* ── AI prose ── */
-.ai-prose p { margin-bottom: 0.8em; color: var(--color-on-surface); }
-.ai-prose p:last-child { margin-bottom: 0; }
-.ai-prose strong { color: var(--color-on-surface); font-weight: 600; }
-.ai-prose em { color: var(--color-primary); font-style: normal; font-weight: 500; }
-.ai-prose ul, .ai-prose ol { padding-left: 1.3em; margin: 0.6em 0; color: var(--color-on-surface-variant); }
-.ai-prose li { margin-bottom: 0.3em; }
+.ai-prose p {
+  margin-bottom: 0.8em;
+  color: var(--color-on-surface);
+}
+.ai-prose p:last-child {
+  margin-bottom: 0;
+}
+.ai-prose strong {
+  color: var(--color-on-surface);
+  font-weight: 600;
+}
+.ai-prose em {
+  color: var(--color-primary);
+  font-style: normal;
+  font-weight: 500;
+}
+.ai-prose ul,
+.ai-prose ol {
+  padding-left: 1.3em;
+  margin: 0.6em 0;
+  color: var(--color-on-surface-variant);
+}
+.ai-prose li {
+  margin-bottom: 0.3em;
+}
 .ai-prose code {
   font-family: "Geist Variable", ui-monospace, monospace;
   font-size: 0.9em;
@@ -510,10 +643,23 @@ button, [role="button"], input[type="checkbox"], input[type="radio"] { min-heigh
 }
 
 /* ── Select styling ── */
-select { background-color: transparent; color: var(--color-on-surface); }
-select option { background-color: var(--color-surface-container); color: var(--color-on-surface); padding: 4px 8px; }
-select option:checked { background-color: var(--color-primary-container) !important; color: var(--color-on-primary-container); }
-select option:hover { background-color: var(--color-surface-container-high); color: var(--color-primary); }
+select {
+  background-color: transparent;
+  color: var(--color-on-surface);
+}
+select option {
+  background-color: var(--color-surface-container);
+  color: var(--color-on-surface);
+  padding: 4px 8px;
+}
+select option:checked {
+  background-color: var(--color-primary-container) !important;
+  color: var(--color-on-primary-container);
+}
+select option:hover {
+  background-color: var(--color-surface-container-high);
+  color: var(--color-primary);
+}
 
 /* ── Entry card ── */
 .entry-card {
@@ -522,7 +668,8 @@ select option:hover { background-color: var(--color-surface-container-high); col
   border-right-color: var(--color-outline-variant);
   border-bottom-color: var(--color-outline-variant);
 }
-.entry-card:hover, .entry-card:focus-visible {
+.entry-card:hover,
+.entry-card:focus-visible {
   background: var(--color-surface-container);
   border-top-color: var(--color-outline);
   border-right-color: var(--color-outline);
@@ -531,38 +678,57 @@ select option:hover { background-color: var(--color-surface-container-high); col
 .entry-card--critical {
   --entry-card-bg: color-mix(in oklch, var(--color-error) 5%, var(--color-surface-container-low));
 }
-.entry-card--critical:hover, .entry-card--critical:focus-visible {
+.entry-card--critical:hover,
+.entry-card--critical:focus-visible {
   background: color-mix(in oklch, var(--color-error) 8%, var(--color-surface-container));
 }
-.entry-card--pinned { --entry-card-bg: var(--color-surface-container); }
-.entry-card__delete:hover, .entry-card__delete:focus-visible {
+.entry-card--pinned {
+  --entry-card-bg: var(--color-surface-container);
+}
+.entry-card__delete:hover,
+.entry-card__delete:focus-visible {
   color: var(--color-error) !important;
   background: color-mix(in oklch, var(--color-error) 10%, transparent);
 }
 
 /* ── Cosmograph ── */
-.cosmograph-container { position: relative; min-height: 0; height: 100%; }
+.cosmograph-container {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+}
 .cosmograph-label {
   font-family: "DM Sans", system-ui, sans-serif;
-  font-size: 11px; font-weight: 500;
+  font-size: 11px;
+  font-weight: 500;
   color: var(--color-on-surface-variant);
   text-shadow: 0 1px 3px var(--color-surface);
   pointer-events: none;
 }
 .cosmograph-label--hovered {
   font-family: "DM Sans", system-ui, sans-serif;
-  font-size: 12px; font-weight: 600;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--color-primary);
   text-shadow: 0 1px 4px var(--color-surface);
 }
 
 /* ── Scrollbar hide ── */
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
 
 /* ── Safe area ── */
-.safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
-.safe-top { padding-top: max(0px, env(safe-area-inset-top)); }
+.safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.safe-top {
+  padding-top: max(0px, env(safe-area-inset-top));
+}
 
 @theme inline {
   --font-heading: "Newsreader", Georgia, serif;
@@ -630,7 +796,7 @@ select option:hover { background-color: var(--color-surface-container-high); col
   --ring: oklch(46% 0.09 75);
   --radius: 0.75rem;
   --chart-1: oklch(46% 0.09 75);
-  --chart-2: oklch(44% 0.10 145);
+  --chart-2: oklch(44% 0.1 145);
   --chart-3: oklch(50% 0.18 25);
   --chart-4: oklch(48% 0.02 75);
   --chart-5: oklch(65% 0.13 240);
@@ -646,7 +812,7 @@ select option:hover { background-color: var(--color-surface-container-high); col
 
 /* ── Shadcn/Radix tokens — dark mode (Neural Obsidian) ── */
 .dark {
-  --background: oklch(24% 0.010 62);
+  --background: oklch(24% 0.01 62);
   --foreground: oklch(96% 0.007 80);
   --card: oklch(28% 0.013 62);
   --card-foreground: oklch(96% 0.007 80);
@@ -665,7 +831,7 @@ select option:hover { background-color: var(--color-surface-container-high); col
   --input: oklch(31% 0.012 65);
   --ring: oklch(68% 0.09 75);
   --chart-1: oklch(68% 0.09 75);
-  --chart-2: oklch(62% 0.10 145);
+  --chart-2: oklch(62% 0.1 145);
   --chart-3: oklch(62% 0.18 25);
   --chart-4: oklch(58% 0.022 75);
   --chart-5: oklch(65% 0.13 240);
@@ -680,7 +846,13 @@ select option:hover { background-color: var(--color-surface-container-high); col
 }
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  body { @apply bg-background text-foreground; }
-  html { @apply font-sans; }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

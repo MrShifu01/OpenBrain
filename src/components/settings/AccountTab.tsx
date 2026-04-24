@@ -29,11 +29,17 @@ function readProfileCache(): ProfileFields | null {
   try {
     const raw = localStorage.getItem(PROFILE_CACHE_KEY);
     return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function writeProfileCache(p: ProfileFields) {
-  try { localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(p)); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
 }
 
 export default function AccountTab({ email }: Props) {
@@ -79,7 +85,10 @@ export default function AccountTab({ email }: Props) {
     setError(null);
     clearAISettingsCache();
     const { error: err } = await supabase.auth.signOut();
-    if (err) { setError(err.message); setSigningOut(false); }
+    if (err) {
+      setError(err.message);
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -123,10 +132,14 @@ export default function AccountTab({ email }: Props) {
             </label>
           ))}
           {profileError && (
-            <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>{profileError}</p>
+            <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>
+              {profileError}
+            </p>
           )}
           {profileSaved && (
-            <p className="f-sans" style={{ fontSize: 12, color: "var(--moss)", margin: 0 }}>Saved.</p>
+            <p className="f-sans" style={{ fontSize: 12, color: "var(--moss)", margin: 0 }}>
+              Saved.
+            </p>
           )}
           <SettingsButton onClick={saveProfile} disabled={profileSaving}>
             {profileSaving ? "Saving…" : "Save profile"}
@@ -151,7 +164,9 @@ export default function AccountTab({ email }: Props) {
         </SettingsButton>
       </SettingsRow>
       {error && (
-        <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", marginTop: 6 }}>{error}</p>
+        <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", marginTop: 6 }}>
+          {error}
+        </p>
       )}
     </div>
   );

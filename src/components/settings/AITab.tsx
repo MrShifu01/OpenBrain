@@ -6,8 +6,15 @@ import SettingsRow from "./SettingsRow";
 import { SettingsButton } from "./SettingsRow";
 import type { Brain } from "../../types";
 
-interface GapDetail { id: string; title: string; gaps: string[] }
-interface EnrichError { step: string; message: string }
+interface GapDetail {
+  id: string;
+  title: string;
+  gaps: string[];
+}
+interface EnrichError {
+  step: string;
+  message: string;
+}
 
 interface Props {
   activeBrain?: Brain;

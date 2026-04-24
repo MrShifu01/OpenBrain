@@ -48,7 +48,10 @@ export const entryRepo = {
   },
 
   /** Partial-update an entry. Server merges metadata. Returns true if the patch succeeded. */
-  async patch(id: string, changes: Partial<Entry> & { metadata?: Record<string, unknown> }): Promise<boolean> {
+  async patch(
+    id: string,
+    changes: Partial<Entry> & { metadata?: Record<string, unknown> },
+  ): Promise<boolean> {
     try {
       const r = await authFetch("/api/entries", {
         method: "PATCH",

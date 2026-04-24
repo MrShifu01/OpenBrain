@@ -6,7 +6,10 @@ import {
   type DesignMode,
 } from "../../design/DesignThemeContext";
 
-const VARIANT_SWATCHES: Record<DesignVariant, { bg: string; surface: string; ember: string; ink: string }> = {
+const VARIANT_SWATCHES: Record<
+  DesignVariant,
+  { bg: string; surface: string; ember: string; ink: string }
+> = {
   dusk: {
     bg: "oklch(21% 0.012 62)",
     surface: "oklch(30% 0.016 64)",
@@ -44,14 +47,27 @@ export default function AppearanceTab() {
       }}
     >
       <div style={{ marginBottom: 20 }}>
-        <h3 className="f-serif" style={{ fontSize: 20, fontWeight: 450, margin: 0, color: "var(--ink)", letterSpacing: "-0.01em" }}>
+        <h3
+          className="f-serif"
+          style={{
+            fontSize: 20,
+            fontWeight: 450,
+            margin: 0,
+            color: "var(--ink)",
+            letterSpacing: "-0.01em",
+          }}
+        >
           Appearance
         </h3>
         <p
           className="f-serif"
           style={{
-            fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic",
-            marginTop: 4, marginBottom: 0, lineHeight: 1.5,
+            fontSize: 13,
+            color: "var(--ink-faint)",
+            fontStyle: "italic",
+            marginTop: 4,
+            marginBottom: 0,
+            lineHeight: 1.5,
           }}
         >
           three rooms, two moods. pick the one you want to live in.
@@ -59,7 +75,9 @@ export default function AppearanceTab() {
       </div>
 
       {/* Design picker — three cards */}
-      <div className="micro" style={{ marginBottom: 10 }}>Design</div>
+      <div className="micro" style={{ marginBottom: 10 }}>
+        Design
+      </div>
       <div
         style={{
           display: "grid",
@@ -92,7 +110,9 @@ export default function AppearanceTab() {
                   <span
                     key={i}
                     style={{
-                      width: 18, height: 18, borderRadius: "50%",
+                      width: 18,
+                      height: 18,
+                      borderRadius: "50%",
                       background: c,
                       border: "1px solid var(--line-soft)",
                     }}
@@ -102,7 +122,9 @@ export default function AppearanceTab() {
               <div
                 className="f-serif"
                 style={{
-                  fontSize: 16, fontWeight: 450, letterSpacing: "-0.005em",
+                  fontSize: 16,
+                  fontWeight: 450,
+                  letterSpacing: "-0.005em",
                   color: active ? "var(--ember)" : "var(--ink)",
                 }}
               >
@@ -111,8 +133,11 @@ export default function AppearanceTab() {
               <div
                 className="f-serif"
                 style={{
-                  fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)",
-                  marginTop: 4, lineHeight: 1.45,
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  color: "var(--ink-faint)",
+                  marginTop: 4,
+                  lineHeight: 1.45,
                 }}
               >
                 {VARIANT_BLURB[v]}
@@ -123,7 +148,9 @@ export default function AppearanceTab() {
       </div>
 
       {/* Mode picker — segmented */}
-      <div className="micro" style={{ marginBottom: 10 }}>Mode</div>
+      <div className="micro" style={{ marginBottom: 10 }}>
+        Mode
+      </div>
       <div
         style={{
           display: "inline-flex",
@@ -146,7 +173,9 @@ export default function AppearanceTab() {
                 padding: "8px 20px",
                 minHeight: 32,
                 borderRadius: 6,
-                fontFamily: "var(--f-sans)", fontSize: 13, fontWeight: 500,
+                fontFamily: "var(--f-sans)",
+                fontSize: 13,
+                fontWeight: 500,
                 background: active ? "var(--surface-high)" : "transparent",
                 color: active ? "var(--ink)" : "var(--ink-faint)",
                 border: active ? "1px solid var(--line-soft)" : "1px solid transparent",

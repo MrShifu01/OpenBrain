@@ -7,7 +7,11 @@ interface EntriesContextValue {
   selected: Entry | null;
   setSelected: Dispatch<SetStateAction<Entry | null>>;
   handleDelete: (id: string) => void;
-  handleUpdate: (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => Promise<void>;
+  handleUpdate: (
+    id: string,
+    changes: Partial<Entry>,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   refreshEntries: () => Promise<void>;
 }
 

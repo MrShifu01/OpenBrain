@@ -191,22 +191,36 @@ export async function loadUserAISettings(userId: string): Promise<void> {
 }
 
 // ── Plan ──
-export function getPlan(): string { return _plan; }
+export function getPlan(): string {
+  return _plan;
+}
 
 // ── Anthropic ──
-export function getAnthropicKey(): string | null { return _keys["anthropic_key"] ?? null; }
-export function getAnthropicModel(): string { return _taskModels["anthropic_model"] ?? "claude-sonnet-4-6"; }
+export function getAnthropicKey(): string | null {
+  return _keys["anthropic_key"] ?? null;
+}
+export function getAnthropicModel(): string {
+  return _taskModels["anthropic_model"] ?? "claude-sonnet-4-6";
+}
 
 // ── OpenAI ──
-export function getOpenAIKey(): string | null { return _keys["openai_key"] ?? null; }
-export function getOpenAIModel(): string { return _taskModels["openai_model"] ?? "gpt-4o-mini"; }
+export function getOpenAIKey(): string | null {
+  return _keys["openai_key"] ?? null;
+}
+export function getOpenAIModel(): string {
+  return _taskModels["openai_model"] ?? "gpt-4o-mini";
+}
 
 // ── Gemini BYOK model ──
-export function getGeminiByokModel(): string { return _taskModels["gemini_byok_model"] ?? "gemini-2.5-flash-lite"; }
+export function getGeminiByokModel(): string {
+  return _taskModels["gemini_byok_model"] ?? "gemini-2.5-flash-lite";
+}
 
 // ── Derived: does this user have any AI access? ──
 export function hasAIAccess(): boolean {
-  return _plan === "pro" || !!(_keys["anthropic_key"] || _keys["openai_key"] || _keys["gemini_key"]);
+  return (
+    _plan === "pro" || !!(_keys["anthropic_key"] || _keys["openai_key"] || _keys["gemini_key"])
+  );
 }
 
 // ── Update provider settings (in-memory + DB) ──
@@ -224,7 +238,8 @@ export async function updateProviderSettings(fields: {
   if (fields.gemini_key !== undefined) _keys["gemini_key"] = fields.gemini_key;
   if (fields.anthropic_model !== undefined) _taskModels["anthropic_model"] = fields.anthropic_model;
   if (fields.openai_model !== undefined) _taskModels["openai_model"] = fields.openai_model;
-  if (fields.gemini_byok_model !== undefined) _taskModels["gemini_byok_model"] = fields.gemini_byok_model;
+  if (fields.gemini_byok_model !== undefined)
+    _taskModels["gemini_byok_model"] = fields.gemini_byok_model;
   if (fields.plan !== undefined) _plan = fields.plan;
   return persistKeyToDb(fields as any);
 }
@@ -298,7 +313,8 @@ function _applyPatchToMemory(patch: AISettingsPatch): void {
   if (patch.openai_key !== undefined) _keys["openai_key"] = patch.openai_key;
   if (patch.anthropic_model !== undefined) _taskModels["anthropic_model"] = patch.anthropic_model;
   if (patch.openai_model !== undefined) _taskModels["openai_model"] = patch.openai_model;
-  if (patch.gemini_byok_model !== undefined) _taskModels["gemini_byok_model"] = patch.gemini_byok_model;
+  if (patch.gemini_byok_model !== undefined)
+    _taskModels["gemini_byok_model"] = patch.gemini_byok_model;
   if (patch.model_capture !== undefined) _taskModels["capture"] = patch.model_capture;
   if (patch.model_questions !== undefined) _taskModels["questions"] = patch.model_questions;
   if (patch.model_vision !== undefined) _taskModels["vision"] = patch.model_vision;

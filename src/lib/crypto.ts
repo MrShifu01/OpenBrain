@@ -2,8 +2,6 @@ const CIPHER = "AES-GCM";
 const IV_BYTES = 12;
 const CIPHERTEXT_PREFIX = "v1:";
 
-
-
 export async function deriveKeyFromPassphrase(
   passphrase: string,
   salt: Uint8Array,

@@ -17,7 +17,13 @@ async function extractViaAI(file: File): Promise<string> {
     body: JSON.stringify({
       filename: file.name,
       fileData,
-      mimeType: file.type || (file.name.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : file.name.endsWith(".xls") ? "application/vnd.ms-excel" : "application/octet-stream"),
+      mimeType:
+        file.type ||
+        (file.name.endsWith(".xlsx")
+          ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          : file.name.endsWith(".xls")
+            ? "application/vnd.ms-excel"
+            : "application/octet-stream"),
     }),
   });
   if (!res.ok) {
