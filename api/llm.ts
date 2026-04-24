@@ -378,7 +378,7 @@ async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void
 
   const model = "whisper-large-v3-turbo";
   const ext = _mimeToExt(mimeType) || "webm";
-  const boundary = `----WebKitFormBoundary${Math.random().toString(36).slice(2)}`;
+  const boundary = `----WebKitFormBoundary${crypto.randomUUID().replace(/-/g, "")}`;
   const CRLF = "\r\n";
   const modelField = `--${boundary}${CRLF}Content-Disposition: form-data; name="model"${CRLF}${CRLF}${model}`;
   const langField = language ? `${CRLF}--${boundary}${CRLF}Content-Disposition: form-data; name="language"${CRLF}${CRLF}${language}` : "";

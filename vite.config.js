@@ -24,6 +24,9 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('/node_modules/@supabase/')) return 'supabase';
           if (id.includes('/node_modules/@sentry/')) return 'sentry';
+          if (id.includes('/node_modules/pdfjs-dist/')) return 'pdfjs';
+          if (id.includes('/node_modules/mammoth/')) return 'mammoth';
+          if (id.includes('/node_modules/jszip/')) return 'jszip';
         },
       },
     },

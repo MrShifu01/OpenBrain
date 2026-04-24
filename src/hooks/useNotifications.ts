@@ -24,7 +24,9 @@ export function useNotifications() {
     try {
       const r = await authFetch("/api/notifications");
       if (r.ok) setNotifications(await r.json());
-    } catch {}
+    } catch (e) {
+      console.debug("[useNotifications] fetch failed:", e);
+    }
     setLoading(false);
     fetchingRef.current = false;
   }, []);

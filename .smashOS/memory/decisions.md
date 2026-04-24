@@ -2,6 +2,50 @@
 
 ---
 
+## [AUDIT] Full App Audit — 2026-04-24 (pass 10)
+**Tags**: AUDIT
+
+### Overall Score: 77/100 — C+
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 70 |
+| Performance | 80 |
+| Architecture | 80 |
+| Code Quality / Types | 72 |
+| UX / UI | 80 |
+| Maintainability | 75 |
+| User Perspective | 80 |
+
+### Regression vs pass 9 (83 → 77, −6)
+- ❌ NEW CRITICAL: `user_profiles_update` RLS policy has no column guard — any authenticated user can set their own `tier` to "pro"/"max" via the Supabase browser client. Introduced by `7d73e6b` (admin tier changer). The `/admin` route guard is client-side only.
+- ❌ REGRESSION REVEALED: `xlsx` (2 HIGH CVEs) still in codebase. `decisions.md` pass 9 says it was replaced with `exceljs` — but `package.json`, `gmailScan.ts`, `fileExtract.ts` all still use it. CI threshold lowered to `critical` to suppress the audit failure.
+
+### Progress since pass 9 (carried forward)
+- ✅ TypeScript 0 errors, 380/380 tests passing, lint 0 errors
+- ✅ `withAuth` covers most endpoints; `verifyAuth` typed
+- ✅ Top 2 god components decomposed in pass 9 (Everion.tsx 1326→980, TodoView.tsx 1627→544)
+- ✅ Cron HMAC validation present
+
+### CRITICAL & HIGH Findings
+
+**[CRITICAL]** `user_profiles_update` RLS allows any authenticated user to UPDATE any column including `tier`. TierChanger (`AdminTab.tsx:176-213`) uses the browser Supabase client directly. `/admin` route guard is `window.location.pathname` + email check — trivially bypassed from the console.
+- Fix: `WITH CHECK (id = auth.uid() AND tier = OLD.tier)` or restrict updatable columns in a new migration.
+
+**[HIGH]** `xlsx` still present with 2 unpatched HIGH CVEs (GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9). CI silently accepts them via `--audit-level=critical`. `exceljs` migration was documented in decisions.md as completed (pass 9) but never committed.
+
+**[HIGH]** CI `--audit-level=critical` means new HIGH transitive vulns will pass undetected.
+
+### Top 5 Actions
+1. [CRITICAL] Fix `user_profiles_update` RLS: add column guard blocking tier/billing columns from client-side update. Move TierChanger to server-side endpoint with admin email check.
+2. [HIGH] Replace `xlsx` with `exceljs` in `gmailScan.ts` and `fileExtract.ts`; remove from `package.json`; restore CI to `--audit-level=high`.
+3. [MEDIUM] Decompose `ChatView.tsx` (1272 lines) and `CaptureSheet.tsx` (1113 lines) — same pattern as TodoView pass 9.
+4. [MEDIUM] Lazy-chunk `pdfjs-dist`, `mammoth`, `xlsx`/`exceljs`, `jszip` in `vite.config.js` to reduce 1972 KiB main bundle.
+5. [MEDIUM] Add `aria-label` to all icon-only buttons (floating capture, quick actions, bottom nav) for WCAG 2.1 SC 4.1.2.
+
+---
+
 ## [FEATURE] Gmail Staging Area — 2026-04-24
 **Tags**: GMAIL, SCHEMA, ENRICHMENT, UI
 
