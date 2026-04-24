@@ -14,6 +14,11 @@ export class ApiError extends Error {
 
 export interface AuthedUser {
   id: string;
+  email?: string;
+  aud?: string;
+  role?: string;
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
   [key: string]: unknown;
 }
 
@@ -66,7 +71,7 @@ export function withAuth(opts: WithAuthOptions, impl: Impl): (req: ApiRequest, r
       }
     }
 
-    const user = (await verifyAuth(req)) as AuthedUser | null;
+    const user = await verifyAuth(req);
     if (!user) {
       res.status(401).json({ error: "Unauthorized" });
       return;

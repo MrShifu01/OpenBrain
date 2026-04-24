@@ -40,7 +40,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 // ── /api/brains (rewritten to /api/user-data?resource=brains) ──
 async function handleBrains(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 60))) return void res.status(429).json({ error: "Too many requests" });
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return void res.status(401).json({ error: "Unauthorized" });
 
   if (req.method === "GET") {
@@ -75,7 +75,7 @@ async function handleBrains(req: ApiRequest, res: ApiResponse): Promise<void> {
 // ── /api/memory (rewritten to /api/user-data?resource=memory) ──
 async function handleMemory(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 30))) return res.status(429).json({ error: "Too many requests" });
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   if (req.method === "GET") {
@@ -104,7 +104,7 @@ async function handleMemory(req: ApiRequest, res: ApiResponse): Promise<void> {
 async function handleActivity(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 60))) return res.status(429).json({ error: "Too many requests" });
 
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   // GET /api/activity?brain_id=... — fetch activity log (owner only)
@@ -162,7 +162,7 @@ async function handleActivity(req: ApiRequest, res: ApiResponse): Promise<void> 
 
 // ── /api/health (rewritten to /api/user-data?resource=health) ──
 async function handleHealth(req: ApiRequest, res: ApiResponse): Promise<void> {
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
@@ -236,7 +236,7 @@ async function handleHealth(req: ApiRequest, res: ApiResponse): Promise<void> {
 async function handleVault(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 20))) return res.status(429).json({ error: "Too many requests" });
 
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   if (req.method === "GET") {
@@ -296,7 +296,7 @@ async function handleVault(req: ApiRequest, res: ApiResponse): Promise<void> {
 async function handlePin(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 10))) return void res.status(429).json({ error: "Too many requests" });
 
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return void res.status(401).json({ error: "Unauthorized" });
 
   const action = req.query.action as string;
@@ -369,7 +369,7 @@ async function handleDeleteAccount(req: ApiRequest, res: ApiResponse): Promise<v
   if (req.method !== "DELETE") return void res.status(405).json({ error: "Method not allowed" });
   if (!(await rateLimit(req, 5))) return void res.status(429).json({ error: "Too many requests" });
 
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return void res.status(401).json({ error: "Unauthorized" });
 
   // Fetch vault entries before deletion so they can be exported
@@ -397,7 +397,7 @@ async function handleDeleteAccount(req: ApiRequest, res: ApiResponse): Promise<v
 // ── /api/user-data?resource=api_keys — Claude Code / MCP API key management ──
 async function handleApiKeys(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (!(await rateLimit(req, 20))) return void res.status(429).json({ error: "Too many requests" });
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return void res.status(401).json({ error: "Unauthorized" });
 
   // GET — list active keys (never returns hash or raw key)
@@ -458,7 +458,7 @@ async function handleApiKeys(req: ApiRequest, res: ApiResponse): Promise<void> {
 
 // ── /api/notification-prefs (rewritten to /api/user-data?resource=prefs) ──
 async function handleNotificationPrefs(req: ApiRequest, res: ApiResponse): Promise<void> {
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
@@ -500,7 +500,7 @@ async function handleNotificationPrefs(req: ApiRequest, res: ApiResponse): Promi
 
 // ── /api/push-subscribe (rewritten to /api/user-data?resource=push) ──
 async function handlePushSubscribe(req: ApiRequest, res: ApiResponse): Promise<void> {
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };

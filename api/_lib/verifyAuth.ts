@@ -1,8 +1,9 @@
 import type { ApiRequest } from './types';
+import type { AuthedUser } from './withAuth.js';
 
 const SB_URL = process.env.SUPABASE_URL;
 
-export async function verifyAuth(req: ApiRequest): Promise<any> {
+export async function verifyAuth(req: ApiRequest): Promise<AuthedUser | null> {
   const token = (req.headers.authorization as string | undefined)?.split(" ")[1];
   if (!token) return null;
 
@@ -14,5 +15,5 @@ export async function verifyAuth(req: ApiRequest): Promise<any> {
   });
 
   if (!res.ok) return null;
-  return res.json();
+  return (await res.json()) as AuthedUser;
 }

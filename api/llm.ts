@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
 import { verifyAuth } from "./_lib/verifyAuth.js";
+import type { AuthedUser } from "./_lib/withAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { retrieveEntries, rebuildConceptGraph } from "./_lib/retrievalCore.js";
@@ -249,7 +250,7 @@ async function handleCompletion(
 async function handleChat(
   req: ApiRequest,
   res: ApiResponse,
-  user: any,
+  user: AuthedUser,
   provider: ProviderConfig,
 ): Promise<void> {
   const t0 = Date.now();
@@ -414,7 +415,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const limit = action === "transcribe" ? 10 : 40;
   if (!(await rateLimit(req, limit))) return res.status(429).json({ error: "Too many requests" });
 
-  const user: any = await verifyAuth(req);
+  const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   if (action === "transcribe") return handleTranscribe(req, res);
