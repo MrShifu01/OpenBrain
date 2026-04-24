@@ -116,22 +116,24 @@ export default function GmailSetupModal({
         aria-modal="true"
         aria-label={mode === "connect" ? "Connect Gmail" : "Edit Gmail preferences"}
         style={{
-          width: "100%",
+          width: "calc(100% - 32px)",
           maxWidth: 480,
-          maxHeight: "90vh",
-          overflowY: "auto",
+          height: "calc(100dvh - 32px)",
+          display: "flex",
+          flexDirection: "column",
           background: "var(--bg)",
           border: "1px solid var(--line-soft)",
           borderRadius: 20,
-          padding: "28px 28px 24px",
+          padding: "20px 20px 16px",
           boxSizing: "border-box",
+          overflow: "hidden",
         }}
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
         }}
       >
         {/* Header */}
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <GmailIcon />
             <h3
@@ -189,7 +191,7 @@ export default function GmailSetupModal({
         </div>
 
         {/* Medium-value categories */}
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 8 }}>
           <div
             className="f-sans"
             style={{
@@ -215,7 +217,7 @@ export default function GmailSetupModal({
         </div>
 
         {/* Custom input */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 8 }}>
           <label
             htmlFor="gmail-custom"
             className="f-sans"
@@ -234,7 +236,7 @@ export default function GmailSetupModal({
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
             placeholder="e.g. emails from my accountant mentioning VAT, warranty expiry notices…"
-            rows={3}
+            rows={2}
             style={{
               width: "100%",
               boxSizing: "border-box",
@@ -253,7 +255,7 @@ export default function GmailSetupModal({
         </div>
 
         {/* Look-back period */}
-        <div style={{ marginBottom: 24 }}>
+        <div style={{ marginBottom: 8 }}>
           <div
             className="f-sans"
             style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)", marginBottom: 8 }}
@@ -323,18 +325,18 @@ export default function GmailSetupModal({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={selected.length === 0 || saving}
+            disabled={saving}
             className="press f-sans"
             style={{
               flex: 2,
               height: 40,
               borderRadius: 10,
               border: "none",
-              background: selected.length === 0 ? "var(--surface-high)" : "var(--ember)",
-              color: selected.length === 0 ? "var(--ink-faint)" : "var(--ember-ink)",
+              background: "var(--ember)",
+              color: "var(--ember-ink)",
               fontSize: 14,
               fontWeight: 600,
-              cursor: selected.length === 0 || saving ? "not-allowed" : "pointer",
+              cursor: saving ? "not-allowed" : "pointer",
               opacity: saving ? 0.7 : 1,
               transition: "background 180ms",
             }}
@@ -378,7 +380,7 @@ function CategoryRow({
         display: "flex",
         alignItems: "flex-start",
         gap: 12,
-        padding: "10px 0",
+        padding: "6px 0",
         borderBottom: "1px solid var(--line-soft)",
         cursor: "pointer",
       }}
@@ -392,12 +394,6 @@ function CategoryRow({
           style={{ fontSize: 15, fontWeight: 450, color: "var(--ink)", letterSpacing: "-0.005em" }}
         >
           {cat.label}
-        </div>
-        <div
-          className="f-serif"
-          style={{ fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}
-        >
-          {cat.hint}
         </div>
       </div>
     </label>
