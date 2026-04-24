@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
-import * as chrono from "chrono-node";
+import { parseTask } from "../lib/nlpParser";
 import { authFetch } from "../lib/authFetch";
 
 function CheckCircleIcon({
@@ -28,6 +28,13 @@ function CheckCircleIcon({
   );
 }
 
+const PRIORITY_COLOR: Record<string, string> = {
+  p1: "var(--ember)",
+  p2: "oklch(72% 0.16 68)",
+  p3: "var(--ink-soft)",
+  p4: "var(--ink-ghost)",
+};
+
 interface Props {
   brainId?: string;
   onAdded: () => void;
@@ -38,14 +45,7 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Parse natural language date from the title as the user types
-  const parsed = useMemo(() => {
-    if (!title.trim()) return null;
-    const results = chrono.parse(title, new Date(), { forwardDate: true });
-    if (!results.length) return null;
-    const r = results[0];
-    return { date: r.date(), text: r.text };
-  }, [title]);
+  const parsed = useMemo(() => (title.trim() ? parseTask(title) : null), [title]);
 
   function autoResize() {
     const el = inputRef.current;
@@ -59,22 +59,19 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
     const raw = title.trim();
     if (!raw || !brainId) return;
     setBusy(true);
-    // Strip the recognised date phrase from the title
-    const cleanTitle = parsed
-      ? raw
-          .replace(parsed.text, "")
-          .replace(/\s{2,}/g, " ")
-          .trim() || raw
-      : raw;
+    const result = parsed ?? { cleanTitle: raw, dueDate: null, priority: null, tags: [], energy: null };
     const metadata: Record<string, string> = { status: "todo" };
-    if (parsed) metadata.due_date = format(parsed.date, "yyyy-MM-dd");
+    if (result.dueDate) metadata.due_date = result.dueDate;
+    if (result.priority) metadata.priority = result.priority;
+    if (result.energy) metadata.energy = result.energy;
     await authFetch("/api/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        p_title: cleanTitle,
+        p_title: result.cleanTitle || raw,
         p_type: "todo",
         p_brain_id: brainId,
+        p_tags: result.tags.length ? result.tags : undefined,
         p_metadata: metadata,
       }),
     }).catch(() => null);
@@ -110,7 +107,7 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
               submit(e as React.FormEvent);
             }
           }}
-          placeholder="Add a todo… (e.g. 'Call John next Thursday')"
+          placeholder="Add a todo… e.g. 'Pay rent p1 #Finance !high next Friday'"
           disabled={busy}
           className="w-full bg-transparent text-sm outline-none"
           style={{
@@ -121,18 +118,39 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
             lineHeight: "1.5",
           }}
         />
-        {parsed && (
-          <div className="mt-0.5 flex items-center gap-1">
-            <span
-              style={{
-                fontSize: 11,
-                color: "var(--ember)",
-                fontFamily: "var(--f-sans)",
-                fontWeight: 600,
-              }}
-            >
-              📅 {format(parsed.date, "EEE, d MMM")}
-            </span>
+        {parsed && (parsed.dueDate || parsed.priority || parsed.tags.length > 0 || parsed.energy) && (
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            {parsed.dueDate && (
+              <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
+                📅 {format(new Date(parsed.dueDate + "T12:00:00"), "EEE, d MMM")}
+              </span>
+            )}
+            {parsed.priority && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  background: `${PRIORITY_COLOR[parsed.priority]}22`,
+                  color: PRIORITY_COLOR[parsed.priority],
+                  fontFamily: "var(--f-sans)",
+                  textTransform: "uppercase",
+                }}
+              >
+                {parsed.priority}
+              </span>
+            )}
+            {parsed.energy && (
+              <span style={{ fontSize: 11, color: "var(--ink-soft)", fontFamily: "var(--f-sans)" }}>
+                {parsed.energy === "high" ? "⚡" : parsed.energy === "low" ? "🌿" : "〰️"} {parsed.energy}
+              </span>
+            )}
+            {parsed.tags.map((t) => (
+              <span key={t} style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
+                #{t}
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -140,11 +158,7 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
         type="submit"
         disabled={busy || !title.trim()}
         className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-opacity disabled:opacity-40"
-        style={{
-          background: "var(--ember)",
-          color: "var(--ember-ink)",
-          fontFamily: "var(--f-sans)",
-        }}
+        style={{ background: "var(--ember)", color: "var(--ember-ink)", fontFamily: "var(--f-sans)" }}
       >
         {busy ? "…" : "Add"}
       </button>

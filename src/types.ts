@@ -39,12 +39,15 @@ interface EntryMetadata {
   due_date?: string;
   deadline?: string;
   expiry_date?: string;
+  renewal_date?: string;
   event_date?: string;
   day_of_week?: string;
   date?: string;
   price?: string;
   unit?: string;
   status?: string;
+  priority?: "p1" | "p2" | "p3" | "p4";
+  energy?: "low" | "medium" | "high";
   workspace?: Workspace;
   confidence?: Record<string, ConfidenceLevel>;
   [key: string]: unknown;

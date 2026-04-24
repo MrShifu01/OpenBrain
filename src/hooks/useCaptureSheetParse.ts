@@ -10,6 +10,7 @@ import { runContactPipeline, contactToEntryPayload } from "../lib/contactPipelin
 import { PROMPTS } from "../config/prompts";
 import { showToast } from "../lib/notifications";
 import { recordDecision } from "../lib/learningEngine";
+import { parseTask } from "../lib/nlpParser";
 import type { Entry } from "../types";
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -236,13 +237,18 @@ export function useCaptureSheetParse({
       setErrorDetail(null);
 
       if (!isOnline) {
+        const nlp = parseTask(input);
+        const offlineMeta: Record<string, unknown> = {};
+        if (nlp.dueDate) offlineMeta.due_date = nlp.dueDate;
+        if (nlp.priority) offlineMeta.priority = nlp.priority;
+        if (nlp.energy) offlineMeta.energy = nlp.energy;
         await doSave(
           {
-            title: input.slice(0, 60),
+            title: nlp.cleanTitle || input.slice(0, 60),
             content: input,
             type: "note",
-            tags: [],
-            metadata: {},
+            tags: nlp.tags,
+            metadata: offlineMeta,
           },
           input,
         );
