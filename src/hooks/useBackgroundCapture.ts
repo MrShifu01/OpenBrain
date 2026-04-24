@@ -186,7 +186,22 @@ export function useBackgroundCapture() {
             classifyWarning = `AI call failed: ${e?.message || String(e)}`;
           }
 
-          // If AI classification failed, fall back to raw note with filename
+          if (entries.length === 0 && classifyWarning) {
+            try {
+              const splitRes = await authFetch("/api/llm?action=split", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: input }),
+              });
+              if (splitRes.ok) {
+                const splitData = await splitRes.json();
+                if (Array.isArray(splitData.entries) && splitData.entries.length > 0) {
+                  entries = splitData.entries;
+                  classifyWarning = "";
+                }
+              }
+            } catch { /* fall through to raw-note */ }
+          }
           if (entries.length === 0) {
             entries = [{ title: baseName, content: rawText, type: "note" }];
           }

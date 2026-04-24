@@ -339,6 +339,46 @@ async function handleChat(
   });
 }
 
+// ── Server-side split fallback ────────────────────────────────────────────────
+
+function parseServerEntries(raw: string): Array<Record<string, unknown>> {
+  const cleaned = raw.replace(/```json|```/g, "").trim();
+  const m = cleaned.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
+  const candidate = m ? m[1] : cleaned;
+  try {
+    const parsed = JSON.parse(candidate);
+    const arr: any[] = Array.isArray(parsed) ? parsed : (parsed?.title ? [parsed] : []);
+    return arr
+      .filter((e: any) => typeof e?.title === "string" && e.title.trim())
+      .map((e: any) => ({
+        title: String(e.title).trim().slice(0, 200),
+        content: String(e.content || "").slice(0, 10000),
+        type: String(e.type || "note").trim(),
+        tags: Array.isArray(e.tags) ? e.tags.filter((t: any) => typeof t === "string").slice(0, 20) : [],
+        ...(e.metadata && typeof e.metadata === "object" ? { metadata: e.metadata } : {}),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function handleSplit(req: ApiRequest, res: ApiResponse, userId: string): Promise<void> {
+  const { content } = req.body || {};
+  if (!content || typeof content !== "string") {
+    res.status(400).json({ error: "content required" }); return;
+  }
+  const provider = await resolveProvider(userId);
+  if (!provider) { res.status(200).json({ entries: [] }); return; }
+
+  const adapter = getAdapter(provider.provider);
+  const result = await adapter.completion(
+    { messages: [{ role: "user", content: String(content).slice(0, 8000) }], system: SERVER_PROMPTS.CAPTURE, max_tokens: 2000 },
+    provider,
+  );
+  const entries = result.ok && result.text ? parseServerEntries(result.text) : [];
+  res.status(200).json({ entries });
+}
+
 // ── File extraction (always Gemini) ──────────────────────────────────────────
 
 const MAX_FILE_B64 = 20 * 1024 * 1024;
@@ -435,6 +475,8 @@ export default withAuth(
     const action = (req.query.action as string) || "";
 
     if (action === "transcribe") return handleTranscribe(req, res);
+
+    if (action === "split") return handleSplit(req, res, user.id);
 
     if (action === "extract-file") {
       const geminiKey = await resolveGeminiKey(user.id);

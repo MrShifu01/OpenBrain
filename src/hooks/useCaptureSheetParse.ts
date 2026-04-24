@@ -272,6 +272,42 @@ export function useCaptureSheetParse({
         const data = await res.json();
 
         if (!res.ok) {
+          try {
+            const splitRes = await authFetch("/api/llm?action=split", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ content: input }),
+            });
+            if (splitRes.ok) {
+              const splitData = await splitRes.json();
+              const splitEntries: ParsedEntry[] = Array.isArray(splitData.entries) ? splitData.entries : [];
+              if (splitEntries.length === 1 && splitEntries[0].title) {
+                await doSave(splitEntries[0], rawContentRef.current);
+                return;
+              }
+              if (splitEntries.length > 1) {
+                setLoading(false);
+                setStatus(`Saving ${splitEntries.length} entries…`);
+                for (const entry of splitEntries) {
+                  try {
+                    const r2 = await authFetch("/api/capture", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
+                      body: JSON.stringify({ p_title: entry.title, p_content: entry.content || "", p_type: entry.type || "note", p_metadata: entry.metadata || {}, p_tags: entry.tags || [], p_brain_id: brainId }),
+                    });
+                    if (r2.ok) {
+                      const d2 = await r2.json();
+                      onCreated({ id: d2?.id || Date.now().toString(), title: entry.title, content: entry.content || "", type: (entry.type || "note") as Entry["type"], metadata: { ...(entry.metadata || {}), enrichment: { embedded: !d2.embed_error, concepts_count: 0, has_insight: false } }, pinned: false, importance: 0, tags: entry.tags || [], created_at: new Date().toISOString() } as Entry);
+                    }
+                  } catch (err) { console.error("[split:save]", err); }
+                }
+                setUploadedFiles([]);
+                setStatus("saved");
+                setTimeout(() => { setStatus(null); onClose(); }, 700);
+                return;
+              }
+            }
+          } catch { /* fall through to manual preview */ }
           const errMsg =
             data?.error?.message ||
             (typeof data?.error === "string" ? data.error : null) ||
