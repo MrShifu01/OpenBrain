@@ -163,9 +163,6 @@ const SB_HEADERS = {
   "Content-Type": "application/json",
 };
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 // ── OAuth token refresh ─────────────────────────────────────────────────────
 

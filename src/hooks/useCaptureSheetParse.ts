@@ -660,7 +660,7 @@ export function useCaptureSheetParse({
     setFileParseError(null);
     setErrorDetail(null);
     if (isImage) await handleImageFile(file);
-    else await handleDocFiles([file] as unknown as FileList);
+    else await handleDocFiles([file]);
   }, [handleImageFile, handleDocFiles]);
 
   return {

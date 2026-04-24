@@ -121,9 +121,6 @@ export async function detectAndStoreMerge(
 
   // Build a targeted candidate query: same type, not the same entry, not deleted
   const sm = source.metadata ?? {};
-  const email = (sm.email || sm.contact_email || "").toLowerCase();
-  const phone = normalizePhone(sm.phone || sm.contact_phone || "");
-
   // Fetch candidates: same type, created in the past, not this entry
   const candidateRes = await fetch(
     `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&type=eq.${encodeURIComponent(source.type)}&id=neq.${encodeURIComponent(entryId)}&deleted_at=is.null&limit=200&select=id,title,type,tags,metadata`,
