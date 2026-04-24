@@ -152,51 +152,6 @@ export default function MemoryHeader({ appShell, entries, entriesLoaded, activeB
           style={{ width: 1, height: 22, background: "var(--line-soft)", flexShrink: 0 }}
         />
 
-        {/* Type pills */}
-        <div
-          className="scrollbar-hide"
-          style={{
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            overflowX: "auto",
-            minWidth: 0,
-          }}
-        >
-          {["all", "note", "link", "reminder", "idea", "contact", "file"].map((t) => {
-            const active = appShell.gridFilters.type === t;
-            return (
-              <button
-                key={t}
-                onClick={() =>
-                  appShell.setGridFilters({
-                    ...appShell.gridFilters,
-                    type: t,
-                    brainId: activeBrainId,
-                  })
-                }
-                className="press f-sans"
-                style={{
-                  flexShrink: 0,
-                  padding: "0 14px",
-                  height: 32,
-                  minHeight: 32,
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: 500,
-                  background: active ? "var(--ember-wash)" : "var(--surface)",
-                  color: active ? "var(--ember)" : "var(--ink-soft)",
-                  border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
-                  cursor: "pointer",
-                  transition: "all 180ms",
-                }}
-              >
-                {t}
-              </button>
-            );
-          })}
-        </div>
-
         <div style={{ flex: 1 }} />
 
         {/* Sort cycle */}
