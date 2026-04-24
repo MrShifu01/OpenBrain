@@ -39,21 +39,25 @@ beforeEach(() => {
   mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
 });
 
+async function setupHandler() {
+  vi.resetModules();
+  vi.doMock("../../api/_lib/stripe.js", () => ({
+    stripe: { webhooks: { constructEvent: mockConstructEvent } },
+  }));
+  vi.doMock("../../api/_lib/sbHeaders.js", () => ({
+    sbHeaders: () => ({ "Content-Type": "application/json" }),
+  }));
+  vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
+  vi.doMock("../../api/_lib/verifyAuth.js", () => ({
+    verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
+  }));
+  vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
+  return (await import("../../api/user-data.js")).default;
+}
+
 describe("stripe-webhook handler", () => {
   it("returns 400 when stripe-signature header is missing", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     const req = makeReq({ headers: {} });
     const res = makeRes();
     await handler(req as any, res as any);
@@ -61,22 +65,10 @@ describe("stripe-webhook handler", () => {
   });
 
   it("returns 400 when signature verification fails", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     mockConstructEvent.mockImplementation(() => {
       throw new Error("Invalid signature");
     });
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     const req = makeReq();
     const res = makeRes();
     await handler(req as any, res as any);
@@ -85,18 +77,6 @@ describe("stripe-webhook handler", () => {
   });
 
   it("sets tier=pro on customer.subscription.created with pro price", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     process.env.STRIPE_PRO_PRICE_ID = "price_pro_monthly";
     mockConstructEvent.mockReturnValue({
       type: "customer.subscription.created",
@@ -109,30 +89,19 @@ describe("stripe-webhook handler", () => {
         },
       },
     });
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     await handler(makeReq() as any, makeRes() as any);
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("stripe_customer_id=eq.cus_abc"),
-      expect.objectContaining({
-        method: "PATCH",
-        body: expect.stringContaining('"tier":"pro"'),
-      }),
+    const patchCall = mockFetch.mock.calls.find((c: any[]) =>
+      (c[0] as string).includes("stripe_customer_id=eq.cus_abc"),
     );
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(patchCall![1].body);
+    expect(body.tier).toBe("pro");
+    expect(body.stripe_subscription_id).toBe("sub_123");
+    expect(body.tier_expires_at).toBeNull();
   });
 
   it("sets tier=starter on customer.subscription.created with starter price", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     process.env.STRIPE_PRO_PRICE_ID = "price_pro_monthly";
     process.env.STRIPE_STARTER_PRICE_ID = "price_starter_monthly";
     mockConstructEvent.mockReturnValue({
@@ -146,29 +115,19 @@ describe("stripe-webhook handler", () => {
         },
       },
     });
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     await handler(makeReq() as any, makeRes() as any);
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("stripe_customer_id=eq.cus_def"),
-      expect.objectContaining({
-        body: expect.stringContaining('"tier":"starter"'),
-      }),
+    const patchCall = mockFetch.mock.calls.find((c: any[]) =>
+      (c[0] as string).includes("stripe_customer_id=eq.cus_def"),
     );
+    expect(patchCall).toBeDefined();
+    const body = JSON.parse(patchCall![1].body);
+    expect(body.tier).toBe("starter");
+    expect(body.stripe_subscription_id).toBe("sub_456");
+    expect(body.tier_expires_at).toBeNull();
   });
 
   it("sets tier=free and tier_expires_at on customer.subscription.deleted", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     mockConstructEvent.mockReturnValue({
       type: "customer.subscription.deleted",
       data: {
@@ -180,7 +139,7 @@ describe("stripe-webhook handler", () => {
         },
       },
     });
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     await handler(makeReq() as any, makeRes() as any);
     const patchCall = mockFetch.mock.calls.find((c: any[]) =>
       (c[0] as string).includes("stripe_customer_id=eq.cus_ghi"),
@@ -188,27 +147,16 @@ describe("stripe-webhook handler", () => {
     expect(patchCall).toBeDefined();
     const body = JSON.parse(patchCall![1].body);
     expect(body.tier).toBe("free");
-    expect(body.tier_expires_at).toBeDefined();
+    expect(body.stripe_subscription_id).toBeNull();
+    expect(body.tier_expires_at).not.toBeNull();
   });
 
   it("returns 200 { received: true } on success", async () => {
-    vi.resetModules();
-    vi.doMock("../../api/_lib/stripe.js", () => ({
-      stripe: { webhooks: { constructEvent: mockConstructEvent } },
-    }));
-    vi.doMock("../../api/_lib/sbHeaders.js", () => ({
-      sbHeaders: () => ({ "Content-Type": "application/json" }),
-    }));
-    vi.doMock("../../api/_lib/securityHeaders.js", () => ({ applySecurityHeaders: vi.fn() }));
-    vi.doMock("../../api/_lib/verifyAuth.js", () => ({
-      verifyAuth: vi.fn().mockResolvedValue({ id: "user-1" }),
-    }));
-    vi.doMock("../../api/_lib/rateLimit.js", () => ({ rateLimit: vi.fn().mockResolvedValue(true) }));
     mockConstructEvent.mockReturnValue({
       type: "invoice.payment_failed", // unhandled type — should still return 200
       data: { object: {} },
     });
-    const { default: handler } = await import("../../api/user-data.js");
+    const handler = await setupHandler();
     const res = makeRes();
     await handler(makeReq() as any, res as any);
     expect(res.status).toHaveBeenCalledWith(200);
