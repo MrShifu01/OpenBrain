@@ -20,8 +20,8 @@ interface MobileHeaderProps {
 export default function MobileHeader({
   onToggleTheme,
   isDark,
-  isOnline,
-  pendingCount,
+  isOnline: _isOnline,
+  pendingCount: _pendingCount,
   onSearch,
   children,
   notifications = [],
