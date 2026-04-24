@@ -21,15 +21,14 @@ export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
-const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
-const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash").trim();
+const GEMINI_DEFAULT_MODEL = (process.env.GEMINI_PRO_MODEL || "gemini-2.5-flash").trim();
 const VALID_GEMINI_MODELS = new Set([
   "gemini-2.0-flash-lite", "gemini-2.0-flash",
   "gemini-2.5-flash-lite", "gemini-2.5-flash",
   "gemini-1.5-flash", "gemini-1.5-pro",
 ]);
 const sanitizeGeminiModel = (m: string | null | undefined): string =>
-  m && VALID_GEMINI_MODELS.has(m) ? m : GEMINI_MODEL;
+  m && VALID_GEMINI_MODELS.has(m) ? m : GEMINI_DEFAULT_MODEL;
 
 const SB_URL = (process.env.SUPABASE_URL || "").trim();
 
@@ -55,7 +54,13 @@ async function resolveProvider(userId: string, forChat = false): Promise<Provide
   return selectProvider(rows[0], {
     forChat,
     managed: GEMINI_API_KEY
-      ? { key: GEMINI_API_KEY, model: GEMINI_MODEL, chatModel: GEMINI_CHAT_MODEL }
+      ? {
+          key: GEMINI_API_KEY,
+          starterModel:     (process.env.GEMINI_STARTER_MODEL      || "gemini-2.0-flash-lite").trim(),
+          starterChatModel: (process.env.GEMINI_STARTER_CHAT_MODEL || "gemini-2.5-flash").trim(),
+          proModel:         (process.env.GEMINI_PRO_MODEL          || "gemini-2.5-flash").trim(),
+          proChatModel:     (process.env.GEMINI_PRO_CHAT_MODEL     || "gemini-2.5-flash").trim(),
+        }
       : undefined,
     sanitizeGeminiModel,
   });
@@ -330,7 +335,7 @@ async function handleExtractFile(req: ApiRequest, res: ApiResponse, geminiKey: s
   try {
     const result = await geminiExtractFile(
       { fileData, mimeType },
-      { model: GEMINI_MODEL, key: geminiKey, prompt: SERVER_PROMPTS.EXTRACT_FILE },
+      { model: GEMINI_DEFAULT_MODEL, key: geminiKey, prompt: SERVER_PROMPTS.EXTRACT_FILE },
     );
     if (!result.ok) {
       console.error("[extract-file]", result.status, JSON.stringify(result.error));

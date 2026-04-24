@@ -15,8 +15,10 @@ export interface UserAISettings {
 
 export interface ManagedGeminiOptions {
   key: string;
-  model: string;
-  chatModel: string;
+  starterModel: string;
+  starterChatModel: string;
+  proModel: string;
+  proChatModel: string;
 }
 
 export interface SelectOptions {
@@ -60,11 +62,14 @@ export function selectProvider(
   }
 
   const plan = settings.plan ?? "free";
-  if (plan === "pro" && opts.managed?.key) {
+  if ((plan === "pro" || plan === "starter") && opts.managed?.key) {
+    const isPro = plan === "pro";
     return {
       provider: "gemini-managed",
       key: opts.managed.key,
-      model: opts.forChat ? opts.managed.chatModel : opts.managed.model,
+      model: opts.forChat
+        ? (isPro ? opts.managed.proChatModel : opts.managed.starterChatModel)
+        : (isPro ? opts.managed.proModel : opts.managed.starterModel),
     };
   }
 
