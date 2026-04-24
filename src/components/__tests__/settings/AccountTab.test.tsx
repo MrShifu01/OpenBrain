@@ -1,17 +1,24 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 
-const { mockSignOut } = vi.hoisted(() => ({
-  mockSignOut: vi.fn(),
-}));
+const { mockSignOut, mockFrom } = vi.hoisted(() => {
+  const chainEnd = { data: null, error: null };
+  const queryChain: Record<string, unknown> = {};
+  queryChain.select = vi.fn().mockReturnValue(queryChain);
+  queryChain.eq = vi.fn().mockReturnValue(queryChain);
+  queryChain.single = vi.fn().mockResolvedValue(chainEnd);
+  const mockFrom = vi.fn().mockReturnValue(queryChain);
+  return { mockSignOut: vi.fn(), mockFrom };
+});
 
 vi.mock("../../../lib/supabase", () => ({
   supabase: {
     auth: {
       signOut: mockSignOut,
-      getUser: vi.fn().mockResolvedValue({ data: { user: { user_metadata: {} } } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } }),
       onAuthStateChange: vi.fn(),
     },
+    from: mockFrom,
   },
 }));
 
@@ -20,7 +27,7 @@ import AccountTab from "../../settings/AccountTab";
 describe("AccountTab", () => {
   it("displays the user email", () => {
     render(<AccountTab email="user@example.com" />);
-    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("user@example.com").length).toBeGreaterThan(0);
   });
 
   it("calls supabase.auth.signOut when Sign out is clicked", () => {
