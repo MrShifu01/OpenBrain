@@ -14,6 +14,7 @@ import {
 import type { ProviderConfig } from "./_lib/providers/types.js";
 import { extractFile as geminiExtractFile } from "./_lib/providers/gemini.js";
 import { runChat, type ConfirmPolicy } from "./_lib/providers/chatRunner.js";
+import { checkAndIncrement } from "./_lib/usage.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
@@ -77,6 +78,19 @@ async function resolveGeminiKey(userId: string): Promise<string> {
     if (rows[0]?.gemini_key) return rows[0].gemini_key;
   }
   return GEMINI_API_KEY;
+}
+
+async function resolveSettingsRaw(userId: string): Promise<{ plan: string; hasKey: boolean }> {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(userId)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
+    { headers: sbHeaders() },
+  );
+  if (!r.ok) return { plan: "free", hasKey: false };
+  const [row] = await r.json();
+  return {
+    plan: row?.plan ?? "free",
+    hasKey: !!(row?.anthropic_key || row?.openai_key || row?.gemini_key),
+  };
 }
 
 // ── Tool declarations ─────────────────────────────────────────────────────────
@@ -428,6 +442,19 @@ export default withAuth(
     if (action === "chat") {
       const provider = await resolveProvider(user.id, true);
       if (!provider) return res.status(402).json({ error: "no_ai_provider", message: "Add an API key in Settings or upgrade to Pro." });
+      if (provider.provider === "gemini-managed") {
+        const { plan, hasKey } = await resolveSettingsRaw(user.id);
+        const usageAction = (req.query.action as string) === "transcribe" ? "voice" : "chats";
+        const check = await checkAndIncrement(user.id, usageAction, plan, hasKey);
+        if (!check.allowed) {
+          return void res.status(429).json({
+            error: "monthly_limit_reached",
+            action: usageAction,
+            remaining: 0,
+            upgrade_url: "/settings?tab=billing",
+          });
+        }
+      }
       return handleChat(req, res, user, provider);
     }
 

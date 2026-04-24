@@ -4,6 +4,7 @@ import { generateEmbedding, generateEmbeddingsBatch, buildEntryText } from "./_l
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { detectAndStoreMerge } from "./_lib/mergeDetect.js";
+import { checkAndIncrement } from "./_lib/usage.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
@@ -62,6 +63,26 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     for (const brainId of p_extra_brain_ids) {
       if (typeof brainId !== "string") continue;
       await requireBrainAccess(user.id, brainId);
+    }
+  }
+
+  // Usage gate: only applies to platform AI (managed provider)
+  if (GEMINI_API_KEY) {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
+      { headers: sbHeaders() },
+    );
+    const [row] = r.ok ? await r.json() : [null];
+    const plan: string = row?.plan ?? "free";
+    const hasKey = !!(row?.anthropic_key || row?.openai_key || row?.gemini_key);
+    const check = await checkAndIncrement(user.id, "captures", plan, hasKey);
+    if (!check.allowed) {
+      return void res.status(429).json({
+        error: "monthly_limit_reached",
+        action: "captures",
+        remaining: 0,
+        upgrade_url: "/settings?tab=billing",
+      });
     }
   }
 
