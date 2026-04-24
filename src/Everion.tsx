@@ -136,6 +136,7 @@ interface EverionContentProps {
   sortedTimeline: Entry[];
   availableEntryTypes: string[];
   vaultEntries: Entry[];
+  loadError: string | null;
 }
 
 function EverionContent({
@@ -175,6 +176,7 @@ function EverionContent({
   sortedTimeline,
   availableEntryTypes: _availableEntryTypes,
   vaultEntries,
+  loadError,
 }: EverionContentProps) {
   const { activeBrain, brains, setActiveBrain: _setActiveBrain, refresh: _refresh } = useBrain();
   const { entries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate } =
@@ -195,7 +197,7 @@ function EverionContent({
   const allEntries = useMemo(() => [...entries, ...vaultEntries], [entries, vaultEntries]);
   const { conceptMap, godNodes } = useConceptGraph();
   const { isDark, toggleTheme } = useTheme();
-  const { adminFlags } = useAdminDevMode();
+  const { isAdmin, adminFlags } = useAdminDevMode();
   const ff = (key: FeatureFlagKey) => isFeatureEnabled(key, adminFlags);
   const visibleNavViews = NAV_VIEWS.filter(
     (v) => !(v.id in FEATURE_FLAGS) || ff(v.id as FeatureFlagKey),
@@ -335,6 +337,18 @@ function EverionContent({
                       </div>
                     ) : entries.length === 0 ? (
                       <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+                        {isAdmin && loadError && (
+                          <div
+                            className="w-full rounded-xl border px-4 py-3 text-left font-mono text-xs"
+                            style={{
+                              background: "color-mix(in oklch, var(--color-error) 8%, transparent)",
+                              borderColor: "color-mix(in oklch, var(--color-error) 25%, transparent)",
+                              color: "var(--color-error)",
+                            }}
+                          >
+                            <strong>Admin — entries load error:</strong> {loadError}
+                          </div>
+                        )}
                         <div
                           style={{
                             width: 56,
@@ -903,6 +917,7 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
             sortedTimeline={sortedTimeline}
             availableEntryTypes={availableEntryTypes}
             vaultEntries={dataLayer.vaultEntries}
+            loadError={dataLayer.loadError}
           />
         </ConceptGraphProvider>
       </BrainContext.Provider>

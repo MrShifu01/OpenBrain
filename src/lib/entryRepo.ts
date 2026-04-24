@@ -22,6 +22,7 @@ export interface ListOptions {
   brainId?: string;
   limit?: number;
   trash?: boolean;
+  onError?: (status: number, body: string) => void;
 }
 
 export const entryRepo = {
@@ -40,7 +41,13 @@ export const entryRepo = {
 
     try {
       const r = await authFetch(url);
-      if (!r.ok) return [];
+      if (!r.ok) {
+        if (options.onError) {
+          const body = await r.text().catch(() => "");
+          options.onError(r.status, body);
+        }
+        return [];
+      }
       return normalizeList(await r.json());
     } catch {
       return [];

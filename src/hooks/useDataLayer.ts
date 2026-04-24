@@ -27,6 +27,7 @@ export function useDataLayer({
   isOnlineRef,
   refreshCount,
 }: UseDataLayerParams) {
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [entries, setEntries] = useState<Entry[]>(() => {
     try {
       const cached = localStorage.getItem("openbrain_entries");
@@ -97,9 +98,16 @@ export function useDataLayer({
   const refreshEntries = useCallback(async () => {
     if (!activeBrainId) return;
     setEntriesLoaded(false);
+    setLoadError(null);
     try {
       // Phase 1: first 20 entries for fast first-paint
-      const initial = await entryRepo.list({ brainId: activeBrainId, limit: 20 });
+      const initial = await entryRepo.list({
+        brainId: activeBrainId,
+        limit: 20,
+        onError: (status, body) => {
+          setLoadError(`HTTP ${status}${body ? `: ${body.slice(0, 200)}` : ""}`);
+        },
+      });
       if (initial.length > 0) {
         setEntries(initial);
         initial.filter((e) => e.type !== "secret").forEach(indexEntry);
@@ -279,6 +287,7 @@ export function useDataLayer({
     vaultEntries,
     setEntries,
     entriesLoaded,
+    loadError,
     refreshEntries,
     links,
     setLinks,
