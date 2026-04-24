@@ -90,9 +90,8 @@ export default function BillingTab() {
     }
   }, []);
 
-  const tierLabel = tier === "free" ? "Free" : tier === "starter" ? "Starter" : "Pro";
-  const tierColor =
-    tier === "pro" ? "var(--ember)" : tier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
+  const tierLabel = tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Free";
+  const tierColor = tier === "max" || tier === "pro" ? "var(--ember)" : tier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
 
   if (isLoading) {
     return (
@@ -181,7 +180,7 @@ export default function BillingTab() {
           </SettingsButton>
         </div>
       )}
-      {tier === "pro" && (
+      {(tier === "pro" || tier === "max") && (
         <div style={{ marginTop: 16 }}>
           <SettingsButton onClick={openPortal}>
             Manage subscription

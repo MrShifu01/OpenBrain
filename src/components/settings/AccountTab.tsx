@@ -6,6 +6,7 @@ import { useSubscription } from "../../lib/useSubscription";
 
 interface Props {
   email: string;
+  isAdmin?: boolean;
 }
 
 interface ProfileFields {
@@ -43,7 +44,7 @@ function writeProfileCache(p: ProfileFields) {
   }
 }
 
-export default function AccountTab({ email }: Props) {
+export default function AccountTab({ email, isAdmin }: Props) {
   const [signingOut, setSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileFields>(
@@ -55,8 +56,8 @@ export default function AccountTab({ email }: Props) {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const { tier: billingTier } = useSubscription();
-  const tierLabel = billingTier === "pro" ? "Pro" : billingTier === "starter" ? "Starter" : "Free";
-  const tierColor = billingTier === "pro" ? "var(--ember)" : billingTier === "starter" ? "var(--moss)" : "var(--ink-ghost)";;
+  const tierLabel = isAdmin ? "Admin" : billingTier === "max" ? "Max" : billingTier === "pro" ? "Pro" : billingTier === "starter" ? "Starter" : "Free";
+  const tierColor = isAdmin ? "var(--ember)" : billingTier === "max" ? "var(--ember)" : billingTier === "pro" ? "var(--ember)" : billingTier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
 
   const initials = (profile.display_name || email || "?")
     .split(/\s+/)

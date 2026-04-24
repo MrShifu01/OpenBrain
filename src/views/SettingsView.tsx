@@ -595,7 +595,7 @@ export default function SettingsView({
             {preloaded.has("account") && (
               <div style={{ display: section === "account" ? "block" : "none" }}>
                 <SectionHeader title="Account" />
-                <AccountTab email={email} />
+                <AccountTab email={email} isAdmin={isAdmin} />
               </div>
             )}
 

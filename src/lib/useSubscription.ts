@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
-export type Tier = "free" | "starter" | "pro";
+export type Tier = "free" | "starter" | "pro" | "max";
 export type UsageAction = "captures" | "chats" | "voice" | "improve";
 
 interface UsageCounts {
@@ -12,9 +12,10 @@ interface UsageCounts {
 }
 
 const LIMITS: Record<Tier, UsageCounts> = {
-  free:    { captures: 0,    chats: 0,    voice: 0,   improve: 0    },
-  starter: { captures: 500,  chats: 200,  voice: 20,  improve: 20   },
-  pro:     { captures: 2000, chats: 1000, voice: 100, improve: 9999 },
+  free:    { captures: 0,    chats: 0,    voice: 0,    improve: 0    },
+  starter: { captures: 500,  chats: 200,  voice: 20,   improve: 20   },
+  pro:     { captures: 2000, chats: 1000, voice: 100,  improve: 9999 },
+  max:     { captures: 9999, chats: 9999, voice: 9999, improve: 9999 },
 };
 
 const ZERO_USAGE: UsageCounts = { captures: 0, chats: 0, voice: 0, improve: 0 };

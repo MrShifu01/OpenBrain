@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
@@ -169,6 +169,90 @@ SPLIT RULES: If the input contains 2 or more clearly distinct real-world entitie
 Single: {"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"business"|"personal"|"both","confidence":{"type":"extracted"|"inferred"|"ambiguous","tags":"...","title":"...","content":"..."}}
 Multiple: [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[],"workspace":"...","confidence":{...}}, ...]
 CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.phone.`;
+
+const TIER_OPTIONS = ["free", "starter", "pro", "max"] as const;
+type TierOption = typeof TIER_OPTIONS[number];
+
+function TierChanger() {
+  const [current, setCurrent] = useState<TierOption>("free");
+  const [selected, setSelected] = useState<TierOption>("free");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("tier")
+        .eq("id", user.id)
+        .single();
+      const t = (data?.tier ?? "free") as TierOption;
+      setCurrent(t);
+      setSelected(t);
+    });
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    setMsg(null);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSaving(false); return; }
+    const { error } = await supabase
+      .from("user_profiles")
+      .update({ tier: selected })
+      .eq("id", user.id);
+    setSaving(false);
+    if (error) {
+      setMsg(`Error: ${error.message}`);
+    } else {
+      setCurrent(selected);
+      setMsg("Tier updated — reload to apply.");
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}>
+      <div style={{ marginBottom: 14 }}>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          Your tier
+        </div>
+        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          Change your own account tier for testing. Current: <strong>{current}</strong>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value as TierOption)}
+          className="f-sans"
+          style={{
+            height: 34,
+            padding: "0 10px",
+            borderRadius: 6,
+            border: "1px solid var(--line-soft)",
+            background: "var(--surface)",
+            color: "var(--ink)",
+            fontSize: 13,
+            cursor: "pointer",
+          }}
+        >
+          {TIER_OPTIONS.map((t) => (
+            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+          ))}
+        </select>
+        <SettingsButton onClick={save} disabled={saving || selected === current}>
+          {saving ? "Saving…" : "Apply"}
+        </SettingsButton>
+      </div>
+      {msg && (
+        <div className="f-sans" style={{ fontSize: 12, marginTop: 8, color: msg.startsWith("Error") ? "var(--blood)" : "var(--moss)" }}>
+          {msg}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function MockGmailReviewSection() {
   const [open, setOpen] = useState(false);
@@ -580,6 +664,7 @@ export default function AdminTab() {
 
   return (
     <div>
+      <TierChanger />
       <MockGmailReviewSection />
       <FeatureFlagsSection />
 
