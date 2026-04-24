@@ -12,7 +12,7 @@ import { randomUUID } from "crypto";
 import { withApiKey, ApiError } from "./_lib/withAuth.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
-import { retrieveEntries, rebuildConceptGraph } from "./_lib/retrievalCore.js";
+import { retrieveEntries } from "./_lib/retrievalCore.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 import { runEnrichEntry, scheduleEnrichJob } from "./_lib/enrichBatch.js";
 import { checkIdempotency, recordIdempotency } from "./_lib/idempotency.js";
@@ -200,7 +200,6 @@ async function handleUpdate({ brainId, userId }: Auth, body: any) {
   });
   if (!r.ok) throw new Error(`Update failed: ${await r.text().catch(() => String(r.status))}`);
   const updated: any[] = await r.json();
-  if (GEMINI_API_KEY) await rebuildConceptGraph(brainId, GEMINI_API_KEY);
   runEnrichEntry(id, userId).catch(() => {});
   return { id: updated[0].id, title: updated[0].title, content: updated[0].content, updated_at: updated[0].updated_at };
 }

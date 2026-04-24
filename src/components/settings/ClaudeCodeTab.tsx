@@ -33,6 +33,7 @@ export default function ClaudeCodeTab() {
   const [showForm, setShowForm] = useState(false);
   const [revealedKey, setRevealedKey] = useState<{ name: string; key: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showKey, setShowKey] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
   const [error, setError] = useState("");
 
@@ -87,10 +88,31 @@ export default function ClaudeCodeTab() {
 
   function copyKey() {
     if (!revealedKey) return;
-    navigator.clipboard.writeText(revealedKey.key).then(() => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(revealedKey.key).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => fallbackCopy(revealedKey.key));
+    } else {
+      fallbackCopy(revealedKey.key);
+    }
+  }
+
+  function fallbackCopy(text: string) {
+    const el = document.createElement("textarea");
+    el.value = text;
+    el.style.position = "fixed";
+    el.style.opacity = "0";
+    document.body.appendChild(el);
+    el.select();
+    try {
+      document.execCommand("copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    } catch {
+      // nothing — user will read from the masked input
+    }
+    document.body.removeChild(el);
   }
 
   return (
@@ -166,24 +188,26 @@ export default function ClaudeCodeTab() {
           <p className="text-xs font-semibold" style={{ color: "var(--color-on-surface)" }}>
             {revealedKey.name} — copy this key now, you won't see it again
           </p>
-          <div className="flex items-center gap-2">
-            <code
-              className="flex-1 rounded-lg px-3 py-2 text-xs break-all select-all"
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              readOnly
+              type={showKey ? "text" : "password"}
+              value={revealedKey.key}
               style={{
-                background: "var(--color-surface-container-high)",
-                color: "var(--color-on-surface)",
+                flex: 1,
+                fontFamily: "var(--f-mono)",
+                fontSize: 12,
+                padding: "6px 10px",
+                border: "1px solid var(--line)",
+                borderRadius: 8,
+                background: "var(--surface)",
+                color: "var(--ink)",
               }}
-            >
-              {revealedKey.key}
-            </code>
-            <button
-              onClick={copyKey}
-              className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-              style={{
-                background: "var(--color-primary-container)",
-                color: "var(--color-on-primary-container)",
-              }}
-            >
+            />
+            <button onClick={() => setShowKey(s => !s)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", cursor: "pointer", color: "var(--ink-soft)" }}>
+              {showKey ? "Hide" : "Show"}
+            </button>
+            <button onClick={copyKey} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", cursor: "pointer", color: "var(--ink-soft)" }}>
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>

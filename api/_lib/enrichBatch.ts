@@ -1,4 +1,5 @@
 import { SERVER_PROMPTS } from "./prompts.js";
+import { computeCompletenessScore } from "./completeness.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -29,7 +30,16 @@ function parseAIJSON(raw: string): any | null {
   const text = raw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
   const match = text.match(/(\[[\s\S]*\]|\{[\s\S]*\})/);
   if (match) {
-    try { const p = JSON.parse(match[0]); return Array.isArray(p) ? p[0] : p; } catch {}
+    try {
+      const p = JSON.parse(match[0]);
+      if (Array.isArray(p)) {
+        if (p.length > 0 && typeof p[0] === "object" && ("label" in p[0] || "concepts" in p[0])) {
+          return { concepts: p, relationships: [] };
+        }
+        return p[0];
+      }
+      return p;
+    } catch {}
   }
   const start = text.indexOf("{");
   if (start === -1) return null;
@@ -97,7 +107,7 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
   // ── Insight ──
   if (!hasInsight(entry)) {
     const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
-    const prompt = `<user_entry>\nType: ${entry.type || "note"}${tagStr}\nTitle: ${entry.title}\n${String(entry.content || "").slice(0, 400)}\n</user_entry>`;
+    const prompt = `<user_entry>\nType: ${entry.type || "note"}${tagStr}\nTitle: ${entry.title}\n${String(entry.content || "").slice(0, 1500)}\n</user_entry>`;
     const insight = await callAnthropic(SERVER_PROMPTS.INSIGHT, prompt, 150);
     if (insight.trim().length >= 20) {
       meta = { ...meta, ai_insight: insight.trim(), enrichment: { ...enr, has_insight: true } };
@@ -108,7 +118,7 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
 
   // ── Concepts ──
   if (!hasConcepts(entry)) {
-    const conceptPrompt = `Entry ID: ${entry.id}\n<user_entry>\nTitle: ${entry.title}\nType: ${entry.type || "note"}\nContent: ${String(entry.content || "").slice(0, 600)}\n</user_entry>`;
+    const conceptPrompt = `Entry ID: ${entry.id}\n<user_entry>\nTitle: ${entry.title}\nType: ${entry.type || "note"}\nContent: ${String(entry.content || "").slice(0, 2000)}\n</user_entry>`;
     const conceptRaw = await callAnthropic(SERVER_PROMPTS.ENTRY_CONCEPTS, conceptPrompt, 400);
     const conceptResult = parseAIJSON(conceptRaw);
     if (conceptResult?.concepts?.length > 0) {
@@ -221,6 +231,11 @@ export async function runEnrichBatchForUser(
 
   const unenriched = all.filter((e) => !isParsed(e) || !hasInsight(e) || !hasConcepts(e));
   if (unenriched.length === 0) return { processed: 0, remaining: 0 };
+
+  unenriched.sort((a, b) =>
+    computeCompletenessScore(a.title, a.content, a.type, a.tags ?? [], a.metadata ?? {}) -
+    computeCompletenessScore(b.title, b.content, b.type, b.tags ?? [], b.metadata ?? {})
+  );
 
   const batch = unenriched.slice(0, batchSize);
   let processed = 0;

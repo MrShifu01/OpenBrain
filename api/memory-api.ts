@@ -14,6 +14,7 @@ import { rateLimit } from "./_lib/rateLimit.js";
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { resolveApiKey } from "./_lib/resolveApiKey.js";
 import { retrieveEntries } from "./_lib/retrievalCore.js";
+import { checkAndIncrement } from "./_lib/usage.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -54,6 +55,24 @@ async function handleRetrieve(req: ApiRequest, res: ApiResponse): Promise<void> 
   const { query, limit } = req.body || {};
   if (!query || typeof query !== "string" || !query.trim()) {
     return res.status(400).json({ error: "query required" });
+  }
+
+  // Gate embedding cost against user quota
+  const settingsRes = await fetch(
+    `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(auth.userId)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
+    { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } },
+  );
+  const [settings] = settingsRes.ok ? await settingsRes.json() : [null];
+  const plan = settings?.plan ?? "free";
+  const hasByok = !!(settings?.anthropic_key || settings?.openai_key || settings?.gemini_key);
+  let quota: Awaited<ReturnType<typeof checkAndIncrement>>;
+  try {
+    quota = await checkAndIncrement(auth.userId, "chats", plan, hasByok);
+  } catch {
+    return res.status(503).json({ error: "Quota service unavailable" });
+  }
+  if (!quota.allowed) {
+    return res.status(429).json({ error: "Monthly retrieval limit reached" });
   }
 
   const safeLimit = Math.min(Math.max(1, parseInt(String(limit)) || 15), 50);

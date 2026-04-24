@@ -65,6 +65,8 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
     if (result.dayOfMonth) metadata.day_of_month = result.dayOfMonth;
     if (result.priority) metadata.priority = result.priority;
     if (result.energy) metadata.energy = result.energy;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
     await authFetch("/api/capture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -75,7 +77,8 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
         p_tags: result.tags.length ? result.tags : undefined,
         p_metadata: metadata,
       }),
-    }).catch(() => null);
+      signal: controller.signal,
+    }).catch(() => null).finally(() => clearTimeout(timeoutId));
     setTitle("");
     setBusy(false);
     onAdded();
@@ -105,7 +108,7 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
-              submit(e as React.FormEvent);
+              if (!busy) submit(e as React.FormEvent);
             }
           }}
           placeholder="Add a todo… e.g. 'Pay rent p1 #Finance !high next Friday'"
@@ -117,6 +120,7 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
             resize: "none",
             overflow: "hidden",
             lineHeight: "1.5",
+            padding: 0,
           }}
         />
         {parsed && (parsed.dueDate || parsed.dayOfMonth || parsed.priority || parsed.tags.length > 0 || parsed.energy) && (

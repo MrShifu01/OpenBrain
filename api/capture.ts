@@ -121,8 +121,22 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     }
   }
 
+  // Validate source_url scheme — reject non-http(s) to prevent SSRF
+  const rawSourceUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
+  if (rawSourceUrl) {
+    try {
+      const parsed = new URL(String(rawSourceUrl));
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new ApiError(400, "source_url must use http or https scheme");
+      }
+    } catch (e: any) {
+      if (e instanceof ApiError) throw e;
+      throw new ApiError(400, "source_url is not a valid URL");
+    }
+  }
+
   // URL deduplication — merge instead of duplicate when same URL exists
-  const sourceUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
+  const sourceUrl = rawSourceUrl;
   if (sourceUrl && p_brain_id) {
     const dedupRes = await fetch(`${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(p_brain_id)}&deleted_at=is.null&select=id,metadata&limit=500`, { headers: sbHeadersNoContent() });
     if (dedupRes.ok) {

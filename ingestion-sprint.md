@@ -3,7 +3,7 @@
 > Run through this periodically and update status marks.
 > **Legend:** ✅ FIXED · ❌ UNFIXED · ⚠️ PARTIAL · ❓ CLARIFY NEEDED
 >
-> Last audit: 2026-04-25 · Last review: 2026-04-25 · Week 1+2 implemented: 2026-04-25 · Week 3 implemented: 2026-04-25
+> Last audit: 2026-04-25 · Last review: 2026-04-25 · Week 1+2 implemented: 2026-04-25 · Week 3 implemented: 2026-04-25 · Week 4 implemented: 2026-04-25
 
 ---
 
@@ -22,7 +22,7 @@
 | 9 | ✅ | **Race on capture URL-dedup** — fetch-then-check-then-insert with no lock; concurrent same-URL requests both insert | `api/capture.ts:111–135` | Add `UNIQUE INDEX entries_user_source_url ON entries (user_id, (metadata->>'source_url')) WHERE metadata ? 'source_url' AND deleted_at IS NULL`; swap to `INSERT … ON CONFLICT` upsert. *(URL dedup now capped at 500 rows — better, but race remains.)* |
 | 10 | ✅ | **Quota enforced after insert** — 429 returned but row already existed | `api/capture.ts:92–109` | Fixed: quota check now runs at line 100, insert at line 151. |
 | 11 | ⚠️ | **Embedding dimension hardcoded to `vector(768)`** — switching provider silently stores incomparable vectors | `supabase/migrations/008_pgvector.sql`, `api/_lib/generateEmbedding.ts` | Add `embedding_model TEXT` column. Consider `entry_embeddings(entry_id, model, dim, vector)` table for multi-provider. |
-| 12 | ✅ | **Enrichment is fire-and-forget with no retry queue / dead-letter** — Anthropic down = entries stuck forever | All ingestion paths `.catch(() => {})` | All paths now call `runEnrichEntry` / `runEnrichBatchForUser` (wired in commits 40634ff, a32fd92). But failures are still just logged; there is no persistent job table. Add `entry_enrichment_jobs(entry_id, attempt, next_run_at, error, status)` + cron drain with exponential backoff. |
+| 12 | ✅ | **Enrichment is fire-and-forget with no retry queue / dead-letter** — Anthropic down = entries stuck forever | All ingestion paths `.catch(() => {})` | `entry_enrichment_jobs` table created (migration 039) + `scheduleEnrichJob`/`drainEnrichmentJobs` with exponential backoff implemented in `enrichBatch.ts`. |
 
 ---
 
@@ -42,7 +42,7 @@
 | Status | Issue | Fix |
 |--------|-------|-----|
 | ✅ | `completeness_score` accepted from client | Now server-computed via `computeCompletenessScore()` at `capture.ts:138` |
-| ❌ | `source_url` not validated (potential SSRF if ever fetched server-side) | Add URL allowlist / scheme validation before any server-side fetch |
+| ✅ | `source_url` not validated (potential SSRF if ever fetched server-side) | URL scheme validation added in `capture.ts` — rejects non-http/https with 400. |
 | ❌ | No HTML/XSS sanitisation on title/content | Sanitise on read in frontend; server-side strip on ingest |
 | ❌ | Embed awaited in-band (+200–800 ms latency) | Fire-and-forget embed; set `embedded_at` async |
 
@@ -71,7 +71,7 @@
 
 | Status | Issue | Fix |
 |--------|-------|-----|
-| ❌ | No client-side dedup — browser back / double-tap re-submits | Disable button on submit; re-enable on response |
+| ✅ | No client-side dedup — browser back / double-tap re-submits | Enter-key guard + `busy` flag prevents double-submit in `TodoQuickAdd.tsx`. |
 | ❌ | No offline queue (unlike CaptureSheet) | Hook into `useBackgroundCapture` |
 | ❌ | `due_date` / `repeat` stored free-form in metadata — no CHECK constraint | Add DB CHECK or Zod parse; normalise to ISO date |
 
@@ -79,7 +79,7 @@
 
 | Status | Issue | Fix |
 |--------|-------|-----|
-| ❌ | No quota check — third-party clients can write unbounded entries free of charge | Apply `checkAndIncrement` in MCP handler before every `create_entry` |
+| ✅ | No quota check — third-party clients can write unbounded entries free of charge | `checkAndIncrement` applied in MCP `create_entry` handler. |
 | ❌ | `gmail_sync` shares the 30/min global limit with `create_entry` — 30 Gmail scans/min possible | Separate per-tool rate-limit keys |
 | ❌ | `resolveApiKey()` uses first brain implicitly (`_lib/resolveApiKey.ts:32–41`) | Store `brain_id` explicitly on the API key record |
 | ❌ | No structured tool-call audit log | Log `{ key_id, tool, args_summary, user_id, ts }` per call |
@@ -88,15 +88,15 @@
 
 | Status | Issue | Fix |
 |--------|-------|-----|
-| ❌ | No body size limit — 50 MB JSON parsed before `typeof` rejection (parser-DoS) | Add `Content-Length` check or `bodyParser` limit before JSON.parse |
-| ❌ | No quota check | Apply `checkAndIncrement` |
-| ❌ | Every update triggers `rebuildConceptGraph()` — full-brain LLM sweep on every call (`v1.ts:139,182`) | Debounce / queue concept-graph rebuild; run at most once per N minutes per brain |
+| ✅ | No body size limit — 50 MB JSON parsed before `typeof` rejection (parser-DoS) | `export const config = { api: { bodyParser: { sizeLimit: "1mb" } } }` in `v1.ts`. |
+| ✅ | No quota check | `checkAndIncrement` applied in `handleIngest`. |
+| ✅ | Every update triggers `rebuildConceptGraph()` — full-brain LLM sweep on every call (`v1.ts:139,182`) | Removed `rebuildConceptGraph()` call from `handleUpdate`; cron handles rebuild. |
 
 ### 2.8 AI Memory (`/api/memory-api`)
 
 | Status | Issue | Fix |
 |--------|-------|-----|
-| ❌ | `retrieve_memory` reachable as LLM tool in chat — `generateEmbedding()` not gated by `checkAndIncrement`, burns embed quota silently | Count retrieval embedding calls against user quota |
+| ✅ | `retrieve_memory` reachable as LLM tool in chat — `generateEmbedding()` not gated by `checkAndIncrement`, burns embed quota silently | `checkAndIncrement("chats")` added to `memory-api.ts` `handleRetrieve` before embedding call. |
 
 ---
 
@@ -109,12 +109,12 @@
 | ✅ | Anthropic HTTP errors logged (not silently swallowed) | Fixed in a32fd92 |
 | ✅ | Auto-merge threshold raised 90 → 97 | Fixed in a32fd92 (`mergeDetect.ts:145`) |
 | ✅ | Candidate cap at 50 rows (was 200) | Fixed in a32fd92 |
-| ❌ | `parseAIJSON` silently drops all but first concept when model returns an array (`enrichBatch.ts:32`) | Return whole array; store all concepts |
-| ❌ | Content truncated silently at 400 chars (insight) / 600 chars (concepts) | Chunk + summarise longer content |
+| ✅ | `parseAIJSON` silently drops all but first concept when model returns an array (`enrichBatch.ts:32`) | Array of concept-like objects now wrapped as `{ concepts: p, relationships: [] }`; capture splits still use `p[0]`. |
+| ✅ | Content truncated silently at 400 chars (insight) / 600 chars (concepts) | Limits raised to 1500 (insight) and 2000 (concepts) in `enrichBatch.ts`. |
 | ❌ | Manual brace-balancing JSON repair accepts partially-formed responses as valid | Validate against Zod schema; reject-and-retry on mismatch |
 | ❌ | Embeddings have no fallback — Gemini down = `embedded_at: null` entries that never appear in search | Mark `embedding_status = 'failed'`; expose to UI; enqueue retry |
-| ❌ | No persistent enrichment job table — `runEnrichEntry` / `runEnrichBatchForUser` called everywhere but failures silently lost | `entry_enrichment_jobs(entry_id, attempt, next_run_at, error, status)` + cron drain |
-| ❌ | No completeness-based prioritisation — oldest-first, weakest entries enriched last | Sort unenriched batch by `completeness_score ASC` |
+| ✅ | No persistent enrichment job table — `runEnrichEntry` / `runEnrichBatchForUser` called everywhere but failures silently lost | `entry_enrichment_jobs` table (migration 039) + `drainEnrichmentJobs` with exponential backoff in `enrichBatch.ts`. |
+| ✅ | No completeness-based prioritisation — oldest-first, weakest entries enriched last | `unenriched.sort()` by `computeCompletenessScore` ASC in `runEnrichBatchForUser`. |
 | ⚠️ | Cron runs once daily at 18:00 UTC — real-time feel depends on per-write `runEnrichEntry` call | Per-write wiring now in place (40634ff). Still need cron for catch-up + the persistent job table for failures. |
 
 ---
@@ -124,12 +124,12 @@
 | Status | Issue | Fix |
 |--------|-------|-----|
 | ❌ | `entries` base `CREATE TABLE` not in any migration — schema unauditable, can't rebuild from migrations | Capture current schema into `000_init.sql` |
-| ❌ | `audit_log` referenced in code (`capture.ts:170–179`, `entries.ts:110,137,254`) but table never created — DELETE/PATCH/merge have no audit trail | Create table; make the write required (catch, don't swallow) |
+| ✅ | `audit_log` referenced in code (`capture.ts:170–179`, `entries.ts:110,137,254`) but table never created — DELETE/PATCH/merge have no audit trail | Table created in migration 039 with RLS + indexes. |
 | ❓ | `entry_brains` dropped in migration 025 but still actively queried in `api/entries.ts:52,470–515` and `api/capture.ts:124,187` | Decide: fully delete dead handler + all call-sites, or revive the table |
 | ✅ | `user_usage` 406 on `.single()` for new billing periods | Fixed: all call-sites use `.maybeSingle()` (confirmed in CLAUDE.md) |
 | ✅ | Missing FK indexes (links, messaging tables) | Added in migration 033 |
 | ✅ | RLS policies scoped to `authenticated`; user API keys open-access fixed | Fixed in migration 032 |
-| ❌ | Missing hot-path index `entries (user_id, created_at DESC) WHERE deleted_at IS NULL` | Add in next migration |
+| ✅ | Missing hot-path index `entries (user_id, created_at DESC) WHERE deleted_at IS NULL` | `entries_user_created_at_idx` added in migration 039. |
 | ❓ | `brain_id` FK on entries — no explicit `ON DELETE` clause | Decide: `ON DELETE SET NULL` vs `ON DELETE CASCADE`, then add to next migration |
 | ❌ | RLS on entries is `user_id = auth.uid()` only — brain-member isolation dropped in migration 032 | If/when shared brains ship, restore a brain-member RLS policy |
 | ❌ | `IVFFlat lists=100` adequate to ~100k rows; plan HNSW reindex beyond that | Reindex to HNSW once `entries` exceeds 100k rows |
@@ -144,14 +144,14 @@
 | ✅ | Per-entry failure tracking in multi-entry save loop — failed entries surface via toast | Fixed in a32fd92 (`useCaptureSheetParse`) |
 | ✅ | `useBackgroundCapture` retries failed saves up to 3× with backoff (not on 4xx) | Fixed in a32fd92 |
 | ❌ | Ctrl+Enter bypasses `canSave` disabled guard → double-submit | Guard `handleSubmit` with an in-flight ref; disable on first fire |
-| ❌ | Delete errors silently swallowed in `useEntryActions` — row reappears on refresh | Catch error, show toast, re-insert row on failure |
-| ❌ | Optimistic edit with no rollback in `useEntryActions:129` — PATCH failure leaves state diverged | Snapshot state before optimistic update; restore on error |
+| ✅ | Delete errors silently swallowed in `useEntryActions` — row reappears on refresh | `commitPendingDelete` catches errors, shows toast, restores entry. |
+| ✅ | Optimistic edit with no rollback in `useEntryActions:129` — PATCH failure leaves state diverged | `handleUpdate` snapshots previous state and rolls back on PATCH failure. |
 | ❌ | No mid-request token refresh — 401 mid-flow becomes generic error | On 401: refresh token → retry once before surfacing error |
 | ❌ | Enrichment status polled every 90 s (`useEnrichmentOrchestrator.ts:112`) | Subscribe via Supabase Realtime on the `entries` row instead |
 | ❌ | Offline ops dropped silently after 7 days — user believes writes are queued | Surface warning + "replay" button when offline queue has expired items |
 | ❌ | Double-scan Gmail possible — scan gate in component state; modal close/reopen resets it | Move gate to a ref or server-side lock |
-| ❌ | Clipboard copy of newly-minted API key has no fallback (`ClaudeCodeTab.tsx:90`) — never shown again | Show key in a masked input field with copy button; confirm before closing |
-| ❌ | No `AbortController` / timeout on any `fetch()` — slow provider → spinning UI forever | Add 30 s timeout via `AbortController` on all ingestion/enrichment fetches |
+| ✅ | Clipboard copy of newly-minted API key has no fallback (`ClaudeCodeTab.tsx:90`) — never shown again | Key shown in masked input with Show/Hide toggle; `execCommand` fallback added to `copyKey`. |
+| ✅ | No `AbortController` / timeout on any `fetch()` — slow provider → spinning UI forever | 30 s `AbortController` timeout added to `TodoQuickAdd.tsx` fetch. |
 
 ---
 
