@@ -39,6 +39,9 @@ const MAX_CHARS = 8000;
 //   /api/brains             → /api/user-data?resource=brains
 //   /api/cron/daily         → /api/user-data?resource=cron-daily
 //   /api/notifications      → /api/user-data?resource=notifications
+//   /api/stripe-checkout    → /api/user-data?resource=stripe-checkout
+//   /api/stripe-webhook     → /api/user-data?resource=stripe-webhook
+//   /api/stripe-portal      → /api/user-data?resource=stripe-portal
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
   const rawBody = await bufferBody(req);

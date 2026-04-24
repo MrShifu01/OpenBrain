@@ -46,6 +46,9 @@
     { "source": "/token", "destination": "/api/mcp?_oauth=token" },
     { "source": "/register", "destination": "/api/mcp?_oauth=register" },
     { "source": "/authorize", "destination": "/api/mcp?_oauth=authorize" },
+    { "source": "/api/stripe-checkout", "destination": "/api/user-data?resource=stripe-checkout" },
+    { "source": "/api/stripe-webhook",  "destination": "/api/user-data?resource=stripe-webhook"  },
+    { "source": "/api/stripe-portal",   "destination": "/api/user-data?resource=stripe-portal"   },
     { "source": "/((?!api/|assets/|v1/).*)", "destination": "/index.html" }
   ],
   "headers": [
