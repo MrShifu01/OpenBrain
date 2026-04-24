@@ -17,7 +17,6 @@
  *    Body: brain_id, headline, detail, correction
  *    Response: { fixed_count: number }
  */
-import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_lib/withAuth.js";
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { learnKnowledgeShortcut } from "./_lib/feedback.js";
