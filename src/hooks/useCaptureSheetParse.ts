@@ -225,7 +225,7 @@ export function useCaptureSheetParse({
       }
       setLoading(false);
     },
-    [brainId, cryptoKey, onCreated, onClose],
+    [brainId, cryptoKey, onCreated, onClose, onBackgroundSave],
   );
 
   const capture = useCallback(
@@ -288,6 +288,7 @@ export function useCaptureSheetParse({
               if (splitEntries.length > 1) {
                 setLoading(false);
                 setStatus(`Saving ${splitEntries.length} entries…`);
+                const splitFailed: string[] = [];
                 for (const entry of splitEntries) {
                   try {
                     const r2 = await authFetch("/api/capture", {
@@ -298,10 +299,11 @@ export function useCaptureSheetParse({
                     if (r2.ok) {
                       const d2 = await r2.json();
                       onCreated({ id: d2?.id || Date.now().toString(), title: entry.title, content: entry.content || "", type: (entry.type || "note") as Entry["type"], metadata: { ...(entry.metadata || {}), enrichment: { embedded: !d2.embed_error, concepts_count: 0, has_insight: false } }, pinned: false, importance: 0, tags: entry.tags || [], created_at: new Date().toISOString() } as Entry);
-                    }
-                  } catch (err) { console.error("[split:save]", err); }
+                    } else { splitFailed.push(entry.title || "(untitled)"); }
+                  } catch (err) { console.error("[split:save]", err); splitFailed.push(entry.title || "(untitled)"); }
                 }
                 setUploadedFiles([]);
+                if (splitFailed.length) showToast(`${splitEntries.length - splitFailed.length} of ${splitEntries.length} saved. Failed: ${splitFailed.join(", ")}`, "warning");
                 setStatus("saved");
                 setTimeout(() => { setStatus(null); onClose(); }, 700);
                 return;
@@ -380,6 +382,7 @@ export function useCaptureSheetParse({
         if (Array.isArray(parsedRaw) && parsedRaw.length > 1) {
           setLoading(false);
           setStatus(`Saving ${parsedRaw.length} entries…`);
+          const failedTitles: string[] = [];
           for (const entry of parsedRaw) {
             try {
               const entryMeta = entry.confidence
@@ -417,12 +420,18 @@ export function useCaptureSheetParse({
                   tags: entry.tags || [],
                   created_at: new Date().toISOString(),
                 } as Entry);
+              } else {
+                failedTitles.push(entry.title || "(untitled)");
               }
             } catch (err) {
               console.error("[useCaptureSheetParse]", err);
+              failedTitles.push(entry.title || "(untitled)");
             }
           }
           setUploadedFiles([]);
+          if (failedTitles.length) {
+            showToast(`${parsedRaw.length - failedTitles.length} of ${parsedRaw.length} saved. Failed: ${failedTitles.join(", ")}`, "warning");
+          }
           setStatus("saved");
           setTimeout(() => {
             setStatus(null);

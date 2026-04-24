@@ -295,19 +295,31 @@ export function useBackgroundCapture() {
             ? { raw_content: entry.rawContent.slice(0, 8000) }
             : {}),
         };
-        const res = await authFetch("/api/capture", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...(embedHeaders || {}) },
-          body: JSON.stringify({
-            p_title: entry.title,
-            p_content: entry.content,
-            p_type: entry.type || "note",
-            p_metadata: metadata,
-            p_tags: entry.tags || [],
-            p_brain_id: brainId,
-          }),
+        const saveBody = JSON.stringify({
+          p_title: entry.title,
+          p_content: entry.content,
+          p_type: entry.type || "note",
+          p_metadata: metadata,
+          p_tags: entry.tags || [],
+          p_brain_id: brainId,
         });
-        if (res.ok) {
+        let res: Response | null = null;
+        let saveErr = "Save failed";
+        for (let attempt = 0; attempt < 3; attempt++) {
+          if (attempt > 0) await new Promise<void>((r) => setTimeout(r, attempt * 2000));
+          try {
+            res = await authFetch("/api/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", ...(embedHeaders || {}) },
+              body: saveBody,
+            });
+            if (res.ok || (res.status >= 400 && res.status < 500)) break;
+            saveErr = `HTTP ${res.status}`;
+          } catch (e: any) {
+            saveErr = e?.message || "Network error";
+          }
+        }
+        if (res?.ok) {
           const result = await res.json();
           onCreated({
             id: result?.id || Date.now().toString(),
@@ -326,7 +338,7 @@ export function useBackgroundCapture() {
           updateTask(taskId, { status: "done", entryTitle: entry.title });
           setTimeout(() => dismissTask(taskId), 8000);
         } else {
-          updateTask(taskId, { status: "error", error: "Save failed" });
+          updateTask(taskId, { status: "error", error: saveErr });
         }
       } catch (e: any) {
         updateTask(taskId, { status: "error", error: e?.message || "Save failed" });

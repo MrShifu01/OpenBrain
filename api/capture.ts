@@ -30,6 +30,27 @@ export default withAuth(
   },
 );
 
+async function updateStreak(userId: string): Promise<void> {
+  const svcKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const authHdr = { apikey: svcKey, Authorization: `Bearer ${svcKey}` };
+  const userRes = await fetch(`${SB_URL}/auth/v1/admin/users/${userId}`, { headers: authHdr });
+  if (!userRes.ok) return;
+  const userData = await userRes.json();
+  const meta = userData.user_metadata || {};
+  const today = new Date().toISOString().slice(0, 10);
+  if (meta.last_capture_date === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const currentStreak = meta.last_capture_date === yesterday ? (meta.current_streak || 0) + 1 : 1;
+  const longestStreak = Math.max(currentStreak, meta.longest_streak || 0);
+  await fetch(`${SB_URL}/auth/v1/admin/users/${userId}`, {
+    method: "PUT",
+    headers: { ...authHdr, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      user_metadata: { ...meta, current_streak: currentStreak, longest_streak: longestStreak, last_capture_date: today },
+    }),
+  });
+}
+
 // ── POST /api/capture ──
 async function handleCapture({ req, res, user }: HandlerContext): Promise<void> {
   const { p_title, p_content, p_type, p_metadata, p_tags, p_brain_id, p_extra_brain_ids } = req.body;
@@ -90,7 +111,7 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
   // URL deduplication — merge instead of duplicate when same URL exists
   const sourceUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
   if (sourceUrl && p_brain_id) {
-    const dedupRes = await fetch(`${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(p_brain_id)}&deleted_at=is.null&select=id,metadata`, { headers: sbHeadersNoContent() });
+    const dedupRes = await fetch(`${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(p_brain_id)}&deleted_at=is.null&select=id,metadata&limit=500`, { headers: sbHeadersNoContent() });
     if (dedupRes.ok) {
       const existing: any[] = await dedupRes.json();
       const dupe = existing.find((e: any) => e.metadata?.source_url === sourceUrl || e.metadata?.url === sourceUrl);
@@ -171,13 +192,6 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     }
   }
 
-  // Background enrichment (fire-and-forget; cron handles any that don't complete)
-  if (response.ok && data?.id) {
-    runEnrichEntry(data.id, user.id).catch((err: any) =>
-      console.error("[capture:enrich]", err?.message),
-    );
-  }
-
   // Auto-embed (must be awaited on Vercel serverless)
   let embedError: string | null = null;
   if (response.ok && data?.id) {
@@ -216,38 +230,14 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     }
   }
 
-  // Streak tracking
-  try {
-    const userRes = await fetch(
-      `${SB_URL}/auth/v1/admin/users/${user.id}`,
-      { headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` } },
+  // Enrichment after embed — staged→active promotion needs embedded_at to be set first
+  if (response.ok && data?.id) {
+    runEnrichEntry(data.id, user.id).catch((err: any) =>
+      console.error("[capture:enrich]", err?.message),
     );
-    if (userRes.ok) {
-      const userData = await userRes.json();
-      const meta = userData.user_metadata || {};
-      const today = new Date().toISOString().slice(0, 10);
-      const lastCapture = meta.last_capture_date || "";
-      let currentStreak = meta.current_streak || 0;
-      let longestStreak = meta.longest_streak || 0;
-
-      if (lastCapture !== today) {
-        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-        currentStreak = lastCapture === yesterday ? currentStreak + 1 : 1;
-        if (currentStreak > longestStreak) longestStreak = currentStreak;
-
-        await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
-          method: "PUT",
-          headers: { apikey: process.env.SUPABASE_SERVICE_ROLE_KEY!, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_metadata: { ...meta, current_streak: currentStreak, longest_streak: longestStreak, last_capture_date: today },
-          }),
-        });
-      }
-    }
-  } catch (err) {
-    console.error("[capture] streak update failed", err);
   }
 
+  updateStreak(user.id).catch((err) => console.error("[capture] streak update failed", err));
   res.status(response.status).json({ ...data, embed_error: embedError });
 }
 

@@ -123,7 +123,7 @@ export async function detectAndStoreMerge(
   const sm = source.metadata ?? {};
   // Fetch candidates: same type, created in the past, not this entry
   const candidateRes = await fetch(
-    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&type=eq.${encodeURIComponent(source.type)}&id=neq.${encodeURIComponent(entryId)}&deleted_at=is.null&limit=200&select=id,title,type,tags,metadata`,
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&type=eq.${encodeURIComponent(source.type)}&id=neq.${encodeURIComponent(entryId)}&deleted_at=is.null&limit=50&select=id,title,type,tags,metadata`,
     { headers: sbHeaders() },
   );
   if (!candidateRes.ok) return;
@@ -142,7 +142,7 @@ export async function detectAndStoreMerge(
   const best = scored[0];
 
   // ≥ 90: auto-merge silently, notify with "added to" message
-  if (best.score >= 90) {
+  if (best.score >= 97) {
     await autoMerge(source, best.candidate);
     await storeNotification(
       userId,

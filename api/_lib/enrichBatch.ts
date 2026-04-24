@@ -17,7 +17,10 @@ async function callAnthropic(system: string, content: string, maxTokens = 1500):
       messages: [{ role: "user", content }],
     }),
   });
-  if (!res.ok) return "";
+  if (!res.ok) {
+    console.error(`[enrichBatch:anthropic] HTTP ${res.status}`, await res.text().catch(() => ""));
+    return "";
+  }
   const d = await res.json();
   return d?.content?.[0]?.text ?? "";
 }
@@ -58,9 +61,14 @@ function hasConcepts(entry: any): boolean {
 }
 
 async function patchMeta(entryId: string, userId: string, meta: Record<string, any>): Promise<void> {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&select=metadata&limit=1`,
+    { headers: SB_HDR },
+  );
+  const current: Record<string, any> = r.ok ? ((await r.json())[0]?.metadata ?? {}) : {};
   await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&user_id=eq.${encodeURIComponent(userId)}`,
-    { method: "PATCH", headers: { ...SB_HDR, Prefer: "return=minimal" }, body: JSON.stringify({ metadata: meta }) },
+    { method: "PATCH", headers: { ...SB_HDR, Prefer: "return=minimal" }, body: JSON.stringify({ metadata: { ...current, ...meta } }) },
   );
 }
 
@@ -103,12 +111,11 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
     const conceptPrompt = `Entry ID: ${entry.id}\nTitle: ${entry.title}\nType: ${entry.type || "note"}\nContent: ${String(entry.content || "").slice(0, 600)}`;
     const conceptRaw = await callAnthropic(SERVER_PROMPTS.ENTRY_CONCEPTS, conceptPrompt, 400);
     const conceptResult = parseAIJSON(conceptRaw);
-    const newEnr = { ...enr, concepts_extracted: true };
-    meta = conceptResult?.concepts?.length > 0
-      ? { ...meta, concepts: conceptResult.concepts, enrichment: newEnr }
-      : { ...meta, enrichment: newEnr };
-    enr = meta.enrichment;
-    changed = true;
+    if (conceptResult?.concepts?.length > 0) {
+      meta = { ...meta, concepts: conceptResult.concepts, enrichment: { ...enr, concepts_extracted: true } };
+      enr = meta.enrichment;
+      changed = true;
+    }
   }
 
   if (changed) await patchMeta(entry.id, userId, meta);
