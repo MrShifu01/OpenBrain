@@ -2,6 +2,166 @@
 
 ---
 
+## [IMPROVEMENT] Deferred items sweep — 2026-04-24
+**Tags**: TYPES, AUTH, ARCH, REFACTOR
+
+Picks up the 4 deferred items from the pass-9 fix sweep, in dependency order.
+
+### Item 1 — verifyAuth typed (foundation)
+- `api/_lib/verifyAuth.ts` — `Promise<any>` → `Promise<AuthedUser | null>`
+- `api/_lib/withAuth.ts` — extended `AuthedUser` with `email`, `aud`, `role`, `user_metadata`, `app_metadata` (all optional, `[key: string]: unknown` index sig retained)
+- Dropped `: any` annotations on 12 `verifyAuth` call sites (10 in `user-data.ts`, 2 in `llm.ts`)
+- `: any` count: 331 → 319 (remaining 319 are Supabase-JSON response handling — explicitly out of scope per pass-9 plan)
+
+### Item 2 — withAuth migration (12 of 11 audit-listed handlers)
+**Migrated to withAuth** (preserving exact rate-limit values, methods, response shapes):
+- `api/llm.ts` main handler — per-action rateLimit via function form (transcribe=10, others=40)
+- `api/gmail.ts` main handler (auth/* OAuth bootstrap stays raw — see below)
+- `api/user-data.ts` — design **(B)** chosen: per-sub-handler wrap. Rate-limit budgets vary 5x to 60x across resources (account=5, pin=10, vault/api_keys=20, memory=30, brains/activity=60, health/prefs/push=none), so a single dispatcher-level wrapper would either over-permit destructive actions or under-permit list reads. Migrated handlers: `handleBrains`, `handleMemory`, `handleActivity`, `handleHealth`, `handleVault`, `handlePin`, `handleDeleteAccount`, `handleApiKeys`, `handleNotificationPrefs`, `handlePushSubscribe` (10 sub-handlers).
+
+**Intentionally left raw with documented reasons**:
+- `api/gmail.ts:167` (`handleAuth`) and `api/calendar.ts:150` (`handleAuth`) — OAuth init flows: queryToken fallback (browser navigation can't set Authorization header), 302 redirect response, no rate-limit. Doesn't fit `withAuth`'s pattern (header-only auth, JSON response).
+- `api/calendar.ts:239` (main handler) — silent unauth fallback (`200 + { events: [], integrations: [] }`) is intentional UX for the events feed; consumers (`TodoView.tsx:1115`, `CalendarSyncTab.tsx:70`) are defensive but expect 200. Migrating to `withAuth` would change response status to 401 — disallowed by "do not change response shapes" rule.
+- `api/memory-api.ts:33` — dual-auth pattern (`em_*` API key OR Supabase JWT). Neither `withAuth` (JWT-only) nor `withApiKey` (em_-only) fits; needs a new `withDualAuth` middleware (out of scope).
+- `api/user-data.ts` `handleCronDaily` — uses `CRON_SECRET` env var, not `verifyAuth` (correctly excluded from migration).
+
+### Item 3 — God-component decomposition (top 2 of 8)
+**`src/Everion.tsx` (1,326 → 911 lines)** — 2 child components extracted, co-located in `src/`:
+- `MemoryHeader.tsx` (239 lines) — memory top bar + filter row (Grid/List/Timeline + type pills + sort cycle). 4 props.
+- `CaptureWelcomeScreen.tsx` (220 lines) — capture-view welcome screen with skeleton, quick nav, and recent activity. 6 props. Internal `CaptureSkeleton` sub-component.
+- Dropped now-unused `NavIcon` and `ReactNode` imports.
+
+**`src/views/TodoView.tsx` (1,627 → 607 lines)** — 3 child components + shared utils, co-located in `src/views/`:
+- `TodoCalendarTab.tsx` (570 lines) — month/agenda calendar view, with `DayDetailPanel` and `AgendaList` co-located. 4 props.
+- `TodoEditPopover.tsx` (182 lines) — popover edit form. 4 props.
+- `TodoQuickAdd.tsx` (153 lines) — natural-language quick-add form (used by both list and calendar tabs). 2 props.
+- `todoUtils.ts` (129 lines) — shared date helpers, regex constants, `isDone`, `addRecurring`, `ExternalCalEvent` type. Logic-only, not a component.
+
+All extractions take ≤6 props (well under the 8-prop ceiling). Behavior preserved exactly — mechanical 1:1 splits, no logic changes.
+
+**Out of scope for this sweep** (left for follow-up): `CaptureSheet.tsx` (1,083), `LoginScreen.tsx` (992), `VaultView.tsx` (1,012), `Landing.tsx` (1,012), `DetailModal.tsx` (1,024), `ChatView.tsx` (1,224).
+
+**UI verification gap**: cannot run `npm run dev` and exercise the views in a browser within this CLI environment. Type-checking + 380/380 tests + lint + build all green, but per the audit's own caveat ("necessary but not sufficient"), a manual smoke test of the Memory, Capture, and Todos views is recommended before next deploy.
+
+### Item 4 — Dependabot
+- `.github/dependabot.yml` already existed from a prior pass (weekly npm, grouped prod/dev, limit 5 PRs).
+- Removed stale `xlsx` ignore rule — `xlsx` was replaced with `exceljs` in pass 9, so the ignore no longer applies.
+
+### CI status (final gauntlet)
+- `npm audit --audit-level=high` → **0 vulnerabilities**
+- `npm run typecheck` → **passes**
+- `npm run lint` → **0 errors, 300 warnings** (warnings unchanged from pass 9: mostly `@typescript-eslint/no-explicit-any`)
+- `npm run format:check` → **passes**
+- `npm test` → **380/380 passing**
+- `npm run build` → **passes** (PWA bundle 1973 KiB, 44 precached entries)
+
+### Still outstanding (next pass)
+- 4 raw `verifyAuth` sites need either a new `withDualAuth` middleware (memory-api) or `withOAuthBootstrap`-style helper (gmail/calendar OAuth init); calendar.ts main handler stays as-is unless we accept the 200→401 change for the unauth fallback.
+- 6 god components remain >900 lines (CaptureSheet, LoginScreen, VaultView, Landing, DetailModal, ChatView).
+- 319 `: any` annotations remain — Supabase-JSON response handling. Needs typed wrapper around `fetch(${SB_URL}/rest/v1/…)` calls.
+
+---
+
+## [IMPROVEMENT] Pass 9 fix sweep — 2026-04-23
+**Tags**: CI, QUALITY, LINT, TYPES, TESTS
+
+### Changes implemented
+**HIGH — TypeScript compilation unblocked (was 13 errors → 0):**
+- `src/components/EntryHealthPanel.tsx:147` — narrowed `entries: Entry[] \| undefined` via `entries ?? []`
+- Deleted dead code revealed by TS6133: `_BrainIcon`, `_FEATURES`, `PersonIcon`, `FamilyIcon`, `BriefcaseIcon`, `Feature` interface (LoginScreen.tsx), `_toggleClasses` (NotificationSettings), `_handleDeepScan`/`_stopDeepScan`/`deepScanCancel`/`_deepScan`/`groupBySender` entire dead deep-scan block (GmailSyncTab), `_meta` (VaultView), `_cfg`/`_meta`/`_confidence` + orphaned imports (DetailModal), `setEditTags` unused setter (DetailModal)
+- Removed unused `entries`/`links`/`typeIcons` props from DetailModal interface + destructure + Everion.tsx call site — prop chain cleaned up end-to-end (also dropped `links` from `EverionContent` prop interface)
+
+**MEDIUM — 3 failing tests fixed:**
+- `tests/components/LoadingScreen.test.tsx:8` — `"EverionMind"` → `"Everion Mind"` (match actual UI spacing)
+- `tests/lib/getTypeConfig.test.ts` — removed `"subscription"` from unknown-type assertions (now a known type in TC map); replaced with `"unknown-xyz"`
+- `src/__tests__/enrichEntry.test.ts` — added `aiSettings` mock so `hasAIAccess` is true during phase-isolation test (parse-fail test was silently skipped with `hasAIAccess: false`)
+
+**MEDIUM — Vitest hoisting warnings:**
+- `tests/api/llm.test.ts` — removed duplicate in-`beforeEach` `vi.mock` calls (already hoisted at top). Eliminates both future-breaking warnings.
+
+**LOW — rate-limit member ID entropy:**
+- `api/_lib/rateLimit.ts:42` — `Math.random().toString(36).slice(2, 8)` → `crypto.randomUUID().slice(0, 8)` (cleaner, no RNG-quality concern)
+
+**LOW — Silent catch blocks annotated:**
+- 5 sites now log via `console.debug` with context: `DataTab.tsx:60`, `useDataLayer.ts:88`, `useEnrichmentOrchestrator.ts:59`, `ChatView.tsx:30`, `gmailScan.ts:636`
+
+**(Discovered during fix sweep) — Lint blockers (47 errors → 0):**
+- Added `scripts/mock-prompt-audit/**` to `eslint.config.js` globalIgnores (gitignored directory shouldn't be linted)
+- Fixed `no-useless-escape` in `ChatView.tsx:197-200` (phone/email regexes) and `ClaudeCodeTab.tsx:372` (single quotes inside template literal)
+- `rules-of-hooks` violation in `ChatView.tsx` — moved all hooks above the `!aiAvailable` early return (hooks were being called conditionally)
+- React Compiler purity violations:
+  - `CaptureSheet.tsx` — extracted `VoiceWaveform` sub-component with `useState(() => ...)` for stable random bars
+  - `Landing.tsx` — `useMemo` → `useState(() => ...)` for motes; baked per-mote `breatheDur` into struct so Math.random no longer runs in render JSX
+  - `TodoView.tsx:572` — froze Date.now() at mount via `useState(() => Date.now())` for agenda window
+  - `DetailModal.tsx` — same pattern, `mountedAt` state replaces live `Date.now()` in relative-time IIFE
+  - `Everion.tsx:1096` — `patchEntryIdRef.current = ...` moved into `useEffect`
+  - `GraphCanvas.tsx` — wrapped `zoomBy` in `useCallback`, lifted button array to `useMemo`; remaining static-analysis false positive on the map call gets `// eslint-disable-next-line react-hooks/refs` with justification comment
+- `npm run format` applied across 197 files (Prettier autofix)
+
+### CI status
+Full gauntlet green end-to-end:
+- `npm audit --audit-level=high` → **0 vulnerabilities**
+- `npm run typecheck` → **passes**
+- `npm run lint` → **0 errors** (warnings remain — mostly `@typescript-eslint/no-explicit-any`, addressed in future pass)
+- `npm run format:check` → **passes**
+- `npm test` → **380/380 passing** (was 377/380)
+- `npm run build` → **passes** (PWA bundle 1972 KiB, 44 precached entries)
+
+### Still deferred (out of scope for a surgical fix pass)
+- **Auth migration**: 11 endpoints in `user-data.ts`, `llm.ts`, `gmail.ts`, `calendar.ts`, `memory-api.ts` still use raw `verifyAuth` instead of `withAuth` — dispatcher-pattern (one file, many `?resource=` routes) makes a clean migration require per-resource rate-limit design
+- **God-component decomposition**: `Everion.tsx` (1,262), `TodoView.tsx` (1,121), `CaptureSheet.tsx` (~1,100), `LoginScreen.tsx` (1,017), `VaultView.tsx`, `Landing.tsx`, `DetailModal.tsx`, `ChatView.tsx`
+- **`: any` cleanup**: 332 occurrences remain (mostly `user: any` from Supabase-typed auth) — needs a `verifyAuth` return-type tightening pass
+- **Dependabot/Renovate** config — audit flagged as a minor gap
+
+---
+
+## [AUDIT] Full App Audit — 2026-04-23 (pass 9)
+**Tags**: AUDIT
+
+### Overall Score: 83/100 — B
+**Verdict:** PASS WITH WARNINGS
+
+| Dimension | Score |
+|-----------|-------|
+| Security | 88 |
+| Performance | 84 |
+| Architecture | 83 |
+| Code Quality / Types | 70 |
+| UX / UI | 85 |
+| Maintainability | 80 |
+| User Perspective | 84 |
+
+### Progress since pass 8 (82/100)
+- ✅ `xlsx` fully replaced with `exceljs` — `npm audit` now 0 vulnerabilities (was 2 unpatched HIGH CVEs)
+- ✅ `api/user-data.ts:511` — JSON.parse now in try-catch, returns 400 on malformed body (HIGH from pass 8 FIXED)
+- ✅ TypeScript errors reduced from 25+ → 13 (progress, but still blocks CI)
+- ✅ Tests stable: 3 failing (same as pass 8 — no regression)
+- ❌ TypeScript still fails: 1 real type bug in `EntryHealthPanel.tsx:147` + 12 × TS6133 unused-var errors
+
+### CRITICAL & HIGH Findings
+
+**[HIGH]** TypeScript compilation still fails — CI blocked on `npm run typecheck`:
+- `src/components/EntryHealthPanel.tsx:147` — real bug: `entries: Entry[] | undefined` passed where `Entry[]` required
+- 12 × TS6133 unused vars: `src/LoginScreen.tsx:2,64` (`_BrainIcon`, `_FEATURES`), `src/views/DetailModal.tsx:40,41,66,200,204,205`, `src/components/NotificationSettings.tsx:72`, `src/components/settings/GmailSyncTab.tsx:165,220`, `src/views/VaultView.tsx:663`
+
+**[MEDIUM]** 3 failing tests — stale expectations, not code bugs, but CI stays red:
+- `tests/components/LoadingScreen.test.tsx:8` — expects `"EverionMind"`; code renders `"Everion Mind"` (with space)
+- `tests/lib/getTypeConfig.test.ts:50` — expects fallback `"🏷️"` for `"subscription"`; code correctly returns `"🔄"` because subscription was added to TC map
+- 3rd: `enrichEntry` phase isolation (carried from pass 8)
+
+**[MEDIUM]** Auth migration to `withAuth` incomplete — 11 endpoints in `user-data.ts`, `llm.ts:417`, `gmail.ts:166,180`, `calendar.ts:150,239`, `memory-api.ts:33` still use raw `verifyAuth` + manual method/rate-limit handling. Security-equivalent but inconsistent and duplicates middleware logic.
+
+**[MEDIUM]** God components persist — 8 files >900 lines: `Everion.tsx` (1,262), `TodoView.tsx` (1,121), `CaptureSheet.tsx` (1,064), `LoginScreen.tsx` (1,017), `VaultView.tsx` (990), `Landing.tsx` (986), `DetailModal.tsx` (982 — down from 1,037), `ChatView.tsx` (949).
+
+### Top 5 Actions
+1. [HIGH] Fix `EntryHealthPanel.tsx:147` real type error (narrow `Entry[] | undefined`) + delete the 12 unused vars/imports flagged by TS6133 — unblocks CI
+2. [MEDIUM] Fix 3 stale tests: update `LoadingScreen` expectation to `"Everion Mind"`, remove `subscription` from fallback assertion in `getTypeConfig.test.ts`, fix `enrichEntry` phase isolation
+3. [MEDIUM] Migrate remaining 11 raw-verifyAuth endpoints (`user-data.ts` handlers, `llm.ts`, `gmail.ts`, `calendar.ts`, `memory-api.ts`) to `withAuth`/`withApiKey`
+4. [MEDIUM] Begin decomposing top god components: `Everion.tsx` and `TodoView.tsx` (both >1,100 lines)
+5. [LOW] Reduce `: any` footprint (332 occurrences) — start with API layer (`api/user-data.ts` alone has 10+ `user: any`)
+
+---
+
 ## [AUDIT] Full App Audit — 2026-04-23 (pass 8)
 **Tags**: AUDIT
 
