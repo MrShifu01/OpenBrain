@@ -2,28 +2,13 @@ import { useState, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { supabase } from "../../lib/supabase";
 import { SettingsButton } from "./SettingsRow";
+import { IntegrationRow, DisconnectButton } from "./GmailSyncTab";
 
 interface Integration {
   id: string;
   provider: "google" | "microsoft";
   calendar_email: string | null;
   sync_enabled: boolean;
-}
-
-function StatusDot({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "inline-block",
-        width: 6,
-        height: 6,
-        borderRadius: "50%",
-        background: on ? "var(--moss)" : "var(--ink-ghost)",
-        flexShrink: 0,
-      }}
-    />
-  );
 }
 
 export default function CalendarSyncTab() {
@@ -100,36 +85,23 @@ export default function CalendarSyncTab() {
         </div>
       )}
 
-      <div
-        style={{
-          padding: "18px 0",
-        }}
+      <IntegrationRow
+        connected={!!googleInt}
+        label={
+          googleInt
+            ? googleInt.calendar_email ?? "unknown"
+            : "Sync your Google Calendar events into the Todo calendar view."
+        }
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <StatusDot on={!!googleInt} />
-          <div
-            className="f-serif"
-            style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}
-          >
-            {googleInt
-              ? `Connected as ${googleInt.calendar_email ?? "unknown"}`
-              : "Sync your Google Calendar events into the Todo calendar view."}
-          </div>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          {googleInt ? (
-            <SettingsButton
-              onClick={() => disconnect("google")}
-              disabled={disconnecting === "google"}
-              danger
-            >
-              {disconnecting === "google" ? "Disconnecting…" : "Disconnect"}
-            </SettingsButton>
-          ) : (
-            <SettingsButton onClick={connectGoogle}>Connect</SettingsButton>
-          )}
-        </div>
-      </div>
+        {googleInt ? (
+          <DisconnectButton
+            onClick={() => disconnect("google")}
+            disabled={disconnecting === "google"}
+          />
+        ) : (
+          <SettingsButton onClick={connectGoogle}>Connect Google Calendar</SettingsButton>
+        )}
+      </IntegrationRow>
     </div>
   );
 }

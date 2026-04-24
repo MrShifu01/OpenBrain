@@ -106,7 +106,7 @@ export default function GmailSetupModal({
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.45)" }}
+      style={{ background: "rgba(0,0,0,0.45)", paddingTop: 110, paddingBottom: 80 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

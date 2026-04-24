@@ -16,21 +16,6 @@ interface GmailIntegration {
   preferences: { categories: string[]; custom: string };
 }
 
-function StatusDot({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "inline-block",
-        width: 6,
-        height: 6,
-        borderRadius: "50%",
-        background: on ? "var(--moss)" : "var(--ink-ghost)",
-        flexShrink: 0,
-      }}
-    />
-  );
-}
 
 
 function formatLastScan(ts: string | null): string {
@@ -197,10 +182,10 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         <div
           className="f-sans"
           style={{
-            marginBottom: 16,
-            padding: "10px 14px",
-            borderRadius: 10,
-            fontSize: 13,
+            marginBottom: 12,
+            padding: "9px 12px",
+            borderRadius: 8,
+            fontSize: 12,
             background: msg.ok ? "var(--moss-wash)" : "var(--blood-wash)",
             color: msg.ok ? "var(--moss)" : "var(--blood)",
             border: `1px solid ${msg.ok ? "var(--moss)" : "var(--blood)"}`,
@@ -210,111 +195,30 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         </div>
       )}
 
-      <div
-        style={{
-          padding: "18px 0",
-          borderBottom: integration ? "1px solid var(--line-soft)" : "none",
-        }}
+      <IntegrationRow
+        connected={!!integration}
+        label={
+          integration
+            ? integration.gmail_email ?? "unknown"
+            : "Scan your inbox for invoices, deadlines, and action items."
+        }
+        detail={integration ? `Last scan ${formatLastScan(integration.last_scanned_at)}` : undefined}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <StatusDot on={!!integration} />
-          <div
-            className="f-serif"
-            style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}
-          >
-            {integration
-              ? `Connected as ${integration.gmail_email ?? "unknown"} · last scan ${formatLastScan(integration.last_scanned_at)}`
-              : "Scan your inbox for invoices, deadlines, and action items."}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          {integration ? (
-            <>
-              <SettingsButton onClick={handleScanNow} disabled={scanning}>
-                {scanning ? "Scanning…" : "Scan now"}
-              </SettingsButton>
-              <SettingsButton onClick={() => setShowStagingInbox(true)}>
-                Inbox{stagedCount > 0 ? ` (${stagedCount})` : ""}
-              </SettingsButton>
-              <SettingsButton onClick={() => setModalMode("edit")}>Preferences</SettingsButton>
-              <SettingsButton onClick={handleDisconnect} disabled={disconnecting} danger>
-                {disconnecting ? "Disconnecting…" : "Disconnect"}
-              </SettingsButton>
-            </>
-          ) : (
-            <SettingsButton onClick={() => setModalMode("connect")}>Connect</SettingsButton>
-          )}
-        </div>
-        {scanning && (
-          <div
-            className="f-sans"
-            style={{ marginTop: 8, fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic" }}
-          >
-            Scanning Gmail — we'll notify you when it's done.
-          </div>
+        {integration ? (
+          <>
+            <SettingsButton onClick={handleScanNow} disabled={scanning}>
+              {scanning ? "Scanning…" : "Scan now"}
+            </SettingsButton>
+            <SettingsButton onClick={() => setShowStagingInbox(true)}>
+              Inbox{stagedCount > 0 ? ` (${stagedCount})` : ""}
+            </SettingsButton>
+            <SettingsButton onClick={() => setModalMode("edit")}>Preferences</SettingsButton>
+            <DisconnectButton onClick={handleDisconnect} disabled={disconnecting} />
+          </>
+        ) : (
+          <SettingsButton onClick={() => setModalMode("connect")}>Connect Gmail</SettingsButton>
         )}
-      </div>
-
-      {/* Active categories summary */}
-      {integration && integration.preferences.categories.length > 0 && (
-        <div
-          style={{
-            padding: "12px 14px",
-            borderRadius: 10,
-            background: "var(--surface)",
-            border: "1px solid var(--line-soft)",
-            marginTop: 12,
-          }}
-        >
-          <div
-            className="f-sans"
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "var(--ink-faint)",
-              marginBottom: 8,
-            }}
-          >
-            Monitoring
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {integration.preferences.categories.map((cat) => (
-              <span
-                key={cat}
-                className="f-sans"
-                style={{
-                  fontSize: 12,
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                  background: "var(--surface-high)",
-                  color: "var(--ink-soft)",
-                  border: "1px solid var(--line-soft)",
-                }}
-              >
-                {CATEGORY_LABELS[cat] ?? cat}
-              </span>
-            ))}
-            {integration.preferences.custom && (
-              <span
-                className="f-sans"
-                style={{
-                  fontSize: 12,
-                  padding: "3px 10px",
-                  borderRadius: 999,
-                  background: "var(--surface-high)",
-                  color: "var(--ink-soft)",
-                  border: "1px dashed var(--line-soft)",
-                  fontStyle: "italic",
-                }}
-              >
-                + custom
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      </IntegrationRow>
 
       {isAdmin && lastDebug && (
         <div
@@ -461,12 +365,73 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   );
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  invoices: "Invoices & bills",
-  "action-required": "Action required",
-  "subscription-renewal": "Subscription renewals",
-  appointment: "Bookings & appointments",
-  deadline: "Deadlines",
-  delivery: "Deliveries",
-  "signing-requests": "Signing requests",
-};
+export function IntegrationRow({
+  connected,
+  label,
+  detail,
+  children,
+}: {
+  connected: boolean;
+  label: string;
+  detail?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div style={{ paddingBottom: 4 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: connected ? "var(--moss)" : "var(--ink-ghost)",
+            flexShrink: 0,
+          }}
+        />
+        <span className="f-sans" style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+          {label}
+        </span>
+        {detail && (
+          <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 2 }}>
+            · {detail}
+          </span>
+        )}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function DisconnectButton({
+  onClick,
+  disabled,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!!disabled}
+      className="press f-sans"
+      style={{
+        marginLeft: "auto",
+        height: 32,
+        padding: "0 10px",
+        fontSize: 12,
+        fontWeight: 500,
+        borderRadius: 8,
+        background: "transparent",
+        color: "var(--blood)",
+        border: "1px solid transparent",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {disabled ? "Disconnecting…" : "Disconnect"}
+    </button>
+  );
+}
