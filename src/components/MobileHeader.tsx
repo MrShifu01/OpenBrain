@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
-import TierPreviewToggle from "./TierPreviewToggle";
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -16,7 +15,6 @@ interface MobileHeaderProps {
   onMarkNotificationRead?: (id: string) => void;
   onDismissAllNotifications?: () => void;
   onAcceptMerge?: (n: AppNotification) => void;
-  isAdmin?: boolean;
 }
 
 export default function MobileHeader({
@@ -32,7 +30,6 @@ export default function MobileHeader({
   onMarkNotificationRead,
   onDismissAllNotifications,
   onAcceptMerge,
-  isAdmin,
 }: MobileHeaderProps) {
   const statusColor = !isOnline
     ? "var(--ink-faint)"
@@ -70,9 +67,8 @@ export default function MobileHeader({
         {children}
       </div>
 
-      {/* Right: tier preview (admin), notifications, search, theme */}
+      {/* Right: notifications, search, theme */}
       <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
-        {isAdmin && <TierPreviewToggle />}
         {onDismissNotification && (
           <NotificationBell
             notifications={notifications}

@@ -263,7 +263,6 @@ function EverionContent({
             isDark={isDark}
             isOnline={isOnline}
             pendingCount={pendingCount}
-            isAdmin={isAdmin}
             onSearch={() =>
               window.dispatchEvent(
                 new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
@@ -333,7 +332,6 @@ function EverionContent({
                   onMarkNotificationRead={notifs.markRead}
                   onDismissAllNotifications={notifs.dismissAll}
                   onAcceptMerge={notifs.acceptMerge}
-                  isAdmin={isAdmin}
                 />
 
                 {appShell.view === "timeline" && ff("timeline") && (

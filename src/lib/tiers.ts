@@ -1,4 +1,4 @@
-export type TierId = "free" | "free_byok" | "starter" | "starter_byok" | "pro" | "pro_byok";
+export type TierId = "free" | "free_byok" | "starter" | "starter_byok" | "pro" | "pro_byok" | "max" | "max_byok";
 
 export interface TierDef {
   id: TierId;
@@ -118,6 +118,32 @@ export const TIERS: TierDef[] = [
     ],
     missing: [],
   },
+  {
+    id: "max",
+    label: "Max",
+    subtitle: "Max plan · Platform AI included",
+    included: [
+      "Everything in Pro",
+      "Unlimited AI captures / month",
+      "Unlimited AI chats / month",
+      "Unlimited voice notes & improve scans",
+      "Premium AI models (Opus / GPT-4o)",
+      "Highest-priority processing",
+      "Dedicated support",
+    ],
+    missing: [],
+  },
+  {
+    id: "max_byok",
+    label: "Max + Keys",
+    subtitle: "Max plan · Your own API keys",
+    included: [
+      "Everything in Max",
+      "Full AI via your own keys (no quota)",
+      "Custom model selection",
+    ],
+    missing: [],
+  },
 ];
 
 export const TIER_LABELS: Record<TierId, string> = {
@@ -127,9 +153,13 @@ export const TIER_LABELS: Record<TierId, string> = {
   starter_byok: "Starter + Keys",
   pro: "Pro",
   pro_byok: "Pro + Keys",
+  max: "Max",
+  max_byok: "Max + Keys",
 };
 
 export function deriveTierId(plan: string, hasAnyKey: boolean): TierId {
+  if (plan === "max"     && hasAnyKey) return "max_byok";
+  if (plan === "max")                  return "max";
   if (plan === "pro"     && hasAnyKey) return "pro_byok";
   if (plan === "pro")                  return "pro";
   if (plan === "starter" && hasAnyKey) return "starter_byok";
