@@ -6,6 +6,7 @@ export interface ScanResultItem {
   entryId: string;
   groupIds: string[];
   groupCount: number;
+  threadMessageCount?: number;
   title: string;
   summary: string;
   from: string;
@@ -14,6 +15,7 @@ export interface ScanResultItem {
   urgency: string;
   amount?: string | null;
   dueDate?: string | null;
+  relevanceScore?: number;
 }
 
 interface Props {
@@ -22,19 +24,19 @@ interface Props {
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  "invoices":             "Invoice",
-  "action-required":      "Action required",
+  invoices: "Invoice",
+  "action-required": "Action required",
   "subscription-renewal": "Subscription",
-  "appointment":          "Appointment",
-  "deadline":             "Deadline",
-  "delivery":             "Delivery",
-  "signing-requests":     "Signing",
+  appointment: "Appointment",
+  deadline: "Deadline",
+  delivery: "Delivery",
+  "signing-requests": "Signing",
 };
 
 const URGENCY_COLORS: Record<string, string> = {
-  high:   "var(--blood)",
+  high: "var(--blood)",
   medium: "var(--ember)",
-  low:    "var(--ink-faint)",
+  low: "var(--ink-faint)",
 };
 
 const SWIPE_THRESHOLD = 85;
@@ -90,7 +92,11 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         email_type: item.emailType,
         content_preview: item.summary,
       }),
-    }).then(() => { rulesRef.current++; }).catch(() => {});
+    })
+      .then(() => {
+        rulesRef.current++;
+      })
+      .catch(() => {});
     setTransitioning(true);
     setExiting("left");
     setDragX(-700);
@@ -130,7 +136,9 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
   const backY = 10 - Math.min(Math.abs(dragX) / 50, 10);
 
   const cardTransition = transitioning
-    ? exiting ? "transform 300ms ease-in" : "transform 350ms cubic-bezier(0.34,1.56,0.64,1)"
+    ? exiting
+      ? "transform 300ms ease-in"
+      : "transform 350ms cubic-bezier(0.34,1.56,0.64,1)"
     : "none";
 
   if (done) {
@@ -158,10 +166,22 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           }}
         >
           <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
-          <h3 className="f-serif" style={{ fontSize: 22, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}>
+          <h3
+            className="f-serif"
+            style={{ fontSize: 22, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}
+          >
             All reviewed
           </h3>
-          <p className="f-serif" style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", lineHeight: 1.6, margin: "0 0 28px" }}>
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 14,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+              lineHeight: 1.6,
+              margin: "0 0 28px",
+            }}
+          >
             {rulesAdded > 0
               ? `${rulesAdded} exclusion rule${rulesAdded !== 1 ? "s" : ""} added — future scans will be smarter.`
               : "No changes made — your preferences are unchanged."}
@@ -213,10 +233,16 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         }}
       >
         <div>
-          <h3 className="f-serif" style={{ margin: 0, fontSize: 18, fontWeight: 450, color: "#fff" }}>
+          <h3
+            className="f-serif"
+            style={{ margin: 0, fontSize: 18, fontWeight: 450, color: "#fff" }}
+          >
             Review captures
           </h3>
-          <p className="f-sans" style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+          <p
+            className="f-sans"
+            style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.5)" }}
+          >
             {index + 1} of {capped.length}
           </p>
         </div>
@@ -244,7 +270,9 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: 3, background: "rgba(255,255,255,0.12)", flexShrink: 0, margin: "0 20px" }}>
+      <div
+        style={{ height: 3, background: "rgba(255,255,255,0.12)", flexShrink: 0, margin: "0 20px" }}
+      >
         <div
           style={{
             height: "100%",
@@ -266,20 +294,42 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           padding: "10px 24px 6px",
         }}
       >
-        <div className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: "var(--blood)", display: "flex", alignItems: "center", gap: 5 }}>
+        <div
+          className="f-sans"
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "var(--blood)",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
           <span style={{ fontSize: 18 }}>👈</span> Remove it
         </div>
-        <div className="f-sans" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>
+        <div
+          className="f-sans"
+          style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}
+        >
           swipe the card
         </div>
-        <div className="f-sans" style={{ fontSize: 13, fontWeight: 700, color: "var(--moss)", display: "flex", alignItems: "center", gap: 5 }}>
+        <div
+          className="f-sans"
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "var(--moss)",
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+          }}
+        >
           Keep it <span style={{ fontSize: 18 }}>👉</span>
         </div>
       </div>
 
       {/* Card stack */}
       <div style={{ flex: 1, minHeight: 0, position: "relative", margin: "0 16px" }}>
-
         {/* Back card */}
         {next && (
           <div
@@ -409,7 +459,17 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           >
             👎
           </button>
-          <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, color: "var(--blood)", letterSpacing: "0.05em" }}>REMOVE</span>
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "var(--blood)",
+              letterSpacing: "0.05em",
+            }}
+          >
+            REMOVE
+          </span>
         </div>
 
         {/* Keep button */}
@@ -436,7 +496,12 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           >
             👍
           </button>
-          <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, color: "var(--moss)", letterSpacing: "0.05em" }}>KEEP</span>
+          <span
+            className="f-sans"
+            style={{ fontSize: 11, fontWeight: 700, color: "var(--moss)", letterSpacing: "0.05em" }}
+          >
+            KEEP
+          </span>
         </div>
       </div>
     </div>,
@@ -451,7 +516,15 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Badges */}
-      <div style={{ marginBottom: 16, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          alignItems: "center",
+        }}
+      >
         <span
           className="f-sans"
           style={{
@@ -481,6 +554,22 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
             }}
           >
             ×{item.groupCount} from same sender
+          </span>
+        )}
+        {item.threadMessageCount && item.threadMessageCount > 1 && (
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              padding: "4px 10px",
+              borderRadius: 999,
+              background: "var(--surface-high)",
+              color: "var(--ink-soft)",
+              border: "1px solid var(--line-soft)",
+            }}
+          >
+            {item.threadMessageCount}-msg thread
           </span>
         )}
         {item.urgency === "high" && (
@@ -544,7 +633,7 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
       )}
 
       {(item.amount || item.dueDate) && (
-        <div className="flex gap-2 flex-wrap" style={{ marginBottom: 14 }}>
+        <div className="flex flex-wrap gap-2" style={{ marginBottom: 14 }}>
           {item.amount && (
             <span
               className="f-sans"
@@ -574,7 +663,11 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
                 border: `1px solid ${urgencyColor}`,
               }}
             >
-              Due {new Date(item.dueDate).toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+              Due{" "}
+              {new Date(item.dueDate).toLocaleDateString("en-ZA", {
+                day: "numeric",
+                month: "short",
+              })}
             </span>
           )}
         </div>
@@ -596,7 +689,13 @@ function CardContent({ item, dragX }: { item: ScanResultItem; dragX: number }) {
         {[0, 1, 2].map((i) => (
           <span
             key={i}
-            style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--ink-ghost)", display: "block" }}
+            style={{
+              width: 4,
+              height: 4,
+              borderRadius: "50%",
+              background: "var(--ink-ghost)",
+              display: "block",
+            }}
           />
         ))}
       </div>

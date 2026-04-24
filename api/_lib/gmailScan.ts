@@ -8,7 +8,8 @@ function decodeBase64Url(data: string): string {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<style[\s\S]*?<\/style>/gi, " ")
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&[a-z]+;/gi, " ")
     .replace(/\s{2,}/g, " ")
@@ -138,10 +139,13 @@ async function fetchAndExtractAttachments(
   return texts.join("\n\n");
 }
 
+// ── Preferences ─────────────────────────────────────────────────────────────
+
 export interface GmailPreferences {
   categories: string[];
   custom: string;
   lookbackDays?: 1 | 7 | 30;
+  minRelevanceScore?: number;
 }
 
 export function defaultPreferences(): GmailPreferences {
@@ -149,6 +153,7 @@ export function defaultPreferences(): GmailPreferences {
     categories: ["invoices", "action-required", "subscription-renewal", "appointment", "deadline"],
     custom: "",
     lookbackDays: 7,
+    minRelevanceScore: 60,
   };
 }
 
@@ -159,6 +164,12 @@ const SB_HEADERS = {
   Authorization: `Bearer ${SB_KEY}`,
   "Content-Type": "application/json",
 };
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ── OAuth token refresh ─────────────────────────────────────────────────────
 
 export async function refreshGmailToken(integration: any): Promise<string | null> {
   if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000)) {
@@ -187,67 +198,10 @@ export async function refreshGmailToken(integration: any): Promise<string | null
   return t.access_token;
 }
 
-export async function fetchRecentEmails(
-  token: string,
-  sinceMs?: number,
-  maxFetch = 50,
-  subjectFilter?: string,
-): Promise<{ emails: any[]; totalGmailCount: number }> {
-  const sinceUnix = sinceMs
-    ? Math.floor(sinceMs / 1000)
-    : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000);
+// ── Gmail query builders ────────────────────────────────────────────────────
 
-  const baseQ = `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`;
-  const listUrl = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-  listUrl.searchParams.set("q", subjectFilter ? `${baseQ} ${subjectFilter}` : baseQ);
-  listUrl.searchParams.set("maxResults", String(Math.min(maxFetch, 500)));
-
-  const listRes = await fetch(listUrl.toString(), { headers: { Authorization: `Bearer ${token}` } });
-  if (!listRes.ok) return { emails: [], totalGmailCount: 0 };
-
-  const listData = await listRes.json();
-  const totalGmailCount: number = listData.resultSizeEstimate ?? 0;
-  const messages: { id: string }[] = listData.messages ?? [];
-  if (!messages.length) return { emails: [], totalGmailCount };
-
-  // Fetch in groups of 10 — Gmail quota is 250 units/sec; each messages.get = 5 units
-  const results: any[] = [];
-  for (let i = 0; i < Math.min(messages.length, maxFetch); i += 10) {
-    const chunk = messages.slice(i, i + 10);
-    const group = await Promise.all(
-      chunk.map(async ({ id }) => {
-        const r = await fetch(
-          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (!r.ok) return null;
-        const msg = await r.json();
-        const hdrs: Record<string, string> = {};
-        for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
-        const body = extractBodyFromPayload(msg.payload);
-        return {
-          id,
-          from: hdrs.from ?? "",
-          subject: hdrs.subject ?? "(no subject)",
-          date: hdrs.date ?? "",
-          body: body.slice(0, 3000),
-          attachments: listAttachments(msg.payload),
-        };
-      }),
-    );
-    results.push(...group.filter(Boolean));
-    if (i + 10 < Math.min(messages.length, maxFetch)) await sleep(150);
-  }
-
-  return { emails: results, totalGmailCount };
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// Keywords per category used to pre-filter Gmail before LLM classification.
-// Drastically reduces the corpus — only fetches emails likely to be relevant.
+// Categories used to pre-filter Gmail at the API level. Drastically reduces
+// the corpus — we only fetch threads likely to be relevant.
 const CATEGORY_SUBJECT_KEYWORDS: Record<string, string[]> = {
   "invoices":             ["invoice", "payment", "bill", "receipt", "statement", "amount due", "pro forma"],
   "action-required":      ["action required", "response required", "approve", "urgent", "submit", "confirm"],
@@ -258,6 +212,11 @@ const CATEGORY_SUBJECT_KEYWORDS: Record<string, string[]> = {
   "signing-requests":     ["sign", "signature", "docusign", "hellosign", "adobe sign"],
 };
 
+// Base exclusions that always apply — spam/trash/chats/calendar noise and the
+// Promotions/Social categories Gmail already classifies as bulk.
+const BASE_EXCLUSIONS =
+  "-in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats -category:promotions -category:social";
+
 function buildSubjectFilter(categories: string[]): string {
   const keywords = [...new Set(categories.flatMap((c) => CATEGORY_SUBJECT_KEYWORDS[c] ?? []))];
   if (!keywords.length) return "";
@@ -265,47 +224,273 @@ function buildSubjectFilter(categories: string[]): string {
   return `subject:(${parts})`;
 }
 
-async function fetchEmailPage(
+function buildGmailQuery(sinceMs: number | undefined, subjectFilter: string): string {
+  const sinceUnix = sinceMs ? Math.floor(sinceMs / 1000) : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000);
+  const q = `after:${sinceUnix} ${BASE_EXCLUSIONS}`;
+  return subjectFilter ? `${q} ${subjectFilter}` : q;
+}
+
+// ── Gmail API callers ───────────────────────────────────────────────────────
+
+interface MessageRef {
+  id: string;
+  threadId: string;
+}
+
+async function fetchMessageList(
   token: string,
-  sinceMs: number,
-  pageSize: number,
-  cursor?: string,
-  subjectFilter?: string,
-): Promise<{ ids: string[]; nextCursor: string | null; totalEstimate: number }> {
-  const sinceUnix = Math.floor(sinceMs / 1000);
+  query: string,
+  maxResults: number,
+  pageToken?: string,
+): Promise<{ refs: MessageRef[]; nextPageToken: string | null; resultSizeEstimate: number }> {
   const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/messages");
-  const baseFilter = `after:${sinceUnix} -in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats`;
-  url.searchParams.set("q", subjectFilter ? `${baseFilter} ${subjectFilter}` : baseFilter);
-  url.searchParams.set("maxResults", String(pageSize));
-  if (cursor) url.searchParams.set("pageToken", cursor);
+  url.searchParams.set("q", query);
+  url.searchParams.set("maxResults", String(maxResults));
+  if (pageToken) url.searchParams.set("pageToken", pageToken);
   const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
-  if (!r.ok) return { ids: [], nextCursor: null, totalEstimate: 0 };
+  if (!r.ok) return { refs: [], nextPageToken: null, resultSizeEstimate: 0 };
   const data = await r.json();
+  const refs: MessageRef[] = (data.messages ?? []).map((m: any) => ({ id: m.id, threadId: m.threadId }));
+  return { refs, nextPageToken: data.nextPageToken ?? null, resultSizeEstimate: data.resultSizeEstimate ?? 0 };
+}
+
+async function fetchCurrentHistoryId(token: string): Promise<string | null> {
+  const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) return null;
+  const d = await r.json();
+  return d.historyId ?? null;
+}
+
+// Returns null if Gmail returns 404 (history window expired — caller should fall back to polling).
+async function fetchHistoryRefs(
+  token: string,
+  startHistoryId: string,
+): Promise<{ refs: MessageRef[]; latestHistoryId: string | null } | null> {
+  const refs: MessageRef[] = [];
+  let pageToken: string | undefined;
+  let latestHistoryId: string | null = null;
+  const seen = new Set<string>();
+
+  for (let page = 0; page < 10; page++) {
+    const url = new URL("https://gmail.googleapis.com/gmail/v1/users/me/history");
+    url.searchParams.set("startHistoryId", startHistoryId);
+    url.searchParams.set("historyTypes", "messageAdded");
+    url.searchParams.set("maxResults", "500");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    if (r.status === 404) return null; // history window expired
+    if (!r.ok) break;
+    const data = await r.json();
+    latestHistoryId = data.historyId ?? latestHistoryId;
+    for (const h of data.history ?? []) {
+      for (const add of h.messagesAdded ?? []) {
+        const m = add.message;
+        if (!m?.id || !m?.threadId) continue;
+        if (seen.has(m.id)) continue;
+        // Skip messages in spam/trash/chats (labelIds available here)
+        const labels: string[] = m.labelIds ?? [];
+        if (labels.includes("SPAM") || labels.includes("TRASH") || labels.includes("CHAT")) continue;
+        if (labels.includes("CATEGORY_PROMOTIONS") || labels.includes("CATEGORY_SOCIAL")) continue;
+        seen.add(m.id);
+        refs.push({ id: m.id, threadId: m.threadId });
+      }
+    }
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return { refs, latestHistoryId };
+}
+
+interface GmailMessage {
+  id: string;
+  threadId: string;
+  from: string;
+  to: string;
+  subject: string;
+  date: string;
+  body: string;
+  attachments: AttachmentInfo[];
+  headersMap: Record<string, string>;
+}
+
+function parseMessage(msg: any): GmailMessage {
+  const hdrs: Record<string, string> = {};
+  for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
   return {
-    ids: (data.messages ?? []).map((m: { id: string }) => m.id),
-    nextCursor: data.nextPageToken ?? null,
-    totalEstimate: data.resultSizeEstimate ?? 0,
+    id: msg.id,
+    threadId: msg.threadId,
+    from: hdrs.from ?? "",
+    to: hdrs.to ?? "",
+    subject: hdrs.subject ?? "(no subject)",
+    date: hdrs.date ?? "",
+    body: extractBodyFromPayload(msg.payload).slice(0, 3000),
+    attachments: listAttachments(msg.payload),
+    headersMap: hdrs,
   };
 }
 
-async function fetchMessageDetail(token: string, id: string): Promise<any | null> {
+async function fetchThread(token: string, threadId: string): Promise<GmailMessage[]> {
   const r = await fetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`,
+    `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`,
     { headers: { Authorization: `Bearer ${token}` } },
   );
-  if (!r.ok) return null;
-  const msg = await r.json();
-  const hdrs: Record<string, string> = {};
-  for (const h of msg.payload?.headers ?? []) hdrs[h.name.toLowerCase()] = h.value;
-  const body = extractBodyFromPayload(msg.payload);
+  if (!r.ok) return [];
+  const data = await r.json();
+  return (data.messages ?? []).map(parseMessage);
+}
+
+// ── Thread grouping + bulk detection ────────────────────────────────────────
+
+interface ThreadBlock {
+  threadId: string;
+  messages: GmailMessage[];
+  primary: GmailMessage;       // latest message — used for sender/subject display
+  participants: string[];      // unique sender emails across the thread
+  attachments: AttachmentInfo[];
+  messageIds: string[];
+}
+
+function extractEmail(header: string): string {
+  const m = header.match(/<([^>]+)>/);
+  return (m ? m[1] : header).toLowerCase().trim();
+}
+
+function extractName(header: string): string {
+  return header.replace(/<.*>/, "").trim().replace(/^["']|["']$/g, "");
+}
+
+function isBulkThread(block: ThreadBlock): boolean {
+  // A thread is "bulk" if EVERY message looks automated.
+  return block.messages.every((m) => {
+    const h = m.headersMap;
+    if (h["list-unsubscribe"]) return true;
+    if (h["precedence"]?.toLowerCase() === "bulk") return true;
+    if (h["auto-submitted"] && h["auto-submitted"].toLowerCase() !== "no") return true;
+    const from = (h.from ?? "").toLowerCase();
+    if (from.includes("no-reply") || from.includes("noreply") || from.includes("do-not-reply")) {
+      return true;
+    }
+    return false;
+  });
+}
+
+function groupByThread(messages: GmailMessage[]): Map<string, GmailMessage[]> {
+  const map = new Map<string, GmailMessage[]>();
+  for (const m of messages) {
+    const arr = map.get(m.threadId) ?? [];
+    arr.push(m);
+    map.set(m.threadId, arr);
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => {
+      const ta = new Date(a.date).getTime();
+      const tb = new Date(b.date).getTime();
+      return (isNaN(ta) ? 0 : ta) - (isNaN(tb) ? 0 : tb);
+    });
+  }
+  return map;
+}
+
+function buildThreadBlock(messages: GmailMessage[]): ThreadBlock {
+  const primary = messages[messages.length - 1];
+  const participants = [...new Set(messages.map((m) => extractEmail(m.from)).filter(Boolean))];
+  const attachments: AttachmentInfo[] = [];
+  for (const m of messages) attachments.push(...m.attachments);
   return {
-    id,
-    from: hdrs.from ?? "",
-    subject: hdrs.subject ?? "(no subject)",
-    date: hdrs.date ?? "",
-    body: body.slice(0, 3000),
-    attachments: listAttachments(msg.payload),
+    threadId: primary.threadId,
+    messages,
+    primary,
+    participants,
+    attachments,
+    messageIds: messages.map((m) => m.id),
   };
+}
+
+// ── LLM classification ──────────────────────────────────────────────────────
+
+const CATEGORY_LABELS: Record<string, string> = {
+  "invoices":             "Invoices & bills",
+  "action-required":      "Action required",
+  "subscription-renewal": "Subscription renewal",
+  "appointment":          "Booking / appointment",
+  "deadline":             "Deadline",
+  "delivery":             "Delivery / collection",
+  "signing-requests":     "Signing request",
+};
+
+const CATEGORY_DESCRIPTIONS: Record<string, string> = {
+  "invoices":             "emails containing invoices, payment requests, or bills where a payment is due — including debit order reminders and manual payment notices. Exclude: confirmations that a payment has already been processed automatically.",
+  "action-required":      "emails requiring you to do something by a deadline (approve, submit, respond, pay, fill a form)",
+  "subscription-renewal": "subscription emails requiring a decision or action — trial ending, manual renewal required, or cancellation needed to avoid charges. Exclude: auto-renewal confirmations where the subscription continues automatically and no action is needed.",
+  "appointment":          "confirmed bookings for travel, medical appointments, restaurants, events, or services",
+  "deadline":             "any email referencing a specific deadline, cutoff date, or time-sensitive request not covered above",
+  "delivery":             "package tracking updates, delivery notifications, ready-for-collection alerts",
+  "signing-requests":     "DocuSign, HelloSign, Adobe Sign, or other e-signature requests",
+};
+
+const GMAIL_TYPE_MAP: Record<string, string> = {
+  "invoices":             "invoice",
+  "action-required":      "action-required",
+  "subscription-renewal": "subscription",
+  "appointment":          "appointment",
+  "deadline":             "deadline",
+  "delivery":             "delivery",
+  "signing-requests":     "signing-request",
+};
+
+function buildPrompt(blocks: ThreadBlock[], prefs: GmailPreferences): string {
+  const catLines = prefs.categories
+    .filter((c) => CATEGORY_DESCRIPTIONS[c])
+    .map((c) => `- **${CATEGORY_LABELS[c] ?? c}** (type="${c}"): ${CATEGORY_DESCRIPTIONS[c]}`)
+    .join("\n");
+  const customLine = prefs.custom?.trim()
+    ? `\nAdditional instructions (follow exactly): ${prefs.custom.trim()}`
+    : "";
+
+  const threadBlocks = blocks
+    .map((b, i) => {
+      const lines = [`[${i}] Thread of ${b.messages.length} message${b.messages.length === 1 ? "" : "s"} — participants: ${b.participants.join(", ")}`];
+      // Include up to last 4 messages to bound the prompt size.
+      const tail = b.messages.slice(-4);
+      for (const m of tail) {
+        lines.push(`  From: ${m.from}`);
+        lines.push(`  Subject: ${m.subject}`);
+        lines.push(`  Date: ${m.date}`);
+        const body = (m.body || "").slice(0, 400).trim();
+        if (body) lines.push(`  Body: ${body}`);
+        if (m.attachments.length) {
+          lines.push(`  Attachments: ${m.attachments.map((a) => a.name).join(", ")}`);
+        }
+        lines.push("");
+      }
+      return lines.join("\n");
+    })
+    .join("\n---\n");
+
+  return `You are a thread classifier for a personal knowledge system. Each block below is a Gmail THREAD (one or more related messages). Classify each thread as a single unit — consider the full conversation, not individual messages.
+
+Identify threads matching ANY of these categories:
+
+${catLines}
+
+Return a JSON array of matches. Return [] if nothing matches. ONLY valid JSON, no prose.
+
+For each match extract the FINAL state of the thread — the outstanding action, decision, or obligation after the whole conversation. If earlier messages set up an action that was later cancelled or completed, do NOT flag the thread.
+
+urgency: "high"=due within 3 days or overdue, "medium"=due within 2 weeks, "low"=otherwise.
+Set due_date (ISO date or null) and amount (e.g. "$150.00" or null) from what you find.
+title: concise, includes amount/deadline/key detail (max 80 chars).
+summary: one sentence capturing the outstanding obligation from the thread.
+
+Format: [{"index":0,"type":"invoices","title":"Invoice from Acme – $150 due 30 Apr","due_date":"2026-04-30","amount":"$150.00","urgency":"high","summary":"One sentence."}]
+${customLine}
+
+Threads:
+${threadBlocks}`;
 }
 
 async function classifyWithGemini(
@@ -338,7 +523,6 @@ async function classifyWithGemini(
     const stripped = text.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "").trim();
     const fullMatch = stripped.match(/\[[\s\S]*\]/);
     if (fullMatch) return { results: JSON.parse(fullMatch[0]), model };
-    // Truncated response — salvage any complete objects
     const objects = [...stripped.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)?\}/g)].map((m) => {
       try { return JSON.parse(m[0]); } catch { return null; }
     }).filter(Boolean);
@@ -347,219 +531,6 @@ async function classifyWithGemini(
   } catch (e: any) {
     return { results: [], error: String(e?.message ?? e), model };
   }
-}
-
-export interface DeepScanResult {
-  nextCursor: string | null;
-  processed: number;
-  created: number;
-  entries: ScanResultItem[];
-  done: boolean;
-  totalEstimate: number;
-}
-
-export async function deepScanBatch(
-  integration: any,
-  params: { cursor?: string; sinceMs: number; activeBrainId?: string },
-): Promise<DeepScanResult> {
-  const token = await refreshGmailToken(integration);
-  if (!token) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: 0 };
-
-  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
-  const subjectFilter = buildSubjectFilter(prefs.categories);
-
-  // Fetch a page of 100 message IDs, pre-filtered by subject keywords
-  const { ids, nextCursor, totalEstimate } = await fetchEmailPage(token, params.sinceMs, 100, params.cursor, subjectFilter);
-  if (!ids.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: 0 };
-
-  // Fetch full details in groups of 10 to stay within Gmail quota
-  const messages: any[] = [];
-  for (let i = 0; i < ids.length; i += 10) {
-    const chunk = ids.slice(i, i + 10);
-    const results = await Promise.all(chunk.map((id) => fetchMessageDetail(token, id)));
-    messages.push(...results.filter(Boolean));
-    if (i + 10 < ids.length) await sleep(150);
-  }
-
-  if (!messages.length) return { nextCursor, processed: ids.length, created: 0, entries: [], done: !nextCursor, totalEstimate };
-
-  // Gemini primary; Anthropic only as BYOK fallback
-  const prompt = buildPrompt(messages, prefs);
-  const classified = geminiKey
-    ? (await classifyWithGemini(prompt, geminiKey)).results
-    : await classifyWithLLM(prompt);
-
-  if (!classified.length) {
-    return { nextCursor, processed: messages.length, created: 0, entries: [], done: !nextCursor, totalEstimate };
-  }
-
-  const importedIds = await fetchImportedMessageIds(integration.user_id);
-  const brainId = params.activeBrainId ?? await getUserBrainId(integration.user_id);
-
-  let created = 0;
-  const scanEntries: ScanResultItem[] = [];
-
-  for (const match of classified) {
-    const email = messages[match.index];
-    if (!email || importedIds.has(email.id)) continue;
-
-    const title = match.title ?? email.subject;
-    const summary = match.summary ?? "";
-    const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
-    const tags = [match.type ?? "gmail"];
-    const metadata: Record<string, any> = {
-      source: "gmail",
-      gmail_message_id: email.id,
-      gmail_from: email.from,
-      gmail_subject: email.subject,
-      gmail_date: email.date,
-      email_type: match.type,
-      due_date: match.due_date ?? null,
-      amount: match.amount ?? null,
-      urgency: match.urgency ?? "medium",
-      completeness_score: computeCompletenessScore(title, summary, type, tags, {}),
-    };
-
-    const entry: Record<string, any> = {
-      user_id: integration.user_id,
-      title,
-      content: summary,
-      type,
-      tags,
-      metadata,
-    };
-    if (brainId) entry.brain_id = brainId;
-
-    const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
-      method: "POST",
-      headers: { ...SB_HEADERS, Prefer: "return=representation" },
-      body: JSON.stringify(entry),
-    });
-    if (!insertRes.ok) continue;
-
-    const rows: any[] = await insertRes.json();
-    const inserted = rows[0];
-    created++;
-    importedIds.add(email.id);
-    scanEntries.push({
-      entryId: inserted?.id ?? "",
-      groupIds: [inserted?.id ?? ""],
-      groupCount: 1,
-      title,
-      summary,
-      from: email.from,
-      subject: email.subject,
-      emailType: match.type ?? "",
-      urgency: match.urgency ?? "medium",
-      amount: match.amount ?? null,
-      dueDate: match.due_date ?? null,
-    });
-
-    // Fire-and-forget embedding
-    if (inserted?.id && geminiKey) {
-      generateEmbedding(buildEntryText({ title, content: summary, tags }), geminiKey)
-        .then((vec) =>
-          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
-            method: "PATCH",
-            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
-            body: JSON.stringify({
-              embedding: `[${vec.join(",")}]`,
-              embedded_at: new Date().toISOString(),
-              embedding_provider: "google",
-            }),
-          }),
-        )
-        .catch(() => {});
-    }
-  }
-
-  // Group by sender
-  const groupMap = new Map<string, ScanResultItem>();
-  for (const item of scanEntries) {
-    const key = extractSenderKey(item.from);
-    const existing = groupMap.get(key);
-    if (existing) {
-      existing.groupIds.push(...item.groupIds);
-      existing.groupCount++;
-    } else {
-      groupMap.set(key, { ...item });
-    }
-  }
-
-  return {
-    nextCursor,
-    processed: messages.length,
-    created,
-    entries: Array.from(groupMap.values()),
-    done: !nextCursor,
-    totalEstimate,
-  };
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  "invoices":             "Invoices & bills",
-  "action-required":      "Action required",
-  "subscription-renewal": "Subscription renewal",
-  "appointment":          "Booking / appointment",
-  "deadline":             "Deadline",
-  "delivery":             "Delivery / collection",
-  "signing-requests":     "Signing request",
-};
-
-const CATEGORY_DESCRIPTIONS: Record<string, string> = {
-  "invoices":             "emails containing invoices, payment requests, or bills where a payment is due — including debit order reminders and manual payment notices. Exclude: confirmations that a payment has already been processed automatically.",
-  "action-required":      "emails requiring you to do something by a deadline (approve, submit, respond, pay, fill a form)",
-  "subscription-renewal": "subscription emails requiring a decision or action — trial ending, manual renewal required, or cancellation needed to avoid charges. Exclude: auto-renewal confirmations where the subscription continues automatically and no action is needed.",
-  "appointment":          "confirmed bookings for travel, medical appointments, restaurants, events, or services",
-  "deadline":             "any email referencing a specific deadline, cutoff date, or time-sensitive request not covered above",
-  "delivery":             "package tracking updates, delivery notifications, ready-for-collection alerts",
-  "signing-requests":     "DocuSign, HelloSign, Adobe Sign, or other e-signature requests",
-};
-
-const GMAIL_TYPE_MAP: Record<string, string> = {
-  "invoices":             "invoice",
-  "action-required":      "action-required",
-  "subscription-renewal": "subscription",
-  "appointment":          "appointment",
-  "deadline":             "deadline",
-  "delivery":             "delivery",
-  "signing-requests":     "signing-request",
-};
-
-function buildPrompt(emails: any[], prefs: GmailPreferences): string {
-  const catLines = prefs.categories
-    .filter((c) => CATEGORY_DESCRIPTIONS[c])
-    .map((c) => `- **${CATEGORY_LABELS[c] ?? c}** (type="${c}"): ${CATEGORY_DESCRIPTIONS[c]}`)
-    .join("\n");
-  const customLine = prefs.custom?.trim()
-    ? `\nAdditional instructions (follow exactly): ${prefs.custom.trim()}`
-    : "";
-  const emailBlocks = emails
-    .map((e, i) => {
-      const bodyPreview = (e.body || "").slice(0, 500).trim();
-      const attLine = e.attachments?.length
-        ? `Attachments: ${e.attachments.map((a: AttachmentInfo) => a.name).join(", ")}`
-        : "";
-      return [`[${i}] From: ${e.from}`, `Subject: ${e.subject}`, `Date: ${e.date}`,
-        bodyPreview ? `Body: ${bodyPreview}` : "", attLine].filter(Boolean).join("\n");
-    })
-    .join("\n\n");
-
-  return `You are an email classifier for a personal knowledge system. Identify emails matching ANY of these categories:
-
-${catLines}
-
-Return a JSON array of matches. Return [] if nothing matches. ONLY valid JSON, no prose.
-
-urgency: "high"=due within 3 days or overdue, "medium"=due within 2 weeks, "low"=otherwise.
-Set due_date (ISO date or null) and amount (e.g. "$150.00" or null) from what you find.
-
-Format: [{"index":0,"type":"invoices","title":"Invoice from Acme – $150 due 30 Apr","due_date":"2026-04-30","amount":"$150.00","urgency":"high","summary":"One sentence."}]
-${customLine}
-
-Emails:
-${emailBlocks}`;
 }
 
 async function classifyWithLLM(prompt: string): Promise<any[]> {
@@ -633,9 +604,41 @@ content: 2-3 sentences summarising what matters (amounts, deadlines, parties, ac
       const parsed = JSON.parse(m[0]);
       if (parsed.title && parsed.content) return { title: parsed.title, content: parsed.content };
     }
-  } catch {}
+  } catch (e) {
+    console.debug("[gmailScan] AI rewrite JSON parse failed", e);
+  }
   return { title: currentTitle, content: currentSummary };
 }
+
+// ── Relevance score (deterministic, no extra LLM call) ──────────────────────
+
+const TYPE_BASE_SCORE: Record<string, number> = {
+  "invoices":             70,
+  "action-required":      85,
+  "subscription-renewal": 65,
+  "appointment":          75,
+  "deadline":             90,
+  "delivery":             55,
+  "signing-requests":     80,
+};
+
+function computeRelevanceScore(block: ThreadBlock, match: any): number {
+  const base = TYPE_BASE_SCORE[match.type as string] ?? 60;
+  const urgencyMod = match.urgency === "high" ? 10 : match.urgency === "low" ? -10 : 0;
+  const threadMod = block.messages.length > 1 ? 5 : 0;
+  const attachMod = block.attachments.length ? 5 : 0;
+  let dueMod = 0;
+  if (match.due_date) {
+    const due = new Date(match.due_date).getTime();
+    if (!isNaN(due)) {
+      const days = (due - Date.now()) / 86_400_000;
+      if (days < 3) dueMod = 5;
+    }
+  }
+  return Math.max(0, Math.min(100, base + urgencyMod + threadMod + attachMod + dueMod));
+}
+
+// ── DB helpers ──────────────────────────────────────────────────────────────
 
 async function getUserBrainId(userId: string): Promise<string | null> {
   const r = await fetch(`${SB_URL}/rest/v1/brains?owner_id=eq.${userId}&select=id&limit=1`, {
@@ -646,20 +649,92 @@ async function getUserBrainId(userId: string): Promise<string | null> {
   return rows[0]?.id ?? null;
 }
 
-async function fetchImportedMessageIds(userId: string): Promise<Set<string>> {
+async function fetchImportedIdentifiers(userId: string): Promise<{ threadIds: Set<string>; messageIds: Set<string> }> {
   const r = await fetch(
     `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&metadata->>source=eq.gmail&deleted_at=is.null&select=metadata`,
     { headers: SB_HEADERS },
   );
-  if (!r.ok) return new Set();
+  if (!r.ok) return { threadIds: new Set(), messageIds: new Set() };
   const rows: any[] = await r.json();
-  return new Set(rows.map((e) => e.metadata?.gmail_message_id).filter(Boolean));
+  const threadIds = new Set<string>();
+  const messageIds = new Set<string>();
+  for (const row of rows) {
+    if (row.metadata?.gmail_thread_id) threadIds.add(row.metadata.gmail_thread_id);
+    if (row.metadata?.gmail_message_id) messageIds.add(row.metadata.gmail_message_id);
+  }
+  return { threadIds, messageIds };
 }
+
+async function upsertGmailContact(
+  userId: string,
+  brainId: string | null,
+  fromHeader: string,
+  interactionDate: string,
+): Promise<string | null> {
+  const email = extractEmail(fromHeader);
+  if (!email || !email.includes("@")) return null;
+  const name = extractName(fromHeader) || email;
+
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${userId}&type=eq.contact&metadata->>contact_email=eq.${encodeURIComponent(email)}&deleted_at=is.null&select=id,metadata&limit=1`,
+    { headers: SB_HEADERS },
+  );
+  if (r.ok) {
+    const rows: any[] = await r.json();
+    if (rows[0]) {
+      const existing = rows[0].metadata ?? {};
+      const count = (existing.interaction_count ?? 1) + 1;
+      const lastDate = interactionDate && (!existing.last_interaction_at || interactionDate > existing.last_interaction_at)
+        ? interactionDate
+        : existing.last_interaction_at;
+      await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(rows[0].id)}`, {
+        method: "PATCH",
+        headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+        body: JSON.stringify({
+          metadata: {
+            ...existing,
+            interaction_count: count,
+            last_interaction_at: lastDate,
+          },
+        }),
+      });
+      return rows[0].id;
+    }
+  }
+
+  const entry: Record<string, any> = {
+    user_id: userId,
+    title: name,
+    content: `Gmail contact — ${email}`,
+    type: "contact",
+    tags: ["contact", "gmail"],
+    metadata: {
+      source: "gmail",
+      contact_email: email,
+      contact_name: name,
+      first_seen_at: interactionDate,
+      last_interaction_at: interactionDate,
+      interaction_count: 1,
+    },
+  };
+  if (brainId) entry.brain_id = brainId;
+  const ins = await fetch(`${SB_URL}/rest/v1/entries`, {
+    method: "POST",
+    headers: { ...SB_HEADERS, Prefer: "return=representation" },
+    body: JSON.stringify(entry),
+  });
+  if (!ins.ok) return null;
+  const rows: any[] = await ins.json();
+  return rows[0]?.id ?? null;
+}
+
+// ── Types exposed to callers ────────────────────────────────────────────────
 
 export interface ScanResultItem {
   entryId: string;
-  groupIds: string[];   // all entry IDs in this sender group (including entryId)
-  groupCount: number;
+  groupIds: string[];          // all entry IDs in the sender group (thread-level)
+  groupCount: number;          // number of threads from this sender in the scan
+  threadMessageCount: number;  // message count of the primary thread shown
   title: string;
   summary: string;
   from: string;
@@ -668,20 +743,19 @@ export interface ScanResultItem {
   urgency: string;
   amount?: string | null;
   dueDate?: string | null;
-}
-
-function extractSenderKey(from: string): string {
-  const match = from.match(/<([^>]+)>/);
-  return (match ? match[1] : from).toLowerCase().trim();
+  relevanceScore: number;
 }
 
 export interface ScanDebug {
   sinceDate: string;
   totalGmailCount: number;
   emailsFetched: number;
+  threadsScanned: number;
   classified: number;
   created: number;
   skippedDuplicates: number;
+  skippedBulk: number;
+  skippedLowScore: number;
   skippedSubjects: string[];
   insertErrors: number;
   tokenRefreshFailed: boolean;
@@ -693,20 +767,21 @@ export interface ScanDebug {
   classifierUsed: string;
   classifierError: string;
   classifierModel: string;
+  syncMode: "history" | "polling";
+  contactsUpserted: number;
 }
 
-export async function scanGmailForUser(
-  integration: any,
-  manual = false,
-  activeBrainId?: string,
-): Promise<{ created: number; debug: ScanDebug; entries: ScanResultItem[] }> {
-  const debug: ScanDebug = {
+function emptyDebug(): ScanDebug {
+  return {
     sinceDate: "",
     totalGmailCount: 0,
     emailsFetched: 0,
+    threadsScanned: 0,
     classified: 0,
     created: 0,
     skippedDuplicates: 0,
+    skippedBulk: 0,
+    skippedLowScore: 0,
     skippedSubjects: [],
     insertErrors: 0,
     tokenRefreshFailed: false,
@@ -718,122 +793,132 @@ export async function scanGmailForUser(
     classifierUsed: "",
     classifierError: "",
     classifierModel: "",
+    syncMode: "polling",
+    contactsUpserted: 0,
   };
+}
 
-  try {
-  const token = await refreshGmailToken(integration);
-  if (!token) {
-    debug.tokenRefreshFailed = true;
-    return { created: 0, debug, entries: [] };
+// ── Core pipeline: hydrate refs → thread blocks → classify → persist ────────
+
+async function hydrateThreadBlocks(
+  token: string,
+  refs: MessageRef[],
+  importedThreadIds: Set<string>,
+  maxThreads: number,
+): Promise<ThreadBlock[]> {
+  // Dedupe by threadId, drop already-imported threads, cap at maxThreads.
+  const seen = new Set<string>();
+  const threadIds: string[] = [];
+  for (const ref of refs) {
+    if (importedThreadIds.has(ref.threadId)) continue;
+    if (seen.has(ref.threadId)) continue;
+    seen.add(ref.threadId);
+    threadIds.push(ref.threadId);
+    if (threadIds.length >= maxThreads) break;
   }
 
-  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
-
-  // Manual scans use the configured look-back window; cron uses last_scanned_at.
-  let sinceMs: number | undefined;
-  if (manual) {
-    const days = prefs.lookbackDays ?? 7;
-    sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
-  } else if (integration.last_scanned_at) {
-    sinceMs = new Date(integration.last_scanned_at).getTime();
-  }
-  debug.sinceDate = sinceMs ? new Date(sinceMs).toISOString() : "last 25h (default)";
-
-  // Manual scans look back further so fetch more messages.
-  // Subject filter pre-screens at the Gmail API level before fetching full content.
-  const subjectFilter = buildSubjectFilter(prefs.categories);
-  const { emails, totalGmailCount } = await fetchRecentEmails(token, sinceMs, manual ? 200 : 50, subjectFilter);
-  debug.totalGmailCount = totalGmailCount;
-  debug.emailsFetched = emails.length;
-  debug.subjects = emails.slice(0, 10).map((e) => e.subject);
-
-  await fetch(`${SB_URL}/rest/v1/gmail_integrations?id=eq.${integration.id}`, {
-    method: "PATCH",
-    headers: SB_HEADERS,
-    body: JSON.stringify({ last_scanned_at: new Date().toISOString() }),
-  });
-
-  if (!emails.length) return { created: 0, debug, entries: [] };
-
-  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-  const prompt = buildPrompt(emails, prefs);
-  let classified: any[];
-  if (geminiKey) {
-    const { results, error, model } = await classifyWithGemini(prompt, geminiKey);
-    classified = results;
-    debug.classifierUsed = "gemini";
-    debug.classifierModel = model;
-    debug.classifierError = error ?? "";
-  } else {
-    classified = await classifyWithLLM(prompt);
-    debug.classifierUsed = process.env.ANTHROPIC_API_KEY ? "anthropic" : "none";
-    debug.classifierModel = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
-  }
-  debug.classified = classified.length;
-  if (!classified.length) return { created: 0, debug, entries: [] };
-
-  // Fetch already-imported message IDs to prevent duplicates.
-  const importedIds = await fetchImportedMessageIds(integration.user_id);
-
-  const brainId = activeBrainId ?? await getUserBrainId(integration.user_id);
-
-  // Repair: assign brain_id to any existing gmail entries that are missing it.
-  if (brainId) {
-    const orphanRes = await fetch(
-      `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(integration.user_id)}&metadata->>source=eq.gmail&brain_id=is.null&deleted_at=is.null&select=id`,
-      { headers: SB_HEADERS },
-    );
-    if (orphanRes.ok) {
-      const orphans: { id: string }[] = await orphanRes.json();
-      for (const orphan of orphans) {
-        await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(orphan.id)}`, {
-          method: "PATCH",
-          headers: { ...SB_HEADERS, Prefer: "return=minimal" },
-          body: JSON.stringify({ brain_id: brainId }),
-        });
-        debug.repairedBrainId++;
+  const blocks: ThreadBlock[] = [];
+  for (let i = 0; i < threadIds.length; i += 10) {
+    const chunk = threadIds.slice(i, i + 10);
+    const results = await Promise.all(chunk.map((tid) => fetchThread(token, tid)));
+    for (const msgs of results) {
+      if (!msgs.length) continue;
+      const grouped = groupByThread(msgs); // safety: messages all share threadId
+      for (const arr of grouped.values()) {
+        blocks.push(buildThreadBlock(arr));
       }
     }
+    if (i + 10 < threadIds.length) await sleep(150);
   }
-  let created = 0;
+  return blocks;
+}
+
+async function persistMatches(
+  token: string,
+  integration: any,
+  brainId: string | null,
+  blocks: ThreadBlock[],
+  classified: any[],
+  prefs: GmailPreferences,
+  geminiKey: string,
+  importedThreadIds: Set<string>,
+  importedMessageIds: Set<string>,
+  debug: ScanDebug,
+): Promise<{ created: number; scanEntries: ScanResultItem[]; contactsUpserted: number }> {
+  const threshold = prefs.minRelevanceScore ?? 60;
   const scanEntries: ScanResultItem[] = [];
+  let created = 0;
+  let contactsUpserted = 0;
 
   for (const match of classified) {
-    const email = emails[match.index];
-    if (!email) continue;
-    if (importedIds.has(email.id)) { debug.skippedDuplicates++; debug.skippedSubjects.push(email.subject); continue; }
+    const block = blocks[match.index];
+    if (!block) continue;
+    if (importedThreadIds.has(block.threadId)) {
+      debug.skippedDuplicates++;
+      debug.skippedSubjects.push(block.primary.subject);
+      continue;
+    }
+    // Legacy: if any message in this thread was imported via message_id only, skip to avoid duplicates.
+    if (block.messageIds.some((id) => importedMessageIds.has(id))) {
+      debug.skippedDuplicates++;
+      debug.skippedSubjects.push(block.primary.subject);
+      continue;
+    }
 
-    let title = match.title ?? email.subject;
+    const relevanceScore = computeRelevanceScore(block, match);
+    if (relevanceScore < threshold) {
+      debug.skippedLowScore++;
+      continue;
+    }
+
+    let title = match.title ?? block.primary.subject;
     let summary = match.summary ?? "";
-    const emailAttachments: AttachmentInfo[] = email.attachments ?? [];
-    const attachmentText = emailAttachments.length
-      ? await fetchAndExtractAttachments(token, email.id, emailAttachments, geminiKey)
+    const attachmentText = block.attachments.length
+      ? await fetchAndExtractAttachments(token, block.primary.id, block.attachments, geminiKey)
       : "";
-    debug.attachmentsExtracted += emailAttachments.length;
+    debug.attachmentsExtracted += block.attachments.length;
     if (attachmentText) {
-      const refined = await refineWithAttachments(email.subject, email.body, attachmentText, match.type, title, summary);
+      const refined = await refineWithAttachments(
+        block.primary.subject,
+        block.primary.body,
+        attachmentText,
+        match.type,
+        title,
+        summary,
+      );
       title = refined.title;
       summary = refined.content;
     }
-    // content = clean LLM summary only; raw attachment text goes to metadata for search/embed
+
     const content = summary;
     const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
     const tags = [match.type ?? "gmail"];
     const metadata: Record<string, any> = {
       source: "gmail",
-      gmail_message_id: email.id,
-      gmail_from: email.from,
-      gmail_subject: email.subject,
-      gmail_date: email.date,
+      gmail_message_id: block.primary.id,
+      gmail_thread_id: block.threadId,
+      gmail_thread_size: block.messages.length,
+      gmail_from: block.primary.from,
+      gmail_participants: block.participants,
+      gmail_subject: block.primary.subject,
+      gmail_date: block.primary.date,
       email_type: match.type,
       due_date: match.due_date ?? null,
       amount: match.amount ?? null,
       urgency: match.urgency ?? "medium",
+      relevance_score: relevanceScore,
       completeness_score: computeCompletenessScore(title, content, type, tags, {}),
     };
     if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
 
-    const entry: Record<string, any> = { user_id: integration.user_id, title, content, type, tags, metadata };
+    const entry: Record<string, any> = {
+      user_id: integration.user_id,
+      title,
+      content,
+      type,
+      tags,
+      metadata,
+    };
     if (brainId) entry.brain_id = brainId;
 
     const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
@@ -841,50 +926,68 @@ export async function scanGmailForUser(
       headers: { ...SB_HEADERS, Prefer: "return=representation" },
       body: JSON.stringify(entry),
     });
-    if (!insertRes.ok) { debug.insertErrors++; continue; }
-
+    if (!insertRes.ok) {
+      debug.insertErrors++;
+      continue;
+    }
     const rows: any[] = await insertRes.json();
     const inserted = rows[0];
     created++;
     debug.created++;
-    importedIds.add(email.id);
+    importedThreadIds.add(block.threadId);
+    for (const mid of block.messageIds) importedMessageIds.add(mid);
+
     scanEntries.push({
       entryId: inserted?.id ?? "",
-      groupIds: [],
+      groupIds: [inserted?.id ?? ""],
       groupCount: 1,
+      threadMessageCount: block.messages.length,
       title,
       summary: content,
-      from: email.from,
-      subject: email.subject,
+      from: block.primary.from,
+      subject: block.primary.subject,
       emailType: match.type ?? "",
       urgency: match.urgency ?? "medium",
       amount: match.amount ?? null,
       dueDate: match.due_date ?? null,
+      relevanceScore,
     });
 
+    // Upsert contact for the primary (most-recent) sender.
+    const contactId = await upsertGmailContact(
+      integration.user_id,
+      brainId,
+      block.primary.from,
+      block.primary.date || new Date().toISOString(),
+    );
+    if (contactId) contactsUpserted++;
+
+    // Fire-and-forget embedding
     if (inserted?.id && geminiKey) {
-      try {
-        const embedContent = attachmentText ? [content, attachmentText].filter(Boolean).join("\n\n") : content;
-        const embedding = await generateEmbedding(buildEntryText({ title, content: embedContent, tags }), geminiKey);
-        await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
-          method: "PATCH",
-          headers: { ...SB_HEADERS, Prefer: "return=minimal" },
-          body: JSON.stringify({
-            embedding: `[${embedding.join(",")}]`,
-            embedded_at: new Date().toISOString(),
-            embedding_provider: "google",
+      const embedContent = attachmentText ? [content, attachmentText].filter(Boolean).join("\n\n") : content;
+      generateEmbedding(buildEntryText({ title, content: embedContent, tags }), geminiKey)
+        .then((vec) =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+            body: JSON.stringify({
+              embedding: `[${vec.join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: "google",
+            }),
           }),
-        });
-      } catch (err) {
-        console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err);
-      }
+        )
+        .catch((err) => console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err));
     }
   }
 
-  // Group by sender so the review modal shows one card per sender
+  return { created, scanEntries, contactsUpserted };
+}
+
+function groupBySender(items: ScanResultItem[]): ScanResultItem[] {
   const groupMap = new Map<string, ScanResultItem>();
-  for (const item of scanEntries) {
-    const key = extractSenderKey(item.from);
+  for (const item of items) {
+    const key = extractEmail(item.from) || item.from;
     const existing = groupMap.get(key);
     if (existing) {
       existing.groupIds.push(item.entryId);
@@ -893,14 +996,224 @@ export async function scanGmailForUser(
       groupMap.set(key, { ...item, groupIds: [item.entryId] });
     }
   }
+  return Array.from(groupMap.values());
+}
 
-  return { created, debug, entries: Array.from(groupMap.values()) };
+// ── Public: deep (cursor-paged) scan — used for historical back-fill ────────
+
+export interface DeepScanResult {
+  nextCursor: string | null;
+  processed: number;
+  created: number;
+  entries: ScanResultItem[];
+  done: boolean;
+  totalEstimate: number;
+}
+
+export async function deepScanBatch(
+  integration: any,
+  params: { cursor?: string; sinceMs: number; activeBrainId?: string },
+): Promise<DeepScanResult> {
+  const token = await refreshGmailToken(integration);
+  if (!token) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: 0 };
+
+  const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
+  const subjectFilter = buildSubjectFilter(prefs.categories);
+  const query = buildGmailQuery(params.sinceMs, subjectFilter);
+
+  // Deep-scan uses polling (time-based) so it can target a historical window.
+  const { refs, nextPageToken, resultSizeEstimate } = await fetchMessageList(token, query, 100, params.cursor);
+  if (!refs.length) return { nextCursor: null, processed: 0, created: 0, entries: [], done: true, totalEstimate: resultSizeEstimate };
+
+  const { threadIds: importedThreadIds, messageIds: importedMessageIds } = await fetchImportedIdentifiers(integration.user_id);
+  const brainId = params.activeBrainId ?? await getUserBrainId(integration.user_id);
+
+  const debug = emptyDebug();
+  const blocks = await hydrateThreadBlocks(token, refs, importedThreadIds, 40);
+  const usableBlocks = blocks.filter((b) => {
+    if (isBulkThread(b)) { debug.skippedBulk++; return false; }
+    return true;
+  });
+
+  if (!usableBlocks.length) {
+    return { nextCursor: nextPageToken, processed: refs.length, created: 0, entries: [], done: !nextPageToken, totalEstimate: resultSizeEstimate };
+  }
+
+  const prompt = buildPrompt(usableBlocks, prefs);
+  const classified = geminiKey
+    ? (await classifyWithGemini(prompt, geminiKey)).results
+    : await classifyWithLLM(prompt);
+
+  if (!classified.length) {
+    return { nextCursor: nextPageToken, processed: usableBlocks.length, created: 0, entries: [], done: !nextPageToken, totalEstimate: resultSizeEstimate };
+  }
+
+  const { scanEntries, created } = await persistMatches(
+    token,
+    integration,
+    brainId,
+    usableBlocks,
+    classified,
+    prefs,
+    geminiKey,
+    importedThreadIds,
+    importedMessageIds,
+    debug,
+  );
+
+  return {
+    nextCursor: nextPageToken,
+    processed: usableBlocks.length,
+    created,
+    entries: groupBySender(scanEntries),
+    done: !nextPageToken,
+    totalEstimate: resultSizeEstimate,
+  };
+}
+
+// ── Public: incremental scan — history API with polling fallback ────────────
+
+export async function scanGmailForUser(
+  integration: any,
+  manual = false,
+  activeBrainId?: string,
+): Promise<{ created: number; debug: ScanDebug; entries: ScanResultItem[] }> {
+  const debug = emptyDebug();
+
+  try {
+    const token = await refreshGmailToken(integration);
+    if (!token) {
+      debug.tokenRefreshFailed = true;
+      return { created: 0, debug, entries: [] };
+    }
+
+    const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
+    const subjectFilter = buildSubjectFilter(prefs.categories);
+
+    // Resolve the message list:
+    //  1. Manual scans OR no history_id → polling (time-based, honours subject filter)
+    //  2. Otherwise try history API; if 404, fall back to polling
+    let refs: MessageRef[] = [];
+    let totalEstimate = 0;
+
+    const historyStart = !manual && typeof integration.history_id === "string" ? integration.history_id : null;
+
+    if (historyStart) {
+      const hist = await fetchHistoryRefs(token, historyStart);
+      if (hist) {
+        refs = hist.refs;
+        totalEstimate = refs.length;
+        debug.syncMode = "history";
+      }
+    }
+
+    if (!refs.length && debug.syncMode !== "history") {
+      // Polling fallback (or first-ever scan).
+      const days = manual ? (prefs.lookbackDays ?? 7) : 7;
+      const sinceMs = integration.last_scanned_at && !manual
+        ? new Date(integration.last_scanned_at).getTime()
+        : Date.now() - days * 86_400_000;
+      const query = buildGmailQuery(sinceMs, subjectFilter);
+      debug.sinceDate = new Date(sinceMs).toISOString();
+      debug.syncMode = "polling";
+      const { refs: polled, resultSizeEstimate } = await fetchMessageList(token, query, manual ? 200 : 50);
+      refs = polled;
+      totalEstimate = resultSizeEstimate;
+    } else if (debug.syncMode === "history") {
+      debug.sinceDate = `history:${historyStart}`;
+    }
+
+    debug.totalGmailCount = totalEstimate;
+    debug.emailsFetched = refs.length;
+
+    // Checkpoint last_scanned_at + current history_id for the next incremental run.
+    const currentHistoryId = await fetchCurrentHistoryId(token);
+    await fetch(`${SB_URL}/rest/v1/gmail_integrations?id=eq.${integration.id}`, {
+      method: "PATCH",
+      headers: SB_HEADERS,
+      body: JSON.stringify({
+        last_scanned_at: new Date().toISOString(),
+        ...(currentHistoryId ? { history_id: currentHistoryId } : {}),
+      }),
+    });
+
+    if (!refs.length) return { created: 0, debug, entries: [] };
+
+    const { threadIds: importedThreadIds, messageIds: importedMessageIds } = await fetchImportedIdentifiers(integration.user_id);
+    const brainId = activeBrainId ?? await getUserBrainId(integration.user_id);
+
+    // Repair: assign brain_id to any existing gmail entries missing it.
+    if (brainId) {
+      const orphanRes = await fetch(
+        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(integration.user_id)}&metadata->>source=eq.gmail&brain_id=is.null&deleted_at=is.null&select=id`,
+        { headers: SB_HEADERS },
+      );
+      if (orphanRes.ok) {
+        const orphans: { id: string }[] = await orphanRes.json();
+        for (const orphan of orphans) {
+          await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(orphan.id)}`, {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+            body: JSON.stringify({ brain_id: brainId }),
+          });
+          debug.repairedBrainId++;
+        }
+      }
+    }
+
+    const maxThreads = manual ? 80 : 30;
+    const blocks = await hydrateThreadBlocks(token, refs, importedThreadIds, maxThreads);
+    debug.threadsScanned = blocks.length;
+    debug.subjects = blocks.slice(0, 10).map((b) => b.primary.subject);
+
+    const usableBlocks = blocks.filter((b) => {
+      if (isBulkThread(b)) { debug.skippedBulk++; return false; }
+      return true;
+    });
+
+    if (!usableBlocks.length) return { created: 0, debug, entries: [] };
+
+    const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+    const prompt = buildPrompt(usableBlocks, prefs);
+    let classified: any[];
+    if (geminiKey) {
+      const { results, error, model } = await classifyWithGemini(prompt, geminiKey);
+      classified = results;
+      debug.classifierUsed = "gemini";
+      debug.classifierModel = model;
+      debug.classifierError = error ?? "";
+    } else {
+      classified = await classifyWithLLM(prompt);
+      debug.classifierUsed = process.env.ANTHROPIC_API_KEY ? "anthropic" : "none";
+      debug.classifierModel = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
+    }
+    debug.classified = classified.length;
+    if (!classified.length) return { created: 0, debug, entries: [] };
+
+    const { created, scanEntries, contactsUpserted } = await persistMatches(
+      token,
+      integration,
+      brainId,
+      usableBlocks,
+      classified,
+      prefs,
+      geminiKey,
+      importedThreadIds,
+      importedMessageIds,
+      debug,
+    );
+    debug.contactsUpserted = contactsUpserted;
+
+    return { created, debug, entries: groupBySender(scanEntries) };
   } catch (e: any) {
     console.error("[scanGmailForUser] unexpected error:", e);
     if (!debug.classifierError) debug.classifierError = String(e?.message ?? e);
     return { created: 0, debug, entries: [] };
   }
 }
+
+// ── Public: cron entry point ────────────────────────────────────────────────
 
 export async function runGmailScanAllUsers(): Promise<{ users: number; created: number; errors: number }> {
   const r = await fetch(

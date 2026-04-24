@@ -18,6 +18,7 @@ import { rateLimit } from "./_lib/rateLimit.js";
 import { resolveApiKey } from "./_lib/resolveApiKey.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 import { retrieveEntries, rebuildConceptGraph } from "./_lib/retrievalCore.js";
+import { scanGmailForUser, type GmailPreferences } from "./_lib/gmailScan.js";
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
@@ -113,6 +114,51 @@ const TOOLS = [
         id: { type: "string", description: "Entry UUID to delete" },
       },
       required: ["id"],
+    },
+  },
+  {
+    name: "gmail_sync",
+    description: "Run a manual Gmail scan. Ingests high-signal threads (invoices, deadlines, appointments, signing requests, action items) from the user's Gmail and returns the newly-created entries. Honours the user's configured categories and ignore rules.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        lookback_days: { type: "number", description: "Days to look back from now (1-30, default 7)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "gmail_review_queue",
+    description: "List recently-ingested Gmail entries pending user review, ranked by relevance_score. Use when the user asks what just came in from email or wants to triage new items.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Max entries to return (1-50, default 20)" },
+        since_hours: { type: "number", description: "Only include entries ingested in the last N hours (1-168, default 72)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "gmail_contacts",
+    description: "List the user's Gmail contacts ranked by interaction frequency. Each contact has interaction_count and last_interaction_at metadata. Use when the user asks who they talk to most or wants to find a specific correspondent.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "number", description: "Max contacts to return (1-100, default 25)" },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "gmail_ignore_pattern",
+    description: "Add a natural-language rule to the user's Gmail ignore list. Future scans skip matching emails. Use after the user says things like 'stop importing emails from X' or 'don't scan newsletters'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        pattern: { type: "string", description: "Natural-language rule, e.g. 'Ignore newsletters from substack.com'" },
+      },
+      required: ["pattern"],
     },
   },
 ];
@@ -296,6 +342,89 @@ async function updateEntry(
   return updated[0];
 }
 
+// ── Gmail tools ───────────────────────────────────────────────────────────────
+
+async function gmailSync(userId: string, brainId: string, lookbackDays = 7): Promise<unknown> {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(userId)}&select=*`,
+    { headers: hdrs() },
+  );
+  if (!r.ok) throw new Error("Failed to read Gmail integration");
+  const rows: any[] = await r.json();
+  if (!rows[0]) throw new Error("No Gmail integration connected for this user");
+  const integ = rows[0];
+  const days = Math.min(Math.max(1, lookbackDays), 30) as 1 | 7 | 30;
+  const prefs: GmailPreferences = { ...(integ.preferences ?? {}), lookbackDays: days };
+  const result = await scanGmailForUser({ ...integ, preferences: prefs }, true, brainId);
+  return {
+    created: result.created,
+    sync_mode: result.debug.syncMode,
+    threads_scanned: result.debug.threadsScanned,
+    skipped_bulk: result.debug.skippedBulk,
+    skipped_duplicates: result.debug.skippedDuplicates,
+    skipped_low_score: result.debug.skippedLowScore,
+    contacts_upserted: result.debug.contactsUpserted,
+    entries: result.entries,
+  };
+}
+
+async function gmailReviewQueue(userId: string, limit = 20, sinceHours = 72): Promise<unknown> {
+  const safeLimit = Math.min(Math.max(1, limit), 50);
+  const safeHours = Math.min(Math.max(1, sinceHours), 168);
+  const cutoff = new Date(Date.now() - safeHours * 3_600_000).toISOString();
+  const url =
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}` +
+    `&metadata->>source=eq.gmail` +
+    `&deleted_at=is.null` +
+    `&type=neq.contact` +
+    `&created_at=gte.${cutoff}` +
+    `&order=metadata->>relevance_score.desc.nullslast,created_at.desc` +
+    `&limit=${safeLimit}` +
+    `&select=id,title,content,type,tags,metadata,created_at`;
+  const r = await fetch(url, { headers: hdrs() });
+  if (!r.ok) throw new Error("Failed to fetch review queue");
+  return { entries: await r.json(), since_hours: safeHours };
+}
+
+async function gmailContacts(userId: string, limit = 25): Promise<unknown> {
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  const url =
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}` +
+    `&type=eq.contact` +
+    `&metadata->>source=eq.gmail` +
+    `&deleted_at=is.null` +
+    `&order=metadata->>interaction_count.desc.nullslast` +
+    `&limit=${safeLimit}` +
+    `&select=id,title,metadata,created_at`;
+  const r = await fetch(url, { headers: hdrs() });
+  if (!r.ok) throw new Error("Failed to fetch contacts");
+  return { contacts: await r.json() };
+}
+
+async function gmailIgnorePattern(userId: string, pattern: string): Promise<unknown> {
+  const trimmed = pattern.trim();
+  if (!trimmed) throw new Error("pattern cannot be empty");
+  const r = await fetch(
+    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(userId)}&select=preferences`,
+    { headers: hdrs() },
+  );
+  const rows: any[] = r.ok ? await r.json() : [];
+  if (!rows[0]) throw new Error("No Gmail integration connected for this user");
+  const prefs = rows[0].preferences ?? { categories: [], custom: "" };
+  const existing = (prefs.custom ?? "").trim();
+  const newCustom = existing ? `${existing}\n${trimmed}` : trimmed;
+  const patchRes = await fetch(
+    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(userId)}`,
+    {
+      method: "PATCH",
+      headers: hdrs(),
+      body: JSON.stringify({ preferences: { ...prefs, custom: newCustom } }),
+    },
+  );
+  if (!patchRes.ok) throw new Error("Failed to update preferences");
+  return { ok: true, pattern: trimmed };
+}
+
 async function deleteEntry(brainId: string, id: string): Promise<unknown> {
   const entryRes = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id&limit=1`,
@@ -432,6 +561,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       } else if (toolName === "delete_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         result = await deleteEntry(brainId, args.id);
+      } else if (toolName === "gmail_sync") {
+        result = await gmailSync(userId, brainId, args.lookback_days);
+      } else if (toolName === "gmail_review_queue") {
+        result = await gmailReviewQueue(userId, args.limit, args.since_hours);
+      } else if (toolName === "gmail_contacts") {
+        result = await gmailContacts(userId, args.limit);
+      } else if (toolName === "gmail_ignore_pattern") {
+        if (!args.pattern) return res.status(200).json(jsonRpcErr(id, -32602, "pattern is required"));
+        result = await gmailIgnorePattern(userId, args.pattern);
       } else {
         return res.status(200).json(jsonRpcErr(id, -32601, `Unknown tool: ${toolName}`));
       }
