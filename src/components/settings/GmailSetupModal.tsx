@@ -83,6 +83,7 @@ export default function GmailSetupModal({
     initialPreferences?.lookbackDays ?? 7,
   );
   const [saving, setSaving] = useState(false);
+  const [customOpen, setCustomOpen] = useState(() => !!(initialPreferences?.custom));
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -104,8 +105,8 @@ export default function GmailSetupModal({
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-start justify-center"
-      style={{ background: "rgba(0,0,0,0.45)", paddingTop: 16 }}
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.45)" }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -117,7 +118,7 @@ export default function GmailSetupModal({
         style={{
           width: "calc(100% - 32px)",
           maxWidth: 480,
-          height: "calc(100dvh - 128px)",
+          maxHeight: "calc(100dvh - 128px)",
           display: "flex",
           flexDirection: "column",
           background: "var(--bg)",
@@ -151,7 +152,7 @@ export default function GmailSetupModal({
         </div>
 
         {/* Categories */}
-        <div style={{ marginBottom: 8 }}>
+        <div style={{ marginBottom: 4 }}>
           {highCats.map((cat) => (
             <CategoryRow
               key={cat.id}
@@ -161,43 +162,65 @@ export default function GmailSetupModal({
             />
           ))}
         </div>
+        <p
+          className="f-serif"
+          style={{ margin: "0 0 10px", fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic" }}
+        >
+          All emails are scanned. Checked types are flagged first.
+        </p>
 
-        {/* Custom input */}
+        {/* Custom input — collapsible */}
         <div style={{ marginBottom: 8 }}>
-          <label
-            htmlFor="gmail-custom"
-            className="f-sans"
+          <button
+            type="button"
+            onClick={() => setCustomOpen((o) => !o)}
+            className="f-sans press"
             style={{
-              display: "block",
+              display: "flex",
+              alignItems: "center",
+              width: "100%",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "6px 0",
+              gap: 6,
               fontSize: 13,
               fontWeight: 500,
               color: "var(--ink-soft)",
-              marginBottom: 6,
             }}
           >
-            Other — describe anything else to look for
-          </label>
-          <textarea
-            id="gmail-custom"
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="e.g. emails from my accountant mentioning VAT, warranty expiry notices…"
-            rows={2}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--line-soft)",
-              background: "var(--surface)",
-              color: "var(--ink)",
-              fontFamily: "var(--f-sans)",
-              fontSize: 13,
-              lineHeight: 1.5,
-              resize: "vertical",
-              outline: "none",
-            }}
-          />
+            Other — describe anything else
+            <svg
+              width="10" height="10" viewBox="0 0 10 10"
+              style={{ marginLeft: "auto", transform: customOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms", flexShrink: 0 }}
+            >
+              <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+          </button>
+          {customOpen && (
+            <textarea
+              id="gmail-custom"
+              value={custom}
+              onChange={(e) => setCustom(e.target.value)}
+              placeholder="e.g. emails from my accountant mentioning VAT, warranty expiry notices…"
+              rows={2}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid var(--line-soft)",
+                background: "var(--surface)",
+                color: "var(--ink)",
+                fontFamily: "var(--f-sans)",
+                fontSize: 13,
+                lineHeight: 1.5,
+                resize: "vertical",
+                outline: "none",
+                marginTop: 6,
+              }}
+            />
+          )}
         </div>
 
         {/* Look-back period */}
