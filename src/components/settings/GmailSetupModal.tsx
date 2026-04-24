@@ -83,7 +83,8 @@ export default function GmailSetupModal({
     initialPreferences?.lookbackDays ?? 7,
   );
   const [saving, setSaving] = useState(false);
-  const [customOpen, setCustomOpen] = useState(() => !!(initialPreferences?.custom));
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customDraft, setCustomDraft] = useState(initialPreferences?.custom ?? "");
 
   function toggle(id: string) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -169,57 +170,102 @@ export default function GmailSetupModal({
           All emails are scanned. Checked types are flagged first.
         </p>
 
-        {/* Custom input — collapsible */}
-        <div style={{ marginBottom: 8 }}>
-          <button
-            type="button"
-            onClick={() => setCustomOpen((o) => !o)}
-            className="f-sans press"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              width: "100%",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "6px 0",
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "var(--ink-soft)",
-            }}
-          >
-            Other — describe anything else
-            <svg
-              width="10" height="10" viewBox="0 0 10 10"
-              style={{ marginLeft: "auto", transform: customOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 200ms", flexShrink: 0 }}
-            >
-              <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            </svg>
-          </button>
-          {customOpen && (
-            <textarea
-              id="gmail-custom"
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              placeholder="e.g. emails from my accountant mentioning VAT, warranty expiry notices…"
-              rows={2}
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid var(--line-soft)",
-                background: "var(--surface)",
-                color: "var(--ink)",
-                fontFamily: "var(--f-sans)",
-                fontSize: 13,
-                lineHeight: 1.5,
-                resize: "vertical",
-                outline: "none",
-                marginTop: 6,
-              }}
-            />
+        {/* Custom input — collapsible edit panel */}
+        <div style={{ marginBottom: 8, borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
+          {!customOpen ? (
+            <div style={{ display: "flex", alignItems: "center", padding: "8px 0" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}>
+                  Other
+                </span>
+                {custom.trim() && (
+                  <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 8 }}>
+                    {custom.trim().slice(0, 48)}{custom.trim().length > 48 ? "…" : ""}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => { setCustomDraft(custom); setCustomOpen(true); }}
+                className="press f-sans"
+                style={{
+                  flexShrink: 0,
+                  height: 28,
+                  padding: "0 12px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 500,
+                  background: "var(--surface-high)",
+                  color: "var(--ink-soft)",
+                  border: "1px solid var(--line-soft)",
+                  cursor: "pointer",
+                }}
+              >
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div style={{ padding: "10px 0 8px" }}>
+              <textarea
+                autoFocus
+                value={customDraft}
+                onChange={(e) => setCustomDraft(e.target.value)}
+                placeholder="e.g. ignore emails from noreply@, flag anything mentioning VAT or warranty…"
+                rows={6}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid var(--line-soft)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                  fontFamily: "var(--f-sans)",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                  resize: "none",
+                  outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setCustomOpen(false)}
+                  className="press f-sans"
+                  style={{
+                    flex: 1,
+                    height: 36,
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 500,
+                    background: "var(--surface)",
+                    color: "var(--ink-soft)",
+                    border: "1px solid var(--line-soft)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setCustom(customDraft); setCustomOpen(false); }}
+                  className="press f-sans"
+                  style={{
+                    flex: 2,
+                    height: 36,
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: "var(--ember)",
+                    color: "var(--ember-ink)",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
