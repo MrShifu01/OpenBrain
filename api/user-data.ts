@@ -473,15 +473,9 @@ const handleNotificationPrefs = withAuth(
     }
 
     // POST
-    let updates: Record<string, unknown>;
-    try {
-      const parsed = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-        return void res.status(400).json({ error: "Invalid JSON: expected an object" });
-      }
-      updates = parsed as Record<string, unknown>;
-    } catch {
-      return void res.status(400).json({ error: "Invalid JSON" });
+    const updates = req.body as Record<string, unknown>;
+    if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
+      return void res.status(400).json({ error: "Invalid JSON: expected an object" });
     }
     const getRes = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, { headers: adminHdrs });
     const current: any = getRes.ok ? await getRes.json() : {};
@@ -508,13 +502,7 @@ const handlePushSubscribe = withAuth(
     const meta = current.user_metadata ?? {};
 
     if (req.method === "POST") {
-      let body: any;
-      try {
-        body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-      } catch {
-        return void res.status(400).json({ error: "Invalid JSON" });
-      }
-      const { endpoint, keys, userAgent } = body;
+      const { endpoint, keys, userAgent } = req.body as { endpoint?: string; keys?: unknown; userAgent?: string };
       if (!endpoint) return void res.status(400).json({ error: "endpoint required" });
       const r = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
         method: "PUT",
@@ -692,12 +680,17 @@ const handleStripeCheckout = withAuth(
     let customerId: string = profile?.stripe_customer_id ?? "";
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email as string | undefined,
-        metadata: { user_id: user.id },
-      });
-      customerId = customer.id;
-      await fetch(
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email as string | undefined,
+          metadata: { user_id: user.id },
+        });
+        customerId = customer.id;
+      } catch (err) {
+        console.error("[stripe-checkout] Failed to create customer:", err);
+        return void res.status(502).json({ error: "Payment provider unavailable" });
+      }
+      const patchRes = await fetch(
         `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}`,
         {
           method: "PATCH",
@@ -705,20 +698,30 @@ const handleStripeCheckout = withAuth(
           body: JSON.stringify({ stripe_customer_id: customerId }),
         },
       );
+      if (!patchRes.ok) {
+        console.error("[stripe-checkout] Failed to save stripe_customer_id:", await patchRes.text());
+        // Still proceed — Stripe session is valid
+      }
     }
 
     const host = (req.headers["host"] as string) || "everion.app";
     const appUrl = `https://${host}`;
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      allow_promotion_codes: true,
-      success_url: `${appUrl}/settings?tab=billing&billing=success`,
-      cancel_url: `${appUrl}/settings?tab=billing&billing=cancel`,
-      metadata: { user_id: user.id },
-    });
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        line_items: [{ price: priceId, quantity: 1 }],
+        allow_promotion_codes: true,
+        success_url: `${appUrl}/settings?tab=billing&billing=success`,
+        cancel_url: `${appUrl}/settings?tab=billing&billing=cancel`,
+        metadata: { user_id: user.id },
+      });
+    } catch (err) {
+      console.error("[stripe-checkout] Failed to create session:", err);
+      return void res.status(502).json({ error: "Payment provider unavailable" });
+    }
 
     res.status(200).json({ url: session.url });
   },
@@ -814,11 +817,18 @@ const handleStripePortal = withAuth(
     }
 
     const host = (req.headers["host"] as string) || "everion.app";
-    const session = await stripe.billingPortal.sessions.create({
-      customer: profile.stripe_customer_id,
-      return_url: `https://${host}/settings?tab=billing`,
-    });
 
-    res.status(200).json({ url: session.url });
+    let portalSession: Stripe.BillingPortal.Session;
+    try {
+      portalSession = await stripe.billingPortal.sessions.create({
+        customer: profile.stripe_customer_id,
+        return_url: `https://${host}/settings?tab=billing`,
+      });
+    } catch (err) {
+      console.error("[stripe-portal] Failed to create portal session:", err);
+      return void res.status(502).json({ error: "Payment provider unavailable" });
+    }
+
+    res.status(200).json({ url: portalSession.url });
   },
 );
