@@ -632,7 +632,7 @@ export default function SettingsView({
                   </svg>
                 </button>
                 {apiOpen && <ClaudeCodeTab />}
-              </div>
+              </>
             )}
 
             {preloaded.has("security") && (
