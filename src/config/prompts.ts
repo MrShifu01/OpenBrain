@@ -50,6 +50,10 @@ CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.pho
   - metadata.day_of_month: for recurring monthly events like "every 1st of the month" → 1 (integer 1–31)
   - metadata.date: for any other specific date mentioned (YYYY-MM-DD)
 - If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
+- If an amount due, total, balance, or invoice total is mentioned → metadata.amount (e.g. "R1,027.83")
+- If a bank account number or account number is mentioned → metadata.account_number
+- If an invoice number, statement number, or reference number is mentioned → metadata.reference_number
+- If a contact name (person to contact) is mentioned → metadata.contact_name
 - Title: max 60 chars
 - Content: ALWAYS a clean 1-3 sentence human-readable summary or description. NEVER paste raw extracted text, assembly steps, or lists into content. Write it as prose.
 

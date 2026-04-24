@@ -24,7 +24,8 @@ function readFlags(entry: Entry): StepFlags {
   return {
     embedded: e.embedded ?? Boolean((entry as any).embedded_at),
     concepts: (e.concepts_count ?? 0) > 0,
-    parsed: e.parsed === true || metaKeys.length > 0,
+    // explicit false (e.g. Gmail entries) always requires a parse run, even if metaKeys exist
+    parsed: e.parsed !== false && (e.parsed === true || metaKeys.length > 0),
     insight: !!(entry.metadata as any)?.ai_insight || e.has_insight === true,
   };
 }

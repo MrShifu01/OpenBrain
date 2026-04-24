@@ -937,6 +937,7 @@ async function persistMatches(
         urgency: match.urgency ?? "medium",
         relevance_score: relevanceScore,
         completeness_score: computeCompletenessScore(title, content, type, tags, {}),
+        enrichment: { parsed: false },
       };
       if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
 
