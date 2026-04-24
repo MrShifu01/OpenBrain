@@ -240,6 +240,7 @@ export function useCaptureSheetParse({
         const nlp = parseTask(input);
         const offlineMeta: Record<string, unknown> = {};
         if (nlp.dueDate) offlineMeta.due_date = nlp.dueDate;
+        if (nlp.dayOfMonth) offlineMeta.day_of_month = nlp.dayOfMonth;
         if (nlp.priority) offlineMeta.priority = nlp.priority;
         if (nlp.energy) offlineMeta.energy = nlp.energy;
         await doSave(

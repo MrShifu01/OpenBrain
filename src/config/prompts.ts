@@ -19,6 +19,7 @@ Include confidence for: type, tags, title, content, and any metadata fields you 
 
 TYPE RULES:
 SECURITY CHECK FIRST: if the input contains passwords, PINs, card numbers, bank account numbers, API keys, or private keys → type MUST be "secret". No exceptions.
+INTENT CHECK SECOND: if the input is an instruction directed at the user themselves — starting with or containing "add", "pay", "call", "remember to", "schedule", "set up", "remind me", "don't forget", "book", "send", or describing a recurring obligation — classify as "reminder" or "task" REGARDLESS of any company or person mentioned. The named entity is context, not the type.
 You MUST choose the most semantically specific type. "note" is the absolute last resort.
 - Contains ingredients + cooking steps → "recipe"
 - A single ingredient or food item → "ingredient"
@@ -32,7 +33,7 @@ You MUST choose the most semantically specific type. "note" is the absolute last
 - Any other official or formal document → "document", "contract", or "certificate"
 - A property or real estate asset → "property"
 - A procedure, SOP, or how-to guide → "procedure"
-- A time-sensitive deadline WITH a specific date → "reminder". If the input has urgency words but no specific date, use "note" not "reminder".
+- A time-sensitive deadline or recurring obligation (weekly, monthly, annual) → "reminder"
 - "note" ONLY if the content is a free-form memo with no named entity, no date, no price, no phone number, and no identifiable category. If in doubt, pick specific.
 
 ICON RULES: Choose ONE emoji that best represents the type — not the specific entry, the whole category. Examples: recipe→🍳, supplier→📦, vehicle→🚗, person→👤, contract→📋. All entries of the same type must share the same emoji — be consistent.
@@ -46,6 +47,7 @@ CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.pho
   - metadata.expiry_date: for licence expiry, document expiry, subscription expiry (YYYY-MM-DD)
   - metadata.event_date: for events, appointments, matches, games (YYYY-MM-DD)
   - metadata.day_of_week: for recurring weekly events like "every Wednesday" → "wednesday"
+  - metadata.day_of_month: for recurring monthly events like "every 1st of the month" → 1 (integer 1–31)
   - metadata.date: for any other specific date mentioned (YYYY-MM-DD)
 - If price/cost mentioned (e.g. "R85/kg", "R120 per case"), extract: metadata.price and metadata.unit
 - Title: max 60 chars

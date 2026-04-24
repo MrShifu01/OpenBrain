@@ -95,6 +95,10 @@ export interface ExternalCalEvent {
   calendarEmail?: string;
 }
 
+function dateKey(year: number, mon: number, day: number): string {
+  return `${year}-${String(mon + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /* ─── Recurring helper ─── */
 export function addRecurring(
   entries: Entry[],
@@ -108,22 +112,47 @@ export function addRecurring(
   const daysInMonth = new Date(year, mon + 1, 0).getDate();
   entries.forEach((e) => {
     const m = (e.metadata || {}) as Record<string, unknown>;
+
+    // ── Monthly recurring (day_of_month) ──
+    const domRaw = m.day_of_month;
+    if (domRaw !== undefined && domRaw !== null && domRaw !== "") {
+      const dom = parseInt(String(domRaw), 10);
+      if (!isNaN(dom) && dom >= 1 && dom <= 31) {
+        const day = Math.min(dom, daysInMonth);
+        add(dateKey(year, mon, day), e);
+        return;
+      }
+    }
+
+    // ── Also scan text for "every 1st/15th of the month" ──
+    const text = `${e.title || ""} ${e.content || ""}`;
+    const domTextMatch = text.match(
+      /every\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i,
+    );
+    if (domTextMatch) {
+      const dom = parseInt(domTextMatch[1] ?? domTextMatch[2], 10);
+      if (!isNaN(dom) && dom >= 1 && dom <= 31) {
+        const day = Math.min(dom, daysInMonth);
+        add(dateKey(year, mon, day), e);
+        return;
+      }
+    }
+
+    // ── Weekly recurring (day_of_week) ──
     let rawDay = (m.day_of_week || m.weekday || m.recurring_day || "")
       .toString()
       .toLowerCase()
       .trim();
     if (!rawDay) {
-      const text = `${e.title || ""} ${e.content || ""}`.toLowerCase();
-      const match = text.match(
+      const dowMatch = text.match(
         /every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i,
       );
-      if (match) rawDay = match[1];
+      if (dowMatch) rawDay = dowMatch[1];
     }
     const dowIndex = DOW[rawDay];
     if (dowIndex === undefined) return;
     for (let d = 1; d <= daysInMonth; d++) {
-      if (new Date(year, mon, d).getDay() === dowIndex)
-        add(`${year}-${String(mon + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`, e);
+      if (new Date(year, mon, d).getDay() === dowIndex) add(dateKey(year, mon, d), e);
     }
   });
 }

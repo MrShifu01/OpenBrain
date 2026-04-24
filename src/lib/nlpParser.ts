@@ -7,6 +7,7 @@ export type ParsedEnergy = "low" | "medium" | "high" | null;
 export interface ParseResult {
   cleanTitle: string;
   dueDate: string | null; // yyyy-MM-dd
+  dayOfMonth: number | null; // 1–31, for monthly recurring
   priority: ParsedPriority;
   tags: string[];
   energy: ParsedEnergy;
@@ -15,6 +16,9 @@ export interface ParseResult {
 const PRIORITY_RE = /\b(p[1-4])\b/i;
 const TAG_RE = /#([a-zA-Z0-9_-]+)/g;
 const ENERGY_RE = /!(high|med(?:ium)?|low)\b/i;
+// Matches: "every 1st", "every 1st of the month", "1st of every month", "on the 15th of each month"
+const DOM_RE =
+  /\b(?:every|on the|the)\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|\b(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i;
 
 function mapEnergy(raw: string): ParsedEnergy {
   const l = raw.toLowerCase();
@@ -42,8 +46,18 @@ export function parseTask(input: string): ParseResult {
   while ((tagMatch = TAG_RE.exec(working)) !== null) tags.push(tagMatch[1]);
   working = working.replace(/#[a-zA-Z0-9_-]+/g, "");
 
-  // Date (chrono-node)
-  const chronoResults = chrono.parse(working, new Date(), { forwardDate: true });
+  // Monthly recurring (before chrono so "1st" isn't consumed as a date)
+  const domMatch = DOM_RE.exec(working);
+  const dayOfMonth = domMatch
+    ? (() => {
+        const n = parseInt(domMatch[1] ?? domMatch[2], 10);
+        return n >= 1 && n <= 31 ? n : null;
+      })()
+    : null;
+  if (domMatch) working = working.replace(domMatch[0], "");
+
+  // One-off date (chrono-node) — only if not a monthly recurring
+  const chronoResults = dayOfMonth === null ? chrono.parse(working, new Date(), { forwardDate: true }) : [];
   let dueDate: string | null = null;
   if (chronoResults.length > 0) {
     const r = chronoResults[0];
@@ -53,5 +67,5 @@ export function parseTask(input: string): ParseResult {
 
   const cleanTitle = working.replace(/\s{2,}/g, " ").trim();
 
-  return { cleanTitle, dueDate, priority, tags, energy };
+  return { cleanTitle, dueDate, dayOfMonth, priority, tags, energy };
 }

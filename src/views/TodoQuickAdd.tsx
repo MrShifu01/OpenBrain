@@ -59,9 +59,10 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
     const raw = title.trim();
     if (!raw || !brainId) return;
     setBusy(true);
-    const result = parsed ?? { cleanTitle: raw, dueDate: null, priority: null, tags: [], energy: null };
-    const metadata: Record<string, string> = { status: "todo" };
+    const result = parsed ?? { cleanTitle: raw, dueDate: null, dayOfMonth: null, priority: null, tags: [], energy: null };
+    const metadata: Record<string, unknown> = { status: "todo" };
     if (result.dueDate) metadata.due_date = result.dueDate;
+    if (result.dayOfMonth) metadata.day_of_month = result.dayOfMonth;
     if (result.priority) metadata.priority = result.priority;
     if (result.energy) metadata.energy = result.energy;
     await authFetch("/api/capture", {
@@ -118,9 +119,14 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
             lineHeight: "1.5",
           }}
         />
-        {parsed && (parsed.dueDate || parsed.priority || parsed.tags.length > 0 || parsed.energy) && (
+        {parsed && (parsed.dueDate || parsed.dayOfMonth || parsed.priority || parsed.tags.length > 0 || parsed.energy) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {parsed.dueDate && (
+            {parsed.dayOfMonth && (
+              <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
+                🔁 every {parsed.dayOfMonth}{["st","nd","rd"][((parsed.dayOfMonth % 100 - 20) % 10) - 1] ?? "th"}
+              </span>
+            )}
+            {parsed.dueDate && !parsed.dayOfMonth && (
               <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
                 📅 {format(new Date(parsed.dueDate + "T12:00:00"), "EEE, d MMM")}
               </span>
