@@ -182,6 +182,7 @@ function EverionContent({
   const { activeBrain, brains, setActiveBrain: _setActiveBrain, refresh: _refresh } = useBrain();
   const { entries, entriesLoaded, selected, setSelected, handleDelete, handleUpdate } =
     useEntries();
+  const notifs = useNotifications();
   const [selectedVaultEntry, setSelectedVaultEntry] = useState<Entry | null>(null);
 
   const handleEntrySelect = useCallback(
@@ -762,7 +763,6 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const appShell = useAppShell({ initialShowCapture, activeBrainId: activeBrain?.id });
-  const notifs = useNotifications();
 
   const dataLayer = useDataLayer({
     activeBrainId: activeBrain?.id,
