@@ -144,24 +144,26 @@ export default function DesktopSidebar({
           cursor: "pointer",
         }}
       >
+        <svg
+          width={18}
+          height={18}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--ink)"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          style={{ flexShrink: 0 }}
+        >
+          <path d="M8.5 3a3.5 3.5 0 0 0-3.5 3.5c-1.5.5-2.5 2-2.5 3.5 0 1 .5 2 1.5 2.5-.5.8-.5 2 0 3 .3.6.8 1 1.5 1.3-.2.9.1 2 .8 2.7.8.7 2 1 3 .5.3 1 1.3 2 2.7 2A2.5 2.5 0 0 0 14.5 20V4.5A1.5 1.5 0 0 0 13 3M15.5 3A3.5 3.5 0 0 1 19 6.5c1.5.5 2.5 2 2.5 3.5 0 1-.5 2-1.5 2.5.5.8.5 2 0 3-.3.6-.8 1-1.5 1.3.2.9-.1 2-.8 2.7-.8.7-2 1-3 .5-.3 1-1.3 2-2.7 2A2.5 2.5 0 0 1 9.5 20V4.5A1.5 1.5 0 0 1 11 3" />
+        </svg>
         <span
           className="f-serif"
           style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}
         >
           Everion
         </span>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 5,
-            height: 5,
-            borderRadius: "50%",
-            background: "var(--ember)",
-            animation: "design-breathe 3.5s ease-in-out infinite",
-            ["--b-low" as string]: "0.5",
-            ["--b-high" as string]: "1",
-          }}
-        />
       </div>
 
       {/* Brain plate */}

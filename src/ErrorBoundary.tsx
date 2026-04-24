@@ -33,8 +33,19 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
           style={{ background: "var(--color-background)", color: "var(--color-on-surface)" }}
         >
           <div className="max-w-[400px] text-center">
-            <div className="mb-4 text-[48px]" aria-hidden="true">
-              🧠
+            <div className="mb-4 flex justify-center" aria-hidden="true">
+              <svg
+                width={48}
+                height={48}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8.5 3a3.5 3.5 0 0 0-3.5 3.5c-1.5.5-2.5 2-2.5 3.5 0 1 .5 2 1.5 2.5-.5.8-.5 2 0 3 .3.6.8 1 1.5 1.3-.2.9.1 2 .8 2.7.8.7 2 1 3 .5.3 1 1.3 2 2.7 2A2.5 2.5 0 0 0 14.5 20V4.5A1.5 1.5 0 0 0 13 3M15.5 3A3.5 3.5 0 0 1 19 6.5c1.5.5 2.5 2 2.5 3.5 0 1-.5 2-1.5 2.5.5.8.5 2 0 3-.3.6-.8 1-1.5 1.3.2.9-.1 2-.8 2.7-.8.7-2 1-3 .5-.3 1-1.3 2-2.7 2A2.5 2.5 0 0 1 9.5 20V4.5A1.5 1.5 0 0 1 11 3" />
+              </svg>
             </div>
             <h2 className="m-0 mb-3 text-xl font-bold" style={{ color: "var(--color-primary)" }}>
               Something went wrong
