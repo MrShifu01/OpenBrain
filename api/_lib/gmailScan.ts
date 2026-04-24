@@ -1288,7 +1288,10 @@ export async function scanGmailForUser(
       }),
     });
 
-    if (!refs.length) return { created: 0, debug, entries: [] };
+    if (!refs.length) {
+      storeNotification(integration.user_id, "gmail_scan", "Gmail scan finished", "No new entries found.", { created: 0 }).catch(() => {});
+      return { created: 0, debug, entries: [] };
+    }
 
     const { threadIds: importedThreadIds, messageIds: importedMessageIds, subjectFromKeys: importedSubjectFromKeys } = await fetchImportedIdentifiers(integration.user_id);
     const brainId = activeBrainId ?? await getUserBrainId(integration.user_id);
@@ -1323,7 +1326,10 @@ export async function scanGmailForUser(
       return true;
     });
 
-    if (!usableBlocks.length) return { created: 0, debug, entries: [] };
+    if (!usableBlocks.length) {
+      storeNotification(integration.user_id, "gmail_scan", "Gmail scan finished", "No new entries found.", { created: 0 }).catch(() => {});
+      return { created: 0, debug, entries: [] };
+    }
 
     const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
     const prompt = buildPrompt(usableBlocks, prefs);
@@ -1340,7 +1346,10 @@ export async function scanGmailForUser(
       debug.classifierModel = process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
     }
     debug.classified = classified.length;
-    if (!classified.length) return { created: 0, debug, entries: [] };
+    if (!classified.length) {
+      storeNotification(integration.user_id, "gmail_scan", "Gmail scan finished", "No new entries found.", { created: 0 }).catch(() => {});
+      return { created: 0, debug, entries: [] };
+    }
 
     const { created, scanEntries, contactsUpserted } = await persistMatches(
       token,
@@ -1368,6 +1377,17 @@ export async function scanGmailForUser(
         { items: grouped, count: created, scanned_at: new Date().toISOString() },
       ).catch(() => {});
     }
+
+    // Always fire a dismissible scan-summary notification
+    storeNotification(
+      integration.user_id,
+      "gmail_scan",
+      "Gmail scan finished",
+      created === 0
+        ? "No new entries found."
+        : `${created} entr${created === 1 ? "y" : "ies"} added to your brain.`,
+      { created },
+    ).catch(() => {});
 
     return { created, debug, entries: grouped };
   } catch (e: any) {

@@ -103,6 +103,31 @@ function AutoMergedCard({ n, onDismiss }: { n: AppNotification; onDismiss: () =>
   );
 }
 
+function GmailScanCard({ n }: { n: AppNotification }) {
+  return (
+    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line-soft)",
+      display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+        <svg width="12" height="12" fill="none" stroke="var(--ink-faint)" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+          <path d="M22 6l-10 7L2 6" />
+        </svg>
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+          {n.title}
+        </div>
+        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          {n.body}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GmailReviewCard({ n, onDismiss, onReview }: {
   n: AppNotification;
   onDismiss: () => void;
@@ -153,18 +178,25 @@ export default function NotificationBell({
   const [reviewNotifId, setReviewNotifId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  function handleClose() {
+    setOpen(false);
+    // Auto-dismiss informational scan notifications — they need no action
+    notifications.filter((n) => n.type === "gmail_scan").forEach((n) => onDismiss(n.id));
+  }
+
   // Close on outside click
   useEffect(() => {
     if (!open) return;
     function handle(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) handleClose();
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
-  }, [open]);
+  }, [open, notifications]);
 
   function handleOpen() {
-    setOpen((v) => !v);
+    if (open) { handleClose(); return; }
+    setOpen(true);
     // Mark all as read when opening
     notifications.filter((n) => !n.read).forEach((n) => onMarkRead(n.id));
   }
@@ -225,6 +257,9 @@ export default function NotificationBell({
                     onAccept={() => onAcceptMerge(n)}
                     onDismiss={() => onDismiss(n.id)} />
                 );
+              }
+              if (n.type === "gmail_scan") {
+                return <GmailScanCard key={n.id} n={n} />;
               }
               if (n.type === "gmail_review") {
                 return (

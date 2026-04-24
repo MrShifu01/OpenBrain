@@ -336,6 +336,19 @@ export default function SettingsView({
     }
   });
   const [apiOpen, setApiOpen] = useState(false);
+  const [preloaded, setPreloaded] = useState<Set<SectionId>>(
+    () => new Set([section, "notifications", "integrations"] as SectionId[]),
+  );
+
+  function preload(id: SectionId) {
+    if (id === "admin") return;
+    setPreloaded((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -487,6 +500,7 @@ export default function SettingsView({
                 }}
                 onMouseEnter={(e) => {
                   if (!active) e.currentTarget.style.color = "var(--ink)";
+                  preload(id);
                 }}
                 onMouseLeave={(e) => {
                   if (!active) {
@@ -503,41 +517,41 @@ export default function SettingsView({
 
         <div className="settings-content scrollbar-hide" style={{ flex: 1, overflowY: "auto" }}>
           <div className="settings-content-inner" style={{ maxWidth: 720 }}>
-            {section === "appearance" && (
-              <>
+            {preloaded.has("appearance") && (
+              <div style={{ display: section === "appearance" ? "block" : "none" }}>
                 <SectionHeader
                   title="Appearance"
                   subtitle="three rooms, two moods. pick the one you want to live in."
                 />
                 <AppearanceTab />
-              </>
+              </div>
             )}
 
-            {section === "account" && (
-              <>
+            {preloaded.has("account") && (
+              <div style={{ display: section === "account" ? "block" : "none" }}>
                 <SectionHeader title="Account" />
                 <AccountTab email={email} />
-              </>
+              </div>
             )}
 
-            {section === "brain" && activeBrain && (
-              <>
+            {preloaded.has("brain") && activeBrain && (
+              <div style={{ display: section === "brain" ? "block" : "none" }}>
                 <SectionHeader title="Brain" />
                 <BrainTab activeBrain={activeBrain} onRefreshBrains={refresh} />
                 <AuditCard brainId={activeBrain.id} />
                 <LearningStatusCard brainId={activeBrain.id} />
-              </>
+              </div>
             )}
 
-            {section === "data" && (
-              <>
+            {preloaded.has("data") && (
+              <div style={{ display: section === "data" ? "block" : "none" }}>
                 <SectionHeader title="Data" subtitle="imports, exports, and your entry archive." />
                 <DataTab brainId={activeBrain?.id} activeBrain={activeBrain ?? undefined} />
-              </>
+              </div>
             )}
 
-            {section === "ai" && (
-              <>
+            {preloaded.has("ai") && (
+              <div style={{ display: section === "ai" ? "block" : "none" }}>
                 <SectionHeader title="AI" subtitle="model providers and enrichment pipeline." />
                 <AITab
                   activeBrain={activeBrain ?? undefined}
@@ -550,17 +564,17 @@ export default function SettingsView({
                   isAdmin={isAdmin}
                   runBulkEnrich={runBulkEnrich}
                 />
-              </>
+              </div>
             )}
 
-            {section === "notifications" && (
-              <>
+            {preloaded.has("notifications") && (
+              <div style={{ display: section === "notifications" ? "block" : "none" }}>
                 <SectionHeader title="Notifications" />
                 <NotificationSettings />
-              </>
+              </div>
             )}
 
-            {section === "integrations" && (
+            {preloaded.has("integrations") && (
               <>
                 <SectionHeader
                   title="Integrations"
@@ -618,11 +632,11 @@ export default function SettingsView({
                   </svg>
                 </button>
                 {apiOpen && <ClaudeCodeTab />}
-              </>
+              </div>
             )}
 
-            {section === "security" && (
-              <>
+            {preloaded.has("security") && (
+              <div style={{ display: section === "security" ? "block" : "none" }}>
                 <SectionHeader
                   title="Security"
                   subtitle="manage the PIN that protects your vault secrets."
@@ -633,7 +647,7 @@ export default function SettingsView({
                     <VaultRow onNavigate={onNavigate} />
                   </div>
                 )}
-              </>
+              </div>
             )}
 
             {section === "admin" && isAdmin && (
@@ -646,8 +660,8 @@ export default function SettingsView({
               </>
             )}
 
-            {section === "danger" && activeBrain && (
-              <>
+            {preloaded.has("danger") && activeBrain && (
+              <div style={{ display: section === "danger" ? "block" : "none" }}>
                 <SectionHeader
                   title="Danger zone"
                   subtitle="all of these are irreversible. we've made them clear, not hidden."
@@ -673,7 +687,7 @@ export default function SettingsView({
                     await supabase.auth.signOut();
                   }}
                 />
-              </>
+              </div>
             )}
           </div>
         </div>
