@@ -823,12 +823,11 @@ async function hydrateThreadBlocks(
     const results = await Promise.all(chunk.map((tid) => fetchThread(token, tid)));
     for (const msgs of results) {
       if (!msgs.length) continue;
-      const grouped = groupByThread(msgs); // safety: messages all share threadId
+      const grouped = groupByThread(msgs);
       for (const arr of grouped.values()) {
         blocks.push(buildThreadBlock(arr));
       }
     }
-    if (i + 10 < threadIds.length) await sleep(150);
   }
   return blocks;
 }
@@ -846,142 +845,147 @@ async function persistMatches(
   debug: ScanDebug,
 ): Promise<{ created: number; scanEntries: ScanResultItem[]; contactsUpserted: number }> {
   const threshold = prefs.minRelevanceScore ?? 60;
-  const scanEntries: ScanResultItem[] = [];
-  let created = 0;
-  let contactsUpserted = 0;
 
-  for (const match of classified) {
-    const block = blocks[match.index];
-    if (!block) continue;
-    if (importedThreadIds.has(block.threadId)) {
-      debug.skippedDuplicates++;
-      debug.skippedSubjects.push(block.primary.subject);
-      continue;
-    }
-    // Legacy: if any message in this thread was imported via message_id only, skip to avoid duplicates.
-    if (block.messageIds.some((id) => importedMessageIds.has(id))) {
-      debug.skippedDuplicates++;
-      debug.skippedSubjects.push(block.primary.subject);
-      continue;
-    }
+  type MatchResult = { scanEntry: ScanResultItem; contactUpserted: boolean } | null;
 
-    const relevanceScore = computeRelevanceScore(block, match);
-    if (relevanceScore < threshold) {
-      debug.skippedLowScore++;
-      continue;
-    }
+  const matchResults: MatchResult[] = await Promise.all(
+    classified.map(async (match): Promise<MatchResult> => {
+      const block = blocks[match.index];
+      if (!block) return null;
+      if (importedThreadIds.has(block.threadId)) {
+        debug.skippedDuplicates++;
+        debug.skippedSubjects.push(block.primary.subject);
+        return null;
+      }
+      if (block.messageIds.some((id) => importedMessageIds.has(id))) {
+        debug.skippedDuplicates++;
+        debug.skippedSubjects.push(block.primary.subject);
+        return null;
+      }
 
-    let title = match.title ?? block.primary.subject;
-    let summary = match.summary ?? "";
-    const attachmentText = block.attachments.length
-      ? await fetchAndExtractAttachments(token, block.primary.id, block.attachments, geminiKey)
-      : "";
-    debug.attachmentsExtracted += block.attachments.length;
-    if (attachmentText) {
-      const refined = await refineWithAttachments(
-        block.primary.subject,
-        block.primary.body,
-        attachmentText,
-        match.type,
+      const relevanceScore = computeRelevanceScore(block, match);
+      if (relevanceScore < threshold) {
+        debug.skippedLowScore++;
+        return null;
+      }
+
+      let title = match.title ?? block.primary.subject;
+      let summary = match.summary ?? "";
+      const attachmentText = block.attachments.length
+        ? await fetchAndExtractAttachments(token, block.primary.id, block.attachments, geminiKey)
+        : "";
+      debug.attachmentsExtracted += block.attachments.length;
+      if (attachmentText) {
+        const refined = await refineWithAttachments(
+          block.primary.subject,
+          block.primary.body,
+          attachmentText,
+          match.type,
+          title,
+          summary,
+        );
+        title = refined.title;
+        summary = refined.content;
+      }
+
+      const content = summary;
+      const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
+      const tags = [match.type ?? "gmail"];
+      const metadata: Record<string, any> = {
+        source: "gmail",
+        gmail_message_id: block.primary.id,
+        gmail_thread_id: block.threadId,
+        gmail_thread_size: block.messages.length,
+        gmail_from: block.primary.from,
+        gmail_participants: block.participants,
+        gmail_subject: block.primary.subject,
+        gmail_date: block.primary.date,
+        email_type: match.type,
+        due_date: match.due_date ?? null,
+        amount: match.amount ?? null,
+        urgency: match.urgency ?? "medium",
+        relevance_score: relevanceScore,
+        completeness_score: computeCompletenessScore(title, content, type, tags, {}),
+      };
+      if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
+
+      const entry: Record<string, any> = {
+        user_id: integration.user_id,
         title,
-        summary,
-      );
-      title = refined.title;
-      summary = refined.content;
-    }
+        content,
+        type,
+        tags,
+        metadata,
+      };
+      if (brainId) entry.brain_id = brainId;
 
-    const content = summary;
-    const type = GMAIL_TYPE_MAP[match.type as string] ?? "gmail-flag";
-    const tags = [match.type ?? "gmail"];
-    const metadata: Record<string, any> = {
-      source: "gmail",
-      gmail_message_id: block.primary.id,
-      gmail_thread_id: block.threadId,
-      gmail_thread_size: block.messages.length,
-      gmail_from: block.primary.from,
-      gmail_participants: block.participants,
-      gmail_subject: block.primary.subject,
-      gmail_date: block.primary.date,
-      email_type: match.type,
-      due_date: match.due_date ?? null,
-      amount: match.amount ?? null,
-      urgency: match.urgency ?? "medium",
-      relevance_score: relevanceScore,
-      completeness_score: computeCompletenessScore(title, content, type, tags, {}),
-    };
-    if (attachmentText) metadata.attachment_text = attachmentText.slice(0, 6000);
+      const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
+        method: "POST",
+        headers: { ...SB_HEADERS, Prefer: "return=representation" },
+        body: JSON.stringify(entry),
+      });
+      if (!insertRes.ok) {
+        debug.insertErrors++;
+        return null;
+      }
+      const rows: any[] = await insertRes.json();
+      const inserted = rows[0];
+      debug.created++;
+      importedThreadIds.add(block.threadId);
+      for (const mid of block.messageIds) importedMessageIds.add(mid);
 
-    const entry: Record<string, any> = {
-      user_id: integration.user_id,
-      title,
-      content,
-      type,
-      tags,
-      metadata,
-    };
-    if (brainId) entry.brain_id = brainId;
-
-    const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
-      method: "POST",
-      headers: { ...SB_HEADERS, Prefer: "return=representation" },
-      body: JSON.stringify(entry),
-    });
-    if (!insertRes.ok) {
-      debug.insertErrors++;
-      continue;
-    }
-    const rows: any[] = await insertRes.json();
-    const inserted = rows[0];
-    created++;
-    debug.created++;
-    importedThreadIds.add(block.threadId);
-    for (const mid of block.messageIds) importedMessageIds.add(mid);
-
-    scanEntries.push({
-      entryId: inserted?.id ?? "",
-      groupIds: [inserted?.id ?? ""],
-      groupCount: 1,
-      threadMessageCount: block.messages.length,
-      title,
-      summary: content,
-      from: block.primary.from,
-      subject: block.primary.subject,
-      emailType: match.type ?? "",
-      urgency: match.urgency ?? "medium",
-      amount: match.amount ?? null,
-      dueDate: match.due_date ?? null,
-      relevanceScore,
-    });
-
-    // Upsert contact for the primary (most-recent) sender.
-    const contactId = await upsertGmailContact(
-      integration.user_id,
-      brainId,
-      block.primary.from,
-      block.primary.date || new Date().toISOString(),
-    );
-    if (contactId) contactsUpserted++;
-
-    // Fire-and-forget embedding
-    if (inserted?.id && geminiKey) {
-      const embedContent = attachmentText ? [content, attachmentText].filter(Boolean).join("\n\n") : content;
-      generateEmbedding(buildEntryText({ title, content: embedContent, tags }), geminiKey)
-        .then((vec) =>
-          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
-            method: "PATCH",
-            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
-            body: JSON.stringify({
-              embedding: `[${vec.join(",")}]`,
-              embedded_at: new Date().toISOString(),
-              embedding_provider: "google",
+      // Fire-and-forget embedding
+      if (inserted?.id && geminiKey) {
+        const embedContent = attachmentText ? [content, attachmentText].filter(Boolean).join("\n\n") : content;
+        generateEmbedding(buildEntryText({ title, content: embedContent, tags }), geminiKey)
+          .then((vec) =>
+            fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
+              method: "PATCH",
+              headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+              body: JSON.stringify({
+                embedding: `[${vec.join(",")}]`,
+                embedded_at: new Date().toISOString(),
+                embedding_provider: "google",
+              }),
             }),
-          }),
-        )
-        .catch((err) => console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err));
-    }
-  }
+          )
+          .catch((err) => console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err));
+      }
 
-  return { created, scanEntries, contactsUpserted };
+      const contactId = await upsertGmailContact(
+        integration.user_id,
+        brainId,
+        block.primary.from,
+        block.primary.date || new Date().toISOString(),
+      );
+
+      return {
+        scanEntry: {
+          entryId: inserted?.id ?? "",
+          groupIds: [inserted?.id ?? ""],
+          groupCount: 1,
+          threadMessageCount: block.messages.length,
+          title,
+          summary: content,
+          from: block.primary.from,
+          subject: block.primary.subject,
+          emailType: match.type ?? "",
+          urgency: match.urgency ?? "medium",
+          amount: match.amount ?? null,
+          dueDate: match.due_date ?? null,
+          relevanceScore,
+        },
+        contactUpserted: !!contactId,
+      };
+    }),
+  );
+
+  const valid = matchResults.filter((r): r is NonNullable<MatchResult> => r !== null);
+  return {
+    created: valid.length,
+    scanEntries: valid.map((r) => r.scanEntry),
+    contactsUpserted: valid.filter((r) => r.contactUpserted).length,
+  };
 }
 
 function groupBySender(items: ScanResultItem[]): ScanResultItem[] {
@@ -1151,13 +1155,14 @@ export async function scanGmailForUser(
       );
       if (orphanRes.ok) {
         const orphans: { id: string }[] = await orphanRes.json();
-        for (const orphan of orphans) {
-          await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(orphan.id)}`, {
+        if (orphans.length > 0) {
+          const ids = orphans.map((o) => encodeURIComponent(o.id)).join(",");
+          await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&user_id=eq.${encodeURIComponent(integration.user_id)}`, {
             method: "PATCH",
             headers: { ...SB_HEADERS, Prefer: "return=minimal" },
             body: JSON.stringify({ brain_id: brainId }),
           });
-          debug.repairedBrainId++;
+          debug.repairedBrainId = orphans.length;
         }
       }
     }

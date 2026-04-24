@@ -138,7 +138,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
   const cardTransition = transitioning
     ? exiting
       ? "transform 300ms ease-in"
-      : "transform 350ms cubic-bezier(0.34,1.56,0.64,1)"
+      : "transform 350ms cubic-bezier(0.16, 1, 0.3, 1)"
     : "none";
 
   if (done) {
@@ -151,24 +151,45 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "rgba(0,0,0,0.55)",
-          backdropFilter: "blur(4px)",
+          background: "oklch(14% 0.012 55 / 0.82)",
         }}
       >
         <div
           style={{
             background: "var(--bg)",
-            borderRadius: 24,
-            padding: "48px 32px 40px",
+            borderRadius: 16,
+            padding: "40px 32px 36px",
             maxWidth: 360,
             width: "calc(100% - 48px)",
             textAlign: "center",
+            border: "1px solid var(--line-soft)",
           }}
         >
-          <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
+          <div
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              background: "var(--ember-wash)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px",
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M4 10.5l4.5 4.5 7.5-9"
+                stroke="var(--ember)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
           <h3
             className="f-serif"
-            style={{ fontSize: 22, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}
+            style={{ fontSize: 20, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}
           >
             All reviewed
           </h3>
@@ -192,7 +213,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
             style={{
               width: "100%",
               height: 44,
-              borderRadius: 12,
+              borderRadius: 10,
               border: "none",
               background: "var(--ember)",
               color: "var(--ember-ink)",
@@ -217,8 +238,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         zIndex: 9999,
         display: "flex",
         flexDirection: "column",
-        background: "rgba(0,0,0,0.88)",
-        backdropFilter: "blur(6px)",
+        background: "oklch(14% 0.012 55 / 0.92)",
         overflow: "hidden",
       }}
     >
@@ -227,21 +247,26 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         style={{
           flexShrink: 0,
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "space-between",
-          padding: "16px 20px 12px",
+          padding: "20px 20px 12px",
         }}
       >
         <div>
           <h3
             className="f-serif"
-            style={{ margin: 0, fontSize: 18, fontWeight: 450, color: "#fff" }}
+            style={{ margin: 0, fontSize: 17, fontWeight: 450, color: "oklch(94% 0.01 55)" }}
           >
             Review captures
           </h3>
           <p
             className="f-sans"
-            style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.5)" }}
+            style={{
+              margin: "3px 0 0",
+              fontSize: 11,
+              color: "oklch(94% 0.01 55 / 0.4)",
+              letterSpacing: "0.02em",
+            }}
           >
             {index + 1} of {capped.length}
           </p>
@@ -250,13 +275,13 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           onClick={onClose}
           className="f-sans"
           style={{
-            width: 36,
-            height: 36,
+            width: 32,
+            height: 32,
             borderRadius: "50%",
-            border: "none",
-            background: "rgba(255,255,255,0.15)",
-            color: "#fff",
-            fontSize: 18,
+            border: "1px solid oklch(94% 0.01 55 / 0.18)",
+            background: "transparent",
+            color: "oklch(94% 0.01 55 / 0.55)",
+            fontSize: 13,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -271,12 +296,16 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
 
       {/* Progress bar */}
       <div
-        style={{ height: 3, background: "rgba(255,255,255,0.12)", flexShrink: 0, margin: "0 20px" }}
+        style={{
+          height: 2,
+          background: "oklch(94% 0.01 55 / 0.1)",
+          flexShrink: 0,
+          margin: "0 20px",
+        }}
       >
         <div
           style={{
             height: "100%",
-            borderRadius: 999,
             background: "var(--ember)",
             width: `${(index / capped.length) * 100}%`,
             transition: "width 300ms ease-out",
@@ -284,59 +313,15 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         />
       </div>
 
-      {/* Swipe instruction row */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "10px 24px 6px",
-        }}
-      >
-        <div
-          className="f-sans"
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: "var(--blood)",
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          <span style={{ fontSize: 18 }}>👈</span> Remove it
-        </div>
-        <div
-          className="f-sans"
-          style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "center" }}
-        >
-          swipe the card
-        </div>
-        <div
-          className="f-sans"
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: "var(--moss)",
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-          }}
-        >
-          Keep it <span style={{ fontSize: 18 }}>👉</span>
-        </div>
-      </div>
-
       {/* Card stack */}
-      <div style={{ flex: 1, minHeight: 0, position: "relative", margin: "0 16px" }}>
+      <div style={{ flex: 1, minHeight: 0, position: "relative", margin: "16px 16px 0" }}>
         {/* Back card */}
         {next && (
           <div
             style={{
               position: "absolute",
               inset: 0,
-              borderRadius: 20,
+              borderRadius: 16,
               background: "var(--surface)",
               border: "1px solid var(--line-soft)",
               transform: `scale(${backScale}) translateY(${backY}px)`,
@@ -360,7 +345,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           style={{
             position: "absolute",
             inset: 0,
-            borderRadius: 20,
+            borderRadius: 16,
             background: "var(--bg)",
             border: "1px solid var(--line-soft)",
             transform: `translateX(${dragX}px) rotate(${dragX * 0.03}deg)`,
@@ -374,50 +359,44 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
             touchAction: "none",
           }}
         >
-          {/* KEEP stamp */}
+          {/* Keep indicator */}
           <div
             style={{
               position: "absolute",
-              top: 24,
-              left: 16,
+              top: 20,
+              left: 20,
               opacity: keepOpacity,
-              transform: "rotate(-12deg)",
-              border: "3px solid var(--moss)",
-              borderRadius: 6,
-              padding: "2px 10px",
               color: "var(--moss)",
               fontFamily: "var(--f-sans)",
-              fontSize: 18,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
               pointerEvents: "none",
               zIndex: 2,
             }}
           >
-            KEEP ✓
+            Keep
           </div>
 
-          {/* REMOVE stamp */}
+          {/* Discard indicator */}
           <div
             style={{
               position: "absolute",
-              top: 24,
-              right: 16,
+              top: 20,
+              right: 20,
               opacity: skipOpacity,
-              transform: "rotate(12deg)",
-              border: "3px solid var(--blood)",
-              borderRadius: 6,
-              padding: "2px 10px",
               color: "var(--blood)",
               fontFamily: "var(--f-sans)",
-              fontSize: 18,
-              fontWeight: 800,
-              letterSpacing: "0.08em",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
               pointerEvents: "none",
               zIndex: 2,
             }}
           >
-            REMOVE ✕
+            Discard
           </div>
 
           <CardContent item={current} dragX={dragX} />
@@ -430,79 +409,50 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          gap: 32,
-          padding: "16px 20px 32px",
+          gap: 10,
+          padding: "16px 16px 36px",
         }}
       >
-        {/* Remove button */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-          <button
-            onClick={() => triggerReject(index)}
-            disabled={!!exiting}
-            className="press"
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              border: "2.5px solid var(--blood)",
-              background: "rgba(0,0,0,0.35)",
-              color: "var(--blood)",
-              fontSize: 26,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              backdropFilter: "blur(8px)",
-            }}
-            aria-label="Remove"
-          >
-            👎
-          </button>
-          <span
-            className="f-sans"
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "var(--blood)",
-              letterSpacing: "0.05em",
-            }}
-          >
-            REMOVE
-          </span>
-        </div>
-
-        {/* Keep button */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-          <button
-            onClick={() => triggerAccept(index)}
-            disabled={!!exiting}
-            className="press"
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: "50%",
-              border: "2.5px solid var(--moss)",
-              background: "rgba(0,0,0,0.35)",
-              color: "var(--moss)",
-              fontSize: 26,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              backdropFilter: "blur(8px)",
-            }}
-            aria-label="Keep"
-          >
-            👍
-          </button>
-          <span
-            className="f-sans"
-            style={{ fontSize: 11, fontWeight: 700, color: "var(--moss)", letterSpacing: "0.05em" }}
-          >
-            KEEP
-          </span>
-        </div>
+        <button
+          onClick={() => triggerReject(index)}
+          disabled={!!exiting}
+          className="press f-sans"
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            border: "1px solid oklch(94% 0.01 55 / 0.18)",
+            background: "transparent",
+            color: "oklch(94% 0.01 55 / 0.65)",
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+            letterSpacing: "0.01em",
+          }}
+          aria-label="Discard"
+        >
+          ← Discard
+        </button>
+        <button
+          onClick={() => triggerAccept(index)}
+          disabled={!!exiting}
+          className="press f-sans"
+          style={{
+            flex: 1,
+            height: 48,
+            borderRadius: 10,
+            border: "none",
+            background: "var(--ember)",
+            color: "var(--ember-ink)",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: "pointer",
+            letterSpacing: "0.01em",
+          }}
+          aria-label="Keep"
+        >
+          Keep →
+        </button>
       </div>
     </div>,
     document.body,

@@ -89,6 +89,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastDebug, setLastDebug] = useState<ScanDebug | null>(null);
   const [reviewItems, setReviewItems] = useState<ScanResultItem[]>([]);
+  const [pendingScan, setPendingScan] = useState<{ items: ScanResultItem[]; count: number } | null>(null);
 
   function fetchIntegration() {
     return authFetch("/api/gmail?action=integration")
@@ -154,7 +155,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       } else {
         const created: number = data?.created ?? 0;
         if (created > 0 && Array.isArray(data?.entries) && data.entries.length > 0) {
-          setReviewItems(data.entries);
+          setPendingScan({ items: data.entries, count: created });
         } else {
           setMsg({
             text:
@@ -495,6 +496,87 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           onConnect={handleConnect}
           onSave={handleSavePreferences}
         />
+      )}
+
+      {pendingScan && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: "20px",
+            borderRadius: 12,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+          }}
+        >
+          <p
+            className="f-serif"
+            style={{
+              margin: "0 0 4px",
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--ink)",
+            }}
+          >
+            {pendingScan.count} new item{pendingScan.count !== 1 ? "s" : ""} found
+          </p>
+          <p
+            className="f-serif"
+            style={{
+              margin: "0 0 16px",
+              fontSize: 13,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+              lineHeight: 1.5,
+            }}
+          >
+            Review each item and remove anything irrelevant, or accept all directly.
+          </p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              className="press f-sans"
+              onClick={() => {
+                setReviewItems(pendingScan.items);
+                setPendingScan(null);
+              }}
+              style={{
+                flex: 1,
+                height: 40,
+                borderRadius: 8,
+                border: "1px solid var(--line)",
+                background: "transparent",
+                color: "var(--ink-soft)",
+                fontSize: 13,
+                fontWeight: 500,
+                cursor: "pointer",
+              }}
+            >
+              Review {pendingScan.items.length} items
+            </button>
+            <button
+              className="press f-sans"
+              onClick={() => {
+                setPendingScan(null);
+                setMsg({
+                  text: `${pendingScan.count} item${pendingScan.count !== 1 ? "s" : ""} saved. Embeddings indexing in background.`,
+                  ok: true,
+                });
+              }}
+              style={{
+                flex: 1,
+                height: 40,
+                borderRadius: 8,
+                border: "none",
+                background: "var(--ember)",
+                color: "var(--ember-ink)",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Accept all
+            </button>
+          </div>
+        </div>
       )}
 
       {reviewItems.length > 0 && (
