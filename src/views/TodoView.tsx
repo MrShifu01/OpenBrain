@@ -194,6 +194,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
         entry={item.entry}
         dateStr={showDate ? fmtD(item.dateStr) : undefined}
         showDate={showDate}
+        showIcon={false}
         typeIcons={typeIcons}
         ctx={ctx}
         onEdit={(entry, rect) => setEditState({ entry, rect })}
@@ -207,6 +208,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
       <TodoRowItem
         key={entry.id}
         entry={entry}
+        showIcon={false}
         typeIcons={typeIcons}
         ctx={ctx}
         onEdit={(e, rect) => setEditState({ entry: e, rect })}
@@ -321,7 +323,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--blood)" }}>
                       Overdue
                     </p>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--blood-wash)", color: "var(--blood)" }}>
+                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--blood-wash)", color: "var(--blood)" }}>
                       {overdue.length}
                     </span>
                   </div>
@@ -374,7 +376,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--ember)" }}>
                       Undated
                     </p>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--ember-wash)", color: "var(--ember)" }}>
+                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--ember-wash)", color: "var(--ember)" }}>
                       {todoList.length}
                     </span>
                   </div>
@@ -410,7 +412,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--blood)" }}>
                       Overdue
                     </p>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--blood-wash)", color: "var(--blood)" }}>
+                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--blood-wash)", color: "var(--blood)" }}>
                       {overdue.length}
                     </span>
                   </div>
@@ -482,7 +484,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--ember)" }}>
                       To Do
                     </p>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--ember-wash)", color: "var(--ember)" }}>
+                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--ember-wash)", color: "var(--ember)" }}>
                       {todoList.length}
                     </span>
                   </div>
@@ -502,7 +504,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--ink-faint)" }}>
                       Completed
                     </p>
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--surface-high)", color: "var(--ink-faint)" }}>
+                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--surface-high)", color: "var(--ink-faint)" }}>
                       {completed.length}
                     </span>
                     <span className="f-sans ml-auto text-xs" style={{ color: "var(--ink-ghost)" }}>

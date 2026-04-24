@@ -260,7 +260,7 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
         {trashMsg && (
           <p
             className="f-sans"
-            style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: -10, marginBottom: 8 }}
+            style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 4, marginBottom: 8, paddingLeft: 4 }}
           >
             {trashMsg}
           </p>
@@ -274,7 +274,7 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
         {graphMsg && (
           <p
             className="f-sans"
-            style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: -10, marginBottom: 8 }}
+            style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 4, marginBottom: 8, paddingLeft: 4 }}
           >
             {graphMsg}
           </p>

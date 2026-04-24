@@ -83,6 +83,7 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
 
     const BATCH = 2000;
     let totalImported = 0;
+    let totalFailed = 0;
     try {
       for (let i = 0; i < entries.length; i += BATCH) {
         const res = await authFetch("/api/import", {
@@ -93,8 +94,9 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
         if (!res.ok) throw new Error("import failed");
         const data = await res.json();
         totalImported += data.imported ?? entries.slice(i, i + BATCH).length;
+        totalFailed += data.failed ?? 0;
       }
-      setStatus(`imported:${totalImported}`);
+      setStatus(`imported:${totalImported}:${totalFailed}`);
     } catch {
       setStatus("error");
     }
@@ -104,7 +106,10 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
   };
 
   const statusMsg = status?.startsWith("imported:")
-    ? `${status.split(":")[1]} notes imported`
+    ? (() => {
+        const [, imp, fail] = status.split(":");
+        return `${imp} notes imported${Number(fail) > 0 ? `, ${fail} failed` : ""}`;
+      })()
     : status === "empty"
       ? "No valid Keep notes found"
       : status === "error"

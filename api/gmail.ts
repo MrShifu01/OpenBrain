@@ -15,6 +15,7 @@ import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { withAuth } from "./_lib/withAuth.js";
+import { rateLimit } from "./_lib/rateLimit.js";
 import { encryptToken } from "./_lib/gmailTokenCrypto.js";
 import {
   type GmailPreferences,
@@ -215,6 +216,10 @@ const authedHandler = withAuth(
     }
 
     if (req.method === "POST" && action === "scan") {
+      // §2.3: 5 manual scans/min per user — prevents DoS via repeat triggering
+      if (!(await rateLimit(req, 5, 60_000, `gmail-scan:${user.id}`))) {
+        return void res.status(429).json({ error: "Too many scan requests — wait a minute and try again." });
+      }
       const r = await fetch(
         `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`,
         { headers: SB_HEADERS },
@@ -244,6 +249,10 @@ const authedHandler = withAuth(
     }
 
     if (req.method === "POST" && action === "deep-scan") {
+      // §2.3: 3 deep-scans/min per user — more expensive than regular scan
+      if (!(await rateLimit(req, 3, 60_000, `gmail-deep-scan:${user.id}`))) {
+        return void res.status(429).json({ error: "Too many deep-scan requests — wait a minute and try again." });
+      }
       const r = await fetch(
         `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`,
         { headers: SB_HEADERS },

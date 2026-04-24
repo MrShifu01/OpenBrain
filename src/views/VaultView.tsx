@@ -576,7 +576,7 @@ export default function VaultView({
     <div
       className="space-y-4 px-4 py-4"
       style={{
-        background: "var(--color-background)",
+        background: "var(--bg)",
         fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
@@ -592,7 +592,7 @@ export default function VaultView({
       >
         <div
           className="vault-header-row"
-          style={{ display: "flex", alignItems: "center", gap: 16 }}
+          style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
         >
           <div style={{ minWidth: 0, flex: 1 }}>
             <h1

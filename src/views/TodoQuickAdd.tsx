@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { parseTask } from "../lib/nlpParser";
 import { authFetch } from "../lib/authFetch";
+import { enqueue } from "../lib/offlineQueue";
 
 function CheckCircleIcon({
   className,
@@ -65,20 +66,34 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
     if (result.dayOfMonth) metadata.day_of_month = result.dayOfMonth;
     if (result.priority) metadata.priority = result.priority;
     if (result.energy) metadata.energy = result.energy;
+    const captureBody = JSON.stringify({
+      p_title: result.cleanTitle || raw,
+      p_type: "todo",
+      p_brain_id: brainId,
+      p_tags: result.tags.length ? result.tags : undefined,
+      p_metadata: metadata,
+    });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30_000);
-    await authFetch("/api/capture", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        p_title: result.cleanTitle || raw,
-        p_type: "todo",
-        p_brain_id: brainId,
-        p_tags: result.tags.length ? result.tags : undefined,
-        p_metadata: metadata,
-      }),
-      signal: controller.signal,
-    }).catch(() => null).finally(() => clearTimeout(timeoutId));
+    try {
+      const res = await authFetch("/api/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: captureBody,
+        signal: controller.signal,
+      });
+      // §2.5: Enqueue for offline replay if the request failed due to network
+      if (!res.ok && !navigator.onLine) {
+        await enqueue({ id: crypto.randomUUID(), url: "/api/capture", method: "POST", body: captureBody, created_at: new Date().toISOString() }).catch(() => {});
+      }
+    } catch {
+      // Network error — enqueue for retry when online
+      if (!navigator.onLine) {
+        await enqueue({ id: crypto.randomUUID(), url: "/api/capture", method: "POST", body: captureBody, created_at: new Date().toISOString() }).catch(() => {});
+      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
     setTitle("");
     setBusy(false);
     onAdded();

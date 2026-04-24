@@ -3,7 +3,7 @@
 > Run through this periodically and update status marks.
 > **Legend:** ✅ FIXED · ❌ UNFIXED · ⚠️ PARTIAL · ❓ CLARIFY NEEDED
 >
-> Last audit: 2026-04-25 · Last review: 2026-04-25 · Week 1+2 implemented: 2026-04-25 · Week 3 implemented: 2026-04-25 · Week 4 implemented: 2026-04-25
+> Last audit: 2026-04-25 · Last review: 2026-04-25 · Week 1+2 implemented: 2026-04-25 · Week 3 implemented: 2026-04-25 · Week 4 implemented: 2026-04-25 · Session 5 implemented: 2026-04-25
 
 ---
 
@@ -21,7 +21,7 @@
 | 8 | ✅ | **No idempotency keys** — double-submit / lost-response retry creates duplicate entries | `api/capture.ts`, `api/llm.ts:193`, `api/mcp.ts:276`, `api/v1.ts:126` | Accept `Idempotency-Key` header; store `(user_id, idempotency_key) → entry_id` in `idempotency_keys` table with 24 h TTL. Return original entry on replay. |
 | 9 | ✅ | **Race on capture URL-dedup** — fetch-then-check-then-insert with no lock; concurrent same-URL requests both insert | `api/capture.ts:111–135` | Add `UNIQUE INDEX entries_user_source_url ON entries (user_id, (metadata->>'source_url')) WHERE metadata ? 'source_url' AND deleted_at IS NULL`; swap to `INSERT … ON CONFLICT` upsert. *(URL dedup now capped at 500 rows — better, but race remains.)* |
 | 10 | ✅ | **Quota enforced after insert** — 429 returned but row already existed | `api/capture.ts:92–109` | Fixed: quota check now runs at line 100, insert at line 151. |
-| 11 | ⚠️ | **Embedding dimension hardcoded to `vector(768)`** — switching provider silently stores incomparable vectors | `supabase/migrations/008_pgvector.sql`, `api/_lib/generateEmbedding.ts` | Add `embedding_model TEXT` column. Consider `entry_embeddings(entry_id, model, dim, vector)` table for multi-provider. |
+| 11 | ✅ | **Embedding dimension hardcoded to `vector(768)`** — switching provider silently stores incomparable vectors | `supabase/migrations/008_pgvector.sql`, `api/_lib/generateEmbedding.ts` | `embedding_model TEXT` column added in migration 039; `embedding_model: "gemini-embedding-001"` now written on every embed PATCH in `capture.ts`. |
 | 12 | ✅ | **Enrichment is fire-and-forget with no retry queue / dead-letter** — Anthropic down = entries stuck forever | All ingestion paths `.catch(() => {})` | `entry_enrichment_jobs` table created (migration 039) + `scheduleEnrichJob`/`drainEnrichmentJobs` with exponential backoff implemented in `enrichBatch.ts`. |
 
 ---
@@ -44,7 +44,7 @@
 | ✅ | `completeness_score` accepted from client | Now server-computed via `computeCompletenessScore()` at `capture.ts:138` |
 | ✅ | `source_url` not validated (potential SSRF if ever fetched server-side) | URL scheme validation added in `capture.ts` — rejects non-http/https with 400. |
 | ❌ | No HTML/XSS sanitisation on title/content | Sanitise on read in frontend; server-side strip on ingest |
-| ❌ | Embed awaited in-band (+200–800 ms latency) | Fire-and-forget embed; set `embedded_at` async |
+| ✅ | Embed awaited in-band (+200–800 ms latency) | Fire-and-forget IIFE in `capture.ts`; enrichment job retries on `embedded_at IS NULL`. |
 
 ### 2.3 Gmail (`/api/gmail` + `_lib/gmailScan.ts`)
 
@@ -55,24 +55,24 @@
 | ❓ | OAuth tokens — are they encrypted at rest in `gmail_integrations`? | Verify column storage; if plaintext, apply `pgcrypto` column-level encryption |
 | ❌ | HTML stripping is a naive regex (`gmailScan.ts:11–18`) — misses entities, malformed tags, CSS-hidden text | Use a real HTML parser (e.g. `node-html-parser` + `sanitize-html`) |
 | ❌ | Attachments ≤10 MB go to Gemini raw — PDFs with medical/legal data leave the perimeter | Add content-type allow-list; warn user; offer opt-out |
-| ❌ | Manual / deep scan (200/100 msgs) has no endpoint-level rate limit — DoS via repeat triggering | Add per-user rate limit on scan endpoints; staged entries bypass quota counter |
-| ❌ | Token-refresh failure indistinguishable from empty inbox to the user | Surface distinct error states in UI |
+| ✅ | Manual / deep scan (200/100 msgs) has no endpoint-level rate limit — DoS via repeat triggering | 5/min for scan, 3/min for deep-scan per user via `rateLimit()` in `gmail.ts`. |
+| ✅ | Token-refresh failure indistinguishable from empty inbox to the user | `data.debug.tokenRefreshFailed` check in `GmailSyncTab.handleScanNow` shows actionable reconnect message. |
 
 ### 2.4 Google Keep Import
 
 | Status | Issue | Fix |
 |--------|-------|-----|
 | ❌ | No idempotency — re-importing same zip after 502 duplicates all notes | Hash zip content or individual note IDs; upsert on conflict |
-| ❌ | Binary success/failure — user sees 0 or 2000 succeed; no partial-success reporting | Return `{ succeeded, failed, errors[] }` |
-| ❌ | No target-brain selector — always lands in default brain | Add `brain_id` param to import endpoint |
-| ❌ | No server-side note content size limit | Cap per-note content at 50 kB before INSERT |
+| ✅ | Binary success/failure — user sees 0 or 2000 succeed; no partial-success reporting | `transfer.ts` now inserts in chunks of 100 and returns `{ imported, failed, errors[] }`. UI shows partial counts. |
+| ✅ | No target-brain selector — always lands in default brain | `brainId` already passed from `GoogleKeepImportPanel` props to `/api/import` body. |
+| ✅ | No server-side note content size limit | `String(e.content).slice(0, 50000)` in `transfer.ts`. |
 
 ### 2.5 Todo (`TodoQuickAdd.tsx` → `/api/capture`)
 
 | Status | Issue | Fix |
 |--------|-------|-----|
 | ✅ | No client-side dedup — browser back / double-tap re-submits | Enter-key guard + `busy` flag prevents double-submit in `TodoQuickAdd.tsx`. |
-| ❌ | No offline queue (unlike CaptureSheet) | Hook into `useBackgroundCapture` |
+| ✅ | No offline queue (unlike CaptureSheet) | `TodoQuickAdd` now enqueues to `offlineQueue` on network failure; `useOfflineSync` drain loop replays it. |
 | ❌ | `due_date` / `repeat` stored free-form in metadata — no CHECK constraint | Add DB CHECK or Zod parse; normalise to ISO date |
 
 ### 2.6 MCP (`/api/mcp`)
@@ -112,7 +112,7 @@
 | ✅ | `parseAIJSON` silently drops all but first concept when model returns an array (`enrichBatch.ts:32`) | Array of concept-like objects now wrapped as `{ concepts: p, relationships: [] }`; capture splits still use `p[0]`. |
 | ✅ | Content truncated silently at 400 chars (insight) / 600 chars (concepts) | Limits raised to 1500 (insight) and 2000 (concepts) in `enrichBatch.ts`. |
 | ❌ | Manual brace-balancing JSON repair accepts partially-formed responses as valid | Validate against Zod schema; reject-and-retry on mismatch |
-| ❌ | Embeddings have no fallback — Gemini down = `embedded_at: null` entries that never appear in search | Mark `embedding_status = 'failed'`; expose to UI; enqueue retry |
+| ⚠️ | Embeddings have no fallback — Gemini down = `embedded_at: null` entries that never appear in search | Embed failures logged + enrichment cron retries `embedded_at IS NULL` entries. Full `embedding_status` column + UI indicator deferred. |
 | ✅ | No persistent enrichment job table — `runEnrichEntry` / `runEnrichBatchForUser` called everywhere but failures silently lost | `entry_enrichment_jobs` table (migration 039) + `drainEnrichmentJobs` with exponential backoff in `enrichBatch.ts`. |
 | ✅ | No completeness-based prioritisation — oldest-first, weakest entries enriched last | `unenriched.sort()` by `computeCompletenessScore` ASC in `runEnrichBatchForUser`. |
 | ⚠️ | Cron runs once daily at 18:00 UTC — real-time feel depends on per-write `runEnrichEntry` call | Per-write wiring now in place (40634ff). Still need cron for catch-up + the persistent job table for failures. |
@@ -123,14 +123,14 @@
 
 | Status | Issue | Fix |
 |--------|-------|-----|
-| ❌ | `entries` base `CREATE TABLE` not in any migration — schema unauditable, can't rebuild from migrations | Capture current schema into `000_init.sql` |
+| ❌ | `entries` base `CREATE TABLE` not in any migration — schema unauditable, can't rebuild from migrations | Capture current schema into `000_init.sql` (requires `pg_dump` from live Supabase — deferred to standalone task) |
 | ✅ | `audit_log` referenced in code (`capture.ts:170–179`, `entries.ts:110,137,254`) but table never created — DELETE/PATCH/merge have no audit trail | Table created in migration 039 with RLS + indexes. |
 | ❓ | `entry_brains` dropped in migration 025 but still actively queried in `api/entries.ts:52,470–515` and `api/capture.ts:124,187` | Decide: fully delete dead handler + all call-sites, or revive the table |
 | ✅ | `user_usage` 406 on `.single()` for new billing periods | Fixed: all call-sites use `.maybeSingle()` (confirmed in CLAUDE.md) |
 | ✅ | Missing FK indexes (links, messaging tables) | Added in migration 033 |
 | ✅ | RLS policies scoped to `authenticated`; user API keys open-access fixed | Fixed in migration 032 |
 | ✅ | Missing hot-path index `entries (user_id, created_at DESC) WHERE deleted_at IS NULL` | `entries_user_created_at_idx` added in migration 039. |
-| ❓ | `brain_id` FK on entries — no explicit `ON DELETE` clause | Decide: `ON DELETE SET NULL` vs `ON DELETE CASCADE`, then add to next migration |
+| ✅ | `brain_id` FK on entries — no explicit `ON DELETE` clause | `ON DELETE CASCADE` chosen; migration 041 drops old FK and re-adds with CASCADE. |
 | ❌ | RLS on entries is `user_id = auth.uid()` only — brain-member isolation dropped in migration 032 | If/when shared brains ship, restore a brain-member RLS policy |
 | ❌ | `IVFFlat lists=100` adequate to ~100k rows; plan HNSW reindex beyond that | Reindex to HNSW once `entries` exceeds 100k rows |
 | ❌ | `vector(768)` hardcoded — switch to any other provider silently breaks semantic search (see P0 #11) | See P0 #11 fix |
@@ -143,13 +143,13 @@
 |--------|-------|-----|
 | ✅ | Per-entry failure tracking in multi-entry save loop — failed entries surface via toast | Fixed in a32fd92 (`useCaptureSheetParse`) |
 | ✅ | `useBackgroundCapture` retries failed saves up to 3× with backoff (not on 4xx) | Fixed in a32fd92 |
-| ❌ | Ctrl+Enter bypasses `canSave` disabled guard → double-submit | Guard `handleSubmit` with an in-flight ref; disable on first fire |
+| ✅ | Ctrl+Enter bypasses `canSave` disabled guard → double-submit | `CaptureEntryBody` onKeyDown now guards with `canSave && !loading`. |
 | ✅ | Delete errors silently swallowed in `useEntryActions` — row reappears on refresh | `commitPendingDelete` catches errors, shows toast, restores entry. |
 | ✅ | Optimistic edit with no rollback in `useEntryActions:129` — PATCH failure leaves state diverged | `handleUpdate` snapshots previous state and rolls back on PATCH failure. |
-| ❌ | No mid-request token refresh — 401 mid-flow becomes generic error | On 401: refresh token → retry once before surfacing error |
+| ✅ | No mid-request token refresh — 401 mid-flow becomes generic error | `authFetch` refreshes session on 401 and retries once before surfacing error. |
 | ❌ | Enrichment status polled every 90 s (`useEnrichmentOrchestrator.ts:112`) | Subscribe via Supabase Realtime on the `entries` row instead |
 | ❌ | Offline ops dropped silently after 7 days — user believes writes are queued | Surface warning + "replay" button when offline queue has expired items |
-| ❌ | Double-scan Gmail possible — scan gate in component state; modal close/reopen resets it | Move gate to a ref or server-side lock |
+| ✅ | Double-scan Gmail possible — scan gate in component state; modal close/reopen resets it | Module-level `_scanInProgress` boolean in `GmailSyncTab.tsx` persists across remounts. |
 | ✅ | Clipboard copy of newly-minted API key has no fallback (`ClaudeCodeTab.tsx:90`) — never shown again | Key shown in masked input with Show/Hide toggle; `execCommand` fallback added to `copyKey`. |
 | ✅ | No `AbortController` / timeout on any `fetch()` — slow provider → spinning UI forever | 30 s `AbortController` timeout added to `TodoQuickAdd.tsx` fetch. |
 
@@ -165,7 +165,7 @@
 | ❌ | `retrieve_memory` tool in chat — free embed call per invocation | Per chat turn | Burns Gemini quota unmetered |
 | ❌ | MCP `gmail_sync` — 30/min/key, no quota | Per key | 30 Gmail scans/min |
 | ❌ | `/api/transfer` — 5/min × 2000 entries, all ingestion-triggered | Per-user | 10k entries/min |
-| ❌ | Huge metadata JSONB — no size check | Per-row | Bloat, slow PATCHes |
+| ✅ | Huge metadata JSONB — no size check | Per-row | 64 KB cap enforced in `capture.ts` before INSERT; rejects with 400. |
 | — | **Mitigation:** per-request LLM token budget (estimate tokens, deduct from `user_usage` before call, refund on provider error) | Covers most vectors above | — |
 
 ---

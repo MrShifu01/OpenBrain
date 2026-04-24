@@ -151,6 +151,11 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     }
   }
 
+  // §6: metadata JSONB size cap — reject before INSERT to avoid bloat / slow PATCHes
+  if (JSON.stringify(safeBody.p_metadata).length > 64_000) {
+    throw new ApiError(400, "metadata too large — max 64 KB");
+  }
+
   // Auto-compute completeness score
   const cScore = computeCompletenessScore(safeBody.p_title, safeBody.p_content, safeBody.p_type, safeBody.p_tags, safeBody.p_metadata);
   safeBody.p_metadata = { ...safeBody.p_metadata, completeness_score: cScore };
@@ -215,16 +220,21 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
     }).catch((err: any) => console.error('[capture:audit_log]', err.message));
   }
 
-  // Auto-embed (must be awaited on Vercel serverless)
-  let embedError: string | null = null;
+  // Schedule enrichment job immediately (doesn't need embed to complete first)
   if (response.ok && data?.id) {
-    const embedKey = GEMINI_API_KEY;
-    if (embedKey) {
-      const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
+    scheduleEnrichJob(data.id, user.id);
+  }
+
+  // §2.2 + P0 #11: Fire-and-forget embed — respond to client now, embed in background.
+  // Enrichment job queue retries entries with null embedded_at, so this is safe.
+  if (response.ok && data?.id && GEMINI_API_KEY) {
+    const entryId = data.id;
+    const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
+    (async () => {
       try {
-        const embedding = await generateEmbedding(buildEntryText(entryForEmbed), embedKey);
-        const patchRes = await fetch(
-          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(data.id)}`,
+        const embedding = await generateEmbedding(buildEntryText(entryForEmbed), GEMINI_API_KEY);
+        await fetch(
+          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`,
           {
             method: "PATCH",
             headers: sbHeaders({ Prefer: "return=minimal" }),
@@ -232,34 +242,18 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
               embedding: `[${embedding.join(",")}]`,
               embedded_at: new Date().toISOString(),
               embedding_provider: "google",
+              embedding_model: "gemini-embedding-001",
             }),
           },
         );
-        if (!patchRes.ok) {
-          const body = await patchRes.text().catch(() => String(patchRes.status));
-          embedError = `[embed:patch] HTTP ${patchRes.status} — ${body}`;
-          console.error(embedError);
-        } else {
-          res.setHeader("X-Embedding-Usage", JSON.stringify({
-            provider: "google",
-            model: "gemini-embedding-001",
-            count: 1,
-          }));
-        }
       } catch (err: any) {
-        embedError = `[embed] ${err?.message || String(err)}`;
-        console.error(embedError);
+        console.error("[embed:failed]", err?.message || String(err));
       }
-    }
-  }
-
-  // Enrichment after embed — staged→active promotion needs embedded_at to be set first
-  if (response.ok && data?.id) {
-    scheduleEnrichJob(data.id, user.id);
+    })();
   }
 
   updateStreak(user.id).catch((err) => console.error("[capture] streak update failed", err));
-  res.status(response.status).json({ ...data, embed_error: embedError });
+  res.status(response.status).json(data);
 }
 
 // ── POST /api/save-links (rewritten to /api/capture?action=links) ──

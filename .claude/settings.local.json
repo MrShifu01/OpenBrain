@@ -11,7 +11,9 @@
       "mcp__everionmind__retrieve_memory",
       "Bash(grep -E \"\\\\.\\(ts|tsx|js\\)$\")",
       "Bash(npx tsc *)",
-      "mcp__everionmind__create_entry"
+      "mcp__everionmind__create_entry",
+      "Bash(mkdir -p \"C:/Users/Administrator/Desktop/SmashBurgerBar/Business Systems/WebApp/EverionMind/.smash-os/scratch\")",
+      "Bash(rm -f \"C:/Users/Administrator/Desktop/SmashBurgerBar/Business Systems/WebApp/EverionMind/.smash-os/scratch/\"*)"
     ]
   }
 }

@@ -8,6 +8,10 @@ import GmailStagingInbox from "./GmailStagingInbox";
 import { useEntries } from "../../context/EntriesContext";
 import { useBrain } from "../../context/BrainContext";
 
+// §5: Module-level scan lock — persists across remounts so closing/reopening
+// the settings panel doesn't reset the in-progress guard.
+let _scanInProgress = false;
+
 interface GmailIntegration {
   id: string;
   gmail_email: string | null;
@@ -118,6 +122,8 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   }
 
   async function handleScanNow() {
+    if (_scanInProgress) return;
+    _scanInProgress = true;
     setScanning(true);
     setMsg(null);
     setLastDebug(null);
@@ -134,7 +140,10 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         /* non-JSON error body */
       }
       if (data?.debug) setLastDebug(data.debug);
-      if (!r?.ok) {
+      // §2.3: Surface token-refresh failure as a distinct, actionable error
+      if (data?.debug?.tokenRefreshFailed) {
+        setMsg({ text: "Gmail token expired — please disconnect and reconnect your account.", ok: false });
+      } else if (!r?.ok) {
         setMsg({ text: data?.error ?? "Scan failed. Please try again.", ok: false });
       } else {
         const created: number = data?.created ?? 0;
@@ -158,6 +167,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       await fetchIntegration();
       await refreshEntries();
     } finally {
+      _scanInProgress = false;
       setScanning(false);
     }
   }

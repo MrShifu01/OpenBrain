@@ -67,18 +67,27 @@ async function handleImport({ req, res, user }: HandlerContext): Promise<void> {
 
   if (rows.length === 0) throw new ApiError(400, "No valid entries to import");
 
-  const r = await fetch(`${SB_URL}/rest/v1/entries`, {
-    method: "POST",
-    headers: sbHeaders({ Prefer: "return=minimal" }),
-    body: JSON.stringify(rows),
-  });
-
-  if (!r.ok) {
-    const err = await r.text().catch(() => String(r.status));
-    console.error("[transfer:import]", err);
-    throw new ApiError(502, "Import failed");
+  // §2.4: Chunked insert — partial success reporting instead of all-or-nothing
+  const CHUNK = 100;
+  let succeeded = 0;
+  const batchErrors: string[] = [];
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const chunk = rows.slice(i, i + CHUNK);
+    const r = await fetch(`${SB_URL}/rest/v1/entries`, {
+      method: "POST",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify(chunk),
+    });
+    if (r.ok) {
+      succeeded += chunk.length;
+    } else {
+      const err = await r.text().catch(() => String(r.status));
+      console.error(`[transfer:import] batch ${Math.floor(i / CHUNK) + 1}`, err);
+      batchErrors.push(`Batch ${Math.floor(i / CHUNK) + 1}: HTTP ${r.status}`);
+    }
   }
 
-  res.status(200).json({ ok: true, imported: rows.length });
+  const failed = rows.length - succeeded;
+  res.status(200).json({ ok: succeeded > 0, imported: succeeded, failed, errors: batchErrors });
   runEnrichBatchForUser(user.id, brain_id, 10).catch(() => {});
 }
