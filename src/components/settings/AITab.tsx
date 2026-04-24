@@ -1,31 +1,13 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import ProvidersTab from "./ProvidersTab";
-import EnrichmentTab from "./EnrichmentTab";
 import SettingsRow from "./SettingsRow";
 import { SettingsButton } from "./SettingsRow";
 import type { Brain } from "../../types";
 
-interface GapDetail {
-  id: string;
-  title: string;
-  gaps: string[];
-}
-interface EnrichError {
-  step: string;
-  message: string;
-}
-
 interface Props {
   activeBrain?: Brain;
-  unenrichedDetails: GapDetail[];
-  enriching: boolean;
-  enrichProgress: { done: number; total: number } | null;
-  enrichErrors?: { id: string; title: string; errors: EnrichError[] }[];
-  enrichCurrentEntry?: { idx: number; total: number; title: string; phase: string } | null;
-  enrichLog?: { ts: number; level: "info" | "error"; message: string }[];
   isAdmin?: boolean;
-  runBulkEnrich: () => Promise<void>;
 }
 
 function StatusDot({ on }: { on: boolean }) {
@@ -97,17 +79,7 @@ function Section({
   );
 }
 
-export default function AITab({
-  activeBrain,
-  unenrichedDetails,
-  enriching,
-  enrichProgress,
-  enrichErrors = [],
-  enrichCurrentEntry = null,
-  enrichLog = [],
-  isAdmin = false,
-  runBulkEnrich,
-}: Props) {
+export default function AITab({ activeBrain, isAdmin = false }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
       <Section label="Everion Provided AI">
@@ -128,16 +100,9 @@ export default function AITab({
       </Section>
 
       <Section label="Enrichment">
-        <EnrichmentTab
-          unenrichedDetails={unenrichedDetails}
-          enriching={enriching}
-          enrichProgress={enrichProgress}
-          enrichErrors={enrichErrors}
-          enrichCurrentEntry={enrichCurrentEntry}
-          enrichLog={enrichLog}
-          isAdmin={isAdmin}
-          runBulkEnrich={runBulkEnrich}
-        />
+        <p className="f-sans" style={{ fontSize: 13, color: "var(--ink-ghost)", margin: 0, lineHeight: 1.5 }}>
+          Entries are enriched automatically by the server after capture. Cards show a pulsing dot while processing.
+        </p>
       </Section>
     </div>
   );

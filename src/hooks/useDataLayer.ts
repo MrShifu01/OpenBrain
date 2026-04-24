@@ -6,10 +6,7 @@ import { readEntriesCache, writeEntriesCache } from "../lib/entriesCache";
 import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
-import { enrichEntry } from "../lib/enrichEntry";
-import { createPipeline } from "../lib/pipeline/createPipeline";
 import { useEntryActions } from "./useEntryActions";
-import { useEnrichmentOrchestrator } from "./useEnrichmentOrchestrator";
 import type { Entry } from "../types";
 
 interface UseDataLayerParams {
@@ -47,12 +44,6 @@ export function useDataLayer({
   const [vaultExists, setVaultExists] = useState(false);
   const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
   const vaultEntryIdsRef = useRef<Set<string>>(new Set());
-
-  // Keep a ref of entries for the enrichment orchestrator (avoids restarting on every render)
-  const entriesRef = useRef<Entry[]>(entries);
-  useEffect(() => {
-    entriesRef.current = entries;
-  }, [entries]);
 
   // Load entries cache on mount
   useEffect(() => {
@@ -212,37 +203,11 @@ export function useDataLayer({
     [_handleUpdateBase],
   );
 
-  // handleUpdate wraps the base: auto-enriches when the user changes title or content
   const handleUpdate = useCallback(
     async (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => {
-      const entry = entries.find((e) => e.id === id);
-      const notSilent = !options?.silent;
-      const titleChanged =
-        notSilent &&
-        (changes as any).title !== undefined &&
-        (changes as any).title !== entry?.title;
-      const contentChanged =
-        notSilent &&
-        (changes as any).content !== undefined &&
-        (changes as any).content !== entry?.content;
       await _handleUpdateBase(id, changes, options);
-      if ((titleChanged || contentChanged) && activeBrainId && entry) {
-        const updatedEntry = {
-          ...entry,
-          ...changes,
-          metadata: {
-            ...(entry.metadata ?? {}),
-            ...((changes as any).metadata ?? {}),
-            enrichment: { embedded: false, concepts_count: 0, has_insight: false, parsed: false },
-          },
-        } as Entry;
-        setTimeout(
-          () => enrichEntry(updatedEntry, activeBrainId, silentUpdate).catch(() => {}),
-          1000,
-        );
-      }
     },
-    [_handleUpdateBase, entries, activeBrainId, silentUpdate],
+    [_handleUpdateBase],
   );
 
   /** Stable callback for useOfflineSync onEntryIdUpdate. */
@@ -252,34 +217,11 @@ export function useDataLayer({
 
   const addLinks = useCallback((newLinks: any[]) => setLinks((prev) => [...prev, ...newLinks]), []);
 
-  const {
-    enriching,
-    enrichProgress,
-    enrichErrors,
-    enrichCurrentEntry,
-    enrichLog,
-    runBulkEnrich,
-    unenrichedCount,
-    unenrichedDetails,
-  } = useEnrichmentOrchestrator({
-    activeBrainId,
-    entriesLoaded,
-    entriesRef,
-    onSilentUpdate: silentUpdate,
-  });
-
-  const pipeline = createPipeline({
-    onUpdate: silentUpdate as (id: string, changes: any) => Promise<void>,
-    getEntries: () => entriesRef.current,
-    throttleMs: 5000,
-  });
-
   const handleCreated = useCallback(
     (newEntry: Entry) => {
       _handleCreated(newEntry);
-      if (activeBrainId) pipeline.enrich(newEntry, activeBrainId);
     },
-    [_handleCreated, activeBrainId, pipeline],
+    [_handleCreated],
   );
 
   return {
@@ -295,14 +237,6 @@ export function useDataLayer({
     cryptoKey,
     handleVaultUnlock,
     vaultExists,
-    enriching,
-    enrichProgress,
-    enrichErrors,
-    enrichCurrentEntry,
-    enrichLog,
-    runBulkEnrich,
-    unenrichedDetails,
-    unenrichedCount,
     patchEntryId,
     handleCreated,
     handleCreatedBulk: handleCreated,

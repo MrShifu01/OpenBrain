@@ -11,7 +11,6 @@ interface Props {
   onCancel: () => void;
   onSelectAll?: () => void;
   onDelete?: (ids: string[]) => Promise<void>;
-  onReenrich?: (ids: string[]) => Promise<void>;
   allSelected?: boolean;
 }
 
@@ -23,14 +22,12 @@ export default function BulkActionBar({
   onCancel,
   onSelectAll,
   onDelete,
-  onReenrich,
   allSelected = false,
 }: Props) {
   const [targetType, setTargetType] = useState("");
   const [targetBrainIds, setTargetBrainIds] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [reenriching, setReenriching] = useState(false);
   const [typeOpen, setTypeOpen] = useState(false);
   const [brainsOpen, setBrainsOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
@@ -104,14 +101,6 @@ export default function BulkActionBar({
     setDeleting(true);
     await onDelete([...selectedIds]);
     setDeleting(false);
-    onCancel();
-  }
-
-  async function bulkReenrich() {
-    if (!onReenrich) return;
-    setReenriching(true);
-    await onReenrich([...selectedIds]);
-    setReenriching(false);
     onCancel();
   }
 
@@ -443,34 +432,20 @@ export default function BulkActionBar({
         {/* Apply */}
         <button
           onClick={apply}
-          disabled={!hasAction || !!progress || deleting || reenriching}
+          disabled={!hasAction || !!progress || deleting}
           className="w-full rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
           style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           {progress ?? `Apply to ${count} ${count === 1 ? "entry" : "entries"}`}
         </button>
 
-        {/* Destructive / utility actions */}
-        {(onDelete || onReenrich) && (
+        {/* Destructive actions */}
+        {onDelete && (
           <div className="flex gap-2">
-            {onReenrich && (
-              <button
-                onClick={bulkReenrich}
-                disabled={reenriching || deleting || !!progress}
-                className="flex-1 rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                style={{
-                  background: "var(--surface-high)",
-                  color: "var(--ink-soft)",
-                  border: "1px solid var(--line-soft)",
-                }}
-              >
-                {reenriching ? "Re-enriching…" : `Re-enrich ${count}`}
-              </button>
-            )}
             {onDelete && (
               <button
                 onClick={bulkDelete}
-                disabled={deleting || reenriching || !!progress}
+                disabled={deleting || !!progress}
                 className="flex-1 rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
                 style={{
                   background: "color-mix(in oklch, var(--color-error) 12%, transparent)",

@@ -25,17 +25,8 @@ export function createPipeline(hooks: PipelineHooks): EnrichmentPipeline {
   const throttle = hooks.throttleMs ?? 5000;
 
   return {
-    enrich(entry: Entry, brainId: string): void {
-      enrichEntry(entry, brainId, hooks.onUpdate).catch(() => {});
-
-      if (hooks.getEntries) {
-        const entries = hooks.getEntries();
-        import("../brainConnections")
-          .then(({ findAndSaveConnections }) => {
-            findAndSaveConnections(entry, entries, brainId).catch(() => {});
-          })
-          .catch(() => {});
-      }
+    enrich(_entry: Entry, _brainId: string): void {
+      // Server handles enrichment via capture.ts → enrichBatch.runEnrichEntry
     },
 
     async *enrichBulk(entries: Entry[], brainId: string): AsyncGenerator<BulkEnrichProgress> {

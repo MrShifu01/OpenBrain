@@ -20,6 +20,7 @@ interface Props {
   dateStr?: string;
   showDate?: boolean;
   showType?: boolean;
+  showIcon?: boolean;
   typeIcons?: Record<string, string>;
   ctx: Ctx;
   onEdit?: (entry: Entry, rect: DOMRect) => void;
@@ -31,6 +32,7 @@ export default function TodoRowItem({
   dateStr = "",
   showDate = false,
   showType = true,
+  showIcon = true,
   typeIcons = {},
   ctx,
   onEdit,
@@ -221,7 +223,7 @@ export default function TodoRowItem({
           />
         )}
 
-        {icon && <span className="mt-0.5 shrink-0 text-base">{icon}</span>}
+        {showIcon && icon && <span className="mt-0.5 shrink-0 text-base">{icon}</span>}
 
         <div className="min-w-0 flex-1">
           <p
@@ -245,6 +247,15 @@ export default function TodoRowItem({
           )}
         </div>
 
+        {(() => {
+          const enr = (entry.metadata as any)?.enrichment ?? {};
+          const pending = entry.type !== "secret" && !(enr.parsed === true && enr.has_insight === true && enr.concepts_extracted === true);
+          return pending ? (
+            <span className="enriching-dot" aria-label="AI processing" title="AI enriching…">
+              <span /><span /><span />
+            </span>
+          ) : null;
+        })()}
         {showDate && dateStr && (
           <span
             className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"

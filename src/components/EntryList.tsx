@@ -36,6 +36,20 @@ const IconVault = (
   </svg>
 );
 
+function isPendingEnrichment(entry: Entry): boolean {
+  if (entry.type === "secret") return false;
+  const enr = (entry.metadata as any)?.enrichment ?? {};
+  return !(enr.parsed === true && enr.has_insight === true && enr.concepts_extracted === true);
+}
+
+function EnrichingDot() {
+  return (
+    <span className="enriching-dot" aria-label="AI processing" title="AI enriching…">
+      <span /><span /><span />
+    </span>
+  );
+}
+
 function relTime(iso?: string) {
   if (!iso) return "";
   const then = new Date(iso).getTime();
@@ -326,6 +340,7 @@ const EntryCard = memo(function EntryCard({
           <span style={{ marginLeft: "auto", fontSize: 12 }}>{relTime(createdAt)}</span>
           {isPinned && <span style={{ color: "var(--ember)" }}>{IconPin}</span>}
           {isVault && <span>{IconVault}</span>}
+          {isPendingEnrichment(e) && <EnrichingDot />}
         </div>
 
         <h3
@@ -676,6 +691,7 @@ const EntryRow = memo(function EntryRow({
         >
           {e.title}
         </span>
+        {isPendingEnrichment(e) && <EnrichingDot />}
         {/* Desktop hover-reveal actions */}
         {(onPin || onDelete) && (
           <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">

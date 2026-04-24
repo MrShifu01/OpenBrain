@@ -219,14 +219,14 @@ html.family-bronze body {
   border-radius: 2px;
 }
 .family-bronze .design-btn-primary {
-  border-radius: 2px;
+  border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 12px;
   font-weight: 600;
 }
 .family-bronze .design-btn-secondary {
-  border-radius: 2px;
+  border-radius: 8px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 12px;
@@ -332,4 +332,29 @@ html.family-bronze body {
   [data-ambient] {
     animation: none !important;
   }
+}
+
+/* ── ENRICHING DOT — server enrichment pending ── */
+@keyframes enriching-wave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+  30% { transform: translateY(-2px); opacity: 0.8; }
+}
+.enriching-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.enriching-dot span {
+  display: block;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--ink-ghost);
+  animation: enriching-wave 1.4s ease-in-out infinite;
+}
+.enriching-dot span:nth-child(2) { animation-delay: 0.18s; }
+.enriching-dot span:nth-child(3) { animation-delay: 0.36s; }
+@media (prefers-reduced-motion: reduce) {
+  .enriching-dot span { animation: none; opacity: 0.4; }
 }

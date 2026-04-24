@@ -351,38 +351,11 @@ function VaultRow({ onNavigate }: { onNavigate: (id: string) => void }) {
   );
 }
 
-interface GapDetail {
-  id: string;
-  title: string;
-  gaps: string[];
-}
-
-interface EnrichError {
-  step: string;
-  message: string;
-}
-
 interface SettingsViewProps {
   onNavigate?: (id: string) => void;
-  unenrichedDetails?: GapDetail[];
-  enriching?: boolean;
-  enrichProgress?: { done: number; total: number } | null;
-  enrichErrors?: { id: string; title: string; errors: EnrichError[] }[];
-  enrichCurrentEntry?: { idx: number; total: number; title: string; phase: string } | null;
-  enrichLog?: { ts: number; level: "info" | "error"; message: string }[];
-  runBulkEnrich?: () => Promise<void>;
 }
 
-export default function SettingsView({
-  onNavigate,
-  unenrichedDetails = [],
-  enriching = false,
-  enrichProgress = null,
-  enrichErrors = [],
-  enrichCurrentEntry = null,
-  enrichLog = [],
-  runBulkEnrich = async () => {},
-}: SettingsViewProps = {}) {
+export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
   const { activeBrain, refresh } = useBrain();
   const [section, setSection] = useState<SectionId>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -626,14 +599,7 @@ export default function SettingsView({
                 <SectionHeader title="AI" subtitle="model providers and enrichment pipeline." />
                 <AITab
                   activeBrain={activeBrain ?? undefined}
-                  unenrichedDetails={unenrichedDetails}
-                  enriching={enriching}
-                  enrichProgress={enrichProgress}
-                  enrichErrors={enrichErrors}
-                  enrichCurrentEntry={enrichCurrentEntry}
-                  enrichLog={enrichLog}
                   isAdmin={isAdmin}
-                  runBulkEnrich={runBulkEnrich}
                 />
               </div>
             )}
@@ -769,7 +735,7 @@ export default function SettingsView({
         .settings-mobile-tabs { display: none; }
         .settings-desktop-nav { display: flex; }
         @media (max-width: 1024px) {
-          .settings-topbar { padding: 14px 20px; min-height: 56px; }
+          .settings-topbar { display: none; }
           .settings-mobile-tabs { display: flex !important; }
           .settings-desktop-nav { display: none !important; }
           .settings-content { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }

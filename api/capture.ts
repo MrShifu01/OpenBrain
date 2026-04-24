@@ -5,6 +5,7 @@ import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { detectAndStoreMerge } from "./_lib/mergeDetect.js";
 import { checkAndIncrement } from "./_lib/usage.js";
+import { runEnrichEntry } from "./_lib/enrichBatch.js";
 
 export const config = { api: { bodyParser: { sizeLimit: "10mb" } } };
 
@@ -168,6 +169,13 @@ async function handleCapture({ req, res, user }: HandlerContext): Promise<void> 
         body: JSON.stringify(rows),
       }).catch((err: any) => console.error('[capture:entry_brains]', err));
     }
+  }
+
+  // Background enrichment (fire-and-forget; cron handles any that don't complete)
+  if (response.ok && data?.id) {
+    runEnrichEntry(data.id, user.id).catch((err: any) =>
+      console.error("[capture:enrich]", err?.message),
+    );
   }
 
   // Auto-embed (must be awaited on Vercel serverless)

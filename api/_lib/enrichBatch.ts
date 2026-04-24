@@ -53,6 +53,10 @@ function hasInsight(entry: any): boolean {
   return !!(entry.metadata?.ai_insight) || enr.has_insight === true;
 }
 
+function hasConcepts(entry: any): boolean {
+  return !!(entry.metadata?.enrichment?.concepts_extracted);
+}
+
 async function patchMeta(entryId: string, userId: string, meta: Record<string, any>): Promise<void> {
   await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&user_id=eq.${encodeURIComponent(userId)}`,
@@ -60,13 +64,87 @@ async function patchMeta(entryId: string, userId: string, meta: Record<string, a
   );
 }
 
+async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
+  let meta = { ...(entry.metadata ?? {}) };
+  let enr = { ...(meta.enrichment ?? {}) };
+  let changed = false;
+
+  // ── Parse ──
+  if (!isParsed(entry)) {
+    const raw = String(meta.full_text || entry.content || entry.title || "");
+    const aiRaw = await callAnthropic(SERVER_PROMPTS.CAPTURE, raw, 1500);
+    const result = parseAIJSON(aiRaw);
+    if (result && (result.type || result.title || result.content)) {
+      const { confidence: _c, ...resultMeta } = result.metadata ?? {};
+      meta = { ...meta, ...resultMeta, enrichment: { ...enr, parsed: true } };
+      enr = meta.enrichment;
+      changed = true;
+    } else if (entry.title && (entry.content || "").length > 10) {
+      meta = { ...meta, enrichment: { ...enr, parsed: true } };
+      enr = meta.enrichment;
+      changed = true;
+    }
+  }
+
+  // ── Insight ──
+  if (!hasInsight(entry)) {
+    const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
+    const prompt = `Entry: "${entry.title}" (${entry.type || "note"})${tagStr}\n${String(entry.content || "").slice(0, 400)}`;
+    const insight = await callAnthropic(SERVER_PROMPTS.INSIGHT, prompt, 150);
+    if (insight.trim().length >= 20) {
+      meta = { ...meta, ai_insight: insight.trim(), enrichment: { ...enr, has_insight: true } };
+      enr = meta.enrichment;
+      changed = true;
+    }
+  }
+
+  // ── Concepts ──
+  if (!hasConcepts(entry)) {
+    const conceptPrompt = `Entry ID: ${entry.id}\nTitle: ${entry.title}\nType: ${entry.type || "note"}\nContent: ${String(entry.content || "").slice(0, 600)}`;
+    const conceptRaw = await callAnthropic(SERVER_PROMPTS.ENTRY_CONCEPTS, conceptPrompt, 400);
+    const conceptResult = parseAIJSON(conceptRaw);
+    const newEnr = { ...enr, concepts_extracted: true };
+    meta = conceptResult?.concepts?.length > 0
+      ? { ...meta, concepts: conceptResult.concepts, enrichment: newEnr }
+      : { ...meta, enrichment: newEnr };
+    enr = meta.enrichment;
+    changed = true;
+  }
+
+  if (changed) await patchMeta(entry.id, userId, meta);
+
+  // Promote staged → active once parse + insight + embedding all done
+  if (entry.status === "staged") {
+    const nowParsed = isParsed({ ...entry, metadata: meta });
+    const nowInsight = hasInsight({ ...entry, metadata: meta });
+    if (nowParsed && nowInsight && entry.embedded_at) {
+      await fetch(
+        `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}&user_id=eq.${encodeURIComponent(userId)}`,
+        { method: "PATCH", headers: { ...SB_HDR, Prefer: "return=minimal" }, body: JSON.stringify({ status: "active" }) },
+      );
+    }
+  }
+
+  return changed;
+}
+
+export async function runEnrichEntry(entryId: string, userId: string): Promise<void> {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&user_id=eq.${encodeURIComponent(userId)}&deleted_at=is.null&select=id,title,content,type,tags,metadata,embedded_at,status`,
+    { headers: SB_HDR },
+  );
+  if (!r.ok) return;
+  const [entry] = await r.json();
+  if (entry) await enrichSingleEntry(entry, userId);
+}
+
 export async function runEnrichBatchForUser(
   userId: string,
   brainId: string,
   batchSize = 5,
 ): Promise<{ processed: number; remaining: number }> {
-  const hasLLM = !!process.env.ANTHROPIC_API_KEY;
-  if (!hasLLM) return { processed: 0, remaining: 0 };
+  if (!process.env.ANTHROPIC_API_KEY) return { processed: 0, remaining: 0 };
 
   const r = await fetch(
     `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,type,tags,metadata,embedded_at,status&limit=200&order=created_at.desc`,
@@ -75,62 +153,15 @@ export async function runEnrichBatchForUser(
   if (!r.ok) return { processed: 0, remaining: 0 };
   const all: any[] = await r.json();
 
-  const unenriched = all.filter((e) => !isParsed(e) || !hasInsight(e));
+  const unenriched = all.filter((e) => !isParsed(e) || !hasInsight(e) || !hasConcepts(e));
   if (unenriched.length === 0) return { processed: 0, remaining: 0 };
 
   const batch = unenriched.slice(0, batchSize);
   let processed = 0;
 
   for (const entry of batch) {
-    let meta = { ...(entry.metadata ?? {}) };
-    let enr = { ...(meta.enrichment ?? {}) };
-    let changed = false;
-
-    // ── Parse ──
-    if (!isParsed(entry)) {
-      const raw = String(meta.full_text || entry.content || entry.title || "");
-      const aiRaw = await callAnthropic(SERVER_PROMPTS.CAPTURE, raw, 1500);
-      const result = parseAIJSON(aiRaw);
-      if (result && (result.type || result.title || result.content)) {
-        const { confidence: _c, ...resultMeta } = result.metadata ?? {};
-        meta = { ...meta, ...resultMeta, enrichment: { ...enr, parsed: true } };
-        enr = meta.enrichment;
-        changed = true;
-      } else if (entry.title && (entry.content || "").length > 10) {
-        meta = { ...meta, enrichment: { ...enr, parsed: true } };
-        enr = meta.enrichment;
-        changed = true;
-      }
-    }
-
-    // ── Insight ──
-    if (!hasInsight(entry)) {
-      const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
-      const prompt = `Entry: "${entry.title}" (${entry.type || "note"})${tagStr}\n${String(entry.content || "").slice(0, 400)}`;
-      const insight = await callAnthropic(SERVER_PROMPTS.INSIGHT, prompt, 150);
-      if (insight.trim().length >= 20) {
-        meta = { ...meta, ai_insight: insight.trim(), enrichment: { ...enr, has_insight: true } };
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      await patchMeta(entry.id, userId, meta);
-      processed++;
-    }
-
-    // Promote staged → active once parse + insight + embedding all done
-    if (entry.status === "staged") {
-      const nowParsed = isParsed({ ...entry, metadata: meta });
-      const nowInsight = hasInsight({ ...entry, metadata: meta });
-      const nowEmbedded = !!(entry.embedded_at);
-      if (nowParsed && nowInsight && nowEmbedded) {
-        await fetch(
-          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}&user_id=eq.${encodeURIComponent(userId)}`,
-          { method: "PATCH", headers: { ...SB_HDR, Prefer: "return=minimal" }, body: JSON.stringify({ status: "active" }) },
-        );
-      }
-    }
+    const changed = await enrichSingleEntry(entry, userId).catch(() => false);
+    if (changed) processed++;
   }
 
   return { processed, remaining: unenriched.length - batch.length };

@@ -89,14 +89,6 @@ interface EverionContentProps {
   appShell: AppShellState;
   cryptoKey: CryptoKey | null;
   handleVaultUnlock: (key: CryptoKey | null) => void;
-  enriching: boolean;
-  enrichProgress: { done: number; total: number } | null;
-  enrichErrors: { id: string; title: string; errors: { step: string; message: string }[] }[];
-  enrichCurrentEntry: { idx: number; total: number; title: string; phase: string } | null;
-  enrichLog: { ts: number; level: "info" | "error"; message: string }[];
-  runBulkEnrich: () => Promise<void>;
-  unenrichedCount: number;
-  unenrichedDetails: { id: string; title: string; gaps: string[] }[];
   handleCreated: (entry: Entry) => void;
   handleCreatedBulk: (entry: Entry) => void;
   lastAction: any;
@@ -144,14 +136,6 @@ function EverionContent({
   appShell,
   cryptoKey,
   handleVaultUnlock,
-  enriching,
-  enrichProgress,
-  enrichErrors,
-  enrichCurrentEntry,
-  enrichLog,
-  runBulkEnrich,
-  unenrichedCount: _unenrichedCount,
-  unenrichedDetails,
   handleCreated,
   handleCreatedBulk,
   lastAction,
@@ -565,16 +549,7 @@ function EverionContent({
               </Suspense>
             )}
             {appShell.view === "settings" && (
-              <SettingsView
-                onNavigate={appShell.setView}
-                unenrichedDetails={unenrichedDetails}
-                enriching={enriching}
-                enrichProgress={enrichProgress}
-                enrichErrors={enrichErrors}
-                enrichCurrentEntry={enrichCurrentEntry}
-                enrichLog={enrichLog}
-                runBulkEnrich={runBulkEnrich}
-              />
+              <SettingsView onNavigate={appShell.setView} />
             )}
             {appShell.view === "capture" && (
               <CaptureWelcomeScreen
@@ -938,14 +913,6 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
             appShell={appShell}
             cryptoKey={dataLayer.cryptoKey}
             handleVaultUnlock={dataLayer.handleVaultUnlock}
-            enriching={dataLayer.enriching}
-            enrichProgress={dataLayer.enrichProgress}
-            enrichErrors={dataLayer.enrichErrors}
-            enrichCurrentEntry={dataLayer.enrichCurrentEntry}
-            enrichLog={dataLayer.enrichLog}
-            runBulkEnrich={dataLayer.runBulkEnrich}
-            unenrichedCount={dataLayer.unenrichedCount}
-            unenrichedDetails={dataLayer.unenrichedDetails}
             handleCreated={dataLayer.handleCreated}
             handleCreatedBulk={dataLayer.handleCreatedBulk}
             lastAction={dataLayer.lastAction}
