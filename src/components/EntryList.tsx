@@ -89,10 +89,13 @@ function EnrichFlagChips({ entry }: { entry: Entry }) {
   const embeddingStatus = (entry as any).embedding_status as string | undefined;
   const embedded = embeddingStatus === "done" || !!(entry as any).embedded_at;
   const embedFailed = embeddingStatus === "failed";
+  const hasLegacyConcepts =
+    (typeof enr.concepts_count === "number" && enr.concepts_count > 0) ||
+    (Array.isArray(meta.concepts) && meta.concepts.length > 0);
   const flags = {
     parsed: isParsed,
     has_insight: enr.has_insight === true || !!meta.ai_insight,
-    concepts_extracted: enr.concepts_extracted === true,
+    concepts_extracted: enr.concepts_extracted === true || hasLegacyConcepts,
     backfilled: !!enr.backfilled_at,
   };
   const chip = (label: string, state: "on" | "off" | "warn", title: string) => {

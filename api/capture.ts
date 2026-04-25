@@ -272,37 +272,36 @@ async function handleCapture({ req, res, user, req_id }: HandlerContext): Promis
     );
   }
 
-  // §2.2 + P0 #11: Fire-and-forget embed — respond to client now, embed in background.
-  // Enrichment job queue retries entries with null embedded_at, so this is safe.
+  // Awaited inline — Vercel terminates the function as soon as we respond,
+  // so a fire-and-forget IIFE here would never complete. Capture has
+  // maxDuration: 30 in vercel.json which covers Gemini embedding latency.
   if (response.ok && data?.id && GEMINI_API_KEY) {
     const entryId = data.id;
     const entryForEmbed = { title: safeBody.p_title, content: safeBody.p_content, tags: safeBody.p_tags };
-    (async () => {
-      try {
-        const embedding = await generateEmbedding(buildEntryText(entryForEmbed), GEMINI_API_KEY);
-        await fetch(
-          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`,
-          {
-            method: "PATCH",
-            headers: sbHeaders({ Prefer: "return=minimal" }),
-            body: JSON.stringify({
-              embedding: `[${embedding.join(",")}]`,
-              embedded_at: new Date().toISOString(),
-              embedding_provider: "google",
-              embedding_model: "gemini-embedding-001",
-              embedding_status: "done",
-            }),
-          },
-        );
-      } catch (err: any) {
-        console.error("[embed:failed]", err?.message || String(err));
-        fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`, {
+    try {
+      const embedding = await generateEmbedding(buildEntryText(entryForEmbed), GEMINI_API_KEY);
+      await fetch(
+        `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`,
+        {
           method: "PATCH",
           headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ embedding_status: "failed" }),
-        }).catch(() => {});
-      }
-    })();
+          body: JSON.stringify({
+            embedding: `[${embedding.join(",")}]`,
+            embedded_at: new Date().toISOString(),
+            embedding_provider: "google",
+            embedding_model: "gemini-embedding-001",
+            embedding_status: "done",
+          }),
+        },
+      );
+    } catch (err: any) {
+      console.error("[embed:failed]", err?.message || String(err));
+      await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`, {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ embedding_status: "failed" }),
+      }).catch(() => {});
+    }
   }
 
   updateStreak(user.id).catch((err) => console.error("[capture] streak update failed", err));

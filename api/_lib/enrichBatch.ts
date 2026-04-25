@@ -136,7 +136,16 @@ export function hasInsight(entry: any): boolean {
 }
 
 export function hasConcepts(entry: any): boolean {
-  return !!(entry.metadata?.enrichment?.concepts_extracted);
+  const enr = entry.metadata?.enrichment ?? {};
+  if (enr.concepts_extracted === true) return true;
+  // Legacy pipeline (pre-2026-04) wrote `concepts_count: <number>` instead
+  // of the boolean flag. Treat any positive count as "we did the work".
+  if (typeof enr.concepts_count === "number" && enr.concepts_count > 0) return true;
+  // The current pipeline also persists the concepts array to metadata.concepts
+  // when the LLM returned non-empty results — recognise that too in case the
+  // boolean stamp got stripped (clear-backfill, manual edit, schema migration).
+  if (Array.isArray(entry.metadata?.concepts) && entry.metadata.concepts.length > 0) return true;
+  return false;
 }
 
 async function patchMeta(entryId: string, userId: string, meta: Record<string, any>): Promise<void> {
@@ -170,6 +179,11 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
   }
   if (hasInsight(entry) && enr.has_insight !== true) {
     enr.has_insight = true;
+    meta.enrichment = enr;
+    changed = true;
+  }
+  if (hasConcepts(entry) && enr.concepts_extracted !== true) {
+    enr.concepts_extracted = true;
     meta.enrichment = enr;
     changed = true;
   }
