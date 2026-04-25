@@ -66,12 +66,29 @@ function EnrichingDot() {
 }
 
 // Admin-only diagnostic chip cluster — three letters showing which enrichment
-// flags are set on the entry. Hidden for non-admins.
+// flags are set on the entry. Hidden for non-admins. Mirrors the server-side
+// isParsed/hasInsight/hasConcepts helpers so the chips agree with what the
+// enrichment pipeline considers "done".
+const ENRICH_SKIP_META = new Set([
+  "enrichment",
+  "source",
+  "full_text",
+  "gmail_from",
+  "gmail_subject",
+  "gmail_thread_id",
+  "gmail_message_id",
+]);
+
 function EnrichFlagChips({ entry }: { entry: Entry }) {
-  const enr = (entry.metadata as any)?.enrichment ?? {};
+  const meta = (entry.metadata as any) ?? {};
+  const enr = meta.enrichment ?? {};
+  const isParsed =
+    enr.parsed === true ||
+    (enr.parsed !== false &&
+      Object.keys(meta).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0);
   const flags = {
-    parsed: enr.parsed === true,
-    has_insight: enr.has_insight === true || !!(entry.metadata as any)?.ai_insight,
+    parsed: isParsed,
+    has_insight: enr.has_insight === true || !!meta.ai_insight,
     concepts_extracted: enr.concepts_extracted === true,
     backfilled: !!enr.backfilled_at,
   };

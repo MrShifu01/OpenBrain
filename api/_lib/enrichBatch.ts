@@ -122,7 +122,7 @@ function parseAIJSON(raw: string): any | null {
 
 const SKIP_META = new Set(["enrichment", "source", "full_text", "gmail_from", "gmail_subject", "gmail_thread_id", "gmail_message_id"]);
 
-function isParsed(entry: any): boolean {
+export function isParsed(entry: any): boolean {
   const enr = entry.metadata?.enrichment ?? {};
   if (enr.parsed === false) return false;
   if (enr.parsed === true) return true;
@@ -130,12 +130,12 @@ function isParsed(entry: any): boolean {
   return keys.length > 0;
 }
 
-function hasInsight(entry: any): boolean {
+export function hasInsight(entry: any): boolean {
   const enr = entry.metadata?.enrichment ?? {};
   return !!(entry.metadata?.ai_insight) || enr.has_insight === true;
 }
 
-function hasConcepts(entry: any): boolean {
+export function hasConcepts(entry: any): boolean {
   return !!(entry.metadata?.enrichment?.concepts_extracted);
 }
 
@@ -155,6 +155,24 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
   let meta = { ...(entry.metadata ?? {}) };
   let enr = { ...(meta.enrichment ?? {}) };
   let changed = false;
+
+  // Normalize implicit flags into explicit ones. The runtime checks below
+  // (isParsed/hasInsight/hasConcepts) treat an entry as parsed if metadata
+  // has any non-skip key, or as insight-stamped if `ai_insight` exists, even
+  // when the explicit flag was never written. Without this, the diagnostic
+  // panel (which reads strict `enr.parsed === true`) reports the entry as
+  // "missing parsed" forever, and Run-now skips the parse step but never
+  // commits the flag. Stamp them once and the data converges.
+  if (isParsed(entry) && enr.parsed !== true) {
+    enr.parsed = true;
+    meta.enrichment = enr;
+    changed = true;
+  }
+  if (hasInsight(entry) && enr.has_insight !== true) {
+    enr.has_insight = true;
+    meta.enrichment = enr;
+    changed = true;
+  }
 
   // ── Parse ──
   if (!isParsed(entry)) {

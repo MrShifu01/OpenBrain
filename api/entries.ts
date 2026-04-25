@@ -3,7 +3,7 @@ import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
-import { runEnrichBatchForUser, runEnrichEntry } from "./_lib/enrichBatch.js";
+import { runEnrichBatchForUser, runEnrichEntry, isParsed, hasInsight, hasConcepts } from "./_lib/enrichBatch.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at,embedded_at,embedding_status,status";
@@ -431,12 +431,17 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
   if (!r.ok) throw new ApiError(502, "Database error");
   const all: any[] = await r.json();
 
+  // Use the same helpers Run-now uses, so the diagnostic reflects what the
+  // enrichment filter actually treats as "done". A strict `=== true` check on
+  // the explicit flag drifts from runtime when the flag was never stamped but
+  // the entry passes the fallback heuristic (e.g. has metadata keys, or has
+  // ai_insight set without enrichment.has_insight=true).
   const flagOf = (e: any) => {
     const enr = e.metadata?.enrichment ?? {};
     return {
-      parsed: enr.parsed === true,
-      has_insight: enr.has_insight === true || !!e.metadata?.ai_insight,
-      concepts_extracted: enr.concepts_extracted === true,
+      parsed: isParsed(e),
+      has_insight: hasInsight(e),
+      concepts_extracted: hasConcepts(e),
       backfilled: !!enr.backfilled_at,
     };
   };
