@@ -59,6 +59,15 @@ function scoreCandidate(source: Candidate, target: Candidate): number {
   const titleOverlap = wordOverlap(source.title, target.title);
   score += Math.round(titleOverlap * 35);
 
+  // Exact title bonus — when normalized titles match character-for-character,
+  // that's a strong duplicate signal on its own (e.g. two captures of the
+  // same menu, both titled "Smash Burger Bar Menu", with no email or phone
+  // metadata to confirm). Without this the wordOverlap*35 + same-type 10 lands
+  // at 45 — exactly under the 50 threshold — and the duplicate slips through.
+  const sn = normalizeName(source.title);
+  const tn = normalizeName(target.title);
+  if (sn && tn && sn === tn) score += 20;
+
   // Same type bonus
   if (source.type === target.type) score += 10;
 
