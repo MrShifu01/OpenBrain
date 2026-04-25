@@ -142,7 +142,10 @@ export default function OmniSearch({
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      // Cmd/Ctrl+/ for search — moved off Cmd+K so the floating capture
+      // button's "CTRL K" hint actually opens capture. "/" is the same
+      // shortcut GitHub, GitLab, and Slack use for search.
+      if ((e.metaKey || e.ctrlKey) && e.key === "/") {
         e.preventDefault();
         setOpen((o) => !o);
       }

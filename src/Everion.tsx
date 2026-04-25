@@ -205,10 +205,12 @@ function EverionContent({
     });
   }, [conceptMap]);
 
-  // L-13: Cmd/Ctrl+N → open CaptureSheet (Cmd+K handled by OmniSearch, Escape by each modal)
+  // Cmd/Ctrl+K opens the capture sheet — matches the keyboard hint shown
+  // on the floating capture button. Cmd/Ctrl+N kept as an alias for muscle
+  // memory. Search now lives on Cmd/Ctrl+/, see OmniSearch.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "n")) {
         e.preventDefault();
         appShell.setShowCapture(true);
       }
