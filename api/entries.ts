@@ -425,7 +425,7 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
   await requireBrainAccess(user.id, brain_id);
 
   const r = await fetch(
-    `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&deleted_at=is.null&select=id,title,type,created_at,metadata&order=created_at.desc&limit=200`,
+    `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id)}&deleted_at=is.null&select=id,title,type,created_at,metadata,embedded_at,embedding_status&order=created_at.desc&limit=200`,
     { headers: sbHeadersNoContent() },
   );
   if (!r.ok) throw new ApiError(502, "Database error");
@@ -443,6 +443,10 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
       has_insight: hasInsight(e),
       concepts_extracted: hasConcepts(e),
       backfilled: !!enr.backfilled_at,
+      // Embedding is "done" when either embedded_at is set or the explicit
+      // status column says so. "failed" surfaces in its own count below.
+      embedded: e.embedding_status === "done" || !!e.embedded_at,
+      embedding_status: (e.embedding_status as string | null) ?? null,
     };
   };
 
@@ -452,6 +456,8 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
     missing_parsed: all.filter((e) => e.type !== "secret" && !flagOf(e).parsed).length,
     missing_insight: all.filter((e) => e.type !== "secret" && !flagOf(e).has_insight).length,
     missing_concepts: all.filter((e) => e.type !== "secret" && !flagOf(e).concepts_extracted).length,
+    missing_embedding: all.filter((e) => e.type !== "secret" && !flagOf(e).embedded && flagOf(e).embedding_status !== "failed").length,
+    failed_embedding: all.filter((e) => e.type !== "secret" && flagOf(e).embedding_status === "failed").length,
     fully_pending: all.filter((e) => {
       if (e.type === "secret") return false;
       const f = flagOf(e);

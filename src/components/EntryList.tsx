@@ -86,42 +86,57 @@ function EnrichFlagChips({ entry }: { entry: Entry }) {
     enr.parsed === true ||
     (enr.parsed !== false &&
       Object.keys(meta).filter((k) => !ENRICH_SKIP_META.has(k)).length > 0);
+  const embeddingStatus = (entry as any).embedding_status as string | undefined;
+  const embedded = embeddingStatus === "done" || !!(entry as any).embedded_at;
+  const embedFailed = embeddingStatus === "failed";
   const flags = {
     parsed: isParsed,
     has_insight: enr.has_insight === true || !!meta.ai_insight,
     concepts_extracted: enr.concepts_extracted === true,
     backfilled: !!enr.backfilled_at,
   };
-  const chip = (label: string, on: boolean, title: string) => (
-    <span
-      title={title}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 14,
-        height: 14,
-        borderRadius: 3,
-        fontSize: 9,
-        fontWeight: 700,
-        fontFamily: "var(--f-mono)",
-        background: on
-          ? "color-mix(in oklch, var(--moss) 18%, transparent)"
-          : "color-mix(in oklch, var(--blood) 14%, transparent)",
-        color: on ? "var(--moss)" : "var(--blood)",
-        letterSpacing: 0,
-        lineHeight: 1,
-      }}
-    >
-      {label}
-    </span>
-  );
+  const chip = (label: string, state: "on" | "off" | "warn", title: string) => {
+    const palette = {
+      on: { bg: "color-mix(in oklch, var(--moss) 18%, transparent)", fg: "var(--moss)" },
+      off: { bg: "color-mix(in oklch, var(--blood) 14%, transparent)", fg: "var(--blood)" },
+      warn: { bg: "color-mix(in oklch, var(--ember) 22%, transparent)", fg: "var(--ember)" },
+    }[state];
+    return (
+      <span
+        title={title}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 14,
+          height: 14,
+          borderRadius: 3,
+          fontSize: 9,
+          fontWeight: 700,
+          fontFamily: "var(--f-mono)",
+          background: palette.bg,
+          color: palette.fg,
+          letterSpacing: 0,
+          lineHeight: 1,
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
+  const embedState: "on" | "off" | "warn" = embedFailed ? "warn" : embedded ? "on" : "off";
+  const embedTitle = embedFailed
+    ? "embedding failed — won't appear in semantic search"
+    : embedded
+      ? "embedded"
+      : "embedding pending";
   return (
     <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }} aria-hidden="true">
-      {chip("P", flags.parsed, "parsed")}
-      {chip("I", flags.has_insight, "insight")}
-      {chip("C", flags.concepts_extracted, "concepts")}
-      {flags.backfilled && chip("B", true, "backfilled — not really enriched")}
+      {chip("P", flags.parsed ? "on" : "off", "parsed")}
+      {chip("I", flags.has_insight ? "on" : "off", "insight")}
+      {chip("C", flags.concepts_extracted ? "on" : "off", "concepts")}
+      {chip("E", embedState, embedTitle)}
+      {flags.backfilled && chip("B", "on", "backfilled — not really enriched")}
     </span>
   );
 }

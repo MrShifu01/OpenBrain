@@ -34,6 +34,8 @@ interface DebugPayload {
     missing_parsed: number;
     missing_insight: number;
     missing_concepts: number;
+    missing_embedding: number;
+    failed_embedding: number;
     fully_pending: number;
     backfilled: number;
   };
@@ -42,7 +44,14 @@ interface DebugPayload {
     title: string;
     type: string;
     created_at: string;
-    flags: { parsed: boolean; has_insight: boolean; concepts_extracted: boolean; backfilled: boolean };
+    flags: {
+      parsed: boolean;
+      has_insight: boolean;
+      concepts_extracted: boolean;
+      backfilled: boolean;
+      embedded: boolean;
+      embedding_status: string | null;
+    };
   }>;
   server_time: string;
 }
@@ -310,6 +319,12 @@ function DebugView({ debug }: { debug: DebugPayload }) {
         {stat("Missing parsed", counts.missing_parsed)}
         {stat("Missing insight", counts.missing_insight)}
         {stat("Missing concepts", counts.missing_concepts)}
+        {stat("Missing embedding", counts.missing_embedding ?? 0)}
+        {stat(
+          "Failed embedding",
+          counts.failed_embedding ?? 0,
+          (counts.failed_embedding ?? 0) > 0 ? "warn" : undefined,
+        )}
       </div>
 
       <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
@@ -360,35 +375,64 @@ function DebugView({ debug }: { debug: DebugPayload }) {
 function FlagPills({
   flags,
 }: {
-  flags: { parsed: boolean; has_insight: boolean; concepts_extracted: boolean; backfilled?: boolean };
+  flags: {
+    parsed: boolean;
+    has_insight: boolean;
+    concepts_extracted: boolean;
+    backfilled?: boolean;
+    embedded?: boolean;
+    embedding_status?: string | null;
+  };
 }) {
-  const pill = (label: string, on: boolean, title: string) => (
-    <span
-      title={title}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 16,
-        height: 16,
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 700,
-        fontFamily: "var(--f-mono)",
-        background: on ? "color-mix(in oklch, var(--moss) 18%, transparent)" : "color-mix(in oklch, var(--blood) 14%, transparent)",
-        color: on ? "var(--moss)" : "var(--blood)",
-        letterSpacing: 0,
-      }}
-    >
-      {label}
-    </span>
-  );
+  const pill = (label: string, state: "on" | "off" | "warn", title: string) => {
+    const palette = {
+      on: { bg: "color-mix(in oklch, var(--moss) 18%, transparent)", fg: "var(--moss)" },
+      off: { bg: "color-mix(in oklch, var(--blood) 14%, transparent)", fg: "var(--blood)" },
+      warn: { bg: "color-mix(in oklch, var(--ember) 22%, transparent)", fg: "var(--ember)" },
+    }[state];
+    return (
+      <span
+        title={title}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 16,
+          height: 16,
+          borderRadius: 4,
+          fontSize: 10,
+          fontWeight: 700,
+          fontFamily: "var(--f-mono)",
+          background: palette.bg,
+          color: palette.fg,
+          letterSpacing: 0,
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
+
+  const embedState: "on" | "off" | "warn" =
+    flags.embedding_status === "failed"
+      ? "warn"
+      : flags.embedded
+        ? "on"
+        : "off";
+  const embedTitle =
+    flags.embedding_status === "failed"
+      ? "embedding failed — won't appear in semantic search"
+      : flags.embedded
+        ? "embedded"
+        : "embedding pending";
+
   return (
     <span style={{ display: "inline-flex", gap: 3, flexShrink: 0 }}>
-      {pill("P", flags.parsed, "parsed")}
-      {pill("I", flags.has_insight, "insight")}
-      {pill("C", flags.concepts_extracted, "concepts")}
-      {flags.backfilled && pill("B", true, "backfilled — not really enriched")}
+      {pill("P", flags.parsed ? "on" : "off", "parsed")}
+      {pill("I", flags.has_insight ? "on" : "off", "insight")}
+      {pill("C", flags.concepts_extracted ? "on" : "off", "concepts")}
+      {pill("E", embedState, embedTitle)}
+      {flags.backfilled && pill("B", "on", "backfilled — not really enriched")}
     </span>
   );
 }
