@@ -393,7 +393,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
             borderRight: "1px solid var(--line-soft)",
             background: "var(--surface-low)",
             overflowY: "auto",
-            display: "flex",
+            // display is set in the stylesheet (flex on desktop, none on
+            // mobile via @media). Setting it inline would override the
+            // @media rule and leak the desktop sidebar into mobile view.
             flexDirection: "column",
             gap: 2,
           }}
