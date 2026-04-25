@@ -1,10 +1,14 @@
 import type { AppShellState } from "./hooks/useAppShell";
 import NotificationBell from "./components/NotificationBell";
 import type { AppNotification } from "./hooks/useNotifications";
+import type { Entry } from "./types";
 
 interface Props {
   appShell: AppShellState;
-  entries: { length: number };
+  // Pass the full entries array (was loosely typed as {length:number}) so the
+  // header can count entries flagged with metadata.import_source for the
+  // "From imports" toggle.
+  entries: Entry[];
   entriesLoaded: boolean;
   activeBrainId: string | undefined;
   notifications?: AppNotification[];
@@ -175,6 +179,51 @@ export default function MemoryHeader({
         />
 
         <div style={{ flex: 1 }} />
+
+        {/* From imports toggle — only renders when there's something to filter to.
+            Reuses entryFilters.importSource so the filter is applied wherever
+            applyEntryFilters is called. */}
+        {(() => {
+          const importedCount = entries.filter((e) => {
+            const src = (e.metadata as Record<string, unknown> | undefined)?.import_source;
+            return typeof src === "string" && src.length > 0;
+          }).length;
+          if (importedCount === 0) return null;
+          const active = appShell.gridFilters.importSource === "any";
+          return (
+            <button
+              className="press"
+              onClick={() =>
+                appShell.setGridFilters({
+                  ...appShell.gridFilters,
+                  importSource: active ? undefined : "any",
+                  brainId: activeBrainId,
+                })
+              }
+              aria-pressed={active}
+              style={{
+                height: 32,
+                minHeight: 32,
+                padding: "0 10px",
+                borderRadius: 6,
+                fontFamily: "var(--f-sans)",
+                fontSize: 13,
+                fontWeight: 500,
+                background: active ? "var(--ember-wash)" : "transparent",
+                color: active ? "var(--ember)" : "var(--ink-faint)",
+                border: active ? "1px solid var(--ember)" : "1px solid transparent",
+                cursor: "pointer",
+                transition: "all 180ms",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              From imports
+              <span style={{ opacity: 0.7, fontSize: 12 }}>{importedCount.toLocaleString()}</span>
+            </button>
+          );
+        })()}
 
         {/* Select mode toggle */}
         {appShell.view === "memory" && (

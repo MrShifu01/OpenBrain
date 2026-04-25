@@ -912,6 +912,65 @@ No explanation, no punctuation, just one word.`,
                     );
                   })()}
 
+                  {/* Dropped attachments — surfaces files that lived alongside the
+                      source note (Google Keep photos, etc.) but weren't uploaded.
+                      Filenames stay so the user can find them in the source zip. */}
+                  {(() => {
+                    const meta = (entry.metadata || {}) as Record<string, unknown>;
+                    const count = typeof meta.attachments_dropped === "number" ? meta.attachments_dropped : 0;
+                    const files = Array.isArray(meta.attachment_files)
+                      ? (meta.attachment_files as unknown[]).filter((f): f is string => typeof f === "string")
+                      : [];
+                    if (count === 0 && files.length === 0) return null;
+                    const source = typeof meta.import_source === "string" ? meta.import_source : null;
+                    return (
+                      <div>
+                        <div className="micro" style={{ marginBottom: 10 }}>
+                          Attachments ({count || files.length})
+                        </div>
+                        <div
+                          className="f-sans"
+                          style={{
+                            fontSize: 12,
+                            color: "var(--ink-faint)",
+                            padding: "10px 14px",
+                            border: "1px solid var(--line-soft)",
+                            borderRadius: 10,
+                            background: "var(--surface)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 6,
+                          }}
+                        >
+                          <span>
+                            Stored alongside this entry in the original{" "}
+                            {source === "google_keep" ? "Google Takeout" : "import"} archive.
+                            Not uploaded to Everion.
+                          </span>
+                          {files.length > 0 && (
+                            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexWrap: "wrap", gap: 6 }}>
+                              {files.map((f) => (
+                                <li
+                                  key={f}
+                                  style={{
+                                    padding: "4px 8px",
+                                    borderRadius: 4,
+                                    background: "var(--surface-low)",
+                                    border: "1px solid var(--line-soft)",
+                                    color: "var(--ink-soft)",
+                                    fontSize: 11,
+                                  }}
+                                >
+                                  {f.split("/").pop() ?? f}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Tags — #admin style chips */}
                   {(entry.tags || []).length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>

@@ -10,6 +10,12 @@ export interface EntryFilterState {
   sort: SortOrder;
   concept?: string; // filter by concept label
   brainId?: string; // needed for concept lookup
+  // Restricts the result set to entries that came from a bulk import
+  // (metadata.import_source set). When set to "any", any non-empty source
+  // matches; when set to a specific string (e.g. "google_keep"), only that
+  // source matches. Used by the "From imports" toggle so users can sweep
+  // through freshly-imported notes without a separate staging table.
+  importSource?: "any" | string;
 }
 
 function startOfDay(d: Date): Date {
@@ -29,6 +35,16 @@ export function applyEntryFilters(entries: Entry[], filters: EntryFilterState): 
   // ── Type filter ──
   if (filters.type !== "all") {
     result = result.filter((e) => e.type === filters.type);
+  }
+
+  // ── Import-source filter ──
+  if (filters.importSource) {
+    const want = filters.importSource;
+    result = result.filter((e) => {
+      const src = (e.metadata as Record<string, unknown> | undefined)?.import_source;
+      if (typeof src !== "string" || !src) return false;
+      return want === "any" || src === want;
+    });
   }
 
   // ── Concept filter ──
