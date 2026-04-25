@@ -24,6 +24,7 @@ import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
 const CaptureSheet = lazy(() => import("./components/CaptureSheet"));
 import DesktopSidebar from "./components/DesktopSidebar";
+import DesktopHeader from "./components/DesktopHeader";
 import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
 import OmniSearch from "./components/OmniSearch";
@@ -262,6 +263,20 @@ function EverionContent({
             onDismissAllNotifications={notifs.dismissAll}
             onAcceptMerge={notifs.acceptMerge}
           ></MobileHeader>
+
+          <DesktopHeader
+            searchInput={appShell.searchInput}
+            onSearchChange={appShell.setSearchInput}
+            onNavigate={appShell.setView}
+            isDark={isDark}
+            onToggleTheme={toggleTheme}
+            notifications={notifs.notifications}
+            unreadCount={notifs.unreadCount}
+            onDismissNotification={notifs.dismiss}
+            onMarkNotificationRead={notifs.markRead}
+            onDismissAllNotifications={notifs.dismissAll}
+            onAcceptMerge={notifs.acceptMerge}
+          />
 
           {appShell.view === "memory" && nudge && (
             <NudgeBanner

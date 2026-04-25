@@ -7,23 +7,6 @@ interface NavView {
   ic: string;
 }
 
-const SEARCH_ICON = (
-  <svg
-    aria-hidden="true"
-    width="13"
-    height="13"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-  >
-    <circle cx="11" cy="11" r="6.5" />
-    <path d="m20 20-3.5-3.5" />
-  </svg>
-);
-
 interface DesktopSidebarProps {
   activeBrainName: string;
   view: string;
@@ -36,8 +19,10 @@ interface DesktopSidebarProps {
   entryCount: number;
   onShowCreateBrain: () => void;
   navViews: NavView[];
-  searchInput: string;
-  onSearchChange: (v: string) => void;
+  /** Search lives in DesktopHeader now; props are accepted but unused so
+   *  existing call-sites and tests don't break. */
+  searchInput?: string;
+  onSearchChange?: (v: string) => void;
   children?: ReactNode;
 }
 
@@ -109,8 +94,8 @@ export default function DesktopSidebar({
   pendingCount: _pendingCount,
   onShowCreateBrain: _onShowCreateBrain,
   navViews,
-  searchInput,
-  onSearchChange,
+  searchInput: _searchInput,
+  onSearchChange: _onSearchChange,
   children,
 }: DesktopSidebarProps) {
   return (
@@ -187,88 +172,6 @@ export default function DesktopSidebar({
         {PLUME_ICON}
         Capture
       </button>
-
-      {/* Search */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "0 8px 0 12px",
-          height: 36,
-          marginBottom: 14,
-          background: "var(--surface)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: 8,
-          color: "var(--ink-faint)",
-        }}
-      >
-        {SEARCH_ICON}
-        {/* Honeypot inputs absorb Chrome's eager username/password autofill
-            before it reaches the real search field. Chrome routinely ignores
-            autoComplete="off" on text inputs; offering it a more
-            convincing-looking target stops it from hijacking the search. */}
-        <input
-          type="text"
-          name="username"
-          autoComplete="username"
-          tabIndex={-1}
-          aria-hidden="true"
-          style={{ position: "absolute", left: -10000, width: 1, height: 1, opacity: 0 }}
-        />
-        <input
-          type="password"
-          name="password"
-          autoComplete="new-password"
-          tabIndex={-1}
-          aria-hidden="true"
-          style={{ position: "absolute", left: -10000, width: 1, height: 1, opacity: 0 }}
-        />
-        <input
-          // type=search + a non-credential name + autoComplete="off" disable
-          // Safari/Chrome's credential autofill, which was prefilling the
-          // user's email here and silently distorting the memory grid.
-          // The honeypot inputs above catch Chrome's eager fills first.
-          // data-* attrs cover password managers (1Password, Bitwarden,
-          // LastPass) too.
-          type="search"
-          name="everion-memory-q"
-          autoComplete="off"
-          data-1p-ignore
-          data-lpignore="true"
-          data-form-type="other"
-          value={searchInput}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search everything…"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontFamily: "var(--f-sans)",
-            fontSize: 13,
-            color: "var(--ink)",
-          }}
-        />
-        {searchInput && (
-          <button
-            onClick={() => onSearchChange("")}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--ink-faint)",
-              padding: 0,
-              lineHeight: 1,
-              fontSize: 16,
-            }}
-            aria-label="Clear search"
-          >
-            ×
-          </button>
-        )}
-      </div>
 
       {/* Navigation */}
       <nav

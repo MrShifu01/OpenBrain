@@ -309,7 +309,12 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     <div
       className="settings-root"
       style={{
-        minHeight: "100dvh",
+        // height (not min-height) is required so the flex-1 settings-body
+        // resolves to a definite height — the desktop nav's surface-low
+        // background needs that to extend to the bottom of the viewport.
+        // settings-content scrolls internally (overflowY: auto) when its
+        // content is taller than the viewport, so this doesn't clip.
+        height: "100dvh",
         background: "var(--bg)",
         fontFamily: "var(--f-sans)",
         display: "flex",

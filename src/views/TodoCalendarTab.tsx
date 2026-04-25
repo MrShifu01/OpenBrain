@@ -862,13 +862,12 @@ function WeekStrip({
 function MyDayList({
   todayKey,
   eventMap,
-  onSelect,
 }: {
   todayKey: string;
   eventMap: Record<string, CalEvent[]>;
-  onSelect: (key: string) => void;
 }) {
-  // Today + next 13 days that have events.
+  // Today + next 13 days that have events. Today is always shown so the
+  // page never collapses to "nothing".
   const buckets = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -879,7 +878,6 @@ function MyDayList({
       const key = toDateKey(d);
       const events = eventMap[key];
       if (events && events.length > 0) out.push({ key, date: d, events });
-      // Always include today even if empty so the layout doesn't look broken.
       else if (key === todayKey) out.push({ key, date: d, events: [] });
     }
     return out;
@@ -904,40 +902,87 @@ function MyDayList({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {buckets.map(({ key, date, events }) => {
         const isToday = key === todayKey;
+        const dayLabel = date.toLocaleDateString("en-ZA", { weekday: "long" });
+        const dateLabel = date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
         return (
-          <div key={key}>
-            <button
-              onClick={() => onSelect(key)}
+          <div
+            key={key}
+            className="cal-week-card"
+            style={{
+              background: isToday
+                ? "color-mix(in oklch, var(--ember-wash) 70%, var(--surface))"
+                : "var(--surface)",
+              border: isToday
+                ? "1px solid color-mix(in oklch, var(--ember) 32%, var(--line-soft))"
+                : "1px solid var(--line-soft)",
+              borderRadius: 16,
+              padding: 16,
+              boxShadow: "var(--lift-1)",
+              transition: "transform 180ms ease, box-shadow 180ms ease",
+              ...(isToday ? { borderLeft: "3px solid var(--ember)" } : {}),
+            }}
+          >
+            <div
+              className="f-sans"
               style={{
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                textAlign: "left",
-                marginBottom: 10,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: events.length > 0 ? 12 : 8,
               }}
             >
-              <div className="f-sans" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: isToday ? "var(--ember)" : "var(--ink)",
+                }}
+              >
+                {dayLabel}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{dateLabel}</span>
+              {isToday && (
                 <span
                   style={{
-                    fontSize: 11,
+                    background: "var(--ember)",
+                    color: "var(--ember-ink)",
+                    borderRadius: 999,
+                    padding: "3px 8px 2px",
+                    fontSize: 9,
                     fontWeight: 700,
-                    letterSpacing: "0.14em",
+                    letterSpacing: "0.12em",
                     textTransform: "uppercase",
-                    color: isToday ? "var(--ember)" : "var(--ink-ghost)",
+                    lineHeight: 1,
                   }}
                 >
-                  {isToday ? "Today" : date.toLocaleDateString("en-ZA", { weekday: "long" })}
+                  Today
                 </span>
-                <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-                  {date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+              )}
+              {events.length > 0 && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 11,
+                    color: "var(--ink-ghost)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {events.length}
                 </span>
+              )}
+            </div>
+            {events.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {events.map((ev) => (
+                  <EventCard key={ev.id} event={ev} />
+                ))}
               </div>
-            </button>
-            {events.length === 0 ? (
+            ) : (
               <p
                 className="f-serif"
                 style={{
@@ -947,14 +992,8 @@ function MyDayList({
                   color: "var(--ink-ghost)",
                 }}
               >
-                Free day.
+                {isToday ? "Free day." : "Nothing scheduled."}
               </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} />
-                ))}
-              </div>
             )}
           </div>
         );
@@ -1125,7 +1164,7 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
             />
           )}
           {view === "myday" && (
-            <MyDayList todayKey={todayKey} eventMap={eventMap} onSelect={handleSelect} />
+            <MyDayList todayKey={todayKey} eventMap={eventMap} />
           )}
         </div>
 
