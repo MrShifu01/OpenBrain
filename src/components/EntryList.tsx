@@ -160,6 +160,24 @@ const EntryCard = memo(function EntryCard({
   const createdAt = (e as any).created_at || (e as any).createdAt;
   const showAdminFlags = isAdminSync() && !isVault;
 
+  // Concepts source priority:
+  //   1. entry.metadata.concepts — written by stepConcepts as soon as the
+  //      LLM extracts them, propagated via realtime UPDATEs. Always lives
+  //      with the entry, so pills show the moment enrichment finishes.
+  //   2. conceptMap[id] — the brain-wide aggregated graph, rebuilt
+  //      periodically. Used as a fallback for older entries whose metadata
+  //      predates the concepts-in-metadata convention.
+  const conceptLabels: string[] = (() => {
+    const meta = (e.metadata as any)?.concepts;
+    if (Array.isArray(meta) && meta.length) {
+      const labels = meta
+        .map((c: any) => (typeof c === "string" ? c : c?.label))
+        .filter((l: any): l is string => typeof l === "string" && l.length > 0);
+      if (labels.length) return labels;
+    }
+    return concepts ?? [];
+  })();
+
   const [swipeX, setSwipeX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -456,9 +474,9 @@ const EntryCard = memo(function EntryCard({
           </p>
         ) : null}
 
-        {concepts && concepts.length > 0 && (
+        {conceptLabels.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 14 }}>
-            {concepts.slice(0, 3).map((c) => (
+            {conceptLabels.slice(0, 3).map((c) => (
               <span
                 key={c}
                 className="design-chip f-sans"

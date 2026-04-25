@@ -241,13 +241,6 @@ async function handleCapture({ req, res, user, req_id }: HandlerContext): Promis
     releaseIdempotency(user.id, idempotencyKey).catch(() => {});
   }
 
-  // Background merge detection (fire-and-forget)
-  if (response.ok && data?.id) {
-    detectAndStoreMerge(data.id, user.id).catch((err: any) =>
-      console.error("[capture:merge-detect]", err?.message),
-    );
-  }
-
   // Audit log (fire-and-forget)
   if (response.ok && data?.id) {
     fetch(`${SB_URL}/rest/v1/audit_log`, {
@@ -270,6 +263,16 @@ async function handleCapture({ req, res, user, req_id }: HandlerContext): Promis
   if (response.ok && data?.id) {
     await enrichInline(data.id, user.id).catch((err: any) =>
       console.error("[capture:enrich]", err?.message ?? err),
+    );
+  }
+
+  // Merge detection runs AFTER enrichInline so it has the full fingerprint
+  // (embedding, concepts, parsed metadata) available — the scorer relies on
+  // those signals to detect semantic duplicates that share no metadata
+  // fingerprint. Fire-and-forget — the user's response shouldn't wait on it.
+  if (response.ok && data?.id) {
+    detectAndStoreMerge(data.id, user.id).catch((err: any) =>
+      console.error("[capture:merge-detect]", err?.message),
     );
   }
 
