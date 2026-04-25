@@ -1,3 +1,13 @@
+// ============================================================
+// AI memory import (Claude / ChatGPT)
+// ============================================================
+//
+// Two-step paste-based import: copy a prompt into your AI of choice, paste
+// the JSON it returns here. Visually mirrors the file-based importers
+// below it (BulkImportPanel) so the whole "Imports" section reads as a
+// uniform set of cards rather than one bespoke flow + a stack of similar
+// ones.
+
 import { useState } from "react";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
@@ -57,7 +67,7 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
             p_title: entry.title.slice(0, 500),
             p_content: entry.content || "",
             p_type: entry.type || "note",
-            p_metadata: entry.metadata || {},
+            p_metadata: { ...(entry.metadata || {}), import_source: "ai_chat" },
             p_tags: entry.tags || [],
             ...(brainId ? { p_brain_id: brainId } : {}),
           }),
@@ -93,72 +103,79 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div>
-        <div className="micro" style={{ marginBottom: 8 }}>
-          Step 1 — copy this prompt into Claude or ChatGPT
+        <div className="micro" style={{ marginBottom: 4 }}>
+          Claude / ChatGPT
         </div>
-        <SettingsButton onClick={copyPrompt}>{copied ? "✓ Copied!" : "Copy prompt"}</SettingsButton>
-      </div>
-
-      <div>
-        <div className="micro" style={{ marginBottom: 8 }}>
-          Step 2 — paste the JSON result here
-        </div>
-        <textarea
-          value={json}
-          onChange={(e) => {
-            setJson(e.target.value);
-            setError(null);
-            setResult(null);
-          }}
-          rows={5}
-          placeholder="Paste the JSON array the AI returned here…"
-          className="f-serif"
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            fontSize: 13,
-            lineHeight: 1.55,
-            resize: "vertical",
-            padding: "10px 12px",
-            color: "var(--ink)",
-            background: "var(--surface-low)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 10,
-            outline: "none",
-            fontStyle: json ? "normal" : "italic",
-          }}
-        />
-      </div>
-
-      {error && (
-        <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>
-          {error}
-        </p>
-      )}
-      {result && (
         <p
+          className="f-serif"
+          style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}
+        >
+          Bring in what your AI already remembers about you. Copy the prompt, paste it into
+          a Claude or ChatGPT chat, then paste the JSON it returns below.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <SettingsButton onClick={copyPrompt}>
+          {copied ? "Copied" : "Copy prompt"}
+        </SettingsButton>
+        <SettingsButton onClick={handleImport} disabled={!json.trim() || importing}>
+          {importing ? "Importing…" : "Import memories"}
+        </SettingsButton>
+      </div>
+
+      <textarea
+        value={json}
+        onChange={(e) => {
+          setJson(e.target.value);
+          setError(null);
+          setResult(null);
+        }}
+        rows={3}
+        placeholder="Paste the JSON array the AI returned here…"
+        className="f-sans"
+        style={{
+          width: "100%",
+          boxSizing: "border-box",
+          fontSize: 12,
+          lineHeight: 1.55,
+          resize: "vertical",
+          padding: "8px 10px",
+          color: "var(--ink)",
+          background: "var(--surface-low)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 8,
+          outline: "none",
+          fontFamily: "var(--f-mono, var(--f-sans))",
+        }}
+      />
+
+      {(error || result) && (
+        <div
           className="f-sans"
           style={{
             fontSize: 12,
-            color: result.failed > 0 ? "var(--ember)" : "var(--moss)",
-            margin: 0,
+            padding: "8px 12px",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            background: "var(--surface-low)",
+            color: error
+              ? "var(--blood)"
+              : result && result.failed > 0
+                ? "var(--ember)"
+                : "var(--moss)",
           }}
         >
-          {result.imported} {result.imported === 1 ? "memory" : "memories"} imported
-          {result.failed > 0 ? `, ${result.failed} failed` : ""}
-        </p>
+          {error
+            ? error
+            : result &&
+              `${result.imported} ${result.imported === 1 ? "memory" : "memories"} imported${
+                result.failed > 0 ? `, ${result.failed} failed` : ""
+              }`}
+        </div>
       )}
-
-      <button
-        onClick={handleImport}
-        disabled={!json.trim() || importing}
-        className="design-btn-primary press"
-        style={{ width: "100%", opacity: !json.trim() || importing ? 0.4 : 1 }}
-      >
-        {importing ? "Importing…" : "Import memories"}
-      </button>
     </div>
   );
 }

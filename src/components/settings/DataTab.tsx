@@ -238,19 +238,19 @@ export default function DataTab({ brainId, activeBrain }: Props) {
 
       <SettingsRow
         label="Imports"
-        hint="bring in memories claude or chatgpt already know about you."
+        hint="bring in everything you've already written down — anywhere else."
       >
         <SettingsButton onClick={() => setImportsOpen((v) => !v)}>
           {importsOpen ? "Done" : "Manage"}
         </SettingsButton>
       </SettingsRow>
       <SettingsExpand open={importsOpen}>
-        <MemoryImportPanel brainId={brainId} />
         {brainId && (
           <Suspense
             fallback={<div style={{ fontSize: 12, color: "var(--ink-faint)" }}>Loading…</div>}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <MemoryImportPanel brainId={brainId} />
               <GoogleKeepImportPanel brainId={brainId} />
               <ObsidianImportPanel brainId={brainId} />
               <NotionImportPanel brainId={brainId} />
