@@ -150,10 +150,13 @@ async function stepParse(entry: Entry, cfg: AICall): Promise<Record<string, any>
       enrichment: { ...(meta.enrichment ?? {}), parsed: true },
     };
   }
-  // LLM returned unparseable / off-shape output. Treat the call as a no-op
-  // for the parse step, but if the entry has at least a title + some content
-  // we can still mark it parsed (it's structurally complete).
-  if (entry.title && (entry.content ?? "").length > 10) {
+  // LLM returned unparseable / off-shape output. The parse step is best-effort
+  // enrichment — for typed entries (todo, event, contact) the client already
+  // provided structure, and short/empty content is fine. As long as the entry
+  // has a title we mark parsed=true so it isn't stuck pending forever. Without
+  // this, a fresh todo with empty content sits with the P chip red until the
+  // daily cron and never resolves.
+  if (entry.title) {
     return { ...meta, enrichment: { ...(meta.enrichment ?? {}), parsed: true } };
   }
   return null;
@@ -226,6 +229,13 @@ function buildEntryText(entry: { title: string; content: string | null; tags: st
   return `${entry.title}${tagStr}\n${entry.content ?? ""}`.trim();
 }
 
+// Pgvector column on entries.embedding is fixed at vector(768). Both providers
+// must return a 768-dim array — Gemini via outputDimensionality, OpenAI via the
+// dimensions param (only valid for text-embedding-3-* models). A length
+// mismatch produces a silent PostgREST 400 on the PATCH that writes the
+// vector, which leaves embedding_status='pending' forever.
+const EMBED_DIM = 768;
+
 async function generateEmbedding(text: string, embed: EmbedConfig): Promise<number[]> {
   if (embed.provider === "gemini") {
     const r = await fetch(
@@ -236,6 +246,7 @@ async function generateEmbedding(text: string, embed: EmbedConfig): Promise<numb
         body: JSON.stringify({
           model: `models/${embed.model}`,
           content: { parts: [{ text }] },
+          outputDimensionality: EMBED_DIM,
         }),
       },
     );
@@ -243,18 +254,24 @@ async function generateEmbedding(text: string, embed: EmbedConfig): Promise<numb
     const d: any = await r.json();
     const values: number[] | undefined = d?.embedding?.values;
     if (!Array.isArray(values)) throw new Error("Gemini embed: missing values");
+    if (values.length !== EMBED_DIM) {
+      throw new Error(`Gemini embed: got ${values.length} dims, expected ${EMBED_DIM}`);
+    }
     return values;
   }
   // OpenAI
   const r = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: { Authorization: `Bearer ${embed.apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: embed.model, input: text }),
+    body: JSON.stringify({ model: embed.model, input: text, dimensions: EMBED_DIM }),
   });
   if (!r.ok) throw new Error(`OpenAI embed HTTP ${r.status}: ${await r.text().catch(() => "")}`);
   const d: any = await r.json();
   const values: number[] | undefined = d?.data?.[0]?.embedding;
   if (!Array.isArray(values)) throw new Error("OpenAI embed: missing values");
+  if (values.length !== EMBED_DIM) {
+    throw new Error(`OpenAI embed: got ${values.length} dims, expected ${EMBED_DIM}`);
+  }
   return values;
 }
 
@@ -274,7 +291,7 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
   }
   try {
     const values = await generateEmbedding(text, embed);
-    await fetch(
+    const r = await fetch(
       `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`,
       {
         method: "PATCH",
@@ -288,6 +305,12 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
         }),
       },
     );
+    if (!r.ok) {
+      // Without this, a PostgREST 400 (e.g. dim mismatch, RLS reject, schema
+      // drift) is swallowed — the response object resolves normally but the
+      // row never updates, so embedding_status stays at 'pending' forever.
+      throw new Error(`embed PATCH HTTP ${r.status}: ${await r.text().catch(() => "")}`);
+    }
   } catch (err: any) {
     console.error("[enrich:embed]", err?.message ?? err);
     await fetch(

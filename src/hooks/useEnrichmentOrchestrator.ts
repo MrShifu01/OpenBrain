@@ -123,10 +123,15 @@ export function useEnrichmentOrchestrator({
         (payload: any) => {
           const row = payload?.new;
           if (!row?.id) return;
-          // Apply enrichment fields that the server just wrote
+          // Mirror every field the chips and wave-dot read so the UI updates
+          // live as the server PATCHes through stepParse → stepInsight →
+          // stepConcepts → stepEmbed. Without metadata + embedding_status,
+          // the cards stay stuck in their initial render until refresh.
           const patch: Record<string, unknown> = {};
           if (row.status !== undefined) patch.status = row.status;
           if (row.embedded_at !== undefined) patch.embedded_at = row.embedded_at;
+          if (row.embedding_status !== undefined) patch.embedding_status = row.embedding_status;
+          if (row.metadata !== undefined) patch.metadata = row.metadata;
           if (Object.keys(patch).length > 0) updateAdapter(row.id, patch as Partial<Entry>);
           // Run a client pass in case this entry just became partially enriched
           runClientPass().catch(() => {});
