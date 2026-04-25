@@ -32,6 +32,7 @@ export default withAuth(
     if (ctx.req.method === "POST" && action === "enrich-batch")          return handleEnrichBatch(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill") return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")   return handleRetryFailed(ctx);
+    if (ctx.req.method === "POST" && action === "empty-trash")           return handleEmptyTrash(ctx);
     if (ctx.req.method === "POST" && action === "merge_into")            return handleMergeInto(ctx);
     if (ctx.req.method === "GET")    return handleGet(ctx);
     if (ctx.req.method === "DELETE") return handleDelete(ctx);
@@ -629,6 +630,62 @@ async function handleRetryFailed({ req, res, user }: HandlerContext): Promise<vo
   const reset: any[] = await r.json();
   const result = await enrichBrain(user.id, brain_id, 10);
   res.status(200).json({ reset: reset.length, ...result });
+}
+
+// ── POST /api/entries?action=empty-trash ──
+// Hard-deletes every soft-deleted entry the user owns. Returns the deleted
+// IDs so the client (and the audit log) can confirm the count. FK cascades
+// take care of links / tags / collection memberships; the brain-level
+// concept_graphs row isn't a foreign key target, so we strip the deleted
+// IDs from there in a follow-up pass per affected brain.
+async function handleEmptyTrash({ res, user, req_id }: HandlerContext): Promise<void> {
+  // Pull the soon-to-be-deleted ids first so we can clean concept_graphs
+  // afterwards. PostgREST DELETE with `Prefer: return=representation`
+  // returns the deleted rows so we don't need a separate select.
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=not.is.null&select=id,brain_id`,
+    {
+      method: "DELETE",
+      headers: sbHeaders({ Prefer: "return=representation" }),
+    },
+  );
+  if (!r.ok) {
+    const err = await r.text().catch(() => String(r.status));
+    console.error(`[empty-trash] HTTP ${r.status}: ${err}`);
+    throw new ApiError(502, "Failed to clear trash");
+  }
+  const deleted: { id: string; brain_id: string }[] = await r.json();
+
+  // One pass per affected brain — concept_graphs is keyed by brain_id, and
+  // a single PATCH per brain is cheaper than per-entry. Group ids first.
+  const byBrain = new Map<string, string[]>();
+  for (const row of deleted) {
+    const list = byBrain.get(row.brain_id);
+    if (list) list.push(row.id);
+    else byBrain.set(row.brain_id, [row.id]);
+  }
+  for (const [brainId, ids] of byBrain) {
+    for (const entryId of ids) {
+      stripDeletedFromConceptGraph(brainId, entryId).catch((err: any) =>
+        console.error("[empty-trash:concept-graph]", err?.message ?? err),
+      );
+    }
+  }
+
+  console.log(`[audit] EMPTY_TRASH user=${user.id} count=${deleted.length}`);
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "empty_trash",
+      resource_id: null,
+      request_id: req_id,
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({ deleted: deleted.length });
 }
 
 // ── POST /api/entries?action=merge_into — merge source entry into target, then soft-delete source ──
