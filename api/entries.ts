@@ -472,7 +472,9 @@ async function handleEnrichBatch({ req, res, user }: HandlerContext): Promise<vo
   const { brain_id, batch_size } = req.body;
   if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
   await requireBrainAccess(user.id, brain_id);
-  const batchSize = typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 10) : 5;
+  // Cap raised from 10 → 50 so post-import enrichment (Keep / Takeout
+  // bulk imports) drains in a reasonable number of polling rounds.
+  const batchSize = typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 50) : 5;
   const result = await enrichBrain(user.id, brain_id, batchSize);
   res.status(200).json(result);
 }
