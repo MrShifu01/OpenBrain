@@ -1,10 +1,24 @@
-import { useState, useMemo } from "react";
+// ============================================================
+// Calendar (used by Todos → Calendar tab)
+// ============================================================
+//
+// Premium iOS-inspired calendar that adapts to all three design families
+// (dusk / paper / bronze) × both modes via CSS tokens. The spec's hard-coded
+// "gold" palette is implemented through --ember + --ember-wash so colour
+// shifts follow whichever family/mode is active.
+//
+// Three views: My Day (today + upcoming agenda), Week (7-column day strip),
+// Calendar (month grid). Selected day surfaces in a right-side panel on
+// desktop and a bottom sheet on mobile.
+
+import { useState, useMemo, useEffect, useRef } from "react";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import type { Entry } from "../types";
 import { type ExternalCalEvent, toDateKey, addRecurring, isDone, extractDates } from "./todoUtils";
 import QuickAdd from "./TodoQuickAdd";
 
-/* ─── RBC event shape ─── */
+// ── Types ─────────────────────────────────────────────────────────────────
+
 interface CalEvent {
   id: string;
   title: string;
@@ -13,6 +27,35 @@ interface CalEvent {
   allDay: boolean;
   source: "entry" | "google" | "microsoft";
   entry?: Entry;
+}
+
+type ViewMode = "myday" | "week" | "calendar";
+
+interface Props {
+  entries: Entry[];
+  externalEvents: ExternalCalEvent[];
+  brainId?: string;
+  onAdded: () => void;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+const DAY_ABBRS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/** Internal todos use the ember accent (adapts per family). External
+ *  events use a fixed blue that reads as "from another calendar" across
+ *  every family — different enough from ember to be unambiguous. */
+function eventSourceColor(source: CalEvent["source"]): string {
+  if (source === "entry") return "var(--ember)";
+  return "oklch(58% 0.13 248)";
+}
+
+function eventSourceKind(source: CalEvent["source"]): "internal" | "external" {
+  return source === "entry" ? "internal" : "external";
 }
 
 function entriesToCalEvents(entries: Entry[]): CalEvent[] {
@@ -46,28 +89,6 @@ function externalToCalEvents(exts: ExternalCalEvent[]): CalEvent[] {
   }));
 }
 
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-const DAY_ABBRS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function eventSourceColor(source: CalEvent["source"]): string {
-  if (source === "entry") return "var(--ember)";
-  if (source === "google") return "oklch(54% 0.13 248)";
-  return "oklch(52% 0.10 192)";
-}
-
 function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const first = new Date(year, month, 1);
   const total = new Date(year, month + 1, 0).getDate();
@@ -82,162 +103,857 @@ function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   return rows;
 }
 
-function DayDetailPanel({
-  dateKey,
-  events,
-  onClose,
-}: {
-  dateKey: string;
-  events: CalEvent[];
-  onClose: () => void;
-}) {
-  const date = new Date(dateKey + "T00:00:00");
-  const label = date.toLocaleDateString("en-ZA", {
+function buildWeek(anchor: Date): Date[] {
+  const day = (anchor.getDay() + 6) % 7; // Mon = 0
+  const start = new Date(anchor);
+  start.setDate(anchor.getDate() - day);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
+function formatDayHeader(d: Date): string {
+  return d.toLocaleDateString("en-ZA", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+}
+
+function useIsDesktop(breakpoint = 1024): boolean {
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window === "undefined" ? false : window.innerWidth >= breakpoint,
+  );
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= breakpoint);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+  return isDesktop;
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────
+
+function ChevronButton({
+  direction,
+  onClick,
+  ariaLabel,
+}: {
+  direction: "left" | "right";
+  onClick: () => void;
+  ariaLabel: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className="press"
+      style={{
+        height: 32,
+        width: 32,
+        borderRadius: 999,
+        border: 0,
+        background: "transparent",
+        color: "var(--ink-soft)",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        transition: "background 180ms",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
+      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+    >
+      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d={direction === "left" ? "M15.75 19.5L8.25 12l7.5-7.5" : "M8.25 4.5l7.5 7.5-7.5 7.5"}
+        />
+      </svg>
+    </button>
+  );
+}
+
+function CalendarHeader({
+  title,
+  onPrev,
+  onNext,
+  onToday,
+}: {
+  title: string;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}) {
   return (
     <div
-      className="space-y-3 rounded-2xl border p-4"
-      style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 10,
+      }}
     >
-      <div className="flex items-center justify-between">
-        <p
-          className="text-sm font-semibold"
-          style={{ color: "var(--ink)", fontFamily: "var(--f-sans)" }}
+      <ChevronButton direction="left" onClick={onPrev} ariaLabel="Previous" />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, justifyContent: "center" }}>
+        <h2
+          className="f-serif"
+          style={{
+            fontSize: 18,
+            fontWeight: 500,
+            color: "var(--ink)",
+            letterSpacing: "-0.01em",
+            margin: 0,
+            textAlign: "center",
+          }}
         >
-          {label}
-        </p>
+          {title}
+        </h2>
         <button
-          onClick={onClose}
-          className="flex h-6 w-6 items-center justify-center rounded-full text-sm transition-colors"
-          style={{ color: "var(--ink-ghost)", background: "var(--surface-high)" }}
-          aria-label="Close"
+          onClick={onToday}
+          className="press f-sans"
+          style={{
+            background: "var(--ember-wash)",
+            color: "var(--ember)",
+            border: 0,
+            borderRadius: 999,
+            padding: "5px 12px",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          ×
+          Today
         </button>
       </div>
+      <ChevronButton direction="right" onClick={onNext} ariaLabel="Next" />
+    </div>
+  );
+}
+
+function SegmentedControl({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
+  const options: Array<{ id: ViewMode; label: string }> = [
+    { id: "myday", label: "My Day" },
+    { id: "week", label: "Week" },
+    { id: "calendar", label: "Calendar" },
+  ];
+  return (
+    <div
+      role="tablist"
+      style={{
+        display: "inline-flex",
+        padding: 3,
+        background: "var(--surface-low)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 10,
+        gap: 2,
+      }}
+    >
+      {options.map((opt) => {
+        const active = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(opt.id)}
+            className="press f-sans"
+            style={{
+              border: 0,
+              padding: "7px 16px",
+              minHeight: 30,
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              cursor: "pointer",
+              background: active ? "var(--ember)" : "transparent",
+              color: active ? "var(--ember-ink)" : "var(--ink-faint)",
+              transition: "background 180ms, color 180ms",
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EventDots({ events }: { events: CalEvent[] }) {
+  if (events.length === 0) return null;
+  const visible = events.slice(0, 3);
+  const overflow = events.length - visible.length;
+  return (
+    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+      {visible.map((ev, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: 999,
+            background: eventSourceColor(ev.source),
+          }}
+        />
+      ))}
+      {overflow > 0 && (
+        <span
+          aria-hidden="true"
+          style={{ fontSize: 9, color: "var(--ink-ghost)", lineHeight: 1, marginLeft: 2 }}
+        >
+          +{overflow}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DayCell({
+  date,
+  events,
+  isToday,
+  isSelected,
+  onClick,
+}: {
+  date: Date | null;
+  events: CalEvent[];
+  isToday: boolean;
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  if (!date) {
+    return (
+      <div
+        aria-hidden="true"
+        style={{
+          minHeight: 80,
+          borderRadius: 14,
+          background: "transparent",
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      onClick={onClick}
+      className="cal-day press"
+      data-today={isToday || undefined}
+      data-selected={isSelected || undefined}
+      style={{
+        minHeight: 80,
+        borderRadius: 14,
+        padding: 10,
+        background: isSelected ? "var(--ember-wash)" : "var(--surface)",
+        // 2px ember border for today; transparent 2px on others so layout
+        // doesn't shift between today and any other cell.
+        border: isToday
+          ? "2px solid var(--ember)"
+          : "2px solid transparent",
+        boxShadow: "var(--lift-1)",
+        textAlign: "left",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        transition: "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
+      }}
+    >
+      <span
+        className="f-sans"
+        style={{
+          fontSize: 14,
+          fontWeight: 600,
+          color: isSelected ? "var(--ember)" : "var(--ink)",
+          lineHeight: 1,
+        }}
+      >
+        {date.getDate()}
+      </span>
+      <div style={{ flex: 1 }} />
+      <EventDots events={events} />
+    </button>
+  );
+}
+
+function EventCard({ event }: { event: CalEvent }) {
+  const color = eventSourceColor(event.source);
+  const kind = eventSourceKind(event.source);
+  const time = event.allDay ? "All day" : `${formatTime(event.start)} – ${formatTime(event.end)}`;
+  const sourceLabel =
+    event.source === "entry" ? "Todo" : event.source === "google" ? "Google" : "Outlook";
+  return (
+    <div
+      style={{
+        background: "var(--surface-low)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 12,
+        padding: 12,
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: color,
+          marginTop: 7,
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p
+          className="f-sans"
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontWeight: 500,
+            color: "var(--ink)",
+            lineHeight: 1.35,
+            wordBreak: "break-word",
+          }}
+        >
+          {event.title}
+        </p>
+        <div
+          className="f-sans"
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            marginTop: 4,
+            fontSize: 11,
+            color: "var(--ink-faint)",
+          }}
+        >
+          <span>{time}</span>
+          <span aria-hidden="true">·</span>
+          <span
+            style={{
+              padding: "1px 7px",
+              borderRadius: 999,
+              background: kind === "internal" ? "var(--ember-wash)" : "color-mix(in oklch, oklch(58% 0.13 248) 14%, var(--surface-high))",
+              color: kind === "internal" ? "var(--ember)" : "oklch(54% 0.13 248)",
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}
+          >
+            {sourceLabel}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DayDetailContent({
+  date,
+  events,
+  onClose,
+}: {
+  date: Date;
+  events: CalEvent[];
+  onClose?: () => void;
+}) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+        <div>
+          <p
+            className="f-sans"
+            style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--ink-ghost)",
+            }}
+          >
+            {events.length === 0 ? "Free" : `${events.length} ${events.length === 1 ? "event" : "events"}`}
+          </p>
+          <h3
+            className="f-serif"
+            style={{
+              margin: "4px 0 0",
+              fontSize: 20,
+              fontWeight: 500,
+              color: "var(--ink)",
+              letterSpacing: "-0.01em",
+              lineHeight: 1.2,
+            }}
+          >
+            {formatDayHeader(date)}
+          </h3>
+        </div>
+        {onClose && (
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="press"
+            style={{
+              height: 28,
+              width: 28,
+              borderRadius: 999,
+              border: 0,
+              background: "var(--surface-low)",
+              color: "var(--ink-soft)",
+              cursor: "pointer",
+              fontSize: 14,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        )}
+      </div>
       {events.length === 0 ? (
-        <p className="py-4 text-center text-xs" style={{ color: "var(--ink-ghost)" }}>
-          Nothing scheduled
+        <p
+          className="f-serif"
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontStyle: "italic",
+            color: "var(--ink-ghost)",
+            padding: "12px 0",
+          }}
+        >
+          Nothing scheduled.
         </p>
       ) : (
-        <div className="space-y-2">
-          {events.map((ev) => {
-            const color = eventSourceColor(ev.source);
-            const timeStr = ev.allDay
-              ? "All day"
-              : `${ev.start.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}–${ev.end.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" })}`;
-            const srcLabel =
-              ev.source === "entry" ? "Todo" : ev.source === "google" ? "Google" : "Outlook";
-            return (
-              <div
-                key={ev.id}
-                className="flex items-start gap-3 rounded-xl p-3"
-                style={{ background: `color-mix(in oklch, ${color} 6%, var(--surface-low))` }}
-              >
-                <div
-                  className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                  style={{ background: color }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm leading-snug font-medium" style={{ color: "var(--ink)" }}>
-                    {ev.title}
-                  </p>
-                  <p className="mt-0.5 text-[11px]" style={{ color: "var(--ink-faint)" }}>
-                    {timeStr} · {srcLabel}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {events.map((ev) => (
+            <EventCard key={ev.id} event={ev} />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
-function AgendaList({
-  days,
-  today,
-}: {
-  days: { key: string; date: Date; events: CalEvent[] }[];
-  today: string;
-}) {
-  if (days.length === 0) {
-    return (
-      <div className="py-12 text-center" style={{ color: "var(--ink-ghost)" }}>
-        <p className="text-sm">No upcoming events in the next 60 days</p>
-      </div>
-    );
-  }
+function SidePanel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="space-y-4">
-      {days.map(({ key, date, events }) => {
-        const isToday = key === today;
+    <aside
+      style={{
+        width: 320,
+        flexShrink: 0,
+        alignSelf: "flex-start",
+        position: "sticky",
+        top: 16,
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 16,
+        padding: 18,
+        boxShadow: "var(--lift-1)",
+      }}
+    >
+      {children}
+    </aside>
+  );
+}
+
+function BottomSheet({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  // Lock body scroll while sheet is open.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
+  if (!open) return null;
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 60,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        animation: "cal-sheet-fade 200ms ease",
+      }}
+    >
+      <button
+        aria-label="Close"
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--scrim)",
+          border: 0,
+          cursor: "pointer",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          background: "var(--surface)",
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          padding: "14px 20px calc(28px + env(safe-area-inset-bottom))",
+          boxShadow: "var(--lift-3)",
+          maxHeight: "85vh",
+          overflowY: "auto",
+          animation: "cal-sheet-slide 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            width: 40,
+            height: 4,
+            background: "var(--line)",
+            borderRadius: 2,
+            margin: "0 auto 12px",
+          }}
+        />
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function FloatingActionButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="Add todo"
+      className="press"
+      style={{
+        position: "fixed",
+        right: 24,
+        bottom: "calc(96px + env(safe-area-inset-bottom))",
+        height: 52,
+        width: 52,
+        borderRadius: 999,
+        background: "var(--ember)",
+        color: "var(--ember-ink)",
+        border: 0,
+        boxShadow: "var(--lift-3)",
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 40,
+      }}
+    >
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+      </svg>
+    </button>
+  );
+}
+
+// ── View bodies ───────────────────────────────────────────────────────────
+
+function MonthGrid({
+  navDate,
+  selectedKey,
+  todayKey,
+  eventMap,
+  onSelect,
+}: {
+  navDate: Date;
+  selectedKey: string | null;
+  todayKey: string;
+  eventMap: Record<string, CalEvent[]>;
+  onSelect: (key: string) => void;
+}) {
+  const grid = useMemo(
+    () => buildMonthGrid(navDate.getFullYear(), navDate.getMonth()),
+    [navDate],
+  );
+  return (
+    <div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        {DAY_ABBRS.map((d) => (
+          <div
+            key={d}
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              color: "var(--ink-ghost)",
+              textAlign: "center",
+              padding: "4px 0",
+            }}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gap: 8,
+        }}
+      >
+        {grid.flat().map((day, i) => {
+          if (!day) return <DayCell key={`empty-${i}`} date={null} events={[]} isToday={false} isSelected={false} onClick={() => {}} />;
+          const key = toDateKey(day);
+          return (
+            <DayCell
+              key={key}
+              date={day}
+              events={eventMap[key] || []}
+              isToday={key === todayKey}
+              isSelected={key === selectedKey}
+              onClick={() => onSelect(key)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekStrip({
+  navDate,
+  selectedKey,
+  todayKey,
+  eventMap,
+  onSelect,
+}: {
+  navDate: Date;
+  selectedKey: string | null;
+  todayKey: string;
+  eventMap: Record<string, CalEvent[]>;
+  onSelect: (key: string) => void;
+}) {
+  const days = useMemo(() => buildWeek(navDate), [navDate]);
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+        gap: 8,
+      }}
+    >
+      {days.map((d) => {
+        const key = toDateKey(d);
+        const dayEvents = eventMap[key] || [];
+        const isToday = key === todayKey;
+        const isSel = key === selectedKey;
         return (
-          <div key={key} className="flex gap-4">
-            <div className="w-14 shrink-0 pt-0.5 text-right">
-              <p
-                className="text-xs leading-tight font-semibold"
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="cal-day press"
+            data-today={isToday || undefined}
+            data-selected={isSel || undefined}
+            style={{
+              borderRadius: 14,
+              padding: 12,
+              background: isSel ? "var(--ember-wash)" : "var(--surface)",
+              border: isToday ? "2px solid var(--ember)" : "2px solid transparent",
+              boxShadow: "var(--lift-1)",
+              textAlign: "left",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              minHeight: 220,
+              transition: "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
+            }}
+          >
+            <div className="f-sans" style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span
                 style={{
-                  color: isToday ? "var(--ember)" : "var(--ink-soft)",
-                  fontFamily: "var(--f-sans)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: isSel ? "var(--ember)" : "var(--ink-ghost)",
                 }}
               >
-                {isToday ? "Today" : date.toLocaleDateString("en-ZA", { weekday: "short" })}
-              </p>
-              {!isToday && (
-                <p className="text-[10px] leading-tight" style={{ color: "var(--ink-ghost)" }}>
-                  {date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
-                </p>
+                {DAY_ABBRS[(d.getDay() + 6) % 7]}
+              </span>
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: isSel ? "var(--ember)" : "var(--ink)",
+                  marginLeft: "auto",
+                }}
+              >
+                {d.getDate()}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {dayEvents.slice(0, 4).map((ev) => (
+                <div
+                  key={ev.id}
+                  className="f-sans"
+                  style={{
+                    background: ev.source === "entry"
+                      ? "var(--ember-wash)"
+                      : "color-mix(in oklch, oklch(58% 0.13 248) 12%, var(--surface-high))",
+                    color: ev.source === "entry" ? "var(--ember)" : "oklch(54% 0.13 248)",
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={ev.title}
+                >
+                  {ev.title}
+                </div>
+              ))}
+              {dayEvents.length > 4 && (
+                <span className="f-sans" style={{ fontSize: 10, color: "var(--ink-ghost)" }}>
+                  +{dayEvents.length - 4} more
+                </span>
               )}
             </div>
-            <div
-              className="min-w-0 flex-1 space-y-1.5 border-l pl-4"
-              style={{ borderColor: isToday ? "var(--ember)" : "var(--line-soft)" }}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function MyDayList({
+  todayKey,
+  eventMap,
+  onSelect,
+}: {
+  todayKey: string;
+  eventMap: Record<string, CalEvent[]>;
+  onSelect: (key: string) => void;
+}) {
+  // Today + next 13 days that have events.
+  const buckets = useMemo(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const out: { key: string; date: Date; events: CalEvent[] }[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = toDateKey(d);
+      const events = eventMap[key];
+      if (events && events.length > 0) out.push({ key, date: d, events });
+      // Always include today even if empty so the layout doesn't look broken.
+      else if (key === todayKey) out.push({ key, date: d, events: [] });
+    }
+    return out;
+  }, [eventMap, todayKey]);
+
+  if (buckets.length === 0) {
+    return (
+      <p
+        className="f-serif"
+        style={{
+          fontSize: 14,
+          fontStyle: "italic",
+          color: "var(--ink-ghost)",
+          padding: "32px 0",
+          textAlign: "center",
+          margin: 0,
+        }}
+      >
+        Nothing in the next two weeks. A clean run.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {buckets.map(({ key, date, events }) => {
+        const isToday = key === todayKey;
+        return (
+          <div key={key}>
+            <button
+              onClick={() => onSelect(key)}
+              style={{
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+                marginBottom: 10,
+              }}
             >
-              {events.map((ev) => {
-                const color = eventSourceColor(ev.source);
-                return (
-                  <div
-                    key={ev.id}
-                    className="flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-2"
-                    style={{ background: "var(--surface)" }}
-                  >
-                    <div
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                      style={{ background: color }}
-                    />
-                    <span className="flex-1 truncate text-sm" style={{ color: "var(--ink)" }}>
-                      {ev.title}
-                    </span>
-                    {!ev.allDay && (
-                      <span className="shrink-0 text-[10px]" style={{ color: "var(--ink-ghost)" }}>
-                        {ev.start.toLocaleTimeString("en-ZA", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                    <span
-                      className="shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold tracking-wide uppercase"
-                      style={{
-                        background: `color-mix(in oklch, ${color} 12%, var(--surface-high))`,
-                        color,
-                      }}
-                    >
-                      {ev.source === "entry"
-                        ? "Todo"
-                        : ev.source === "google"
-                          ? "Google"
-                          : "Outlook"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+              <div className="f-sans" style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    color: isToday ? "var(--ember)" : "var(--ink-ghost)",
+                  }}
+                >
+                  {isToday ? "Today" : date.toLocaleDateString("en-ZA", { weekday: "long" })}
+                </span>
+                <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+                  {date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" })}
+                </span>
+              </div>
+            </button>
+            {events.length === 0 ? (
+              <p
+                className="f-serif"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontStyle: "italic",
+                  color: "var(--ink-ghost)",
+                }}
+              >
+                Free day.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {events.map((ev) => (
+                  <EventCard key={ev.id} event={ev} />
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
@@ -245,26 +961,25 @@ function AgendaList({
   );
 }
 
-interface Props {
-  entries: Entry[];
-  externalEvents: ExternalCalEvent[];
-  brainId?: string;
-  onAdded: () => void;
-}
+// ── Main component ────────────────────────────────────────────────────────
 
 export default function TodoCalendarTab({ entries, externalEvents, brainId, onAdded }: Props) {
   const [navDate, setNavDate] = useState(new Date());
-  const [selectedKey, setSelectedKey] = useState<string | null>(toDateKey(new Date()));
-  const [calView, setCalView] = useState<"month" | "agenda">("month");
+  const todayKey = toDateKey(new Date());
+  const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
+  const [view, setView] = useState<ViewMode>("calendar");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const isDesktop = useIsDesktop(1024);
+  const quickAddRef = useRef<HTMLDivElement | null>(null);
 
-  const year = navDate.getFullYear();
-  const month = navDate.getMonth();
-  const today = toDateKey(new Date());
-
+  // Build the event map once per inputs.
   const calEvents = useMemo(
     () => [...entriesToCalEvents(entries), ...externalToCalEvents(externalEvents)],
     [entries, externalEvents],
   );
+
+  const year = navDate.getFullYear();
+  const month = navDate.getMonth();
 
   const eventMap = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
@@ -273,7 +988,6 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
       if (!map[key]) map[key] = [];
       map[key].push(ev);
     });
-    // Add recurring entries for the currently viewed month
     addRecurring(
       entries,
       (key, e) => {
@@ -296,32 +1010,81 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
     return map;
   }, [calEvents, entries, year, month]);
 
-  const grid = useMemo(() => buildMonthGrid(year, month), [year, month]);
   const selectedEvents = selectedKey ? eventMap[selectedKey] || [] : [];
 
-  // Freeze "now" at mount so agenda computation is pure (React Compiler rule)
-  const [nowMs] = useState(() => Date.now());
-
-  const agendaDays = useMemo(() => {
-    const start = new Date(nowMs);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(nowMs + 60 * 86400000);
-    const days: { key: string; date: Date; events: CalEvent[] }[] = [];
-    const d = new Date(start);
-    while (d <= end) {
-      const key = toDateKey(d);
-      if (eventMap[key]?.length) days.push({ key, date: new Date(d), events: eventMap[key] });
-      d.setDate(d.getDate() + 1);
+  // ── Header navigation behaviour adapts to view mode ──
+  const handlePrev = () => {
+    if (view === "calendar") setNavDate(new Date(year, month - 1, 1));
+    else if (view === "week") {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() - 7);
+      setNavDate(d);
+    } else {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() - 1);
+      setNavDate(d);
     }
-    return days;
-  }, [eventMap, nowMs]);
+  };
+  const handleNext = () => {
+    if (view === "calendar") setNavDate(new Date(year, month + 1, 1));
+    else if (view === "week") {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() + 7);
+      setNavDate(d);
+    } else {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() + 1);
+      setNavDate(d);
+    }
+  };
+  const handleToday = () => {
+    const today = new Date();
+    setNavDate(today);
+    setSelectedKey(todayKey);
+  };
 
+  const headerTitle = useMemo(() => {
+    if (view === "calendar") return `${MONTH_NAMES[month]} ${year}`;
+    if (view === "week") {
+      const days = buildWeek(navDate);
+      const start = days[0];
+      const end = days[6];
+      const sameMonth = start.getMonth() === end.getMonth();
+      return sameMonth
+        ? `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}–${end.getDate()}, ${start.getFullYear()}`
+        : `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}`;
+    }
+    return navDate.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" });
+  }, [view, month, year, navDate]);
+
+  const handleSelect = (key: string) => {
+    setSelectedKey(key);
+    if (!isDesktop && view !== "myday") setSheetOpen(true);
+  };
+
+  const handleAddClick = () => {
+    quickAddRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Focus the first input inside QuickAdd if one exists.
+    const input = quickAddRef.current?.querySelector("input, textarea") as HTMLElement | null;
+    setTimeout(() => input?.focus(), 250);
+  };
+
+  // ── Render ──
   return (
-    <div className="space-y-4">
-      <QuickAdd brainId={brainId} onAdded={onAdded} />
+    <div className="cal-root" style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div ref={quickAddRef}>
+        <QuickAdd brainId={brainId} onAdded={onAdded} />
+      </div>
 
       {externalEvents.length === 0 && (
-        <p className="text-xs" style={{ color: "var(--ink-ghost)" }}>
+        <p
+          className="f-sans"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-ghost)",
+            margin: 0,
+          }}
+        >
           Connect Google or Outlook in{" "}
           <strong style={{ color: "var(--ink-soft)", fontWeight: 600 }}>
             Settings → Calendar Sync
@@ -330,235 +1093,99 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
         </p>
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setNavDate(new Date(year, month - 1, 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-          style={{ color: "var(--ink-soft)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          aria-label="Previous month"
-        >
-          <svg
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-        </button>
+      <CalendarHeader
+        title={headerTitle}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onToday={handleToday}
+      />
 
-        <h2
-          className="flex-1 text-base font-semibold"
-          style={{ color: "var(--ink)", fontFamily: "var(--f-serif)", letterSpacing: "-0.01em" }}
-        >
-          {MONTH_NAMES[month]} {year}
-        </h2>
-
-        <button
-          onClick={() => {
-            setNavDate(new Date());
-            setSelectedKey(today);
-          }}
-          className="rounded-full px-3 py-1 text-xs font-semibold"
-          style={{ background: "var(--ember-wash)", color: "var(--ember)" }}
-        >
-          Today
-        </button>
-
-        <button
-          onClick={() => setNavDate(new Date(year, month + 1, 1))}
-          className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
-          style={{ color: "var(--ink-soft)" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-          aria-label="Next month"
-        >
-          <svg
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-          </svg>
-        </button>
-
-        <div
-          className="flex overflow-hidden rounded-lg border"
-          style={{ borderColor: "var(--line-soft)" }}
-        >
-          {(["month", "agenda"] as const).map((v, i) => (
-            <button
-              key={v}
-              onClick={() => setCalView(v)}
-              className="px-3 py-1.5 text-xs font-medium capitalize transition-colors"
-              style={{
-                background: calView === v ? "var(--ember)" : "var(--surface)",
-                color: calView === v ? "var(--ember-ink)" : "var(--ink-soft)",
-                borderRight: i === 0 ? "1px solid var(--line-soft)" : "none",
-              }}
-            >
-              {v}
-            </button>
-          ))}
-        </div>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <SegmentedControl value={view} onChange={setView} />
       </div>
 
-      {/* Month view */}
-      {calView === "month" && (
-        <div>
-          <div className="lg:flex lg:gap-4">
-            <div className="min-w-0 flex-1">
-              <div className="mb-1.5 grid grid-cols-7">
-                {DAY_ABBRS.map((d) => (
-                  <div
-                    key={d}
-                    className="py-1 text-center text-[10px] font-bold tracking-widest uppercase"
-                    style={{ color: "var(--ink-ghost)" }}
-                  >
-                    {d}
-                  </div>
-                ))}
-              </div>
-              <div
-                className="overflow-hidden rounded-2xl border"
-                style={{ borderColor: "var(--line-soft)" }}
-              >
-                {grid.map((row, ri) => (
-                  <div
-                    key={ri}
-                    className="grid grid-cols-7"
-                    style={{ borderTop: ri > 0 ? "1px solid var(--line-soft)" : "none" }}
-                  >
-                    {row.map((day, ci) => {
-                      if (!day) {
-                        return (
-                          <div
-                            key={`e${ci}`}
-                            style={{
-                              background: "var(--surface-low)",
-                              borderLeft: ci > 0 ? "1px solid var(--line-soft)" : "none",
-                              minHeight: 64,
-                            }}
-                          />
-                        );
-                      }
-                      const key = toDateKey(day);
-                      const dayEvents = eventMap[key] || [];
-                      const isToday = key === today;
-                      const isSel = key === selectedKey;
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => setSelectedKey(isSel ? null : key)}
-                          className="flex flex-col p-1.5 text-left transition-colors sm:p-2"
-                          style={{
-                            background: isSel
-                              ? "color-mix(in oklch, var(--ember) 7%, var(--surface))"
-                              : "var(--surface)",
-                            borderLeft: ci > 0 ? "1px solid var(--line-soft)" : "none",
-                            minHeight: 64,
-                          }}
-                        >
-                          <div className="flex justify-end">
-                            <span
-                              className="flex h-[22px] w-[22px] items-center justify-center text-[11px] leading-none"
-                              style={{
-                                borderRadius: "50%",
-                                background: isToday ? "var(--ember)" : "transparent",
-                                color: isToday
-                                  ? "var(--ember-ink)"
-                                  : isSel
-                                    ? "var(--ember)"
-                                    : "var(--ink-soft)",
-                                fontWeight: isToday || isSel ? 700 : 500,
-                              }}
-                            >
-                              {day.getDate()}
-                            </span>
-                          </div>
-                          {/* Dots on all screen sizes */}
-                          {dayEvents.length > 0 && (
-                            <div className="mt-auto flex justify-center gap-0.5 pb-0.5">
-                              {dayEvents.slice(0, 3).map((ev, i) => (
-                                <div
-                                  key={i}
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ background: eventSourceColor(ev.source) }}
-                                />
-                              ))}
-                              {dayEvents.length > 3 && (
-                                <div
-                                  className="h-1.5 w-1.5 rounded-full"
-                                  style={{ background: "var(--ink-ghost)" }}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Desktop day panel */}
-            {selectedKey && (
-              <div className="hidden w-72 shrink-0 lg:block">
-                <DayDetailPanel
-                  dateKey={selectedKey}
-                  events={selectedEvents}
-                  onClose={() => setSelectedKey(null)}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Mobile day panel */}
-          {selectedKey && (
-            <div className="mt-3 lg:hidden">
-              <DayDetailPanel
-                dateKey={selectedKey}
-                events={selectedEvents}
-                onClose={() => setSelectedKey(null)}
-              />
-            </div>
+      <div className="cal-body">
+        <div className="cal-main">
+          {view === "calendar" && (
+            <MonthGrid
+              navDate={navDate}
+              selectedKey={selectedKey}
+              todayKey={todayKey}
+              eventMap={eventMap}
+              onSelect={handleSelect}
+            />
           )}
-
-          {/* Legend */}
-          {externalEvents.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-3">
-              {[
-                { label: "Todos", color: "var(--ember)" },
-                ...(externalEvents.some((e) => e.provider === "google")
-                  ? [{ label: "Google", color: "oklch(54% 0.13 248)" }]
-                  : []),
-                ...(externalEvents.some((e) => e.provider === "microsoft")
-                  ? [{ label: "Outlook", color: "oklch(52% 0.10 192)" }]
-                  : []),
-              ].map(({ label, color }) => (
-                <div key={label} className="flex items-center gap-1.5">
-                  <div className="h-2 w-2 rounded-full" style={{ background: color }} />
-                  <span className="text-[10px] font-medium" style={{ color: "var(--ink-faint)" }}>
-                    {label}
-                  </span>
-                </div>
-              ))}
-            </div>
+          {view === "week" && (
+            <WeekStrip
+              navDate={navDate}
+              selectedKey={selectedKey}
+              todayKey={todayKey}
+              eventMap={eventMap}
+              onSelect={handleSelect}
+            />
+          )}
+          {view === "myday" && (
+            <MyDayList todayKey={todayKey} eventMap={eventMap} onSelect={handleSelect} />
           )}
         </div>
+
+        {/* Desktop side panel — only for week + calendar views; My Day is its
+            own list and has its own day groupings. */}
+        {isDesktop && view !== "myday" && selectedKey && (
+          <SidePanel>
+            <DayDetailContent
+              date={parseISO(selectedKey + "T00:00:00")}
+              events={selectedEvents}
+              onClose={() => setSelectedKey(null)}
+            />
+          </SidePanel>
+        )}
+      </div>
+
+      {/* Mobile bottom sheet — same content, slide-up presentation. */}
+      {!isDesktop && view !== "myday" && (
+        <BottomSheet open={sheetOpen && !!selectedKey} onClose={() => setSheetOpen(false)}>
+          {selectedKey && (
+            <DayDetailContent
+              date={parseISO(selectedKey + "T00:00:00")}
+              events={selectedEvents}
+            />
+          )}
+        </BottomSheet>
       )}
 
-      {/* Agenda view */}
-      {calView === "agenda" && <AgendaList days={agendaDays} today={today} />}
+      <FloatingActionButton onClick={handleAddClick} />
+
+      <style>{`
+        .cal-day:hover {
+          transform: translateY(-1px);
+          box-shadow: var(--lift-2);
+        }
+        .cal-day:focus-visible {
+          outline: 2px solid var(--ember);
+          outline-offset: 2px;
+        }
+        .cal-body {
+          display: flex;
+          gap: 20px;
+          align-items: flex-start;
+        }
+        .cal-main {
+          flex: 1;
+          min-width: 0;
+        }
+        @keyframes cal-sheet-slide {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        @keyframes cal-sheet-fade {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @media (max-width: 1023px) {
+          .cal-body { flex-direction: column; }
+        }
+      `}</style>
     </div>
   );
 }
