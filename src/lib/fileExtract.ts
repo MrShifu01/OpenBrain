@@ -41,6 +41,9 @@ async function extractViaAI(file: File): Promise<string> {
   const toSend = file.type.startsWith("image/") ? await compressImage(file) : file;
   const fileData = await fileToBase64(toSend);
   const mimeType = toSend.type || file.type;
+  // The server now dispatches by filename + mimeType so the same endpoint
+  // handles images (Gemini), scanned PDFs (Gemini), and anything else local
+  // parsers can do (DOCX, XLSX, CSV, text). Sending filename lets it pick.
   const res = await authFetch("/api/extract-file", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -56,6 +59,51 @@ async function extractViaAI(file: File): Promise<string> {
   }
   const data = await res.json();
   return data.text || "";
+}
+
+async function extractXlsx(buffer: ArrayBuffer): Promise<string> {
+  const mod = await import("exceljs");
+  const ExcelJS = (mod as any).default ?? mod;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+  const out: string[] = [];
+  wb.eachSheet((sheet: any) => {
+    out.push(`=== ${sheet.name} ===`);
+    sheet.eachRow({ includeEmpty: false }, (row: any) => {
+      const cells: string[] = [];
+      row.eachCell({ includeEmpty: true }, (cell: any) => {
+        const v = cell.value;
+        let s: string;
+        if (v == null) s = "";
+        else if (typeof v === "object" && "text" in v) s = String(v.text ?? "");
+        else if (typeof v === "object" && "richText" in v)
+          s = (v.richText as Array<{ text: string }>).map((r) => r.text).join("");
+        else if (v instanceof Date) s = v.toISOString();
+        else s = String(v);
+        cells.push(s.replace(/\t/g, " "));
+      });
+      out.push(cells.join("\t"));
+    });
+    out.push("");
+  });
+  return out.join("\n").trim();
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<\/?(?:p|div|br|li|tr|h[1-6])\b[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 async function extractPDF(buffer: ArrayBuffer): Promise<string> {
@@ -94,15 +142,26 @@ export async function extractTextFromFile(file: File): Promise<string> {
   await new Promise((r) => setTimeout(r, 0));
   const name = file.name.toLowerCase();
 
+  // Images: only Gemini vision can OCR. Everything else has a local path.
   if (file.type.startsWith("image/")) {
     return extractViaAI(file);
   }
 
+  const buffer = await file.arrayBuffer();
+
+  // Excel — local exceljs parse preserves rows/columns as TSV-like text.
+  // Was hitting Gemini before, which truncated and lost structure.
   if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    try {
+      const text = await extractXlsx(buffer);
+      if (text.trim()) return text;
+    } catch {
+      // fall through to Gemini if exceljs can't read it (e.g. legacy .xls)
+    }
     return extractViaAI(file);
   }
 
-  const buffer = await file.arrayBuffer();
+  // PDF — pdfjs first; Gemini if no text layer (scanned/image-only).
   if (name.endsWith(".pdf") || file.type === "application/pdf") {
     try {
       const text = await extractPDF(buffer);
@@ -112,6 +171,16 @@ export async function extractTextFromFile(file: File): Promise<string> {
     }
     return extractViaAI(file);
   }
+
+  // DOCX — mammoth is local and reliable.
   if (name.endsWith(".docx")) return extractDocx(buffer);
+
+  // HTML — strip tags, keep readable prose. Raw HTML markup pollutes the
+  // entry content and is almost never what the user wanted.
+  if (name.endsWith(".html") || name.endsWith(".htm") || file.type === "text/html") {
+    return stripHtml(new TextDecoder().decode(buffer));
+  }
+
+  // Plain-text family (txt, md, json, csv, code, etc.) — direct decode.
   return new TextDecoder().decode(buffer);
 }

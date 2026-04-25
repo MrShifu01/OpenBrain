@@ -14,6 +14,7 @@ import {
 } from "./_lib/providers/select.js";
 import type { ProviderConfig } from "./_lib/providers/types.js";
 import { extractFile as geminiExtractFile } from "./_lib/providers/gemini.js";
+import { extractFromBuffer } from "./_lib/fileExtract.js";
 import { runChat, type ConfirmPolicy } from "./_lib/providers/chatRunner.js";
 import { checkAndIncrement } from "./_lib/usage.js";
 import { rateLimit } from "./_lib/rateLimit.js";
@@ -441,62 +442,29 @@ async function handleSplit(req: ApiRequest, res: ApiResponse, userId: string): P
 // so the JSON envelope (mimeType, quotes, etc.) still fits.
 const MAX_FILE_B64 = 33 * 1024 * 1024;
 
-/**
- * Try to extract text from a PDF using pdfjs-dist directly (no LLM call).
- * Returns "" on failure or empty PDFs so the caller can fall back to Gemini.
- *
- * Why this exists even though the browser already runs pdfjs:
- *   API consumers without a browser (the v1 endpoint, future MCP file tools,
- *   curl uploads) hit /api/llm?action=extract-file directly. Without a
- *   server-side parse those paths would always burn a Gemini call — even
- *   for a clean text PDF where pdfjs would do it for free in <200 ms.
- */
-async function extractPdfTextServerSide(buffer: Buffer): Promise<string> {
-  try {
-    const pdfjs: any = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      useWorkerFetch: false,
-      isEvalSupported: false,
-      useSystemFonts: true,
-      disableFontFace: true,
-    });
-    const pdf = await loadingTask.promise;
-    const pages: string[] = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const text = (content.items as Array<{ str?: string }>).map((it) => it.str ?? "").join(" ");
-      if (text.trim()) pages.push(text.trim());
-    }
-    return pages.join("\n\n");
-  } catch (e: any) {
-    console.warn("[extract-file:pdfjs]", e?.message || e);
-    return "";
-  }
-}
-
 async function handleExtractFile(req: ApiRequest, res: ApiResponse, geminiKey: string): Promise<void> {
-  const { fileData, mimeType } = req.body as { fileData?: string; mimeType?: string };
+  const { fileData, mimeType, filename } = req.body as { fileData?: string; mimeType?: string; filename?: string };
   if (!fileData || typeof fileData !== "string") { res.status(400).json({ error: "fileData required" }); return; }
   if (!mimeType) { res.status(400).json({ error: "mimeType required" }); return; }
   if (fileData.length > MAX_FILE_B64) { res.status(413).json({ error: "File too large (max ~24 MB)" }); return; }
 
-  // PDFs: try local pdfjs first. Free, fast, no token cap. Falls through to
-  // Gemini only when the PDF has no text layer (scanned / image-only).
-  // 100-char threshold filters out near-empty extractions (PDFs where pdfjs
-  // got just running headers and metadata) so we still escalate those.
-  if (mimeType === "application/pdf") {
-    try {
-      const buffer = Buffer.from(fileData, "base64");
-      const localText = await extractPdfTextServerSide(buffer);
-      if (localText.trim().length > 100) {
-        res.status(200).json({ text: localText, source: "pdfjs" });
-        return;
-      }
-    } catch { /* fall through to Gemini */ }
+  // Try local parsers first (PDF, DOCX, XLSX, CSV, plain text, HTML).
+  // Free, fast, no token cap, deterministic. Only images and scanned PDFs
+  // need to escalate to Gemini vision.
+  try {
+    const buffer = Buffer.from(fileData, "base64");
+    const local = await extractFromBuffer(buffer, mimeType, filename ?? "");
+    if (local && local.text.trim().length > 0) {
+      res.status(200).json({ text: local.text, source: local.source });
+      return;
+    }
+  } catch (e: any) {
+    console.warn("[extract-file:local]", e?.message || e);
+    // fall through to Gemini
   }
 
+  // Gemini fallback for images, scanned PDFs, and anything the local
+  // dispatch can't handle.
   try {
     const result = await geminiExtractFile(
       { fileData, mimeType },
