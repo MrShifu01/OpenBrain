@@ -120,7 +120,40 @@ interface ChatMessageListProps {
   onShare: (text: string, idx: number) => void;
   onConfirm: () => void;
   onCancel: () => void;
+  onOpenVault?: () => void;
 }
+
+function extractLockedSecrets(
+  toolCalls: ChatMessage["tool_calls"],
+): Array<{ id: string; title: string }> {
+  if (!toolCalls?.length) return [];
+  const seen = new Map<string, string>();
+  for (const tc of toolCalls) {
+    if (tc.tool !== "retrieve_memory") continue;
+    const result = tc.result as { lockedSecrets?: Array<{ id?: string; title?: string }> } | null;
+    for (const s of result?.lockedSecrets ?? []) {
+      if (s?.id && s?.title && !seen.has(s.id)) seen.set(s.id, s.title);
+    }
+  }
+  return Array.from(seen.entries()).map(([id, title]) => ({ id, title }));
+}
+
+const IconLock = (
+  <svg
+    width="12"
+    height="12"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+    aria-hidden="true"
+  >
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
 
 export default function ChatMessageList({
   messages,
@@ -134,6 +167,7 @@ export default function ChatMessageList({
   onShare,
   onConfirm,
   onCancel,
+  onOpenVault,
 }: ChatMessageListProps) {
   return (
     <div
@@ -236,6 +270,69 @@ export default function ChatMessageList({
                   >
                     {renderMarkdown(msg.content)}
                   </div>
+
+                  {(() => {
+                    const locked = extractLockedSecrets(msg.tool_calls);
+                    if (locked.length === 0 || !onOpenVault) return null;
+                    return (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          padding: "12px 14px",
+                          border: "1px solid var(--line-soft)",
+                          borderRadius: 10,
+                          background: "var(--surface-low)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 10,
+                        }}
+                      >
+                        <div
+                          className="f-sans"
+                          style={{
+                            fontSize: 12,
+                            color: "var(--ink-faint)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          {IconLock}
+                          {locked.length === 1
+                            ? "Vault entry — content encrypted"
+                            : `${locked.length} Vault entries — content encrypted`}
+                        </div>
+                        <ul
+                          className="f-serif"
+                          style={{
+                            margin: 0,
+                            padding: 0,
+                            listStyle: "none",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                            fontSize: 15,
+                            color: "var(--ink-soft)",
+                          }}
+                        >
+                          {locked.map((s) => (
+                            <li key={s.id}>{s.title}</li>
+                          ))}
+                        </ul>
+                        <button
+                          onClick={onOpenVault}
+                          className="press"
+                          style={{
+                            ...actionBtnStyle("var(--ink)"),
+                            alignSelf: "flex-start",
+                            borderColor: "var(--line)",
+                          }}
+                        >
+                          {IconLock} Open Vault
+                        </button>
+                      </div>
+                    );
+                  })()}
 
                   <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
                     <button

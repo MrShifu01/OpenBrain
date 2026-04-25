@@ -14,9 +14,10 @@ import ChatMessageList from "./ChatMessageList";
 
 interface ChatViewProps {
   brainId: string | undefined;
+  onNavigate?: (view: string) => void;
 }
 
-export default function ChatView({ brainId }: ChatViewProps) {
+export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
   const aiAvailable = useHasAIAccess();
   const { isAdmin } = useAdminDevMode();
   const { messages, loading, pendingAction, send, confirm, cancel, clearHistory } =
@@ -444,6 +445,7 @@ export default function ChatView({ brainId }: ChatViewProps) {
             onShare={handleShare}
             onConfirm={confirm}
             onCancel={cancel}
+            onOpenVault={onNavigate ? () => onNavigate("vault") : undefined}
           />
           {composer}
         </>

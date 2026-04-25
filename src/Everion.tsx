@@ -522,7 +522,7 @@ function EverionContent({
 
             {appShell.view === "chat" && ff("chat") && (
               <Suspense fallback={<Loader />}>
-                <ChatView brainId={activeBrain?.id} />
+                <ChatView brainId={activeBrain?.id} onNavigate={appShell.setView} />
               </Suspense>
             )}
             {appShell.view === "graph" && ff("graph") && (
