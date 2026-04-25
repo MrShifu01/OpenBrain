@@ -60,7 +60,14 @@ async function callGemini(system: string, content: string, maxTokens = 1500): Pr
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: content }] }],
         systemInstruction: { parts: [{ text: system }] },
-        generationConfig: { maxOutputTokens: maxTokens },
+        generationConfig: {
+          maxOutputTokens: maxTokens,
+          // 2.5 Flash uses extended thinking by default. At 150-tok budgets the
+          // thinking phase eats the entire output, returning truncated answers
+          // like "I cannot generate an insight without". Disable thinking for
+          // these short enrichment calls so the budget is spent on the answer.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     },
   );
@@ -171,9 +178,25 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
   if (!hasInsight(entry)) {
     const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
     const prompt = `<user_entry>\nType: ${entry.type || "note"}${tagStr}\nTitle: ${entry.title}\n${String(entry.content || "").slice(0, 1500)}\n</user_entry>`;
-    const insight = await callAI(SERVER_PROMPTS.INSIGHT, prompt, 150);
-    if (insight.trim().length >= 20) {
-      meta = { ...meta, ai_insight: insight.trim(), enrichment: { ...enr, has_insight: true } };
+    // 300 tokens (was 150) — enough for the answer even when the model can't
+    // produce a useful response and falls back to a refusal sentence.
+    const insight = await callAI(SERVER_PROMPTS.INSIGHT, prompt, 300);
+    const trimmed = insight.trim();
+    // Reject obvious refusal/truncation patterns. Without this, a clipped
+    // response like "I cannot generate an insight without" gets committed
+    // as the insight, defeating the purpose of the enrichment.
+    const looksRefusal =
+      /^I (cannot|can't|am unable|don't have)/i.test(trimmed) ||
+      /\bwithout$|\bmore context$|\binsufficient/i.test(trimmed);
+    if (trimmed.length >= 20 && !looksRefusal) {
+      meta = { ...meta, ai_insight: trimmed, enrichment: { ...enr, has_insight: true } };
+      enr = meta.enrichment;
+      changed = true;
+    } else if (insight !== "") {
+      // Mark has_insight true even on refusal so we don't re-run forever on
+      // entries the model has nothing to say about. Don't store the refusal
+      // text as the actual insight.
+      meta = { ...meta, enrichment: { ...enr, has_insight: true } };
       enr = meta.enrichment;
       changed = true;
     }
@@ -185,10 +208,22 @@ async function enrichSingleEntry(entry: any, userId: string): Promise<boolean> {
     const conceptRaw = await callAI(SERVER_PROMPTS.ENTRY_CONCEPTS, conceptPrompt, 400);
     const candidate = parseAIJSON(conceptRaw);
     const parsed = candidate ? ConceptResultSchema.safeParse(candidate) : null;
-    if (parsed?.success && parsed.data.concepts.length > 0) {
-      meta = { ...meta, concepts: parsed.data.concepts, enrichment: { ...enr, concepts_extracted: true } };
+    // Mark concepts_extracted true whenever the call returned valid JSON,
+    // even if the concepts array is empty. A short todo like "Do this" with
+    // no content genuinely has no concepts to extract — without this guard,
+    // the entry would re-enter the unenriched filter forever and pulse the
+    // wave-dot indefinitely.
+    if (parsed?.success) {
+      meta = {
+        ...meta,
+        ...(parsed.data.concepts.length > 0 ? { concepts: parsed.data.concepts } : {}),
+        enrichment: { ...enr, concepts_extracted: true },
+      };
       enr = meta.enrichment;
       changed = true;
+    } else if (conceptRaw === "") {
+      // LLM call failed entirely (key invalid, network, etc.). Don't stamp the
+      // flag — leave the entry pending so a retry can pick it up later.
     }
   }
 
