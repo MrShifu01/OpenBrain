@@ -3,7 +3,7 @@ import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
-import { enrichInline, enrichBrain } from "./_lib/enrich.js";
+import { enrichInline, enrichBrain, backfillPersonaForBrain } from "./_lib/enrich.js";
 import { flagsOf } from "./_lib/enrichFlags.js";
 
 const SB_URL = process.env.SUPABASE_URL;
@@ -30,6 +30,7 @@ export default withAuth(
     // any GET-with-action endpoint defined below it.
     if (ctx.req.method === "GET"  && action === "enrich-debug")          return handleEnrichDebug(ctx);
     if (ctx.req.method === "POST" && action === "enrich-batch")          return handleEnrichBatch(ctx);
+    if (ctx.req.method === "POST" && action === "backfill-persona")      return handleBackfillPersona(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill") return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")   return handleRetryFailed(ctx);
     if (ctx.req.method === "POST" && action === "empty-trash")           return handleEmptyTrash(ctx);
@@ -483,6 +484,21 @@ async function handleEnrichBatch({ req, res, user }: HandlerContext): Promise<vo
   // bulk imports) drains in a reasonable number of polling rounds.
   const batchSize = typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 50) : 5;
   const result = await enrichBrain(user.id, brain_id, batchSize);
+  res.status(200).json(result);
+}
+
+// ── POST /api/entries?action=backfill-persona ──
+// Runs ONLY the persona classifier on every existing entry that hasn't been
+// classified yet. Cheap (one Gemini Flash call per entry, ~50 tokens out)
+// and safe to call repeatedly — already-classified entries skip in O(1).
+// Capped per call so the function stays well under the Vercel timeout; the
+// UI loops on `remaining > 0`.
+async function handleBackfillPersona({ req, res, user }: HandlerContext): Promise<void> {
+  const { brain_id, batch_size } = req.body;
+  if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
+  await requireBrainAccess(user.id, brain_id);
+  const batchSize = typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 100) : 50;
+  const result = await backfillPersonaForBrain(user.id, brain_id, batchSize);
   res.status(200).json(result);
 }
 

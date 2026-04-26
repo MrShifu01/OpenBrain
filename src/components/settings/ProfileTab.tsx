@@ -114,6 +114,13 @@ export default function ProfileTab() {
   const [newFactBucket, setNewFactBucket] = useState<typeof BUCKET_ORDER[number]>("preference");
   const [adding, setAdding] = useState(false);
 
+  // Backfill state — one-time scan of existing entries through the persona
+  // classifier. Loops until the server reports remaining=0 so the user sees
+  // every fact promoted on the spot, not on the next cron tick.
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ scanned: number; promoted: number } | null>(null);
+  const [scanResult, setScanResult] = useState<string | null>(null);
+
   // ── Load core ─────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -267,6 +274,41 @@ export default function ProfileTab() {
       setFactsError(e?.message || "Could not add fact");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function runBackfill() {
+    if (!brainId || scanning) return;
+    setScanning(true);
+    setScanResult(null);
+    setScanProgress({ scanned: 0, promoted: 0 });
+    let totalScanned = 0;
+    let totalPromoted = 0;
+    let safety = 40; // hard ceiling on polling rounds (40 × 50 = 2000 entries)
+    try {
+      while (safety-- > 0) {
+        const r = await authFetch("/api/entries?action=backfill-persona", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brain_id: brainId, batch_size: 50 }),
+        });
+        if (!r?.ok) throw new Error("backfill_failed");
+        const data = await r.json() as { scanned: number; promoted: number; remaining: number };
+        totalScanned += data.scanned;
+        totalPromoted += data.promoted;
+        setScanProgress({ scanned: totalScanned, promoted: totalPromoted });
+        if (data.scanned === 0 || data.remaining === 0) break;
+      }
+      setScanResult(
+        totalScanned === 0
+          ? "Already scanned — nothing new to classify."
+          : `Scanned ${totalScanned} ${totalScanned === 1 ? "entry" : "entries"} · promoted ${totalPromoted} to your About You.`,
+      );
+      await reloadFacts();
+    } catch (e: any) {
+      setScanResult(e?.message || "Scan failed — try again.");
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -472,6 +514,60 @@ export default function ProfileTab() {
       <Hint>
         Facts your second brain has learned about you — from chat, captures, and imports. Each one is a real entry; pinned facts never decay.
       </Hint>
+
+      {/* Backfill — scan existing entries through the persona classifier */}
+      <div
+        style={{
+          marginTop: 12,
+          padding: "10px 14px",
+          background: "var(--surface-low)",
+          border: "1px dashed var(--line-soft)",
+          borderRadius: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            Scan existing entries
+          </p>
+          <p className="f-serif" style={{ margin: "2px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", lineHeight: 1.45 }}>
+            Look through every note already in this brain and pull out persona facts. Safe to run any time — won't re-scan entries that have already been checked.
+          </p>
+          {scanProgress && scanning && (
+            <p className="f-sans" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ember)" }}>
+              Scanned {scanProgress.scanned} · promoted {scanProgress.promoted}…
+            </p>
+          )}
+          {scanResult && !scanning && (
+            <p className="f-serif" style={{ margin: "6px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--moss)" }}>
+              {scanResult}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={runBackfill}
+          disabled={scanning || !brainId}
+          className="press f-sans"
+          style={{
+            height: 34,
+            padding: "0 14px",
+            fontSize: 12,
+            fontWeight: 600,
+            borderRadius: 8,
+            background: "transparent",
+            color: "var(--ember)",
+            border: "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
+            cursor: scanning ? "wait" : "pointer",
+            opacity: scanning ? 0.6 : 1,
+          }}
+        >
+          {scanning ? "Scanning…" : "Run scan"}
+        </button>
+      </div>
 
       {/* Manual add */}
       <div

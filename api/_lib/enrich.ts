@@ -521,6 +521,63 @@ export async function enrichBrain(
   return { processed, remaining: pending.length - batch.length };
 }
 
+// ── Public: backfillPersonaForBrain ─────────────────────────────────────────
+//
+// One-time scan: walk every entry in the brain that hasn't been through the
+// persona classifier yet (skipping secrets and entries already typed persona)
+// and run ONLY stepPersonaClassify on it. Cheaper than a full enrichBrain
+// pass — no parse/insight/concepts/embed work — so we can drain a fresh user's
+// 200-entry brain in a few seconds rather than waiting for the daily cron.
+//
+// Capped per call. The UI loops until remaining=0.
+
+export async function backfillPersonaForBrain(
+  userId: string,
+  brainId: string,
+  batchSize = 50,
+): Promise<{ scanned: number; promoted: number; remaining: number }> {
+  // Pull every entry in the brain that hasn't already been classified. We use
+  // a JSON path filter — `metadata->enrichment->>persona_classified` is null
+  // OR not 'true' — to avoid scanning entries that are already done.
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&type=neq.persona&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=500`,
+    { headers: SB_HDR },
+  );
+  if (!r.ok) return { scanned: 0, promoted: 0, remaining: 0 };
+  const all: Entry[] = await r.json();
+
+  // Client-side filter on the jsonb flag — PostgREST can express it but the
+  // syntax is finicky and the dataset here is bounded by `limit=500` already.
+  const pending = all.filter((e) => {
+    const enr = (e.metadata as any)?.enrichment ?? {};
+    return enr.persona_classified !== true;
+  });
+  const batch = pending.slice(0, batchSize);
+
+  let promoted = 0;
+  for (const entry of batch) {
+    try {
+      const result = await stepPersonaClassify(entry);
+      if (!result) continue;
+      await patchMetadata(
+        entry.id,
+        userId,
+        result.meta,
+        result.newType ? { type: result.newType, tags: result.newTags ?? [] } : null,
+      );
+      if (result.newType === "persona") promoted++;
+    } catch (err: any) {
+      console.error("[persona:backfill] entry failed:", entry.id, err?.message ?? err);
+    }
+  }
+
+  return {
+    scanned: batch.length,
+    promoted,
+    remaining: Math.max(0, pending.length - batch.length),
+  };
+}
+
 // ── Public: enrichAllBrains (daily cron) ────────────────────────────────────
 
 export async function enrichAllBrains(): Promise<{ brains: number; processed: number }> {
