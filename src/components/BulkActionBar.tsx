@@ -194,12 +194,39 @@ export default function BulkActionBar({
               {allSelected ? "Deselect all" : "Select all"}
             </button>
           )}
+          {/* Delete — most-common bulk action surfaced inline so it doesn't
+              hide behind the More panel. Confirm before destructive op. */}
+          {onDelete && (
+            <button
+              onClick={async () => {
+                if (deleting) return;
+                if (!window.confirm(`Delete ${count} ${count === 1 ? "entry" : "entries"}?`)) return;
+                setDeleting(true);
+                try {
+                  await onDelete(Array.from(selectedIds));
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              disabled={deleting}
+              aria-label={`Delete ${count} selected`}
+              title="Delete selected"
+              className="press-scale flex h-11 w-11 items-center justify-center rounded-full transition-opacity hover:opacity-70"
+              style={{ color: "var(--color-error, var(--blood))", opacity: deleting ? 0.5 : 1 }}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={() => setExpanded(true)}
+            aria-label="More actions"
+            title="Change type, add to brains…"
             className="press-scale rounded-full px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
             style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
           >
-            Edit
+            More
           </button>
           <button
             onClick={onCancel}

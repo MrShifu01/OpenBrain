@@ -627,10 +627,10 @@ const EntryRow = memo(function EntryRow({
         position: "relative",
         overflow: "hidden",
         borderRadius: 10,
-        background: "var(--surface)",
+        background: selected ? "var(--ember-wash)" : "var(--surface)",
         border: `1px solid ${selected ? "var(--ember)" : "var(--line-soft)"}`,
         borderLeft: isPinned ? "2px solid var(--ember)" : undefined,
-        transition: "border-color 180ms",
+        transition: "border-color 180ms, background 180ms",
       }}
     >
       {/* Swipe action panel — sits behind the row, revealed on swipe */}
