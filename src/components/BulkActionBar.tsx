@@ -160,12 +160,20 @@ export default function BulkActionBar({
     maxHeight: "180px",
   };
 
-  // Collapsed pill — low-profile chip so selecting more items isn't blocked
+  // Collapsed pill — low-profile chip so selecting more items isn't blocked.
+  // Position: sit ~12px above the BottomNav (56px + safe-area-inset-bottom).
+  // Hard-coded `bottom-24` = 96px gets eaten by the home indicator on iPhones
+  // with a tall safe area, hiding the pill. z-index above BottomNav (50).
   if (!expanded) {
     return (
       <div
-        className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2"
-        style={{ width: "auto", maxWidth: "92vw" }}
+        className="fixed left-1/2 -translate-x-1/2"
+        style={{
+          bottom: "calc(68px + env(safe-area-inset-bottom))",
+          zIndex: 55,
+          width: "auto",
+          maxWidth: "92vw",
+        }}
       >
         <div
           className="flex items-center gap-2 rounded-full border py-1.5 pr-1.5 pl-4 shadow-lg"
@@ -251,8 +259,13 @@ export default function BulkActionBar({
 
   return (
     <div
-      className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2"
-      style={{ width: "min(92vw, 480px)" }}
+      className="fixed left-1/2 -translate-x-1/2"
+      style={{
+        // Match the collapsed pill's clearance from BottomNav.
+        bottom: "calc(68px + env(safe-area-inset-bottom))",
+        zIndex: 55,
+        width: "min(92vw, 480px)",
+      }}
     >
       <div
         className="flex flex-col gap-3 rounded-2xl border p-4 shadow-lg"

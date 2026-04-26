@@ -754,9 +754,11 @@ const EntryRow = memo(function EntryRow({
         className="group press flex w-full cursor-pointer items-center gap-3"
         style={{
           padding: "12px 16px",
-          background: "var(--surface)",
+          // Selected rows get the same ember-wash fill as the grid card so
+          // both views read the same in Select mode.
+          background: selected ? "var(--ember-wash)" : "var(--surface)",
           transform: `translateX(${swipeX}px)`,
-          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1)",
+          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
           touchAction: dragging ? "none" : "pan-y",
           willChange: dragging ? "transform" : "auto",
         }}
