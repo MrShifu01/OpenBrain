@@ -144,15 +144,18 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
   }, [updateTask]);
 
   // Hydrate-and-resume: on mount, kick off any tasks left in 'running' state.
+  // The 1.5s delay matters: on a fresh tab (especially Safari restoring a
+  // suspended PWA), Supabase session restore + network warmup race the first
+  // fetch. Without the delay we get "Load failed" on resume even though
+  // the user is signed in and online seconds later.
   useEffect(() => {
     const stale = loadFromStorage().filter((t) => t.status === "running");
     if (!stale.length) return;
-    // Defer to next tick so all consumers have time to mount before runners fire.
     const timer = setTimeout(() => {
       for (const t of stale) {
         runTask(t).catch(() => { /* runner records its own errors */ });
       }
-    }, 0);
+    }, 1500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

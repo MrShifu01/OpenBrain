@@ -19,6 +19,31 @@ export interface TaskHelpers {
 
 export type TaskRunner = (resumeKey: string, helpers: TaskHelpers) => Promise<string>;
 
+// authFetch with one retry on network error — covers Safari's "Load failed"
+// when a resumed task fires before the network/auth is fully warm. Server
+// state is idempotent (every endpoint is safe to call again) so a retry
+// can't double-process anything. We deliberately only retry on TypeError
+// (network failure); HTTP non-OK responses go through as-is so the caller
+// can decide how to surface them.
+async function retryFetch(
+  url: string,
+  init: RequestInit,
+  retries = 1,
+  delayMs = 2000,
+): Promise<Response> {
+  try {
+    return await authFetch(url, init);
+  } catch (err: any) {
+    if (retries > 0) {
+      await new Promise((res) => setTimeout(res, delayMs));
+      return retryFetch(url, init, retries - 1, delayMs * 2);
+    }
+    // Re-throw with a clearer message so the toast doesn't say cryptic "Load failed".
+    const original = err?.message ?? "network error";
+    throw new Error(`Network blip (${original}). Try again — already-saved progress is kept.`);
+  }
+}
+
 // ── Persona ─────────────────────────────────────────────────────────────────
 
 const personaScan: TaskRunner = async (brainId, h) => {
@@ -28,7 +53,7 @@ const personaScan: TaskRunner = async (brainId, h) => {
   // Hard ceiling on polling rounds so a runaway can't loop forever.
   let safety = 80;
   while (safety-- > 0) {
-    const r = await authFetch("/api/entries?action=backfill-persona", {
+    const r = await retryFetch("/api/entries?action=backfill-persona", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ brain_id: brainId, batch_size: 50 }),
@@ -52,7 +77,7 @@ const personaScan: TaskRunner = async (brainId, h) => {
 
 const personaWipe: TaskRunner = async (brainId) => {
   if (!brainId) throw new Error("brain_id required");
-  const r = await authFetch("/api/entries?action=wipe-persona-extracted", {
+  const r = await retryFetch("/api/entries?action=wipe-persona-extracted", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId }),
@@ -65,7 +90,7 @@ const personaWipe: TaskRunner = async (brainId) => {
 
 const personaReset: TaskRunner = async (brainId) => {
   if (!brainId) throw new Error("brain_id required");
-  const r = await authFetch("/api/entries?action=revert-persona-backfill", {
+  const r = await retryFetch("/api/entries?action=revert-persona-backfill", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId }),
@@ -86,7 +111,7 @@ const enrichRunNow: TaskRunner = async (brainId, h) => {
   let totalProcessed = 0;
   let safety = 60;
   while (safety-- > 0) {
-    const r = await authFetch("/api/entries?action=enrich-batch", {
+    const r = await retryFetch("/api/entries?action=enrich-batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ brain_id: brainId, batch_size: 10 }),
@@ -103,7 +128,7 @@ const enrichRunNow: TaskRunner = async (brainId, h) => {
 
 const enrichClearBackfill: TaskRunner = async (brainId) => {
   if (!brainId) throw new Error("brain_id required");
-  const r = await authFetch("/api/entries?action=enrich-clear-backfill", {
+  const r = await retryFetch("/api/entries?action=enrich-clear-backfill", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId }),
@@ -115,7 +140,7 @@ const enrichClearBackfill: TaskRunner = async (brainId) => {
 
 const enrichRetryFailed: TaskRunner = async (brainId) => {
   if (!brainId) throw new Error("brain_id required");
-  const r = await authFetch("/api/entries?action=enrich-retry-failed", {
+  const r = await retryFetch("/api/entries?action=enrich-retry-failed", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId }),
@@ -130,7 +155,7 @@ const enrichRetryFailed: TaskRunner = async (brainId) => {
 
 const gmailScan: TaskRunner = async (brainId) => {
   // brainId may be empty string — Gmail allows null brain.
-  const r = await authFetch("/api/gmail?action=scan", {
+  const r = await retryFetch("/api/gmail?action=scan", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId || null }),
