@@ -36,3 +36,19 @@ scripts/mock-prompt-audit/
 
 .vercel
 .env*.local
+
+# Claude Code session state (machine-local; not source)
+# settings.json stays tracked as shared project config
+.claude/*
+!.claude/settings.json
+.claude-state/
+
+# SmashOS ephemeral planning state (both naming conventions)
+.smashOS/
+.smash-os/
+
+# Graphify build artifacts
+graphify-out/
+.graphify_chunk_*.json
+.graphify_detect.json
+.graphify_python
