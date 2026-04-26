@@ -821,8 +821,13 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     dismissAll: bgDismissAll,
   } = useBackgroundCapture();
 
+  // Persona facts live in the same `entries` table (so RAG and the concept
+  // graph see them) but they're not "memories" — they belong in About You,
+  // not in the Memory grid/list/timeline. Strip them out at the single
+  // source so every downstream view (filtered, sortedTimeline, Bulk select,
+  // search ranking) automatically excludes them.
   const allDisplayEntries = useMemo(
-    () => [...dataLayer.entries, ...dataLayer.vaultEntries],
+    () => [...dataLayer.entries, ...dataLayer.vaultEntries].filter((e) => e.type !== "persona"),
     [dataLayer.entries, dataLayer.vaultEntries],
   );
 
