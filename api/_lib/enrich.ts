@@ -356,11 +356,12 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
 // patch it). The number of new persona rows it created is logged but the
 // caller doesn't need it.
 
-// Cosine threshold for "this fact already exists" — same value the weekly
-// dedup pass uses for proposing merges. Tight enough to allow legitimate
-// nuance ("User wakes at 5:30" vs "User wakes at 6:00") but tight enough
-// to catch trivial rephrasings ("User works at Smash Burger Bar." × 3).
-const FACT_DEDUP_COSINE = 0.88;
+// Cosine threshold for "this fact already exists". Lowered from 0.88 to 0.85
+// because the model emits very close paraphrases ("User is the founder of X"
+// vs "User is a founder of X") that a tighter threshold lets through. Still
+// tight enough to keep "User wakes at 5:30" and "User wakes at 6:00" as
+// distinct facts.
+const FACT_DEDUP_COSINE = 0.85;
 
 async function stepPersonaExtract(
   entry: Entry,
@@ -401,12 +402,15 @@ async function stepPersonaExtract(
   if (!facts.length || !brainId) return stampedMeta;
 
   // Existing-fact embeddings for inline cosine dedup. Provided by batch
-  // callers; falls back to a per-entry fetch otherwise. We mutate this
-  // array as we insert facts so duplicates within the same entry/batch
-  // are also caught.
+  // callers; falls back to a per-entry fetch otherwise.
+  //
+  // CRITICAL: share the SAME array reference across all entries in a batch.
+  // We push newly-inserted embeddings to it as we go, so the next entry's
+  // dedup check sees them. A spread copy here would silently break dedup
+  // across entries — every "User lives in Bloemfontein" emitted by a
+  // different source entry would slip through.
   const existing: number[][] = precomputed?.existingEmbeddings
-    ? [...precomputed.existingEmbeddings]
-    : await fetchActivePersonaEmbeddings(userId, brainId);
+    ?? await fetchActivePersonaEmbeddings(userId, brainId);
 
   for (const f of facts) {
     try {
