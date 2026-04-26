@@ -2,8 +2,14 @@ import React, { useMemo, useRef, memo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { Entry } from "../types";
 import { resolveIcon } from "../lib/typeIcons";
-import { flagsOf, isPendingEnrichment } from "../lib/enrichFlags";
+import { isPendingEnrichment } from "../lib/enrichFlags";
 import { getAdminPrefs } from "../lib/adminPrefs";
+import {
+  IconPin,
+  IconVaultSmall as IconVault,
+  EnrichingDot,
+  EnrichFlagChips,
+} from "./EntryListBits";
 
 const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL as string | undefined) ?? "";
 
@@ -18,100 +24,6 @@ function isAdminSync(): boolean {
   } catch {
     return false;
   }
-}
-
-const IconPin = (
-  <svg
-    width="12"
-    height="12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
-    <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
-  </svg>
-);
-
-const IconVault = (
-  <svg
-    width="12"
-    height="12"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.5"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    viewBox="0 0 24 24"
-    aria-hidden="true"
-  >
-    <rect x="4" y="10" width="16" height="10" rx="2" />
-    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-  </svg>
-);
-
-function EnrichingDot() {
-  return (
-    <span className="enriching-dot" aria-label="AI processing" title="AI enriching…">
-      <span /><span /><span />
-    </span>
-  );
-}
-
-// Admin-only diagnostic chip cluster — four letters (P/I/C/E) showing which
-// enrichment flags are set. Hidden for non-admins. Reads from the shared
-// flagsOf helper so the chips always agree with what the pipeline considers
-// "done."
-function EnrichFlagChips({ entry }: { entry: Entry }) {
-  const flags = flagsOf(entry);
-  const embedFailed = flags.embedding_status === "failed";
-  const chip = (label: string, state: "on" | "off" | "warn", title: string) => {
-    const palette = {
-      on: { bg: "color-mix(in oklch, var(--moss) 18%, transparent)", fg: "var(--moss)" },
-      off: { bg: "color-mix(in oklch, var(--blood) 14%, transparent)", fg: "var(--blood)" },
-      warn: { bg: "color-mix(in oklch, var(--ember) 22%, transparent)", fg: "var(--ember)" },
-    }[state];
-    return (
-      <span
-        title={title}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 14,
-          height: 14,
-          borderRadius: 3,
-          fontSize: 9,
-          fontWeight: 700,
-          fontFamily: "var(--f-mono)",
-          background: palette.bg,
-          color: palette.fg,
-          letterSpacing: 0,
-          lineHeight: 1,
-        }}
-      >
-        {label}
-      </span>
-    );
-  };
-  const embedState: "on" | "off" | "warn" = embedFailed ? "warn" : flags.embedded ? "on" : "off";
-  const embedTitle = embedFailed
-    ? "embedding failed — won't appear in semantic search"
-    : flags.embedded
-      ? "embedded"
-      : "embedding pending";
-  return (
-    <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }} aria-hidden="true">
-      {chip("P", flags.parsed ? "on" : "off", "parsed")}
-      {chip("I", flags.has_insight ? "on" : "off", "insight")}
-      {chip("C", flags.concepts_extracted ? "on" : "off", "concepts")}
-      {chip("E", embedState, embedTitle)}
-      {flags.backfilled && chip("B", "on", "backfilled — not really enriched")}
-    </span>
-  );
 }
 
 function relTime(iso?: string) {
