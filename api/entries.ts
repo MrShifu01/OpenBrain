@@ -52,11 +52,18 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
   const cursorFilter = cursor ? `&created_at=lt.${encodeURIComponent(cursor)}` : "";
   const deletedFilter = trash ? "&deleted_at=not.is.null" : "&deleted_at=is.null";
   const statusFilter = staged ? "&status=eq.staged" : "&status=eq.active";
+  // Optional type filter — used by ProfileTab to fetch only persona entries.
+  // Without this, About You loaded every entry and defaulted them all to the
+  // "preference" bucket in the UI.
+  const rawType = req.query.type as string | undefined;
+  const typeFilter = rawType && /^[a-z_]+$/i.test(rawType)
+    ? `&type=eq.${encodeURIComponent(rawType)}`
+    : "";
 
   if (brain_id) {
     await requireBrainAccess(user.id, brain_id);
 
-    const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}&brain_id=eq.${encodeURIComponent(brain_id)}${cursorFilter}`;
+    const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}${typeFilter}&brain_id=eq.${encodeURIComponent(brain_id)}${cursorFilter}`;
     const directRes = await fetch(directUrl, { headers: sbHeadersNoContent() });
     if (!directRes.ok) throw new ApiError(502, "Database error");
     const rows: any[] = await directRes.json();
@@ -68,7 +75,7 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
     return;
   }
 
-  const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}&user_id=eq.${encodeURIComponent(user.id)}${cursorFilter}`;
+  const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}${typeFilter}&user_id=eq.${encodeURIComponent(user.id)}${cursorFilter}`;
   const response = await fetch(url, { headers: sbHeadersNoContent() });
   if (!response.ok) throw new ApiError(502, "Database error");
   const rows: any[] = await response.json();

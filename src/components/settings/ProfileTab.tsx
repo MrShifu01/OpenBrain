@@ -61,12 +61,14 @@ const EMPTY_CORE: ProfileFields = {
 const CONTEXT_MAX = 4000;
 
 const BUCKET_ORDER = ["identity", "family", "habit", "preference", "event"] as const;
+const BUCKET_RENDER_ORDER = [...BUCKET_ORDER, "context"] as const;
 const BUCKET_LABELS: Record<string, string> = {
   identity: "Identity",
   family: "Family & people",
   habit: "Habits & routines",
   preference: "Preferences",
   event: "Notable events",
+  context: "Other context",
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -145,12 +147,16 @@ export default function ProfileTab() {
     if (!brainId) return;
     try {
       const r = await authFetch(
-        `/api/entries?brain_id=${encodeURIComponent(brainId)}&type=persona&include_archived=true`,
+        `/api/entries?brain_id=${encodeURIComponent(brainId)}&type=persona`,
       );
       if (!r?.ok) throw new Error("fetch_failed");
       const data = await r.json();
       const rows: PersonaFact[] = Array.isArray(data) ? data : (data.entries ?? []);
-      setFacts(rows);
+      // Defensive client-side filter — refuses to render anything that isn't
+      // explicitly a persona entry. Protects About You from any future
+      // regression in the entries endpoint that might leak other types.
+      const personaOnly = rows.filter((r: any) => r?.type === "persona");
+      setFacts(personaOnly);
       setFactsError(null);
     } catch (e: any) {
       setFactsError(e?.message || "Could not load facts");
@@ -177,7 +183,12 @@ export default function ProfileTab() {
         out.fading.push(f);
         continue;
       }
-      const bucket = f.metadata?.bucket || "preference";
+      // Only group into a known bucket. Anything missing a bucket goes into
+      // a generic "context" group rather than silently inflating preferences.
+      const rawBucket = f.metadata?.bucket;
+      const bucket = (BUCKET_ORDER as readonly string[]).includes(rawBucket || "")
+        ? rawBucket!
+        : "context";
       (out.active[bucket] ??= []).push(f);
     }
     // Sort each active bucket: pinned first, then by confidence desc, then by recency.
@@ -526,7 +537,7 @@ export default function ProfileTab() {
       <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 18 }}>
         {!factsLoaded && <Loading />}
 
-        {factsLoaded && BUCKET_ORDER.map((bucket) => {
+        {factsLoaded && BUCKET_RENDER_ORDER.map((bucket) => {
           const items = grouped.active[bucket] || [];
           if (!items.length) return null;
           return (
