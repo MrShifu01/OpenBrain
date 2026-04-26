@@ -80,7 +80,7 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
       };
       parsed = { concepts: salvageArray("concepts"), relationships: salvageArray("relationships") };
       if (parsed.concepts.length > 0) {
-        console.log(
+        console.warn(
           "[concepts] salvaged",
           parsed.concepts.length,
           "concepts from truncated response for",
@@ -97,7 +97,6 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
     }
 
     await writeConceptsToGraph(brainId, { concepts: newConcepts, relationships: newRels });
-    console.log("[concepts] saved", newConcepts.length, "concepts for", entry.title);
   } catch (e) {
     console.error("[concepts] extractEntryConnections failed for", entry.id, e);
   }

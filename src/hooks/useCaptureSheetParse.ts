@@ -345,7 +345,6 @@ export function useCaptureSheetParse({
         let aiRawText = "";
         try {
           aiRawText = data.content?.[0]?.text || data.choices?.[0]?.message?.content || "";
-          console.log("[useCaptureSheetParse] AI raw:", aiRawText.slice(0, 300));
           if (!aiRawText) {
             parseError = "Model returned empty response";
           } else if (hasFiles) {

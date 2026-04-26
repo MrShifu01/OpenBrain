@@ -52,7 +52,6 @@ export function useEntryRealtime(
       const rt = getRealtimeClient();
       if (token) {
         await rt.setAuth(token);
-        console.log("[realtime] setAuth applied before subscribe (len", token.length, ")");
       } else {
         console.warn("[realtime] no session token at subscribe time — broadcast will be filtered as anon");
       }
@@ -73,10 +72,6 @@ export function useEntryRealtime(
           (payload: { new?: Partial<Entry> & { id?: string } }) => {
             const row = payload?.new;
             if (!row?.id) return;
-            console.log("[realtime] entry update", row.id, {
-              embedding_status: (row as any).embedding_status,
-              enrichment: (row.metadata as any)?.enrichment,
-            });
             setEntries((prev) => {
               const idx = prev.findIndex((e) => e.id === row.id);
               if (idx === -1) return prev;
@@ -92,7 +87,7 @@ export function useEntryRealtime(
           },
         )
         .subscribe((status: string, err?: Error) => {
-          console.log(`[realtime] entries:${activeBrainId} → ${status}`, err ?? "");
+          if (err) console.warn(`[realtime] entries:${activeBrainId} → ${status}`, err);
         });
 
       cleanup = () => {
