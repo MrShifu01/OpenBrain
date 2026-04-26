@@ -3,7 +3,13 @@ import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
-import { enrichInline, enrichBrain, backfillPersonaForBrain, revertBackfilledPersonaForBrain } from "./_lib/enrich.js";
+import {
+  enrichInline,
+  enrichBrain,
+  backfillPersonaForBrain,
+  revertBackfilledPersonaForBrain,
+  wipeExtractedPersonaForBrain,
+} from "./_lib/enrich.js";
 import { flagsOf } from "./_lib/enrichFlags.js";
 
 const SB_URL = process.env.SUPABASE_URL;
@@ -32,6 +38,7 @@ export default withAuth(
     if (ctx.req.method === "POST" && action === "enrich-batch")          return handleEnrichBatch(ctx);
     if (ctx.req.method === "POST" && action === "backfill-persona")      return handleBackfillPersona(ctx);
     if (ctx.req.method === "POST" && action === "revert-persona-backfill") return handleRevertPersonaBackfill(ctx);
+    if (ctx.req.method === "POST" && action === "wipe-persona-extracted") return handleWipePersonaExtracted(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill") return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")   return handleRetryFailed(ctx);
     if (ctx.req.method === "POST" && action === "empty-trash")           return handleEmptyTrash(ctx);
@@ -513,6 +520,19 @@ async function handleRevertPersonaBackfill({ req, res, user }: HandlerContext): 
   if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
   await requireBrainAccess(user.id, brain_id);
   const result = await revertBackfilledPersonaForBrain(user.id, brain_id);
+  res.status(200).json(result);
+}
+
+// ── POST /api/entries?action=wipe-persona-extracted ──
+// Hard-deletes all auto-extracted persona child entries in the brain (the
+// ones with metadata.derived_from set and source != manual/chat) and clears
+// the persona_extracted flag from source entries so the next scan starts
+// fresh. Manual / chat / pinned facts are preserved.
+async function handleWipePersonaExtracted({ req, res, user }: HandlerContext): Promise<void> {
+  const { brain_id } = req.body;
+  if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
+  await requireBrainAccess(user.id, brain_id);
+  const result = await wipeExtractedPersonaForBrain(user.id, brain_id);
   res.status(200).json(result);
 }
 

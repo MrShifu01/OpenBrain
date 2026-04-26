@@ -27,7 +27,11 @@ import { SERVER_PROMPTS } from "./prompts.js";
 import { callAI, type AICall } from "./aiProvider.js";
 import { resolveProviderForUser, resolveEmbedProviderForUser } from "./resolveProvider.js";
 import { flagsOf } from "./enrichFlags.js";
-import { extractPersonaFacts } from "./extractPersonaFacts.js";
+import {
+  extractPersonaFacts,
+  loadExtractorContext,
+  type ExtractorContext,
+} from "./extractPersonaFacts.js";
 import {
   generateEmbedding as personaGenerateEmbedding,
   buildEntryText as personaBuildEntryText,
@@ -352,10 +356,17 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
 // patch it). The number of new persona rows it created is logged but the
 // caller doesn't need it.
 
+// Cosine threshold for "this fact already exists" — same value the weekly
+// dedup pass uses for proposing merges. Tight enough to allow legitimate
+// nuance ("User wakes at 5:30" vs "User wakes at 6:00") but tight enough
+// to catch trivial rephrasings ("User works at Smash Burger Bar." × 3).
+const FACT_DEDUP_COSINE = 0.88;
+
 async function stepPersonaExtract(
   entry: Entry,
   userId: string,
   brainId: string | null,
+  precomputed: { context: ExtractorContext; existingEmbeddings: number[][] } | null,
 ): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
   const enr = (meta.enrichment ?? {}) as Record<string, unknown>;
@@ -371,23 +382,36 @@ async function stepPersonaExtract(
     return { ...rest, enrichment: { ...enr, persona_extracted: true } };
   }
 
+  // Identity context — either supplied by the caller (batch path) or
+  // resolved per-entry (single-entry path). Without this, the extractor
+  // can't tell whether a name in the entry refers to the user or someone
+  // else, and rephrases everyone's facts as "User…".
+  const ctx = precomputed?.context ?? (await loadExtractorContext(userId, brainId));
+
   const facts = await extractPersonaFacts({
     title: entry.title,
     content: entry.content || "",
     type: entry.type || "note",
     tags: entry.tags ?? undefined,
+    context: ctx,
   });
 
-  // Stamp the flag regardless of result — empty extraction is a real answer
-  // and we don't want the cron re-asking every night.
+  // Always stamp the flag — empty extraction is a real answer.
   const stampedMeta = { ...meta, enrichment: { ...enr, persona_extracted: true } };
-
   if (!facts.length || !brainId) return stampedMeta;
 
-  // Resolve the brain id once. We need it to insert the child entries.
+  // Existing-fact embeddings for inline cosine dedup. Provided by batch
+  // callers; falls back to a per-entry fetch otherwise. We mutate this
+  // array as we insert facts so duplicates within the same entry/batch
+  // are also caught.
+  const existing: number[][] = precomputed?.existingEmbeddings
+    ? [...precomputed.existingEmbeddings]
+    : await fetchActivePersonaEmbeddings(userId, brainId);
+
   for (const f of facts) {
     try {
-      await insertExtractedFact(f, entry, userId, brainId);
+      const inserted = await insertExtractedFactDeduped(f, entry, userId, brainId, existing);
+      if (inserted) existing.push(inserted);
     } catch (err: any) {
       console.error("[persona:extract] insert failed", entry.id, err?.message ?? err);
     }
@@ -395,19 +419,21 @@ async function stepPersonaExtract(
   return stampedMeta;
 }
 
-async function insertExtractedFact(
+async function insertExtractedFactDeduped(
   fact: { fact: string; bucket: string; confidence: number; evidence?: string },
   source: Entry,
   userId: string,
   brainId: string,
-): Promise<void> {
+  existingEmbeddings: number[][],
+): Promise<number[] | null> {
   const id = randomUUID();
   const title = fact.fact;
   const content = fact.evidence
     ? `${fact.fact}\n\nFrom: "${fact.evidence}"`
     : fact.fact;
 
-  // Embedding (best-effort — null is OK, daily cron will fill it later).
+  // Generate the new fact's embedding first — we need it for dedup either
+  // way. If the API key is missing we skip the dedup check (and embedding).
   let embedding: number[] | null = null;
   const apiKey = (process.env.GEMINI_API_KEY || "").trim();
   if (apiKey) {
@@ -418,6 +444,17 @@ async function insertExtractedFact(
       );
     } catch {
       embedding = null;
+    }
+  }
+
+  // Dedup against existing active facts. Skip if any existing fact is too
+  // similar — this is what catches "User works at Smash Burger Bar" being
+  // emitted 3 times across 3 different source entries in the same scan.
+  if (embedding && existingEmbeddings.length) {
+    for (const ev of existingEmbeddings) {
+      if (cosineSim(embedding, ev) >= FACT_DEDUP_COSINE) {
+        return null; // duplicate — skip insert
+      }
     }
   }
 
@@ -456,6 +493,48 @@ async function insertExtractedFact(
   if (!r.ok) {
     throw new Error(`insert HTTP ${r.status}: ${await r.text().catch(() => "")}`);
   }
+  return embedding;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+async function fetchActivePersonaEmbeddings(userId: string, brainId: string): Promise<number[][]> {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=embedding&limit=500`,
+    { headers: SB_HDR },
+  );
+  if (!r.ok) return [];
+  const rows: Array<{ embedding: string | number[] | null }> = await r.json().catch(() => []);
+  const out: number[][] = [];
+  for (const row of rows) {
+    const v = parseEmbedding(row.embedding);
+    if (v.length) out.push(v);
+  }
+  return out;
+}
+
+function parseEmbedding(raw: number[] | string | null): number[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string" && raw.startsWith("[")) {
+    try {
+      const arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
+function cosineSim(a: number[], b: number[]): number {
+  if (a.length !== b.length || !a.length) return 0;
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
 }
 
 async function fetchBrainIdForEntry(entryId: string): Promise<string | null> {
@@ -512,7 +591,7 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
   // source entry's type/tags are NEVER touched; only its metadata is stamped
   // with persona_extracted=true so the step doesn't re-run.
   const brainId = await fetchBrainIdForEntry(entry.id);
-  const stamped = await stepPersonaExtract({ ...entry, metadata: workingMeta }, userId, brainId).catch(() => null);
+  const stamped = await stepPersonaExtract({ ...entry, metadata: workingMeta }, userId, brainId, null).catch(() => null);
   if (stamped) {
     workingMeta = stamped;
     changed = true;
@@ -608,9 +687,17 @@ export async function backfillPersonaForBrain(
   // Cheaper and more reliable than threading return values through the step.
   const beforeCount = await countPersonaEntries(userId, brainId);
 
+  // Load identity context + existing fact embeddings ONCE for the whole
+  // batch — both are stable across entries and the prompt + dedup behaviour
+  // depends on them. The same `existingEmbeddings` array is reused inside
+  // the step so duplicates within this batch are also caught.
+  const context = await loadExtractorContext(userId, brainId);
+  const existingEmbeddings = await fetchActivePersonaEmbeddings(userId, brainId);
+  const precomputed = { context, existingEmbeddings };
+
   for (const entry of batch) {
     try {
-      const stamped = await stepPersonaExtract(entry, userId, brainId);
+      const stamped = await stepPersonaExtract(entry, userId, brainId, precomputed);
       if (stamped) {
         await patchMetadata(entry.id, userId, stamped, null);
       }
@@ -755,6 +842,71 @@ async function patchEntryFields(
     },
   );
   return r.ok;
+}
+
+// ── Public: wipeExtractedPersonaForBrain ────────────────────────────────────
+//
+// Hard-deletes auto-extracted persona child entries (the ones produced by
+// stepPersonaExtract — they have metadata.derived_from set and source in
+// (capture, inference, import)) AND clears enrichment.persona_extracted from
+// every non-persona entry in the brain so the next scan re-processes them
+// from scratch with the (presumably updated) extractor.
+//
+// Manually-added (source='manual' / skip_persona=true) and chat-tool
+// (source='chat') facts are NEVER touched.
+
+export async function wipeExtractedPersonaForBrain(
+  userId: string,
+  brainId: string,
+): Promise<{ deleted: number; cleared: number }> {
+  // 1. Find all persona entries in this brain that came from the auto extractor.
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=eq.persona&select=id,metadata&limit=2000`,
+    { headers: SB_HDR },
+  );
+  if (!r.ok) return { deleted: 0, cleared: 0 };
+  const all: Array<{ id: string; metadata: any }> = await r.json();
+
+  const targets = all.filter((e) => {
+    const meta = e.metadata ?? {};
+    if (!meta.derived_from) return false;
+    if (meta.skip_persona === true) return false;
+    const src = String(meta.source || "");
+    if (src === "manual" || src === "chat") return false;
+    return true;
+  });
+
+  let deleted = 0;
+  for (const t of targets) {
+    const dr = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(t.id)}&user_id=eq.${encodeURIComponent(userId)}`,
+      { method: "DELETE", headers: { ...SB_HDR, Prefer: "return=minimal" } },
+    );
+    if (dr.ok) deleted++;
+  }
+
+  // 2. Clear `persona_extracted` from every non-persona entry so the next scan
+  //    rerun under the updated extractor processes them again. We pull only
+  //    the ones currently flagged to keep the patch volume small.
+  const fr = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.persona&select=id,metadata&limit=2000`,
+    { headers: SB_HDR },
+  );
+  if (!fr.ok) return { deleted, cleared: 0 };
+  const sources: Array<{ id: string; metadata: any }> = await fr.json();
+  const flagged = sources.filter((e) => e.metadata?.enrichment?.persona_extracted === true);
+
+  let cleared = 0;
+  for (const s of flagged) {
+    const meta = { ...(s.metadata ?? {}) };
+    const enr = { ...(meta.enrichment ?? {}) };
+    delete enr.persona_extracted;
+    meta.enrichment = enr;
+    const ok = await patchEntryFields(s.id, userId, { metadata: meta });
+    if (ok) cleared++;
+  }
+
+  return { deleted, cleared };
 }
 
 // ── Public: enrichAllBrains (daily cron) ────────────────────────────────────

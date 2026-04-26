@@ -127,6 +127,10 @@ export default function ProfileTab() {
   const [resetting, setResetting] = useState(false);
   const [resetResult, setResetResult] = useState<string | null>(null);
 
+  // Wipe state — hard-deletes auto-extracted facts so a fresh scan can run.
+  const [wiping, setWiping] = useState(false);
+  const [wipeResult, setWipeResult] = useState<string | null>(null);
+
   // ── Load core ─────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +191,18 @@ export default function ProfileTab() {
       const m = f.metadata ?? {};
       if (m.derived_from && m.derived_from.length) return false;
       if (m.skip_persona === true) return false;
+      const src = String(m.source || "");
+      return src !== "manual" && src !== "chat";
+    }),
+    [facts],
+  );
+
+  // ── Detect any auto-extracted facts (have derived_from) ───────────────────
+  // Used to gate the Wipe button — no point showing it on a clean brain.
+  const hasExtractedFacts = useMemo(
+    () => facts.some((f) => {
+      const m = f.metadata ?? {};
+      if (!m.derived_from || !m.derived_from.length) return false;
       const src = String(m.source || "");
       return src !== "manual" && src !== "chat";
     }),
@@ -361,6 +377,36 @@ export default function ProfileTab() {
       setResetResult(e?.message || "Reset failed — try again.");
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function runWipe() {
+    if (!brainId || wiping) return;
+    if (!window.confirm(
+      "Wipe every auto-extracted fact?\n\n" +
+      "This deletes all the facts the scanner produced. Manually-added facts and facts you added via chat are kept.\n\n" +
+      "After wiping, click Run scan again to re-extract with the latest prompt.",
+    )) return;
+    setWiping(true);
+    setWipeResult(null);
+    try {
+      const r = await authFetch("/api/entries?action=wipe-persona-extracted", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brain_id: brainId }),
+      });
+      if (!r?.ok) throw new Error("wipe_failed");
+      const data = await r.json() as { deleted: number; cleared: number };
+      setWipeResult(
+        data.deleted === 0
+          ? "Nothing to wipe — no auto-extracted facts."
+          : `Deleted ${data.deleted} ${data.deleted === 1 ? "fact" : "facts"} · ready to re-scan ${data.cleared} ${data.cleared === 1 ? "entry" : "entries"}.`,
+      );
+      await reloadFacts();
+    } catch (e: any) {
+      setWipeResult(e?.message || "Wipe failed — try again.");
+    } finally {
+      setWiping(false);
     }
   }
 
@@ -614,6 +660,57 @@ export default function ProfileTab() {
             }}
           >
             {resetting ? "Reverting…" : "Reset previous scan"}
+          </button>
+        </div>
+      )}
+
+      {/* Wipe — clears auto-extracted facts so you can re-scan with the new prompt */}
+      {hasExtractedFacts && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            background: "color-mix(in oklch, var(--ink-faint) 6%, var(--surface-low))",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+              Wipe extracted facts
+            </p>
+            <p className="f-serif" style={{ margin: "2px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", lineHeight: 1.45 }}>
+              Removes everything the scanner has produced so far. Your manually-added facts and chat-added facts stay. Use this before re-running the scan after a prompt update.
+            </p>
+            {wipeResult && !wiping && (
+              <p className="f-serif" style={{ margin: "6px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--moss)" }}>
+                {wipeResult}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={runWipe}
+            disabled={wiping || !brainId}
+            className="press f-sans"
+            style={{
+              height: 34,
+              padding: "0 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ink-faint)",
+              border: "1px solid var(--line-soft)",
+              cursor: wiping ? "wait" : "pointer",
+              opacity: wiping ? 0.6 : 1,
+            }}
+          >
+            {wiping ? "Wiping…" : "Wipe extracted facts"}
           </button>
         </div>
       )}
