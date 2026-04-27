@@ -2,7 +2,18 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path'
+
+// Sentry source-map upload only runs when ALL three env vars are present.
+// In Vercel: add SENTRY_AUTH_TOKEN (Sentry → Settings → Auth Tokens, scope
+// project:write), SENTRY_ORG (slug), and SENTRY_PROJECT (slug). Without
+// them the plugin is a no-op so local + preview builds keep working.
+const sentryEnabled = !!(
+  process.env.SENTRY_AUTH_TOKEN &&
+  process.env.SENTRY_ORG &&
+  process.env.SENTRY_PROJECT
+)
 
 export default defineConfig({
   resolve: {
@@ -19,6 +30,10 @@ export default defineConfig({
     },
   },
   build: {
+    // Sentry needs source maps to symbolicate stack traces. We emit them
+    // and let the plugin upload + delete after upload so they don't ship
+    // to the public bundle.
+    sourcemap: sentryEnabled ? true : false,
     rolldownOptions: {
       output: {
         manualChunks(id) {
@@ -37,6 +52,15 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    sentryEnabled && sentryVitePlugin({
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      // Strip source maps from the public bundle after upload. Stack
+      // traces remain readable inside Sentry; visitors can't fetch them.
+      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
+      telemetry: false,
+    }),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

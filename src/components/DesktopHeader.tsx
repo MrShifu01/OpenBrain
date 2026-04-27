@@ -110,7 +110,7 @@ export default function DesktopHeader({
         borderBottom: "1px solid var(--line-soft)",
       }}
     >
-      {/* Search — opens OmniSearch on Cmd/Ctrl+K, also feeds the memory grid
+      {/* Search — opens OmniSearch on Cmd/Ctrl+/, also feeds the memory grid
           filter (same wiring as the old sidebar search). */}
       <div
         style={{
@@ -159,12 +159,12 @@ export default function DesktopHeader({
           value={searchInput}
           onChange={(e) => onSearchChange(e.target.value)}
           onKeyDown={(e) => {
-            // Cmd/Ctrl+K opens the global OmniSearch overlay even when this
-            // input has focus, matching the global shortcut.
-            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+            // Cmd/Ctrl+/ opens the global OmniSearch overlay. (Cmd+K is
+            // bound to capture — see Everion.tsx.)
+            if ((e.metaKey || e.ctrlKey) && e.key === "/") {
               e.preventDefault();
               window.dispatchEvent(
-                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
+                new KeyboardEvent("keydown", { key: "/", metaKey: true, bubbles: true }),
               );
             }
           }}
@@ -211,7 +211,7 @@ export default function DesktopHeader({
               lineHeight: 1,
             }}
           >
-            {isMac ? "⌘K" : "Ctrl K"}
+            {isMac ? "⌘/" : "Ctrl /"}
           </kbd>
         )}
       </div>

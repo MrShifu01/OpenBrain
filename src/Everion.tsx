@@ -254,8 +254,9 @@ function EverionContent({
             isOnline={isOnline}
             pendingCount={pendingCount}
             onSearch={() =>
+              // OmniSearch listens on Cmd/Ctrl+/ since capture moved to Cmd+K.
               window.dispatchEvent(
-                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
+                new KeyboardEvent("keydown", { key: "/", metaKey: true, bubbles: true }),
               )
             }
             notifications={notifs.notifications}

@@ -15,6 +15,7 @@
  */
 import type { PostHog } from "posthog-js";
 import { getConsentDecision } from "../components/ConsentBanner";
+import { supabase } from "./supabase";
 
 let client: PostHog | null = null;
 
@@ -45,6 +46,19 @@ export async function initPostHog(): Promise<void> {
     },
   });
   client = posthog;
+
+  // If the user signed in before accepting consent, App.tsx already fired
+  // identifyPostHogUser as a no-op. Re-attach that identity now so the
+  // session isn't stranded as anonymous.
+  try {
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (session?.user?.id) {
+      posthog.identify(session.user.id, { email: session.user.email ?? "" });
+    }
+  } catch {
+    // Best-effort — don't block PostHog init on a Supabase hiccup.
+  }
 }
 
 export function identifyPostHogUser(userId: string, email: string): void {

@@ -400,6 +400,15 @@ function FooterCol({
   links: [string, string][];
   go: (to: string) => void;
 }) {
+  // Map route token → real URL so anchors are crawlable; onClick still
+  // intercepts to drive SPA navigation without the browser leaving the page.
+  const toHref = (to: string): string => {
+    if (to.startsWith("landing#")) return `#${to.slice("landing#".length)}`;
+    if (to === "privacy") return "/privacy";
+    if (to === "terms") return "/terms";
+    if (to === "login" || to === "signup") return "/login";
+    return "#";
+  };
   return (
     <div>
       <Micro style={{ marginBottom: 14 }}>{title}</Micro>
@@ -407,13 +416,18 @@ function FooterCol({
         {links.map(([label, to]) => (
           <a
             key={label}
-            onClick={() => go(to)}
+            href={toHref(to)}
+            onClick={(e) => {
+              e.preventDefault();
+              go(to);
+            }}
             className="f-sans press"
             style={{
               fontSize: 14,
               color: "var(--ink-soft)",
               cursor: "pointer",
               background: "transparent",
+              textDecoration: "none",
             }}
           >
             {label}
