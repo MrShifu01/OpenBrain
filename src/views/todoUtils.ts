@@ -113,6 +113,31 @@ function dateKey(year: number, mon: number, day: number): string {
   return `${year}-${String(mon + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// Metadata keys whose presence means this entry refers to ONE specific
+// calendar date — not a recurring schedule. If any of these are set,
+// addRecurring must bail out: the AI sometimes over-extracts and writes
+// both event_date and day_of_week for a phrase like "this Friday", which
+// then duplicates the entry onto every Friday of the visible month.
+const SPECIFIC_DATE_KEYS = [
+  "due_date",
+  "event_date",
+  "deadline",
+  "renewal_date",
+  "expiry_date",
+  "appointment_date",
+  "scheduled_date",
+  "match_date",
+  "game_date",
+  "date",
+];
+
+function hasSpecificDate(metadata: Record<string, unknown>): boolean {
+  return SPECIFIC_DATE_KEYS.some((key) => {
+    const v = metadata[key];
+    return typeof v === "string" && DATE_RE.test(v);
+  });
+}
+
 /* ─── Recurring helper ─── */
 export function addRecurring(
   entries: Entry[],
@@ -126,6 +151,11 @@ export function addRecurring(
   const daysInMonth = new Date(year, mon + 1, 0).getDate();
   entries.forEach((e) => {
     const m = (e.metadata || {}) as Record<string, unknown>;
+
+    // One-shot dated entry — extractDates already placed it on its real
+    // date. Don't fabricate weekly/monthly occurrences from a stray
+    // day_of_week the AI shouldn't have set.
+    if (hasSpecificDate(m)) return;
 
     // ── Monthly recurring (day_of_month) ──
     const domRaw = m.day_of_month;
