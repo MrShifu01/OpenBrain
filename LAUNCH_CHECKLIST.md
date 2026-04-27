@@ -70,7 +70,7 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
 - [x] **Vercel Analytics enabled** ✅ (`@vercel/analytics` + `@vercel/speed-insights` mounted in `main.tsx`, consent-gated)
 - [x] **Production e2e watchdog** ✅ (smoke + onboarding + capture, daily + on-deploy)
 - [ ] **Sentry alerts configured** 🟡
-      Default project settings often have alerts off — confirm Sentry actually emails/Slacks you on new error rates.
+      Three rules to add: error-rate spike (>10/min), new issue type, and slow `/api/llm`+`/api/capture` p95. Click-by-click playbook with exact thresholds in `docs/launch-runbook-alerts-and-dns.md`. ~5 min.
 - [x] **Lighthouse weekly synthetic audit** ✅
       `.github/workflows/lighthouse.yml` runs Sun 04:00 UTC + on-demand. Mobile + desktop, scores never fail the build (monitoring not gating). Reports uploaded as 90-day artifacts. Retries once per preset on Chrome protocol flakes.
 
@@ -137,7 +137,7 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 - [ ] **Welcome email tested across clients** ❌
       Resend is configured. Verify rendering across Gmail, Outlook, Apple Mail. Use Mailtrap or send to real accounts.
 - [ ] **Email sender domain SPF/DKIM/DMARC** 🟡
-      `noreply@everion.smashburgerbar.co.za` — confirm DNS records so emails don't go to spam. mail-tester.com gives a score.
+      `noreply@everion.smashburgerbar.co.za` — copy the records from <https://resend.com/domains> into the DNS provider for `smashburgerbar.co.za`. Step-by-step (including DMARC soak-then-tighten cadence) in `docs/launch-runbook-alerts-and-dns.md`. ~10 min.
 - [ ] **Customer support channel** ❌
       Where do users complain? Email link in app footer is the minimum. `support@` alias forwarded to your inbox.
 
