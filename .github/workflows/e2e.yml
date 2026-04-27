@@ -1,0 +1,56 @@
+name: E2E
+
+# Runs the Playwright smoke + flow tests against a fresh boot of the app.
+# Triggered:
+#   - Daily at 06:30 UTC on weekdays (08:30 SAST)
+#   - Manually via the "Run workflow" button in GitHub Actions
+#   - On every push to main, after the regular CI passes
+#
+# Requires repo secrets:
+#   - E2E_ADMIN_EMAIL      (the Supabase auth admin email — same as VITE_ADMIN_EMAIL)
+#   - E2E_ADMIN_PASSWORD   (that account's password)
+#   - VITE_SUPABASE_URL    (https://<project-ref>.supabase.co)
+#   - VITE_SUPABASE_ANON_KEY
+# Add them at: Settings → Secrets and variables → Actions → New repository secret
+
+on:
+  schedule:
+    - cron: '30 6 * * 1-5'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        env:
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
