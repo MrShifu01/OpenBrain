@@ -2,18 +2,24 @@ name: E2E
 
 # Tests run against real deployed URLs, not a local dev server. Three triggers:
 #
-#   1. deployment_status — fires after every Vercel deploy (preview + prod).
-#      Tests the actual URL Vercel just brought up. This is the workhorse:
-#      every push that ships a preview gets validated before merge.
+#   1. deployment_status — fires after every Vercel deploy. We FILTER to
+#      only the production environment, because Vercel preview URLs have
+#      Deployment Protection enabled (HTTP 401 on every request without
+#      Vercel SSO). Testing post-promotion is fine for the direct-to-main
+#      workflow this project uses; no PRs need preview validation.
 #
 #   2. schedule — daily 06:30 UTC against production. Catches drift even
 #      when no deploys are happening (Supabase / Gemini / DNS changes).
 #
 #   3. workflow_dispatch — manual, with optional URL input. Useful for
-#      poking a specific preview or rerunning against staging.
+#      poking a specific URL or rerunning a failed run.
 #
 # Required repo secrets:
 #   E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+#
+# To extend to preview testing later: turn off Deployment Protection in
+# Vercel, OR generate a Protection Bypass for Automation secret and add
+# it as a header / query param to all outbound requests.
 
 on:
   deployment_status:
@@ -28,10 +34,13 @@ on:
 
 jobs:
   e2e:
-    # Skip the noisy "pending"/"in_progress" deployment_status events;
-    # only run when a deploy actually succeeded.
+    # Skip the noisy "pending"/"in_progress" deployment_status events,
+    # AND skip preview deploys (Vercel Deployment Protection blocks them
+    # with HTTP 401). Only run on successful production deploys.
     if: |
-      (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success') ||
+      (github.event_name == 'deployment_status'
+        && github.event.deployment_status.state == 'success'
+        && github.event.deployment.environment == 'Production') ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
