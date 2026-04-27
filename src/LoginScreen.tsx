@@ -35,8 +35,13 @@ function hasInvite(): boolean {
   }
 }
 
-export default function LoginScreen(): JSX.Element {
+interface LoginScreenProps {
+  initialIntent?: "login" | "signup";
+}
+
+export default function LoginScreen({ initialIntent = "login" }: LoginScreenProps = {}): JSX.Element {
   const isInvited = useMemo(hasInvite, []);
+  const startSignup = initialIntent === "signup" || isInvited;
   const {
     email,
     setEmail,
@@ -143,7 +148,7 @@ export default function LoginScreen(): JSX.Element {
 
             <div>
               <div className="micro" style={{ marginBottom: 14 }}>
-                from someone who lives here
+                what this is for
               </div>
               <p
                 className="f-serif"
@@ -157,19 +162,9 @@ export default function LoginScreen(): JSX.Element {
                   margin: 0,
                 }}
               >
-                "It's the only app I keep open all day. The ritual of putting a thing down and
-                knowing where it went — I didn't know I needed that."
+                A quiet place for the things you want to remember. Notes, links,
+                half-thoughts — and an AI that actually reads them when you ask.
               </p>
-              <div
-                className="f-sans"
-                style={{
-                  marginTop: 20,
-                  fontSize: 13,
-                  color: "var(--ink-faint)",
-                }}
-              >
-                — M., writer, lives in her Everion since last summer
-              </div>
             </div>
 
             <div
@@ -260,7 +255,7 @@ export default function LoginScreen(): JSX.Element {
                       color: "var(--ink)",
                     }}
                   >
-                    welcome back.
+                    {startSignup ? "make a space." : "welcome back."}
                   </h2>
                   <p
                     className="f-serif"
@@ -272,7 +267,9 @@ export default function LoginScreen(): JSX.Element {
                       lineHeight: 1.5,
                     }}
                   >
-                    sign in to continue.
+                    {startSignup
+                      ? "create your account to start remembering."
+                      : "sign in to continue."}
                   </p>
                   {/* ── Google (primary) ── */}
                   <button

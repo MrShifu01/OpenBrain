@@ -54,6 +54,12 @@ export default function App(): JSX.Element {
     if (params.get("invite")) return true;
     return false;
   });
+  const [authIntent, setAuthIntent] = useState<"login" | "signup">(() => {
+    if (typeof window === "undefined") return "login";
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("invite")) return "signup";
+    return "login";
+  });
 
   // Stash any ?invite=<token> from the URL before auth so it survives the
   // magic-link / email-confirm round-trip. LoginScreen reads the same key to
@@ -252,10 +258,15 @@ export default function App(): JSX.Element {
       <ThemeProvider>
         {showLogin ? (
           <Suspense fallback={<LoadingScreen />}>
-            <LoginScreen />
+            <LoginScreen initialIntent={authIntent} />
           </Suspense>
         ) : (
-          <Landing onAuth={() => setShowLogin(true)} />
+          <Landing
+            onAuth={(mode) => {
+              setAuthIntent(mode);
+              setShowLogin(true);
+            }}
+          />
         )}
       </ThemeProvider>
     );

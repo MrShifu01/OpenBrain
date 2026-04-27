@@ -97,8 +97,9 @@ export default function PrivacyPolicy() {
         </p>
 
         <Section title="What we store">
-          Your entries, your concepts, your sync metadata. That's it. We do not store your device
-          ID, your IP beyond 24 hours, or any analytics about what you wrote.
+          Of your content: your entries, your concepts, and the sync metadata they need.
+          That's it — we don't analyze, mine, or sell what you wrote. We do not store your
+          device ID or your IP address beyond 24 hours.
         </Section>
 
         <Section title="End-to-end encryption">
