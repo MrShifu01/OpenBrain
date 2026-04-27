@@ -40,10 +40,15 @@ jobs:
           LH_URL: ${{ inputs.target_url || 'https://everion.smashburgerbar.co.za' }}
         run: npm run lighthouse
 
+      - name: List Lighthouse output (diagnostic)
+        if: always()
+        run: ls -la .lighthouse/ || echo "no .lighthouse dir"
+
       - name: Upload Lighthouse reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: .lighthouse/
+          path: ${{ github.workspace }}/.lighthouse/
           retention-days: 90
+          if-no-files-found: warn
