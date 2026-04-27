@@ -1,6 +1,7 @@
 import type { IncomingMessage } from "http";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { withAuth } from "./_lib/withAuth.js";
+import { markStripeEventSeen } from "./_lib/stripeIdempotency.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { stripe } from "./_lib/stripe.js";
 import { sbHeaders } from "./_lib/sbHeaders.js";
@@ -71,6 +72,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "vault") return handleVault(req, res);
   if (resource === "pin") return handlePin(req, res);
   if (resource === "account") return handleDeleteAccount(req, res);
+  if (resource === "full_export") return handleFullExport(req, res);
   if (resource === "api_keys") return handleApiKeys(req, res);
   if (resource === "prefs") return handleNotificationPrefs(req, res);
   if (resource === "push") return handlePushSubscribe(req, res);
@@ -449,16 +451,97 @@ const handlePin = withAuth(
   },
 );
 
+// ── /api/user-data?resource=full_export — full account data dump (GDPR right of access) ──
+// Returns one JSON of every public-schema row owned by the requester. Sensitive
+// integration tokens (gmail/calendar) are stripped — the user already has the
+// underlying provider account, and we don't hand back OAuth refresh tokens.
+const FULL_EXPORT_TABLES: Array<{ table: string; col: string; strip?: string[] }> = [
+  { table: "entries", col: "user_id" },
+  { table: "tags", col: "user_id" },
+  { table: "links", col: "user_id" },
+  { table: "collections", col: "user_id" },
+  { table: "vault_entries", col: "user_id" }, // ciphertext only — server can't decrypt
+  { table: "user_memory", col: "user_id" },
+  { table: "user_personas", col: "user_id" },
+  { table: "user_ai_settings", col: "user_id" },
+  { table: "user_usage", col: "user_id" },
+  { table: "notification_prefs", col: "user_id" },
+  { table: "notifications", col: "user_id" },
+  { table: "push_subscriptions", col: "user_id", strip: ["endpoint", "p256dh", "auth"] },
+  { table: "gmail_integrations", col: "user_id", strip: ["refresh_token", "access_token"] },
+  { table: "calendar_integrations", col: "user_id", strip: ["refresh_token", "access_token"] },
+  { table: "messaging_connections", col: "user_id" },
+  { table: "user_api_keys", col: "user_id", strip: ["key_hash"] },
+];
+
+const handleFullExport = withAuth(
+  { methods: ["GET"], rateLimit: 5 },
+  async ({ res, user }) => {
+    const dump: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: user.id };
+    for (const { table, col, strip } of FULL_EXPORT_TABLES) {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/${table}?${col}=eq.${encodeURIComponent(user.id)}&select=*`,
+        { headers: hdrs() },
+      );
+      if (!r.ok) {
+        console.error(`[full_export] ${table} fetch failed`, r.status);
+        dump[table] = { error: `failed to fetch (${r.status})` };
+        continue;
+      }
+      let rows: any[] = await r.json();
+      if (strip?.length) {
+        rows = rows.map((row) => {
+          const copy = { ...row };
+          for (const k of strip) delete copy[k];
+          return copy;
+        });
+      }
+      dump[table] = rows;
+    }
+    // Brains owned by user (uses owner_id, not user_id)
+    const brainsRes = await fetch(
+      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&select=*`,
+      { headers: hdrs() },
+    );
+    dump["brains"] = brainsRes.ok ? await brainsRes.json() : [];
+
+    // user_profiles uses id = auth.users.id
+    const profileRes = await fetch(
+      `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}&select=*`,
+      { headers: hdrs() },
+    );
+    dump["user_profiles"] = profileRes.ok ? await profileRes.json() : [];
+
+    res.setHeader("Content-Disposition", `attachment; filename="everion-account-${user.id}.json"`);
+    res.status(200).json(dump);
+  },
+);
+
 // ── /api/user-data?resource=account — delete authenticated user's account ──
 const handleDeleteAccount = withAuth(
   { methods: ["DELETE"], rateLimit: 5 },
   async ({ res, user }) => {
-    // Fetch vault entries before deletion so they can be exported
+    // Snapshot vault entries before deletion so they can be exported
     const vaultRes = await fetch(
       `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&select=*`,
       { headers: hdrs() },
     );
     const vault_export: any[] = vaultRes.ok ? await vaultRes.json() : [];
+
+    // Cascade delete every public-schema row owned by this user. There is
+    // no FK from public.* → auth.users, so deleting the auth row alone
+    // would leave orphans — Privacy Policy promises a 48h scrub.
+    const cascadeRes = await fetch(`${SB_URL}/rest/v1/rpc/delete_user_data`, {
+      method: "POST",
+      headers: hdrs(),
+      body: JSON.stringify({ p_user_id: user.id }),
+    });
+    if (!cascadeRes.ok) {
+      const detail = await cascadeRes.text().catch(() => String(cascadeRes.status));
+      console.error("[account:delete] Cascade failed:", cascadeRes.status, detail);
+      return void res.status(502).json({ error: "Failed to delete account data" });
+    }
+    const cascadeCounts = await cascadeRes.json().catch(() => ({}));
 
     const r = await fetch(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(user.id)}`, {
       method: "DELETE",
@@ -467,11 +550,11 @@ const handleDeleteAccount = withAuth(
 
     if (!r.ok) {
       const detail = await r.text().catch(() => String(r.status));
-      console.error("[account:delete] Failed:", r.status, detail);
+      console.error("[account:delete] Auth delete failed after cascade:", r.status, detail);
       return void res.status(502).json({ error: "Failed to delete account" });
     }
 
-    console.log(`[audit] DELETE_ACCOUNT user=${user.id}`);
+    console.log(`[audit] DELETE_ACCOUNT user=${user.id} cascade=${JSON.stringify(cascadeCounts)}`);
     return void res.status(200).json({ deleted: true, vault_export });
   },
 );
@@ -843,6 +926,16 @@ async function handleStripeWebhook(
     return void res.status(400).json({ error: "Invalid signature" });
   }
 
+  // Idempotency: Stripe retries on transient failures. Skip duplicate event.id.
+  const { firstTime } = await markStripeEventSeen(event.id);
+  if (!firstTime) {
+    console.log(`[stripe-webhook] dropping duplicate event ${event.id} (${event.type})`);
+    return void res.status(200).json({ received: true, duplicate: true });
+  }
+
+  // Track DB writes so we can return 5xx if Supabase fails — Stripe will retry.
+  let dbOk = true;
+
   if (
     event.type === "customer.subscription.created" ||
     event.type === "customer.subscription.updated"
@@ -857,7 +950,7 @@ async function handleStripeWebhook(
         ? "pro"
         : "starter";
 
-    await fetch(
+    const r = await fetch(
       `${SB_URL}/rest/v1/user_personas?stripe_customer_id=eq.${encodeURIComponent(customerId)}`,
       {
         method: "PATCH",
@@ -869,6 +962,10 @@ async function handleStripeWebhook(
         }),
       },
     );
+    if (!r.ok) {
+      console.error(`[stripe-webhook] subscription upsert failed: ${r.status}`, event.id);
+      dbOk = false;
+    }
   }
 
   if (event.type === "customer.subscription.deleted") {
@@ -877,7 +974,7 @@ async function handleStripeWebhook(
     const periodEndTs = sub.items.data[0]?.current_period_end ?? 0;
     const periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null;
 
-    await fetch(
+    const r = await fetch(
       `${SB_URL}/rest/v1/user_personas?stripe_customer_id=eq.${encodeURIComponent(customerId)}`,
       {
         method: "PATCH",
@@ -889,8 +986,15 @@ async function handleStripeWebhook(
         }),
       },
     );
+    if (!r.ok) {
+      console.error(`[stripe-webhook] subscription delete update failed: ${r.status}`, event.id);
+      dbOk = false;
+    }
   }
 
+  if (!dbOk) {
+    return void res.status(502).json({ error: "Database write failed — please retry" });
+  }
   res.status(200).json({ received: true });
 }
 

@@ -16,6 +16,7 @@
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { verifyAuth } from "./_lib/verifyAuth.js";
+import { rateLimit } from "./_lib/rateLimit.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -231,6 +232,10 @@ async function fetchMicrosoftEvents(token: string): Promise<any[]> {
 /* ── Main handler ── */
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
+
+  if (!(await rateLimit(req, 30))) {
+    return void res.status(429).json({ error: "Too many requests" });
+  }
 
   const action = (req.query.action as string) ?? "events";
 

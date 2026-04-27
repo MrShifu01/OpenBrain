@@ -544,17 +544,28 @@ export default function Landing({ onAuth }: LandingProps) {
             color: "var(--ink-faint)",
           }}
         >
-          <a className="press" onClick={() => goto("landing#what")} style={{ cursor: "pointer" }}>
+          <a
+            className="press"
+            href="#what"
+            onClick={(e) => { e.preventDefault(); goto("landing#what"); }}
+            style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
+          >
             What it is
           </a>
           <a
             className="press"
-            onClick={() => goto("landing#pricing")}
-            style={{ cursor: "pointer" }}
+            href="#pricing"
+            onClick={(e) => { e.preventDefault(); goto("landing#pricing"); }}
+            style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
           >
             Pricing
           </a>
-          <a className="press" onClick={() => goto("privacy")} style={{ cursor: "pointer" }}>
+          <a
+            className="press"
+            href="/privacy"
+            onClick={(e) => { e.preventDefault(); goto("privacy"); }}
+            style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
+          >
             Privacy
           </a>
           <button
@@ -575,6 +586,7 @@ export default function Landing({ onAuth }: LandingProps) {
         </nav>
       </header>
 
+      <main>
       {/* HERO */}
       <section
         style={{
@@ -909,6 +921,7 @@ export default function Landing({ onAuth }: LandingProps) {
           />
         </div>
       </section>
+      </main>
 
       {/* FOOTER */}
       <footer

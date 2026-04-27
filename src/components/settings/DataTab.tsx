@@ -121,6 +121,29 @@ export default function DataTab({ brainId, activeBrain }: Props) {
     }
   }
 
+  async function handleFullAccountExport() {
+    setExporting(true);
+    setExportError(null);
+    try {
+      const res = await authFetch("/api/user-data?resource=full_export", { method: "GET" });
+      if (!res.ok) {
+        setExportError(`Export failed (${res.status})`);
+        return;
+      }
+      const data = await res.json();
+      const date = new Date().toISOString().slice(0, 10);
+      downloadFile(
+        JSON.stringify(data, null, 2),
+        `everion-account-${date}.json`,
+        "application/json",
+      );
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   async function handleExportVCard() {
     setExporting(true);
     setExportError(null);
@@ -270,13 +293,16 @@ export default function DataTab({ brainId, activeBrain }: Props) {
       <SettingsExpand open={exportOpen}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <SettingsButton onClick={handleExportJSON} disabled={exporting}>
-            {exporting ? "Exporting…" : "JSON"}
+            {exporting ? "Exporting…" : "Entries · JSON"}
           </SettingsButton>
           <SettingsButton onClick={handleExportCSV} disabled={exporting}>
-            CSV
+            Entries · CSV
           </SettingsButton>
           <SettingsButton onClick={handleExportVCard} disabled={exporting}>
             vCard (contacts)
+          </SettingsButton>
+          <SettingsButton onClick={handleFullAccountExport} disabled={exporting}>
+            Everything (GDPR / POPIA)
           </SettingsButton>
         </div>
         {exportError && (

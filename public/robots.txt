@@ -1,2 +1,7 @@
 User-agent: *
-Disallow: /
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+
+Sitemap: https://everion.smashburgerbar.co.za/sitemap.xml
