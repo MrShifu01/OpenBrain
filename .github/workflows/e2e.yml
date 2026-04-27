@@ -48,16 +48,32 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Resolve target URL
+        id: target
+        run: |
+          URL="${{ github.event.deployment_status.target_url || inputs.target_url || 'https://everion.smashburgerbar.co.za' }}"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Testing against: $URL"
+
+      - name: Warm up the deployment
+        # Fresh Vercel previews have cold lambdas + cold CDN; the first
+        # request can take 20-30s to hydrate. Curl the URL a few times so
+        # everything is warm before Playwright starts. If we see 401/302
+        # to vercel.com/auth here, deployment protection is on and the
+        # tests will fail differently — surface that early.
+        run: |
+          URL="${{ steps.target.outputs.url }}"
+          for i in 1 2 3; do
+            curl -sSL -o /dev/null -w "  attempt $i: HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/" || true
+            sleep 2
+          done
+          # Warm a couple of API endpoints — they boot as separate lambdas.
+          curl -sSL -o /dev/null -w "  /api/vault:  HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/api/vault" || true
+          curl -sSL -o /dev/null -w "  /api/brains: HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/api/brains" || true
+
       - name: Run Playwright tests
         env:
-          # Pick the right URL for the trigger:
-          #   deployment_status → the deploy's own target_url
-          #   workflow_dispatch → the manual input (or its default)
-          #   schedule          → the literal production URL
-          E2E_BASE_URL: >-
-            ${{ github.event.deployment_status.target_url
-              || inputs.target_url
-              || 'https://everion.smashburgerbar.co.za' }}
+          E2E_BASE_URL: ${{ steps.target.outputs.url }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
