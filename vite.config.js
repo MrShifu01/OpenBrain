@@ -24,9 +24,12 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('/node_modules/@supabase/')) return 'supabase';
           if (id.includes('/node_modules/@sentry/')) return 'sentry';
-          if (id.includes('/node_modules/pdfjs-dist/')) return 'pdfjs';
-          if (id.includes('/node_modules/mammoth/')) return 'mammoth';
-          if (id.includes('/node_modules/jszip/')) return 'jszip';
+          // pdfjs/mammoth/exceljs are dynamically imported in fileExtract.ts.
+          // Letting Vite auto-chunk them keeps small shared utilities out of
+          // the eagerly-modulepreloaded set — manual chunking these would
+          // pin shared utility modules into a "named" chunk that the entry
+          // statically pulls (~120KB gzip pdfjs preload regression we saw in
+          // the bundle audit).
         },
       },
     },

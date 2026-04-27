@@ -10,6 +10,7 @@ import { DesignThemeProvider, applyInitialDesignTheme } from "./design/DesignThe
 import ErrorBoundary from "./ErrorBoundary";
 import PrivacyPolicy from "./views/PrivacyPolicy";
 import TermsOfService from "./views/TermsOfService";
+import NotFound from "./views/NotFound";
 import { ConsentBanner, getConsentDecision } from "./components/ConsentBanner";
 import { initPostHog } from "./lib/posthog";
 
@@ -71,6 +72,11 @@ function Root() {
 
   if (pathname === "/privacy") return <PrivacyPolicy />;
   if (pathname === "/terms") return <TermsOfService />;
+
+  // Known SPA paths fall through to <App />. Anything else is a 404.
+  // (api/* and v1/* never reach the SPA; vercel.json strips them.)
+  const KNOWN_PATHS = new Set(["/", "/login", "/admin"]);
+  if (!KNOWN_PATHS.has(pathname)) return <NotFound />;
 
   return (
     <>
