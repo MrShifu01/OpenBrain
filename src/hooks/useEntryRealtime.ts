@@ -79,12 +79,11 @@ export function useEntryRealtime(
               if (idx === -1) return prev;
               const next = prev.slice();
               const merged: Entry = { ...next[idx] };
-              if (row.metadata !== undefined) merged.metadata = row.metadata as Entry["metadata"];
-              if ((row as any).embedded_at !== undefined)
-                (merged as any).embedded_at = (row as any).embedded_at;
-              if ((row as any).embedding_status !== undefined)
-                (merged as any).embedding_status = (row as any).embedding_status;
-              if ((row as any).status !== undefined) (merged as any).status = (row as any).status;
+              if (row.metadata !== undefined) merged.metadata = row.metadata;
+              if (row.embedded_at !== undefined) merged.embedded_at = row.embedded_at;
+              if (row.embedding_status !== undefined)
+                merged.embedding_status = row.embedding_status;
+              if (row.status !== undefined) merged.status = row.status;
               next[idx] = merged;
               return next;
             });

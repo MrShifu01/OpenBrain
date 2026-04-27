@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, memo, useState, useEffect } from "react";
+import { useMemo, useRef, memo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import type { Entry } from "../types";
 import { resolveIcon } from "../lib/typeIcons";
 import { isPendingEnrichment } from "../lib/enrichFlags";
 import { getAdminPrefs } from "../lib/adminPrefs";
 import { isCachedAdmin } from "../lib/userEmailCache";
+import { useSwipeActions } from "../hooks/useSwipeActions";
 import {
   IconPin,
   IconVaultSmall as IconVault,
@@ -84,42 +85,12 @@ const EntryCard = memo(function EntryCard({
     return concepts ?? [];
   })();
 
-  const [swipeX, setSwipeX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const touchStartRef = useRef({ x: 0, y: 0 });
-  const startSwipeRef = useRef(0);
-  const draggingRef = useRef(false);
-
   const ACTION_W = 72;
   const actionCount = (onPin ? 1 : 0) + (onDelete ? 1 : 0);
   const TOTAL_W = actionCount * ACTION_W;
-  const isOpen = swipeX < -10;
 
-  function onTouchStart(ev: React.TouchEvent) {
-    touchStartRef.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-    startSwipeRef.current = swipeX;
-    draggingRef.current = false;
-  }
-
-  function onTouchMove(ev: React.TouchEvent) {
-    if (TOTAL_W === 0) return;
-    const dx = ev.touches[0].clientX - touchStartRef.current.x;
-    const dy = ev.touches[0].clientY - touchStartRef.current.y;
-    if (!draggingRef.current) {
-      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-      if (Math.abs(dy) > Math.abs(dx)) return;
-      draggingRef.current = true;
-      setDragging(true);
-    }
-    setSwipeX(Math.min(0, Math.max(-TOTAL_W, startSwipeRef.current + dx)));
-  }
-
-  function onTouchEnd() {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setDragging(false);
-    setSwipeX((prev) => (prev < -(TOTAL_W / 2) ? -TOTAL_W : 0));
-  }
+  const { swipeX, dragging, isOpen, onTouchStart, onTouchMove, onTouchEnd, closeSwipe } =
+    useSwipeActions({ actionWidth: ACTION_W, actionCount });
 
   return (
     <div
@@ -153,7 +124,7 @@ const EntryCard = memo(function EntryCard({
               onClick={(ev) => {
                 ev.stopPropagation();
                 onPin(e);
-                setSwipeX(0);
+                closeSwipe();
               }}
               style={{
                 flex: 1,
@@ -233,14 +204,14 @@ const EntryCard = memo(function EntryCard({
         tabIndex={0}
         onClick={() => {
           if (isOpen) {
-            setSwipeX(0);
+            closeSwipe();
             return;
           }
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }}
         onKeyDown={(ev) => {
           if (ev.key === "Escape") {
-            setSwipeX(0);
+            closeSwipe();
             return;
           }
           if (ev.key === "Enter" || ev.key === " ") {
@@ -491,42 +462,12 @@ const EntryRow = memo(function EntryRow({
   const showAdminFlags =
     isAdminSync() && e.type !== "secret" && getAdminPrefs().showEnrichmentChips;
 
-  const [swipeX, setSwipeX] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const touchStartRef = useRef({ x: 0, y: 0 });
-  const startSwipeRef = useRef(0);
-  const draggingRef = useRef(false);
-
   const ACTION_W = 64;
   const actionCount = (onPin ? 1 : 0) + (onDelete ? 1 : 0);
   const TOTAL_W = actionCount * ACTION_W;
-  const isOpen = swipeX < -10;
 
-  function onTouchStart(ev: React.TouchEvent) {
-    touchStartRef.current = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-    startSwipeRef.current = swipeX;
-    draggingRef.current = false;
-  }
-
-  function onTouchMove(ev: React.TouchEvent) {
-    if (TOTAL_W === 0) return;
-    const dx = ev.touches[0].clientX - touchStartRef.current.x;
-    const dy = ev.touches[0].clientY - touchStartRef.current.y;
-    if (!draggingRef.current) {
-      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
-      if (Math.abs(dy) > Math.abs(dx)) return;
-      draggingRef.current = true;
-      setDragging(true);
-    }
-    setSwipeX(Math.min(0, Math.max(-TOTAL_W, startSwipeRef.current + dx)));
-  }
-
-  function onTouchEnd() {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    setDragging(false);
-    setSwipeX((prev) => (prev < -(TOTAL_W / 2) ? -TOTAL_W : 0));
-  }
+  const { swipeX, dragging, isOpen, onTouchStart, onTouchMove, onTouchEnd, closeSwipe } =
+    useSwipeActions({ actionWidth: ACTION_W, actionCount });
 
   return (
     <div
@@ -558,7 +499,7 @@ const EntryRow = memo(function EntryRow({
               onClick={(ev) => {
                 ev.stopPropagation();
                 onPin(e);
-                setSwipeX(0);
+                closeSwipe();
               }}
               style={{
                 flex: 1,
@@ -638,14 +579,14 @@ const EntryRow = memo(function EntryRow({
         tabIndex={0}
         onClick={() => {
           if (isOpen) {
-            setSwipeX(0);
+            closeSwipe();
             return;
           }
           selectMode ? onToggleSelect?.(e.id) : onSelect(e);
         }}
         onKeyDown={(ev) => {
           if (ev.key === "Escape") {
-            setSwipeX(0);
+            closeSwipe();
             return;
           }
           if (ev.key === "Enter" || ev.key === " ") {
