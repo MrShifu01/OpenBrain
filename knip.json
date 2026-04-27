@@ -8,7 +8,9 @@
     "graphify-out/**",
     "scripts/mock-prompt-audit/**",
     "supabase/functions/**",
-    "dist/**"
+    "dist/**",
+    "e2e/**",
+    "playwright.config.ts"
   ],
   "entry": [
     "src/main.tsx",
