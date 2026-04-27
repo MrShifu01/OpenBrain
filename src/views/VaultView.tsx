@@ -866,12 +866,72 @@ export default function VaultView({
       )}
 
       {decryptedSecrets.length === 0 ? (
-        <div className="flex flex-col items-center space-y-2 py-16">
-          <div className="text-4xl">🔐</div>
-          <p className="text-on-surface text-sm">No secrets yet</p>
-          <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
-            Capture a password, credit card, or PIN and it'll appear here
+        <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: "50%",
+              background: "var(--ember-wash)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <svg
+              width="24"
+              height="24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              style={{ color: "var(--ember)" }}
+              aria-hidden="true"
+            >
+              <rect x="4" y="10" width="16" height="11" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+          </div>
+          <h2
+            className="f-serif"
+            style={{
+              fontSize: 24,
+              fontWeight: 400,
+              letterSpacing: "-0.01em",
+              color: "var(--ink)",
+              margin: 0,
+            }}
+          >
+            Vault is empty.
+          </h2>
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 15,
+              fontStyle: "italic",
+              color: "var(--ink-soft)",
+              margin: 0,
+              maxWidth: 360,
+              lineHeight: 1.55,
+            }}
+          >
+            Passwords, PINs, recovery codes, anything you don't want in plaintext.
+            Encrypted client-side with your master passphrase.
           </p>
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
+              )
+            }
+            className="design-btn-primary press"
+            style={{ marginTop: 4 }}
+          >
+            Add a secret
+          </button>
         </div>
       ) : (
         <div className="space-y-3">

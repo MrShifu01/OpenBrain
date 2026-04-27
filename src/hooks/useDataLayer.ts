@@ -90,15 +90,22 @@ export function useDataLayer({
     if (!activeBrainId) return;
     setEntriesLoaded(false);
     setLoadError(null);
+    // Fire phase 1 (fast 20-row first-paint) and phase 2 (full 1000-row
+    // background) concurrently so phase 2 isn't gated on phase 1's
+    // round-trip. PostgREST can't stream, so we still want both — phase 1
+    // returns first (smaller payload) and unblocks the UI while phase 2
+    // continues in the background. Net cold-load saving ~100-200 ms.
+    const phase1 = entryRepo.list({
+      brainId: activeBrainId,
+      limit: 20,
+      onError: (status, body) => {
+        setLoadError(`HTTP ${status}${body ? `: ${body.slice(0, 200)}` : ""}`);
+      },
+    });
+    const phase2 = entryRepo.list({ brainId: activeBrainId, limit: 1000 });
+
     try {
-      // Phase 1: first 20 entries for fast first-paint
-      const initial = await entryRepo.list({
-        brainId: activeBrainId,
-        limit: 20,
-        onError: (status, body) => {
-          setLoadError(`HTTP ${status}${body ? `: ${body.slice(0, 200)}` : ""}`);
-        },
-      });
+      const initial = await phase1;
       if (initial.length > 0) {
         setEntries(initial);
         initial.filter((e) => e.type !== "secret").forEach(indexEntry);
@@ -107,9 +114,7 @@ export function useDataLayer({
       setEntriesLoaded(true); // unblock UI regardless of phase 1 outcome
     }
 
-    // Phase 2: full load in background — no skeleton, UI already visible
-    entryRepo
-      .list({ brainId: activeBrainId, limit: 1000 })
+    phase2
       .then((all) => {
         if (all.length > 0) {
           setEntries(all);

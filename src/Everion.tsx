@@ -226,6 +226,33 @@ function EverionContent({
 
   return (
     <>
+      {/*
+        Skip-to-main-content link — keyboard users can jump past the
+        sidebar/header tree in one Tab. `sr-only` keeps it invisible until
+        focused; `focus:not-sr-only` brings it into view as a styled chip.
+        Counterpart `id="main-content"` is on the view-content wrapper below.
+      */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only"
+        style={{
+          position: "fixed",
+          top: 8,
+          left: 8,
+          zIndex: 9999,
+          padding: "8px 14px",
+          background: "var(--ember-wash)",
+          color: "var(--ember)",
+          border: "1px solid color-mix(in oklch, var(--ember) 40%, transparent)",
+          borderRadius: 8,
+          fontFamily: "var(--f-sans)",
+          fontSize: 13,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        Skip to main content
+      </a>
       <div className="synapse-bg" />
       <div className="grain" />
       <DesktopSidebar
@@ -325,7 +352,12 @@ function EverionContent({
               source_entries: c.source_entries,
             }))}
           />
-          <div key={appShell.view} className="animate-view-enter">
+          <div
+            id="main-content"
+            key={appShell.view}
+            className="animate-view-enter"
+            tabIndex={-1}
+          >
             {(appShell.view === "memory" || appShell.view === "timeline") && (
               <>
                 <MemoryHeader

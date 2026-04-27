@@ -351,19 +351,41 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
             }}
           >
             {noMemory ? (
-              <p
-                className="f-serif"
-                style={{
-                  fontSize: 18,
-                  fontStyle: "italic",
-                  color: "var(--ink-ghost)",
-                  lineHeight: 1.5,
-                  margin: 0,
-                  letterSpacing: "-0.005em",
-                }}
-              >
-                add some memories before you start chatting.
-              </p>
+              <div className="flex flex-col items-center gap-4">
+                <h2
+                  className="f-serif"
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 400,
+                    letterSpacing: "-0.01em",
+                    color: "var(--ink)",
+                    margin: 0,
+                  }}
+                >
+                  Nothing to chat about yet.
+                </h2>
+                <p
+                  className="f-serif"
+                  style={{
+                    fontSize: 15,
+                    fontStyle: "italic",
+                    color: "var(--ink-soft)",
+                    margin: 0,
+                    maxWidth: 360,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Capture a few thoughts first — chat draws on your own
+                  memories, not the open web.
+                </p>
+                <button
+                  onClick={() => onNavigate?.("capture")}
+                  className="design-btn-primary press"
+                  style={{ marginTop: 4 }}
+                >
+                  Capture a thought
+                </button>
+              </div>
             ) : (
               <>
                 <p
