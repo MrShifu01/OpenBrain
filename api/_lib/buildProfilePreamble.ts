@@ -178,7 +178,10 @@ export async function buildProfilePreamble(
     }
 
     if (Array.isArray(core.habits) && core.habits.length) {
-      const habits = core.habits.slice(0, 12).map((h) => clean(h, 120)).filter(Boolean);
+      const habits = core.habits
+        .slice(0, 12)
+        .map((h) => clean(h, 120))
+        .filter(Boolean);
       if (habits.length) coreLines.push(`Habits (manually set): ${habits.join("; ")}`);
     }
 
@@ -212,7 +215,10 @@ export async function buildProfilePreamble(
 
   if (!coreLines.length && !factLines.length) return "";
 
-  const body = [coreLines.join("\n"), factLines.join("\n")].filter(Boolean).join("\n\n").slice(0, MAX_PREAMBLE_CHARS);
+  const body = [coreLines.join("\n"), factLines.join("\n")]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, MAX_PREAMBLE_CHARS);
 
   return [
     "",

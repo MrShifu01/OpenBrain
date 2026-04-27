@@ -41,8 +41,18 @@ interface Props {
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const DAY_ABBRS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -175,7 +185,14 @@ function ChevronButton({
       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-high)")}
       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
     >
-      <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <svg
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        viewBox="0 0 24 24"
+      >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -207,7 +224,15 @@ function CalendarHeader({
       }}
     >
       <ChevronButton direction="left" onClick={onPrev} ariaLabel="Previous" />
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, justifyContent: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flex: 1,
+          justifyContent: "center",
+        }}
+      >
         <h2
           className="f-serif"
           style={{
@@ -388,9 +413,7 @@ function DayCell({
         background: isSelected ? "var(--ember-wash)" : "var(--surface)",
         // 2px ember border for today; transparent 2px on others so layout
         // doesn't shift between today and any other cell.
-        border: isToday
-          ? "2px solid var(--ember)"
-          : "2px solid transparent",
+        border: isToday ? "2px solid var(--ember)" : "2px solid transparent",
         boxShadow: "var(--lift-1)",
         textAlign: "left",
         cursor: "pointer",
@@ -477,7 +500,10 @@ function EventCard({ event }: { event: CalEvent }) {
             style={{
               padding: "1px 7px",
               borderRadius: 999,
-              background: kind === "internal" ? "var(--ember-wash)" : "color-mix(in oklch, oklch(58% 0.13 248) 14%, var(--surface-high))",
+              background:
+                kind === "internal"
+                  ? "var(--ember-wash)"
+                  : "color-mix(in oklch, oklch(58% 0.13 248) 14%, var(--surface-high))",
               color: kind === "internal" ? "var(--ember)" : "oklch(54% 0.13 248)",
               fontSize: 10,
               fontWeight: 600,
@@ -504,7 +530,14 @@ function DayDetailContent({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 10,
+        }}
+      >
         <div>
           <p
             className="f-sans"
@@ -517,7 +550,9 @@ function DayDetailContent({
               color: "var(--ink-ghost)",
             }}
           >
-            {events.length === 0 ? "Free" : `${events.length} ${events.length === 1 ? "event" : "events"}`}
+            {events.length === 0
+              ? "Free"
+              : `${events.length} ${events.length === 1 ? "event" : "events"}`}
           </p>
           <h3
             className="f-serif"
@@ -748,7 +783,14 @@ function FloatingActionButton({ onClick }: { onClick: () => void }) {
         zIndex: 40,
       }}
     >
-      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.2" viewBox="0 0 24 24">
+      <svg
+        width="20"
+        height="20"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        viewBox="0 0 24 24"
+      >
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
       </svg>
     </button>
@@ -770,10 +812,7 @@ function MonthGrid({
   eventMap: Record<string, CalEvent[]>;
   onSelect: (key: string) => void;
 }) {
-  const grid = useMemo(
-    () => buildMonthGrid(navDate.getFullYear(), navDate.getMonth()),
-    [navDate],
-  );
+  const grid = useMemo(() => buildMonthGrid(navDate.getFullYear(), navDate.getMonth()), [navDate]);
   return (
     <div>
       <div
@@ -810,7 +849,17 @@ function MonthGrid({
         }}
       >
         {grid.flat().map((day, i) => {
-          if (!day) return <DayCell key={`empty-${i}`} date={null} events={[]} isToday={false} isSelected={false} onClick={() => {}} />;
+          if (!day)
+            return (
+              <DayCell
+                key={`empty-${i}`}
+                date={null}
+                events={[]}
+                isToday={false}
+                isSelected={false}
+                onClick={() => {}}
+              />
+            );
           const key = toDateKey(day);
           return (
             <DayCell
@@ -868,7 +917,12 @@ function WeekStrip({
           >
             <div
               className="f-sans"
-              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: events.length > 0 ? 12 : 8 }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                marginBottom: events.length > 0 ? 12 : 8,
+              }}
             >
               <span
                 style={{
@@ -1191,7 +1245,16 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
 
   // ── Render ──
   return (
-    <div className="cal-root" style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+    <div
+      className="cal-root"
+      style={{
+        maxWidth: 1100,
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
       <div ref={quickAddRef}>
         <QuickAdd brainId={brainId} onAdded={onAdded} />
       </div>
@@ -1236,15 +1299,9 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
             />
           )}
           {view === "week" && (
-            <WeekStrip
-              navDate={navDate}
-              todayKey={todayKey}
-              eventMap={eventMap}
-            />
+            <WeekStrip navDate={navDate} todayKey={todayKey} eventMap={eventMap} />
           )}
-          {view === "myday" && (
-            <MyDayList todayKey={todayKey} eventMap={eventMap} />
-          )}
+          {view === "myday" && <MyDayList todayKey={todayKey} eventMap={eventMap} />}
         </div>
 
         {/* Desktop side panel — only for the month grid; week and my-day
@@ -1264,10 +1321,7 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
       {!isDesktop && view === "calendar" && (
         <BottomSheet open={sheetOpen && !!selectedKey} onClose={() => setSheetOpen(false)}>
           {selectedKey && (
-            <DayDetailContent
-              date={parseISO(selectedKey + "T00:00:00")}
-              events={selectedEvents}
-            />
+            <DayDetailContent date={parseISO(selectedKey + "T00:00:00")} events={selectedEvents} />
           )}
         </BottomSheet>
       )}

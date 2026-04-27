@@ -99,9 +99,7 @@ function WeekDayCard({
         transition: "transform 180ms ease, box-shadow 180ms ease",
         // Left-edge gold accent for today — chosen over a full tint-only
         // because it reads as "this is now" without dominating the card.
-        ...(isToday
-          ? { borderLeft: "3px solid var(--ember)" }
-          : {}),
+        ...(isToday ? { borderLeft: "3px solid var(--ember)" } : {}),
       }}
     >
       {children}
@@ -145,9 +143,7 @@ function WeekDayHeader({
       >
         {label}
       </span>
-      {date && (
-        <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{date}</span>
-      )}
+      {date && <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{date}</span>}
       {isToday && (
         <span
           style={{
@@ -321,15 +317,43 @@ function CalEventRow({ ev }: { ev: ExternalCalEvent }) {
   const timeLabel = ev.allDay ? null : fmtTime(ev.start);
   return (
     <div className="flex items-center gap-3 py-2.5">
-      <span style={{ width: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-        <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--moss)", display: "block" }} />
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "var(--moss)",
+            display: "block",
+          }}
+        />
       </span>
-      <span className="shrink-0 text-base" style={{ lineHeight: 1 }}>📅</span>
+      <span className="shrink-0 text-base" style={{ lineHeight: 1 }}>
+        📅
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium" style={{ color: "var(--ink)" }}>{ev.title}</p>
-        {timeLabel && <p className="mt-0.5 text-xs" style={{ color: "var(--ink-faint)" }}>{timeLabel}</p>}
+        <p className="truncate text-sm font-medium" style={{ color: "var(--ink)" }}>
+          {ev.title}
+        </p>
+        {timeLabel && (
+          <p className="mt-0.5 text-xs" style={{ color: "var(--ink-faint)" }}>
+            {timeLabel}
+          </p>
+        )}
       </div>
-      <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium" style={{ background: "var(--moss-wash)", color: "var(--moss)" }}>
+      <span
+        className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+        style={{ background: "var(--moss-wash)", color: "var(--moss)" }}
+      >
         event
       </span>
     </div>
@@ -345,7 +369,11 @@ interface TodoViewProps {
 
 type Tab = "today" | "list" | "calendar";
 
-export default function TodoView({ entries: propEntries, typeIcons = {}, activeBrainId }: TodoViewProps) {
+export default function TodoView({
+  entries: propEntries,
+  typeIcons = {},
+  activeBrainId,
+}: TodoViewProps) {
   const ctx = useEntries();
   const entries = propEntries || ctx?.entries || [];
   const [tab, setTab] = useState<Tab>("calendar");
@@ -358,9 +386,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
     const el = weekQuickAddRef.current;
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
-    const input = el.querySelector<HTMLInputElement | HTMLTextAreaElement>(
-      "input, textarea",
-    );
+    const input = el.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
     setTimeout(() => input?.focus(), 320);
   }
 
@@ -378,7 +404,9 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   useEffect(() => {
     authFetch("/api/calendar?action=events")
       .then((r) => r?.json?.())
-      .then((d) => { if (Array.isArray(d?.events)) setExternalEvents(d.events); })
+      .then((d) => {
+        if (Array.isArray(d?.events)) setExternalEvents(d.events);
+      })
       .catch(() => null);
   }, []);
 
@@ -390,7 +418,9 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   const taskMap = useMemo(() => {
     const map: Record<string, Entry[]> = {};
     const add = mkAdd(map);
-    entries.forEach((e) => { if (!isDone(e)) extractActionDates(e).forEach((d) => add(d, e)); });
+    entries.forEach((e) => {
+      if (!isDone(e)) extractActionDates(e).forEach((d) => add(d, e));
+    });
     addRecurring(entries, add);
     return map;
   }, [entries]);
@@ -436,7 +466,8 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
   }, [entries, mondayKey]);
 
   const todoList = useMemo(
-    () => entries.filter((e) => !isDone(e) && e.type === "todo" && extractActionDates(e).length === 0),
+    () =>
+      entries.filter((e) => !isDone(e) && e.type === "todo" && extractActionDates(e).length === 0),
     [entries],
   );
 
@@ -502,11 +533,20 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
         <div>
           <h1
             className="f-serif"
-            style={{ fontSize: 22, fontWeight: 450, letterSpacing: "-0.01em", margin: 0, color: "var(--ink)" }}
+            style={{
+              fontSize: 22,
+              fontWeight: 450,
+              letterSpacing: "-0.01em",
+              margin: 0,
+              color: "var(--ink)",
+            }}
           >
             Schedule
           </h1>
-          <div className="f-serif" style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}>
+          <div
+            className="f-serif"
+            style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}
+          >
             {total > 0 ? `${total} active · ${completed.length} done` : "your focused task list"}
           </div>
         </div>
@@ -516,9 +556,18 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
         </div>
       </header>
 
-      <div style={{ padding: "16px 24px 120px", maxWidth: tab === "calendar" ? 1100 : 780, margin: "0 auto" }}>
+      <div
+        style={{
+          padding: "16px 24px 120px",
+          maxWidth: tab === "calendar" ? 1100 : 780,
+          margin: "0 auto",
+        }}
+      >
         {/* Mobile tab switcher */}
-        <div className="mb-4 flex items-center overflow-hidden rounded-xl border lg:hidden" style={{ borderColor: "var(--line-soft)" }}>
+        <div
+          className="mb-4 flex items-center overflow-hidden rounded-xl border lg:hidden"
+          style={{ borderColor: "var(--line-soft)" }}
+        >
           {TABS.map((t, i) => (
             <button
               key={t.id}
@@ -564,15 +613,32 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
               {overdue.length > 0 && (
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="block h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--blood)" }} />
-                    <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--blood)" }}>
+                    <span
+                      className="block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: "var(--blood)" }}
+                    />
+                    <p
+                      className="text-[10px] font-semibold tracking-[0.14em] uppercase"
+                      style={{ fontFamily: "var(--f-sans)", color: "var(--blood)" }}
+                    >
                       Overdue
                     </p>
-                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--blood-wash)", color: "var(--blood)" }}>
+                    <span
+                      className="inline-flex items-center justify-center rounded-full text-[10px] font-medium"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        background: "var(--blood-wash)",
+                        color: "var(--blood)",
+                      }}
+                    >
                       {overdue.length}
                     </span>
                   </div>
-                  <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
+                  <div
+                    className="divide-y rounded-2xl border px-3"
+                    style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
+                  >
                     {overdue.map((item) => renderSwipeableItem(item, true))}
                   </div>
                 </div>
@@ -597,19 +663,34 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     Today
                   </span>
                   <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-                    {new Date().toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" })}
+                    {new Date().toLocaleDateString("en-ZA", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                    })}
                   </span>
                 </div>
                 {todayItems.length > 0 || todayCalEvents.length > 0 ? (
-                  <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
-                    {todayCalEvents.map((ev) => <CalEventRow key={ev.id} ev={ev} />)}
-                    {todayItems.map((entry) => renderSwipeableItem({ entry, dateStr: todayKey }, false))}
+                  <div
+                    className="divide-y rounded-2xl border px-3"
+                    style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
+                  >
+                    {todayCalEvents.map((ev) => (
+                      <CalEventRow key={ev.id} ev={ev} />
+                    ))}
+                    {todayItems.map((entry) =>
+                      renderSwipeableItem({ entry, dateStr: todayKey }, false),
+                    )}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
                     <div style={{ fontSize: 32, opacity: 0.25, marginBottom: 8 }}>☀️</div>
-                    <p className="text-sm font-medium" style={{ color: "var(--ink-soft)" }}>Nothing scheduled for today</p>
-                    <p className="mt-1 text-xs" style={{ color: "var(--ink-faint)" }}>Add a todo above or assign due dates to entries</p>
+                    <p className="text-sm font-medium" style={{ color: "var(--ink-soft)" }}>
+                      Nothing scheduled for today
+                    </p>
+                    <p className="mt-1 text-xs" style={{ color: "var(--ink-faint)" }}>
+                      Add a todo above or assign due dates to entries
+                    </p>
                   </div>
                 )}
               </div>
@@ -617,15 +698,32 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
               {todoList.length > 0 && (
                 <div>
                   <div className="mb-2 flex items-center gap-2">
-                    <span className="block h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--ember)" }} />
-                    <p className="text-[10px] font-semibold tracking-[0.14em] uppercase" style={{ fontFamily: "var(--f-sans)", color: "var(--ember)" }}>
+                    <span
+                      className="block h-2 w-2 shrink-0 rounded-full"
+                      style={{ background: "var(--ember)" }}
+                    />
+                    <p
+                      className="text-[10px] font-semibold tracking-[0.14em] uppercase"
+                      style={{ fontFamily: "var(--f-sans)", color: "var(--ember)" }}
+                    >
                       Undated
                     </p>
-                    <span className="inline-flex items-center justify-center rounded-full text-[10px] font-medium" style={{ width: 18, height: 18, background: "var(--ember-wash)", color: "var(--ember)" }}>
+                    <span
+                      className="inline-flex items-center justify-center rounded-full text-[10px] font-medium"
+                      style={{
+                        width: 18,
+                        height: 18,
+                        background: "var(--ember-wash)",
+                        color: "var(--ember)",
+                      }}
+                    >
                       {todoList.length}
                     </span>
                   </div>
-                  <div className="divide-y rounded-2xl border px-3" style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}>
+                  <div
+                    className="divide-y rounded-2xl border px-3"
+                    style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
+                  >
                     {todoList.map(renderEntryRow)}
                   </div>
                 </div>
@@ -683,8 +781,8 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                       lineHeight: 1.55,
                     }}
                   >
-                    Add a todo above, or capture an entry with a date and it'll
-                    show up here automatically.
+                    Add a todo above, or capture an entry with a date and it'll show up here
+                    automatically.
                   </p>
                 </div>
               )}
@@ -714,11 +812,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {overdue.length > 0 && (
                 <WeekDayCard>
-                  <WeekDayHeader
-                    label="Overdue"
-                    count={overdue.length}
-                    accent="var(--blood)"
-                  />
+                  <WeekDayHeader label="Overdue" count={overdue.length} accent="var(--blood)" />
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {overdue.map((item) => (
                       <WeekItemCard key={`${item.entry.id}-${item.dateStr}`}>
@@ -737,7 +831,10 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                 const events = calEventMap[key] || [];
                 const count = items.length + events.length;
                 const dayLabel = dayDate.toLocaleDateString("en-ZA", { weekday: "long" });
-                const dateLabel = dayDate.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
+                const dateLabel = dayDate.toLocaleDateString("en-ZA", {
+                  day: "numeric",
+                  month: "short",
+                });
 
                 return (
                   <WeekDayCard key={key} isToday={isToday} isPast={isPast}>
@@ -749,7 +846,9 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
                     />
                     {count > 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                        {events.map((ev) => <WeekEventCard key={ev.id} ev={ev} />)}
+                        {events.map((ev) => (
+                          <WeekEventCard key={ev.id} ev={ev} />
+                        ))}
                         {items.map((entry) => (
                           <WeekItemCard key={`${entry.id}-${key}`}>
                             {renderSwipeableItem({ entry, dateStr: key }, false)}
@@ -775,11 +874,7 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
 
               {todoList.length > 0 && (
                 <WeekDayCard>
-                  <WeekDayHeader
-                    label="Undated"
-                    count={todoList.length}
-                    accent="var(--ember)"
-                  />
+                  <WeekDayHeader label="Undated" count={todoList.length} accent="var(--ember)" />
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {todoList.map((entry) => (
                       <WeekItemCard key={entry.id}>{renderEntryRow(entry)}</WeekItemCard>
@@ -835,9 +930,18 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
 
               {total === 0 && completed.length === 0 && (
                 <div className="mt-2 flex flex-col items-center justify-center py-16 text-center">
-                  <div className="mb-4" style={{ fontSize: 40, opacity: 0.3 }}>☑</div>
-                  <p className="mb-1 text-lg font-semibold" style={{ fontFamily: "var(--f-sans)", color: "var(--ink)" }}>All clear</p>
-                  <p className="max-w-xs text-sm" style={{ color: "var(--ink-faint)" }}>Add todos above, or they'll appear automatically when entries have due dates.</p>
+                  <div className="mb-4" style={{ fontSize: 40, opacity: 0.3 }}>
+                    ☑
+                  </div>
+                  <p
+                    className="mb-1 text-lg font-semibold"
+                    style={{ fontFamily: "var(--f-sans)", color: "var(--ink)" }}
+                  >
+                    All clear
+                  </p>
+                  <p className="max-w-xs text-sm" style={{ color: "var(--ink-faint)" }}>
+                    Add todos above, or they'll appear automatically when entries have due dates.
+                  </p>
                 </div>
               )}
             </div>

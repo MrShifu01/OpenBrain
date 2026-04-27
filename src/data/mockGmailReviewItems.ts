@@ -13,7 +13,8 @@ export const MOCK_REVIEW_ITEMS: ScanResultItem[] = [
     groupCount: 1,
     threadMessageCount: 3,
     title: "March 2026 Statement from Delta Distributors – Amount Due: R1,027.83",
-    summary: "Your March statement from Delta Distributors (Account #8932) shows a current balance of R1,027.83 due. Transactions from 01/03/2026 to 26/03/2026. Please remit to Nedbank Account 1102416576 or contact sally@deltabs.co.za.",
+    summary:
+      "Your March statement from Delta Distributors (Account #8932) shows a current balance of R1,027.83 due. Transactions from 01/03/2026 to 26/03/2026. Please remit to Nedbank Account 1102416576 or contact sally@deltabs.co.za.",
     from: "Delta Distributors <debtors@deltabs.co.za>",
     subject: "Your statement from Delta Distributors – March 2026",
     emailType: "invoices",
@@ -28,7 +29,8 @@ export const MOCK_REVIEW_ITEMS: ScanResultItem[] = [
     groupCount: 1,
     threadMessageCount: 1,
     title: "Delivery Confirmation – Chicken Portion Order #44821",
-    summary: "Your chicken portion order #44821 from Farmers Fresh is confirmed for delivery on 25 Apr 2026 between 08:00–12:00. Total: R3,450.00. Contact driver on 082 555 1234 for rescheduling.",
+    summary:
+      "Your chicken portion order #44821 from Farmers Fresh is confirmed for delivery on 25 Apr 2026 between 08:00–12:00. Total: R3,450.00. Contact driver on 082 555 1234 for rescheduling.",
     from: "Farmers Fresh <orders@farmersfresh.co.za>",
     subject: "Delivery Confirmation – Order #44821",
     emailType: "delivery",
@@ -43,7 +45,8 @@ export const MOCK_REVIEW_ITEMS: ScanResultItem[] = [
     groupCount: 2,
     threadMessageCount: 1,
     title: "Subscription Renewal – Yoco POS System – R299/month",
-    summary: "Your Yoco subscription renews on 1 May 2026 at R299/month. No action needed unless you'd like to change your plan. Card on file: Visa ending 4242.",
+    summary:
+      "Your Yoco subscription renews on 1 May 2026 at R299/month. No action needed unless you'd like to change your plan. Card on file: Visa ending 4242.",
     from: "Yoco <billing@yoco.com>",
     subject: "Your Yoco subscription renews soon",
     emailType: "subscription-renewal",
@@ -58,7 +61,8 @@ export const MOCK_REVIEW_ITEMS: ScanResultItem[] = [
     groupCount: 1,
     threadMessageCount: 2,
     title: "Action Required – Sign Employment Contract for Sipho Dlamini",
-    summary: "Please sign the employment contract for Sipho Dlamini (Kitchen Assistant) by 28 April 2026. DocuSign link expires in 5 days. Contact HR at hr@smashsocialclub.co.za with questions.",
+    summary:
+      "Please sign the employment contract for Sipho Dlamini (Kitchen Assistant) by 28 April 2026. DocuSign link expires in 5 days. Contact HR at hr@smashsocialclub.co.za with questions.",
     from: "DocuSign <dse_NA4@docusign.net>",
     subject: "Action Required: Sign Employment Contract",
     emailType: "signing-requests",
@@ -73,7 +77,8 @@ export const MOCK_REVIEW_ITEMS: ScanResultItem[] = [
     groupCount: 1,
     threadMessageCount: 1,
     title: "Health Inspection Appointment – 3 May 2026, 10:00",
-    summary: "City Health has scheduled a routine inspection of Smash Social Club for 3 May 2026 at 10:00. Ensure all food handling certificates are on display and cold storage logs are available.",
+    summary:
+      "City Health has scheduled a routine inspection of Smash Social Club for 3 May 2026 at 10:00. Ensure all food handling certificates are on display and cold storage logs are available.",
     from: "City of Cape Town Health <health@capetown.gov.za>",
     subject: "Scheduled Health Inspection – Smash Social Club",
     emailType: "appointment",

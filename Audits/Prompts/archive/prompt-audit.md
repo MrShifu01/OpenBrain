@@ -1,4 +1,5 @@
 # EverionMind Prompt Audit — Full Coverage
+
 **Date:** 2026-04-16
 **Models targeted:** Gemini 2.5 Flash Lite + frontier (GPT-5, Opus 4+)
 **Method:** Mock session — 69 test cases across all 23 prompts
@@ -9,68 +10,72 @@
 
 ## Summary
 
-| Metric | Result |
-|---|---|
-| Prompts covered | 23 / 23 |
-| Total test sessions | 69 |
-| Distinct failure modes | 64 |
-| Total failure occurrences | 107 |
-| Suggestions generated | 34 (HIGH: 13, MED: 19, LOW: 2) |
+| Metric                    | Result                         |
+| ------------------------- | ------------------------------ |
+| Prompts covered           | 23 / 23                        |
+| Total test sessions       | 69                             |
+| Distinct failure modes    | 64                             |
+| Total failure occurrences | 107                            |
+| Suggestions generated     | 34 (HIGH: 13, MED: 19, LOW: 2) |
 
 **Top 5 failure modes across all prompts:**
 
-| Failure mode | Count |
-|---|---|
-| `type_mismatch` | 18× |
-| `phone_not_extracted` | 8× |
-| `missing_split` | 5× |
-| `full_text_not_stored` | 4× |
-| `vague_rel_label` | 4× |
+| Failure mode           | Count |
+| ---------------------- | ----- |
+| `type_mismatch`        | 18×   |
+| `phone_not_extracted`  | 8×    |
+| `missing_split`        | 5×    |
+| `full_text_not_stored` | 4×    |
+| `vague_rel_label`      | 4×    |
 
 ---
 
 ## Per-Prompt Failure Rates
 
-| Prompt | Key metric | Result |
-|---|---|---|
-| CAPTURE | Type accuracy | 5/20 correct (25%) |
-| CHAT | Thumbs-down | 5/5 — 5 distinct symptoms |
-| QA_PARSE | Sessions with failures | 3/3 — type_mismatch dominant |
-| FILL_BRAIN | Failures | generic(1) wrong_priority(1) already_answered(1) |
-| ENTRY_AUDIT | False neg / pos / over-sug | 1 / 1 / 1 |
-| NUDGE | Passing | 1/3 — JSON keys leaked, vague output |
-| LINK_DISCOVERY | Quality | vague_rel(2) missed_link(2) trivial(1) |
-| LINK_DISCOVERY_PAIRS | False pos / neg | 1 / 0 + 1 vague confirmed label |
-| WEAK_LABEL_RENAME | Quality | still_vague(2) hallucinated(1) |
-| DUPLICATE_NAMES | False pos / neg | 1 / 1 |
-| CLUSTER_NAMING | Quality | generic_title(1) wrong_type(1) |
-| COMBINED_AUDIT | Quality | bad_concepts(1) generic_gaps(1) missed_issues(1) |
-| FILE_SPLIT | Split accuracy | missed_split(2) type_mismatch(1) full_text_missing(1) |
-| CONNECTION_FINDER | Quality | trivial(1) missed_connections(2) |
-| ENTRY_CONCEPTS | Concept labels | bad_labels(2) — 1/2 passing |
-| INSIGHT | Quality | generic(1) no_cross_reference(1) |
-| BATCH_CONCEPTS | Concept labels | bad_labels(2) |
-| BATCH_LINKS | Quality | vague_labels(2) missed_links(1) |
-| PLAN_QUERY | Quality | missing_entity(1) generic_expanded(1) |
-| SUGGESTIONS | Mix compliance | no_deepen(1) generic(1) |
-| MERGE | False neg / pos | 1 / 1 |
-| WOW | Quality | generic(1) motivational_poster(1) |
-| EXTRACT_FILE | Purity | added_commentary(1) |
+| Prompt               | Key metric                 | Result                                                |
+| -------------------- | -------------------------- | ----------------------------------------------------- |
+| CAPTURE              | Type accuracy              | 5/20 correct (25%)                                    |
+| CHAT                 | Thumbs-down                | 5/5 — 5 distinct symptoms                             |
+| QA_PARSE             | Sessions with failures     | 3/3 — type_mismatch dominant                          |
+| FILL_BRAIN           | Failures                   | generic(1) wrong_priority(1) already_answered(1)      |
+| ENTRY_AUDIT          | False neg / pos / over-sug | 1 / 1 / 1                                             |
+| NUDGE                | Passing                    | 1/3 — JSON keys leaked, vague output                  |
+| LINK_DISCOVERY       | Quality                    | vague_rel(2) missed_link(2) trivial(1)                |
+| LINK_DISCOVERY_PAIRS | False pos / neg            | 1 / 0 + 1 vague confirmed label                       |
+| WEAK_LABEL_RENAME    | Quality                    | still_vague(2) hallucinated(1)                        |
+| DUPLICATE_NAMES      | False pos / neg            | 1 / 1                                                 |
+| CLUSTER_NAMING       | Quality                    | generic_title(1) wrong_type(1)                        |
+| COMBINED_AUDIT       | Quality                    | bad_concepts(1) generic_gaps(1) missed_issues(1)      |
+| FILE_SPLIT           | Split accuracy             | missed_split(2) type_mismatch(1) full_text_missing(1) |
+| CONNECTION_FINDER    | Quality                    | trivial(1) missed_connections(2)                      |
+| ENTRY_CONCEPTS       | Concept labels             | bad_labels(2) — 1/2 passing                           |
+| INSIGHT              | Quality                    | generic(1) no_cross_reference(1)                      |
+| BATCH_CONCEPTS       | Concept labels             | bad_labels(2)                                         |
+| BATCH_LINKS          | Quality                    | vague_labels(2) missed_links(1)                       |
+| PLAN_QUERY           | Quality                    | missing_entity(1) generic_expanded(1)                 |
+| SUGGESTIONS          | Mix compliance             | no_deepen(1) generic(1)                               |
+| MERGE                | False neg / pos            | 1 / 1                                                 |
+| WOW                  | Quality                    | generic(1) motivational_poster(1)                     |
+| EXTRACT_FILE         | Purity                     | added_commentary(1)                                   |
 
 ---
 
 ## Cross-Cutting Patterns
 
 ### 1. Vague relationship labels — 4 prompts affected
+
 LINK_DISCOVERY, BATCH_LINKS, CONNECTION_FINDER, and LINK_DISCOVERY_PAIRS all produce "relates to", "similar", "associated with". All four prompts have the same verb-phrase rule; none have a banlist. **One shared banlist addition fixes all four.**
 
 ### 2. Concept label quality — 3 prompts affected
+
 ENTRY_CONCEPTS, BATCH_CONCEPTS, and COMBINED_AUDIT all violate the concept label rules (proper nouns, possessives, too-specific). COMBINED_AUDIT has the most detailed rules; the other two have minimal guidance. **Copy COMBINED_AUDIT's label rules verbatim into ENTRY_CONCEPTS and BATCH_CONCEPTS.**
 
 ### 3. Type-defaulting to "note" — 3 prompts affected
+
 CAPTURE, QA_PARSE, and FILE_SPLIT all default to "note" when uncertain. Their type lists have diverged. **Sync type lists and extraction rules across all three.**
 
 ### 4. Generic output — 4 prompts affected
+
 FILL_BRAIN, INSIGHT, SUGGESTIONS, and WOW all produce generic responses not tied to the user's actual data. **The fix is the same in all four:** require output to name a specific entry or concept from the provided input, with a bad/good example inline.
 
 ---
@@ -86,6 +91,7 @@ FILL_BRAIN, INSIGHT, SUGGESTIONS, and WOW all produce generic responses not tied
 Evidence: 14× type_mismatch. Types absent from working examples: `place`, `account`, `procedure`, `ingredient`, `transaction`.
 
 Add to TYPE_RULES:
+
 ```
 - A named physical address or branch location → "place"
 - A bank account or financial summary → "account"
@@ -96,6 +102,7 @@ Add to TYPE_RULES:
 ```
 
 Rewrite `note` definition:
+
 > `"note" ONLY if the content is a free-form memo with no named entity, no date, no price, no phone number, and no identifiable category. If in doubt, pick specific.`
 
 ---
@@ -105,6 +112,7 @@ Rewrite `note` definition:
 Evidence: `phone_not_extracted` 5×, `email_not_extracted` 1×. Rule exists but ignored.
 
 Add at the top of EXTRACTION_RULES:
+
 ```
 CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.phone.
 Any email MUST go into metadata.email. Do not leave them in content only.
@@ -117,6 +125,7 @@ Any email MUST go into metadata.email. Do not leave them in content only.
 Evidence: 1× sensitive data (card numbers, PINs) classified as `note`.
 
 Move to very top of TYPE_RULES:
+
 ```
 SECURITY CHECK FIRST: if the input contains passwords, PINs, card numbers, bank
 account numbers, API keys, or private keys → type MUST be "secret". No exceptions.
@@ -129,6 +138,7 @@ account numbers, API keys, or private keys → type MUST be "secret". No excepti
 Evidence: 1× lookup answered with a paragraph. Rule says "ONLY the value" but ignored by weaker models.
 
 Rewrite SINGLE DATUM rule:
+
 ```
 SINGLE DATUM: your ENTIRE response is ONLY the value. No label. No sentence. No context.
 Example: "what is John's number" → "082 111 3333". Nothing before, nothing after.
@@ -141,6 +151,7 @@ Example: "what is John's number" → "082 111 3333". Nothing before, nothing aft
 Evidence: 1× analytical query answered by listing stored data. Negative framing ("do NOT") ignored by weaker models.
 
 Rewrite ANALYTICAL HARD RULE:
+
 ```
 Analytical responses MUST ONLY contain insights the user could NOT derive by reading
 their own entries. Ask yourself: "Would the user already know this?" If yes, cut it.
@@ -155,6 +166,7 @@ Good: "Two suppliers overlap on brisket — concentration risk and pricing lever
 Evidence: 1× password classified as `note` in QA_PARSE. The `secret` type is not mentioned in QA_PARSE at all.
 
 Add:
+
 ```
 Use "secret" for passwords, PINs, card numbers, API keys, or sensitive credentials.
 ```
@@ -166,6 +178,7 @@ Use "secret" for passwords, PINs, card numbers, API keys, or sensitive credentia
 Evidence: 1 session where obvious issues (named person as `note`, phone number in content) were not flagged.
 
 Strengthen detection:
+
 ```
 PHONE_FOUND check: scan content and title for any digit sequence resembling a phone
 number (10 digits, or groups like "082 111 3333"). If found and metadata.phone is
@@ -180,6 +193,7 @@ TYPE_MISMATCH: if a named person's entry is type "note", flag it.
 Evidence: 1× JSON keys leaked into nudge output (`entry_id`, `due_date` appearing verbatim).
 
 Add a hard negative example:
+
 ```
 NEVER output entry_id, due_date, type, metadata keys, or any field names.
 Bad:  "entry_id: abc123, due_date: 2025-04-30: Pay Rand Water"
@@ -193,6 +207,7 @@ Good: "Your Rand Water payment is due 30 April — pay it before the end of the 
 Evidence: 4 vague labels across all three prompts ("relates to", "related", "similar", "associated with"). Same fix applies to all.
 
 Add to all three prompts:
+
 ```
 BANNED labels (never use): "relates to", "related", "similar", "connected",
 "associated with", "linked to". If you can't name a specific relationship, omit the link.
@@ -205,6 +220,7 @@ BANNED labels (never use): "relates to", "related", "similar", "connected",
 Evidence: 1 concept label used a proper noun. Rules are detailed but ignored by weaker models.
 
 Add concrete examples inline:
+
 ```
 Bad:  "John Smith's Phone Number", "Meaty Boy's Brisket", "Sarah's Role"
 Good: "contact details", "meat sourcing", "staff roles"
@@ -218,6 +234,7 @@ Rule: no names, no apostrophes, no brand names, max 3 words.
 Evidence: 2× file with multiple distinct records returned as a single entry (staff list of 3, two-recipe document).
 
 Add:
+
 ```
 Default to splitting. If you're unsure, split. A contact list of 3 people = 3 entries.
 A document with 2 recipes = 2 entries. Only keep as one entry if the content is
@@ -231,6 +248,7 @@ genuinely a single indivisible record (one invoice, one SOP, one contract).
 Evidence: `false_negative` 1× (missed 3 fragmented person entries), `false_positive` 1× (two different locations merged).
 
 Add:
+
 ```
 FRAGMENTED CONTACT: if you see 2+ entries with the same person's name in the title
 (e.g. "John Abrahams Phone", "John Abrahams ID", "John Abrahams Address"),
@@ -246,6 +264,7 @@ are NOT duplicates — they are distinct physical entities. Do not merge them.
 Evidence: 1× wow response was motivational-poster generic with no reference to actual user data.
 
 Add failure example inline:
+
 ```
 Bad:  "You're building a great knowledge base! Keep it up."
 Good: "Brisket is your single point of failure — two suppliers both cover it,
@@ -328,27 +347,27 @@ At least one expanded query must include the entity name or attribute directly.
 
 ## Implementation Order
 
-| # | Change | File | Effort |
-|---|---|---|---|
-| 1 | `secret` pre-check at top of TYPE_RULES | `src/config/prompts.ts` CAPTURE | 2 min |
-| 2 | Phone/email CRITICAL callout | `src/config/prompts.ts` CAPTURE | 2 min |
-| 3 | Add missing type examples (place, account, procedure, ingredient, transaction) | `src/config/prompts.ts` CAPTURE | 5 min |
-| 4 | Rewrite `note` definition to exclusionary | `src/config/prompts.ts` CAPTURE | 3 min |
-| 5 | Move `full_text` rule to top of EXTRACTION_RULES | `src/config/prompts.ts` CAPTURE | 2 min |
-| 6 | Add vague rel label banlist to all 4 link prompts | `src/config/prompts.ts` | 5 min |
-| 7 | Copy COMBINED_AUDIT concept label rules to ENTRY_CONCEPTS + BATCH_CONCEPTS | `src/config/prompts.ts` | 5 min |
-| 8 | Sync QA_PARSE type list with CAPTURE | `src/config/prompts.ts` | 5 min |
-| 9 | CHAT SINGLE DATUM — add example | `api/_lib/prompts.ts` + `src/config/prompts.ts` | 3 min |
-| 10 | CHAT ANALYTICAL — positive framing + bad/good example | `api/_lib/prompts.ts` + `src/config/prompts.ts` | 5 min |
-| 11 | NUDGE — prose-only bad example | `src/config/prompts.ts` | 2 min |
-| 12 | FILE_SPLIT — default-to-split instruction | `src/config/prompts.ts` | 2 min |
-| 13 | MERGE — fragmented contact + location guard | `api/_lib/prompts.ts` | 3 min |
-| 14 | WOW — generic failure example + empty fallback | `api/_lib/prompts.ts` | 3 min |
-| 15 | ENTRY_AUDIT — phone scan instruction + max-2 hard limit | `src/config/prompts.ts` | 3 min |
-| 16 | FILL_BRAIN — gap specificity + brain type scope rules | `src/config/prompts.ts` | 3 min |
-| 17 | INSIGHT — require concept reference | `src/config/prompts.ts` | 2 min |
-| 18 | SUGGESTIONS — DEEPEN grounding rule | `api/_lib/prompts.ts` | 2 min |
-| 19 | Remaining MED items | both files | 15 min |
+| #   | Change                                                                         | File                                            | Effort |
+| --- | ------------------------------------------------------------------------------ | ----------------------------------------------- | ------ |
+| 1   | `secret` pre-check at top of TYPE_RULES                                        | `src/config/prompts.ts` CAPTURE                 | 2 min  |
+| 2   | Phone/email CRITICAL callout                                                   | `src/config/prompts.ts` CAPTURE                 | 2 min  |
+| 3   | Add missing type examples (place, account, procedure, ingredient, transaction) | `src/config/prompts.ts` CAPTURE                 | 5 min  |
+| 4   | Rewrite `note` definition to exclusionary                                      | `src/config/prompts.ts` CAPTURE                 | 3 min  |
+| 5   | Move `full_text` rule to top of EXTRACTION_RULES                               | `src/config/prompts.ts` CAPTURE                 | 2 min  |
+| 6   | Add vague rel label banlist to all 4 link prompts                              | `src/config/prompts.ts`                         | 5 min  |
+| 7   | Copy COMBINED_AUDIT concept label rules to ENTRY_CONCEPTS + BATCH_CONCEPTS     | `src/config/prompts.ts`                         | 5 min  |
+| 8   | Sync QA_PARSE type list with CAPTURE                                           | `src/config/prompts.ts`                         | 5 min  |
+| 9   | CHAT SINGLE DATUM — add example                                                | `api/_lib/prompts.ts` + `src/config/prompts.ts` | 3 min  |
+| 10  | CHAT ANALYTICAL — positive framing + bad/good example                          | `api/_lib/prompts.ts` + `src/config/prompts.ts` | 5 min  |
+| 11  | NUDGE — prose-only bad example                                                 | `src/config/prompts.ts`                         | 2 min  |
+| 12  | FILE_SPLIT — default-to-split instruction                                      | `src/config/prompts.ts`                         | 2 min  |
+| 13  | MERGE — fragmented contact + location guard                                    | `api/_lib/prompts.ts`                           | 3 min  |
+| 14  | WOW — generic failure example + empty fallback                                 | `api/_lib/prompts.ts`                           | 3 min  |
+| 15  | ENTRY_AUDIT — phone scan instruction + max-2 hard limit                        | `src/config/prompts.ts`                         | 3 min  |
+| 16  | FILL_BRAIN — gap specificity + brain type scope rules                          | `src/config/prompts.ts`                         | 3 min  |
+| 17  | INSIGHT — require concept reference                                            | `src/config/prompts.ts`                         | 2 min  |
+| 18  | SUGGESTIONS — DEEPEN grounding rule                                            | `api/_lib/prompts.ts`                           | 2 min  |
+| 19  | Remaining MED items                                                            | both files                                      | 15 min |
 
 **Estimated net token increase:** < 200 tokens on CAPTURE, < 100 tokens on CHAT, < 50 tokens each on remaining prompts. No prompt should grow by more than 15%.
 

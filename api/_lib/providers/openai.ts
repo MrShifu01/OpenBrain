@@ -25,12 +25,17 @@ export const openai: ProviderAdapter = {
   async completion(opts: CompletionOptions, config: ProviderConfig): Promise<CompletionResult> {
     const msgs: any[] = [];
     if (opts.system) msgs.push({ role: "system", content: opts.system.slice(0, 10000) });
-    for (const m of opts.messages) msgs.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content });
+    for (const m of opts.messages)
+      msgs.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content });
 
     const r = await fetch(API_URL, {
       method: "POST",
       headers: headers(config.key),
-      body: JSON.stringify({ model: config.model, max_tokens: opts.max_tokens || 1000, messages: msgs }),
+      body: JSON.stringify({
+        model: config.model,
+        max_tokens: opts.max_tokens || 1000,
+        messages: msgs,
+      }),
     });
     const data: any = await r.json();
     if (!r.ok) return { ok: false, status: r.status, error: data };
@@ -61,7 +66,11 @@ export const openai: ProviderAdapter = {
 
     const call = msg.tool_calls[0];
     let args: Record<string, any>;
-    try { args = JSON.parse(call.function.arguments); } catch { args = {}; }
+    try {
+      args = JSON.parse(call.function.arguments);
+    } catch {
+      args = {};
+    }
 
     return {
       ok: true,
@@ -75,6 +84,10 @@ export const openai: ProviderAdapter = {
 
   appendToolResult(messages: any[], step: ChatStep, toolResult: unknown): void {
     messages.push(step.rawAssistantMessage);
-    messages.push({ role: "tool", tool_call_id: step.toolCallId, content: JSON.stringify(toolResult) });
+    messages.push({
+      role: "tool",
+      tool_call_id: step.toolCallId,
+      content: JSON.stringify(toolResult),
+    });
   },
 };

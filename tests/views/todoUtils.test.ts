@@ -44,13 +44,7 @@ describe("addRecurring", () => {
     const adds: string[] = [];
     addRecurring([e], (key) => adds.push(key), 2026, 4 /* May 2026 */);
     // Fridays in May 2026: 1, 8, 15, 22, 29
-    expect(adds).toEqual([
-      "2026-05-01",
-      "2026-05-08",
-      "2026-05-15",
-      "2026-05-22",
-      "2026-05-29",
-    ]);
+    expect(adds).toEqual(["2026-05-01", "2026-05-08", "2026-05-15", "2026-05-22", "2026-05-29"]);
   });
 
   it("DOES add monthly recurrence from day_of_month when no specific date", () => {

@@ -18,7 +18,9 @@ function _getCached(k: string): unknown | null {
   const e = _cache.get(k);
   return e && Date.now() - e.ts < _TTL ? e.r : null;
 }
-function _setCache(k: string, r: unknown): void { _cache.set(k, { r, ts: Date.now() }); }
+function _setCache(k: string, r: unknown): void {
+  _cache.set(k, { r, ts: Date.now() });
+}
 
 export default withAuth(
   {
@@ -41,12 +43,14 @@ async function handleGraph({ req, res, user }: HandlerContext): Promise<void> {
 
   const countRes = await fetch(
     `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain_id!)}&embedding=not.is.null&type=neq.secret&select=id`,
-    { headers: { ...sbHeaders(), "Prefer": "count=exact" } },
+    { headers: { ...sbHeaders(), Prefer: "count=exact" } },
   );
   const embeddedCount = parseInt(countRes.headers.get("content-range")?.split("/")?.[1] || "0", 10);
 
   if (embeddedCount < 2) {
-    res.status(200).json({ links: [], embedded: embeddedCount, message: "Need at least 2 embedded entries" });
+    res
+      .status(200)
+      .json({ links: [], embedded: embeddedCount, message: "Need at least 2 embedded entries" });
     return;
   }
 

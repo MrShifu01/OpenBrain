@@ -17,6 +17,7 @@
 ### Task 1: Create feature flags module
 
 **Files:**
+
 - Create: `src/lib/featureFlags.ts`
 
 - [ ] **Step 1: Create `src/lib/featureFlags.ts`**
@@ -48,6 +49,7 @@ git commit -m "feat: add feature flags module with ENABLE_MULTI_BRAIN"
 ### Task 2: Feature-flag multi-brain components
 
 **Files:**
+
 - Modify: `src/components/BrainSwitcher.tsx:15-21`
 - Modify: `src/components/CreateBrainModal.tsx:30-33`
 - Modify: `src/views/SettingsView.tsx:117-124`
@@ -100,12 +102,15 @@ import { isMultiBrainEnabled } from "../lib/featureFlags";
 ```
 
 Change line 139 from:
+
 ```tsx
-  const tabs = TAB_DEFS;
+const tabs = TAB_DEFS;
 ```
+
 to:
+
 ```tsx
-  const tabs = isMultiBrainEnabled() ? TAB_DEFS : TAB_DEFS.filter((t) => t.id !== "brain");
+const tabs = isMultiBrainEnabled() ? TAB_DEFS : TAB_DEFS.filter((t) => t.id !== "brain");
 ```
 
 - [ ] **Step 4: Hide "New brain" button in DesktopSidebar**
@@ -118,6 +123,7 @@ import { isMultiBrainEnabled } from "../lib/featureFlags";
 ```
 
 Wrap the "New brain" button (lines 236-251) with the flag. Replace:
+
 ```tsx
             {/* New brain */}
             <button
@@ -126,7 +132,9 @@ Wrap the "New brain" button (lines 236-251) with the flag. Replace:
               className="text-on-surface-variant hover:text-primary hover:bg-surface-container press-scale flex min-h-[44px] items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-all"
             >
 ```
+
 with:
+
 ```tsx
             {/* New brain */}
             {isMultiBrainEnabled() && (
@@ -138,6 +146,7 @@ with:
 ```
 
 And close the conditional after the button's closing `</button>` (after line 251):
+
 ```tsx
             </button>
             )}
@@ -160,6 +169,7 @@ git commit -m "feat: feature-flag multi-brain behind VITE_ENABLE_MULTI_BRAIN"
 ### Task 3: Disable Vault auto-prompting
 
 **Files:**
+
 - Modify: `src/components/CaptureSheet.tsx:4,10,34,39`
 - Modify: `src/components/BottomNav.tsx` (vault removal handled in Task 4)
 
@@ -168,18 +178,21 @@ git commit -m "feat: feature-flag multi-brain behind VITE_ENABLE_MULTI_BRAIN"
 In `src/components/CaptureSheet.tsx`:
 
 Remove the VaultIntroModal import (line 4):
+
 ```tsx
 // DELETE this line:
 import { VaultIntroModal } from "./VaultIntroModal";
 ```
 
 Remove the VAULT_INTRO_KEY constant (line 10):
+
 ```tsx
 // DELETE this line:
 const VAULT_INTRO_KEY = "ob_vault_intro_seen";
 ```
 
 Remove the `showVaultIntro` state (line 39):
+
 ```tsx
 // DELETE this line:
 const [showVaultIntro, setShowVaultIntro] = useState(false);
@@ -211,6 +224,7 @@ git commit -m "feat: disable vault auto-prompting in capture sheet"
 ### Task 4: Simplify navigation to Feed | Capture | Ask | Memory | Settings
 
 **Files:**
+
 - Modify: `src/components/BottomNav.tsx:5-11,13`
 - Modify: `src/components/DesktopSidebar.tsx:57,135`
 - Modify: `src/components/MobileMoreMenu.tsx` (remove entirely from rendering)
@@ -250,12 +264,14 @@ const NAV_ITEMS = [
 Remove `const MORE_IDS` line entirely.
 
 In `BottomNavInner`, remove the `isMoreActive` line:
+
 ```tsx
 // DELETE:
 const isMoreActive = MORE_IDS.has(activeView);
 ```
 
 Update the isActive check inside the map (replace the ternary):
+
 ```tsx
 const isActive = activeView === item.id;
 ```
@@ -267,11 +283,13 @@ Remove the `refineBadge` prop from the interface and component — delete the `r
 In `src/components/DesktopSidebar.tsx`:
 
 Change `CAPTURE_NAV` (line 57):
+
 ```tsx
 const CAPTURE_NAV: NavView = { id: "feed", l: "Feed", ic: "📰" };
 ```
 
 Add feed to `NAV_ICONS` (after the existing entries):
+
 ```tsx
   feed: NavIcon.feed,
 ```
@@ -317,11 +335,13 @@ export default function FeedView({ onCapture }: FeedViewProps) {
 In `src/OpenBrain.tsx`:
 
 Add FeedView import after the other view imports (around line 53):
+
 ```tsx
 import FeedView from "./views/FeedView";
 ```
 
 Change NAV_VIEWS (lines 92-97):
+
 ```tsx
 const NAV_VIEWS = [
   { id: "grid", l: "Memory", ic: "▦" },
@@ -330,20 +350,23 @@ const NAV_VIEWS = [
 ```
 
 Change default view state (line 179):
+
 ```tsx
 const [view, setView] = useState("feed");
 ```
 
 Add feed view rendering in the view switch area (after `{view === "settings" && <SettingsView onNavigate={setView} />}`, around line 649):
+
 ```tsx
-                {view === "feed" && (
-                  <FeedView onCapture={() => setShowCapture(true)} />
-                )}
+{
+  view === "feed" && <FeedView onCapture={() => setShowCapture(true)} />;
+}
 ```
 
 Remove MobileMoreMenu from rendering — find the `<MobileMoreMenu` JSX block (lines 1007-1019) and remove it entirely. Also remove the `navOpen` state usage and the `MobileMoreMenu` import.
 
 In the BottomNav `onNavigate` handler (lines 1022-1030), remove the "more" handling:
+
 ```tsx
                 onNavigate={(id) => {
                   setSelected(null);
@@ -353,8 +376,9 @@ In the BottomNav `onNavigate` handler (lines 1022-1030), remove the "more" handl
 ```
 
 Also update the `onComplete` in OnboardingModal (line 989) to navigate to feed instead of capture:
+
 ```tsx
-                    setView("feed");
+setView("feed");
 ```
 
 - [ ] **Step 6: Verify typecheck passes**
@@ -366,6 +390,7 @@ Expected: PASS
 
 Run: `npm run dev`
 Verify:
+
 - App loads with Feed as home screen
 - BottomNav shows: Feed | Capture(FAB) | Ask | Memory | Settings
 - DesktopSidebar shows: Feed, Memory, Ask + Settings in footer
@@ -386,6 +411,7 @@ git commit -m "feat: simplify navigation to Feed | Capture | Ask | Memory | Sett
 ### Task 5: Remove claude-haiku defaults, set Gemini as default
 
 **Files:**
+
 - Modify: `src/data/constants.ts:35`
 - Modify: `src/config/models.ts:8`
 - Modify: `api/chat.ts:36`
@@ -395,10 +421,13 @@ git commit -m "feat: simplify navigation to Feed | Capture | Ask | Memory | Sett
 - [ ] **Step 1: Update `src/data/constants.ts`**
 
 Change line 35 from:
+
 ```ts
 export const MODEL: string = import.meta.env.VITE_ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001";
 ```
+
 to:
+
 ```ts
 export const MODEL: string = import.meta.env.VITE_MODEL ?? "gemini-2.5-flash-lite";
 ```
@@ -406,10 +435,13 @@ export const MODEL: string = import.meta.env.VITE_MODEL ?? "gemini-2.5-flash-lit
 - [ ] **Step 2: Update `src/config/models.ts`**
 
 Change line 8 from:
+
 ```ts
   ANTHROPIC: ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6"],
 ```
+
 to:
+
 ```ts
   ANTHROPIC: ["claude-sonnet-4-6", "claude-opus-4-6"],
 ```
@@ -417,10 +449,17 @@ to:
 - [ ] **Step 3: Update `api/chat.ts`**
 
 Change line 36 from:
+
 ```ts
-const ALLOWED_ANTHROPIC_MODELS = ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6"];
+const ALLOWED_ANTHROPIC_MODELS = [
+  "claude-haiku-4-5-20251001",
+  "claude-sonnet-4-6",
+  "claude-opus-4-6",
+];
 ```
+
 to:
+
 ```ts
 const ALLOWED_ANTHROPIC_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"];
 ```
@@ -428,26 +467,25 @@ const ALLOWED_ANTHROPIC_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"];
 - [ ] **Step 4: Update `api/llm.ts`**
 
 Change lines 12-16 from:
+
 ```ts
-const ANTHROPIC_MODELS = [
-  "claude-haiku-4-5-20251001",
-  "claude-sonnet-4-6",
-  "claude-opus-4-6",
-];
+const ANTHROPIC_MODELS = ["claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6"];
 ```
+
 to:
+
 ```ts
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-opus-4-6",
-];
+const ANTHROPIC_MODELS = ["claude-sonnet-4-6", "claude-opus-4-6"];
 ```
 
 Change line 288 — the fallback model in the file extraction anthropic call:
+
 ```ts
 body: JSON.stringify({ model: model || "claude-haiku-4-5-20251001", max_tokens: 4096, ...
 ```
+
 to:
+
 ```ts
 body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 4096, ...
 ```
@@ -455,13 +493,16 @@ body: JSON.stringify({ model: model || "claude-sonnet-4-6", max_tokens: 4096, ..
 - [ ] **Step 5: Update `.env.example`**
 
 Replace lines 10-13:
+
 ```
 # ── Anthropic ─────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY=sk-ant-...
 # Optional: override default model
 VITE_ANTHROPIC_MODEL=claude-haiku-4-5-20251001
 ```
+
 with:
+
 ```
 # ── Anthropic (optional, for BYO key users) ──────────────────────────
 ANTHROPIC_API_KEY=sk-ant-...
@@ -510,6 +551,7 @@ Expected: PASS (or document pre-existing failures)
 Run: `npm run dev`
 
 Verify:
+
 1. App loads with simplified nav (5 items: Feed, Capture FAB, Ask, Memory, Settings)
 2. Feed is the default home view (shows placeholder)
 3. No "brains" references visible (BrainSwitcher hidden, "New brain" hidden)
@@ -540,6 +582,7 @@ git commit -m "milestone: Phase 1 complete — simplified navigation, feature-fl
 ### Task 7: Build `/api/feed` endpoint
 
 **Files:**
+
 - Create: `api/feed.ts`
 
 - [ ] **Step 1: Create `api/feed.ts`**
@@ -590,10 +633,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const entryCount = parseInt(statsRes.headers.get("content-range")?.split("/")[1] || "0", 10);
 
     // 3. Streak data from user metadata
-    const userRes = await fetch(
-      `${SB_URL}/auth/v1/admin/users/${user.id}`,
-      { headers: SB_HEADERS },
-    );
+    const userRes = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
+      headers: SB_HEADERS,
+    });
     const userData = userRes.ok ? await userRes.json() : {};
     const meta = userData.user_metadata || {};
     const streak = {
@@ -615,9 +657,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       { headers: SB_HEADERS },
     );
     const sparseEntries = sparseRes.ok ? await sparseRes.json() : [];
-    const action = sparseEntries.length > 0
-      ? `${sparseEntries.length} entries are missing tags. Review them to help your brain make connections.`
-      : null;
+    const action =
+      sparseEntries.length > 0
+        ? `${sparseEntries.length} entries are missing tags. Review them to help your brain make connections.`
+        : null;
 
     const name = meta.full_name || meta.name || user.email?.split("@")[0] || "";
 
@@ -653,6 +696,7 @@ git commit -m "feat: add /api/feed endpoint for brain feed data"
 ### Task 8: Build FeedView component (replace placeholder)
 
 **Files:**
+
 - Modify: `src/views/FeedView.tsx` (full rewrite)
 - Modify: `src/OpenBrain.tsx` (pass additional props)
 
@@ -696,7 +740,9 @@ export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedView
     setLoading(true);
     authFetch(`/api/feed?brain_id=${encodeURIComponent(brainId)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setData(d); })
+      .then((d) => {
+        if (d) setData(d);
+      })
       .catch((err) => console.error("[FeedView]", err))
       .finally(() => setLoading(false));
   }, [brainId]);
@@ -754,21 +800,20 @@ export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedView
           borderColor: "color-mix(in oklch, var(--color-primary) 18%, transparent)",
         }}
       >
-        <p className="text-on-surface text-base font-bold" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+        <p
+          className="text-on-surface text-base font-bold"
+          style={{ fontFamily: "'Lora', Georgia, serif" }}
+        >
           {data.greeting} Here's what your brain surfaced today:
         </p>
         <div className="text-on-surface-variant mt-2 flex flex-wrap gap-4 text-xs">
           <span>{data.stats.entries} memories</span>
-          {data.streak.current > 0 && (
-            <span>🔥 {data.streak.current}-day streak</span>
-          )}
+          {data.streak.current > 0 && <span>🔥 {data.streak.current}-day streak</span>}
         </div>
       </div>
 
       {/* Resurfaced memories */}
-      {showInsightFirst && data.insight && (
-        <InsightCard insight={data.insight} />
-      )}
+      {showInsightFirst && data.insight && <InsightCard insight={data.insight} />}
 
       {data.resurfaced.length > 0 && (
         <div className="space-y-2">
@@ -800,9 +845,7 @@ export default function FeedView({ brainId, onCapture, onSelectEntry }: FeedView
         </div>
       )}
 
-      {!showInsightFirst && data.insight && (
-        <InsightCard insight={data.insight} />
-      )}
+      {!showInsightFirst && data.insight && <InsightCard insight={data.insight} />}
 
       {/* Action suggestion */}
       {data.action && (
@@ -859,20 +902,25 @@ function InsightCard({ insight }: { insight: string }) {
 - [ ] **Step 2: Update FeedView usage in OpenBrain.tsx**
 
 Change the FeedView rendering (the block added in Task 4) from:
+
 ```tsx
-                {view === "feed" && (
-                  <FeedView onCapture={() => setShowCapture(true)} />
-                )}
+{
+  view === "feed" && <FeedView onCapture={() => setShowCapture(true)} />;
+}
 ```
+
 to:
+
 ```tsx
-                {view === "feed" && (
-                  <FeedView
-                    brainId={activeBrain?.id}
-                    onCapture={() => setShowCapture(true)}
-                    onSelectEntry={setSelected}
-                  />
-                )}
+{
+  view === "feed" && (
+    <FeedView
+      brainId={activeBrain?.id}
+      onCapture={() => setShowCapture(true)}
+      onSelectEntry={setSelected}
+    />
+  );
+}
 ```
 
 - [ ] **Step 3: Verify typecheck passes**
@@ -884,6 +932,7 @@ Expected: PASS
 
 Run: `npm run dev`
 Verify:
+
 - Feed loads with greeting + stats for existing users
 - Empty state shows for users with 0 entries
 - Resurfaced memory cards render and are tappable
@@ -902,6 +951,7 @@ git commit -m "feat: build Brain Feed home screen with resurfaced memories and i
 ### Task 9: Rewrite onboarding as guided value demo
 
 **Files:**
+
 - Modify: `src/components/OnboardingModal.tsx` (full rewrite)
 - Modify: `src/OpenBrain.tsx` (update onComplete handler)
 
@@ -985,7 +1035,11 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         }),
       });
       const data = await r.json();
-      setAiResponse(data.content || data.text || "Your brain is still learning. Add more thoughts and try again!");
+      setAiResponse(
+        data.content ||
+          data.text ||
+          "Your brain is still learning. Add more thoughts and try again!",
+      );
     } catch (err) {
       console.error("[onboarding] query failed", err);
       setAiResponse("Something went wrong. You can try asking your brain later from the Ask tab.");
@@ -1000,7 +1054,10 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "var(--color-scrim)" }}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      style={{ background: "var(--color-scrim)" }}
+    >
       <div
         className="relative w-full max-w-md rounded-2xl border p-6"
         style={{ background: "var(--color-surface)", borderColor: "var(--color-outline-variant)" }}
@@ -1015,23 +1072,27 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {/* Step indicator */}
         <div className="mb-5 flex justify-center gap-1.5">
-          {(["welcome", "capture", "processing", "query", "response", "celebration"] as Step[]).map((s) => (
-            <div
-              key={s}
-              className="h-1 w-6 rounded-full"
-              style={{
-                background: s === step
-                  ? "var(--color-primary)"
-                  : "var(--color-surface-container-highest)",
-              }}
-            />
-          ))}
+          {(["welcome", "capture", "processing", "query", "response", "celebration"] as Step[]).map(
+            (s) => (
+              <div
+                key={s}
+                className="h-1 w-6 rounded-full"
+                style={{
+                  background:
+                    s === step ? "var(--color-primary)" : "var(--color-surface-container-highest)",
+                }}
+              />
+            ),
+          )}
         </div>
 
         {step === "welcome" && (
           <div className="text-center">
             <div className="mb-4 text-5xl">🧠</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            <h2
+              className="text-on-surface mb-2 text-xl font-bold"
+              style={{ fontFamily: "'Lora', Georgia, serif" }}
+            >
               Welcome to Everion
             </h2>
             <p className="text-on-surface-variant mb-6 text-sm">Let's teach your brain.</p>
@@ -1048,15 +1109,22 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         {step === "capture" && (
           <div>
             <h3 className="text-on-surface mb-1 text-lg font-bold">What's on your mind?</h3>
-            <p className="text-on-surface-variant mb-3 text-xs">Type 5-10 things — one thought per line.</p>
+            <p className="text-on-surface-variant mb-3 text-xs">
+              Type 5-10 things — one thought per line.
+            </p>
             <textarea
               ref={textareaRef}
               value={thoughts}
               onChange={(e) => setThoughts(e.target.value)}
               rows={6}
-              placeholder={"Call supplier about delivery\nIdea: loyalty card system\nReminder: renew liquor licence\nNew burger recipe with truffle mayo\nStaff meeting Thursday 3pm"}
+              placeholder={
+                "Call supplier about delivery\nIdea: loyalty card system\nReminder: renew liquor licence\nNew burger recipe with truffle mayo\nStaff meeting Thursday 3pm"
+              }
               className="text-on-surface placeholder:text-on-surface-variant/30 w-full resize-none rounded-xl border p-3 text-sm outline-none"
-              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+              style={{
+                background: "var(--color-surface-container-low)",
+                borderColor: "var(--color-outline-variant)",
+              }}
             />
             <button
               onClick={handleBulkCapture}
@@ -1071,22 +1139,34 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 
         {step === "processing" && (
           <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
+            <div
+              className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+              style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }}
+            />
             <p className="text-on-surface text-sm font-semibold">Teaching your brain...</p>
-            <p className="text-on-surface-variant text-xs">Processing {thoughts.split("\n").filter(Boolean).length} thoughts</p>
+            <p className="text-on-surface-variant text-xs">
+              Processing {thoughts.split("\n").filter(Boolean).length} thoughts
+            </p>
           </div>
         )}
 
         {step === "query" && (
           <div>
-            <h3 className="text-on-surface mb-1 text-lg font-bold">Now ask your brain something hard.</h3>
-            <p className="text-on-surface-variant mb-3 text-xs">See what your brain can do with what you just taught it.</p>
+            <h3 className="text-on-surface mb-1 text-lg font-bold">
+              Now ask your brain something hard.
+            </h3>
+            <p className="text-on-surface-variant mb-3 text-xs">
+              See what your brain can do with what you just taught it.
+            </p>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleQuery()}
               className="text-on-surface w-full rounded-xl border px-4 py-3 text-sm outline-none"
-              style={{ background: "var(--color-surface-container-low)", borderColor: "var(--color-outline-variant)" }}
+              style={{
+                background: "var(--color-surface-container-low)",
+                borderColor: "var(--color-outline-variant)",
+              }}
             />
             <button
               onClick={handleQuery}
@@ -1103,7 +1183,10 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
           <div>
             {loading ? (
               <div className="flex flex-col items-center gap-3 py-8 text-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }} />
+                <div
+                  className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+                  style={{ borderColor: "var(--color-primary)", borderTopColor: "transparent" }}
+                />
                 <p className="text-on-surface text-sm font-semibold">Your brain is thinking...</p>
               </div>
             ) : (
@@ -1111,11 +1194,14 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 <div
                   className="mb-4 rounded-2xl border p-4"
                   style={{
-                    background: "color-mix(in oklch, var(--color-primary) 8%, var(--color-surface))",
+                    background:
+                      "color-mix(in oklch, var(--color-primary) 8%, var(--color-surface))",
                     borderColor: "color-mix(in oklch, var(--color-primary) 18%, transparent)",
                   }}
                 >
-                  <p className="text-on-surface text-sm leading-relaxed whitespace-pre-wrap">{aiResponse}</p>
+                  <p className="text-on-surface text-sm leading-relaxed whitespace-pre-wrap">
+                    {aiResponse}
+                  </p>
                 </div>
                 <button
                   onClick={() => setStep("celebration")}
@@ -1132,7 +1218,10 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
         {step === "celebration" && (
           <div className="text-center">
             <div className="mb-4 animate-bounce text-5xl">✨</div>
-            <h2 className="text-on-surface mb-2 text-xl font-bold" style={{ fontFamily: "'Lora', Georgia, serif" }}>
+            <h2
+              className="text-on-surface mb-2 text-xl font-bold"
+              style={{ fontFamily: "'Lora', Georgia, serif" }}
+            >
               That's your brain working.
             </h2>
             <p className="text-on-surface-variant mb-6 text-sm">
@@ -1158,31 +1247,36 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
 Find the `{showOnboarding && (` block (around line 913) and replace the entire OnboardingModal rendering:
 
 ```tsx
-              {showOnboarding && (
-                <OnboardingModal
-                  onComplete={() => {
-                    setShowOnboarding(false);
-                    setView("feed");
-                  }}
-                  brainId={activeBrain?.id}
-                />
-              )}
+{
+  showOnboarding && (
+    <OnboardingModal
+      onComplete={() => {
+        setShowOnboarding(false);
+        setView("feed");
+      }}
+      brainId={activeBrain?.id}
+    />
+  );
+}
 ```
 
 Also update the effect that auto-dismisses onboarding when brains load (around line 211-215). Remove or adjust it since the new onboarding handles its own completion:
+
 ```tsx
-  // Remove the auto-dismiss effect — new onboarding handles its own state
+// Remove the auto-dismiss effect — new onboarding handles its own state
 ```
 
 Replace lines 211-215:
+
 ```tsx
-  useEffect(() => {
-    if (showOnboarding && brains.length > 0) {
-      localStorage.setItem("openbrain_onboarded", "1");
-      setShowOnboarding(false); // eslint-disable-line react-hooks/set-state-in-effect
-    }
-  }, [brains, showOnboarding]);
+useEffect(() => {
+  if (showOnboarding && brains.length > 0) {
+    localStorage.setItem("openbrain_onboarded", "1");
+    setShowOnboarding(false); // eslint-disable-line react-hooks/set-state-in-effect
+  }
+}, [brains, showOnboarding]);
 ```
+
 with nothing (delete the block). The new onboarding sets `openbrain_onboarded` on its own when the user completes or skips.
 
 - [ ] **Step 3: Verify typecheck passes**
@@ -1194,6 +1288,7 @@ Expected: PASS
 
 Clear localStorage `openbrain_onboarded` key. Reload app.
 Verify:
+
 1. Welcome screen appears
 2. "Let's go" → bulk capture textarea
 3. Type a few thoughts, "Teach my brain" → processing spinner
@@ -1214,6 +1309,7 @@ git commit -m "feat: rewrite onboarding as guided value demo with bulk capture +
 ### Task 10: Global capture shortcut (Cmd+K + floating FAB)
 
 **Files:**
+
 - Modify: `src/OpenBrain.tsx` (add keyboard listener)
 - Create: `src/components/FloatingCaptureButton.tsx`
 
@@ -1222,17 +1318,17 @@ git commit -m "feat: rewrite onboarding as guided value demo with bulk capture +
 Add this effect after the existing effects block (around line 230):
 
 ```tsx
-  // Global Cmd+K / Ctrl+K capture shortcut
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setShowCapture(true);
-      }
+// Global Cmd+K / Ctrl+K capture shortcut
+useEffect(() => {
+  function handleKeyDown(e: KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      setShowCapture(true);
     }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, []);
 ```
 
 - [ ] **Step 2: Create FloatingCaptureButton**
@@ -1275,6 +1371,7 @@ export default function FloatingCaptureButton({ onClick }: FloatingCaptureButton
 - [ ] **Step 3: Add FloatingCaptureButton to OpenBrain.tsx**
 
 Import it at the top:
+
 ```tsx
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
 ```
@@ -1282,9 +1379,11 @@ import FloatingCaptureButton from "./components/FloatingCaptureButton";
 Add it just before the `</div>` that closes the main content area (before `</BrainContext.Provider>`), but only when NOT on the capture view (to avoid double FAB with BottomNav):
 
 ```tsx
-              {view !== "capture" && !showCapture && (
-                <FloatingCaptureButton onClick={() => setShowCapture(true)} />
-              )}
+{
+  view !== "capture" && !showCapture && (
+    <FloatingCaptureButton onClick={() => setShowCapture(true)} />
+  );
+}
 ```
 
 Note: On mobile, BottomNav already has the FAB. The FloatingCaptureButton is primarily for desktop (hidden on mobile with `lg:bottom-8` positioning, though visible on both is fine since the BottomNav FAB is `lg:hidden`).
@@ -1312,6 +1411,7 @@ git commit -m "feat: add global capture shortcut (Cmd+K) and floating capture bu
 ### Task 11: Streak tracking on capture
 
 **Files:**
+
 - Modify: `api/capture.ts` (add streak update logic)
 
 - [ ] **Step 1: Read the current capture handler to understand its structure**
@@ -1325,10 +1425,7 @@ At the end of the successful capture path (after the entry is created and respon
 ```ts
 // --- Streak tracking ---
 try {
-  const userRes = await fetch(
-    `${SB_URL}/auth/v1/admin/users/${user.id}`,
-    { headers: SB_HEADERS },
-  );
+  const userRes = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, { headers: SB_HEADERS });
   if (userRes.ok) {
     const userData = await userRes.json();
     const meta = userData.user_metadata || {};
@@ -1352,7 +1449,12 @@ try {
         method: "PUT",
         headers: { ...SB_HEADERS, "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_metadata: { ...meta, current_streak: currentStreak, longest_streak: longestStreak, last_capture_date: today },
+          user_metadata: {
+            ...meta,
+            current_streak: currentStreak,
+            longest_streak: longestStreak,
+            last_capture_date: today,
+          },
         }),
       });
     }
@@ -1417,6 +1519,7 @@ git commit -m "milestone: Phase 2 complete — Feed, onboarding, global capture,
 ### Task 13: Simplify Settings to 2 tabs (Profile + Advanced)
 
 **Files:**
+
 - Modify: `src/views/SettingsView.tsx`
 
 - [ ] **Step 1: Restructure SettingsView tabs**
@@ -1424,6 +1527,7 @@ git commit -m "milestone: Phase 2 complete — Feed, onboarding, global capture,
 Rewrite `TAB_DEFS` and the tab content rendering in `src/views/SettingsView.tsx`:
 
 Change the type and tab definitions:
+
 ```tsx
 type TabId = "profile" | "advanced";
 
@@ -1436,95 +1540,98 @@ const TAB_DEFS: { id: TabId; label: string; icon: ReactNode }[] = [
 Remove icons that are no longer used as standalone tab icons (IconTarget, IconArchive, IconWarning can stay in the file since they're small and may be reused within sections).
 
 Change the default tab:
+
 ```tsx
 const [activeTab, setActiveTab] = useState<TabId>("profile");
 ```
 
 Replace the tab content rendering section:
-```tsx
-      <div className="space-y-4 px-4 py-4">
-        {activeTab === "profile" && (
-          <>
-            <AccountTab email={email} />
-            <NotificationsTab />
-          </>
-        )}
-        {activeTab === "advanced" && (
-          <>
-            <ProvidersTab activeBrain={activeBrain ?? undefined} />
-            {onNavigate && (
-              <div
-                className="flex items-center justify-between rounded-2xl border px-4 py-3"
-                style={{
-                  background: "var(--color-surface-container-low)",
-                  borderColor: "var(--color-outline-variant)",
-                }}
-              >
-                <div>
-                  <p className="text-on-surface text-sm font-semibold">Vault</p>
-                  <p className="text-on-surface-variant text-xs">End-to-end encrypted secrets</p>
-                </div>
-                <button
-                  onClick={() => onNavigate("vault")}
-                  className="press-scale rounded-xl px-4 py-2 text-xs font-semibold transition-all"
-                  style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-                >
-                  Open Vault
-                </button>
-              </div>
-            )}
-            <StorageTab activeBrain={activeBrain ?? undefined} />
-            {isMultiBrainEnabled() && activeBrain && (
-              <BrainTab
-                activeBrain={activeBrain}
-                canInvite={canInvite}
-                canManageMembers={canManageMembers}
-                onRefreshBrains={refresh}
-              />
-            )}
-            {activeBrain && (
-              <DangerTab
-                activeBrain={activeBrain}
-                deleteBrain={deleteBrain}
-                isOwner={activeBrain.myRole === "owner"}
-                deleteAccount={async () => {
-                  const session = await supabase.auth.getSession();
-                  const token = session.data.session?.access_token;
-                  const r = await fetch("/api/user-data?resource=account", {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` },
-                  });
-                  if (!r.ok) {
-                    const data = await r.json().catch(() => ({}));
-                    throw new Error(data.error || "Failed to delete account");
-                  }
-                  await supabase.auth.signOut();
-                }}
-              />
-            )}
 
-            {/* Replay onboarding */}
-            <div
-              className="rounded-2xl border px-4 py-3"
-              style={{
-                background: "var(--color-surface-container-low)",
-                borderColor: "var(--color-outline-variant)",
-              }}
-            >
-              <p className="text-on-surface text-sm font-semibold">Help</p>
-              <button
-                onClick={() => window.dispatchEvent(new Event("openbrain:restart-onboarding"))}
-                className="text-primary mt-1 text-xs font-medium"
-              >
-                Replay onboarding
-              </button>
-            </div>
-          </>
-        )}
+```tsx
+<div className="space-y-4 px-4 py-4">
+  {activeTab === "profile" && (
+    <>
+      <AccountTab email={email} />
+      <NotificationsTab />
+    </>
+  )}
+  {activeTab === "advanced" && (
+    <>
+      <ProvidersTab activeBrain={activeBrain ?? undefined} />
+      {onNavigate && (
+        <div
+          className="flex items-center justify-between rounded-2xl border px-4 py-3"
+          style={{
+            background: "var(--color-surface-container-low)",
+            borderColor: "var(--color-outline-variant)",
+          }}
+        >
+          <div>
+            <p className="text-on-surface text-sm font-semibold">Vault</p>
+            <p className="text-on-surface-variant text-xs">End-to-end encrypted secrets</p>
+          </div>
+          <button
+            onClick={() => onNavigate("vault")}
+            className="press-scale rounded-xl px-4 py-2 text-xs font-semibold transition-all"
+            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+          >
+            Open Vault
+          </button>
+        </div>
+      )}
+      <StorageTab activeBrain={activeBrain ?? undefined} />
+      {isMultiBrainEnabled() && activeBrain && (
+        <BrainTab
+          activeBrain={activeBrain}
+          canInvite={canInvite}
+          canManageMembers={canManageMembers}
+          onRefreshBrains={refresh}
+        />
+      )}
+      {activeBrain && (
+        <DangerTab
+          activeBrain={activeBrain}
+          deleteBrain={deleteBrain}
+          isOwner={activeBrain.myRole === "owner"}
+          deleteAccount={async () => {
+            const session = await supabase.auth.getSession();
+            const token = session.data.session?.access_token;
+            const r = await fetch("/api/user-data?resource=account", {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!r.ok) {
+              const data = await r.json().catch(() => ({}));
+              throw new Error(data.error || "Failed to delete account");
+            }
+            await supabase.auth.signOut();
+          }}
+        />
+      )}
+
+      {/* Replay onboarding */}
+      <div
+        className="rounded-2xl border px-4 py-3"
+        style={{
+          background: "var(--color-surface-container-low)",
+          borderColor: "var(--color-outline-variant)",
+        }}
+      >
+        <p className="text-on-surface text-sm font-semibold">Help</p>
+        <button
+          onClick={() => window.dispatchEvent(new Event("openbrain:restart-onboarding"))}
+          className="text-primary mt-1 text-xs font-medium"
+        >
+          Replay onboarding
+        </button>
       </div>
+    </>
+  )}
+</div>
 ```
 
 Remove the `isMultiBrainEnabled` import filter on `tabs` (the one from Task 2 step 3) since we restructured tabs entirely. Add the import if not already present:
+
 ```tsx
 import { isMultiBrainEnabled } from "../lib/featureFlags";
 ```
@@ -1553,12 +1660,14 @@ git commit -m "feat: simplify settings to Profile and Advanced tabs"
 ### Task 14: Empty state copy and CTAs
 
 **Files:**
+
 - Modify: `src/OpenBrain.tsx` (grid empty state)
 - Modify: `src/views/FeedView.tsx` (already done in Task 8)
 
 - [ ] **Step 1: Update grid (Memory) empty state**
 
 In `src/OpenBrain.tsx`, find the grid empty state (around line 599-603):
+
 ```tsx
                     ) : (
                       <div className="flex flex-col items-center justify-center gap-3 py-20">
@@ -1568,6 +1677,7 @@ In `src/OpenBrain.tsx`, find the grid empty state (around line 599-603):
 ```
 
 Replace with:
+
 ```tsx
                     ) : entries.length === 0 ? (
                       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
@@ -1661,6 +1771,7 @@ git commit -m "milestone: Phase 3 complete — settings simplified, copy polishe
 ### Task 17: OG meta tags
 
 **Files:**
+
 - Modify: `index.html`
 
 - [ ] **Step 1: Add meta tags to `index.html`**
@@ -1668,18 +1779,24 @@ git commit -m "milestone: Phase 3 complete — settings simplified, copy polishe
 In the `<head>` section, add:
 
 ```html
-    <!-- Open Graph -->
-    <meta property="og:title" content="Everion — Your Second Brain" />
-    <meta property="og:description" content="Capture thoughts, ask your brain anything, discover patterns you'd never see alone." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://everionmind.com" />
-    <meta property="og:image" content="https://everionmind.com/og-image.png" />
+<!-- Open Graph -->
+<meta property="og:title" content="Everion — Your Second Brain" />
+<meta
+  property="og:description"
+  content="Capture thoughts, ask your brain anything, discover patterns you'd never see alone."
+/>
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://everionmind.com" />
+<meta property="og:image" content="https://everionmind.com/og-image.png" />
 
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Everion — Your Second Brain" />
-    <meta name="twitter:description" content="Capture thoughts, ask your brain anything, discover patterns you'd never see alone." />
-    <meta name="twitter:image" content="https://everionmind.com/og-image.png" />
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Everion — Your Second Brain" />
+<meta
+  name="twitter:description"
+  content="Capture thoughts, ask your brain anything, discover patterns you'd never see alone."
+/>
+<meta name="twitter:image" content="https://everionmind.com/og-image.png" />
 ```
 
 - [ ] **Step 2: Commit**
@@ -1694,6 +1811,7 @@ git commit -m "feat: add OG and Twitter Card meta tags for social sharing"
 ### Task 18: Early access monetization banner
 
 **Files:**
+
 - Create: `src/components/EarlyAccessBanner.tsx`
 - Modify: `src/views/FeedView.tsx`
 
@@ -1719,15 +1837,24 @@ export function EarlyAccessBanner() {
     >
       <span className="text-base">🎉</span>
       <p className="text-on-surface-variant flex-1 text-xs">
-        <span className="text-on-surface font-semibold">Free during early access.</span>{" "}
-        Starter plan coming soon. Early users get 50% off.
+        <span className="text-on-surface font-semibold">Free during early access.</span> Starter
+        plan coming soon. Early users get 50% off.
       </p>
       <button
-        onClick={() => { localStorage.setItem(DISMISS_KEY, "1"); setDismissed(true); }}
+        onClick={() => {
+          localStorage.setItem(DISMISS_KEY, "1");
+          setDismissed(true);
+        }}
         aria-label="Dismiss"
         className="text-on-surface-variant/50 hover:text-on-surface flex-shrink-0"
       >
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <svg
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -1808,6 +1935,7 @@ Ensure `.env.example` documents all env vars used in the app, including the new 
 - [ ] **Step 4: UAT path verification**
 
 Test in browser the full user journey:
+
 1. Fresh user: signup → onboarding (6 steps) → celebration → Feed
 2. Feed: shows empty state → capture → Feed refreshes with content
 3. Ask: chat works with Gemini
@@ -1829,25 +1957,25 @@ git commit -m "milestone: Phase 5 complete — all code checks pass, ready to sh
 
 ## Summary of Commits
 
-| # | Message | Phase |
-|---|---------|-------|
-| 1 | feat: add feature flags module with ENABLE_MULTI_BRAIN | P1 |
-| 2 | feat: feature-flag multi-brain behind VITE_ENABLE_MULTI_BRAIN | P1 |
-| 3 | feat: disable vault auto-prompting in capture sheet | P1 |
-| 4 | feat: simplify navigation to Feed \| Capture \| Ask \| Memory \| Settings | P1 |
-| 5 | feat: remove claude-haiku defaults, set Gemini 2.5 Flash Lite as default | P1 |
-| 6 | milestone: Phase 1 complete | P1 |
-| 7 | feat: add /api/feed endpoint for brain feed data | P2 |
-| 8 | feat: build Brain Feed home screen with resurfaced memories and insights | P2 |
-| 9 | feat: rewrite onboarding as guided value demo with bulk capture + first query | P2 |
-| 10 | feat: add global capture shortcut (Cmd+K) and floating capture button | P2 |
-| 11 | feat: track capture streak in user metadata | P2 |
-| 12 | milestone: Phase 2 complete | P2 |
-| 13 | feat: simplify settings to Profile and Advanced tabs | P3 |
-| 14 | feat: add empty state copy with CTAs for Memory view | P3 |
-| 15 | chore: code cleanup — fix typecheck, remove dead imports | P3 |
-| 16 | milestone: Phase 3 complete | P3 |
-| 17 | feat: add OG and Twitter Card meta tags | P4 |
-| 18 | feat: add early access monetization banner | P4 |
-| 19 | milestone: Phase 4 complete | P4 |
-| 20 | milestone: Phase 5 complete — ready to ship | P5 |
+| #   | Message                                                                       | Phase |
+| --- | ----------------------------------------------------------------------------- | ----- |
+| 1   | feat: add feature flags module with ENABLE_MULTI_BRAIN                        | P1    |
+| 2   | feat: feature-flag multi-brain behind VITE_ENABLE_MULTI_BRAIN                 | P1    |
+| 3   | feat: disable vault auto-prompting in capture sheet                           | P1    |
+| 4   | feat: simplify navigation to Feed \| Capture \| Ask \| Memory \| Settings     | P1    |
+| 5   | feat: remove claude-haiku defaults, set Gemini 2.5 Flash Lite as default      | P1    |
+| 6   | milestone: Phase 1 complete                                                   | P1    |
+| 7   | feat: add /api/feed endpoint for brain feed data                              | P2    |
+| 8   | feat: build Brain Feed home screen with resurfaced memories and insights      | P2    |
+| 9   | feat: rewrite onboarding as guided value demo with bulk capture + first query | P2    |
+| 10  | feat: add global capture shortcut (Cmd+K) and floating capture button         | P2    |
+| 11  | feat: track capture streak in user metadata                                   | P2    |
+| 12  | milestone: Phase 2 complete                                                   | P2    |
+| 13  | feat: simplify settings to Profile and Advanced tabs                          | P3    |
+| 14  | feat: add empty state copy with CTAs for Memory view                          | P3    |
+| 15  | chore: code cleanup — fix typecheck, remove dead imports                      | P3    |
+| 16  | milestone: Phase 3 complete                                                   | P3    |
+| 17  | feat: add OG and Twitter Card meta tags                                       | P4    |
+| 18  | feat: add early access monetization banner                                    | P4    |
+| 19  | milestone: Phase 4 complete                                                   | P4    |
+| 20  | milestone: Phase 5 complete — ready to ship                                   | P5    |

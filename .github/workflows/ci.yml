@@ -1,7 +1,12 @@
 name: CI
 
 on:
+  # Only run on PRs targeting main. Without this filter, the long-running
+  # audit PR (#51, head=main → base=audit-base) re-fires CI on every push
+  # to main, doubling email noise. Dependabot PRs target main and are still
+  # covered.
   pull_request:
+    branches: [main]
   push:
     branches: [main]
 
@@ -12,8 +17,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '24'
-          cache: 'npm'
+          node-version: "24"
+          cache: "npm"
 
       - run: npm ci
       - run: npm audit --audit-level=high

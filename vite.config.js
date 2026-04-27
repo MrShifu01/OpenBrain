@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
-import { sentryVitePlugin } from '@sentry/vite-plugin'
-import path from 'path'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
+import path from "path";
 
 // Sentry source-map upload only runs when ALL three env vars are present.
 // In Vercel: add SENTRY_AUTH_TOKEN (Sentry → Settings → Auth Tokens, scope
@@ -13,18 +13,16 @@ const sentryEnabled = !!(
   process.env.SENTRY_AUTH_TOKEN &&
   process.env.SENTRY_ORG &&
   process.env.SENTRY_PROJECT
-)
+);
 
 export default defineConfig({
   resolve: {
-    alias: [
-      { find: '@', replacement: path.resolve(__dirname, './src') },
-    ],
+    alias: [{ find: "@", replacement: path.resolve(__dirname, "./src") }],
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'https://everion.smashburgerbar.co.za',
+      "/api": {
+        target: "https://everion.smashburgerbar.co.za",
         changeOrigin: true,
       },
     },
@@ -37,8 +35,8 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/node_modules/@supabase/')) return 'supabase';
-          if (id.includes('/node_modules/@sentry/')) return 'sentry';
+          if (id.includes("/node_modules/@supabase/")) return "supabase";
+          if (id.includes("/node_modules/@sentry/")) return "sentry";
           // pdfjs/mammoth/exceljs are dynamically imported in fileExtract.ts.
           // Letting Vite auto-chunk them keeps small shared utilities out of
           // the eagerly-modulepreloaded set — manual chunking these would
@@ -52,37 +50,38 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    sentryEnabled && sentryVitePlugin({
-      org: process.env.SENTRY_ORG,
-      project: process.env.SENTRY_PROJECT,
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      // Strip source maps from the public bundle after upload. Stack
-      // traces remain readable inside Sentry; visitors can't fetch them.
-      sourcemaps: { filesToDeleteAfterUpload: ['./dist/**/*.map'] },
-      telemetry: false,
-    }),
+    sentryEnabled &&
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        // Strip source maps from the public bundle after upload. Stack
+        // traces remain readable inside Sentry; visitors can't fetch them.
+        sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
+        telemetry: false,
+      }),
     VitePWA({
-      strategies: 'injectManifest',
-      srcDir: 'src',
-      filename: 'sw.js',
-      registerType: 'prompt',
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
+      registerType: "prompt",
       manifest: {
-        name: 'Everion',
-        short_name: 'Everion',
+        name: "Everion",
+        short_name: "Everion",
         description: "Chris's personal memory & knowledge OS",
-        theme_color: '#0f0f23',
-        background_color: '#0f0f23',
-        display: 'standalone',
-        orientation: 'any',
-        scope: '/',
-        start_url: '/',
+        theme_color: "#0f0f23",
+        background_color: "#0f0f23",
+        display: "standalone",
+        orientation: "any",
+        scope: "/",
+        start_url: "/",
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
         ],
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,ico,png,svg}'],
+        globPatterns: ["**/*.{js,css,ico,png,svg}"],
         // Exclude heavy lazy chunks from the precache. These are
         // dynamic-imported only when a user actually uses the feature
         // (PDF capture, .xlsx import, GraphView, AdminTab). Including
@@ -92,14 +91,14 @@ export default defineConfig({
         // Sentry is consent-gated; precaching it would download the SDK
         // even for users who decline analytics.
         globIgnores: [
-          '**/exceljs.min-*.{js,mjs}',
-          '**/pdf-*.{js,mjs}',
-          '**/pdf.worker-*.{js,mjs}',
-          '**/jszip.min-*.{js,mjs}',
-          '**/nlpParser-*.{js,mjs}',
-          '**/AdminTab-*.{js,mjs}',
-          '**/GraphView-*.{js,mjs}',
-          '**/sentry-*.{js,mjs}',
+          "**/exceljs.min-*.{js,mjs}",
+          "**/pdf-*.{js,mjs}",
+          "**/pdf.worker-*.{js,mjs}",
+          "**/jszip.min-*.{js,mjs}",
+          "**/nlpParser-*.{js,mjs}",
+          "**/AdminTab-*.{js,mjs}",
+          "**/GraphView-*.{js,mjs}",
+          "**/sentry-*.{js,mjs}",
         ],
         // Vite-pwa's default cap is 2 MB — pdf.worker is 2.2 MB raw, which
         // would warn even after we ignore it. Dropping the limit slightly
@@ -109,15 +108,9 @@ export default defineConfig({
     }),
   ],
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: './src/test-setup.ts',
-    exclude: [
-      '**/node_modules/**',
-      '**/dist/**',
-      '**/.worktrees/**',
-      '**/.claude/**',
-      '**/e2e/**',
-    ],
+    setupFiles: "./src/test-setup.ts",
+    exclude: ["**/node_modules/**", "**/dist/**", "**/.worktrees/**", "**/.claude/**", "**/e2e/**"],
   },
-})
+});

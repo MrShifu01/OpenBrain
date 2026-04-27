@@ -1,4 +1,5 @@
 # REST Gateway Design
+
 **Date:** 2026-04-17
 **Status:** Approved — pending implementation
 
@@ -38,6 +39,7 @@ vercel.json rewrite:
 ## Endpoints
 
 All endpoints:
+
 - Method: `POST`
 - Auth: `Authorization: Bearer em_<raw_key>`
 - Content-Type: `application/json`
@@ -48,15 +50,24 @@ All endpoints:
 Returns the most relevant memory entries for a query.
 
 **Request**
+
 ```json
 { "query": "What are my Q2 goals?", "limit": 5 }
 ```
 
 **Response**
+
 ```json
 {
   "results": [
-    { "id": "uuid", "title": "Q2 Goals", "content": "...", "type": "note", "tags": ["goals"], "similarity": 0.87 }
+    {
+      "id": "uuid",
+      "title": "Q2 Goals",
+      "content": "...",
+      "type": "note",
+      "tags": ["goals"],
+      "similarity": 0.87
+    }
   ]
 }
 ```
@@ -71,6 +82,7 @@ Returns the most relevant memory entries for a query.
 Returns an AI-synthesized answer grounded in the user's memories. The calling AI's API key is passed in the request — Everion never stores it.
 
 **Request**
+
 ```json
 {
   "query": "Summarize my goals for this quarter",
@@ -81,12 +93,11 @@ Returns an AI-synthesized answer grounded in the user's memories. The calling AI
 ```
 
 **Response**
+
 ```json
 {
   "answer": "Based on your notes, your Q2 goals are...",
-  "sources": [
-    { "id": "uuid", "title": "Q2 Goals", "similarity": 0.87 }
-  ]
+  "sources": [{ "id": "uuid", "title": "Q2 Goals", "similarity": 0.87 }]
 }
 ```
 
@@ -102,6 +113,7 @@ Returns an AI-synthesized answer grounded in the user's memories. The calling AI
 Adds a new entry to the user's knowledge base.
 
 **Request**
+
 ```json
 {
   "title": "Q2 Goals",
@@ -112,6 +124,7 @@ Adds a new entry to the user's knowledge base.
 ```
 
 **Response**
+
 ```json
 { "id": "uuid", "title": "Q2 Goals", "created_at": "2026-04-17T..." }
 ```
@@ -127,6 +140,7 @@ Adds a new entry to the user's knowledge base.
 Edits an existing entry. Only provided fields are updated.
 
 **Request**
+
 ```json
 {
   "id": "uuid",
@@ -137,6 +151,7 @@ Edits an existing entry. Only provided fields are updated.
 ```
 
 **Response**
+
 ```json
 { "id": "uuid", "title": "Updated Title", "content": "...", "updated_at": "..." }
 ```
@@ -153,11 +168,13 @@ Edits an existing entry. Only provided fields are updated.
 Soft-deletes an entry (moves to trash, recoverable from UI).
 
 **Request**
+
 ```json
 { "id": "uuid" }
 ```
 
 **Response**
+
 ```json
 { "id": "uuid", "deleted": true }
 ```
@@ -175,26 +192,26 @@ All errors return a consistent shape:
 { "error": "Invalid or revoked API key" }
 ```
 
-| Scenario | HTTP Status |
-|---|---|
-| Missing auth header | 401 |
-| Invalid / revoked key | 401 |
-| Missing required fields | 400 |
-| Entry not found or not owned | 404 |
-| Rate limit exceeded | 429 |
-| Internal error | 500 |
+| Scenario                                      | HTTP Status                                          |
+| --------------------------------------------- | ---------------------------------------------------- |
+| Missing auth header                           | 401                                                  |
+| Invalid / revoked key                         | 401                                                  |
+| Missing required fields                       | 400                                                  |
+| Entry not found or not owned                  | 404                                                  |
+| Rate limit exceeded                           | 429                                                  |
+| Internal error                                | 500                                                  |
 | LLM provider rejected the user's key or model | 502 — `{ "error": "LLM provider error: <message>" }` |
 
 ---
 
 ## File Changes
 
-| File | Action |
-|---|---|
-| `api/v1.ts` | Create — main gateway handler |
-| `api/_lib/resolveApiKey.ts` | Create — extracted from `mcp.ts` |
-| `api/mcp.ts` | Edit — import from `resolveApiKey.ts` (remove duplicate) |
-| `vercel.json` | Edit — add `/v1/:path*` rewrite |
+| File                        | Action                                                   |
+| --------------------------- | -------------------------------------------------------- |
+| `api/v1.ts`                 | Create — main gateway handler                            |
+| `api/_lib/resolveApiKey.ts` | Create — extracted from `mcp.ts`                         |
+| `api/mcp.ts`                | Edit — import from `resolveApiKey.ts` (remove duplicate) |
+| `vercel.json`               | Edit — add `/v1/:path*` rewrite                          |
 
 ---
 

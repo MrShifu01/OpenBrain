@@ -23,6 +23,7 @@
 - [x] **1.7** Color scheme: green = extracted (explicit in user input), amber = inferred (AI deduced), red-outline = ambiguous (uncertain, verify)
 
 **Files touched:**
+
 - `src/types.ts` — Entry/EntryMetadata interface
 - `src/config/prompts.ts` — CAPTURE, COMBINED_AUDIT prompts
 - `src/hooks/useRefineAnalysis.ts` — Parse confidence from AI
@@ -45,15 +46,15 @@
   interface Concept {
     id: string;
     label: string;
-    source_entries: string[];  // entry IDs where this concept appears
+    source_entries: string[]; // entry IDs where this concept appears
     frequency: number;
   }
   interface Relationship {
     source_concept: string;
     target_concept: string;
-    relation: string;          // "related_to", "depends_on", "part_of", etc.
+    relation: string; // "related_to", "depends_on", "part_of", etc.
     confidence: "extracted" | "inferred";
-    confidence_score: number;  // 0.0-1.0
+    confidence_score: number; // 0.0-1.0
     evidence_entries: string[];
   }
   ```
@@ -69,6 +70,7 @@
 - [x] **2.7** Add concept tags to EntryList — small concept pills below existing tags showing AI-discovered concepts
 
 **Files touched:**
+
 - `src/types.ts` — Concept, Relationship interfaces
 - `src/lib/conceptGraph.ts` — New file
 - `src/config/prompts.ts` — COMBINED_AUDIT additions
@@ -102,6 +104,7 @@
 - [x] **3.6** Add to SuggestionsView as a "Discovery" category
 
 **Files touched:**
+
 - `src/lib/surpriseScore.ts` — New file
 - `src/config/prompts.ts` — Surprise detection prompt
 - `src/components/SurprisingConnections.tsx` — New component
@@ -126,6 +129,7 @@
 - [x] **4.4** Use key concepts to enhance system prompt in `systemPromptBuilder.ts` — "This brain's core themes are: X, Y, Z" for better AI context
 
 **Files touched:**
+
 - `src/lib/conceptGraph.ts` — getGodNodes()
 - `src/components/KeyConcepts.tsx` — New component
 - `src/OpenBrain.tsx` or `src/views/` — Placement in brain view
@@ -152,6 +156,7 @@
 - [x] **5.6** Performance: virtualize for 500+ nodes, lazy-load edge details
 
 **Files touched:**
+
 - `package.json` — New dependency
 - `src/views/GraphView.tsx` — New file
 - `src/components/BottomNav.tsx` — New nav item
@@ -174,6 +179,7 @@
 - [x] **6.5** Show cluster cohesion score (how tightly related entries are within the cluster)
 
 **Files touched:**
+
 - `src/lib/conceptGraph.ts` — Community detection
 - `src/components/GridFilters.tsx` — Cluster filter
 - `src/hooks/useRefineAnalysis.ts` — Trigger clustering
@@ -193,6 +199,7 @@
 - [x] **7.5** Update `learningEngine.ts` to include graph feedback alongside existing accept/reject tracking
 
 **Files touched:**
+
 - `src/lib/conceptGraph.ts` — Feedback integration
 - `src/lib/learningEngine.ts` — Graph signals
 - `src/hooks/useRefineAnalysis.ts` — Track accept/dismiss on connections

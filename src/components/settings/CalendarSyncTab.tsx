@@ -89,7 +89,7 @@ export default function CalendarSyncTab() {
         connected={!!googleInt}
         label={
           googleInt
-            ? googleInt.calendar_email ?? "unknown"
+            ? (googleInt.calendar_email ?? "unknown")
             : "Sync your Google Calendar events into the Todo calendar view."
         }
       >

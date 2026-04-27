@@ -201,7 +201,9 @@ export function useBackgroundCapture() {
                   classifyWarning = "";
                 }
               }
-            } catch { /* fall through to raw-note */ }
+            } catch {
+              /* fall through to raw-note */
+            }
           }
           if (entries.length === 0) {
             entries = [{ title: baseName, content: rawText, type: "note" }];

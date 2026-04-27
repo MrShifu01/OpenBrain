@@ -12,33 +12,34 @@
 
 ## File Map
 
-| Action | Path | Responsibility |
-|---|---|---|
-| Create | `supabase/migrations/031_stripe_billing.sql` | `user_profiles` table, auto-create trigger, backfill, sync trigger, `user_usage` table, `increment_usage` RPC |
-| Create | `api/_lib/stripe.ts` | Singleton Stripe client |
-| Create | `api/_lib/usage.ts` | `checkAndIncrement` — server-side tier enforcement |
-| Create | `tests/api/usage.test.ts` | Unit tests for usage enforcement |
-| Modify | `api/_lib/providers/select.ts` | Allow `starter` to use platform AI; add per-tier model selection |
-| Modify | `api/llm.ts` | Add usage check before chat / transcription calls; update managed options |
-| Modify | `api/capture.ts` | Add usage check before AI-assisted capture |
-| Modify | `api/user-data.ts` | Add `bodyParser: false` config, body buffering, `stripe-checkout`, `stripe-webhook`, `stripe-portal` resource handlers |
-| Create | `tests/api/stripe-webhook.test.ts` | Webhook signature verification + tier sync tests |
-| Create | `src/lib/useSubscription.ts` | React hook — reads `user_profiles` + `user_usage`, exposes `{ tier, usage, limits, pct, renewalDate, isLoading }` |
-| Create | `tests/hooks/useSubscription.test.ts` | Hook unit tests |
-| Modify | `src/lib/tiers.ts` | Add `starter` and `starter_byok` tier definitions |
-| Create | `src/components/settings/BillingTab.tsx` | Plan badge, usage meters, upgrade/portal buttons |
-| Create | `src/components/UpgradeModal.tsx` | 100%-limit blocking modal with plan comparison table |
-| Create | `src/components/UsageBanner.tsx` | 90%-limit amber non-blocking banner |
-| Modify | `src/components/settings/AccountTab.tsx` | Replace `TierPreviewToggle` with live tier badge from `useSubscription` |
-| Modify | `src/views/SettingsView.tsx` | Add `"billing"` section, handle `?tab=billing` query param |
-| Modify | `vercel.json` | Add 3 Stripe rewrites |
-| Modify | `.env.example` | Document new env vars |
+| Action | Path                                         | Responsibility                                                                                                         |
+| ------ | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Create | `supabase/migrations/031_stripe_billing.sql` | `user_profiles` table, auto-create trigger, backfill, sync trigger, `user_usage` table, `increment_usage` RPC          |
+| Create | `api/_lib/stripe.ts`                         | Singleton Stripe client                                                                                                |
+| Create | `api/_lib/usage.ts`                          | `checkAndIncrement` — server-side tier enforcement                                                                     |
+| Create | `tests/api/usage.test.ts`                    | Unit tests for usage enforcement                                                                                       |
+| Modify | `api/_lib/providers/select.ts`               | Allow `starter` to use platform AI; add per-tier model selection                                                       |
+| Modify | `api/llm.ts`                                 | Add usage check before chat / transcription calls; update managed options                                              |
+| Modify | `api/capture.ts`                             | Add usage check before AI-assisted capture                                                                             |
+| Modify | `api/user-data.ts`                           | Add `bodyParser: false` config, body buffering, `stripe-checkout`, `stripe-webhook`, `stripe-portal` resource handlers |
+| Create | `tests/api/stripe-webhook.test.ts`           | Webhook signature verification + tier sync tests                                                                       |
+| Create | `src/lib/useSubscription.ts`                 | React hook — reads `user_profiles` + `user_usage`, exposes `{ tier, usage, limits, pct, renewalDate, isLoading }`      |
+| Create | `tests/hooks/useSubscription.test.ts`        | Hook unit tests                                                                                                        |
+| Modify | `src/lib/tiers.ts`                           | Add `starter` and `starter_byok` tier definitions                                                                      |
+| Create | `src/components/settings/BillingTab.tsx`     | Plan badge, usage meters, upgrade/portal buttons                                                                       |
+| Create | `src/components/UpgradeModal.tsx`            | 100%-limit blocking modal with plan comparison table                                                                   |
+| Create | `src/components/UsageBanner.tsx`             | 90%-limit amber non-blocking banner                                                                                    |
+| Modify | `src/components/settings/AccountTab.tsx`     | Replace `TierPreviewToggle` with live tier badge from `useSubscription`                                                |
+| Modify | `src/views/SettingsView.tsx`                 | Add `"billing"` section, handle `?tab=billing` query param                                                             |
+| Modify | `vercel.json`                                | Add 3 Stripe rewrites                                                                                                  |
+| Modify | `.env.example`                               | Document new env vars                                                                                                  |
 
 ---
 
 ## Task 1: Install Stripe SDK + create client singleton
 
 **Files:**
+
 - Modify: `package.json` (npm install)
 - Create: `api/_lib/stripe.ts`
 - Modify: `.env.example`
@@ -96,6 +97,7 @@ git commit -m "feat(billing): install stripe SDK and create client singleton"
 ## Task 2: Database migration
 
 **Files:**
+
 - Create: `supabase/migrations/031_stripe_billing.sql`
 
 - [ ] **Step 1: Create the migration file**
@@ -276,6 +278,7 @@ npx supabase db push
 - [ ] **Step 3: Verify tables exist**
 
 In the Supabase dashboard, confirm:
+
 - `user_profiles` table with columns: `id`, `tier`, `stripe_customer_id`, `stripe_subscription_id`, `tier_expires_at`, `created_at`, `updated_at`
 - `user_usage` table with columns: `user_id`, `period`, `captures`, `chats`, `voice`, `improve`
 - Existing users backfilled into `user_profiles`
@@ -292,6 +295,7 @@ git commit -m "feat(billing): add user_profiles, user_usage tables and increment
 ## Task 3: Usage enforcement helper + tests
 
 **Files:**
+
 - Create: `api/_lib/usage.ts`
 - Create: `tests/api/usage.test.ts`
 
@@ -373,10 +377,7 @@ describe("checkAndIncrement", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const result = await checkAndIncrement("uid", "chats", "starter", false);
     expect(result.allowed).toBe(true);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[usage]"),
-      expect.any(Error),
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[usage]"), expect.any(Error));
     consoleSpy.mockRestore();
   });
 
@@ -411,8 +412,8 @@ import { sbHeaders } from "./sbHeaders.js";
 export type UsageAction = "captures" | "chats" | "voice" | "improve";
 
 const LIMITS: Record<string, Record<UsageAction, number>> = {
-  starter: { captures: 500,  chats: 200,  voice: 20,  improve: 20       },
-  pro:     { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
+  starter: { captures: 500, chats: 200, voice: 20, improve: 20 },
+  pro: { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
 };
 
 const SB_URL = process.env.SUPABASE_URL!;
@@ -472,6 +473,7 @@ git commit -m "feat(billing): add checkAndIncrement usage enforcement helper"
 ## Task 4: Update provider selection for starter tier + model differentiation
 
 **Files:**
+
 - Modify: `api/_lib/providers/select.ts`
 - Modify: `api/llm.ts`
 
@@ -492,19 +494,23 @@ export interface ManagedGeminiOptions {
 Replace the plan check at the bottom of `selectProvider` (the block that reads `const plan = settings.plan ?? "free"; if (plan === "pro" && opts.managed?.key) { ... }`) with:
 
 ```ts
-  const plan = settings.plan ?? "free";
-  if ((plan === "pro" || plan === "starter") && opts.managed?.key) {
-    const isPro = plan === "pro";
-    return {
-      provider: "gemini-managed",
-      key: opts.managed.key,
-      model: opts.forChat
-        ? (isPro ? opts.managed.proChatModel : opts.managed.starterChatModel)
-        : (isPro ? opts.managed.proModel : opts.managed.starterModel),
-    };
-  }
+const plan = settings.plan ?? "free";
+if ((plan === "pro" || plan === "starter") && opts.managed?.key) {
+  const isPro = plan === "pro";
+  return {
+    provider: "gemini-managed",
+    key: opts.managed.key,
+    model: opts.forChat
+      ? isPro
+        ? opts.managed.proChatModel
+        : opts.managed.starterChatModel
+      : isPro
+        ? opts.managed.proModel
+        : opts.managed.starterModel,
+  };
+}
 
-  return null;
+return null;
 ```
 
 - [ ] **Step 2: Update the managed options passed in `api/llm.ts`**
@@ -526,12 +532,14 @@ Find the `resolveProvider` function's `managed:` object (around line 50-55). Rep
 Also remove the now-unused `GEMINI_MODEL` and `GEMINI_CHAT_MODEL` constants from `api/llm.ts` — they are no longer passed to the managed options object (replace their usage in sanitizeGeminiModel with the pro model default):
 
 Find:
+
 ```ts
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
 const GEMINI_CHAT_MODEL = (process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash").trim();
 ```
 
 Replace with:
+
 ```ts
 const GEMINI_DEFAULT_MODEL = (process.env.GEMINI_PRO_MODEL || "gemini-2.5-flash").trim();
 ```
@@ -558,6 +566,7 @@ git commit -m "feat(billing): allow starter tier to use platform AI with per-tie
 ## Task 5: Add usage enforcement to llm.ts and capture.ts
 
 **Files:**
+
 - Modify: `api/llm.ts`
 - Modify: `api/capture.ts`
 
@@ -576,20 +585,20 @@ The `resolveProvider` function already fetches `user_ai_settings`. After `select
 In the chat handler (inside `withAuth` for the main POST), after calling `resolveProvider`, add:
 
 ```ts
-    if (provider?.provider === "gemini-managed") {
-      const action = req.query.action === "transcribe" ? "voice" : "chats";
-      const hasByok = false; // managed path means no BYOK
-      const settings = await resolveSettingsRaw(user.id); // see Step 3
-      const check = await checkAndIncrement(user.id, action, settings.plan ?? "free", false);
-      if (!check.allowed) {
-        return void res.status(429).json({
-          error: "monthly_limit_reached",
-          action,
-          remaining: 0,
-          upgrade_url: "/settings?tab=billing",
-        });
-      }
-    }
+if (provider?.provider === "gemini-managed") {
+  const action = req.query.action === "transcribe" ? "voice" : "chats";
+  const hasByok = false; // managed path means no BYOK
+  const settings = await resolveSettingsRaw(user.id); // see Step 3
+  const check = await checkAndIncrement(user.id, action, settings.plan ?? "free", false);
+  if (!check.allowed) {
+    return void res.status(429).json({
+      error: "monthly_limit_reached",
+      action,
+      remaining: 0,
+      upgrade_url: "/settings?tab=billing",
+    });
+  }
+}
 ```
 
 - [ ] **Step 3: Add `resolveSettingsRaw` helper in `api/llm.ts`**
@@ -614,19 +623,19 @@ async function resolveSettingsRaw(userId: string): Promise<{ plan: string; hasKe
 Then update the usage check in Step 2 to use:
 
 ```ts
-    if (provider?.provider === "gemini-managed") {
-      const { plan, hasKey } = await resolveSettingsRaw(user.id);
-      const action = (req.query.action as string) === "transcribe" ? "voice" : "chats";
-      const check = await checkAndIncrement(user.id, action, plan, hasKey);
-      if (!check.allowed) {
-        return void res.status(429).json({
-          error: "monthly_limit_reached",
-          action,
-          remaining: 0,
-          upgrade_url: "/settings?tab=billing",
-        });
-      }
-    }
+if (provider?.provider === "gemini-managed") {
+  const { plan, hasKey } = await resolveSettingsRaw(user.id);
+  const action = (req.query.action as string) === "transcribe" ? "voice" : "chats";
+  const check = await checkAndIncrement(user.id, action, plan, hasKey);
+  if (!check.allowed) {
+    return void res.status(429).json({
+      error: "monthly_limit_reached",
+      action,
+      remaining: 0,
+      upgrade_url: "/settings?tab=billing",
+    });
+  }
+}
 ```
 
 - [ ] **Step 4: Add usage check in `api/capture.ts`**
@@ -641,25 +650,25 @@ import { sbHeaders } from "./_lib/sbHeaders.js";
 In the capture handler (inside `withAuth`), before the AI enrichment step, add:
 
 ```ts
-    // Usage gate: only applies to platform AI (managed provider)
-    if (provider?.provider === "gemini-managed") {
-      const r = await fetch(
-        `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
-        { headers: sbHeaders() },
-      );
-      const [row] = r.ok ? await r.json() : [null];
-      const plan: string = row?.plan ?? "free";
-      const hasKey = !!(row?.anthropic_key || row?.openai_key || row?.gemini_key);
-      const check = await checkAndIncrement(user.id, "captures", plan, hasKey);
-      if (!check.allowed) {
-        return void res.status(429).json({
-          error: "monthly_limit_reached",
-          action: "captures",
-          remaining: 0,
-          upgrade_url: "/settings?tab=billing",
-        });
-      }
-    }
+// Usage gate: only applies to platform AI (managed provider)
+if (provider?.provider === "gemini-managed") {
+  const r = await fetch(
+    `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
+    { headers: sbHeaders() },
+  );
+  const [row] = r.ok ? await r.json() : [null];
+  const plan: string = row?.plan ?? "free";
+  const hasKey = !!(row?.anthropic_key || row?.openai_key || row?.gemini_key);
+  const check = await checkAndIncrement(user.id, "captures", plan, hasKey);
+  if (!check.allowed) {
+    return void res.status(429).json({
+      error: "monthly_limit_reached",
+      action: "captures",
+      remaining: 0,
+      upgrade_url: "/settings?tab=billing",
+    });
+  }
+}
 ```
 
 (Note: `SB_URL` is already declared at the top of `capture.ts`. If not, add `const SB_URL = process.env.SUPABASE_URL!;`.)
@@ -684,6 +693,7 @@ git commit -m "feat(billing): enforce monthly usage limits before platform AI ca
 ## Task 6: Stripe resource handlers in user-data.ts
 
 **Files:**
+
 - Modify: `api/user-data.ts`
 
 - [ ] **Step 1: Add imports at the top of `api/user-data.ts`**
@@ -722,18 +732,18 @@ function bufferBody(req: ApiRequest): Promise<Buffer> {
 At the top of `export default async function handler(...)`, BEFORE the existing `resource` check, add:
 
 ```ts
-  const rawBody = await bufferBody(req);
-  const resource = req.query.resource as string | undefined;
+const rawBody = await bufferBody(req);
+const resource = req.query.resource as string | undefined;
 
-  // Stripe webhook uses raw body for signature verification
-  if (resource === "stripe-webhook") return handleStripeWebhook(req, res, rawBody);
+// Stripe webhook uses raw body for signature verification
+if (resource === "stripe-webhook") return handleStripeWebhook(req, res, rawBody);
 
-  // Parse body for all other handlers
-  try {
-    req.body = rawBody.length > 0 ? JSON.parse(rawBody.toString("utf-8")) : {};
-  } catch {
-    req.body = {};
-  }
+// Parse body for all other handlers
+try {
+  req.body = rawBody.length > 0 ? JSON.parse(rawBody.toString("utf-8")) : {};
+} catch {
+  req.body = {};
+}
 ```
 
 Then remove the old `const resource = req.query.resource as string | undefined;` line that was already there (now declared above).
@@ -743,8 +753,8 @@ Then remove the old `const resource = req.query.resource as string | undefined;`
 In the `if (resource === ...)` chain, add:
 
 ```ts
-  if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
-  if (resource === "stripe-portal")   return handleStripePortal(req, res);
+if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
+if (resource === "stripe-portal") return handleStripePortal(req, res);
 ```
 
 (webhook is already dispatched before the chain in Step 3)
@@ -798,14 +808,11 @@ const handleStripeCheckout = withAuth(
         metadata: { user_id: user.id },
       });
       customerId = customer.id;
-      await fetch(
-        `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}`,
-        {
-          method: "PATCH",
-          headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ stripe_customer_id: customerId }),
-        },
-      );
+      await fetch(`${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}`, {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ stripe_customer_id: customerId }),
+      });
     }
 
     const host = (req.headers["host"] as string) || "everion.app";
@@ -950,6 +957,7 @@ git commit -m "feat(billing): add stripe-checkout, stripe-webhook, stripe-portal
 ## Task 7: Webhook tests
 
 **Files:**
+
 - Create: `tests/api/stripe-webhook.test.ts`
 
 - [ ] **Step 1: Write the tests**
@@ -1134,6 +1142,7 @@ git commit -m "test(billing): add stripe webhook handler tests"
 ## Task 8: Add Stripe rewrites to vercel.json
 
 **Files:**
+
 - Modify: `vercel.json`
 
 - [ ] **Step 1: Add 3 rewrites to `vercel.json`**
@@ -1168,6 +1177,7 @@ git commit -m "feat(billing): add stripe API route rewrites to vercel.json"
 ## Task 9: useSubscription hook + tests
 
 **Files:**
+
 - Create: `src/lib/useSubscription.ts`
 - Create: `tests/hooks/useSubscription.test.ts`
 
@@ -1212,7 +1222,11 @@ describe("useSubscription", () => {
   it("returns free tier when user_profiles has tier=free", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "user_profiles")
-        return makeQueryBuilder({ tier: "free", tier_expires_at: null, stripe_subscription_id: null });
+        return makeQueryBuilder({
+          tier: "free",
+          tier_expires_at: null,
+          stripe_subscription_id: null,
+        });
       return makeQueryBuilder(null);
     });
     const { result } = renderHook(() => require("../../src/lib/useSubscription").useSubscription());
@@ -1300,9 +1314,9 @@ interface UsageCounts {
 }
 
 const LIMITS: Record<Tier, UsageCounts> = {
-  free:    { captures: 0,    chats: 0,    voice: 0,   improve: 0    },
-  starter: { captures: 500,  chats: 200,  voice: 20,  improve: 20   },
-  pro:     { captures: 2000, chats: 1000, voice: 100, improve: 9999 },
+  free: { captures: 0, chats: 0, voice: 0, improve: 0 },
+  starter: { captures: 500, chats: 200, voice: 20, improve: 20 },
+  pro: { captures: 2000, chats: 1000, voice: 100, improve: 9999 },
 };
 
 const ZERO_USAGE: UsageCounts = { captures: 0, chats: 0, voice: 0, improve: 0 };
@@ -1326,7 +1340,9 @@ export function useSubscription(): SubscriptionState {
     let cancelled = false;
 
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || cancelled) return;
 
       const period = new Date().toISOString().slice(0, 7);
@@ -1349,8 +1365,7 @@ export function useSubscription(): SubscriptionState {
 
       const rawTier = (profileRes.data?.tier ?? "free") as Tier;
       const expiresAt = profileRes.data?.tier_expires_at ?? null;
-      const effectiveTier: Tier =
-        expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
+      const effectiveTier: Tier = expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
 
       setTier(effectiveTier);
       setRenewalDate(expiresAt);
@@ -1359,7 +1374,9 @@ export function useSubscription(): SubscriptionState {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const limits = LIMITS[tier];
@@ -1396,6 +1413,7 @@ git commit -m "feat(billing): add useSubscription hook with tier, usage, and pct
 ## Task 10: Update tiers.ts for starter tier
 
 **Files:**
+
 - Modify: `src/lib/tiers.ts`
 
 - [ ] **Step 1: Add `starter` and `starter_byok` to `tiers.ts`**
@@ -1403,11 +1421,13 @@ git commit -m "feat(billing): add useSubscription hook with tier, usage, and pct
 Open `src/lib/tiers.ts`. Make these changes:
 
 **a) Update `TierId`:**
+
 ```ts
 export type TierId = "free" | "free_byok" | "starter" | "starter_byok" | "pro" | "pro_byok";
 ```
 
 **b) Add two new tier definitions to the `TIERS` array after `free_byok`:**
+
 ```ts
   {
     id: "starter",
@@ -1444,25 +1464,27 @@ export type TierId = "free" | "free_byok" | "starter" | "starter_byok" | "pro" |
 ```
 
 **c) Update `TIER_LABELS`:**
+
 ```ts
 export const TIER_LABELS: Record<TierId, string> = {
-  free:         "Free",
-  free_byok:    "Free + Keys",
-  starter:      "Starter",
+  free: "Free",
+  free_byok: "Free + Keys",
+  starter: "Starter",
   starter_byok: "Starter + Keys",
-  pro:          "Pro",
-  pro_byok:     "Pro + Keys",
+  pro: "Pro",
+  pro_byok: "Pro + Keys",
 };
 ```
 
 **d) Update `deriveTierId`:**
+
 ```ts
 export function deriveTierId(plan: string, hasAnyKey: boolean): TierId {
-  if (plan === "pro"     && hasAnyKey) return "pro_byok";
-  if (plan === "pro")                  return "pro";
+  if (plan === "pro" && hasAnyKey) return "pro_byok";
+  if (plan === "pro") return "pro";
   if (plan === "starter" && hasAnyKey) return "starter_byok";
-  if (plan === "starter")              return "starter";
-  if (hasAnyKey)                       return "free_byok";
+  if (plan === "starter") return "starter";
+  if (hasAnyKey) return "free_byok";
   return "free";
 }
 ```
@@ -1487,6 +1509,7 @@ git commit -m "feat(billing): add starter tier to tiers.ts definition"
 ## Task 11: BillingTab component
 
 **Files:**
+
 - Create: `src/components/settings/BillingTab.tsx`
 
 - [ ] **Step 1: Create `src/components/settings/BillingTab.tsx`**
@@ -1590,7 +1613,10 @@ export default function BillingTab() {
 
   if (isLoading) {
     return (
-      <div className="f-sans" style={{ fontSize: 13, color: "var(--ink-faint)", padding: "24px 0" }}>
+      <div
+        className="f-sans"
+        style={{ fontSize: 13, color: "var(--ink-faint)", padding: "24px 0" }}
+      >
         Loading billing info…
       </div>
     );
@@ -1616,7 +1642,10 @@ export default function BillingTab() {
           {tierLabel}
         </span>
         {renewalDate && tier !== "free" && (
-          <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}>
+          <span
+            className="f-sans"
+            style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}
+          >
             expires {new Date(renewalDate).toLocaleDateString()}
           </span>
         )}
@@ -1647,10 +1676,20 @@ export default function BillingTab() {
           >
             Usage this month
           </div>
-          <UsageMeter label="Captures"     used={usage.captures} limit={limits.captures} pct={pct.captures} />
-          <UsageMeter label="Chats"        used={usage.chats}    limit={limits.chats}    pct={pct.chats}    />
-          <UsageMeter label="Voice notes"  used={usage.voice}    limit={limits.voice}    pct={pct.voice}    />
-          <UsageMeter label="Improve scans" used={usage.improve} limit={limits.improve}  pct={pct.improve}  />
+          <UsageMeter
+            label="Captures"
+            used={usage.captures}
+            limit={limits.captures}
+            pct={pct.captures}
+          />
+          <UsageMeter label="Chats" used={usage.chats} limit={limits.chats} pct={pct.chats} />
+          <UsageMeter label="Voice notes" used={usage.voice} limit={limits.voice} pct={pct.voice} />
+          <UsageMeter
+            label="Improve scans"
+            used={usage.improve}
+            limit={limits.improve}
+            pct={pct.improve}
+          />
         </div>
       )}
 
@@ -1670,16 +1709,12 @@ export default function BillingTab() {
           <SettingsButton onClick={() => startCheckout("pro")}>
             Upgrade to Pro — $9.99 / mo
           </SettingsButton>
-          <SettingsButton onClick={openPortal}>
-            Manage subscription
-          </SettingsButton>
+          <SettingsButton onClick={openPortal}>Manage subscription</SettingsButton>
         </div>
       )}
       {tier === "pro" && (
         <div style={{ marginTop: 16 }}>
-          <SettingsButton onClick={openPortal}>
-            Manage subscription
-          </SettingsButton>
+          <SettingsButton onClick={openPortal}>Manage subscription</SettingsButton>
         </div>
       )}
 
@@ -1719,17 +1754,23 @@ export default function BillingTab() {
           </thead>
           <tbody>
             {[
-              { label: "Price",           free: "$0",  starter: "$4.99/mo", pro: "$9.99/mo" },
-              { label: "Raw capture",     free: "✓",   starter: "✓",         pro: "✓"       },
-              { label: "BYOK AI",         free: "✓",   starter: "✓",         pro: "✓"       },
-              { label: "Platform AI",     free: "—",   starter: "✓",         pro: "✓"       },
-              { label: "Captures / mo",   free: "—",   starter: "500",        pro: "2 000"  },
-              { label: "Chats / mo",      free: "—",   starter: "200",        pro: "1 000"  },
-              { label: "AI models",       free: "—",   starter: "Flash",       pro: "Sonnet" },
-              { label: "All features",    free: "—",   starter: "—",          pro: "✓"      },
+              { label: "Price", free: "$0", starter: "$4.99/mo", pro: "$9.99/mo" },
+              { label: "Raw capture", free: "✓", starter: "✓", pro: "✓" },
+              { label: "BYOK AI", free: "✓", starter: "✓", pro: "✓" },
+              { label: "Platform AI", free: "—", starter: "✓", pro: "✓" },
+              { label: "Captures / mo", free: "—", starter: "500", pro: "2 000" },
+              { label: "Chats / mo", free: "—", starter: "200", pro: "1 000" },
+              { label: "AI models", free: "—", starter: "Flash", pro: "Sonnet" },
+              { label: "All features", free: "—", starter: "—", pro: "✓" },
             ].map((row, i) => (
-              <tr key={row.label} style={{ background: i % 2 === 0 ? "transparent" : "var(--surface-high)" }}>
-                <td className="f-sans" style={{ padding: "9px 14px", fontSize: 12, color: "var(--ink-soft)" }}>
+              <tr
+                key={row.label}
+                style={{ background: i % 2 === 0 ? "transparent" : "var(--surface-high)" }}
+              >
+                <td
+                  className="f-sans"
+                  style={{ padding: "9px 14px", fontSize: 12, color: "var(--ink-soft)" }}
+                >
                   {row.label}
                 </td>
                 {(["free", "starter", "pro"] as const).map((t) => (
@@ -1740,7 +1781,12 @@ export default function BillingTab() {
                       padding: "9px 14px",
                       fontSize: 12,
                       textAlign: "center",
-                      color: row[t] === "—" ? "var(--ink-ghost)" : row[t] === "✓" ? "var(--moss)" : "var(--ink)",
+                      color:
+                        row[t] === "—"
+                          ? "var(--ink-ghost)"
+                          : row[t] === "✓"
+                            ? "var(--moss)"
+                            : "var(--ink)",
                       fontWeight: t === tier ? 600 : 400,
                     }}
                   >
@@ -1777,6 +1823,7 @@ git commit -m "feat(billing): add BillingTab with usage meters, upgrade buttons,
 ## Task 12: UpgradeModal + UsageBanner
 
 **Files:**
+
 - Create: `src/components/UpgradeModal.tsx`
 - Create: `src/components/UsageBanner.tsx`
 
@@ -1793,9 +1840,9 @@ interface Props {
 
 const ACTION_LABEL: Record<Props["action"], string> = {
   captures: "AI-assisted captures",
-  chats:    "AI chats",
-  voice:    "voice notes",
-  improve:  "improve scans",
+  chats: "AI chats",
+  voice: "voice notes",
+  improve: "improve scans",
 };
 
 async function startCheckout(plan: "starter" | "pro") {
@@ -1838,10 +1885,16 @@ export default function UpgradeModal({ action, onClose }: Props) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="f-serif" style={{ fontSize: 20, fontWeight: 450, color: "var(--ink)", marginBottom: 6 }}>
+        <div
+          className="f-serif"
+          style={{ fontSize: 20, fontWeight: 450, color: "var(--ink)", marginBottom: 6 }}
+        >
           Monthly limit reached
         </div>
-        <div className="f-sans" style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 22 }}>
+        <div
+          className="f-sans"
+          style={{ fontSize: 13, color: "var(--ink-soft)", marginBottom: 22 }}
+        >
           You've used all your {label} for this month. Upgrade to continue.
         </div>
 
@@ -1884,7 +1937,10 @@ export default function UpgradeModal({ action, onClose }: Props) {
           )}
         </div>
 
-        <div className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", textAlign: "center" }}>
+        <div
+          className="f-sans"
+          style={{ fontSize: 11, color: "var(--ink-ghost)", textAlign: "center" }}
+        >
           Or{" "}
           <a
             href="/settings?tab=ai"
@@ -1918,7 +1974,12 @@ export default function UsageBanner({ action, onUpgradeClick }: Props) {
   if (tier === "free" || p === undefined || p < 90) return null;
 
   const isAtLimit = p >= 100;
-  const actionLabel = { captures: "captures", chats: "chats", voice: "voice notes", improve: "improve scans" }[action];
+  const actionLabel = {
+    captures: "captures",
+    chats: "chats",
+    voice: "voice notes",
+    improve: "improve scans",
+  }[action];
 
   return (
     <div
@@ -1986,6 +2047,7 @@ git commit -m "feat(billing): add UpgradeModal and UsageBanner components"
 ## Task 13: Wire billing into AccountTab + SettingsView
 
 **Files:**
+
 - Modify: `src/components/settings/AccountTab.tsx`
 - Modify: `src/views/SettingsView.tsx`
 
@@ -2010,7 +2072,11 @@ const tier = TIERS.find((t) => t.id === tierId)!;
 const { tier: billingTier } = useSubscription();
 const tierLabel = billingTier === "pro" ? "Pro" : billingTier === "starter" ? "Starter" : "Free";
 const tierColor =
-  billingTier === "pro" ? "var(--ember)" : billingTier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
+  billingTier === "pro"
+    ? "var(--ember)"
+    : billingTier === "starter"
+      ? "var(--moss)"
+      : "var(--ink-ghost)";
 ```
 
 Replace the tier display in the JSX (the part rendering `{tier.label}` and `{tier.subtitle}`) with:
@@ -2063,13 +2129,13 @@ type SectionId =
 **c) Handle `?tab=billing` and `?billing=success` in the initial section detection:**
 
 ```ts
-  const [section, setSection] = useState<SectionId>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("calendarConnected") || params.has("calendarError")) return "integrations";
-    if (params.has("gmailConnected") || params.has("gmailError")) return "integrations";
-    if (params.get("tab") === "billing" || params.has("billing")) return "billing";
-    return "appearance";
-  });
+const [section, setSection] = useState<SectionId>(() => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("calendarConnected") || params.has("calendarError")) return "integrations";
+  if (params.has("gmailConnected") || params.has("gmailError")) return "integrations";
+  if (params.get("tab") === "billing" || params.has("billing")) return "billing";
+  return "appearance";
+});
 ```
 
 **d) Add the import:**
@@ -2081,15 +2147,14 @@ import BillingTab from "../components/settings/BillingTab";
 **e) Add the rendered section** (after the `account` section block, around line 598):
 
 ```tsx
-              {preloaded.has("billing") && (
-                <div style={{ display: section === "billing" ? "block" : "none" }}>
-                  <SectionHeader
-                    title="Billing"
-                    subtitle="manage your plan, usage, and subscription."
-                  />
-                  <BillingTab />
-                </div>
-              )}
+{
+  preloaded.has("billing") && (
+    <div style={{ display: section === "billing" ? "block" : "none" }}>
+      <SectionHeader title="Billing" subtitle="manage your plan, usage, and subscription." />
+      <BillingTab />
+    </div>
+  );
+}
 ```
 
 - [ ] **Step 3: Run typecheck**
@@ -2119,26 +2184,26 @@ git commit -m "feat(billing): wire BillingTab into SettingsView and update Accou
 
 ## Spec Coverage Self-Review
 
-| Spec requirement | Task(s) |
-|---|---|
-| `user_profiles` canonical table with RLS, trigger, backfill | Task 2 |
-| `user_usage` table + `increment_usage` RPC | Task 2 |
-| `user_ai_settings.plan` sync trigger (deprecated) | Task 2 |
-| `checkAndIncrement` with BYOK bypass, free block, fail-open | Task 3 |
-| Allow `starter` to use platform AI | Task 4 |
-| Per-tier model selection (starter vs pro) | Task 4 |
-| Usage gates in `llm.ts` and `capture.ts` | Task 5 |
-| `user-data.ts` body buffering (bodyParser: false) | Task 6 |
-| `stripe-checkout` handler | Task 6 |
-| `stripe-webhook` handler (created, updated, deleted) | Task 6 |
-| `stripe-portal` handler | Task 6 |
-| Webhook tests (sig fail, pro tier, starter tier, deletion, idempotent) | Task 7 |
-| `vercel.json` rewrites for 3 Stripe routes | Task 8 |
-| `useSubscription` hook with expired grace period logic | Task 9 |
-| `tiers.ts` updated with starter | Task 10 |
-| `BillingTab` with usage meters + plan comparison | Task 11 |
-| `UpgradeModal` (100% limit) | Task 12 |
-| `UsageBanner` (90% limit) | Task 12 |
-| `AccountTab` live tier badge | Task 13 |
-| `SettingsView` Billing tab + `?tab=billing` routing | Task 13 |
-| `.env.example` updated | Task 1 |
+| Spec requirement                                                       | Task(s) |
+| ---------------------------------------------------------------------- | ------- |
+| `user_profiles` canonical table with RLS, trigger, backfill            | Task 2  |
+| `user_usage` table + `increment_usage` RPC                             | Task 2  |
+| `user_ai_settings.plan` sync trigger (deprecated)                      | Task 2  |
+| `checkAndIncrement` with BYOK bypass, free block, fail-open            | Task 3  |
+| Allow `starter` to use platform AI                                     | Task 4  |
+| Per-tier model selection (starter vs pro)                              | Task 4  |
+| Usage gates in `llm.ts` and `capture.ts`                               | Task 5  |
+| `user-data.ts` body buffering (bodyParser: false)                      | Task 6  |
+| `stripe-checkout` handler                                              | Task 6  |
+| `stripe-webhook` handler (created, updated, deleted)                   | Task 6  |
+| `stripe-portal` handler                                                | Task 6  |
+| Webhook tests (sig fail, pro tier, starter tier, deletion, idempotent) | Task 7  |
+| `vercel.json` rewrites for 3 Stripe routes                             | Task 8  |
+| `useSubscription` hook with expired grace period logic                 | Task 9  |
+| `tiers.ts` updated with starter                                        | Task 10 |
+| `BillingTab` with usage meters + plan comparison                       | Task 11 |
+| `UpgradeModal` (100% limit)                                            | Task 12 |
+| `UsageBanner` (90% limit)                                              | Task 12 |
+| `AccountTab` live tier badge                                           | Task 13 |
+| `SettingsView` Billing tab + `?tab=billing` routing                    | Task 13 |
+| `.env.example` updated                                                 | Task 1  |

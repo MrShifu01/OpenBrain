@@ -26,12 +26,12 @@ The engineering is done. The product and go-to-market are not. The next 3 weeks 
 
 Nothing else on this roadmap matters until these four are done. Do them in this order.
 
-| # | Blocker | Why it blocks launch | Effort |
-|---|---|---|---|
-| 1 | **Stripe + server-side tier enforcement** | No revenue possible without this. | 5–7 days |
-| 2 | **Brain Feed (home screen)** | No habit loop, Day 7 retention < 15%. | 3–5 days |
-| 3 | **Onboarding that delivers the aha moment in 60s** | No activation, all acquisition spend wastes. | 3–4 days |
-| 4 | **Product analytics (PostHog)** | Flying blind kills iteration speed. | 1–2 days |
+| #   | Blocker                                            | Why it blocks launch                         | Effort   |
+| --- | -------------------------------------------------- | -------------------------------------------- | -------- |
+| 1   | **Stripe + server-side tier enforcement**          | No revenue possible without this.            | 5–7 days |
+| 2   | **Brain Feed (home screen)**                       | No habit loop, Day 7 retention < 15%.        | 3–5 days |
+| 3   | **Onboarding that delivers the aha moment in 60s** | No activation, all acquisition spend wastes. | 3–4 days |
+| 4   | **Product analytics (PostHog)**                    | Flying blind kills iteration speed.          | 1–2 days |
 
 Everything in Section 3 expands these four into exact tasks. Everything in Sections 4+ is post-launch.
 
@@ -176,6 +176,7 @@ Target: **value demonstrated in under 60 seconds.** Not a tour. A demo.
 **Goal:** Prove the habit loop works and start the viral flywheel. Watch the PostHog funnel every morning.
 
 ### Metrics to hit before moving on
+
 - Day 7 retention ≥ 25%
 - Free → Starter conversion ≥ 3%
 - Weekly active users (WAU) growing week-over-week
@@ -206,13 +207,13 @@ Target: **value demonstrated in under 60 seconds.** Not a tour. A demo.
 
 ### Acquisition channels to test (pick 2, commit 4 weeks each)
 
-| Channel | Why it fits EverionMind | Effort | Signal to watch |
-|---|---|---|---|
-| **SEO content** — "best second brain app 2026", "Notion alternatives", "AI journaling apps" | High intent traffic, compounds | 2–4 blog posts/week | Organic signups/week |
-| **Twitter/X build-in-public** | Aligns with indie-dev narrative, shareable insights | Daily posts, 15min | Follower growth, reply-to-DM rate |
-| **Reddit (r/productivity, r/PKMS, r/Notion, r/ObsidianMD)** | Exact audience, competitive positioning works | 2–3 thoughtful posts/week | Signups per post |
-| **Partner with a PKM creator** (YouTube, newsletter) | One endorsement > 100 cold posts | 1 outreach campaign | Referral conversions |
-| **Product Hunt re-launches** | New features = new PH launches every 6 months | Low | Spike in signups |
+| Channel                                                                                     | Why it fits EverionMind                             | Effort                    | Signal to watch                   |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------- | --------------------------------- |
+| **SEO content** — "best second brain app 2026", "Notion alternatives", "AI journaling apps" | High intent traffic, compounds                      | 2–4 blog posts/week       | Organic signups/week              |
+| **Twitter/X build-in-public**                                                               | Aligns with indie-dev narrative, shareable insights | Daily posts, 15min        | Follower growth, reply-to-DM rate |
+| **Reddit (r/productivity, r/PKMS, r/Notion, r/ObsidianMD)**                                 | Exact audience, competitive positioning works       | 2–3 thoughtful posts/week | Signups per post                  |
+| **Partner with a PKM creator** (YouTube, newsletter)                                        | One endorsement > 100 cold posts                    | 1 outreach campaign       | Referral conversions              |
+| **Product Hunt re-launches**                                                                | New features = new PH launches every 6 months       | Low                       | Spike in signups                  |
 
 **Do NOT:** paid ads before Day 7 retention ≥ 25%. You'll burn money fast.
 
@@ -249,6 +250,7 @@ By now: 200–500 paying users, $1–3K MRR, clear picture of who the power user
    - Pair with `graphify-research.md` learnings: confidence labels (EXTRACTED/INFERRED), god-node view, surprising connections.
 
 ### Infrastructure milestones
+
 - At 500 paying users: upgrade Supabase compute (Small, +$15/mo).
 - Watch Vercel bandwidth — 1TB cap approaching.
 - Enable Semantic Caching (`roadmap.md` sub-project 3) for `/v1/context` responses once latency tail shows repeat queries.
@@ -309,16 +311,16 @@ From the honest audit — these are tempting but kill focus:
 
 Track these in a PostHog dashboard pinned to your home screen.
 
-| Metric | Pre-launch target | Month 1 | Month 3 | Month 6 | Month 12 |
-|---|---|---|---|---|---|
-| Signups | — | 500 | 2,000 | 5,000 | 15,000 |
-| Activation rate (signup → first insight) | ≥ 60% | 60% | 65% | 70% | 75% |
-| Day 7 retention | ≥ 25% | 25% | 30% | 35% | 40% |
-| Free → paid conversion | — | 3% | 4% | 5% | 6% |
-| MRR | $0 | $300 | $1.5K | $4K | $10K |
-| Gross margin | — | 85% | 87% | 88% | 88% |
-| Churn (monthly) | — | < 10% | < 7% | < 5% | < 4% |
-| Insight share rate | — | 1% | 2% | 4% | 5% |
+| Metric                                   | Pre-launch target | Month 1 | Month 3 | Month 6 | Month 12 |
+| ---------------------------------------- | ----------------- | ------- | ------- | ------- | -------- |
+| Signups                                  | —                 | 500     | 2,000   | 5,000   | 15,000   |
+| Activation rate (signup → first insight) | ≥ 60%             | 60%     | 65%     | 70%     | 75%      |
+| Day 7 retention                          | ≥ 25%             | 25%     | 30%     | 35%     | 40%      |
+| Free → paid conversion                   | —                 | 3%      | 4%      | 5%      | 6%       |
+| MRR                                      | $0                | $300    | $1.5K   | $4K     | $10K     |
+| Gross margin                             | —                 | 85%     | 87%     | 88%     | 88%      |
+| Churn (monthly)                          | —                 | < 10%   | < 7%    | < 5%    | < 4%     |
+| Insight share rate                       | —                 | 1%      | 2%      | 4%      | 5%       |
 
 If Day 7 retention stalls below 25%, **stop shipping features**. Fix the feed, fix onboarding, fix the prompt. Acquisition without retention is a leaky bucket.
 

@@ -68,8 +68,12 @@ export function selectProvider(
       provider: "gemini-managed",
       key: opts.managed.key,
       model: opts.forChat
-        ? (isPro ? opts.managed.proChatModel : opts.managed.starterChatModel)
-        : (isPro ? opts.managed.proModel : opts.managed.starterModel),
+        ? isPro
+          ? opts.managed.proChatModel
+          : opts.managed.starterChatModel
+        : isPro
+          ? opts.managed.proModel
+          : opts.managed.starterModel,
     };
   }
 

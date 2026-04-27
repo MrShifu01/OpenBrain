@@ -154,8 +154,7 @@ export default function BulkImportPanel({
       try {
         entries = await parser(
           files,
-          (current, total, detail) =>
-            updateProgress({ phase: "parsing", current, total, detail }),
+          (current, total, detail) => updateProgress({ phase: "parsing", current, total, detail }),
           ac.signal,
         );
       } catch (e: any) {
@@ -164,9 +163,7 @@ export default function BulkImportPanel({
         } else {
           console.error(`[import:${source}:parse]`, e);
           setProgress((p) =>
-            p
-              ? { ...p, phase: "error", detail: e?.message || "Could not read the archive" }
-              : p,
+            p ? { ...p, phase: "error", detail: e?.message || "Could not read the archive" } : p,
           );
         }
         return;
@@ -458,7 +455,12 @@ function ProgressBlock({ progress, sourceLabel }: { progress: Progress; sourceLa
       </div>
       {(phase === "parsing" || phase === "importing" || phase === "enriching") && (
         <div
-          style={{ height: 4, background: "var(--surface-high)", borderRadius: 2, overflow: "hidden" }}
+          style={{
+            height: 4,
+            background: "var(--surface-high)",
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
         >
           <div
             style={{

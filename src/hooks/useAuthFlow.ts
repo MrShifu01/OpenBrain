@@ -97,7 +97,11 @@ export function useAuthFlow() {
       if (error) setError(toFriendlyError(error.message));
       else if (data?.user) setSignupSuccess(true);
     } catch (err) {
-      setError(toFriendlyError(err instanceof Error ? err.message : "Something went wrong. Please try again."));
+      setError(
+        toFriendlyError(
+          err instanceof Error ? err.message : "Something went wrong. Please try again.",
+        ),
+      );
     } finally {
       setLoading(false);
     }
@@ -111,7 +115,11 @@ export function useAuthFlow() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(toFriendlyError(error.message));
     } catch (err) {
-      setError(toFriendlyError(err instanceof Error ? err.message : "Something went wrong. Please try again."));
+      setError(
+        toFriendlyError(
+          err instanceof Error ? err.message : "Something went wrong. Please try again.",
+        ),
+      );
     } finally {
       setLoading(false);
     }

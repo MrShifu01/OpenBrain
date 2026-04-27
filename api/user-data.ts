@@ -29,7 +29,12 @@ function bufferBody(req: ApiRequest): Promise<Buffer> {
 
 const SB_URL = process.env.SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const hdrs = (extra: Record<string, string> = {}): Record<string, string> => ({ "Content-Type": "application/json", "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}`, ...extra });
+const hdrs = (extra: Record<string, string> = {}): Record<string, string> => ({
+  "Content-Type": "application/json",
+  apikey: SB_KEY!,
+  Authorization: `Bearer ${SB_KEY}`,
+  ...extra,
+});
 
 const MAX_CHARS = 8000;
 
@@ -80,7 +85,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "cron-daily") return handleCronDaily(req, res);
   if (resource === "notifications") return handleNotifications(req, res);
   if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
-  if (resource === "stripe-portal")   return handleStripePortal(req, res);
+  if (resource === "stripe-portal") return handleStripePortal(req, res);
   if (resource === "profile") return handleProfile(req, res);
   // Default: memory
   return handleMemory(req, res);
@@ -148,55 +153,66 @@ const handleProfile = withAuth(
 );
 
 // ── /api/brains (rewritten to /api/user-data?resource=brains) ──
-const handleBrains = withAuth(
-  { methods: ["GET"], rateLimit: 60 },
-  async ({ res, user }) => {
-    const owned = await fetch(
-      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
-      { headers: hdrs() },
-    );
-    if (!owned.ok) return void res.status(502).json({ error: "Failed to fetch brains" });
-    let ownedData: any[] = await owned.json();
+const handleBrains = withAuth({ methods: ["GET"], rateLimit: 60 }, async ({ res, user }) => {
+  const owned = await fetch(
+    `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
+    { headers: hdrs() },
+  );
+  if (!owned.ok) return void res.status(502).json({ error: "Failed to fetch brains" });
+  let ownedData: any[] = await owned.json();
 
-    if (ownedData.length === 0) {
-      const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
-        method: "POST",
-        headers: hdrs({ Prefer: "return=representation" }),
-        body: JSON.stringify({ name: "My Brain", owner_id: user.id }),
-      });
-      if (createRes.ok) {
-        const [newBrain]: any[] = await createRes.json();
-        await fetch(
-          `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=is.null`,
-          { method: "PATCH", headers: hdrs({ Prefer: "return=minimal" }), body: JSON.stringify({ brain_id: newBrain.id }) },
-        ).catch(() => {});
-        ownedData = [newBrain];
-      }
+  if (ownedData.length === 0) {
+    const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
+      method: "POST",
+      headers: hdrs({ Prefer: "return=representation" }),
+      body: JSON.stringify({ name: "My Brain", owner_id: user.id }),
+    });
+    if (createRes.ok) {
+      const [newBrain]: any[] = await createRes.json();
+      await fetch(
+        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=is.null`,
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=minimal" }),
+          body: JSON.stringify({ brain_id: newBrain.id }),
+        },
+      ).catch(() => {});
+      ownedData = [newBrain];
     }
-    return void res.status(200).json(ownedData);
-  },
-);
+  }
+  return void res.status(200).json(ownedData);
+});
 
 // ── /api/memory (rewritten to /api/user-data?resource=memory) ──
 const handleMemory = withAuth(
   { methods: ["GET", "POST", "PATCH"], rateLimit: 30 },
   async ({ req, res, user }) => {
     if (req.method === "GET") {
-      const r = await fetch(`${SB_URL}/rest/v1/user_memory?user_id=eq.${encodeURIComponent(user.id)}`, { headers: hdrs() });
+      const r = await fetch(
+        `${SB_URL}/rest/v1/user_memory?user_id=eq.${encodeURIComponent(user.id)}`,
+        { headers: hdrs() },
+      );
       const data: any[] = await r.json();
       return void res.status(200).json(data[0] || { content: "", updated_at: null });
     }
 
     const { content } = req.body;
-    if (typeof content !== "string") return void res.status(400).json({ error: "content must be a string" });
+    if (typeof content !== "string")
+      return void res.status(400).json({ error: "content must be a string" });
     const trimmed = content.slice(0, MAX_CHARS);
     const r = await fetch(`${SB_URL}/rest/v1/user_memory`, {
       method: "POST",
-      headers: hdrs({ "Prefer": "return=representation,resolution=merge-duplicates" }),
-      body: JSON.stringify({ user_id: user.id, content: trimmed, updated_at: new Date().toISOString() }),
+      headers: hdrs({ Prefer: "return=representation,resolution=merge-duplicates" }),
+      body: JSON.stringify({
+        user_id: user.id,
+        content: trimmed,
+        updated_at: new Date().toISOString(),
+      }),
     });
     const data: any[] = await r.json();
-    return void res.status(r.ok ? 200 : 502).json(r.ok ? (data[0] || {}) : { error: "Failed to save memory" });
+    return void res
+      .status(r.ok ? 200 : 502)
+      .json(r.ok ? data[0] || {} : { error: "Failed to save memory" });
   },
 );
 
@@ -212,24 +228,27 @@ const handleActivity = withAuth(
       // Verify caller owns this brain
       const ownerRes = await fetch(
         `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id as string)}&owner_id=eq.${encodeURIComponent(user.id)}`,
-        { headers: hdrs() }
+        { headers: hdrs() },
       );
       const ownerData: any[] = await ownerRes.json();
-      if (!ownerData.length) return void res.status(403).json({ error: "Only the brain owner can view activity" });
+      if (!ownerData.length)
+        return void res.status(403).json({ error: "Only the brain owner can view activity" });
 
       const r = await fetch(
         `${SB_URL}/rest/v1/brain_activity?brain_id=eq.${encodeURIComponent(brain_id as string)}&order=created_at.desc&limit=${Math.min(parseInt(limit as string) || 50, 500)}`,
-        { headers: hdrs() }
+        { headers: hdrs() },
       );
       return void res.status(r.status).json(await r.json());
     }
 
     // POST /api/activity — log an activity event
     const { brain_id, action, entry_id, details } = req.body;
-    if (!brain_id || !action) return void res.status(400).json({ error: "brain_id and action required" });
+    if (!brain_id || !action)
+      return void res.status(400).json({ error: "brain_id and action required" });
 
     const validActions = ["created", "updated", "deleted", "connected"];
-    if (!validActions.includes(action)) return void res.status(400).json({ error: "Invalid action" });
+    if (!validActions.includes(action))
+      return void res.status(400).json({ error: "Invalid action" });
 
     // Verify caller owns this brain before writing activity
     const ownerRes = await fetch(
@@ -241,7 +260,7 @@ const handleActivity = withAuth(
 
     const r = await fetch(`${SB_URL}/rest/v1/brain_activity`, {
       method: "POST",
-      headers: hdrs({ "Prefer": "return=minimal" }),
+      headers: hdrs({ Prefer: "return=minimal" }),
       body: JSON.stringify({
         brain_id,
         user_id: user.id,
@@ -259,99 +278,114 @@ const handleHealth = withAuth(
   { methods: ["GET", "POST", "PUT", "PATCH", "DELETE"], rateLimit: false },
   async ({ res }) => {
     const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
-  const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
+    const GROQ_API_KEY = (process.env.GROQ_API_KEY || "").trim();
 
-  // Test DB
-  let db = false;
-  try {
-    const r = await fetch(`${SB_URL}/rest/v1/entries?select=id&limit=1`, {
-      headers: { "apikey": SB_KEY!, "Authorization": `Bearer ${SB_KEY}` },
-    });
-    db = r.ok;
-  } catch { db = false; }
-
-  // Test Gemini — list available models and do a real inference test
-  let gemini = false;
-  let geminiModel = "";
-  let geminiError = "";
-  if (GEMINI_API_KEY) {
+    // Test DB
+    let db = false;
     try {
-      // Step 1: find available gemma/gemini models
-      const listR = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(GEMINI_API_KEY)}&pageSize=200`
-      );
-      if (listR.ok) {
-        const listData: any = await listR.json();
-        const names: string[] = (listData.models || []).map((m: any) => (m.name as string).replace("models/", ""));
-        const gemma4 = names.find(n => n.includes("gemma-4") && n.includes("it"));
-        const gemma3 = names.find(n => n.includes("gemma-3") && n.includes("27b"));
-        const flash  = names.find(n => n.includes("gemini-2.0-flash-lite") || n.includes("gemini-2.0-flash"));
-        const candidate = gemma4 || gemma3 || flash || names[0];
-        geminiModel = candidate || "";
+      const r = await fetch(`${SB_URL}/rest/v1/entries?select=id&limit=1`, {
+        headers: { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` },
+      });
+      db = r.ok;
+    } catch {
+      db = false;
+    }
 
-        // Step 2: real inference test with the found model
-        if (candidate) {
-          const testR = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: "hi" }] }], generationConfig: { maxOutputTokens: 5 } }),
-            }
+    // Test Gemini — list available models and do a real inference test
+    let gemini = false;
+    let geminiModel = "";
+    let geminiError = "";
+    if (GEMINI_API_KEY) {
+      try {
+        // Step 1: find available gemma/gemini models
+        const listR = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(GEMINI_API_KEY)}&pageSize=200`,
+        );
+        if (listR.ok) {
+          const listData: any = await listR.json();
+          const names: string[] = (listData.models || []).map((m: any) =>
+            (m.name as string).replace("models/", ""),
           );
-          gemini = testR.ok;
-          if (!testR.ok) {
-            const errData: any = await testR.json().catch(() => ({}));
-            geminiError = errData?.error?.message || `HTTP ${testR.status}`;
+          const gemma4 = names.find((n) => n.includes("gemma-4") && n.includes("it"));
+          const gemma3 = names.find((n) => n.includes("gemma-3") && n.includes("27b"));
+          const flash = names.find(
+            (n) => n.includes("gemini-2.0-flash-lite") || n.includes("gemini-2.0-flash"),
+          );
+          const candidate = gemma4 || gemma3 || flash || names[0];
+          geminiModel = candidate || "";
+
+          // Step 2: real inference test with the found model
+          if (candidate) {
+            const testR = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  contents: [{ role: "user", parts: [{ text: "hi" }] }],
+                  generationConfig: { maxOutputTokens: 5 },
+                }),
+              },
+            );
+            gemini = testR.ok;
+            if (!testR.ok) {
+              const errData: any = await testR.json().catch(() => ({}));
+              geminiError = errData?.error?.message || `HTTP ${testR.status}`;
+            }
           }
+        } else {
+          geminiError = `Key error: HTTP ${listR.status}`;
         }
-      } else {
-        geminiError = `Key error: HTTP ${listR.status}`;
+      } catch (e: any) {
+        geminiError = e.message;
       }
-    } catch (e: any) { geminiError = e.message; }
-  }
+    }
 
-  // Test Groq — list models (lightweight key validation)
-  let groq = false;
-  if (GROQ_API_KEY) {
-    try {
-      const r = await fetch("https://api.groq.com/openai/v1/models", {
-        headers: { "Authorization": `Bearer ${GROQ_API_KEY}` },
-      });
-      groq = r.ok;
-    } catch { groq = false; }
-  }
+    // Test Groq — list models (lightweight key validation)
+    let groq = false;
+    if (GROQ_API_KEY) {
+      try {
+        const r = await fetch("https://api.groq.com/openai/v1/models", {
+          headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
+        });
+        groq = r.ok;
+      } catch {
+        groq = false;
+      }
+    }
 
-  // Test Upstash — required for distributed rate limiting + Stripe webhook
-  // idempotency. If it's unreachable we silently fall back to in-memory
-  // limits (zero protection in serverless), so an external monitor needs
-  // to know.
-  const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || "").trim();
-  const UPSTASH_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
-  let upstash = false;
-  if (UPSTASH_URL && UPSTASH_TOKEN) {
-    try {
-      const r = await fetch(`${UPSTASH_URL}/ping`, {
-        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
-      });
-      upstash = r.ok;
-    } catch { upstash = false; }
-  }
+    // Test Upstash — required for distributed rate limiting + Stripe webhook
+    // idempotency. If it's unreachable we silently fall back to in-memory
+    // limits (zero protection in serverless), so an external monitor needs
+    // to know.
+    const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || "").trim();
+    const UPSTASH_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+    let upstash = false;
+    if (UPSTASH_URL && UPSTASH_TOKEN) {
+      try {
+        const r = await fetch(`${UPSTASH_URL}/ping`, {
+          headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+        });
+        upstash = r.ok;
+      } catch {
+        upstash = false;
+      }
+    }
 
-  // Critical deps: db must be up, and at least one configured AI provider
-  // must respond. Upstash is "required if configured" — if the env vars
-  // are present but the service is down, that's a real degradation.
-  // Optional deps that aren't configured (e.g. Groq when GROQ_API_KEY is
-  // empty) don't count as failures.
-  const failures: string[] = [];
-  if (!db) failures.push("db");
-  if (GEMINI_API_KEY && !gemini) failures.push("gemini");
-  if (GROQ_API_KEY && !groq) failures.push("groq");
-  if (UPSTASH_URL && UPSTASH_TOKEN && !upstash) failures.push("upstash");
-  // No AI provider at all is a configuration error, not a runtime failure.
-  if (!GEMINI_API_KEY && !GROQ_API_KEY) failures.push("no_ai_provider_configured");
+    // Critical deps: db must be up, and at least one configured AI provider
+    // must respond. Upstash is "required if configured" — if the env vars
+    // are present but the service is down, that's a real degradation.
+    // Optional deps that aren't configured (e.g. Groq when GROQ_API_KEY is
+    // empty) don't count as failures.
+    const failures: string[] = [];
+    if (!db) failures.push("db");
+    if (GEMINI_API_KEY && !gemini) failures.push("gemini");
+    if (GROQ_API_KEY && !groq) failures.push("groq");
+    if (UPSTASH_URL && UPSTASH_TOKEN && !upstash) failures.push("upstash");
+    // No AI provider at all is a configuration error, not a runtime failure.
+    if (!GEMINI_API_KEY && !GROQ_API_KEY) failures.push("no_ai_provider_configured");
 
-  const status = failures.length === 0 ? 200 : 503;
+    const status = failures.length === 0 ? 200 : 503;
     res.status(status).json({
       ok: failures.length === 0,
       failures,
@@ -372,7 +406,7 @@ const handleVault = withAuth(
     if (req.method === "GET") {
       const r = await fetch(
         `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob`,
-        { headers: hdrs() }
+        { headers: hdrs() },
       );
       if (!r.ok) return void res.status(502).json({ error: "Database error" });
       const rows: any[] = await r.json();
@@ -400,7 +434,7 @@ const handleVault = withAuth(
     // Prevent overwrite — vault can only be set up once
     const existing = await fetch(
       `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`,
-      { headers: hdrs() }
+      { headers: hdrs() },
     );
     const rows: any[] = await existing.json();
     if (rows.length > 0) {
@@ -409,7 +443,7 @@ const handleVault = withAuth(
 
     const r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
       method: "POST",
-      headers: hdrs({ "Prefer": "return=minimal" }),
+      headers: hdrs({ Prefer: "return=minimal" }),
       body: JSON.stringify({ user_id: user.id, salt, verify_token, recovery_blob }),
     });
     if (!r.ok) {
@@ -453,7 +487,8 @@ const handlePin = withAuth(
 
     if (req.method === "POST" && action === "verify") {
       const { hash } = req.body;
-      if (!hash || typeof hash !== "string") return void res.status(400).json({ error: "hash required" });
+      if (!hash || typeof hash !== "string")
+        return void res.status(400).json({ error: "hash required" });
 
       const r = await fetch(
         `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=pin_hash`,
@@ -475,14 +510,11 @@ const handlePin = withAuth(
     }
 
     if (req.method === "DELETE" && action === "delete") {
-      await fetch(
-        `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}`,
-        {
-          method: "PATCH",
-          headers: hdrs({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ pin_hash: null, pin_hash_salt: null }),
-        },
-      );
+      await fetch(`${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}`, {
+        method: "PATCH",
+        headers: hdrs({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ pin_hash: null, pin_hash_salt: null }),
+      });
       return void res.status(200).json({ ok: true });
     }
 
@@ -513,48 +545,45 @@ const FULL_EXPORT_TABLES: Array<{ table: string; col: string; strip?: string[] }
   { table: "user_api_keys", col: "user_id", strip: ["key_hash"] },
 ];
 
-const handleFullExport = withAuth(
-  { methods: ["GET"], rateLimit: 5 },
-  async ({ res, user }) => {
-    const dump: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: user.id };
-    for (const { table, col, strip } of FULL_EXPORT_TABLES) {
-      const r = await fetch(
-        `${SB_URL}/rest/v1/${table}?${col}=eq.${encodeURIComponent(user.id)}&select=*`,
-        { headers: hdrs() },
-      );
-      if (!r.ok) {
-        console.error(`[full_export] ${table} fetch failed`, r.status);
-        dump[table] = { error: `failed to fetch (${r.status})` };
-        continue;
-      }
-      let rows: any[] = await r.json();
-      if (strip?.length) {
-        rows = rows.map((row) => {
-          const copy = { ...row };
-          for (const k of strip) delete copy[k];
-          return copy;
-        });
-      }
-      dump[table] = rows;
+const handleFullExport = withAuth({ methods: ["GET"], rateLimit: 5 }, async ({ res, user }) => {
+  const dump: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: user.id };
+  for (const { table, col, strip } of FULL_EXPORT_TABLES) {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/${table}?${col}=eq.${encodeURIComponent(user.id)}&select=*`,
+      { headers: hdrs() },
+    );
+    if (!r.ok) {
+      console.error(`[full_export] ${table} fetch failed`, r.status);
+      dump[table] = { error: `failed to fetch (${r.status})` };
+      continue;
     }
-    // Brains owned by user (uses owner_id, not user_id)
-    const brainsRes = await fetch(
-      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&select=*`,
-      { headers: hdrs() },
-    );
-    dump["brains"] = brainsRes.ok ? await brainsRes.json() : [];
+    let rows: any[] = await r.json();
+    if (strip?.length) {
+      rows = rows.map((row) => {
+        const copy = { ...row };
+        for (const k of strip) delete copy[k];
+        return copy;
+      });
+    }
+    dump[table] = rows;
+  }
+  // Brains owned by user (uses owner_id, not user_id)
+  const brainsRes = await fetch(
+    `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&select=*`,
+    { headers: hdrs() },
+  );
+  dump["brains"] = brainsRes.ok ? await brainsRes.json() : [];
 
-    // user_profiles uses id = auth.users.id
-    const profileRes = await fetch(
-      `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}&select=*`,
-      { headers: hdrs() },
-    );
-    dump["user_profiles"] = profileRes.ok ? await profileRes.json() : [];
+  // user_profiles uses id = auth.users.id
+  const profileRes = await fetch(
+    `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}&select=*`,
+    { headers: hdrs() },
+  );
+  dump["user_profiles"] = profileRes.ok ? await profileRes.json() : [];
 
-    res.setHeader("Content-Disposition", `attachment; filename="everion-account-${user.id}.json"`);
-    res.status(200).json(dump);
-  },
-);
+  res.setHeader("Content-Disposition", `attachment; filename="everion-account-${user.id}.json"`);
+  res.status(200).json(dump);
+});
 
 // ── /api/user-data?resource=account — delete authenticated user's account ──
 const handleDeleteAccount = withAuth(
@@ -627,7 +656,12 @@ const handleApiKeys = withAuth(
       const r = await fetch(`${SB_URL}/rest/v1/user_api_keys`, {
         method: "POST",
         headers: hdrs({ Prefer: "return=representation" }),
-        body: JSON.stringify({ user_id: user.id, name: name.trim().slice(0, 100), key_hash: keyHash, key_prefix: keyPrefix }),
+        body: JSON.stringify({
+          user_id: user.id,
+          name: name.trim().slice(0, 100),
+          key_hash: keyHash,
+          key_prefix: keyPrefix,
+        }),
       });
       if (!r.ok) {
         const err = await r.text().catch(() => String(r.status));
@@ -635,7 +669,9 @@ const handleApiKeys = withAuth(
       }
       const rows: any[] = await r.json();
       // Return raw key once — it is never stored and cannot be retrieved again
-      return void res.status(201).json({ id: rows[0].id, name: rows[0].name, key: rawKey, key_prefix: keyPrefix });
+      return void res
+        .status(201)
+        .json({ id: rows[0].id, name: rows[0].name, key: rawKey, key_prefix: keyPrefix });
     }
 
     // DELETE — revoke a key by id
@@ -680,7 +716,10 @@ const handleNotificationPrefs = withAuth(
       method: "PUT",
       headers: { "Content-Type": "application/json", ...adminHdrs },
       body: JSON.stringify({
-        user_metadata: { ...current.user_metadata, notification_prefs: { ...existingPrefs, ...updates } },
+        user_metadata: {
+          ...current.user_metadata,
+          notification_prefs: { ...existingPrefs, ...updates },
+        },
       }),
     });
     if (!r.ok) return void res.status(500).json({ error: "Failed to save prefs" });
@@ -698,12 +737,18 @@ const handlePushSubscribe = withAuth(
     const meta = current.user_metadata ?? {};
 
     if (req.method === "POST") {
-      const { endpoint, keys, userAgent } = req.body as { endpoint?: string; keys?: unknown; userAgent?: string };
+      const { endpoint, keys, userAgent } = req.body as {
+        endpoint?: string;
+        keys?: unknown;
+        userAgent?: string;
+      };
       if (!endpoint) return void res.status(400).json({ error: "endpoint required" });
       const r = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...adminHdrs },
-        body: JSON.stringify({ user_metadata: { ...meta, push_subscription: { endpoint, keys, userAgent } } }),
+        body: JSON.stringify({
+          user_metadata: { ...meta, push_subscription: { endpoint, keys, userAgent } },
+        }),
       });
       if (!r.ok) return void res.status(500).json({ error: "Failed to save subscription" });
       return void res.status(200).json({ ok: true });
@@ -743,7 +788,9 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
     const users: any[] = [];
     let page = 1;
     while (true) {
-      const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, { headers: adminHdrs });
+      const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, {
+        headers: adminHdrs,
+      });
       if (!r.ok) break;
       const data = await r.json();
       const batch: any[] = data.users ?? [];
@@ -756,11 +803,18 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
       const meta = user.user_metadata ?? {};
       const prefs = meta.notification_prefs ?? {};
       const sub = meta.push_subscription;
-      if (!prefs.daily_enabled || !sub?.endpoint || !sub?.keys) { pushResults.skipped++; continue; }
+      if (!prefs.daily_enabled || !sub?.endpoint || !sub?.keys) {
+        pushResults.skipped++;
+        continue;
+      }
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: sub.keys },
-          JSON.stringify({ title: "Everion", body: "What's worth remembering from today?", url: "/capture" }),
+          JSON.stringify({
+            title: "Everion",
+            body: "What's worth remembering from today?",
+            url: "/capture",
+          }),
         );
         pushResults.sent++;
       } catch (err: any) {
@@ -831,27 +885,39 @@ const handleNotifications = withAuth(
     }
 
     if (req.method === "PATCH") {
-      const { id, read, dismissed } = req.body as { id: string; read?: boolean; dismissed?: boolean };
+      const { id, read, dismissed } = req.body as {
+        id: string;
+        read?: boolean;
+        dismissed?: boolean;
+      };
       if (!id) return void res.status(400).json({ error: "Missing id" });
       const patch: Record<string, unknown> = {};
       if (read !== undefined) patch.read = read;
       if (dismissed !== undefined) patch.dismissed = dismissed;
-      if (!Object.keys(patch).length) return void res.status(400).json({ error: "Nothing to update" });
+      if (!Object.keys(patch).length)
+        return void res.status(400).json({ error: "Nothing to update" });
       const r = await fetch(
         `${SB_URL}/rest/v1/notifications?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
-        { method: "PATCH", headers: hdrs({ Prefer: "return=minimal" }), body: JSON.stringify(patch) },
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=minimal" }),
+          body: JSON.stringify(patch),
+        },
       );
       if (!r.ok) return void res.status(502).json({ error: "Failed to update notification" });
       return void res.status(200).json({ ok: true });
     }
 
     // DELETE — dismiss all, or just a specific type if ?type= is provided
-    const typeFilter = typeof req.query.type === "string"
-      ? `&type=eq.${encodeURIComponent(req.query.type)}`
-      : "";
+    const typeFilter =
+      typeof req.query.type === "string" ? `&type=eq.${encodeURIComponent(req.query.type)}` : "";
     await fetch(
       `${SB_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(user.id)}&dismissed=eq.false${typeFilter}`,
-      { method: "PATCH", headers: hdrs({ Prefer: "return=minimal" }), body: JSON.stringify({ dismissed: true }) },
+      {
+        method: "PATCH",
+        headers: hdrs({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ dismissed: true }),
+      },
     );
     return void res.status(200).json({ ok: true });
   },
@@ -916,7 +982,10 @@ const handleStripeCheckout = withAuth(
         },
       );
       if (!patchRes.ok) {
-        console.error("[stripe-checkout] Failed to save stripe_customer_id:", await patchRes.text());
+        console.error(
+          "[stripe-checkout] Failed to save stripe_customer_id:",
+          await patchRes.text(),
+        );
         // Still proceed — Stripe session is valid
       }
     }

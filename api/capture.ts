@@ -1,6 +1,10 @@
 import type { ApiRequest } from "./_lib/types";
 import { withAuth, requireBrainAccess, ApiError, type HandlerContext } from "./_lib/withAuth.js";
-import { generateEmbedding, generateEmbeddingsBatch, buildEntryText } from "./_lib/generateEmbedding.js";
+import {
+  generateEmbedding,
+  generateEmbeddingsBatch,
+  buildEntryText,
+} from "./_lib/generateEmbedding.js";
 import { sbHeaders, sbHeadersNoContent } from "./_lib/sbHeaders.js";
 import { computeCompletenessScore } from "./_lib/completeness.js";
 import { detectAndStoreMerge } from "./_lib/mergeDetect.js";
@@ -53,23 +57,30 @@ async function updateStreak(userId: string): Promise<void> {
     method: "PUT",
     headers: { ...authHdr, "Content-Type": "application/json" },
     body: JSON.stringify({
-      user_metadata: { ...meta, current_streak: currentStreak, longest_streak: longestStreak, last_capture_date: today },
+      user_metadata: {
+        ...meta,
+        current_streak: currentStreak,
+        longest_streak: longestStreak,
+        last_capture_date: today,
+      },
     }),
   });
 }
 
 // ── POST /api/capture ──
 async function handleCapture({ req, res, user, req_id }: HandlerContext): Promise<void> {
-  const { p_title, p_content, p_type, p_metadata, p_tags, p_brain_id, p_extra_brain_ids } = req.body;
+  const { p_title, p_content, p_type, p_metadata, p_tags, p_brain_id, p_extra_brain_ids } =
+    req.body;
 
   if (!p_title || typeof p_title !== "string" || p_title.trim().length === 0) {
     throw new ApiError(400, "Missing or invalid title");
   }
   if (p_extra_brain_ids !== undefined && p_extra_brain_ids !== null) {
-    if (!Array.isArray(p_extra_brain_ids)) throw new ApiError(400, "p_extra_brain_ids must be an array");
+    if (!Array.isArray(p_extra_brain_ids))
+      throw new ApiError(400, "p_extra_brain_ids must be an array");
     if (p_extra_brain_ids.length > 5) throw new ApiError(400, "p_extra_brain_ids max 5 items");
     const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!p_extra_brain_ids.every((id: any) => typeof id === 'string' && uuidRe.test(id))) {
+    if (!p_extra_brain_ids.every((id: any) => typeof id === "string" && uuidRe.test(id))) {
       throw new ApiError(400, "p_extra_brain_ids must contain valid UUIDs");
     }
   }
@@ -77,9 +88,15 @@ async function handleCapture({ req, res, user, req_id }: HandlerContext): Promis
   const safeBody: Record<string, any> = {
     p_title: p_title.trim().slice(0, 500),
     p_content: p_content ? String(p_content).slice(0, 200_000) : "",
-    p_type: typeof p_type === "string" && p_type.trim() ? p_type.trim().slice(0, 50).toLowerCase() : "note",
-    p_metadata: p_metadata && typeof p_metadata === "object" && !Array.isArray(p_metadata) ? p_metadata : {},
-    p_tags: Array.isArray(p_tags) ? p_tags.filter((t: any) => typeof t === "string").slice(0, 50) : [],
+    p_type:
+      typeof p_type === "string" && p_type.trim()
+        ? p_type.trim().slice(0, 50).toLowerCase()
+        : "note",
+    p_metadata:
+      p_metadata && typeof p_metadata === "object" && !Array.isArray(p_metadata) ? p_metadata : {},
+    p_tags: Array.isArray(p_tags)
+      ? p_tags.filter((t: any) => typeof t === "string").slice(0, 50)
+      : [],
     p_user_id: user.id,
     ...(p_brain_id && typeof p_brain_id === "string" ? { p_brain_id } : {}),
   };
@@ -126,158 +143,170 @@ async function handleCapture({ req, res, user, req_id }: HandlerContext): Promis
   return;
 
   async function runCapture(): Promise<void> {
-
-  // Usage gate: only applies to platform AI (managed provider)
-  if (GEMINI_API_KEY) {
-    const r = await fetch(
-      `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
-      { headers: sbHeaders() },
-    );
-    const [row] = r.ok ? await r.json() : [null];
-    const plan: string = row?.plan ?? "free";
-    const hasKey = !!(row?.anthropic_key || row?.openai_key || row?.gemini_key);
-    let check: Awaited<ReturnType<typeof checkAndIncrement>>;
-    try {
-      check = await checkAndIncrement(user.id, "captures", plan, hasKey);
-    } catch {
-      return void res.status(503).json({ error: "quota_unavailable", retryAfter: 10 });
-    }
-    if (!check.allowed) {
-      return void res.status(429).json({
-        error: "monthly_limit_reached",
-        action: "captures",
-        remaining: 0,
-        upgrade_url: "/settings?tab=billing",
-      });
-    }
-  }
-
-  // Validate source_url scheme — reject non-http(s) to prevent SSRF
-  const rawSourceUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
-  if (rawSourceUrl) {
-    try {
-      const parsed = new URL(String(rawSourceUrl));
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        throw new ApiError(400, "source_url must use http or https scheme");
+    // Usage gate: only applies to platform AI (managed provider)
+    if (GEMINI_API_KEY) {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=plan,anthropic_key,openai_key,gemini_key&limit=1`,
+        { headers: sbHeaders() },
+      );
+      const [row] = r.ok ? await r.json() : [null];
+      const plan: string = row?.plan ?? "free";
+      const hasKey = !!(row?.anthropic_key || row?.openai_key || row?.gemini_key);
+      let check: Awaited<ReturnType<typeof checkAndIncrement>>;
+      try {
+        check = await checkAndIncrement(user.id, "captures", plan, hasKey);
+      } catch {
+        return void res.status(503).json({ error: "quota_unavailable", retryAfter: 10 });
       }
-    } catch (e: any) {
-      if (e instanceof ApiError) throw e;
-      throw new ApiError(400, "source_url is not a valid URL");
-    }
-  }
-
-  // URL deduplication — point query against the entries_user_source_url unique
-  // index so this stays O(1) regardless of how many entries the user has.
-  const sourceUrl = rawSourceUrl;
-  if (sourceUrl) {
-    const dedupRes = await fetch(
-      `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&metadata->>source_url=eq.${encodeURIComponent(sourceUrl)}&select=id,metadata&limit=1`,
-      { headers: sbHeadersNoContent() },
-    );
-    if (dedupRes.ok) {
-      const [dupe]: any[] = await dedupRes.json();
-      if (dupe?.id) {
-        const merged = { ...dupe.metadata, sources: [...(dupe.metadata?.sources || []), sourceUrl] };
-        await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(dupe.id)}`, { method: "PATCH", headers: sbHeaders({ Prefer: "return=representation" }), body: JSON.stringify({ metadata: merged }) });
-        if (idempotencyKey) await finalizeIdempotency(user.id, idempotencyKey, dupe.id);
-        res.status(200).json({ id: dupe.id, merged: true });
-        return;
+      if (!check.allowed) {
+        return void res.status(429).json({
+          error: "monthly_limit_reached",
+          action: "captures",
+          remaining: 0,
+          upgrade_url: "/settings?tab=billing",
+        });
       }
     }
-  }
 
-  // §6: metadata JSONB size cap — reject before INSERT to avoid bloat / slow PATCHes
-  if (JSON.stringify(safeBody.p_metadata).length > 64_000) {
-    throw new ApiError(400, "metadata too large — max 64 KB");
-  }
+    // Validate source_url scheme — reject non-http(s) to prevent SSRF
+    const rawSourceUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
+    if (rawSourceUrl) {
+      try {
+        const parsed = new URL(String(rawSourceUrl));
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new ApiError(400, "source_url must use http or https scheme");
+        }
+      } catch (e: any) {
+        if (e instanceof ApiError) throw e;
+        throw new ApiError(400, "source_url is not a valid URL");
+      }
+    }
 
-  // Auto-compute completeness score
-  const cScore = computeCompletenessScore(safeBody.p_title, safeBody.p_content, safeBody.p_type, safeBody.p_tags, safeBody.p_metadata);
-  safeBody.p_metadata = { ...safeBody.p_metadata, completeness_score: cScore };
-
-  const insertBody: Record<string, any> = {
-    user_id: safeBody.p_user_id,
-    title: safeBody.p_title,
-    content: safeBody.p_content,
-    type: safeBody.p_type,
-    metadata: safeBody.p_metadata,
-    tags: safeBody.p_tags,
-  };
-  if (safeBody.p_brain_id) insertBody.brain_id = safeBody.p_brain_id;
-
-  const response = await fetch(`${SB_URL}/rest/v1/entries`, {
-    method: "POST",
-    headers: sbHeaders({ Prefer: "return=representation" }),
-    body: JSON.stringify(insertBody),
-  });
-
-  // P0 #9 race: unique index on (user_id, source_url) fires → look up the row
-  // by the actual source_url (filtering by user_id alone returns a random entry).
-  if (response.status === 409) {
-    const conflictUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
-    if (conflictUrl) {
-      const dupeRes = await fetch(
-        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&metadata->>source_url=eq.${encodeURIComponent(String(conflictUrl))}&select=id&limit=1`,
+    // URL deduplication — point query against the entries_user_source_url unique
+    // index so this stays O(1) regardless of how many entries the user has.
+    const sourceUrl = rawSourceUrl;
+    if (sourceUrl) {
+      const dedupRes = await fetch(
+        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&metadata->>source_url=eq.${encodeURIComponent(sourceUrl)}&select=id,metadata&limit=1`,
         { headers: sbHeadersNoContent() },
       );
-      const [existing] = dupeRes.ok ? await dupeRes.json() : [];
-      if (existing?.id) {
-        if (idempotencyKey) await finalizeIdempotency(user.id, idempotencyKey, existing.id);
-        return void res.status(200).json({ id: existing.id, merged: true });
+      if (dedupRes.ok) {
+        const [dupe]: any[] = await dedupRes.json();
+        if (dupe?.id) {
+          const merged = {
+            ...dupe.metadata,
+            sources: [...(dupe.metadata?.sources || []), sourceUrl],
+          };
+          await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(dupe.id)}`, {
+            method: "PATCH",
+            headers: sbHeaders({ Prefer: "return=representation" }),
+            body: JSON.stringify({ metadata: merged }),
+          });
+          if (idempotencyKey) await finalizeIdempotency(user.id, idempotencyKey, dupe.id);
+          res.status(200).json({ id: dupe.id, merged: true });
+          return;
+        }
       }
     }
-    if (idempotencyKey) await releaseIdempotency(user.id, idempotencyKey);
-    return void res.status(409).json({ error: "duplicate_entry" });
-  }
 
-  const rawData: any = await response.json();
-  const inserted = Array.isArray(rawData) ? rawData[0] : rawData;
-  const data: any = inserted?.id ? { id: inserted.id } : rawData;
+    // §6: metadata JSONB size cap — reject before INSERT to avoid bloat / slow PATCHes
+    if (JSON.stringify(safeBody.p_metadata).length > 64_000) {
+      throw new ApiError(400, "metadata too large — max 64 KB");
+    }
 
-  // Attach the entry id to the previously-reserved idempotency slot.
-  if (response.ok && data?.id && idempotencyKey) {
-    finalizeIdempotency(user.id, idempotencyKey, data.id).catch(() => {});
-  } else if (!response.ok && idempotencyKey) {
-    releaseIdempotency(user.id, idempotencyKey).catch(() => {});
-  }
-
-  // Audit log (fire-and-forget)
-  if (response.ok && data?.id) {
-    fetch(`${SB_URL}/rest/v1/audit_log`, {
-      method: 'POST',
-      headers: sbHeaders({ Prefer: 'return=minimal' }),
-      body: JSON.stringify({
-        user_id: user.id,
-        action: 'entry_capture',
-        resource_id: data.id,
-        request_id: req_id,
-        timestamp: new Date().toISOString(),
-      }),
-    }).catch((err: any) => console.error('[capture:audit_log]', err.message));
-  }
-
-  // Run enrichment inline — Vercel kills the function as soon as we respond,
-  // so a fire-and-forget Promise here would never complete. enrichInline runs
-  // every step (parse, insight, concepts, embed) end-to-end, awaited.
-  // capture has maxDuration: 30 in vercel.json which covers it.
-  if (response.ok && data?.id) {
-    await enrichInline(data.id, user.id).catch((err: any) =>
-      console.error("[capture:enrich]", err?.message ?? err),
+    // Auto-compute completeness score
+    const cScore = computeCompletenessScore(
+      safeBody.p_title,
+      safeBody.p_content,
+      safeBody.p_type,
+      safeBody.p_tags,
+      safeBody.p_metadata,
     );
-  }
+    safeBody.p_metadata = { ...safeBody.p_metadata, completeness_score: cScore };
 
-  // Merge detection runs AFTER enrichInline so it has the full fingerprint
-  // (embedding, concepts, parsed metadata) available — the scorer relies on
-  // those signals to detect semantic duplicates that share no metadata
-  // fingerprint. Fire-and-forget — the user's response shouldn't wait on it.
-  if (response.ok && data?.id) {
-    detectAndStoreMerge(data.id, user.id).catch((err: any) =>
-      console.error("[capture:merge-detect]", err?.message),
-    );
-  }
+    const insertBody: Record<string, any> = {
+      user_id: safeBody.p_user_id,
+      title: safeBody.p_title,
+      content: safeBody.p_content,
+      type: safeBody.p_type,
+      metadata: safeBody.p_metadata,
+      tags: safeBody.p_tags,
+    };
+    if (safeBody.p_brain_id) insertBody.brain_id = safeBody.p_brain_id;
 
-  updateStreak(user.id).catch((err) => console.error("[capture] streak update failed", err));
-  res.status(response.status).json(data);
+    const response = await fetch(`${SB_URL}/rest/v1/entries`, {
+      method: "POST",
+      headers: sbHeaders({ Prefer: "return=representation" }),
+      body: JSON.stringify(insertBody),
+    });
+
+    // P0 #9 race: unique index on (user_id, source_url) fires → look up the row
+    // by the actual source_url (filtering by user_id alone returns a random entry).
+    if (response.status === 409) {
+      const conflictUrl = safeBody.p_metadata?.source_url || safeBody.p_metadata?.url;
+      if (conflictUrl) {
+        const dupeRes = await fetch(
+          `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&metadata->>source_url=eq.${encodeURIComponent(String(conflictUrl))}&select=id&limit=1`,
+          { headers: sbHeadersNoContent() },
+        );
+        const [existing] = dupeRes.ok ? await dupeRes.json() : [];
+        if (existing?.id) {
+          if (idempotencyKey) await finalizeIdempotency(user.id, idempotencyKey, existing.id);
+          return void res.status(200).json({ id: existing.id, merged: true });
+        }
+      }
+      if (idempotencyKey) await releaseIdempotency(user.id, idempotencyKey);
+      return void res.status(409).json({ error: "duplicate_entry" });
+    }
+
+    const rawData: any = await response.json();
+    const inserted = Array.isArray(rawData) ? rawData[0] : rawData;
+    const data: any = inserted?.id ? { id: inserted.id } : rawData;
+
+    // Attach the entry id to the previously-reserved idempotency slot.
+    if (response.ok && data?.id && idempotencyKey) {
+      finalizeIdempotency(user.id, idempotencyKey, data.id).catch(() => {});
+    } else if (!response.ok && idempotencyKey) {
+      releaseIdempotency(user.id, idempotencyKey).catch(() => {});
+    }
+
+    // Audit log (fire-and-forget)
+    if (response.ok && data?.id) {
+      fetch(`${SB_URL}/rest/v1/audit_log`, {
+        method: "POST",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({
+          user_id: user.id,
+          action: "entry_capture",
+          resource_id: data.id,
+          request_id: req_id,
+          timestamp: new Date().toISOString(),
+        }),
+      }).catch((err: any) => console.error("[capture:audit_log]", err.message));
+    }
+
+    // Run enrichment inline — Vercel kills the function as soon as we respond,
+    // so a fire-and-forget Promise here would never complete. enrichInline runs
+    // every step (parse, insight, concepts, embed) end-to-end, awaited.
+    // capture has maxDuration: 30 in vercel.json which covers it.
+    if (response.ok && data?.id) {
+      await enrichInline(data.id, user.id).catch((err: any) =>
+        console.error("[capture:enrich]", err?.message ?? err),
+      );
+    }
+
+    // Merge detection runs AFTER enrichInline so it has the full fingerprint
+    // (embedding, concepts, parsed metadata) available — the scorer relies on
+    // those signals to detect semantic duplicates that share no metadata
+    // fingerprint. Fire-and-forget — the user's response shouldn't wait on it.
+    if (response.ok && data?.id) {
+      detectAndStoreMerge(data.id, user.id).catch((err: any) =>
+        console.error("[capture:merge-detect]", err?.message),
+      );
+    }
+
+    updateStreak(user.id).catch((err) => console.error("[capture] streak update failed", err));
+    res.status(response.status).json(data);
   }
 }
 
@@ -292,7 +321,8 @@ async function handleSaveLinks({ req, res, user }: HandlerContext): Promise<void
 
   const valid = links.filter((l: any) => {
     if (!l.from || !l.to || !l.rel) return false;
-    if (typeof l.from !== "string" || typeof l.to !== "string" || typeof l.rel !== "string") return false;
+    if (typeof l.from !== "string" || typeof l.to !== "string" || typeof l.rel !== "string")
+      return false;
     if (!REL_PATTERN.test(l.rel)) return false;
     return true;
   });
@@ -322,7 +352,11 @@ async function handleSaveLinks({ req, res, user }: HandlerContext): Promise<void
     const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/save_links`, {
       method: "POST",
       headers: sbHeaders(),
-      body: JSON.stringify({ p_user_id: user.id, p_links: JSON.stringify(valid), ...(brain_id ? { p_brain_id: brain_id } : {}) }),
+      body: JSON.stringify({
+        p_user_id: user.id,
+        p_links: JSON.stringify(valid),
+        ...(brain_id ? { p_brain_id: brain_id } : {}),
+      }),
     });
     if (!rpcRes.ok) {
       res.status(200).json({ ok: true, stored: "local-only", count: 0 });
@@ -341,8 +375,12 @@ async function handleEmbed({ req, res, user }: HandlerContext): Promise<void> {
   const { entry_id, brain_id, batch, force } = req.body || {};
 
   if (entry_id && !batch) {
-    if (typeof entry_id !== "string" || entry_id.length > 100) throw new ApiError(400, "Invalid entry_id");
-    const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,title,content,tags,brain_id`, { headers: sbHeadersNoContent() });
+    if (typeof entry_id !== "string" || entry_id.length > 100)
+      throw new ApiError(400, "Invalid entry_id");
+    const entryRes = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}&user_id=eq.${encodeURIComponent(user.id)}&select=id,title,content,tags,brain_id`,
+      { headers: sbHeadersNoContent() },
+    );
     if (!entryRes.ok) throw new ApiError(502, "Database error");
     const [entry]: any[] = await entryRes.json();
     if (!entry) throw new ApiError(404, "Entry not found");
@@ -357,7 +395,12 @@ async function handleEmbed({ req, res, user }: HandlerContext): Promise<void> {
         await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry_id)}`, {
           method: "PATCH",
           headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ embedding: `[${embedding.join(",")}]`, embedded_at: new Date().toISOString(), embedding_provider: "google", embedding_status: "done" }),
+          body: JSON.stringify({
+            embedding: `[${embedding.join(",")}]`,
+            embedded_at: new Date().toISOString(),
+            embedding_provider: "google",
+            embedding_status: "done",
+          }),
         });
         res.status(200).json({ ok: true });
         return;
@@ -370,7 +413,8 @@ async function handleEmbed({ req, res, user }: HandlerContext): Promise<void> {
   }
 
   if (batch && brain_id) {
-    if (typeof brain_id !== "string" || brain_id.length > 100) throw new ApiError(400, "Invalid brain_id");
+    if (typeof brain_id !== "string" || brain_id.length > 100)
+      throw new ApiError(400, "Invalid brain_id");
     await requireBrainAccess(user.id, brain_id);
 
     // Audit #5: gate batch re-embeds against the user's monthly capture quota.
@@ -402,7 +446,10 @@ async function handleEmbed({ req, res, user }: HandlerContext): Promise<void> {
     const filter = force
       ? baseFilter
       : `${baseFilter}&or=(embedded_at.is.null,embedding_provider.neq.google)`;
-    const entriesRes = await fetch(`${SB_URL}/rest/v1/entries?${filter}&select=id,title,content,tags&limit=25`, { headers: sbHeadersNoContent() });
+    const entriesRes = await fetch(
+      `${SB_URL}/rest/v1/entries?${filter}&select=id,title,content,tags&limit=25`,
+      { headers: sbHeadersNoContent() },
+    );
     if (!entriesRes.ok) throw new ApiError(502, "Database error");
     const entries: any[] = await entriesRes.json();
     if (!entries.length) {
@@ -414,23 +461,47 @@ async function handleEmbed({ req, res, user }: HandlerContext): Promise<void> {
     const texts = entries.map(buildEntryText);
     try {
       const embeddings = await generateEmbeddingsBatch(texts, apiKey);
-      await Promise.all(entries.map((entry: any, idx: number) =>
-        fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
-          method: "PATCH",
-          headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ embedding: `[${embeddings[idx].join(",")}]`, embedded_at: new Date().toISOString(), embedding_provider: "google", embedding_status: "done" }),
-        }).then(async (r: Response) => {
-          if (r.ok) { processed++; }
-          else { const err = await r.text().catch(() => String(r.status)); console.error("[embed:patch]", entry.id, r.status, err); failed++; }
-        }).catch((e: any) => { console.error("[embed:batch:patch]", entry.id, e.message); failed++; })
-      ));
+      await Promise.all(
+        entries.map((entry: any, idx: number) =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+            method: "PATCH",
+            headers: sbHeaders({ Prefer: "return=minimal" }),
+            body: JSON.stringify({
+              embedding: `[${embeddings[idx].join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: "google",
+              embedding_status: "done",
+            }),
+          })
+            .then(async (r: Response) => {
+              if (r.ok) {
+                processed++;
+              } else {
+                const err = await r.text().catch(() => String(r.status));
+                console.error("[embed:patch]", entry.id, r.status, err);
+                failed++;
+              }
+            })
+            .catch((e: any) => {
+              console.error("[embed:batch:patch]", entry.id, e.message);
+              failed++;
+            }),
+        ),
+      );
     } catch (e: any) {
       console.error("[embed:batch]", e.message);
       throw new ApiError(502, e.message);
     }
-    const freshCountRes = await fetch(`${SB_URL}/rest/v1/entries?${filter}&select=id`, { headers: sbHeadersNoContent({ Prefer: "count=exact" }) });
-    const freshRemaining = parseInt(freshCountRes.headers.get("content-range")?.split("/")?.[1] || "0", 10);
-    res.status(200).json({ processed, failed, remaining: isNaN(freshRemaining) ? 0 : freshRemaining });
+    const freshCountRes = await fetch(`${SB_URL}/rest/v1/entries?${filter}&select=id`, {
+      headers: sbHeadersNoContent({ Prefer: "count=exact" }),
+    });
+    const freshRemaining = parseInt(
+      freshCountRes.headers.get("content-range")?.split("/")?.[1] || "0",
+      10,
+    );
+    res
+      .status(200)
+      .json({ processed, failed, remaining: isNaN(freshRemaining) ? 0 : freshRemaining });
     return;
   }
 

@@ -39,7 +39,9 @@ const GMAIL_SCOPE = [
 ].join(" ");
 
 function gmailRedirectUri(): string {
-  return process.env.GMAIL_REDIRECT_URI ?? `${process.env.APP_URL ?? ""}/api/gmail-auth?provider=google`;
+  return (
+    process.env.GMAIL_REDIRECT_URI ?? `${process.env.APP_URL ?? ""}/api/gmail-auth?provider=google`
+  );
 }
 
 async function generateIgnoreRule(params: {
@@ -60,9 +62,10 @@ async function generateIgnoreRule(params: {
     body: JSON.stringify({
       model: process.env.ANTHROPIC_MODEL ?? "claude-haiku-4-5-20251001",
       max_tokens: 150,
-      messages: [{
-        role: "user",
-        content: `Generate a specific exclusion rule for a personal email scanning system.
+      messages: [
+        {
+          role: "user",
+          content: `Generate a specific exclusion rule for a personal email scanning system.
 
 The rule must describe WHAT TYPE of email to ignore based on its content, subject, or purpose — NOT the sender's address or domain.
 The same sender may send both wanted and unwanted emails, so address-based rules block too much.
@@ -77,12 +80,15 @@ Write ONE sentence starting with "Ignore" that targets the specific content patt
 Bad: "Ignore emails from capitec.co.za" (blocks everything from that sender)
 Good: "Ignore Capitec promotional emails about credit card offers or insurance"
 Return only the rule text, no explanation.`,
-      }],
+        },
+      ],
     }),
   });
   if (!res.ok) return `Ignore emails from ${params.from ?? "this sender"}.`;
   const data = await res.json();
-  return (data.content?.[0]?.text ?? "").trim() || `Ignore emails from ${params.from ?? "this sender"}.`;
+  return (
+    (data.content?.[0]?.text ?? "").trim() || `Ignore emails from ${params.from ?? "this sender"}.`
+  );
 }
 
 /* ── OAuth ── */
@@ -163,7 +169,8 @@ async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
     return void res.status(429).json({ error: "Too many requests" });
   }
   const { provider, code } = req.query as Record<string, string>;
-  if (provider !== "google") return res.status(400).json({ error: "Only google provider supported" });
+  if (provider !== "google")
+    return res.status(400).json({ error: "Only google provider supported" });
   if (code) return callbackGoogle(req, res);
 
   let preferences: GmailPreferences;
@@ -228,12 +235,13 @@ const authedHandler = withAuth(
     if (req.method === "POST" && action === "scan") {
       // §2.3: 5 manual scans/min per user — prevents DoS via repeat triggering
       if (!(await rateLimit(req, 5, 60_000, `gmail-scan:${user.id}`))) {
-        return void res.status(429).json({ error: "Too many scan requests — wait a minute and try again." });
+        return void res
+          .status(429)
+          .json({ error: "Too many scan requests — wait a minute and try again." });
       }
-      const r = await fetch(
-        `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`,
-        { headers: SB_HEADERS },
-      );
+      const r = await fetch(`${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`, {
+        headers: SB_HEADERS,
+      });
       const rows: any[] = r.ok ? await r.json() : [];
       if (!rows[0]) return void res.status(404).json({ error: "No Gmail integration found" });
       const brainId = typeof req.body?.brain_id === "string" ? req.body.brain_id : undefined;
@@ -246,17 +254,22 @@ const authedHandler = withAuth(
         return void res.status(200).json(result);
       } catch (e: any) {
         console.error("[gmail/scan]", e);
-        return void res.status(500).json({ error: String(e?.message ?? e), created: 0, entries: [], debug: null });
+        return void res
+          .status(500)
+          .json({ error: String(e?.message ?? e), created: 0, entries: [], debug: null });
       }
     }
 
     if (req.method === "POST" && action === "delete-entries") {
       const { entryIds } = req.body ?? {};
-      if (!Array.isArray(entryIds) || entryIds.length === 0) return void res.status(400).json({ error: "entryIds required" });
+      if (!Array.isArray(entryIds) || entryIds.length === 0)
+        return void res.status(400).json({ error: "entryIds required" });
       // Audit #6: validate UUIDs and cap length so a malicious client cannot
       // explode the URL or sneak operators past encodeURIComponent.
       const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const cleanIds = entryIds.filter((id: any) => typeof id === "string" && uuidRe.test(id)).slice(0, 200);
+      const cleanIds = entryIds
+        .filter((id: any) => typeof id === "string" && uuidRe.test(id))
+        .slice(0, 200);
       if (!cleanIds.length) return void res.status(400).json({ error: "entryIds must be UUIDs" });
       const ids = cleanIds.map((id: string) => encodeURIComponent(id)).join(",");
       await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&user_id=eq.${user.id}`, {
@@ -269,12 +282,13 @@ const authedHandler = withAuth(
     if (req.method === "POST" && action === "deep-scan") {
       // §2.3: 3 deep-scans/min per user — more expensive than regular scan
       if (!(await rateLimit(req, 3, 60_000, `gmail-deep-scan:${user.id}`))) {
-        return void res.status(429).json({ error: "Too many deep-scan requests — wait a minute and try again." });
+        return void res
+          .status(429)
+          .json({ error: "Too many deep-scan requests — wait a minute and try again." });
       }
-      const r = await fetch(
-        `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`,
-        { headers: SB_HEADERS },
-      );
+      const r = await fetch(`${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${user.id}&select=*`, {
+        headers: SB_HEADERS,
+      });
       const rows: any[] = r.ok ? await r.json() : [];
       if (!rows[0]) return void res.status(404).json({ error: "No Gmail integration found" });
       const { cursor, sinceMs, brain_id } = req.body ?? {};

@@ -352,12 +352,7 @@ function EverionContent({
               source_entries: c.source_entries,
             }))}
           />
-          <div
-            id="main-content"
-            key={appShell.view}
-            className="animate-view-enter"
-            tabIndex={-1}
-          >
+          <div id="main-content" key={appShell.view} className="animate-view-enter" tabIndex={-1}>
             {(appShell.view === "memory" || appShell.view === "timeline") && (
               <>
                 <MemoryHeader
@@ -395,7 +390,8 @@ function EverionContent({
                             className="w-full rounded-xl border px-4 py-3 text-left font-mono text-xs"
                             style={{
                               background: "color-mix(in oklch, var(--color-error) 8%, transparent)",
-                              borderColor: "color-mix(in oklch, var(--color-error) 25%, transparent)",
+                              borderColor:
+                                "color-mix(in oklch, var(--color-error) 25%, transparent)",
                               color: "var(--color-error)",
                             }}
                           >
@@ -462,8 +458,8 @@ function EverionContent({
                             lineHeight: 1.55,
                           }}
                         >
-                          A name, a thought, a link, a voice note. Everion
-                          organises and surfaces it later when it matters.
+                          A name, a thought, a link, a voice note. Everion organises and surfaces it
+                          later when it matters.
                         </p>
                         <button
                           onClick={() => appShell.setShowCapture(true)}
@@ -534,9 +530,7 @@ function EverionContent({
             {appShell.view === "chat" && ff("chat") && (
               <ErrorBoundary
                 name="ChatView"
-                fallback={(error, reset) => (
-                  <ViewError view="Chat" error={error} onReset={reset} />
-                )}
+                fallback={(error, reset) => <ViewError view="Chat" error={error} onReset={reset} />}
               >
                 <Suspense fallback={<Loader />}>
                   <ChatView brainId={activeBrain?.id} onNavigate={appShell.setView} />
@@ -590,9 +584,7 @@ function EverionContent({
                 </Suspense>
               </ErrorBoundary>
             )}
-            {appShell.view === "settings" && (
-              <SettingsView onNavigate={appShell.setView} />
-            )}
+            {appShell.view === "settings" && <SettingsView onNavigate={appShell.setView} />}
             {appShell.view === "capture" && (
               <ErrorBoundary
                 name="CaptureWelcomeScreen"
@@ -617,42 +609,41 @@ function EverionContent({
               context and breaks `position: fixed` for descendants —
               the pill ends up pinned to the wrapper, not the viewport. */}
           {(appShell.view === "memory" || appShell.view === "timeline") &&
-            appShell.selectMode && appShell.selectedIds.size > 0 && (
-            <BulkActionBar
-              selectedIds={appShell.selectedIds}
-              entries={entries}
-              brains={brains}
-              allSelected={appShell.selectedIds.size === filtered.length}
-              onSelectAll={() => {
-                if (appShell.selectedIds.size === filtered.length) {
-                  filtered.forEach((e) => {
-                    if (appShell.selectedIds.has(e.id)) appShell.toggleSelectId(e.id);
-                  });
-                } else {
-                  filtered.forEach((e) => {
-                    if (!appShell.selectedIds.has(e.id)) appShell.toggleSelectId(e.id);
-                  });
-                }
-              }}
-              onDelete={async (ids: string[]) => {
-                for (const id of ids) {
-                  setEntries((prev) => prev.filter((e) => e.id !== id));
-                  await authFetch("/api/delete-entry", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ id }),
-                  }).catch((err) => console.error("[bulkDelete]", err));
-                }
-              }}
-              onDone={(updated) => {
-                setEntries((prev) =>
-                  prev.map((e) => updated.find((u) => u.id === e.id) ?? e),
-                );
-                appShell.toggleSelectMode();
-              }}
-              onCancel={appShell.toggleSelectMode}
-            />
-          )}
+            appShell.selectMode &&
+            appShell.selectedIds.size > 0 && (
+              <BulkActionBar
+                selectedIds={appShell.selectedIds}
+                entries={entries}
+                brains={brains}
+                allSelected={appShell.selectedIds.size === filtered.length}
+                onSelectAll={() => {
+                  if (appShell.selectedIds.size === filtered.length) {
+                    filtered.forEach((e) => {
+                      if (appShell.selectedIds.has(e.id)) appShell.toggleSelectId(e.id);
+                    });
+                  } else {
+                    filtered.forEach((e) => {
+                      if (!appShell.selectedIds.has(e.id)) appShell.toggleSelectId(e.id);
+                    });
+                  }
+                }}
+                onDelete={async (ids: string[]) => {
+                  for (const id of ids) {
+                    setEntries((prev) => prev.filter((e) => e.id !== id));
+                    await authFetch("/api/delete-entry", {
+                      method: "DELETE",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id }),
+                    }).catch((err) => console.error("[bulkDelete]", err));
+                  }
+                }}
+                onDone={(updated) => {
+                  setEntries((prev) => prev.map((e) => updated.find((u) => u.id === e.id) ?? e));
+                  appShell.toggleSelectMode();
+                }}
+                onCancel={appShell.toggleSelectMode}
+              />
+            )}
 
           <Suspense fallback={null}>
             {selectedVaultEntry && (
@@ -1012,37 +1003,37 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
       <BrainContext.Provider value={brainValue}>
         <ConceptGraphProvider activeBrainId={activeBrain?.id}>
           <BackgroundOpsProvider>
-          <EverionContent
-            appShell={appShell}
-            cryptoKey={dataLayer.cryptoKey}
-            handleVaultUnlock={dataLayer.handleVaultUnlock}
-            handleCreated={dataLayer.handleCreated}
-            handleCreatedBulk={dataLayer.handleCreatedBulk}
-            lastAction={dataLayer.lastAction}
-            setLastAction={dataLayer.setLastAction}
-            saveError={dataLayer.saveError}
-            setSaveError={dataLayer.setSaveError}
-            handleUndo={dataLayer.handleUndo}
-            commitPendingDelete={dataLayer.commitPendingDelete}
-            setEntries={dataLayer.setEntries}
-            isOnline={isOnline}
-            pendingCount={pendingCount}
-            failedOps={failedOps}
-            clearFailedOps={clearFailedOps}
-            canWrite={canWrite}
-            nudge={nudge}
-            setNudge={setNudge}
-            bgTasks={bgTasks}
-            bgProcessFiles={bgProcessFiles}
-            bgQueueDirectSave={bgQueueDirectSave}
-            bgDismissTask={bgDismissTask}
-            bgDismissAll={bgDismissAll}
-            filtered={filtered}
-            sortedTimeline={sortedTimeline}
-            availableEntryTypes={availableEntryTypes}
-            vaultEntries={dataLayer.vaultEntries}
-            loadError={dataLayer.loadError}
-          />
+            <EverionContent
+              appShell={appShell}
+              cryptoKey={dataLayer.cryptoKey}
+              handleVaultUnlock={dataLayer.handleVaultUnlock}
+              handleCreated={dataLayer.handleCreated}
+              handleCreatedBulk={dataLayer.handleCreatedBulk}
+              lastAction={dataLayer.lastAction}
+              setLastAction={dataLayer.setLastAction}
+              saveError={dataLayer.saveError}
+              setSaveError={dataLayer.setSaveError}
+              handleUndo={dataLayer.handleUndo}
+              commitPendingDelete={dataLayer.commitPendingDelete}
+              setEntries={dataLayer.setEntries}
+              isOnline={isOnline}
+              pendingCount={pendingCount}
+              failedOps={failedOps}
+              clearFailedOps={clearFailedOps}
+              canWrite={canWrite}
+              nudge={nudge}
+              setNudge={setNudge}
+              bgTasks={bgTasks}
+              bgProcessFiles={bgProcessFiles}
+              bgQueueDirectSave={bgQueueDirectSave}
+              bgDismissTask={bgDismissTask}
+              bgDismissAll={bgDismissAll}
+              filtered={filtered}
+              sortedTimeline={sortedTimeline}
+              availableEntryTypes={availableEntryTypes}
+              vaultEntries={dataLayer.vaultEntries}
+              loadError={dataLayer.loadError}
+            />
           </BackgroundOpsProvider>
         </ConceptGraphProvider>
       </BrainContext.Provider>

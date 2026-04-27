@@ -10,18 +10,18 @@
 
 ## File Map
 
-| Action | Path | Responsibility |
-|--------|------|----------------|
-| Modify | `api/brains.js` | Add community create, join, discover, moderate actions |
-| Modify | `api/capture.js` | Route to pending_entries for moderated brains |
-| Create | `supabase/migrations/004_community_brain.sql` | Schema: new columns + pending_entries table |
-| Modify | `src/components/CreateBrainModal.jsx` | Add community type + extra fields |
-| Create | `src/components/JoinBrainModal.jsx` | Join-by-code modal |
-| Create | `src/views/CommunityDiscoverView.jsx` | Browse public community brains |
-| Create | `src/views/ModerationView.jsx` | Admin pending entry review |
-| Create | `src/views/BrainSettingsView.jsx` | Community settings + member management |
-| Modify | `src/components/BrainSwitcher.jsx` | Group community brains separately |
-| Modify | `src/OpenBrain.jsx` | Wire new views, nav items, join-link routing |
+| Action | Path                                          | Responsibility                                         |
+| ------ | --------------------------------------------- | ------------------------------------------------------ |
+| Modify | `api/brains.js`                               | Add community create, join, discover, moderate actions |
+| Modify | `api/capture.js`                              | Route to pending_entries for moderated brains          |
+| Create | `supabase/migrations/004_community_brain.sql` | Schema: new columns + pending_entries table            |
+| Modify | `src/components/CreateBrainModal.jsx`         | Add community type + extra fields                      |
+| Create | `src/components/JoinBrainModal.jsx`           | Join-by-code modal                                     |
+| Create | `src/views/CommunityDiscoverView.jsx`         | Browse public community brains                         |
+| Create | `src/views/ModerationView.jsx`                | Admin pending entry review                             |
+| Create | `src/views/BrainSettingsView.jsx`             | Community settings + member management                 |
+| Modify | `src/components/BrainSwitcher.jsx`            | Group community brains separately                      |
+| Modify | `src/OpenBrain.jsx`                           | Wire new views, nav items, join-link routing           |
 
 ---
 
@@ -30,6 +30,7 @@
 ### Task 1: Database migration
 
 **Files:**
+
 - Create: `supabase/migrations/004_community_brain.sql`
 
 - [ ] **Step 1: Add columns to brains table**
@@ -76,6 +77,7 @@ Run migration against Supabase. Verify columns exist with a test query.
 ### Task 2: API — community brain creation + join
 
 **Files:**
+
 - Modify: `api/brains.js`
 
 - [ ] **Step 1: Add `"community"` to validTypes**
@@ -94,10 +96,22 @@ In the POST create handler, after building the body, add:
 if (brainType === "community") {
   const code = crypto.randomUUID().slice(0, 8);
   body.join_code = `ob-${code}`;
-  body.visibility = ["private", "invite_link", "public"].includes(req.body.visibility) ? req.body.visibility : "invite_link";
-  body.moderation = ["none", "admin_approval"].includes(req.body.moderation) ? req.body.moderation : "none";
+  body.visibility = ["private", "invite_link", "public"].includes(req.body.visibility)
+    ? req.body.visibility
+    : "invite_link";
+  body.moderation = ["none", "admin_approval"].includes(req.body.moderation)
+    ? req.body.moderation
+    : "none";
   body.description = (req.body.description || "").slice(0, 500);
-  const validCategories = ["neighbourhood", "sports", "faith", "savings", "school", "hobby", "other"];
+  const validCategories = [
+    "neighbourhood",
+    "sports",
+    "faith",
+    "savings",
+    "school",
+    "hobby",
+    "other",
+  ];
   body.category = validCategories.includes(req.body.category) ? req.body.category : "other";
 }
 ```
@@ -114,28 +128,31 @@ if (method === "POST" && action === "join") {
   // Look up brain by join_code
   const brainRes = await fetch(
     `${SB_URL}/rest/v1/brains?join_code=eq.${encodeURIComponent(code)}&select=*`,
-    { headers: hdrs() }
+    { headers: hdrs() },
   );
   const brains = await brainRes.json();
   if (!brains.length) return res.status(404).json({ error: "Brain not found" });
 
   const brain = brains[0];
-  if (brain.visibility === "private") return res.status(403).json({ error: "This brain is private" });
+  if (brain.visibility === "private")
+    return res.status(403).json({ error: "This brain is private" });
 
   // Check if already a member
   const existingRes = await fetch(
     `${SB_URL}/rest/v1/brain_members?brain_id=eq.${brain.id}&user_id=eq.${user.id}`,
-    { headers: hdrs() }
+    { headers: hdrs() },
   );
   const existing = await existingRes.json();
   if (existing.length || brain.owner_id === user.id) {
-    return res.status(200).json({ ...brain, myRole: existing[0]?.role || "owner", already_member: true });
+    return res
+      .status(200)
+      .json({ ...brain, myRole: existing[0]?.role || "owner", already_member: true });
   }
 
   // Add as contributor
   await fetch(`${SB_URL}/rest/v1/brain_members`, {
     method: "POST",
-    headers: hdrs({ "Prefer": "resolution=ignore-duplicates" }),
+    headers: hdrs({ Prefer: "resolution=ignore-duplicates" }),
     body: JSON.stringify({ brain_id: brain.id, user_id: user.id, role: "contributor" }),
   });
 
@@ -166,21 +183,38 @@ Test: create a community brain via API, verify join_code is set, join from anoth
 ### Task 3: Frontend — CreateBrainModal community type
 
 **Files:**
+
 - Modify: `src/components/CreateBrainModal.jsx`
 
 - [ ] **Step 1: Add community to BRAIN_TYPES**
 
 ```js
 const BRAIN_TYPES = [
-  { value: "family", label: "Family", emoji: "🏠", desc: "For household, kids, shared finances, emergencies" },
-  { value: "business", label: "Business", emoji: "🏪", desc: "For staff, suppliers, SOPs, costs, licences" },
-  { value: "community", label: "Community", emoji: "🏘️", desc: "For neighbourhoods, clubs, stokvels, hobby groups" },
+  {
+    value: "family",
+    label: "Family",
+    emoji: "🏠",
+    desc: "For household, kids, shared finances, emergencies",
+  },
+  {
+    value: "business",
+    label: "Business",
+    emoji: "🏪",
+    desc: "For staff, suppliers, SOPs, costs, licences",
+  },
+  {
+    value: "community",
+    label: "Community",
+    emoji: "🏘️",
+    desc: "For neighbourhoods, clubs, stokvels, hobby groups",
+  },
 ];
 ```
 
 - [ ] **Step 2: Add community-specific fields**
 
 When `brainType === "community"`, show below the name input:
+
 - `description` textarea (placeholder: "What's this brain for?")
 - `category` select (neighbourhood, sports, faith, savings, school, hobby, other)
 - `visibility` toggle: "Invite link" / "Public"
@@ -199,11 +233,13 @@ After community brain is created, show a "Share this link" card with the join UR
 ### Task 4: Frontend — JoinBrainModal
 
 **Files:**
+
 - Create: `src/components/JoinBrainModal.jsx`
 
 - [ ] **Step 1: Create JoinBrainModal component**
 
 Modal with:
+
 - Text input for join code (accepts full URL or just `ob-xxxxx`)
 - Parse logic: extract code from URL like `openbrain.app/#join/ob-xxxxx`
 - "Join" button -> `POST /api/brains?action=join`
@@ -217,7 +253,12 @@ Add state: `const [showJoinBrain, setShowJoinBrain] = useState(false);`
 Add button in nav sidebar:
 
 ```jsx
-<button onClick={() => { setNavOpen(false); setShowJoinBrain(true); }}>
+<button
+  onClick={() => {
+    setNavOpen(false);
+    setShowJoinBrain(true);
+  }}
+>
   Join a Community Brain
 </button>
 ```
@@ -241,12 +282,14 @@ Test: create community brain, copy join link, open in new tab, verify join flow 
 ### Task 5: API — moderation endpoints
 
 **Files:**
+
 - Modify: `api/capture.js`
 - Modify: `api/brains.js`
 
 - [ ] **Step 1: Route captures to pending_entries for moderated brains**
 
 In `api/capture.js`, before inserting into `entries`:
+
 1. Look up the target brain's `moderation` setting
 2. Check if the user is admin/owner
 3. If brain is moderated AND user is contributor (not admin/owner), insert into `pending_entries` instead
@@ -255,6 +298,7 @@ In `api/capture.js`, before inserting into `entries`:
 - [ ] **Step 2: Add moderate action**
 
 `POST /api/brains?action=moderate` — approve or reject:
+
 - Verify caller is admin/owner of the brain
 - If approved: copy entry from `pending_entries` to `entries`, link via `entry_brains`
 - Update `pending_entries.status` and `reviewed_by`/`reviewed_at`
@@ -268,11 +312,13 @@ In `api/capture.js`, before inserting into `entries`:
 ### Task 6: Frontend — ModerationView
 
 **Files:**
+
 - Create: `src/views/ModerationView.jsx`
 
 - [ ] **Step 1: Build ModerationView**
 
 List of pending entries:
+
 - Card per entry: type icon, title, content preview, submitted by, timestamp
 - Approve (green) / Reject (red) buttons per card
 - Batch approve checkbox + button
@@ -289,11 +335,13 @@ Show "Moderation" nav item when active brain is community AND user is admin/owne
 ### Task 7: Frontend — CommunityDiscoverView
 
 **Files:**
+
 - Create: `src/views/CommunityDiscoverView.jsx`
 
 - [ ] **Step 1: Build discover view**
 
 Grid layout:
+
 - Card per public community brain: emoji, name, description, category badge, member count
 - Category filter tabs at top
 - Search input for name/description
@@ -310,11 +358,13 @@ Add "Discover" nav item (always visible). Icon: `🔍` or `🏘️`.
 ### Task 8: Frontend — BrainSettingsView
 
 **Files:**
+
 - Create: `src/views/BrainSettingsView.jsx`
 
 - [ ] **Step 1: Build settings view**
 
 Sections:
+
 - **Details**: Edit name, description, category (auto-saves on blur)
 - **Access**: Visibility toggle, join link with copy button, regenerate link option
 - **Moderation**: Toggle admin approval on/off

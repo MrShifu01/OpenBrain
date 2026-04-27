@@ -1,6 +1,7 @@
 # Push Notifications — Design Spec
+
 **Date:** 2026-04-03  
-**Status:** Approved  
+**Status:** Approved
 
 ---
 
@@ -48,6 +49,7 @@ Vercel Cron triggers the three cron endpoints. Each job queries Supabase for use
 ## Database Schema
 
 ### `push_subscriptions`
+
 Stores the browser push endpoint per user per device. One user can have multiple rows (phone, laptop, tablet).
 
 ```sql
@@ -64,6 +66,7 @@ UNIQUE(user_id, endpoint)
 When sending, fan out to all subscriptions for the user. Auto-delete any that return HTTP 410 Gone (subscription expired/revoked).
 
 ### `notification_prefs`
+
 One row per user. All columns have sensible defaults so users only need to update what they change.
 
 ```sql
@@ -86,6 +89,7 @@ updated_at           timestamptz DEFAULT now()
 ```
 
 ### `expiry_notification_log`
+
 Prevents duplicate expiry notifications for the same item + lead day combination.
 
 ```sql
@@ -106,10 +110,12 @@ UNIQUE(user_id, entry_id, item_label, lead_days)
 Push handlers injected into the existing Workbox service worker via `vite-plugin-pwa`'s `injectManifest` mode.
 
 **Push event handler:**
+
 - Receives payload: `{ title, body, url, icon }`
 - Calls `self.registration.showNotification(title, { body, icon, data: { url } })`
 
 **Notification click handler:**
+
 - Reads `event.notification.data.url`
 - Focuses existing OpenBrain window if open, otherwise opens a new one
 - Closes the notification
@@ -119,50 +125,58 @@ Push handlers injected into the existing Workbox service worker via `vite-plugin
 ## Vercel API Endpoints
 
 ### `POST /api/push-subscribe`
+
 Body: `{ endpoint, keys: { p256dh, auth }, userAgent }`  
 Upserts into `push_subscriptions` for the authenticated user.
 
 ### `DELETE /api/push-subscribe`
+
 Body: `{ endpoint }`  
 Removes the subscription row. Also calls `subscription.unsubscribe()` on the client side before hitting this endpoint.
 
 ### `POST /api/notification-prefs`
+
 Body: partial `notification_prefs` shape  
 Upserts the user's notification preferences.
 
 ### Cron endpoints (protected by `CRON_SECRET`)
 
 **`GET /api/cron/push-daily`** — runs hourly  
-Finds all users with `daily_enabled = true` whose current local time matches their `daily_time` (within the current hour). Sends: *"What's worth remembering today? Capture it in OpenBrain."*
+Finds all users with `daily_enabled = true` whose current local time matches their `daily_time` (within the current hour). Sends: _"What's worth remembering today? Capture it in OpenBrain."_
 
 **`GET /api/cron/push-nudge`** — runs hourly  
-Finds users with `nudge_enabled = true` whose `nudge_day` and `nudge_time` match now. Queries count of unanswered Fill Brain questions. Sends: *"You have X questions waiting in Fill Brain."*
+Finds users with `nudge_enabled = true` whose `nudge_day` and `nudge_time` match now. Queries count of unanswered Fill Brain questions. Sends: _"You have X questions waiting in Fill Brain."_
 
 **`GET /api/cron/push-expiry`** — runs daily at 09:00 UTC  
 For each user with `expiry_enabled = true`:
+
 1. Fetches their entries filtered by expiry-related keywords (`expir`, `valid until`, `renew`, `passport`, `licence`, `insurance`, `policy`)
 2. Sends filtered entry text to Claude to extract `[{ item, date }]`
 3. For each extracted date, checks if `(today + lead_day) == expiry_date` for any value in `expiry_lead_days`
 4. Checks `expiry_notification_log` to skip already-sent combos
-5. Sends notification: *"Your [passport] expires in [30] days."* and logs to `expiry_notification_log`
+5. Sends notification: _"Your [passport] expires in [30] days."_ and logs to `expiry_notification_log`
 
 ---
 
 ## Frontend
 
 ### Notification Settings Panel
+
 A new section in settings (or accessible from the sidebar). Contains:
+
 - **Enable notifications** master toggle — triggers permission request + subscription
 - **Daily capture prompt** toggle → time picker + timezone selector
 - **Fill Brain nudge** toggle → day-of-week picker + time picker + timezone
 - **Expiry reminders** toggle → multi-select lead days (90 / 30 / 7 / 1)
 
 Permission state machine:
+
 - `default` → show "Enable" button
 - `granted` → show toggles, save prefs on change
 - `denied` → show message explaining browser settings to change
 
 ### iOS Onboarding Step
+
 Added as step 4 in `OnboardingModal` (before the final "Start capturing" step), shown only on iOS Safari when `Notification` is not available or `standalone` is false.
 
 ```
@@ -189,14 +203,15 @@ Android and desktop users skip this step entirely — they go straight to the br
 // vercel.json
 {
   "crons": [
-    { "path": "/api/cron/push-daily",  "schedule": "0 * * * *" },
-    { "path": "/api/cron/push-nudge",  "schedule": "0 * * * *" },
+    { "path": "/api/cron/push-daily", "schedule": "0 * * * *" },
+    { "path": "/api/cron/push-nudge", "schedule": "0 * * * *" },
     { "path": "/api/cron/push-expiry", "schedule": "0 9 * * *" }
   ]
 }
 ```
 
 ### Environment Variables Required
+
 ```
 VAPID_PUBLIC_KEY=<generated>
 VAPID_PRIVATE_KEY=<generated>

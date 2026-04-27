@@ -14,7 +14,10 @@ import {
 const NOTION_UUID = /\s+[0-9a-f]{32}$/i;
 
 function cleanNotionName(name: string): string {
-  return name.replace(/\.[^.]+$/, "").replace(NOTION_UUID, "").trim();
+  return name
+    .replace(/\.[^.]+$/, "")
+    .replace(NOTION_UUID, "")
+    .trim();
 }
 
 /** Notion adds a properties block right after the H1, formatted as
@@ -52,13 +55,18 @@ async function convertMdPage(path: string, text: string): Promise<ImportEntry | 
   const { meta, rest } = extractNotionProps(text);
   // Drop the H1 + property block from the body so it doesn't duplicate.
   const body = rest.replace(/^#\s+.+\n+/, "").trim();
-  const tags = typeof meta.tags === "string"
-    ? meta.tags.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 32)
-    : [];
+  const tags =
+    typeof meta.tags === "string"
+      ? meta.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .slice(0, 32)
+      : [];
   const created =
-    (meta.created_time && Date.parse(meta.created_time))
+    meta.created_time && Date.parse(meta.created_time)
       ? new Date(meta.created_time).toISOString()
-      : (meta.created && Date.parse(meta.created))
+      : meta.created && Date.parse(meta.created)
         ? new Date(meta.created).toISOString()
         : undefined;
   const hash = await importHash("notion", path, title, body.slice(0, 200));

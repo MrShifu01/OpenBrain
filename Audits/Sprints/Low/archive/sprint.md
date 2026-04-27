@@ -1,4 +1,5 @@
 # Sprint — Low Severity Fixes
+
 **Created:** 2026-04-15
 **Source:** Audits/Low/audit.md (22 findings)
 **Goal:** Close polish gaps, SEO blind spots, developer experience issues, and minor accessibility items that are cheap to fix and improve the app's overall professionalism.
@@ -18,6 +19,7 @@ These are all low-friction tasks. Most are XS or S effort and can be batched int
 ## Cluster A — `index.html` (do all at once)
 
 ### [x] L-2 — Add `<meta name="description">`
+
 **Effort:** XS | **File:** `index.html`
 
 - [x] Add: `<meta name="description" content="Everion — your personal memory and knowledge OS. Capture, organise, and surface what matters." />`
@@ -25,6 +27,7 @@ These are all low-friction tasks. Most are XS or S effort and can be batched int
 ---
 
 ### [x] L-4 — Add Open Graph tags
+
 **Effort:** XS | **File:** `index.html`
 
 - [x] Add `og:title`, `og:description`, `og:type`, `og:url` meta tags
@@ -33,6 +36,7 @@ These are all low-friction tasks. Most are XS or S effort and can be batched int
 ---
 
 ### [x] L-7 — Remove Google Fonts CDN link (use self-hosted)
+
 **Effort:** XS | **File:** `index.html:13-15`
 
 - [x] Confirm `@fontsource-variable/geist` (already installed) is imported in `src/main.tsx` or `index.css`
@@ -44,13 +48,16 @@ These are all low-friction tasks. Most are XS or S effort and can be batched int
 ## Cluster B — `public/` (do all at once)
 
 ### [x] L-3 — Add `robots.txt`
+
 **Effort:** XS | **File:** `public/robots.txt` (new)
 
 - [x] Create `public/robots.txt`:
+
 ```
 User-agent: *
 Disallow: /
 ```
+
 - [x] If a public landing page or privacy policy exists, add an `Allow:` rule for it
 
 ---
@@ -58,6 +65,7 @@ Disallow: /
 ## Cluster C — CI / Developer Experience
 
 ### [x] L-1 — Add `VITE_SENTRY_DSN` to `.env.example`
+
 **Effort:** XS | **File:** `.env.example`
 **Note:** Completed automatically when M-1 is done. Check here if M-1 is already merged.
 
@@ -66,6 +74,7 @@ Disallow: /
 ---
 
 ### [x] L-8 — Add Dependabot config
+
 **Effort:** XS | **File:** `.github/dependabot.yml` (new)
 
 - [x] Create `.github/dependabot.yml` with weekly npm updates
@@ -75,6 +84,7 @@ Disallow: /
 ---
 
 ### [x] L-9 — Add build step to CI
+
 **Effort:** XS | **File:** `.github/workflows/ci.yml`
 
 - [x] Add `- run: npm run build` to the CI workflow
@@ -83,6 +93,7 @@ Disallow: /
 ---
 
 ### [x] L-12 — Document `VITE_ENABLE_MULTI_BRAIN` feature flag
+
 **Effort:** XS | **File:** `src/lib/featureFlags.ts`
 
 - [x] Add comment above the flag: what it gates, who owns it, and when it's expected to be removed
@@ -92,6 +103,7 @@ Disallow: /
 ## Cluster D — Performance
 
 ### [x] L-5 — Add body size config to LLM and file-extract endpoints
+
 **Effort:** XS | **Files:** `api/llm.ts`, `api/capture.ts`
 
 - [x] Add `export const config = { api: { bodyParser: { sizeLimit: "10mb" } } }` to both files
@@ -100,6 +112,7 @@ Disallow: /
 ---
 
 ### [x] L-10 — Confirm `pdfjs-dist` is lazy-loaded
+
 **Effort:** XS | **File:** `src/lib/fileExtract.ts`
 
 - [x] Check if `fileExtract.ts` is only called via dynamic import paths in the app
@@ -109,6 +122,7 @@ Disallow: /
 ---
 
 ### [x] L-11 — Fix N+1 query in gap-analyst cron
+
 **Effort:** S | **File:** `api/cron/gap-analyst.ts`
 
 - [x] Replace the per-brain entry fetch loop with a single `WHERE brain_id IN (...)` query
@@ -120,6 +134,7 @@ Disallow: /
 ## Cluster E — Code Hygiene
 
 ### [x] L-6 — Document Supabase localStorage auth token as accepted risk
+
 **Effort:** XS | **File:** `src/lib/supabase.ts`
 
 - [x] Add a comment: "Session stored in localStorage per Supabase JS v2 default. Accepted risk under current CSP (script-src 'self'). Revisit if CSP is relaxed."
@@ -127,6 +142,7 @@ Disallow: /
 ---
 
 ### [x] L-13 — Add keyboard shortcuts
+
 **Effort:** S | **File:** `src/Everion.tsx` or a new `src/hooks/useKeyboardShortcuts.ts`
 
 - [x] `Cmd/Ctrl + K` — open OmniSearch
@@ -137,6 +153,7 @@ Disallow: /
 ---
 
 ### [x] L-14 — Fix empty catch in `useVaultOps.ts`
+
 **Effort:** XS | **File:** `src/hooks/useVaultOps.ts:70`
 
 - [x] Replace `catch {}` with `catch (e) { console.error("[vault] fetch failed:", e); setVaultError("Failed to load vault entries. Please try again."); }`
@@ -144,6 +161,7 @@ Disallow: /
 ---
 
 ### [x] L-15 — Create minimal business continuity runbook
+
 **Effort:** S | **File:** `docs/runbook.md` (new)
 
 - [x] Document: how to trigger a Vercel rollback (one-click in dashboard)
@@ -156,6 +174,7 @@ Disallow: /
 ## Cluster F — UI Polish
 
 ### [x] L-16 — Bump `text-[10px]` labels to 11px minimum
+
 **Effort:** S | **Files:** `BottomNav.tsx`, `BrainSwitcher.tsx`, `BulkActionBar.tsx`, `CaptureSheet.tsx`, `CreateBrainModal.tsx`, `DesktopSidebar.tsx`
 
 - [x] Change non-decorative `text-[10px]` to `text-[11px]` or `text-xs` (12px)
@@ -165,6 +184,7 @@ Disallow: /
 ---
 
 ### [x] L-17 — Move `LoadingScreen` keyframe to `index.css`
+
 **Effort:** XS | **Files:** `src/components/LoadingScreen.tsx:36-40`, `index.css`
 
 - [x] Cut `@keyframes loading-sweep` from the inline `<style>` tag in `LoadingScreen.tsx`
@@ -174,6 +194,7 @@ Disallow: /
 ---
 
 ### [x] L-18 — Add role context to `EntryList` aria-labels
+
 **Effort:** XS | **File:** `src/components/EntryList.tsx:56,247`
 
 - [x] Change `aria-label={e.title}` to `aria-label={\`Open entry: ${e.title}\`}`
@@ -181,6 +202,7 @@ Disallow: /
 ---
 
 ### [x] L-19 — Remove "Insight:" type prefix from displayed titles
+
 **Effort:** S | **Files:** entry title render locations
 
 - [x] Determine if the prefix is stored in the `title` field or injected at render time
@@ -191,6 +213,7 @@ Disallow: /
 ---
 
 ### [x] L-20 — Consolidate entry action placement
+
 **Effort:** S | **Files:** entry detail action area
 
 - [x] Audit current action locations: Delete and Edit are top-header, Share is bottom-floating
@@ -202,6 +225,7 @@ Disallow: /
 ## Cluster G — Chat & Language
 
 ### [x] L-21 — Fix chat scoring de-pluralization
+
 **Effort:** XS | **File:** `src/lib/chatContext.ts:29`
 
 The current `w.replace(/s$/, "")` produces `"entrie"` from `"entries"` — stems don't match.
@@ -213,6 +237,7 @@ The current `w.replace(/s$/, "")` produces `"entrie"` from `"entries"` — stems
 ---
 
 ### [x] L-22 — Improve "This brain / All brains" tab copy
+
 **Effort:** XS | **File:** tab label component in chat/Ask view
 
 - [x] Consider alternatives: "Here / Everywhere" or "My [BrainName] / All Brains"
@@ -223,15 +248,15 @@ The current `w.replace(/s$/, "")` produces `"entrie"` from `"entries"` — stems
 
 ## Sprint Summary
 
-| Cluster | Tasks | Est. Total Effort |
-|---------|-------|------------------|
-| A — index.html | L-2, L-4, L-7 | ~30 min |
-| B — public/ | L-3 | ~10 min |
-| C — CI / DX | L-1, L-8, L-9, L-12 | ~45 min |
-| D — Performance | L-5, L-10, L-11 | ~1.5h |
-| E — Code Hygiene | L-6, L-13, L-14, L-15 | ~2h |
-| F — UI Polish | L-16, L-17, L-18, L-19, L-20 | ~2h |
-| G — Chat & Language | L-21, L-22 | ~30 min |
+| Cluster             | Tasks                        | Est. Total Effort |
+| ------------------- | ---------------------------- | ----------------- |
+| A — index.html      | L-2, L-4, L-7                | ~30 min           |
+| B — public/         | L-3                          | ~10 min           |
+| C — CI / DX         | L-1, L-8, L-9, L-12          | ~45 min           |
+| D — Performance     | L-5, L-10, L-11              | ~1.5h             |
+| E — Code Hygiene    | L-6, L-13, L-14, L-15        | ~2h               |
+| F — UI Polish       | L-16, L-17, L-18, L-19, L-20 | ~2h               |
+| G — Chat & Language | L-21, L-22                   | ~30 min           |
 
 **Total estimated effort: ~1 focused day**
 

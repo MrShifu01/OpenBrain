@@ -18,7 +18,12 @@ export function friendlyError(msg: unknown): string {
     return "Pick a password with at least 6 characters.";
   if (m.includes("signups not allowed") || m.includes("signup is disabled"))
     return "Sign-ups are temporarily paused. Please try again later.";
-  if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("load failed") || m.includes("network request failed"))
+  if (
+    m.includes("failed to fetch") ||
+    m.includes("networkerror") ||
+    m.includes("load failed") ||
+    m.includes("network request failed")
+  )
     return "We couldn't reach the server. Check your connection and try again.";
   if (/^http \d{3}$/i.test(raw.trim()))
     return "Something went wrong on our side. Please try again.";

@@ -41,11 +41,19 @@ function normalizePhone(p: string): string {
 }
 
 function normalizeName(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function tokenSet(s: string): Set<string> {
-  return new Set(normalizeName(s).split(" ").filter((w) => w.length >= 2));
+  return new Set(
+    normalizeName(s)
+      .split(" ")
+      .filter((w) => w.length >= 2),
+  );
 }
 
 function jaccard(a: Set<string>, b: Set<string>): number {
@@ -153,7 +161,7 @@ function scoreCandidate(source: Candidate, target: Candidate): number {
   if (sEmb && tEmb && sEmb.length === tEmb.length) {
     const sim = cosineSim(sEmb, tEmb);
     if (sim >= 0.95) score += 60;
-    else if (sim >= 0.90) score += 40;
+    else if (sim >= 0.9) score += 40;
     else if (sim >= 0.85) score += 25;
     else if (sim >= 0.75) score += 10;
   }
@@ -249,10 +257,7 @@ export async function storeNotification(
 
 const CANDIDATE_FIELDS = "id,title,content,type,tags,metadata,embedding";
 
-export async function detectAndStoreMerge(
-  entryId: string,
-  userId: string,
-): Promise<void> {
+export async function detectAndStoreMerge(entryId: string, userId: string): Promise<void> {
   // Fetch the new entry with the full fingerprint (including embedding).
   const er = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&user_id=eq.${encodeURIComponent(userId)}&deleted_at=is.null&limit=1&select=${encodeURIComponent(CANDIDATE_FIELDS)}`,

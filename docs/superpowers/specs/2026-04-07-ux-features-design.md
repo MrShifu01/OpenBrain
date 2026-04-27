@@ -1,7 +1,9 @@
 # UX & Feature Improvements — Design Spec
+
 **Date:** 2026-04-07
 
 ## Scope
+
 Mobile touch targets, onboarding re-access, notification test button, embedding provider mismatch warning, per-task model pickers UI, token/cost tracking, bulk operations in VaultView, chat source citations, entry pagination, findConnections isBulkImporting.
 
 ---
@@ -11,12 +13,15 @@ Mobile touch targets, onboarding re-access, notification test button, embedding 
 **Problem:** Many buttons below 44px tap target.
 
 **Solution:** Add global CSS rule to `src/index.css`:
+
 ```css
-button, [role="button"] {
+button,
+[role="button"] {
   min-height: 44px;
   min-width: 44px;
 }
 ```
+
 Plus audit and fix specific known offenders: undo toast button, type filter chips, brain switcher buttons, onboarding dismiss. Each gets explicit `style={{ minHeight: 44, padding: "0 12px" }}`.
 
 ---
@@ -26,9 +31,11 @@ Plus audit and fix specific known offenders: undo toast button, type filter chip
 **Problem:** `openbrain_onboarded` flag set once, no way back.
 
 **Solution:** In `src/views/SettingsView.tsx`, under a "Help & Onboarding" section:
+
 ```
 [Restart Onboarding]
 ```
+
 Button clears `localStorage.removeItem("openbrain_onboarded")` and dispatches a custom event `openbrain:restart-onboarding`. `OpenBrain.tsx` listens and sets `setShowOnboarding(true)`.
 
 ---
@@ -38,15 +45,19 @@ Button clears `localStorage.removeItem("openbrain_onboarded")` and dispatches a 
 **Problem:** No way to verify push notifications work after setup.
 
 **Solution:** In `src/components/NotificationSettings.tsx`, next to the "Enable Notifications" toggle, add:
+
 ```
 [Send test notification]
 ```
+
 Calls `POST /api/cron/push?action=test` (new action). Handler sends a single test push to the requesting user. Returns `{ sent: true }`. Button shows spinner, then "Sent!" for 3s.
 
 New handler in `api/cron/push.ts`:
+
 ```ts
 if (action === "test") return handleTest(req, res);
 ```
+
 `handleTest` requires `verifyAuth` (unlike other cron actions), sends one push to `user.id`.
 
 ---
@@ -56,6 +67,7 @@ if (action === "test") return handleTest(req, res);
 **Problem:** Switching embed provider mid-use breaks semantic search (mixed vector spaces).
 
 **Solution:** In `SettingsView`, when user changes `embedProvider`:
+
 1. Count entries that have `embedded_at IS NOT NULL AND embedding_provider != newProvider`.
 2. If count > 0, show inline warning:
    > "You have X entries embedded with [old provider]. Switching will make search inconsistent until you re-embed all entries."
@@ -76,7 +88,7 @@ API endpoint `GET /api/embed?action=count&brain_id=X` — returns `{ total: N, e
 Advanced: Per-task models
 ─────────────────────────
 Entry capture        [dropdown]
-Fill Brain questions [dropdown]  
+Fill Brain questions [dropdown]
 Image reading        [dropdown — vision models only]
 Refine collection    [dropdown]
 Brain chat           [dropdown]
@@ -93,7 +105,7 @@ function priceTier(pricing?: { prompt?: string }): { label: string; color: strin
   const p = parseFloat(pricing?.prompt ?? "1");
   if (p === 0) return { label: "Free", color: "#22c55e" };
   if (p < 0.000001) return { label: "Cheap", color: "#4ECDC4" };
-  if (p < 0.000010) return { label: "Normal", color: "#888" };
+  if (p < 0.00001) return { label: "Normal", color: "#888" };
   return { label: "Expensive", color: "#FF6B35" };
 }
 ```
@@ -104,24 +116,37 @@ function priceTier(pricing?: { prompt?: string }): { label: string; color: strin
 
 **Problem:** No visibility into AI spend.
 
-**Solution:** 
+**Solution:**
 **`src/lib/usageTracker.ts`** — tracks usage in `localStorage["openbrain_usage"]`:
+
 ```ts
-interface UsageRecord { date: string; inputTokens: number; outputTokens: number; provider: string; model: string; }
-export function recordUsage(params: UsageRecord): void
-export function getMonthlyUsage(): { inputTokens: number; outputTokens: number; estimatedUsd: number }
-export function clearUsage(): void
+interface UsageRecord {
+  date: string;
+  inputTokens: number;
+  outputTokens: number;
+  provider: string;
+  model: string;
+}
+export function recordUsage(params: UsageRecord): void;
+export function getMonthlyUsage(): {
+  inputTokens: number;
+  outputTokens: number;
+  estimatedUsd: number;
+};
+export function clearUsage(): void;
 ```
 
 LLM responses include `usage.input_tokens` and `usage.output_tokens` in Anthropic/OpenAI responses. `src/lib/ai.ts` (or `aiFetch.ts`) reads these from the response JSON and calls `recordUsage`.
 
 **SettingsView:** New "Usage this month" panel:
+
 ```
 Input tokens:  12,450
 Output tokens: 3,200
 Est. cost:     $0.04
 [Clear history]
 ```
+
 Cost estimate: simple lookup table per provider/model tier. Label as "estimate" — not billed amount.
 
 ---
@@ -133,6 +158,7 @@ Cost estimate: simple lookup table per provider/model tier. Label as "estimate" 
 **Solution:** When vault is unlocked, add a "Select" mode toggle button.
 
 In select mode:
+
 - Each secret shows a checkbox
 - Bottom action bar appears: "[X] selected — [Delete] [Export]"
 - Delete: soft-deletes all selected (calls DELETE for each, or batch endpoint)
@@ -154,6 +180,7 @@ Implementation: `bulkMode: boolean` state, `selectedIds: Set<string>` state in V
    - Include: `Related to: [Title A], [Title B]`
 
 2. System prompt addition:
+
 ```
 When answering, cite sources using [Source: Entry Title] inline.
 ```
@@ -169,12 +196,15 @@ When answering, cite sources using [Source: Entry Title] inline.
 **Solution:**
 
 **`api/entries.ts`:** Support `cursor` param (last seen `created_at` ISO string):
+
 ```
 GET /api/entries?brain_id=X&cursor=2025-01-01T00:00:00Z&limit=50
 ```
+
 Query: `&order=created_at.desc&limit=51` — if 51 results returned, there are more. Return first 50 + `{ nextCursor: results[49].created_at }`.
 
-**Client (`src/OpenBrain.tsx`):** 
+**Client (`src/OpenBrain.tsx`):**
+
 - Initial load: first 50 entries
 - State: `hasMore: boolean`, `nextCursor: string | null`
 - VaultView/SuggestionsView: "Load more" button at bottom — calls `fetchMoreEntries(cursor)`

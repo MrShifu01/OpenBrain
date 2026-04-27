@@ -1,4 +1,5 @@
 # Brain Onboarding Design
+
 **Date:** 2026-04-03
 **Status:** Approved
 
@@ -64,12 +65,14 @@ No changes needed. Already defaults to `data.find(b => b.type === "personal")` a
 ### Content
 
 **Family brain:**
+
 - Emergency contacts for each family member
 - Medical aid numbers & blood types
 - School names, contacts & pickup rules
 - Home insurance policy & emergency numbers
 
 **Business brain:**
+
 - Key supplier contacts & account numbers
 - Staff names, roles & emergency contacts
 - Licences, registration numbers & renewal dates
@@ -87,12 +90,12 @@ No changes needed. Already defaults to `data.find(b => b.type === "personal")` a
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `supabase/migrations/003_personal_brain_trigger.sql` | New — trigger to auto-create personal brain |
-| `api/brains.js` | Add `"personal"` to validTypes |
-| `src/components/BrainTipCard.jsx` | New — tip card component |
-| `src/OpenBrain.jsx` | Add `showBrainTip` state + render BrainTipCard |
+| File                                                 | Change                                         |
+| ---------------------------------------------------- | ---------------------------------------------- |
+| `supabase/migrations/003_personal_brain_trigger.sql` | New — trigger to auto-create personal brain    |
+| `api/brains.js`                                      | Add `"personal"` to validTypes                 |
+| `src/components/BrainTipCard.jsx`                    | New — tip card component                       |
+| `src/OpenBrain.jsx`                                  | Add `showBrainTip` state + render BrainTipCard |
 
 ## Out of Scope
 

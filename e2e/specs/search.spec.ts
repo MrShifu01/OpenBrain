@@ -23,15 +23,11 @@ test.describe("OmniSearch opens via search shortcuts (not capture)", () => {
 
     await page.keyboard.press("ControlOrMeta+/");
 
-    const omniInput = page
-      .getByRole("combobox")
-      .and(page.getByPlaceholder(/search everything/i));
+    const omniInput = page.getByRole("combobox").and(page.getByPlaceholder(/search everything/i));
     await expect(omniInput).toBeVisible();
 
     // The capture sheet is what the bug used to open by mistake.
-    await expect(
-      page.getByRole("dialog", { name: /capture something/i }),
-    ).toBeHidden();
+    await expect(page.getByRole("dialog", { name: /capture something/i })).toBeHidden();
 
     await page.keyboard.press("Escape");
     await expect(omniInput).not.toBeVisible();
@@ -53,9 +49,7 @@ test.describe("OmniSearch opens via search shortcuts (not capture)", () => {
 
     await page.keyboard.press("ControlOrMeta+k");
 
-    await expect(
-      page.getByRole("dialog", { name: /capture something/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("dialog", { name: /capture something/i })).toBeVisible();
     await expect(
       page.getByRole("combobox").and(page.getByPlaceholder(/search everything/i)),
     ).toBeHidden();
@@ -72,9 +66,7 @@ test.describe("Mobile search affordance", () => {
   // browser type, which would conflict with the Playwright project config.
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("tapping the mobile header search icon opens OmniSearch (not capture)", async ({
-    page,
-  }) => {
+  test("tapping the mobile header search icon opens OmniSearch (not capture)", async ({ page }) => {
     const noise = trackConsole(page);
     await page.addInitScript(() => {
       localStorage.setItem("openbrain_onboarded", "1");
@@ -93,9 +85,7 @@ test.describe("Mobile search affordance", () => {
 
     // The bug surfaced as the capture sheet opening — make sure it
     // didn't, even alongside OmniSearch.
-    await expect(
-      page.getByRole("dialog", { name: /capture something/i }),
-    ).toBeHidden();
+    await expect(page.getByRole("dialog", { name: /capture something/i })).toBeHidden();
 
     noise.assertNoNew();
   });

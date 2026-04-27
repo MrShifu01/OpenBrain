@@ -375,8 +375,7 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
                     lineHeight: 1.5,
                   }}
                 >
-                  Capture a few thoughts first — chat draws on your own
-                  memories, not the open web.
+                  Capture a few thoughts first — chat draws on your own memories, not the open web.
                 </p>
                 <button
                   onClick={() => onNavigate?.("capture")}

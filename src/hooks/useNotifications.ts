@@ -32,7 +32,9 @@ export function useNotifications() {
   }, []);
 
   // Load on mount
-  useEffect(() => { fetch_(); }, [fetch_]);
+  useEffect(() => {
+    fetch_();
+  }, [fetch_]);
 
   // Re-fetch when tab regains focus
   useEffect(() => {
@@ -54,7 +56,7 @@ export function useNotifications() {
   }, []);
 
   const markRead = useCallback(async (id: string) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     await authFetch("/api/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -68,18 +70,30 @@ export function useNotifications() {
   }, []);
 
   // Accept a merge suggestion: patch target entry then dismiss notification
-  const acceptMerge = useCallback(async (notification: AppNotification) => {
-    const { source_entry_id, target_entry_id } = notification.data;
-    if (!source_entry_id || !target_entry_id) return;
-    await authFetch(`/api/entries?id=${encodeURIComponent(source_entry_id)}&action=merge_into`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ target_id: target_entry_id }),
-    });
-    await dismiss(notification.id);
-  }, [dismiss]);
+  const acceptMerge = useCallback(
+    async (notification: AppNotification) => {
+      const { source_entry_id, target_entry_id } = notification.data;
+      if (!source_entry_id || !target_entry_id) return;
+      await authFetch(`/api/entries?id=${encodeURIComponent(source_entry_id)}&action=merge_into`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_id: target_entry_id }),
+      });
+      await dismiss(notification.id);
+    },
+    [dismiss],
+  );
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  return { notifications, unreadCount, loading, fetch: fetch_, dismiss, markRead, dismissAll, acceptMerge };
+  return {
+    notifications,
+    unreadCount,
+    loading,
+    fetch: fetch_,
+    dismiss,
+    markRead,
+    dismissAll,
+    acceptMerge,
+  };
 }

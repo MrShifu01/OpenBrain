@@ -13,7 +13,8 @@ import {
 import { flagsOf } from "./_lib/enrichFlags.js";
 
 const SB_URL = process.env.SUPABASE_URL;
-const ENTRY_FIELDS = "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at,embedded_at,embedding_status,status";
+const ENTRY_FIELDS =
+  "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at,embedded_at,embedding_status,status";
 
 function rateLimitForEntries(req: ApiRequest): number {
   const resource = req.query.resource as string | undefined;
@@ -34,18 +35,23 @@ export default withAuth(
     // Action-based routes must be checked BEFORE the catch-all method handlers,
     // otherwise a generic `if (method === "GET") return handleGet(ctx)` shadows
     // any GET-with-action endpoint defined below it.
-    if (ctx.req.method === "GET"  && action === "enrich-debug")          return handleEnrichDebug(ctx);
-    if (ctx.req.method === "POST" && action === "enrich-batch")          return handleEnrichBatch(ctx);
-    if (ctx.req.method === "POST" && action === "backfill-persona")      return handleBackfillPersona(ctx);
-    if (ctx.req.method === "POST" && action === "revert-persona-backfill") return handleRevertPersonaBackfill(ctx);
-    if (ctx.req.method === "POST" && action === "wipe-persona-extracted") return handleWipePersonaExtracted(ctx);
-    if (ctx.req.method === "POST" && action === "enrich-clear-backfill") return handleClearBackfill(ctx);
-    if (ctx.req.method === "POST" && action === "enrich-retry-failed")   return handleRetryFailed(ctx);
-    if (ctx.req.method === "POST" && action === "empty-trash")           return handleEmptyTrash(ctx);
-    if (ctx.req.method === "POST" && action === "merge_into")            return handleMergeInto(ctx);
-    if (ctx.req.method === "GET")    return handleGet(ctx);
+    if (ctx.req.method === "GET" && action === "enrich-debug") return handleEnrichDebug(ctx);
+    if (ctx.req.method === "POST" && action === "enrich-batch") return handleEnrichBatch(ctx);
+    if (ctx.req.method === "POST" && action === "backfill-persona")
+      return handleBackfillPersona(ctx);
+    if (ctx.req.method === "POST" && action === "revert-persona-backfill")
+      return handleRevertPersonaBackfill(ctx);
+    if (ctx.req.method === "POST" && action === "wipe-persona-extracted")
+      return handleWipePersonaExtracted(ctx);
+    if (ctx.req.method === "POST" && action === "enrich-clear-backfill")
+      return handleClearBackfill(ctx);
+    if (ctx.req.method === "POST" && action === "enrich-retry-failed")
+      return handleRetryFailed(ctx);
+    if (ctx.req.method === "POST" && action === "empty-trash") return handleEmptyTrash(ctx);
+    if (ctx.req.method === "POST" && action === "merge_into") return handleMergeInto(ctx);
+    if (ctx.req.method === "GET") return handleGet(ctx);
     if (ctx.req.method === "DELETE") return handleDelete(ctx);
-    if (ctx.req.method === "PATCH")  return handlePatch(ctx);
+    if (ctx.req.method === "PATCH") return handlePatch(ctx);
     throw new ApiError(405, "Method not allowed");
   },
 );
@@ -65,9 +71,8 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
   // Without this, About You loaded every entry and defaulted them all to the
   // "preference" bucket in the UI.
   const rawType = req.query.type as string | undefined;
-  const typeFilter = rawType && /^[a-z_]+$/i.test(rawType)
-    ? `&type=eq.${encodeURIComponent(rawType)}`
-    : "";
+  const typeFilter =
+    rawType && /^[a-z_]+$/i.test(rawType) ? `&type=eq.${encodeURIComponent(rawType)}` : "";
 
   if (brain_id) {
     await requireBrainAccess(user.id, brain_id);
@@ -103,19 +108,22 @@ async function handleDelete({ req, res, user, req_id }: HandlerContext): Promise
 
   const permanent = req.query.permanent === "true";
 
-  const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`, {
-    headers: sbHeadersNoContent(),
-  });
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`,
+    {
+      headers: sbHeadersNoContent(),
+    },
+  );
   if (!entryRes.ok) throw new ApiError(502, "Database error");
   const [entry]: any[] = await entryRes.json();
   if (!entry) throw new ApiError(404, "Not found");
   await requireBrainAccess(user.id, entry.brain_id);
 
   if (permanent) {
-    const response = await fetch(
-      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-      { method: "DELETE", headers: sbHeaders({ "Prefer": "return=minimal" }) },
-    );
+    const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
+    });
 
     console.log(`[audit] HARD_DELETE entry id=${id} user=${user.id} ok=${response.ok}`);
 
@@ -130,11 +138,11 @@ async function handleDelete({ req, res, user, req_id }: HandlerContext): Promise
     }
 
     fetch(`${SB_URL}/rest/v1/audit_log`, {
-      method: 'POST',
-      headers: sbHeaders({ 'Prefer': 'return=minimal' }),
+      method: "POST",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
       body: JSON.stringify({
         user_id: user.id,
-        action: 'entry_permanent_delete',
+        action: "entry_permanent_delete",
         resource_id: id,
         request_id: req_id,
         timestamp: new Date().toISOString(),
@@ -146,23 +154,20 @@ async function handleDelete({ req, res, user, req_id }: HandlerContext): Promise
   }
 
   // Soft delete
-  const response = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ "Prefer": "return=minimal" }),
-      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
-    },
-  );
+  const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+  });
 
   console.log(`[audit] SOFT_DELETE entry id=${id} user=${user.id} ok=${response.ok}`);
 
   fetch(`${SB_URL}/rest/v1/audit_log`, {
-    method: 'POST',
-    headers: sbHeaders({ 'Prefer': 'return=minimal' }),
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
     body: JSON.stringify({
       user_id: user.id,
-      action: 'entry_delete',
+      action: "entry_delete",
       resource_id: id,
       request_id: req_id,
       timestamp: new Date().toISOString(),
@@ -181,22 +186,22 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
     if (!id || typeof id !== "string" || id.length > 100) {
       throw new ApiError(400, "Missing or invalid id");
     }
-    const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`, {
-      headers: sbHeadersNoContent(),
-    });
+    const entryRes = await fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id`,
+      {
+        headers: sbHeadersNoContent(),
+      },
+    );
     if (!entryRes.ok) throw new ApiError(502, "Database error");
     const [entryData]: any[] = await entryRes.json();
     if (!entryData) throw new ApiError(404, "Not found");
     await requireBrainAccess(user.id, entryData.brain_id);
 
-    const response = await fetch(
-      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-      {
-        method: "PATCH",
-        headers: sbHeaders({ "Prefer": "return=representation" }),
-        body: JSON.stringify({ deleted_at: null }),
-      },
-    );
+    const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: sbHeaders({ Prefer: "return=representation" }),
+      body: JSON.stringify({ deleted_at: null }),
+    });
     console.log(`[audit] RESTORE entry id=${id} user=${user.id} ok=${response.ok}`);
     const data: any = await response.json();
     res.status(response.ok ? 200 : 502).json(data);
@@ -222,13 +227,18 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   if (content !== undefined) patch.content = String(content).slice(0, 200_000);
   if (type !== undefined) patch.type = type;
   if (Array.isArray(tags)) patch.tags = tags.filter((t: any) => typeof t === "string").slice(0, 50);
-  if (metadata !== undefined && typeof metadata === "object" && !Array.isArray(metadata)) patch.metadata = metadata;
-  if (brain_id !== undefined && typeof brain_id === "string" && brain_id.length <= 100) patch.brain_id = brain_id;
+  if (metadata !== undefined && typeof metadata === "object" && !Array.isArray(metadata))
+    patch.metadata = metadata;
+  if (brain_id !== undefined && typeof brain_id === "string" && brain_id.length <= 100)
+    patch.brain_id = brain_id;
   if (status !== undefined) patch.status = status;
 
-  const entryRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id,title,content,type,tags,metadata`, {
-    headers: sbHeadersNoContent(),
-  });
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id,title,content,type,tags,metadata`,
+    {
+      headers: sbHeadersNoContent(),
+    },
+  );
   if (!entryRes.ok) throw new ApiError(502, "Database error");
   const [entry]: any[] = await entryRes.json();
   if (!entry) throw new ApiError(404, "Not found");
@@ -243,8 +253,18 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   const mergedType = patch.type ?? entry.type ?? "note";
   const mergedTags = patch.tags ?? entry.tags ?? [];
   const mergedMeta = patch.metadata ?? entry.metadata ?? {};
-  const cScore = computeCompletenessScore(mergedTitle, mergedContent, mergedType, mergedTags, mergedMeta);
-  const finalMeta = { ...(entry.metadata || {}), ...(patch.metadata || {}), completeness_score: cScore };
+  const cScore = computeCompletenessScore(
+    mergedTitle,
+    mergedContent,
+    mergedType,
+    mergedTags,
+    mergedMeta,
+  );
+  const finalMeta = {
+    ...(entry.metadata || {}),
+    ...(patch.metadata || {}),
+    completeness_score: cScore,
+  };
 
   const titleChanged = patch.title !== undefined && patch.title !== (entry.title ?? "");
   const contentChanged = patch.content !== undefined && patch.content !== (entry.content ?? "");
@@ -266,23 +286,20 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
 
   patch.metadata = finalMeta;
 
-  const response = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ "Prefer": "return=representation" }),
-      body: JSON.stringify(patch),
-    },
-  );
+  const response = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify(patch),
+  });
 
   console.log(`[audit] PATCH entry id=${id} user=${user.id} ok=${response.ok}`);
 
   fetch(`${SB_URL}/rest/v1/audit_log`, {
-    method: 'POST',
-    headers: sbHeaders({ 'Prefer': 'return=minimal' }),
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
     body: JSON.stringify({
       user_id: user.id,
-      action: 'entry_update',
+      action: "entry_update",
       resource_id: id,
       request_id: req_id,
       timestamp: new Date().toISOString(),
@@ -313,7 +330,9 @@ async function stripDeletedFromConceptGraph(brainId: string, entryId: string): P
   if (!row?.graph) return;
 
   const concepts: any[] = Array.isArray(row.graph.concepts) ? row.graph.concepts : [];
-  const relationships: any[] = Array.isArray(row.graph.relationships) ? row.graph.relationships : [];
+  const relationships: any[] = Array.isArray(row.graph.relationships)
+    ? row.graph.relationships
+    : [];
 
   const cleanedConcepts = concepts
     .map((c) => {
@@ -341,23 +360,20 @@ async function stripDeletedFromConceptGraph(brainId: string, entryId: string): P
     if (conceptUnchanged && relUnchanged) return;
   }
 
-  await fetch(
-    `${SB_URL}/rest/v1/concept_graphs?brain_id=eq.${encodeURIComponent(brainId)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ Prefer: "return=minimal" }),
-      body: JSON.stringify({
-        graph: { concepts: cleanedConcepts, relationships: cleanedRels },
-        updated_at: new Date().toISOString(),
-      }),
-    },
-  );
+  await fetch(`${SB_URL}/rest/v1/concept_graphs?brain_id=eq.${encodeURIComponent(brainId)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      graph: { concepts: cleanedConcepts, relationships: cleanedRels },
+      updated_at: new Date().toISOString(),
+    }),
+  });
 }
 
 // ── /api/audit (rewritten to /api/entries?resource=audit) ──
 const AUDIT_GEMINI_BATCH = 50;
-const AUDIT_MAX_TOKENS  = 4096;
-const AUDIT_DB_PAGE     = 500;
+const AUDIT_MAX_TOKENS = 4096;
+const AUDIT_DB_PAGE = 500;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function runGeminiBatch(
@@ -426,8 +442,15 @@ async function handleAudit({ req, res, user }: HandlerContext): Promise<void> {
   }
 
   const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
-  const GEMINI_MODEL   = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
-  console.log("[audit] model:", GEMINI_MODEL, "key set:", !!GEMINI_API_KEY, "total entries:", cappedEntries.length);
+  const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
+  console.log(
+    "[audit] model:",
+    GEMINI_MODEL,
+    "key set:",
+    !!GEMINI_API_KEY,
+    "total entries:",
+    cappedEntries.length,
+  );
 
   const numBatches = Math.ceil(cappedEntries.length / AUDIT_GEMINI_BATCH);
   const batchDelay = pace ? Math.max(2000, Math.floor(60000 / numBatches)) : 0;
@@ -438,11 +461,18 @@ async function handleAudit({ req, res, user }: HandlerContext): Promise<void> {
     const batch = cappedEntries.slice(i, i + AUDIT_GEMINI_BATCH);
     const batchSet = new Set(batch.map((e: any) => e.id));
     const lines = batch
-      .map((e: any) =>
-        `ID: ${e.id}\nTitle: ${e.title}\nType: ${e.type}\nTags: ${(e.tags || []).join(", ")}\nContent: ${String(e.content || "").slice(0, 500)}\nMetadata: ${JSON.stringify(e.metadata || {})}`,
+      .map(
+        (e: any) =>
+          `ID: ${e.id}\nTitle: ${e.title}\nType: ${e.type}\nTags: ${(e.tags || []).join(", ")}\nContent: ${String(e.content || "").slice(0, 500)}\nMetadata: ${JSON.stringify(e.metadata || {})}`,
       )
       .join("\n\n---\n\n");
-    const batchFlags = await runGeminiBatch(lines, batchSet, GEMINI_API_KEY, GEMINI_MODEL, Math.floor(i / AUDIT_GEMINI_BATCH) + 1);
+    const batchFlags = await runGeminiBatch(
+      lines,
+      batchSet,
+      GEMINI_API_KEY,
+      GEMINI_MODEL,
+      Math.floor(i / AUDIT_GEMINI_BATCH) + 1,
+    );
     allFlags.push(...batchFlags);
   }
 
@@ -450,11 +480,11 @@ async function handleAudit({ req, res, user }: HandlerContext): Promise<void> {
   for (const flag of allFlags) {
     if (!flagsByEntry[flag.entryId]) flagsByEntry[flag.entryId] = [];
     flagsByEntry[flag.entryId].push({
-      type:           flag.type,
-      field:          flag.field,
-      currentValue:   flag.currentValue ?? "",
+      type: flag.type,
+      field: flag.field,
+      currentValue: flag.currentValue ?? "",
       suggestedValue: flag.suggestedValue ?? "",
-      reason:         String(flag.reason || "").slice(0, 90),
+      reason: String(flag.reason || "").slice(0, 90),
     });
   }
 
@@ -464,14 +494,11 @@ async function handleAudit({ req, res, user }: HandlerContext): Promise<void> {
       const oldFlags = (entry.metadata as any)?.audit_flags ?? null;
       if (!newFlags?.length && !oldFlags?.length) return;
       const newMeta = { ...(entry.metadata || {}), audit_flags: newFlags };
-      await fetch(
-        `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`,
-        {
-          method: "PATCH",
-          headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ metadata: newMeta }),
-        },
-      ).catch(() => {});
+      await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ metadata: newMeta }),
+      }).catch(() => {});
     }),
   );
 
@@ -505,7 +532,8 @@ async function handleBackfillPersona({ req, res, user }: HandlerContext): Promis
   const { brain_id, batch_size } = req.body;
   if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
   await requireBrainAccess(user.id, brain_id);
-  const batchSize = typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 100) : 50;
+  const batchSize =
+    typeof batch_size === "number" && batch_size > 0 ? Math.min(batch_size, 100) : 50;
   const result = await backfillPersonaForBrain(user.id, brain_id, batchSize);
   res.status(200).json(result);
 }
@@ -570,9 +598,15 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
     secrets: all.filter((e) => e.type === "secret").length,
     missing_parsed: all.filter((e) => e.type !== "secret" && !flagsOf(e).parsed).length,
     missing_insight: all.filter((e) => e.type !== "secret" && !flagsOf(e).has_insight).length,
-    missing_concepts: all.filter((e) => e.type !== "secret" && !flagsOf(e).concepts_extracted).length,
-    missing_embedding: all.filter((e) => e.type !== "secret" && !flagsOf(e).embedded && flagsOf(e).embedding_status !== "failed").length,
-    failed_embedding: all.filter((e) => e.type !== "secret" && flagsOf(e).embedding_status === "failed").length,
+    missing_concepts: all.filter((e) => e.type !== "secret" && !flagsOf(e).concepts_extracted)
+      .length,
+    missing_embedding: all.filter(
+      (e) =>
+        e.type !== "secret" && !flagsOf(e).embedded && flagsOf(e).embedding_status !== "failed",
+    ).length,
+    failed_embedding: all.filter(
+      (e) => e.type !== "secret" && flagsOf(e).embedding_status === "failed",
+    ).length,
     fully_pending: all.filter((e) => {
       if (e.type === "secret") return false;
       const f = flagsOf(e);
@@ -751,13 +785,21 @@ async function handleEmptyTrash({ res, user, req_id }: HandlerContext): Promise<
 async function handleMergeInto({ req, res, user }: HandlerContext): Promise<void> {
   const source_id = req.query.id as string | undefined;
   const { target_id } = req.body;
-  if (!source_id || typeof source_id !== "string" || source_id.length > 100) throw new ApiError(400, "Missing or invalid id");
-  if (!target_id || typeof target_id !== "string" || target_id.length > 100) throw new ApiError(400, "Missing or invalid target_id");
+  if (!source_id || typeof source_id !== "string" || source_id.length > 100)
+    throw new ApiError(400, "Missing or invalid id");
+  if (!target_id || typeof target_id !== "string" || target_id.length > 100)
+    throw new ApiError(400, "Missing or invalid target_id");
   if (source_id === target_id) throw new ApiError(400, "source and target must differ");
 
   const [sourceRes, targetRes] = await Promise.all([
-    fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(source_id)}&select=${encodeURIComponent(ENTRY_FIELDS)}`, { headers: sbHeadersNoContent() }),
-    fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(target_id)}&select=${encodeURIComponent(ENTRY_FIELDS)}`, { headers: sbHeadersNoContent() }),
+    fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(source_id)}&select=${encodeURIComponent(ENTRY_FIELDS)}`,
+      { headers: sbHeadersNoContent() },
+    ),
+    fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(target_id)}&select=${encodeURIComponent(ENTRY_FIELDS)}`,
+      { headers: sbHeadersNoContent() },
+    ),
   ]);
   if (!sourceRes.ok || !targetRes.ok) throw new ApiError(502, "Database error");
   const [source]: any[] = await sourceRes.json();
@@ -771,26 +813,23 @@ async function handleMergeInto({ req, res, user }: HandlerContext): Promise<void
   ]);
 
   const mergedContent = [target.content, source.content].filter(Boolean).join("\n\n---\n\n");
-  const mergedTags = Array.from(new Set([...(target.tags ?? []), ...(source.tags ?? [])])).slice(0, 50);
-
-  const patchRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(target_id)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ "Prefer": "return=representation" }),
-      body: JSON.stringify({ content: mergedContent, tags: mergedTags }),
-    },
+  const mergedTags = Array.from(new Set([...(target.tags ?? []), ...(source.tags ?? [])])).slice(
+    0,
+    50,
   );
+
+  const patchRes = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(target_id)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify({ content: mergedContent, tags: mergedTags }),
+  });
   if (!patchRes.ok) throw new ApiError(502, "Failed to update target entry");
 
-  await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(source_id)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ "Prefer": "return=minimal" }),
-      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
-    },
-  );
+  await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(source_id)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+  });
 
   console.log(`[audit] MERGE_INTO source=${source_id} target=${target_id} user=${user.id}`);
 

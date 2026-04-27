@@ -20,11 +20,13 @@ A full entry-quality audit pipeline that automatically runs against a user's bra
 ### Backend
 
 **Audit handler merged into `api/entries.ts`:**
+
 - Dispatched via `resource=audit` query param (POST)
 - Wired via rewrite in `vercel.json`: `/api/audit → /api/entries?resource=audit`
 - Consistent with existing dispatch pattern (`delete-entry`, `update-entry`, `entry-brains` all route through `entries.ts`)
 
 **`handleAudit(req, res)` function:**
+
 1. Verify auth + brain access
 2. Fetch 25 newest entries: `id, title, content, type, tags, metadata`
 3. Call Gemini with `SERVER_PROMPTS.ENTRY_AUDIT` (prompt moved from `src/config/prompts.ts` to `api/_lib/prompts.ts`)
@@ -39,6 +41,7 @@ A full entry-quality audit pipeline that automatically runs against a user's bra
 ### Frontend
 
 **Auto-run on FeedView mount:**
+
 - Check `audit_run_at:${brainId}` in localStorage
 - If < 24h ago: skip — flags are already current in entry metadata
 - If stale or missing: POST `/api/audit` in background, parallel with insights fetch
@@ -46,6 +49,7 @@ A full entry-quality audit pipeline that automatically runs against a user's bra
 - On complete: trigger EntriesContext refresh to pick up new `audit_flags`
 
 **"Consider fixing" section** in FeedView, rendered below merge suggestions:
+
 - Source: `entries.filter(e => e.metadata?.audit_flags?.length > 0)`
 - One card per flag (not per entry)
 - Ordered: `SENSITIVE_DATA` first, then remaining flags as returned
@@ -58,13 +62,21 @@ Stored as `entry.metadata.audit_flags: AuditFlag[]`:
 ```ts
 interface AuditFlag {
   type:
-    | "TYPE_MISMATCH" | "PHONE_FOUND" | "EMAIL_FOUND" | "URL_FOUND"
-    | "DATE_FOUND"    | "TITLE_POOR"  | "SPLIT_SUGGESTED"
-    | "MERGE_SUGGESTED" | "CONTENT_WEAK" | "TAG_SUGGESTED" | "SENSITIVE_DATA";
-  field: string;          // e.g. "metadata.phone", "type", "content"
+    | "TYPE_MISMATCH"
+    | "PHONE_FOUND"
+    | "EMAIL_FOUND"
+    | "URL_FOUND"
+    | "DATE_FOUND"
+    | "TITLE_POOR"
+    | "SPLIT_SUGGESTED"
+    | "MERGE_SUGGESTED"
+    | "CONTENT_WEAK"
+    | "TAG_SUGGESTED"
+    | "SENSITIVE_DATA";
+  field: string; // e.g. "metadata.phone", "type", "content"
   currentValue: string;
   suggestedValue: string;
-  reason: string;         // max 90 chars, from Gemini
+  reason: string; // max 90 chars, from Gemini
 }
 ```
 
@@ -73,18 +85,21 @@ interface AuditFlag {
 ### Card Variants
 
 **Auto-apply** — `PHONE_FOUND`, `EMAIL_FOUND`, `URL_FOUND`, `DATE_FOUND`, `TAG_SUGGESTED`, `SENSITIVE_DATA`
+
 - Shows entry title + reason + suggested value
 - "Fix" button: PATCH entry (apply `suggestedValue` to `field`) + remove this flag from `audit_flags`
 - "Dismiss" button: remove flag only
 - On PATCH success: card disappears, EntriesContext updates entry in-place
 
 **Open-edit** — `TYPE_MISMATCH`, `TITLE_POOR`, `CONTENT_WEAK`
+
 - Shows entry title + reason + what to fix
 - "Edit" button: calls `onSelectEntry(entry)` to open detail modal
 - "Dismiss" button: remove flag only
 - On entry save: `update-entry` clears `audit_flags` automatically (content changed)
 
 **Split** — `SPLIT_SUGGESTED`
+
 - Shows entry title + suggested split description
 - "Preview" button: POST `/api/llm` with existing `QA_PARSE` / split prompt → parse response using existing `parseAISplitResponse()` from `src/lib/fileSplitter.ts`
 - Inline preview expands showing N proposed entries (title + type each)
@@ -93,6 +108,7 @@ interface AuditFlag {
 - On confirm success: original removed from EntriesContext, N new entries added
 
 **Merge** — `MERGE_SUGGESTED`
+
 - Reuses existing merge card JSX (tertiary colour scheme, Ignore/Merge buttons, `pendingMergeAction` flow)
 - Audit flag shape differs from `MergeSuggestion` — transform before passing to handlers:
   ```ts
@@ -144,15 +160,15 @@ User action
 
 ## Error Handling
 
-| Failure | Behaviour |
-|---|---|
-| Audit API fails | Silent — section hidden, `audit_run_at` not written (retries next load) |
-| Gemini returns invalid JSON | Return `[]` — no flags written, no crash |
-| Hallucinated entryId in response | Filtered out before writing (same guard as merge suggestions) |
-| Auto-apply PATCH fails | Toast "Couldn't apply fix. Try again." — flag stays |
-| Split preview LLM fails | Inline error "Couldn't generate preview. Try again." |
-| Split save fails | Toast "Split failed. Try again." — original entry untouched |
-| Dismiss PATCH fails | Toast "Couldn't dismiss. Try again." — flag stays visible |
+| Failure                          | Behaviour                                                               |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| Audit API fails                  | Silent — section hidden, `audit_run_at` not written (retries next load) |
+| Gemini returns invalid JSON      | Return `[]` — no flags written, no crash                                |
+| Hallucinated entryId in response | Filtered out before writing (same guard as merge suggestions)           |
+| Auto-apply PATCH fails           | Toast "Couldn't apply fix. Try again." — flag stays                     |
+| Split preview LLM fails          | Inline error "Couldn't generate preview. Try again."                    |
+| Split save fails                 | Toast "Split failed. Try again." — original entry untouched             |
+| Dismiss PATCH fails              | Toast "Couldn't dismiss. Try again." — flag stays visible               |
 
 ## Testing
 
@@ -163,12 +179,12 @@ User action
 
 ## Files to Create / Modify
 
-| File | Change |
-|---|---|
-| `api/entries.ts` | Add `handleAudit()` function, dispatch on `resource=audit` |
-| `api/_lib/prompts.ts` | Add `ENTRY_AUDIT` to `SERVER_PROMPTS` |
-| `api/vercel.json` or `vercel.json` | Add rewrite `/api/audit → /api/entries?resource=audit` |
-| `src/views/FeedView.tsx` | Auto-run logic, "Consider fixing" section, all card variants, action handlers |
-| `src/lib/enrichEntry.ts` | No change needed — audit is separate from enrichment |
-| `api/entries.ts` (update handler) | Clear `audit_flags` on content/title/type change |
-| `src/config/prompts.ts` | Remove `ENTRY_AUDIT` (moved to server) |
+| File                               | Change                                                                        |
+| ---------------------------------- | ----------------------------------------------------------------------------- |
+| `api/entries.ts`                   | Add `handleAudit()` function, dispatch on `resource=audit`                    |
+| `api/_lib/prompts.ts`              | Add `ENTRY_AUDIT` to `SERVER_PROMPTS`                                         |
+| `api/vercel.json` or `vercel.json` | Add rewrite `/api/audit → /api/entries?resource=audit`                        |
+| `src/views/FeedView.tsx`           | Auto-run logic, "Consider fixing" section, all card variants, action handlers |
+| `src/lib/enrichEntry.ts`           | No change needed — audit is separate from enrichment                          |
+| `api/entries.ts` (update handler)  | Clear `audit_flags` on content/title/type change                              |
+| `src/config/prompts.ts`            | Remove `ENTRY_AUDIT` (moved to server)                                        |

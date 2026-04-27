@@ -39,7 +39,11 @@ describe("useSubscription", () => {
   it("returns free tier when user_profiles has tier=free", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "user_profiles")
-        return makeQueryBuilder({ tier: "free", tier_expires_at: null, stripe_subscription_id: null });
+        return makeQueryBuilder({
+          tier: "free",
+          tier_expires_at: null,
+          stripe_subscription_id: null,
+        });
       return makeQueryBuilder(null);
     });
     const { result } = renderHook(() => useSubscription());

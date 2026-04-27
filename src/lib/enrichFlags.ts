@@ -23,7 +23,8 @@ interface EnrichmentFlags {
 export function flagsOf(entry: Entry): EnrichmentFlags {
   const meta = (entry.metadata as any) ?? {};
   const enr = meta.enrichment ?? {};
-  const embeddingStatus = ((entry as any).embedding_status as EnrichmentFlags["embedding_status"]) ?? null;
+  const embeddingStatus =
+    ((entry as any).embedding_status as EnrichmentFlags["embedding_status"]) ?? null;
   return {
     parsed: enr.parsed === true,
     has_insight: enr.has_insight === true,

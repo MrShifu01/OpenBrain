@@ -43,7 +43,9 @@ describe("buildSystemPrompt", () => {
     });
     // Guide wraps the context-prefixed task. Stripping the context from
     // inside the [Task] block leaves the original base.
-    expect(result.startsWith("[Classification Guide]\nUse types: note, task.\n\n[Task]\n[Context]\n")).toBe(true);
+    expect(
+      result.startsWith("[Classification Guide]\nUse types: note, task.\n\n[Task]\n[Context]\n"),
+    ).toBe(true);
     expect(result.endsWith("Classify this.")).toBe(true);
   });
 

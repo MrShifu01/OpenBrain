@@ -57,11 +57,7 @@ export default function ViewError({ view, error, onReset }: ViewErrorProps) {
         >
           {error.message || "Unknown error"}
         </p>
-        <button
-          type="button"
-          onClick={onReset}
-          className="design-btn-primary press"
-        >
+        <button type="button" onClick={onReset} className="design-btn-primary press">
           Try again
         </button>
       </div>

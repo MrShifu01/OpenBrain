@@ -86,7 +86,9 @@ function PlanCard({
         padding: "14px 16px",
         borderRadius: 12,
         border: `1px solid ${highlight ? accent : "var(--line)"}`,
-        background: highlight ? `color-mix(in oklch, ${accent} 8%, var(--surface))` : "var(--surface)",
+        background: highlight
+          ? `color-mix(in oklch, ${accent} 8%, var(--surface))`
+          : "var(--surface)",
         cursor: "pointer",
         textAlign: "left",
         gap: 12,
@@ -148,12 +150,21 @@ export default function BillingTab() {
     }
   }, []);
 
-  const tierLabel = tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Free";
-  const tierColor = tier === "max" || tier === "pro" ? "var(--ember)" : tier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
+  const tierLabel =
+    tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Free";
+  const tierColor =
+    tier === "max" || tier === "pro"
+      ? "var(--ember)"
+      : tier === "starter"
+        ? "var(--moss)"
+        : "var(--ink-ghost)";
 
   if (isLoading) {
     return (
-      <div className="f-sans" style={{ fontSize: 13, color: "var(--ink-faint)", padding: "24px 0" }}>
+      <div
+        className="f-sans"
+        style={{ fontSize: 13, color: "var(--ink-faint)", padding: "24px 0" }}
+      >
         Loading billing info…
       </div>
     );
@@ -179,7 +190,10 @@ export default function BillingTab() {
           {tierLabel}
         </span>
         {renewalDate && tier !== "free" && (
-          <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}>
+          <span
+            className="f-sans"
+            style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}
+          >
             expires {new Date(renewalDate).toLocaleDateString()}
           </span>
         )}
@@ -210,10 +224,20 @@ export default function BillingTab() {
           >
             Usage this month
           </div>
-          <UsageMeter label="Captures"     used={usage.captures} limit={limits.captures} pct={pct.captures} />
-          <UsageMeter label="Chats"        used={usage.chats}    limit={limits.chats}    pct={pct.chats}    />
-          <UsageMeter label="Voice notes"  used={usage.voice}    limit={limits.voice}    pct={pct.voice}    />
-          <UsageMeter label="Improve scans" used={usage.improve} limit={limits.improve}  pct={pct.improve}  />
+          <UsageMeter
+            label="Captures"
+            used={usage.captures}
+            limit={limits.captures}
+            pct={pct.captures}
+          />
+          <UsageMeter label="Chats" used={usage.chats} limit={limits.chats} pct={pct.chats} />
+          <UsageMeter label="Voice notes" used={usage.voice} limit={limits.voice} pct={pct.voice} />
+          <UsageMeter
+            label="Improve scans"
+            used={usage.improve}
+            limit={limits.improve}
+            pct={pct.improve}
+          />
         </div>
       )}
 
@@ -294,17 +318,23 @@ export default function BillingTab() {
           </thead>
           <tbody>
             {[
-              { label: "Price",           free: "$0",  starter: "$4.99/mo", pro: "$9.99/mo" },
-              { label: "Raw capture",     free: "✓",   starter: "✓",         pro: "✓"       },
-              { label: "BYOK AI",         free: "✓",   starter: "✓",         pro: "✓"       },
-              { label: "Platform AI",     free: "—",   starter: "✓",         pro: "✓"       },
-              { label: "Captures / mo",   free: "—",   starter: "500",        pro: "2 000"  },
-              { label: "Chats / mo",      free: "—",   starter: "200",        pro: "1 000"  },
-              { label: "AI models",       free: "—",   starter: "Flash",       pro: "Sonnet" },
-              { label: "All features",    free: "—",   starter: "—",          pro: "✓"      },
+              { label: "Price", free: "$0", starter: "$4.99/mo", pro: "$9.99/mo" },
+              { label: "Raw capture", free: "✓", starter: "✓", pro: "✓" },
+              { label: "BYOK AI", free: "✓", starter: "✓", pro: "✓" },
+              { label: "Platform AI", free: "—", starter: "✓", pro: "✓" },
+              { label: "Captures / mo", free: "—", starter: "500", pro: "2 000" },
+              { label: "Chats / mo", free: "—", starter: "200", pro: "1 000" },
+              { label: "AI models", free: "—", starter: "Flash", pro: "Sonnet" },
+              { label: "All features", free: "—", starter: "—", pro: "✓" },
             ].map((row, i) => (
-              <tr key={row.label} style={{ background: i % 2 === 0 ? "transparent" : "var(--surface-high)" }}>
-                <td className="f-sans" style={{ padding: "9px 14px", fontSize: 12, color: "var(--ink-soft)" }}>
+              <tr
+                key={row.label}
+                style={{ background: i % 2 === 0 ? "transparent" : "var(--surface-high)" }}
+              >
+                <td
+                  className="f-sans"
+                  style={{ padding: "9px 14px", fontSize: 12, color: "var(--ink-soft)" }}
+                >
                   {row.label}
                 </td>
                 {(["free", "starter", "pro"] as const).map((t) => (
@@ -315,7 +345,12 @@ export default function BillingTab() {
                       padding: "9px 14px",
                       fontSize: 12,
                       textAlign: "center",
-                      color: row[t] === "—" ? "var(--ink-ghost)" : row[t] === "✓" ? "var(--moss)" : "var(--ink)",
+                      color:
+                        row[t] === "—"
+                          ? "var(--ink-ghost)"
+                          : row[t] === "✓"
+                            ? "var(--moss)"
+                            : "var(--ink)",
                       fontWeight: t === tier ? 600 : 400,
                     }}
                   >

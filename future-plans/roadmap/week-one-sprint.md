@@ -21,6 +21,7 @@
 > Reference: `pricing-strategy.md` for tier limits and per-action cost math.
 
 - [ ] **Database migration.** Create `user_usage` table:
+
   ```sql
   CREATE TABLE user_usage (
     user_id uuid REFERENCES auth.users(id),
@@ -32,6 +33,7 @@
     PRIMARY KEY (user_id, period)
   );
   ```
+
   Add `tier` column (`free | starter | pro`) to `user_profiles`. Track migrations in git under `supabase/migrations/`.
 
 - [ ] **Build `lib/usage.ts` helper.** `checkAndIncrement(userId, action)` returns `{ allowed, remaining }`. Call from `api/capture`, `api/chat`, `api/voice`, `api/improve`. Blocks with 429 if over tier limit.

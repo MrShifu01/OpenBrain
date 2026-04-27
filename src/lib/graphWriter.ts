@@ -32,4 +32,3 @@ export function writeConceptsToGraph(brainId: string, incoming: ConceptGraph): P
     await saveGraphToDB(brainId, merged);
   });
 }
-

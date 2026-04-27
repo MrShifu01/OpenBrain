@@ -14,18 +14,18 @@ Add Stripe-backed subscription billing to EverionMind. Users sign up to one of t
 
 ## Tiers
 
-| | Free | Starter | Pro |
-|---|---|---|---|
-| Price | $0 | $4.99 / mo | $9.99 / mo |
-| Annual | — | $49.90 / yr | $99.90 / yr |
-| Raw capture & storage | ✓ unlimited | ✓ unlimited | ✓ unlimited |
-| BYOK (own API keys) | ✓ full AI | ✓ full AI | ✓ full AI |
-| Platform AI captures | — | 500 / mo | 2 000 / mo |
-| Platform AI chats | — | 200 / mo | 1 000 / mo |
-| Platform AI voice | — | 20 / mo | 100 / mo |
-| Platform AI improve | — | 20 / mo | unlimited |
-| AI models (platform) | — | Flash / Haiku | Sonnet / GPT-4o |
-| All features unlocked | — | — | ✓ |
+|                       | Free        | Starter       | Pro             |
+| --------------------- | ----------- | ------------- | --------------- |
+| Price                 | $0          | $4.99 / mo    | $9.99 / mo      |
+| Annual                | —           | $49.90 / yr   | $99.90 / yr     |
+| Raw capture & storage | ✓ unlimited | ✓ unlimited   | ✓ unlimited     |
+| BYOK (own API keys)   | ✓ full AI   | ✓ full AI     | ✓ full AI       |
+| Platform AI captures  | —           | 500 / mo      | 2 000 / mo      |
+| Platform AI chats     | —           | 200 / mo      | 1 000 / mo      |
+| Platform AI voice     | —           | 20 / mo       | 100 / mo        |
+| Platform AI improve   | —           | 20 / mo       | unlimited       |
+| AI models (platform)  | —           | Flash / Haiku | Sonnet / GPT-4o |
+| All features unlocked | —           | —             | ✓               |
 
 BYOK users on any tier bypass platform usage checks entirely — their own key is billed directly to them by the provider.
 
@@ -34,12 +34,14 @@ BYOK users on any tier bypass platform usage checks entirely — their own key i
 ## Architecture
 
 ### Stripe Setup
+
 - 3 Stripe products: `everionmind_free`, `everionmind_starter`, `everionmind_pro`
 - Monthly prices: `price_starter_monthly` ($4.99), `price_pro_monthly` ($9.99)
 - Annual prices: `price_starter_annual` ($49.90), `price_pro_annual` ($99.90)
 - Stripe Customer Portal enabled for self-serve plan changes and cancellations
 
 ### Data Flow
+
 ```
 User clicks Upgrade
   → POST /api/user-data?resource=stripe-checkout&plan=starter|pro&interval=month|year
@@ -53,6 +55,7 @@ User clicks Upgrade
 ```
 
 ### 12-Function Constraint
+
 The Vercel Hobby plan limits projects to 12 serverless functions. This project is already at the maximum. Both Stripe handlers (`checkout` and `webhook`) are implemented as `?resource=` sub-handlers inside the existing `api/user-data.ts` — no new top-level API files are created.
 
 A third sub-handler `?resource=stripe-portal` creates a Stripe Customer Portal session for managing subscriptions from Settings.
@@ -216,6 +219,7 @@ Once the frontend `useSubscription()` hook is reading from `user_profiles.tier` 
 All new handlers live inside `api/user-data.ts` as `resource=` branches.
 
 ### `POST ?resource=stripe-checkout`
+
 - Requires auth (`withAuth`)
 - Body: `{ plan: "starter" | "pro", interval: "month" | "year" }`
 - Looks up `stripe_customer_id` from `user_profiles`; creates a Stripe Customer if absent and writes the new ID back
@@ -225,6 +229,7 @@ All new handlers live inside `api/user-data.ts` as `resource=` branches.
 - Returns `{ url: string }`
 
 ### `POST ?resource=stripe-webhook`
+
 - No auth — Stripe-signed payload, verified via `stripe-signature` header + `STRIPE_WEBHOOK_SECRET`
 - Uses service role key for all DB writes (bypasses RLS)
 - Handles:
@@ -238,6 +243,7 @@ All new handlers live inside `api/user-data.ts` as `resource=` branches.
 - Stripe retries on non-2xx — handler is idempotent
 
 ### `POST ?resource=stripe-portal`
+
 - Requires auth
 - Looks up `stripe_customer_id` from `user_profiles` for the authenticated user
 - Creates Stripe Customer Portal session
@@ -245,6 +251,7 @@ All new handlers live inside `api/user-data.ts` as `resource=` branches.
 - `return_url`: `/settings?tab=billing`
 
 ### New Environment Variables
+
 ```
 STRIPE_SECRET_KEY
 STRIPE_WEBHOOK_SECRET
@@ -267,6 +274,7 @@ checkAndIncrement(userId, action, tier, hasByok)
 ```
 
 Logic:
+
 1. `hasByok === true` → `{ allowed: true, remaining: Infinity, pct: 0 }` — BYOK users always pass
 2. `tier === 'free'` → `{ allowed: false, remaining: 0, pct: 100 }` — no platform AI on Free
 3. Otherwise: upsert into `user_usage` for `YYYY-MM` period, increment counter, check against tier limit
@@ -280,8 +288,8 @@ Called at the top of `api/llm.ts`, `api/capture.ts`, and `api/v1.ts` before any 
 
 ```ts
 const LIMITS = {
-  starter: { captures: 500,  chats: 200, voice: 20,  improve: 20       },
-  pro:     { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
+  starter: { captures: 500, chats: 200, voice: 20, improve: 20 },
+  pro: { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
 } as const;
 ```
 
@@ -290,13 +298,16 @@ const LIMITS = {
 ## Frontend
 
 ### New: `src/lib/useSubscription.ts`
+
 Single source of truth for billing state on the client:
+
 - Reads `user_profiles` (tier, stripe_subscription_id, tier_expires_at) and `user_usage` for current period from Supabase
 - Exposes `{ tier, usage, limits, pct, renewalDate, isLoading }`
 - Subscribes to Supabase realtime on `user_profiles` so tier badge updates immediately after webhook fires
 - Used by BillingTab, upgrade prompts, and any feature-gated component — no prop drilling
 
 ### New: `src/components/settings/BillingTab.tsx`
+
 - Current plan badge (Free / Starter / Pro) with renewal date
 - Usage meters: amber/red progress bars for captures, chats, voice, improve — `used / limit`
 - "Upgrade to Starter" / "Upgrade to Pro" buttons → POST checkout → redirect
@@ -305,15 +316,18 @@ Single source of truth for billing state on the client:
 - On `?billing=cancel`: silent no-op (user closed Stripe without paying)
 
 ### Modified: `src/components/settings/AccountTab.tsx`
+
 - Small tier badge (Free / Starter / Pro) next to user email, reads from `useSubscription()`
 - Removes `TierPreviewToggle` from production — the debug widget is no longer needed once real tiers are live
 
 ### Upgrade Prompts
+
 - **90% banner** — amber non-blocking banner at top of the relevant view: "You've used 90% of your monthly chats. Upgrade for more." + "Upgrade" link
 - **100% modal** — blocks the action, shows 3-column plan comparison, "Upgrade" CTA. Includes "Use your own API key instead" escape hatch linking to Settings > Providers
 - Both components read from `useSubscription()` — zero extra fetches
 
 ### Plan Comparison Modal (3 columns)
+
 Checkmarks and usage limits per row. Reused in upgrade-gate modal and in the Billing tab as a visual plan summary.
 
 ---
@@ -355,11 +369,11 @@ Checkmarks and usage limits per row. Reused in upgrade-gate modal and in the Bil
 
 ## Error Handling
 
-| Scenario | Behaviour |
-|---|---|
-| Stripe API down during checkout | Return `502`, show "Payment provider temporarily unavailable" |
-| Webhook signature mismatch | Return `400`, log to Sentry, do nothing |
-| `checkAndIncrement` DB failure | Fail open — allow the action, log to Sentry |
-| Subscription cancelled mid-period | `tier_expires_at` set to period end — user keeps access until then |
-| User deletes account | `ON DELETE CASCADE` on `user_profiles` and `user_usage` cleans up all rows |
-| Duplicate webhook delivery | Idempotent — `UPDATE` on same state is a no-op |
+| Scenario                          | Behaviour                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------- |
+| Stripe API down during checkout   | Return `502`, show "Payment provider temporarily unavailable"              |
+| Webhook signature mismatch        | Return `400`, log to Sentry, do nothing                                    |
+| `checkAndIncrement` DB failure    | Fail open — allow the action, log to Sentry                                |
+| Subscription cancelled mid-period | `tier_expires_at` set to period end — user keeps access until then         |
+| User deletes account              | `ON DELETE CASCADE` on `user_profiles` and `user_usage` cleans up all rows |
+| Duplicate webhook delivery        | Idempotent — `UPDATE` on same state is a no-op                             |

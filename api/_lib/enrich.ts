@@ -230,7 +230,9 @@ async function stepConcepts(entry: Entry, cfg: AICall): Promise<Record<string, a
   const parsed = candidate ? ConceptResultSchema.safeParse(candidate) : null;
   return {
     ...meta,
-    ...(parsed?.success && parsed.data.concepts.length > 0 ? { concepts: parsed.data.concepts } : {}),
+    ...(parsed?.success && parsed.data.concepts.length > 0
+      ? { concepts: parsed.data.concepts }
+      : {}),
     enrichment: { ...(meta.enrichment ?? {}), concepts_extracted: true },
   };
 }
@@ -243,7 +245,11 @@ interface EmbedConfig {
   model: string;
 }
 
-function buildEntryText(entry: { title: string; content: string | null; tags: string[] | null }): string {
+function buildEntryText(entry: {
+  title: string;
+  content: string | null;
+  tags: string[] | null;
+}): string {
   const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
   return `${entry.title}${tagStr}\n${entry.content ?? ""}`.trim();
 }
@@ -298,32 +304,26 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
   const text = buildEntryText(entry);
   if (!text) {
     // No content to embed — mark done so we don't retry forever.
-    await fetch(
-      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`,
-      {
-        method: "PATCH",
-        headers: { ...SB_HDR, Prefer: "return=minimal" },
-        body: JSON.stringify({ embedding_status: "done", embedded_at: new Date().toISOString() }),
-      },
-    );
+    await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+      method: "PATCH",
+      headers: { ...SB_HDR, Prefer: "return=minimal" },
+      body: JSON.stringify({ embedding_status: "done", embedded_at: new Date().toISOString() }),
+    });
     return;
   }
   try {
     const values = await generateEmbedding(text, embed);
-    const r = await fetch(
-      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`,
-      {
-        method: "PATCH",
-        headers: { ...SB_HDR, Prefer: "return=minimal" },
-        body: JSON.stringify({
-          embedding: `[${values.join(",")}]`,
-          embedded_at: new Date().toISOString(),
-          embedding_provider: embed.provider === "gemini" ? "google" : "openai",
-          embedding_model: embed.model,
-          embedding_status: "done",
-        }),
-      },
-    );
+    const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+      method: "PATCH",
+      headers: { ...SB_HDR, Prefer: "return=minimal" },
+      body: JSON.stringify({
+        embedding: `[${values.join(",")}]`,
+        embedded_at: new Date().toISOString(),
+        embedding_provider: embed.provider === "gemini" ? "google" : "openai",
+        embedding_model: embed.model,
+        embedding_status: "done",
+      }),
+    });
     if (!r.ok) {
       // Without this, a PostgREST 400 (e.g. dim mismatch, RLS reject, schema
       // drift) is swallowed — the response object resolves normally but the
@@ -332,14 +332,11 @@ async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
     }
   } catch (err: any) {
     console.error("[enrich:embed]", err?.message ?? err);
-    await fetch(
-      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`,
-      {
-        method: "PATCH",
-        headers: { ...SB_HDR, Prefer: "return=minimal" },
-        body: JSON.stringify({ embedding_status: "failed" }),
-      },
-    ).catch(() => {});
+    await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
+      method: "PATCH",
+      headers: { ...SB_HDR, Prefer: "return=minimal" },
+      body: JSON.stringify({ embedding_status: "failed" }),
+    }).catch(() => {});
   }
 }
 
@@ -409,8 +406,8 @@ async function stepPersonaExtract(
   // dedup check sees them. A spread copy here would silently break dedup
   // across entries — every "User lives in Bloemfontein" emitted by a
   // different source entry would slip through.
-  const existing: number[][] = precomputed?.existingEmbeddings
-    ?? await fetchActivePersonaEmbeddings(userId, brainId);
+  const existing: number[][] =
+    precomputed?.existingEmbeddings ?? (await fetchActivePersonaEmbeddings(userId, brainId));
 
   for (const f of facts) {
     try {
@@ -432,9 +429,7 @@ async function insertExtractedFactDeduped(
 ): Promise<number[] | null> {
   const id = randomUUID();
   const title = fact.fact;
-  const content = fact.evidence
-    ? `${fact.fact}\n\nFrom: "${fact.evidence}"`
-    : fact.fact;
+  const content = fact.evidence ? `${fact.fact}\n\nFrom: "${fact.evidence}"` : fact.fact;
 
   // Generate the new fact's embedding first — we need it for dedup either
   // way. If the API key is missing we skip the dedup check (and embedding).
@@ -524,14 +519,18 @@ function parseEmbedding(raw: number[] | string | null): number[] {
     try {
       const arr = JSON.parse(raw);
       return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   }
   return [];
 }
 
 function cosineSim(a: number[], b: number[]): number {
   if (a.length !== b.length || !a.length) return 0;
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i]! * b[i]!;
     na += a[i]! * a[i]!;
@@ -595,7 +594,12 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
   // source entry's type/tags are NEVER touched; only its metadata is stamped
   // with persona_extracted=true so the step doesn't re-run.
   const brainId = await fetchBrainIdForEntry(entry.id);
-  const stamped = await stepPersonaExtract({ ...entry, metadata: workingMeta }, userId, brainId, null).catch(() => null);
+  const stamped = await stepPersonaExtract(
+    { ...entry, metadata: workingMeta },
+    userId,
+    brainId,
+    null,
+  ).catch(() => null);
   if (stamped) {
     workingMeta = stamped;
     changed = true;
@@ -760,7 +764,7 @@ export async function revertBackfilledPersonaForBrain(
   // adds, never touch already-extracted child facts (those have derived_from).
   const targets = all.filter((e) => {
     const meta = (e.metadata as any) ?? {};
-    if (meta.derived_from) return false;       // a properly-extracted child fact
+    if (meta.derived_from) return false; // a properly-extracted child fact
     if (meta.skip_persona === true) return false;
     const src = String(meta.source || "");
     if (src === "manual" || src === "chat") return false;

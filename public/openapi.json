@@ -5,9 +5,7 @@
     "description": "Access your personal knowledge base. Retrieve memories, check upcoming dates, and save new information.",
     "version": "1.0.0"
   },
-  "servers": [
-    { "url": "https://everionmind.vercel.app" }
-  ],
+  "servers": [{ "url": "https://everionmind.vercel.app" }],
   "paths": {
     "/api/memory/retrieve": {
       "post": {

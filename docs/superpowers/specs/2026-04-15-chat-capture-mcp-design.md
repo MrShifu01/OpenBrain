@@ -31,11 +31,13 @@ Both chat paths (server-side and client-side) must emit a structured tag when in
 ```
 
 Example: user asks "What's my passport number?" → AI responds:
+
 ```
 You haven't saved your passport number yet. Want to add it? [NO_INFO:passport number]
 ```
 
 **Changes to prompts:**
+
 - `api/chat.ts` system prompt (`CHAT_SYSTEM`): add instruction — when a fact is not in retrieved memories, end the response with `[NO_INFO:<topic>]` where topic is the specific thing that's missing (2-5 words, lowercase).
 - `src/config/prompts.ts` `CHAT` string: same instruction added to the existing "If a requested fact is not in MEMORIES" rule.
 
@@ -60,12 +62,12 @@ No new capture UI is built. The existing capture sheet is reused entirely.
 
 ### Files changed
 
-| File | Change |
-|---|---|
-| `api/chat.ts` | Add `[NO_INFO:<topic>]` instruction to `CHAT_SYSTEM` |
-| `src/config/prompts.ts` | Add `[NO_INFO:<topic>]` instruction to `CHAT` prompt |
-| `src/hooks/useChat.ts` | Parse tag, expose `pendingCapture` / `clearPendingCapture` |
-| Chat message component (wherever bubbles are rendered) | Render "Add it" button when `pendingCapture` is set |
+| File                                                   | Change                                                     |
+| ------------------------------------------------------ | ---------------------------------------------------------- |
+| `api/chat.ts`                                          | Add `[NO_INFO:<topic>]` instruction to `CHAT_SYSTEM`       |
+| `src/config/prompts.ts`                                | Add `[NO_INFO:<topic>]` instruction to `CHAT` prompt       |
+| `src/hooks/useChat.ts`                                 | Parse tag, expose `pendingCapture` / `clearPendingCapture` |
+| Chat message component (wherever bubbles are rendered) | Render "Add it" button when `pendingCapture` is set        |
 
 ---
 
@@ -87,15 +89,15 @@ Result: 11 functions. One slot free for `api/mcp.ts`.
 
 New Supabase table: `api_keys`
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | uuid | primary key |
-| `user_id` | uuid | FK to auth.users |
-| `name` | text | user-given label (e.g. "Claude Code") |
-| `key_hash` | text | SHA-256 of the raw key |
-| `created_at` | timestamptz | |
+| Column         | Type        | Notes                                 |
+| -------------- | ----------- | ------------------------------------- |
+| `id`           | uuid        | primary key                           |
+| `user_id`      | uuid        | FK to auth.users                      |
+| `name`         | text        | user-given label (e.g. "Claude Code") |
+| `key_hash`     | text        | SHA-256 of the raw key                |
+| `created_at`   | timestamptz |                                       |
 | `last_used_at` | timestamptz | updated on each authenticated request |
-| `revoked_at` | timestamptz | null = active |
+| `revoked_at`   | timestamptz | null = active                         |
 
 The raw key is never stored. It is shown once at generation time, then discarded.
 
@@ -126,12 +128,12 @@ Implements MCP protocol: JSON-RPC 2.0 over HTTP POST. No streaming required for 
 
 **Tools exposed:**
 
-| Tool | Input | What it does |
-|---|---|---|
-| `list_brains` | none | Returns user's brains (id, name) |
-| `search_entries` | `query: string, brain_id?: string` | Vector search via existing search logic; returns top 10 entries |
-| `get_entry` | `id: string` | Fetches a single entry by ID |
-| `create_entry` | `title: string, content: string, brain_id: string, type?: string, tags?: string[]` | Saves entry directly to Supabase; returns created entry |
+| Tool             | Input                                                                              | What it does                                                    |
+| ---------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `list_brains`    | none                                                                               | Returns user's brains (id, name)                                |
+| `search_entries` | `query: string, brain_id?: string`                                                 | Vector search via existing search logic; returns top 10 entries |
+| `get_entry`      | `id: string`                                                                       | Fetches a single entry by ID                                    |
+| `create_entry`   | `title: string, content: string, brain_id: string, type?: string, tags?: string[]` | Saves entry directly to Supabase; returns created entry         |
 
 `create_entry` writes directly to the entries table (same as the capture pipeline) but skips AI enrichment — Claude Code is already structured, so enrichment is not needed. Type defaults to `"note"` if omitted.
 
@@ -169,16 +171,16 @@ Claude Code can then ask: "Search my EverionMind for my passport number" or "Sav
 
 ### Files changed
 
-| File | Change |
-|---|---|
-| `api/cron.ts` | New — merged cron handler dispatching by `?job=` |
-| `api/cron/purge-trash.ts` | Deleted |
-| `api/cron/gap-analyst.ts` | Deleted |
-| `vercel.json` | Update cron paths to `api/cron?job=purge` and `api/cron?job=gaps` |
-| Supabase | New `api_keys` table + RLS policy (users see only their own keys) |
-| `api/user-data.ts` | Add `?resource=api_keys` GET / POST / DELETE handlers |
-| `api/mcp.ts` | New — MCP server |
-| Settings component | Add "Claude Code Access" section |
+| File                      | Change                                                            |
+| ------------------------- | ----------------------------------------------------------------- |
+| `api/cron.ts`             | New — merged cron handler dispatching by `?job=`                  |
+| `api/cron/purge-trash.ts` | Deleted                                                           |
+| `api/cron/gap-analyst.ts` | Deleted                                                           |
+| `vercel.json`             | Update cron paths to `api/cron?job=purge` and `api/cron?job=gaps` |
+| Supabase                  | New `api_keys` table + RLS policy (users see only their own keys) |
+| `api/user-data.ts`        | Add `?resource=api_keys` GET / POST / DELETE handlers             |
+| `api/mcp.ts`              | New — MCP server                                                  |
+| Settings component        | Add "Claude Code Access" section                                  |
 
 ---
 

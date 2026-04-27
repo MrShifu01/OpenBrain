@@ -87,7 +87,9 @@ export function setAdminPref<K extends keyof AdminPrefs>(key: K, val: AdminPrefs
     window.localStorage.setItem(KEY, JSON.stringify(next));
     // Notify same-tab listeners.
     window.dispatchEvent(new StorageEvent("storage", { key: KEY }));
-  } catch { /* storage full / disabled */ }
+  } catch {
+    /* storage full / disabled */
+  }
 }
 
 export function useAdminPrefs(): AdminPrefs {

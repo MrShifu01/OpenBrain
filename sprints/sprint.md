@@ -12,6 +12,7 @@
 Strip the app down to its core. No code deletion -- feature flags and nav changes only.
 
 ### Task 1.1: Feature-flag multi-brain
+
 - [ ] Add `ENABLE_MULTI_BRAIN` env var (default `false`)
 - [ ] Hide `BrainSwitcher` component behind the flag
 - [ ] Hide `CreateBrainModal` behind the flag
@@ -22,6 +23,7 @@ Strip the app down to its core. No code deletion -- feature flags and nav change
 **Files:** `BrainSwitcher.tsx`, `CreateBrainModal.tsx`, `SettingsView/BrainTab.tsx`, invite API routes
 
 ### Task 1.2: Disable Vault by default
+
 - [ ] Move Vault setup into Settings > Security (not prominent)
 - [ ] Remove VaultIntroModal auto-prompt during chat
 - [ ] Replace blocking passphrase modal with inline "unlock vault" link in chat
@@ -30,6 +32,7 @@ Strip the app down to its core. No code deletion -- feature flags and nav change
 **Files:** `VaultView.tsx`, `VaultIntroModal.tsx`, vault logic in `/api/chat`
 
 ### Task 1.3: Simplify navigation
+
 - [ ] Remove TodoView from nav (tasks become entries with type "task" in grid)
 - [ ] Remove Graph/Concept view from nav
 - [ ] Remove RefineView from nav (output moves to Feed later)
@@ -40,6 +43,7 @@ Strip the app down to its core. No code deletion -- feature flags and nav change
 **Files:** `BottomNav.tsx`, `DesktopSidebar.tsx`, router config
 
 ### Task 1.4: Default AI provider
+
 - [ ] Set Gemini Flash Lite as the default provider for new users
 - [ ] Move provider selector to Settings > Advanced > AI Settings
 - [ ] Hide provider choice from onboarding entirely
@@ -48,6 +52,7 @@ Strip the app down to its core. No code deletion -- feature flags and nav change
 **Files:** `ProvidersTab.tsx`, default provider config, `/api/chat`
 
 ### Phase 1 exit criteria
+
 - [ ] `npm run typecheck` passes
 - [ ] App loads with simplified nav
 - [ ] New user flow has zero decisions before first capture
@@ -60,6 +65,7 @@ Strip the app down to its core. No code deletion -- feature flags and nav change
 Build the three missing pieces that drive daily return + first-session conversion.
 
 ### Task 2.1: Brain Feed (home screen) -- CRITICAL
+
 The Feed is the habit loop engine. Without it, users open the app, see nothing, leave.
 
 - [ ] Create `/api/feed` endpoint:
@@ -82,6 +88,7 @@ The Feed is the habit loop engine. Without it, users open the app, see nothing, 
 **Acceptance:** User opens app → sees personalized feed → taps capture bar → adds entry → returns next day → sees different content.
 
 ### Task 2.2: Guided onboarding -- CRITICAL
+
 Must deliver the "holy shit" moment in under 60 seconds.
 
 - [ ] Replace current `OnboardingModal.tsx` with guided value demo:
@@ -100,6 +107,7 @@ Must deliver the "holy shit" moment in under 60 seconds.
 **Acceptance:** New user signs up → completes onboarding → says "oh that's cool" → captures another thought voluntarily.
 
 ### Task 2.3: Global capture shortcut
+
 - [ ] Add floating capture button visible on every view (not just via nav)
 - [ ] Keyboard shortcut: `Cmd+K` / `Ctrl+K` to open capture from anywhere
 - [ ] Auto-focus text input on open
@@ -110,6 +118,7 @@ Must deliver the "holy shit" moment in under 60 seconds.
 **Files:** `CaptureSheet.tsx`, global keyboard listener, view layouts
 
 ### Task 2.4: Streak + brain stats
+
 - [ ] Add streak tracking to user metadata (consecutive days with at least 1 capture)
 - [ ] Display streak in Feed: "5-day capture streak"
 - [ ] Brain growth stats in Feed: total entries, connections found, insights generated
@@ -118,6 +127,7 @@ Must deliver the "holy shit" moment in under 60 seconds.
 - [ ] Verify: streak increments correctly, resets on missed day, displays in Feed
 
 ### Phase 2 exit criteria
+
 - [ ] Feed shows personalized content for users with entries
 - [ ] Feed shows helpful empty state for new users
 - [ ] Onboarding delivers insight in under 60 seconds
@@ -133,12 +143,14 @@ Must deliver the "holy shit" moment in under 60 seconds.
 Tighten the UX, clean the codebase, test with real humans.
 
 ### Task 3.1: Settings simplification
+
 - [ ] Collapse settings to 2 main tabs: **Profile** and **Advanced**
 - [ ] Profile: name, avatar, notifications, account
 - [ ] Advanced: AI provider, API keys, Security (vault), data export
 - [ ] Verify: settings feel simple, power features are findable but not prominent
 
 ### Task 3.2: Copy and empty states
+
 - [ ] Write clear value-prop copy for:
   - Onboarding screens
   - Feed empty state
@@ -148,6 +160,7 @@ Tighten the UX, clean the codebase, test with real humans.
 - [ ] Consistent voice: direct, warm, not corporate
 
 ### Task 3.3: User testing
+
 - [ ] Test with 3 real users (NOT developers)
 - [ ] Test script:
   1. "Sign up and use this app for 5 minutes"
@@ -158,6 +171,7 @@ Tighten the UX, clean the codebase, test with real humans.
 - [ ] Fix top 3 friction points from testing
 
 ### Task 3.4: Code cleanup
+
 - [ ] `npm run typecheck` -- fix all errors
 - [ ] Run Knip -- remove dead exports/imports created by Phase 1 changes
 - [ ] Verify test suite passes
@@ -165,6 +179,7 @@ Tighten the UX, clean the codebase, test with real humans.
 - [ ] Review Production-security-checklist items (see `future-plans/Production-security-checklist`)
 
 ### Phase 3 exit criteria
+
 - [ ] 3 real users tested, top 3 issues fixed
 - [ ] All empty states have clear copy + CTAs
 - [ ] No typecheck errors, no dead imports, test suite green
@@ -177,6 +192,7 @@ Tighten the UX, clean the codebase, test with real humans.
 Everything needed to go live.
 
 ### Task 4.1: Demo and landing
+
 - [ ] Record 60-second screen recording showing the "holy shit" moment (onboarding flow)
 - [ ] Landing page: set up simple page (separate Vercel project or single-page in this repo)
   - Hero: one sentence + demo video
@@ -185,17 +201,20 @@ Everything needed to go live.
 - [ ] OG image + meta tags for social sharing
 
 ### Task 4.2: Monetization placeholder
+
 - [ ] Add banner in app: "Free during early access -- Starter plan coming soon. Early users get 50% off."
 - [ ] Banner links to nothing yet (or a "notify me" email capture)
 - [ ] Sets user expectation that app will cost money
 
 ### Task 4.3: Monitoring setup
+
 - [ ] Verify Sentry alerts configured for error spikes
 - [ ] Verify Vercel Speed Insights active
 - [ ] Set up a simple uptime check (free tier of any uptime service)
 - [ ] Test: trigger a fake error, confirm Sentry captures it
 
 ### Task 4.4: Launch content
+
 - [ ] Write 3 Twitter/X threads:
   1. "I built a second brain app. Here's what it does." (demo thread)
   2. "The tech stack behind Everion" (developer audience)
@@ -204,6 +223,7 @@ Everything needed to go live.
 - [ ] Identify 5-10 communities to post in (Reddit, Indie Hackers, HN, relevant Discords)
 
 ### Phase 4 exit criteria
+
 - [ ] Demo video recorded and watchable
 - [ ] Landing page live with working CTA
 - [ ] Early access banner visible in app
@@ -215,6 +235,7 @@ Everything needed to go live.
 ## Phase 5: Ship (Days 13-14 / Apr 26-27)
 
 ### Task 5.1: Final checks
+
 - [ ] Full UAT pass: sign up → onboarding → capture → ask → feed → next day feed
 - [ ] Test on mobile (Chrome Android, Safari iOS) + desktop
 - [ ] Test offline capture + sync (existing PWA)
@@ -222,12 +243,14 @@ Everything needed to go live.
 - [ ] Check all env vars set in production Vercel project
 
 ### Task 5.2: Deploy
+
 - [ ] Deploy to production
 - [ ] Smoke test production URL
 - [ ] Verify Sentry receiving production events
 - [ ] Verify analytics tracking
 
 ### Task 5.3: Launch
+
 - [ ] Post Twitter/X threads
 - [ ] Post to communities (stagger over 48 hours, don't spam)
 - [ ] Submit to Product Hunt (schedule for Tuesday/Wednesday morning)
@@ -235,6 +258,7 @@ Everything needed to go live.
 - [ ] Respond to every early user comment/question within 2 hours
 
 ### Phase 5 exit criteria
+
 - [ ] App live in production
 - [ ] First real users signed up
 - [ ] No critical errors in Sentry
@@ -246,17 +270,17 @@ Everything needed to go live.
 
 After ship, work in this order:
 
-| Week | Focus | Key Deliverable |
-|------|-------|----------------|
-| **Week 1-2** | Shareable insight cards | "Share this insight" button → OG-image card → clipboard/social share |
-| **Week 1-2** | Weekly email digest | "Your brain this week: X captures, Y patterns, Z suggestions" |
-| **Week 3-4** | Stripe + Free/Starter tiers | Usage tracking table, tier enforcement, Stripe Checkout |
-| **Week 5-6** | Re-enable multi-brain | For paying users only, remove feature flag for Starter+ |
-| **Week 7-8** | Finance entry type | v0.1 from community-brain-and-finance.md |
-| **Month 3** | Entry enrichment | Manual lookup button per entry |
-| **Month 4** | Community brain | Read-only seed brain |
-| **Month 5** | Voice-RAG optimization | Lower latency, better transcription |
-| **Month 6** | Concept graph relaunch | Unlock at 50+ entries as a "brain growth" reward |
+| Week         | Focus                       | Key Deliverable                                                      |
+| ------------ | --------------------------- | -------------------------------------------------------------------- |
+| **Week 1-2** | Shareable insight cards     | "Share this insight" button → OG-image card → clipboard/social share |
+| **Week 1-2** | Weekly email digest         | "Your brain this week: X captures, Y patterns, Z suggestions"        |
+| **Week 3-4** | Stripe + Free/Starter tiers | Usage tracking table, tier enforcement, Stripe Checkout              |
+| **Week 5-6** | Re-enable multi-brain       | For paying users only, remove feature flag for Starter+              |
+| **Week 7-8** | Finance entry type          | v0.1 from community-brain-and-finance.md                             |
+| **Month 3**  | Entry enrichment            | Manual lookup button per entry                                       |
+| **Month 4**  | Community brain             | Read-only seed brain                                                 |
+| **Month 5**  | Voice-RAG optimization      | Lower latency, better transcription                                  |
+| **Month 6**  | Concept graph relaunch      | Unlock at 50+ entries as a "brain growth" reward                     |
 
 ---
 
@@ -264,15 +288,15 @@ After ship, work in this order:
 
 Track these from day 1:
 
-| Metric | Target (30 days) | How to Measure |
-|--------|-------------------|----------------|
-| **Signups** | 100+ | Supabase auth count |
-| **Day 1 retention** | >40% | Users who return within 24 hours |
-| **Day 7 retention** | >20% | Users active on day 7 |
-| **Onboarding completion** | >70% | Users who finish all 6 steps |
-| **Captures per active user** | >3/day | Entry count / DAU |
-| **Feed opens per active user** | >1/day | Feed view count / DAU |
-| **Streak holders (7+ days)** | >10% of actives | Streak metadata query |
+| Metric                         | Target (30 days) | How to Measure                   |
+| ------------------------------ | ---------------- | -------------------------------- |
+| **Signups**                    | 100+             | Supabase auth count              |
+| **Day 1 retention**            | >40%             | Users who return within 24 hours |
+| **Day 7 retention**            | >20%             | Users active on day 7            |
+| **Onboarding completion**      | >70%             | Users who finish all 6 steps     |
+| **Captures per active user**   | >3/day           | Entry count / DAU                |
+| **Feed opens per active user** | >1/day           | Feed view count / DAU            |
+| **Streak holders (7+ days)**   | >10% of actives  | Streak metadata query            |
 
 If Day 1 retention is below 40%, the onboarding isn't landing -- fix it before anything else.
 If captures per user are below 3/day, the capture UX has too much friction -- simplify further.

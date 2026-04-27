@@ -122,15 +122,17 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   const backScale = 0.94 + Math.min(Math.abs(dragX) / 800, 0.06);
   const backY = 10 - Math.min(Math.abs(dragX) / 50, 10);
   const cardTransition = transitioning
-    ? exiting ? "transform 300ms ease-in" : "transform 350ms cubic-bezier(0.16, 1, 0.3, 1)"
+    ? exiting
+      ? "transform 300ms ease-in"
+      : "transform 350ms cubic-bezier(0.16, 1, 0.3, 1)"
     : "none";
 
   const meta = (current?.metadata ?? {}) as Record<string, any>;
   const urgency = meta.urgency ?? "low";
   const typeLabel = TYPE_LABELS[current?.type ?? ""] ?? current?.type ?? "Gmail";
   const isParsed = meta.enrichment?.parsed === true;
-  const hasInsight = !!(meta.ai_insight) || meta.enrichment?.has_insight === true;
-  const isEmbedded = !!(current?.embedded_at);
+  const hasInsight = !!meta.ai_insight || meta.enrichment?.has_insight === true;
+  const isEmbedded = !!current?.embedded_at;
   const enrichedCount = [isParsed, hasInsight, isEmbedded].filter(Boolean).length;
 
   const overlay: React.CSSProperties = {
@@ -170,20 +172,42 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
         >
           <div
             style={{
-              width: 44, height: 44, borderRadius: "50%",
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
               background: "var(--ember-wash)",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               margin: "0 auto 20px",
             }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M4 10.5l4.5 4.5 7.5-9" stroke="var(--ember)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M4 10.5l4.5 4.5 7.5-9"
+                stroke="var(--ember)"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
-          <h3 className="f-serif" style={{ fontSize: 20, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}>
+          <h3
+            className="f-serif"
+            style={{ fontSize: 20, fontWeight: 450, color: "var(--ink)", margin: "0 0 10px" }}
+          >
             {entries.length === 0 ? "Inbox is clear" : "All reviewed"}
           </h3>
-          <p className="f-serif" style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", lineHeight: 1.6, margin: "0 0 28px" }}>
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 14,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+              lineHeight: 1.6,
+              margin: "0 0 28px",
+            }}
+          >
             {entries.length === 0
               ? "No staged Gmail entries are waiting."
               : "Accepted entries are now in your brain."}
@@ -192,9 +216,15 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
             onClick={onClose}
             className="press f-sans"
             style={{
-              width: "100%", height: 44, borderRadius: 10, border: "none",
-              background: "var(--ember)", color: "var(--ember-ink)",
-              fontSize: 15, fontWeight: 600, cursor: "pointer",
+              width: "100%",
+              height: 44,
+              borderRadius: 10,
+              border: "none",
+              background: "var(--ember)",
+              color: "var(--ember-ink)",
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: "pointer",
             }}
           >
             Done
@@ -229,11 +259,48 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
       )}
 
       {/* Action labels */}
-      <div style={{ position: "absolute", top: "calc(50% - 80px)", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 48px)", maxWidth: 360, display: "flex", justifyContent: "space-between", pointerEvents: "none", zIndex: 10000 }}>
-        <div style={{ opacity: skipOpacity, background: "var(--blood)", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 700, fontFamily: "var(--f-sans)", border: "2px solid var(--blood)" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(50% - 80px)",
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "calc(100% - 48px)",
+          maxWidth: 360,
+          display: "flex",
+          justifyContent: "space-between",
+          pointerEvents: "none",
+          zIndex: 10000,
+        }}
+      >
+        <div
+          style={{
+            opacity: skipOpacity,
+            background: "var(--blood)",
+            color: "#fff",
+            borderRadius: 8,
+            padding: "6px 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "var(--f-sans)",
+            border: "2px solid var(--blood)",
+          }}
+        >
           REJECT
         </div>
-        <div style={{ opacity: keepOpacity, background: "var(--moss)", color: "#fff", borderRadius: 8, padding: "6px 14px", fontSize: 13, fontWeight: 700, fontFamily: "var(--f-sans)", border: "2px solid var(--moss)" }}>
+        <div
+          style={{
+            opacity: keepOpacity,
+            background: "var(--moss)",
+            color: "#fff",
+            borderRadius: 8,
+            padding: "6px 14px",
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "var(--f-sans)",
+            border: "2px solid var(--moss)",
+          }}
+        >
           ACCEPT
         </div>
       </div>
@@ -262,7 +329,14 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
         }}
       >
         {/* Counter + enrichment status */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
           <span style={{ fontSize: 12, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
             {index + 1} / {entries.length}
           </span>
@@ -273,24 +347,58 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
         {/* Type + urgency */}
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "var(--f-sans)", color: "var(--bg)", background: "var(--ember)", borderRadius: 5, padding: "2px 8px" }}>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: "var(--f-sans)",
+              color: "var(--bg)",
+              background: "var(--ember)",
+              borderRadius: 5,
+              padding: "2px 8px",
+            }}
+          >
             {typeLabel}
           </span>
           {urgency !== "low" && (
-            <span style={{ fontSize: 11, fontFamily: "var(--f-sans)", color: URGENCY_COLORS[urgency] ?? "var(--ink-faint)", fontWeight: 600 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--f-sans)",
+                color: URGENCY_COLORS[urgency] ?? "var(--ink-faint)",
+                fontWeight: 600,
+              }}
+            >
               {urgency.toUpperCase()}
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="f-serif" style={{ fontSize: 17, fontWeight: 500, color: "var(--ink)", margin: "0 0 8px", lineHeight: 1.35 }}>
+        <h3
+          className="f-serif"
+          style={{
+            fontSize: 17,
+            fontWeight: 500,
+            color: "var(--ink)",
+            margin: "0 0 8px",
+            lineHeight: 1.35,
+          }}
+        >
           {current.title}
         </h3>
 
         {/* Content */}
         {current.content && (
-          <p style={{ fontSize: 13, color: "var(--ink-muted)", margin: "0 0 14px", lineHeight: 1.55, fontFamily: "var(--f-sans)" }}>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--ink-muted)",
+              margin: "0 0 14px",
+              lineHeight: 1.55,
+              fontFamily: "var(--f-sans)",
+            }}
+          >
             {current.content.slice(0, 180)}
           </p>
         )}
@@ -300,15 +408,52 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           <div style={{ display: "flex", gap: 16, marginBottom: 14 }}>
             {meta.amount && (
               <div>
-                <div style={{ fontSize: 10, color: "var(--ink-faint)", fontFamily: "var(--f-sans)", marginBottom: 2 }}>AMOUNT</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", fontFamily: "var(--f-sans)" }}>{meta.amount}</div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "var(--ink-faint)",
+                    fontFamily: "var(--f-sans)",
+                    marginBottom: 2,
+                  }}
+                >
+                  AMOUNT
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "var(--ink)",
+                    fontFamily: "var(--f-sans)",
+                  }}
+                >
+                  {meta.amount}
+                </div>
               </div>
             )}
             {meta.due_date && (
               <div>
-                <div style={{ fontSize: 10, color: "var(--ink-faint)", fontFamily: "var(--f-sans)", marginBottom: 2 }}>DUE</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: urgency === "high" ? "var(--blood)" : "var(--ink)", fontFamily: "var(--f-sans)" }}>
-                  {new Date(meta.due_date).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "var(--ink-faint)",
+                    fontFamily: "var(--f-sans)",
+                    marginBottom: 2,
+                  }}
+                >
+                  DUE
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: urgency === "high" ? "var(--blood)" : "var(--ink)",
+                    fontFamily: "var(--f-sans)",
+                  }}
+                >
+                  {new Date(meta.due_date).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "short",
+                  })}
                 </div>
               </div>
             )}
@@ -317,7 +462,17 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
         {/* Sender */}
         {meta.gmail_from && (
-          <div style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-sans)", marginBottom: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              fontFamily: "var(--f-sans)",
+              marginBottom: 16,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
             {meta.gmail_from}
           </div>
         )}
@@ -327,21 +482,49 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           <button
             onClick={() => triggerReject(index)}
             className="press f-sans"
-            style={{ flex: 1, height: 40, borderRadius: 10, border: "1.5px solid var(--line-soft)", background: "transparent", color: "var(--ink-faint)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: 10,
+              border: "1.5px solid var(--line-soft)",
+              background: "transparent",
+              color: "var(--ink-faint)",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
             Reject
           </button>
           <button
             onClick={() => triggerAccept(index)}
             className="press f-sans"
-            style={{ flex: 1, height: 40, borderRadius: 10, border: "none", background: "var(--ember)", color: "var(--ember-ink)", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: 10,
+              border: "none",
+              background: "var(--ember)",
+              color: "var(--ember-ink)",
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
             Accept
           </button>
         </div>
 
         {/* Swipe hint */}
-        <p style={{ textAlign: "center", fontSize: 11, color: "var(--ink-ghost)", fontFamily: "var(--f-sans)", margin: "12px 0 0" }}>
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: 11,
+            color: "var(--ink-ghost)",
+            fontFamily: "var(--f-sans)",
+            margin: "12px 0 0",
+          }}
+        >
           swipe right to accept · swipe left to reject
         </p>
       </div>

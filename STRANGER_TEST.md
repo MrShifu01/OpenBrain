@@ -11,6 +11,7 @@ before strangers do at scale. Total time: ~15 min per person.
 - Stop after 15 minutes even if you didn't finish. The stuck points are the data.
 
 When you're done, send me:
+
 1. The screen recording
 2. The 4 wrap-up answers below
 3. Anything else you noticed
@@ -50,6 +51,7 @@ Type your answers, no need to be polite:
 ## What I'm watching for (don't read this beforehand — for the host)
 
 Friction signals when reviewing the recording:
+
 - Hesitation before any click >3s
 - Going back to a previous screen
 - Hovering on something they didn't click
@@ -58,6 +60,7 @@ Friction signals when reviewing the recording:
 - Bailing on a task
 
 Severity calls:
+
 - **Blocker** — they couldn't complete the task. Fix before launch.
 - **Friction** — they completed it but were confused. Fix before scale.
 - **Polish** — finished cleanly but mentioned it. Backlog.

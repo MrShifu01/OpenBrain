@@ -15,6 +15,7 @@
 `aiFetch.ts` mixes three concerns: (1) localStorage get/set for AI config, (2) embed-header generation, and (3) the `aiFetch()` HTTP helper. Every module that needs a header or a key must import the whole file. Split it so each concern has a clear home.
 
 **Files:**
+
 - Create: `src/lib/aiSettings.ts`
 - Modify: `src/lib/aiFetch.ts` (keep only `aiFetch()`)
 - Modify: `src/lib/ai.ts` (update import source)
@@ -86,8 +87,14 @@ try {
     const uid: string | null = data?.user?.id || null;
     if (uid) {
       for (const suffix of [
-        "api_key", "model", "provider", "openrouter_key",
-        "openrouter_model", "embed_provider", "embed_openai_key", "gemini_key",
+        "api_key",
+        "model",
+        "provider",
+        "openrouter_key",
+        "openrouter_model",
+        "embed_provider",
+        "embed_openai_key",
+        "gemini_key",
       ]) {
         const oldKey = `openbrain_${uid}_${suffix}`;
         const newKey = `${P}${suffix}`;
@@ -97,7 +104,9 @@ try {
       }
     }
   }
-} catch { /* ignore */ }
+} catch {
+  /* ignore */
+}
 
 export function getUserId(): string | null {
   try {
@@ -106,7 +115,9 @@ export function getUserId(): string | null {
       const data = JSON.parse(localStorage.getItem(key)!);
       return data?.user?.id || null;
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
@@ -337,6 +348,7 @@ git commit -m "refactor: extract aiSettings.ts — split mixed concerns out of a
 There is also a latent casing bug: `searchIndex.ts` checks `headers?.["x-embed-key"]` (lowercase) but `getEmbedHeaders()` returns `"X-Embed-Key"` (capitalised). This phase fixes that too.
 
 **Files:**
+
 - Create: `src/lib/semanticSearch.ts`
 - Modify: `src/lib/searchIndex.ts` (remove `semanticSearch`)
 - Modify: `tests/lib/semanticSearch.test.ts` (update import path)
@@ -435,9 +447,7 @@ export async function semanticSearch(
         const data = await res.json();
         if (!data.fallback && Array.isArray(data.results)) {
           const byId = new Map(entries.map((e) => [e.id, e]));
-          return data.results
-            .map((r: { id: string }) => byId.get(r.id) ?? r)
-            .filter(Boolean);
+          return data.results.map((r: { id: string }) => byId.get(r.id) ?? r).filter(Boolean);
         }
       }
     } catch {
@@ -474,13 +484,13 @@ npx grep -r "semanticSearch" src/ --include="*.ts" --include="*.tsx" -l
 For each file, change:
 
 ```ts
-import { semanticSearch } from "./searchIndex";      // or relative path
+import { semanticSearch } from "./searchIndex"; // or relative path
 ```
 
 To:
 
 ```ts
-import { semanticSearch } from "./semanticSearch";   // adjust path
+import { semanticSearch } from "./semanticSearch"; // adjust path
 ```
 
 - [ ] **Step 7: Run the full suite**
@@ -505,6 +515,7 @@ git commit -m "refactor: extract semanticSearch.ts and fix embed-header casing b
 `callAI()` in `ai.ts` silently appends learnings to every system prompt when `brainId` is provided. Callers cannot see this happening, cannot test it without mocking `learningEngine`, and cannot control it. `systemPromptBuilder.ts` makes the composition explicit and pure.
 
 **Files:**
+
 - Create: `src/lib/systemPromptBuilder.ts`
 - Create: `tests/lib/systemPromptBuilder.test.ts`
 - Modify: `src/lib/ai.ts` (use the builder)
@@ -541,10 +552,11 @@ describe("buildSystemPrompt", () => {
   });
 
   it("prepends memory guide in Classification Guide / Task format", () => {
-    const result = buildSystemPrompt({ base: "Classify this.", memoryGuide: "Use types: note, task." });
-    expect(result).toBe(
-      "[Classification Guide]\nUse types: note, task.\n\n[Task]\nClassify this.",
-    );
+    const result = buildSystemPrompt({
+      base: "Classify this.",
+      memoryGuide: "Use types: note, task.",
+    });
+    expect(result).toBe("[Classification Guide]\nUse types: note, task.\n\n[Task]\nClassify this.");
   });
 
   it("appends learnings block when brainId is provided and learnings exist", () => {
@@ -603,7 +615,11 @@ export interface SystemPromptOptions {
   brainId?: string;
 }
 
-export function buildSystemPrompt({ base = "", memoryGuide, brainId }: SystemPromptOptions): string {
+export function buildSystemPrompt({
+  base = "",
+  memoryGuide,
+  brainId,
+}: SystemPromptOptions): string {
   let prompt = base;
 
   if (memoryGuide) {
@@ -684,6 +700,7 @@ git commit -m "refactor: extract systemPromptBuilder — make learning injection
 localStorage keys are hardcoded as strings in 8 modules. A typo silently reads `undefined`. This phase adds a single source-of-truth for all key names. No behaviour changes — pure rename/centralise.
 
 **Files:**
+
 - Create: `src/lib/storageKeys.ts`
 - Modify: `src/lib/aiSettings.ts`
 - Modify: `src/lib/offlineQueue.ts`
@@ -745,20 +762,20 @@ Expected: FAIL — `Cannot find module '../../src/lib/storageKeys'`
 const P = "openbrain_";
 
 export const KEYS = {
-  AI_API_KEY:        `${P}api_key`,
-  AI_MODEL:          `${P}model`,
-  AI_PROVIDER:       `${P}provider`,
-  OPENROUTER_KEY:    `${P}openrouter_key`,
-  OPENROUTER_MODEL:  `${P}openrouter_model`,
-  GROQ_KEY:          `${P}groq_key`,
-  EMBED_PROVIDER:    `${P}embed_provider`,
-  EMBED_OPENAI_KEY:  `${P}embed_openai_key`,
-  GEMINI_KEY:        `${P}gemini_key`,
-  OFFLINE_QUEUE:     `${P}queue`,
-  ENTRIES_CACHE:     `${P}entries`,
+  AI_API_KEY: `${P}api_key`,
+  AI_MODEL: `${P}model`,
+  AI_PROVIDER: `${P}provider`,
+  OPENROUTER_KEY: `${P}openrouter_key`,
+  OPENROUTER_MODEL: `${P}openrouter_model`,
+  GROQ_KEY: `${P}groq_key`,
+  EMBED_PROVIDER: `${P}embed_provider`,
+  EMBED_OPENAI_KEY: `${P}embed_openai_key`,
+  GEMINI_KEY: `${P}gemini_key`,
+  OFFLINE_QUEUE: `${P}queue`,
+  ENTRIES_CACHE: `${P}entries`,
   learningDecisions: (brainId: string) => `${P}learning_decisions:${brainId}`,
-  learningSummary:   (brainId: string) => `${P}learning_summary:${brainId}`,
-  taskModel:         (task: string)    => `${P}task_${task}`,
+  learningSummary: (brainId: string) => `${P}learning_summary:${brainId}`,
+  taskModel: (task: string) => `${P}task_${task}`,
 } as const;
 ```
 
@@ -782,7 +799,7 @@ Add at the top:
 import { KEYS } from "./storageKeys";
 ```
 
-Then replace every `\`${P}...\`` literal with the matching `KEYS.*` constant. Examples:
+Then replace every `\`${P}...\``literal with the matching`KEYS.\*` constant. Examples:
 
 ```ts
 // Before
@@ -817,8 +834,9 @@ import { KEYS } from "./storageKeys";
 ```
 
 Replace:
-- `\`${DECISIONS_KEY}:${brainId}\`` → `KEYS.learningDecisions(brainId)`
-- `\`${LEARNINGS_KEY}:${brainId}\`` → `KEYS.learningSummary(brainId)`
+
+- `\`${DECISIONS_KEY}:${brainId}\``→`KEYS.learningDecisions(brainId)`
+- `\`${LEARNINGS_KEY}:${brainId}\``→`KEYS.learningSummary(brainId)`
 
 Remove the `DECISIONS_KEY` and `LEARNINGS_KEY` const declarations once replaced.
 
@@ -856,6 +874,7 @@ git commit -m "refactor: centralise localStorage keys in storageKeys.ts"
 The frontend routes to `/api/anthropic`, `/api/openai`, or `/api/openrouter` based on `getUserProvider()`. Adding a new provider means touching `ai.ts`, `aiFetch.ts`, and creating a new handler. A single `/api/ai` endpoint that accepts an `X-Provider` header moves routing to the server and gives all providers one entry point.
 
 **Files:**
+
 - Create: `api/ai.ts`
 - Create: `tests/api/ai.test.ts`
 - Modify: `src/lib/ai.ts` (always send to `/api/ai`, add `X-Provider` header)
@@ -878,7 +897,7 @@ function makeReq(overrides: Record<string, unknown> = {}) {
     method: "POST",
     headers: {
       "x-provider": "anthropic",
-      "authorization": "Bearer test-token",
+      authorization: "Bearer test-token",
       "content-type": "application/json",
     },
     body: {
@@ -894,9 +913,17 @@ function makeReq(overrides: Record<string, unknown> = {}) {
 
 function makeRes() {
   const res: any = { _status: 200, _body: null, _headers: {} };
-  res.status = (code: number) => { res._status = code; return res; };
-  res.json = (body: unknown) => { res._body = body; return res; };
-  res.setHeader = (k: string, v: string) => { res._headers[k] = v; };
+  res.status = (code: number) => {
+    res._status = code;
+    return res;
+  };
+  res.json = (body: unknown) => {
+    res._body = body;
+    return res;
+  };
+  res.setHeader = (k: string, v: string) => {
+    res._headers[k] = v;
+  };
   res.end = () => res;
   return res;
 }
@@ -931,7 +958,10 @@ describe("POST /api/ai", () => {
 
   it("returns 400 for unknown provider", async () => {
     const res = makeRes();
-    await handler(makeReq({ headers: { "x-provider": "unknown", "authorization": "Bearer test-token" } }), res);
+    await handler(
+      makeReq({ headers: { "x-provider": "unknown", authorization: "Bearer test-token" } }),
+      res,
+    );
     expect(res._status).toBe(400);
     expect(res._body.error).toMatch(/unsupported provider/i);
   });
@@ -966,12 +996,15 @@ import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 
 const SUPPORTED_PROVIDERS = ["anthropic", "openai", "openrouter"] as const;
-type Provider = typeof SUPPORTED_PROVIDERS[number];
+type Provider = (typeof SUPPORTED_PROVIDERS)[number];
 
-const HANDLER_MAP: Record<Provider, () => Promise<{ default: (req: ApiRequest, res: ApiResponse) => Promise<void> }>> = {
-  anthropic:   () => import("./anthropic.js"),
-  openai:      () => import("./openai.js"),
-  openrouter:  () => import("./openrouter.js"),
+const HANDLER_MAP: Record<
+  Provider,
+  () => Promise<{ default: (req: ApiRequest, res: ApiResponse) => Promise<void> }>
+> = {
+  anthropic: () => import("./anthropic.js"),
+  openai: () => import("./openai.js"),
+  openrouter: () => import("./openrouter.js"),
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
@@ -1072,6 +1105,7 @@ git commit -m "refactor: add unified /api/ai endpoint — provider routing moves
 `OpenBrain.tsx` is 1591 lines. The entry-save logic (validate → encrypt → enqueue → update cache → record decision) is inline in the component. It cannot be tested without rendering the full app. This phase extracts that logic into `src/lib/entryOps.ts` so it can be tested in isolation.
 
 **Files:**
+
 - Create: `src/lib/entryOps.ts`
 - Create: `tests/lib/entryOps.test.ts`
 - Modify: `src/OpenBrain.tsx` (call `saveEntry` instead of inline logic)
@@ -1279,14 +1313,14 @@ git commit -m "refactor: extract saveEntry into entryOps.ts — entry save logic
 
 ### Spec coverage
 
-| Refactor | Phase | Tasks |
-|---|---|---|
-| Split `aiFetch.ts` | 1 | 1.1, 1.2, 1.3 |
-| Extract `semanticSearch.ts` + casing fix | 2 | 2.1, 2.2, 2.3 |
-| `SystemPromptBuilder` | 3 | 3.1, 3.2, 3.3 |
-| Centralise storage keys | 4 | 4.1, 4.2, 4.3 |
-| Unified `/api/ai` endpoint | 5 | 5.1, 5.2, 5.3 |
-| Extract `saveEntry` | 6 | 6.1, 6.2, 6.3 |
+| Refactor                                 | Phase | Tasks         |
+| ---------------------------------------- | ----- | ------------- |
+| Split `aiFetch.ts`                       | 1     | 1.1, 1.2, 1.3 |
+| Extract `semanticSearch.ts` + casing fix | 2     | 2.1, 2.2, 2.3 |
+| `SystemPromptBuilder`                    | 3     | 3.1, 3.2, 3.3 |
+| Centralise storage keys                  | 4     | 4.1, 4.2, 4.3 |
+| Unified `/api/ai` endpoint               | 5     | 5.1, 5.2, 5.3 |
+| Extract `saveEntry`                      | 6     | 6.1, 6.2, 6.3 |
 
 All 6 candidates covered. Each phase ends with a green test run and a commit.
 

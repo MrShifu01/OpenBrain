@@ -5,7 +5,11 @@ import { ThemeProvider } from "../../src/ThemeContext";
 // Minimal stub of the multi-preview modal structure extracted for testing
 // We test that the save button is NOT inside the scrollable entries container,
 // so it remains visible regardless of how many entries are shown.
-function MultiPreviewModal({ entries, onSave, onCancel }: {
+function MultiPreviewModal({
+  entries,
+  onSave,
+  onCancel,
+}: {
   entries: { title: string; type: string; content: string; tags: string[] }[];
   onSave: () => void;
   onCancel: () => void;
@@ -19,7 +23,9 @@ function MultiPreviewModal({ entries, onSave, onCancel }: {
         </div>
         <div data-testid="entries-scroll-area" style={{ overflowY: "auto" }}>
           {entries.map((entry, i) => (
-            <div key={i} data-testid={`entry-${i}`}>{entry.title}</div>
+            <div key={i} data-testid={`entry-${i}`}>
+              {entry.title}
+            </div>
           ))}
         </div>
         {/* Buttons must be OUTSIDE the scroll area */}
@@ -44,7 +50,7 @@ describe("MultiPreviewModal — save button accessibility", () => {
     render(
       <ThemeProvider>
         <MultiPreviewModal entries={mockEntries} onSave={vi.fn()} onCancel={vi.fn()} />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     expect(screen.getByRole("button", { name: /save 10 entries/i })).toBeInTheDocument();
   });
@@ -53,7 +59,7 @@ describe("MultiPreviewModal — save button accessibility", () => {
     render(
       <ThemeProvider>
         <MultiPreviewModal entries={mockEntries} onSave={vi.fn()} onCancel={vi.fn()} />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     const scrollArea = screen.getByTestId("entries-scroll-area");
     const saveButton = screen.getByRole("button", { name: /save 10 entries/i });
@@ -64,7 +70,7 @@ describe("MultiPreviewModal — save button accessibility", () => {
     render(
       <ThemeProvider>
         <MultiPreviewModal entries={mockEntries} onSave={vi.fn()} onCancel={vi.fn()} />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     const scrollArea = screen.getByTestId("entries-scroll-area");
     const cancelButton = screen.getByRole("button", { name: /cancel/i });
@@ -75,7 +81,7 @@ describe("MultiPreviewModal — save button accessibility", () => {
     render(
       <ThemeProvider>
         <MultiPreviewModal entries={mockEntries} onSave={vi.fn()} onCancel={vi.fn()} />
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     const container = screen.getByTestId("modal-container");
     const scrollArea = screen.getByTestId("entries-scroll-area");
@@ -89,10 +95,13 @@ describe("MultiPreviewModal — save button accessibility", () => {
   it("overlay has bottom padding large enough to clear the bottom nav", () => {
     render(
       <ThemeProvider>
-        <div data-testid="modal-overlay" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}>
+        <div
+          data-testid="modal-overlay"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 96px)" }}
+        >
           <div data-testid="modal-container" />
         </div>
-      </ThemeProvider>
+      </ThemeProvider>,
     );
     const overlay = screen.getByTestId("modal-overlay");
     // paddingBottom style must be set (not zero / not 'p-4' flat 16px)

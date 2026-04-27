@@ -65,7 +65,8 @@ export function parseTask(input: string): ParseResult {
   }
 
   // One-off date (chrono-node) — only if not a monthly recurring
-  const chronoResults = dayOfMonth === null ? chrono.parse(working, new Date(), { forwardDate: true }) : [];
+  const chronoResults =
+    dayOfMonth === null ? chrono.parse(working, new Date(), { forwardDate: true }) : [];
   let dueDate: string | null = null;
   if (chronoResults.length > 0) {
     const r = chronoResults[0];

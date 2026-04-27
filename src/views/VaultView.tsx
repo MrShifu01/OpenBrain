@@ -183,7 +183,14 @@ export default function VaultView({
                 color: "var(--ember)",
               }}
             >
-              <svg width="28" height="28" fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
+              <svg
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                viewBox="0 0 24 24"
+              >
                 <rect x="4" y="11" width="16" height="10" rx="2" />
                 <path d="M8 11V7a4 4 0 0 1 8 0v4" strokeLinecap="round" />
                 <circle cx="12" cy="16" r="1.2" fill="currentColor" stroke="none" />
@@ -917,8 +924,8 @@ export default function VaultView({
               lineHeight: 1.55,
             }}
           >
-            Passwords, PINs, recovery codes, anything you don't want in plaintext.
-            Encrypted client-side with your master passphrase.
+            Passwords, PINs, recovery codes, anything you don't want in plaintext. Encrypted
+            client-side with your master passphrase.
           </p>
           <button
             type="button"

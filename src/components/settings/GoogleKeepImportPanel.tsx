@@ -15,8 +15,8 @@ export default function GoogleKeepImportPanel({ brainId }: { brainId: string }) 
           <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.zip</strong> or
           individual Keep{" "}
           <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>.json</strong> files.
-          Trashed notes are skipped. Re-importing the same archive is safe — duplicates are
-          dropped on the server.
+          Trashed notes are skipped. Re-importing the same archive is safe — duplicates are dropped
+          on the server.
         </>
       }
     />

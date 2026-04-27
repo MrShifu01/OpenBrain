@@ -1,4 +1,5 @@
 # Semantic Search — Design Spec
+
 **Date:** 2026-04-07
 
 ## Problem
@@ -28,6 +29,7 @@ Client renders results (no local index needed)
 ```
 
 **Fallback chain:**
+
 1. Online + embed key configured → semantic search via `/api/search`
 2. Online + no embed key → keyword scoring via `scoreEntriesForQuery` (chatContext.ts)
 3. Offline → local token index (`searchIndex.ts`)
@@ -37,6 +39,7 @@ Client renders results (no local index needed)
 ## API: POST /api/search
 
 **Request:**
+
 ```json
 { "query": "car insurance renewal", "brain_id": "uuid", "limit": 20 }
 ```
@@ -44,6 +47,7 @@ Client renders results (no local index needed)
 **Auth:** `verifyAuth` (standard).
 
 **Logic:**
+
 1. Rate limit (20/min).
 2. Validate query (non-empty, max 500 chars).
 3. Read embed provider + key from request headers (`x-embed-provider`, `x-embed-key`).
@@ -54,6 +58,7 @@ Client renders results (no local index needed)
 8. Return `{ results: Entry[], fallback: false }`.
 
 **Response entry shape** (subset):
+
 ```json
 {
   "id": "...", "title": "...", "content": "...", "type": "...",
@@ -66,9 +71,15 @@ Client renders results (no local index needed)
 ## Client Changes
 
 **`src/lib/searchIndex.ts`** — keep existing exports for offline fallback, add:
+
 ```ts
-export async function semanticSearch(query: string, brainId: string, entries: Entry[]): Promise<Entry[]>
+export async function semanticSearch(
+  query: string,
+  brainId: string,
+  entries: Entry[],
+): Promise<Entry[]>;
 ```
+
 - Online: POST `/api/search`, return results
 - Offline or no embed headers: use `scoreEntriesForQuery` + existing token index
 
@@ -79,6 +90,7 @@ export async function semanticSearch(query: string, brainId: string, entries: En
 ## Chat Context Integration
 
 `src/lib/chatContext.ts` — when user sends a chat message:
+
 1. If embed key available: call `POST /api/search` with the user's message as query
 2. Use semantic results as context entries (instead of keyword scoring)
 3. Include link target titles: for each result entry, resolve its outgoing links and include `[linked: "Target Title"]` in the context

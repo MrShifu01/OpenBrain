@@ -57,16 +57,65 @@ function applyGraphBoost(entries: any[], graph: any): any[] {
     const b = Math.min(boosts.get(e.id) ?? 0, 0.15);
     return b > 0 ? { ...e, _score: (e._score ?? e.similarity ?? 0) + b } : e;
   });
-  boosted.sort((a: any, b: any) => (b._score ?? b.similarity ?? 0) - (a._score ?? a.similarity ?? 0));
+  boosted.sort(
+    (a: any, b: any) => (b._score ?? b.similarity ?? 0) - (a._score ?? a.similarity ?? 0),
+  );
   return boosted;
 }
 
 const STOP = new Set([
-  "this","that","with","from","have","been","they","will","your","what","about",
-  "which","when","than","some","more","also","into","over","after","their","there",
-  "these","those","were","does","would","could","should","just","very","even",
-  "back","most","such","both","each","much","only","then","them","make","like",
-  "well","take","come","good","know","need","feel","seem","same",
+  "this",
+  "that",
+  "with",
+  "from",
+  "have",
+  "been",
+  "they",
+  "will",
+  "your",
+  "what",
+  "about",
+  "which",
+  "when",
+  "than",
+  "some",
+  "more",
+  "also",
+  "into",
+  "over",
+  "after",
+  "their",
+  "there",
+  "these",
+  "those",
+  "were",
+  "does",
+  "would",
+  "could",
+  "should",
+  "just",
+  "very",
+  "even",
+  "back",
+  "most",
+  "such",
+  "both",
+  "each",
+  "much",
+  "only",
+  "then",
+  "them",
+  "make",
+  "like",
+  "well",
+  "take",
+  "come",
+  "good",
+  "know",
+  "need",
+  "feel",
+  "seem",
+  "same",
 ]);
 
 /**
@@ -85,7 +134,9 @@ export async function findLockedSecretTitles(
   brainId: string,
   limit = 5,
 ): Promise<Array<{ id: string; title: string }>> {
-  const qTokens = query.trim().split(/\s+/)
+  const qTokens = query
+    .trim()
+    .split(/\s+/)
     .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
     .filter((w) => w.length > 3 && !STOP.has(w.toLowerCase()))
     .slice(0, 6);
@@ -124,7 +175,9 @@ export async function retrieveEntries(
   const existingIds = new Set(entries.map((e: any) => e.id));
 
   // 2. Keyword expand
-  const qTokens = query.trim().split(/\s+/)
+  const qTokens = query
+    .trim()
+    .split(/\s+/)
     .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
     .filter((w) => w.length > 3 && !STOP.has(w.toLowerCase()))
     .slice(0, 6);
@@ -149,14 +202,20 @@ export async function retrieveEntries(
   const tagTokens = new Set<string>();
   entries.slice(0, 5).forEach((e: any) => {
     (e.tags ?? []).forEach((tag: string) => {
-      String(tag).toLowerCase().split(/[\s',./_\-]+/).forEach((w) => {
-        const clean = w.replace(/[^a-z0-9]/g, "");
-        if (clean.length > 3 && !STOP.has(clean) && !/^\d+$/.test(clean)) tagTokens.add(clean);
-      });
+      String(tag)
+        .toLowerCase()
+        .split(/[\s',./_\-]+/)
+        .forEach((w) => {
+          const clean = w.replace(/[^a-z0-9]/g, "");
+          if (clean.length > 3 && !STOP.has(clean) && !/^\d+$/.test(clean)) tagTokens.add(clean);
+        });
     });
   });
   if (tagTokens.size > 0) {
-    const orFilter = Array.from(tagTokens).slice(0, 8).map((kw) => `title.ilike.*${kw}*`).join(",");
+    const orFilter = Array.from(tagTokens)
+      .slice(0, 8)
+      .map((kw) => `title.ilike.*${kw}*`)
+      .join(",");
     const sibRes = await fetch(
       `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&or=(${encodeURIComponent(orFilter)})&select=id,title,type,tags,content,metadata&limit=10`,
       { headers: SB_HEADERS },
@@ -175,23 +234,35 @@ export async function retrieveEntries(
   // 4. Metadata hydrate
   if (entries.length > 0) {
     const ids = entries.map((e: any) => e.id).join(",");
-    const metaRes = await fetch(
-      `${SB_URL}/rest/v1/entries?id=in.(${ids})&select=id,metadata`,
-      { headers: SB_HEADERS },
-    );
+    const metaRes = await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&select=id,metadata`, {
+      headers: SB_HEADERS,
+    });
     if (metaRes.ok) {
       const metaRows: any[] = await metaRes.json();
       const metaMap = new Map(metaRows.map((r: any) => [r.id, r.metadata]));
-      entries = entries.map((e: any) => ({ ...e, metadata: metaMap.get(e.id) ?? e.metadata ?? null }));
+      entries = entries.map((e: any) => ({
+        ...e,
+        metadata: metaMap.get(e.id) ?? e.metadata ?? null,
+      }));
     }
   }
 
   // 5. Hybrid score + sort
-  const queryTokens = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+  const queryTokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 2);
   entries.forEach((e: any) => {
     const sim = e.similarity ?? 0;
-    if (!queryTokens.length) { e._score = sim; return; }
-    const metaText = e.metadata ? Object.entries(e.metadata).map(([k, v]) => `${k} ${typeof v === "string" ? v : ""}`).join(" ") : "";
+    if (!queryTokens.length) {
+      e._score = sim;
+      return;
+    }
+    const metaText = e.metadata
+      ? Object.entries(e.metadata)
+          .map(([k, v]) => `${k} ${typeof v === "string" ? v : ""}`)
+          .join(" ")
+      : "";
     const text = `${e.title ?? ""} ${e.content ?? ""} ${metaText}`.toLowerCase();
     const kw = queryTokens.filter((t) => text.includes(t)).length / queryTokens.length;
     e._score = sim * 0.7 + kw * 0.3;
@@ -214,12 +285,17 @@ export async function retrieveEntries(
         const finalIds = new Set(entries.slice(0, limit).map((e: any) => e.id));
         for (const c of graph.concepts ?? []) {
           if (c.name && (c.source_entries ?? []).some((id: string) => finalIds.has(id))) {
-            matchedConcepts.push({ name: c.name, ...(c.description ? { description: c.description } : {}) });
+            matchedConcepts.push({
+              name: c.name,
+              ...(c.description ? { description: c.description } : {}),
+            });
           }
         }
       }
     }
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 
   const finalEntries = entries.slice(0, limit) as RetrievedEntry[];
 
@@ -305,11 +381,13 @@ export async function rebuildConceptGraph(brainId: string, geminiApiKey: string)
     const entries: any[] = await entriesRes.json();
     if (entries.length < 3) return;
 
-    const entryLines = entries.map((e) => {
-      const snippet = (e.content ?? "").slice(0, 150).replace(/\n/g, " ");
-      const tags = (e.tags ?? []).join(", ");
-      return `${e.id} | ${e.title ?? ""} | ${e.type ?? "note"} | ${tags} | ${snippet}`;
-    }).join("\n");
+    const entryLines = entries
+      .map((e) => {
+        const snippet = (e.content ?? "").slice(0, 150).replace(/\n/g, " ");
+        const tags = (e.tags ?? []).join(", ");
+        return `${e.id} | ${e.title ?? ""} | ${e.type ?? "note"} | ${tags} | ${snippet}`;
+      })
+      .join("\n");
 
     const prompt = SERVER_PROMPTS.CONCEPT_GRAPH.replace("{{ENTRIES}}", entryLines);
 
@@ -329,13 +407,19 @@ export async function rebuildConceptGraph(brainId: string, geminiApiKey: string)
     const text = (gemData.candidates?.[0]?.content?.parts ?? [])
       .filter((p: any) => !p.thought)
       .map((p: any) => p.text ?? "")
-      .join("").trim();
+      .join("")
+      .trim();
 
     let graph: any;
     try {
-      const clean = text.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+      const clean = text
+        .replace(/^```[a-z]*\n?/, "")
+        .replace(/\n?```$/, "")
+        .trim();
       graph = JSON.parse(clean);
-    } catch { return; }
+    } catch {
+      return;
+    }
 
     if (!Array.isArray(graph.concepts) || !Array.isArray(graph.relationships)) return;
 
@@ -351,5 +435,7 @@ export async function rebuildConceptGraph(brainId: string, geminiApiKey: string)
         updated_at: new Date().toISOString(),
       }),
     });
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 }

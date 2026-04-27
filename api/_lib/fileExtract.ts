@@ -10,13 +10,7 @@
  * format is actually uploaded.
  */
 
-type ExtractSource =
-  | "pdfjs"
-  | "mammoth"
-  | "exceljs"
-  | "text"
-  | "html"
-  | "csv";
+type ExtractSource = "pdfjs" | "mammoth" | "exceljs" | "text" | "html" | "csv";
 
 interface ExtractResult {
   text: string;
@@ -79,7 +73,9 @@ export async function extractFromBuffer(
     mt.startsWith("text/") ||
     mt === "application/json" ||
     mt === "application/xml" ||
-    /^(txt|md|markdown|json|log|xml|yml|yaml|js|ts|tsx|jsx|css|scss|sql|sh|py|go|rs|rb|java|c|cc|cpp|h|hpp)$/.test(ext)
+    /^(txt|md|markdown|json|log|xml|yml|yaml|js|ts|tsx|jsx|css|scss|sql|sh|py|go|rs|rb|java|c|cc|cpp|h|hpp)$/.test(
+      ext,
+    )
   ) {
     return { text: buffer.toString("utf-8"), source: "text" };
   }
@@ -142,7 +138,8 @@ async function extractExcel(buffer: Buffer): Promise<string> {
           let s: string;
           if (v == null) s = "";
           else if (typeof v === "object" && "text" in v) s = String(v.text ?? "");
-          else if (typeof v === "object" && "richText" in v) s = (v.richText as Array<{ text: string }>).map((r) => r.text).join("");
+          else if (typeof v === "object" && "richText" in v)
+            s = (v.richText as Array<{ text: string }>).map((r) => r.text).join("");
           else if (v instanceof Date) s = v.toISOString();
           else s = String(v);
           cells.push(s.replace(/\t/g, " "));

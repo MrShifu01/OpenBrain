@@ -24,12 +24,18 @@ test("user can reach the export affordance and the export API returns data", asy
 
   // Open settings via the sidebar/header button. Both desktop sidebar
   // and mobile topbar render a button labelled "Settings".
-  await page.getByRole("button", { name: /^Settings$/ }).first().click();
+  await page
+    .getByRole("button", { name: /^Settings$/ })
+    .first()
+    .click();
 
   // Switch to the Danger zone tab. The label in src/views/SettingsView.tsx
   // is "Danger zone" — match case-insensitively to absorb trivial copy
   // changes.
-  await page.getByRole("button", { name: /danger zone/i }).first().click();
+  await page
+    .getByRole("button", { name: /danger zone/i })
+    .first()
+    .click();
 
   // Confirm we're actually on the destructive surface and the entry
   // affordance is reachable.

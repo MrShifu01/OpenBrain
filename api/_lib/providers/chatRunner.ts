@@ -77,7 +77,11 @@ export async function runChat(opts: ChatRunnerOptions): Promise<ChatRunnerResult
   // Inject today's date so "this Friday", "next Monday" etc. resolve
   // correctly. Single point of injection across all chat providers.
   const system = withDateContext(opts.system);
-  const providerMessages = initialToProviderShape(opts.config.provider, opts.initialMessages, system);
+  const providerMessages = initialToProviderShape(
+    opts.config.provider,
+    opts.initialMessages,
+    system,
+  );
   const max = opts.maxRounds ?? 5;
 
   for (let round = 0; round < max; round++) {
@@ -108,8 +112,11 @@ export async function runChat(opts: ChatRunnerOptions): Promise<ChatRunnerResult
     }
 
     let result: unknown;
-    try { result = await opts.execTool(step.toolCall.name, step.toolCall.args); }
-    catch (e: any) { result = { error: e.message || "Tool execution failed" }; }
+    try {
+      result = await opts.execTool(step.toolCall.name, step.toolCall.args);
+    } catch (e: any) {
+      result = { error: e.message || "Tool execution failed" };
+    }
 
     toolCalls.push({ tool: step.toolCall.name, args: step.toolCall.args, result });
     adapter.appendToolResult(providerMessages, step, result);

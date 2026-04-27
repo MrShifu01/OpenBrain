@@ -98,19 +98,31 @@ export default function AITab({ activeBrain, isAdmin }: Props) {
 
   function runEnrichNow() {
     if (!activeBrain?.id || enriching) return;
-    ops.startTask({ kind: "enrich-run-now", label: "Enriching pending entries", resumeKey: activeBrain.id });
+    ops.startTask({
+      kind: "enrich-run-now",
+      label: "Enriching pending entries",
+      resumeKey: activeBrain.id,
+    });
     if (diagOpen) setTimeout(refreshDebug, 1500);
   }
 
   function clearBackfill() {
     if (!activeBrain?.id || clearing) return;
-    ops.startTask({ kind: "enrich-clear-backfill", label: "Clearing backfill flags", resumeKey: activeBrain.id });
+    ops.startTask({
+      kind: "enrich-clear-backfill",
+      label: "Clearing backfill flags",
+      resumeKey: activeBrain.id,
+    });
     setTimeout(refreshDebug, 1500);
   }
 
   function retryFailedEmbeddings() {
     if (!activeBrain?.id || retrying) return;
-    ops.startTask({ kind: "enrich-retry-failed", label: "Retrying failed embeddings", resumeKey: activeBrain.id });
+    ops.startTask({
+      kind: "enrich-retry-failed",
+      label: "Retrying failed embeddings",
+      resumeKey: activeBrain.id,
+    });
     setTimeout(refreshDebug, 1500);
   }
 
@@ -158,8 +170,13 @@ export default function AITab({ activeBrain, isAdmin }: Props) {
                 {clearing ? "Clearing…" : "Clear backfill flags"}
               </SettingsButton>
               {(debug?.counts.failed_embedding ?? 0) > 0 && (
-                <SettingsButton onClick={retryFailedEmbeddings} disabled={retrying || !activeBrain?.id}>
-                  {retrying ? "Retrying…" : `Retry ${debug?.counts.failed_embedding ?? 0} failed embedding${(debug?.counts.failed_embedding ?? 0) === 1 ? "" : "s"}`}
+                <SettingsButton
+                  onClick={retryFailedEmbeddings}
+                  disabled={retrying || !activeBrain?.id}
+                >
+                  {retrying
+                    ? "Retrying…"
+                    : `Retry ${debug?.counts.failed_embedding ?? 0} failed embedding${(debug?.counts.failed_embedding ?? 0) === 1 ? "" : "s"}`}
                 </SettingsButton>
               )}
             </div>
@@ -196,9 +213,18 @@ function DebugView({ debug }: { debug: DebugPayload }) {
   if (!debug || !debug.providers || !debug.counts) {
     return (
       <p className="f-sans" style={{ fontSize: 12, color: "var(--blood)", margin: 0 }}>
-        Diagnostics endpoint returned an unexpected shape. Check that the deploy
-        is fresh and ADMIN_EMAIL is set in Vercel env. Raw payload:
-        <code style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--ink-faint)", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+        Diagnostics endpoint returned an unexpected shape. Check that the deploy is fresh and
+        ADMIN_EMAIL is set in Vercel env. Raw payload:
+        <code
+          style={{
+            display: "block",
+            marginTop: 6,
+            fontSize: 11,
+            color: "var(--ink-faint)",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+          }}
+        >
           {JSON.stringify(debug).slice(0, 400)}
         </code>
       </p>
@@ -240,11 +266,7 @@ function DebugView({ debug }: { debug: DebugPayload }) {
           fontSize: 18,
           fontWeight: 500,
           color:
-            accent === "warn"
-              ? "var(--blood)"
-              : accent === "ok"
-                ? "var(--moss)"
-                : "var(--ink)",
+            accent === "warn" ? "var(--blood)" : accent === "ok" ? "var(--moss)" : "var(--ink)",
         }}
       >
         {value}
@@ -301,7 +323,8 @@ function DebugView({ debug }: { debug: DebugPayload }) {
       </div>
 
       <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-        Top {recent.length} most-unenriched · server time {debug.server_time ? new Date(debug.server_time).toLocaleTimeString() : "—"}
+        Top {recent.length} most-unenriched · server time{" "}
+        {debug.server_time ? new Date(debug.server_time).toLocaleTimeString() : "—"}
       </div>
       <div
         style={{
@@ -387,11 +410,7 @@ function FlagPills({
   };
 
   const embedState: "on" | "off" | "warn" =
-    flags.embedding_status === "failed"
-      ? "warn"
-      : flags.embedded
-        ? "on"
-        : "off";
+    flags.embedding_status === "failed" ? "warn" : flags.embedded ? "on" : "off";
   const embedTitle =
     flags.embedding_status === "failed"
       ? "embedding failed — won't appear in semantic search"

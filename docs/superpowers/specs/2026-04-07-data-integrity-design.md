@@ -1,7 +1,9 @@
 # Data Integrity — Design Spec
+
 **Date:** 2026-04-07
 
 ## Scope
+
 Soft delete + Trash view, offline sync failure notifications.
 
 ---
@@ -9,6 +11,7 @@ Soft delete + Trash view, offline sync failure notifications.
 ## Soft Delete + Trash
 
 ### Problem
+
 Hard deletes are unrecoverable. No trash, no recovery window.
 
 ### Migration 016
@@ -29,6 +32,7 @@ CREATE INDEX IF NOT EXISTS entries_deleted_at_idx ON entries(deleted_at) WHERE d
 ### Client: TrashView
 
 New `src/views/TrashView.tsx`:
+
 - Lists entries where deleted_at is set, sorted by deleted_at desc
 - Each entry: title, type icon, "Deleted X days ago" label
 - Per-entry: "Restore" button, "Delete Permanently" button
@@ -49,11 +53,13 @@ After: same call, server soft-deletes. Entry removed from local state immediatel
 ## Offline Sync Failure Notifications
 
 ### Problem
+
 `useOfflineSync` permanently drops ops after 3 retries with only a `console.error`. User has no idea data was lost.
 
 ### Solution
 
 **`useOfflineSync`:** Instead of `remove(op.id)` on max retries, move op to a "failed" state:
+
 - Add `failed: boolean` field to OfflineOp (or store separately in IndexedDB `failed_ops` store)
 - Return `failedOps: OfflineOp[]` from the hook (alongside existing `{isOnline, pendingCount}`)
 - Failed ops retain their original `body` so content is recoverable

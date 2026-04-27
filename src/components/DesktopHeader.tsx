@@ -98,7 +98,7 @@ export default function DesktopHeader({
 
   return (
     <header
-      className="hidden lg:flex sticky top-0 z-30"
+      className="sticky top-0 z-30 hidden lg:flex"
       style={{
         height: 60,
         alignItems: "center",
@@ -127,7 +127,10 @@ export default function DesktopHeader({
           color: "var(--ink-faint)",
           transition: "border-color 180ms",
         }}
-        onFocus={(e) => (e.currentTarget.style.borderColor = "color-mix(in oklch, var(--ember) 35%, var(--line-soft))")}
+        onFocus={(e) =>
+          (e.currentTarget.style.borderColor =
+            "color-mix(in oklch, var(--ember) 35%, var(--line-soft))")
+        }
         onBlur={(e) => (e.currentTarget.style.borderColor = "var(--line-soft)")}
       >
         {SEARCH_ICON}

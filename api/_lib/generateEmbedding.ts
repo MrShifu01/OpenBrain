@@ -14,22 +14,23 @@ export async function generateEmbedding(text: string, apiKey: string): Promise<n
 /**
  * Generate embeddings for multiple texts in one API call.
  */
-export async function generateEmbeddingsBatch(texts: string[], apiKey: string): Promise<number[][]> {
-  const truncated = texts.map(t => String(t).slice(0, 8000));
+export async function generateEmbeddingsBatch(
+  texts: string[],
+  apiKey: string,
+): Promise<number[][]> {
+  const truncated = texts.map((t) => String(t).slice(0, 8000));
   return generateGoogleEmbeddingBatch(truncated, apiKey);
 }
 
 /**
  * Build the text to embed for an entry (title + content + tags).
  */
-export function buildEntryText(entry: { title?: string; content?: string; tags?: string[] }): string {
-  return [
-    entry.title,
-    entry.content,
-    (entry.tags || []).join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
+export function buildEntryText(entry: {
+  title?: string;
+  content?: string;
+  tags?: string[];
+}): string {
+  return [entry.title, entry.content, (entry.tags || []).join(" ")].filter(Boolean).join(" ");
 }
 
 const GOOGLE_EMBED_MODEL = "gemini-embedding-001";
@@ -45,7 +46,7 @@ async function generateGoogleEmbedding(text: string, apiKey: string): Promise<nu
         content: { parts: [{ text }] },
         outputDimensionality: 768,
       }),
-    }
+    },
   );
   if (!res.ok) {
     const err = await res.text().catch(() => String(res.status));
@@ -60,7 +61,7 @@ async function generateGoogleEmbedding(text: string, apiKey: string): Promise<nu
 }
 
 async function generateGoogleEmbeddingBatch(texts: string[], apiKey: string): Promise<number[][]> {
-  const requests = texts.map(text => ({
+  const requests = texts.map((text) => ({
     model: `models/${GOOGLE_EMBED_MODEL}`,
     content: { parts: [{ text }] },
     outputDimensionality: 768,
@@ -71,7 +72,7 @@ async function generateGoogleEmbeddingBatch(texts: string[], apiKey: string): Pr
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requests }),
-    }
+    },
   );
   if (!res.ok) {
     const err = await res.text().catch(() => String(res.status));

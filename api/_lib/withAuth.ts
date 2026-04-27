@@ -7,7 +7,11 @@ import { resolveApiKey } from "./resolveApiKey.js";
 import { getReqId, createLogger, type Logger } from "./logger.js";
 
 export class ApiError extends Error {
-  constructor(public status: number, public publicMessage: string, public details?: unknown) {
+  constructor(
+    public status: number,
+    public publicMessage: string,
+    public details?: unknown,
+  ) {
     super(publicMessage);
     this.name = "ApiError";
   }
@@ -53,7 +57,10 @@ type Impl = (ctx: HandlerContext) => Promise<void> | void;
  * Business logic may throw `ApiError` to short-circuit with a typed response.
  * Any other thrown error becomes a 500 with the body "Internal Server Error".
  */
-export function withAuth(opts: WithAuthOptions, impl: Impl): (req: ApiRequest, res: ApiResponse) => Promise<void> {
+export function withAuth(
+  opts: WithAuthOptions,
+  impl: Impl,
+): (req: ApiRequest, res: ApiResponse) => Promise<void> {
   const methods = opts.methods ?? ["POST"];
   const limitSpec = opts.rateLimit ?? 30;
 
@@ -104,7 +111,10 @@ export function withAuth(opts: WithAuthOptions, impl: Impl): (req: ApiRequest, r
  * Assert the authenticated user has access to the given brain. Throws ApiError(403) if not.
  * Pass an empty/invalid brainId → ApiError(400).
  */
-export async function requireBrainAccess(userId: string, brainId: string | undefined | null): Promise<void> {
+export async function requireBrainAccess(
+  userId: string,
+  brainId: string | undefined | null,
+): Promise<void> {
   if (!brainId || typeof brainId !== "string" || brainId.length > 100) {
     throw new ApiError(400, "Invalid brain_id");
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { supabase } from "../lib/supabase";
 import { getCachedEmail, setCachedEmail } from "../lib/userEmailCache";
 import { useBrain } from "../context/BrainContext";
@@ -16,41 +16,48 @@ import ProfileTab from "../components/settings/ProfileTab";
 import BillingTab from "../components/settings/BillingTab";
 import AdminTab from "../components/settings/AdminTab";
 import SecurityTab from "../components/settings/SecurityTab";
-import SettingsRow, {
-  SettingsButton,
-  SettingsExpand,
-} from "../components/settings/SettingsRow";
+import SettingsRow, { SettingsButton, SettingsExpand } from "../components/settings/SettingsRow";
 import { authFetch } from "../lib/authFetch";
 import { getDecisionCount } from "../lib/learningEngine";
 
-type SectionId =
-  | "appearance"
-  | "account"
-  | "profile"
-  | "billing"
-  | "brain"
-  | "data"
-  | "ai"
-  | "notifications"
-  | "integrations"
-  | "security"
-  | "danger"
-  | "admin";
+type SectionId = "personal" | "account" | "brain" | "connections" | "privacy" | "admin";
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
 
 const BASE_SECTIONS: { id: SectionId; label: string }[] = [
-  { id: "appearance", label: "Appearance" },
+  { id: "personal", label: "Personal" },
   { id: "account", label: "Account" },
-  { id: "profile", label: "About you" },
   { id: "brain", label: "Brain" },
-  { id: "data", label: "Data" },
-  { id: "ai", label: "AI" },
-  { id: "notifications", label: "Notifications" },
-  { id: "integrations", label: "Integrations" },
-  { id: "security", label: "Security" },
-  { id: "danger", label: "Danger zone" },
+  { id: "connections", label: "Connections" },
+  { id: "privacy", label: "Privacy & danger" },
 ];
+
+// Legacy URL ids → consolidated section. Keeps deep-links from /api/capture,
+// /api/llm, OAuth redirects, and any docs that still reference the old taxonomy
+// from sending users into a 404-looking Appearance fallback.
+const URL_ALIASES: Record<string, SectionId> = {
+  appearance: "personal",
+  profile: "personal",
+  account: "account",
+  billing: "account",
+  brain: "brain",
+  data: "brain",
+  ai: "brain",
+  notifications: "connections",
+  integrations: "connections",
+  security: "privacy",
+  danger: "privacy",
+  admin: "admin",
+};
+
+function deriveInitialSection(): SectionId {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("calendarConnected") || params.has("calendarError")) return "connections";
+  if (params.has("gmailConnected") || params.has("gmailError")) return "connections";
+  const tab = params.get("tab");
+  if (tab && URL_ALIASES[tab]) return URL_ALIASES[tab];
+  return "personal";
+}
 
 function SectionHeader({
   title,
@@ -95,6 +102,55 @@ function SectionHeader({
   );
 }
 
+function SubSection({
+  title,
+  subtitle,
+  danger,
+}: {
+  title: string;
+  subtitle?: string;
+  danger?: boolean;
+}) {
+  return (
+    <div
+      style={{
+        marginTop: 36,
+        paddingTop: 24,
+        borderTop: "1px solid var(--line-soft)",
+        marginBottom: 12,
+      }}
+    >
+      <h3
+        className="f-serif"
+        style={{
+          fontSize: 22,
+          fontWeight: 450,
+          letterSpacing: "-0.01em",
+          color: danger ? "var(--blood)" : "var(--ink)",
+          margin: 0,
+        }}
+      >
+        {title}
+      </h3>
+      {subtitle && (
+        <p
+          className="f-serif"
+          style={{
+            fontSize: 14,
+            color: "var(--ink-faint)",
+            fontStyle: "italic",
+            marginTop: 8,
+            marginBottom: 0,
+            lineHeight: 1.5,
+          }}
+        >
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function EmptyState({ message }: { message: string }) {
   return (
     <p
@@ -112,11 +168,16 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
+interface AuditFlag {
+  type: string;
+  reason?: string;
+}
+
 function BrainAuditRow({ brainId }: { brainId: string }) {
   type AuditState =
     | { status: "idle" }
     | { status: "loading" }
-    | { status: "done"; flagged: number; entries: Record<string, any[] | null> }
+    | { status: "done"; flagged: number; entries: Record<string, AuditFlag[] | null> }
     | { status: "error"; message: string };
 
   const [state, setState] = useState<AuditState>({ status: "idle" });
@@ -134,7 +195,7 @@ function BrainAuditRow({ brainId }: { brainId: string }) {
         setState({ status: "error", message: `Audit endpoint returned ${r.status}.` });
         return;
       }
-      let parsed: { flagged: number; entries: Record<string, any[] | null> };
+      let parsed: { flagged: number; entries: Record<string, AuditFlag[] | null> };
       try {
         parsed = JSON.parse(raw);
       } catch {
@@ -142,8 +203,9 @@ function BrainAuditRow({ brainId }: { brainId: string }) {
         return;
       }
       setState({ status: "done", flagged: parsed.flagged, entries: parsed.entries });
-    } catch (e: any) {
-      setState({ status: "error", message: String(e?.message ?? e) });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setState({ status: "error", message });
     }
   }
 
@@ -151,10 +213,7 @@ function BrainAuditRow({ brainId }: { brainId: string }) {
 
   return (
     <>
-      <SettingsRow
-        label="Quality audit"
-        hint="ai analysis of your 25 newest entries."
-      >
+      <SettingsRow label="Quality audit" hint="ai analysis of your 25 newest entries.">
         <SettingsButton onClick={runAudit} disabled={state.status === "loading"}>
           {state.status === "loading" ? "Running…" : "Run audit"}
         </SettingsButton>
@@ -205,15 +264,16 @@ function BrainAuditRow({ brainId }: { brainId: string }) {
   );
 }
 
-function BrainLearningRow({ brainId }: { brainId: string }) {
-  const [count, setCount] = useState<number>(() => getDecisionCount(brainId));
+function subscribeToFocus(onChange: () => void): () => void {
+  window.addEventListener("focus", onChange);
+  return () => window.removeEventListener("focus", onChange);
+}
 
-  useEffect(() => {
-    setCount(getDecisionCount(brainId));
-    const refresh = () => setCount(getDecisionCount(brainId));
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
-  }, [brainId]);
+function BrainLearningRow({ brainId }: { brainId: string }) {
+  // localStorage-backed counter; useSyncExternalStore keeps the read declarative
+  // (no setState-in-effect), re-runs on brainId change, and refreshes on focus.
+  const getSnapshot = () => getDecisionCount(brainId);
+  const count = useSyncExternalStore(subscribeToFocus, getSnapshot, getSnapshot);
 
   const hint =
     count === 0
@@ -237,12 +297,7 @@ interface SettingsViewProps {
 
 export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
   const { activeBrain, refresh } = useBrain();
-  const [section, setSection] = useState<SectionId>(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("calendarConnected") || params.has("calendarError")) return "integrations";
-    if (params.has("gmailConnected") || params.has("gmailError")) return "integrations";
-    return "appearance";
-  });
+  const [section, setSection] = useState<SectionId>(deriveInitialSection);
   const [email, setEmail] = useState(() => getCachedEmail());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [gmailOpen, setGmailOpen] = useState(false);
@@ -268,14 +323,10 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
 
   const isAdmin = ADMIN_EMAIL ? Boolean(email && email === ADMIN_EMAIL) : Boolean(email);
   const SECTIONS = isAdmin
-    ? [
-        ...BASE_SECTIONS,
-        { id: "billing" as SectionId, label: "Billing" },
-        { id: "admin" as SectionId, label: "Admin" },
-      ]
+    ? [...BASE_SECTIONS, { id: "admin" as SectionId, label: "Admin" }]
     : BASE_SECTIONS;
 
-  function navButtonStyle(active: boolean, isDanger: boolean): React.CSSProperties {
+  function navButtonStyle(active: boolean): React.CSSProperties {
     return {
       flexShrink: 0,
       width: "100%",
@@ -293,9 +344,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
       cursor: "pointer",
       transition: "background 180ms, color 180ms",
       whiteSpace: "nowrap",
-      // a small italic accent on the danger entry hints at its nature without
-      // shouting in red before the user has done anything destructive
-      fontStyle: isDanger ? "italic" : "normal",
     };
   }
 
@@ -306,8 +354,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         // height (not min-height) is required so the flex-1 settings-body
         // resolves to a definite height — the desktop nav's surface-low
         // background needs that to extend to the bottom of the viewport.
-        // settings-content scrolls internally (overflowY: auto) when its
-        // content is taller than the viewport, so this doesn't clip.
         height: "100dvh",
         background: "var(--bg)",
         fontFamily: "var(--f-sans)",
@@ -353,7 +399,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
       >
         {SECTIONS.map(({ id, label }) => {
           const active = section === id;
-          const isDanger = id === "danger";
           return (
             <button
               key={id}
@@ -364,7 +409,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
               aria-current={active ? "page" : undefined}
               className="press"
               style={{
-                ...navButtonStyle(active, isDanger),
+                ...navButtonStyle(active),
                 width: "auto",
                 padding: "0 14px",
                 height: 36,
@@ -377,7 +422,10 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         })}
       </nav>
 
-      <div className="settings-body" style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
+      <div
+        className="settings-body"
+        style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}
+      >
         <nav
           className="settings-desktop-nav scrollbar-hide"
           style={{
@@ -402,7 +450,6 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         >
           {SECTIONS.map(({ id, label }) => {
             const active = section === id;
-            const isDanger = id === "danger";
             return (
               <button
                 key={id}
@@ -413,7 +460,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                 onMouseEnter={() => visit(id)}
                 aria-current={active ? "page" : undefined}
                 className="press"
-                style={navButtonStyle(active, isDanger)}
+                style={navButtonStyle(active)}
               >
                 {label}
               </button>
@@ -423,13 +470,18 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
 
         <div className="settings-content scrollbar-hide" style={{ flex: 1, overflowY: "auto" }}>
           <div className="settings-content-inner" style={{ maxWidth: 720 }}>
-            {visited.has("appearance") && (
-              <div style={{ display: section === "appearance" ? "block" : "none" }}>
+            {visited.has("personal") && (
+              <div style={{ display: section === "personal" ? "block" : "none" }}>
                 <SectionHeader
-                  title="Appearance"
-                  subtitle="three rooms, two moods. pick the one you want to live in."
+                  title="Personal"
+                  subtitle="how the app looks and what the assistant knows about you."
                 />
                 <AppearanceTab />
+                <SubSection
+                  title="About you"
+                  subtitle="injected into every chat — never includes IDs, passport, banking, or anything that belongs in the vault."
+                />
+                <ProfileTab />
               </div>
             )}
 
@@ -437,37 +489,33 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
               <div style={{ display: section === "account" ? "block" : "none" }}>
                 <SectionHeader title="Account" />
                 <AccountTab email={email} isAdmin={isAdmin} />
-              </div>
-            )}
-
-            {visited.has("profile") && (
-              <div style={{ display: section === "profile" ? "block" : "none" }}>
-                <SectionHeader
-                  title="About you"
-                  subtitle="who the assistant is talking to. injected into every chat — never includes IDs, passport, banking, or anything that belongs in the vault."
-                />
-                <ProfileTab />
-              </div>
-            )}
-
-            {visited.has("billing") && (
-              <div style={{ display: section === "billing" ? "block" : "none" }}>
-                <SectionHeader
-                  title="Billing"
-                  subtitle="manage your plan, usage, and subscription."
-                />
-                <BillingTab />
+                {isAdmin && (
+                  <>
+                    <SubSection
+                      title="Billing"
+                      subtitle="manage your plan, usage, and subscription."
+                    />
+                    <BillingTab />
+                  </>
+                )}
               </div>
             )}
 
             {visited.has("brain") && (
               <div style={{ display: section === "brain" ? "block" : "none" }}>
-                <SectionHeader title="Brain" />
+                <SectionHeader
+                  title="Brain"
+                  subtitle="the brain you're capturing into, your archive, and the ai layer."
+                />
                 {activeBrain ? (
                   <>
                     <BrainTab activeBrain={activeBrain} onRefreshBrains={refresh} />
                     <BrainAuditRow brainId={activeBrain.id} />
                     <BrainLearningRow brainId={activeBrain.id} />
+                    <SubSection title="Data" subtitle="imports, exports, and your entry archive." />
+                    <DataTab brainId={activeBrain.id} activeBrain={activeBrain} />
+                    <SubSection title="AI" subtitle="model providers and enrichment pipeline." />
+                    <AITab activeBrain={activeBrain} isAdmin={isAdmin} />
                   </>
                 ) : (
                   <EmptyState message="no brain selected. create or pick one to manage its settings." />
@@ -475,37 +523,18 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
               </div>
             )}
 
-            {visited.has("data") && (
-              <div style={{ display: section === "data" ? "block" : "none" }}>
-                <SectionHeader title="Data" subtitle="imports, exports, and your entry archive." />
-                <DataTab brainId={activeBrain?.id} activeBrain={activeBrain ?? undefined} />
-              </div>
-            )}
-
-            {visited.has("ai") && (
-              <div style={{ display: section === "ai" ? "block" : "none" }}>
-                <SectionHeader title="AI" subtitle="model providers and enrichment pipeline." />
-                <AITab activeBrain={activeBrain ?? undefined} isAdmin={isAdmin} />
-              </div>
-            )}
-
-            {visited.has("notifications") && (
-              <div style={{ display: section === "notifications" ? "block" : "none" }}>
-                <SectionHeader title="Notifications" />
-                <NotificationSettings />
-              </div>
-            )}
-
-            {visited.has("integrations") && (
-              <div style={{ display: section === "integrations" ? "block" : "none" }}>
+            {visited.has("connections") && (
+              <div style={{ display: section === "connections" ? "block" : "none" }}>
                 <SectionHeader
+                  title="Connections"
+                  subtitle="notifications, external services, and developer access."
+                />
+                <NotificationSettings />
+                <SubSection
                   title="Integrations"
                   subtitle="external connections and developer access."
                 />
-                <SettingsRow
-                  label="Calendar"
-                  hint="sync google calendar events into your brain."
-                >
+                <SettingsRow label="Calendar" hint="sync google calendar events into your brain.">
                   <SettingsButton onClick={() => setCalendarOpen((o) => !o)}>
                     {calendarOpen ? "Done" : "Manage"}
                   </SettingsButton>
@@ -541,36 +570,19 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
               </div>
             )}
 
-            {visited.has("security") && (
-              <div style={{ display: section === "security" ? "block" : "none" }}>
+            {visited.has("privacy") && (
+              <div style={{ display: section === "privacy" ? "block" : "none" }}>
                 <SectionHeader
-                  title="Security"
-                  subtitle="manage the pin that protects your vault secrets."
+                  title="Privacy & danger"
+                  subtitle="vault pin, encrypted secrets, and irreversible actions."
                 />
                 <SecurityTab />
                 {onNavigate && (
-                  <SettingsRow label="Vault" hint="end-to-end encrypted secrets." last>
-                    <SettingsButton onClick={() => onNavigate("vault")}>
-                      Open vault
-                    </SettingsButton>
+                  <SettingsRow label="Vault" hint="end-to-end encrypted secrets.">
+                    <SettingsButton onClick={() => onNavigate("vault")}>Open vault</SettingsButton>
                   </SettingsRow>
                 )}
-              </div>
-            )}
-
-            {section === "admin" && isAdmin && (
-              <>
-                <SectionHeader
-                  title="Admin"
-                  subtitle="connection tests and diagnostics. only visible to you."
-                />
-                <AdminTab />
-              </>
-            )}
-
-            {visited.has("danger") && (
-              <div style={{ display: section === "danger" ? "block" : "none" }}>
-                <SectionHeader
+                <SubSection
                   title="Danger zone"
                   subtitle="all of these are irreversible. we've made them clear, not hidden."
                   danger
@@ -600,6 +612,16 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   <EmptyState message="no brain selected. create or pick one to access destructive actions." />
                 )}
               </div>
+            )}
+
+            {section === "admin" && isAdmin && (
+              <>
+                <SectionHeader
+                  title="Admin"
+                  subtitle="connection tests and diagnostics. only visible to you."
+                />
+                <AdminTab />
+              </>
             )}
           </div>
         </div>

@@ -8,13 +8,13 @@ April 2026
 
 ## Abstract
 
-Modern retrieval-augmented generation (RAG) systems applied to personal knowledge bases face a class of failure unique to that domain: the user's knowledge is fragmented across loosely connected entries whose relationships are implicit, not structural. A query about "Henk's ID number" may fail not because the data is absent, but because it lives under the entry title *Father's ID Number* — a fact that requires bridging a person ("Henk Stander"), a role tag ("father"), and an attribute entry ("Father's ID Number") that were never explicitly linked. This paper describes the multi-stage retrieval pipeline built into OpenBrain's chat/ask system, which addresses this and similar problems through layered retrieval strategies, concept graph injection, relationship synthesis, and a self-correcting second-pass mechanism. Each stage is described in terms of its motivation, mechanism, and contribution to answer quality.
+Modern retrieval-augmented generation (RAG) systems applied to personal knowledge bases face a class of failure unique to that domain: the user's knowledge is fragmented across loosely connected entries whose relationships are implicit, not structural. A query about "Henk's ID number" may fail not because the data is absent, but because it lives under the entry title _Father's ID Number_ — a fact that requires bridging a person ("Henk Stander"), a role tag ("father"), and an attribute entry ("Father's ID Number") that were never explicitly linked. This paper describes the multi-stage retrieval pipeline built into OpenBrain's chat/ask system, which addresses this and similar problems through layered retrieval strategies, concept graph injection, relationship synthesis, and a self-correcting second-pass mechanism. Each stage is described in terms of its motivation, mechanism, and contribution to answer quality.
 
 ---
 
 ## 1. Introduction
 
-Personal knowledge management (PKM) systems accumulate entries over time without enforcing a rigid schema. A user might store a contact as *Henk Stander* with a tag of *father*, and separately store *Father's ID Number: 720415 5021 08* as a distinct entry. When later asking "What is Henk's ID number?", a naive vector search on the question will likely surface the person entry but miss the attribute entry — because the embedding of "Henk's ID number" is semantically closer to the person than to the attribute. The data exists; the retrieval fails.
+Personal knowledge management (PKM) systems accumulate entries over time without enforcing a rigid schema. A user might store a contact as _Henk Stander_ with a tag of _father_, and separately store _Father's ID Number: 720415 5021 08_ as a distinct entry. When later asking "What is Henk's ID number?", a naive vector search on the question will likely surface the person entry but miss the attribute entry — because the embedding of "Henk's ID number" is semantically closer to the person than to the attribute. The data exists; the retrieval fails.
 
 OpenBrain's chat endpoint (`/api/chat`) was designed to solve this class of problem. Rather than a single-round vector search followed by generation, it implements a seven-stage pipeline: semantic vector search, hybrid re-scoring, query keyword expansion, tag-keyword sibling discovery, concept graph injection, relationship synthesis, and a NO_INFO-triggered second-pass retry. This paper describes each stage in turn.
 
@@ -119,7 +119,7 @@ Concept-to-concept relationships filtered to those involving retrieved entries a
 
 ## 8. Stage 7: Relationship Synthesis
 
-This stage addresses a specific failure mode: the LLM may receive both "Henk Stander (tags: father)" and "Father's ID Number: 720415..." in context but fail to connect them — because nothing in the prompt explicitly states that *Father's ID Number refers to Henk Stander*.
+This stage addresses a specific failure mode: the LLM may receive both "Henk Stander (tags: father)" and "Father's ID Number: 720415..." in context but fail to connect them — because nothing in the prompt explicitly states that _Father's ID Number refers to Henk Stander_.
 
 The synthesis stage scans the retrieved entries for person entries whose names appear in the query. For any such person who carries a role tag matching a known set (father, mother, boss, wife, husband, etc.), the pipeline searches for other retrieved entries whose titles contain that role word. For each match, an explicit bridging note is prepended to the memories block:
 
@@ -166,15 +166,15 @@ This closed-loop mechanism converts a declared failure into a targeted re-retrie
 
 This case study is the clearest demonstration of why each stage exists.
 
-| Stage | Contribution |
-|---|---|
-| Vector search | Retrieves "Henk Stander" (high similarity to the name in query) |
-| Hybrid scoring | Does not help — attribute entry isn't in the result set yet |
-| Query keyword expansion | Retrieves "Henk Stander" (already present); may not reach "Father's ID Number" because the title doesn't contain "Henk" |
-| Tag-keyword sibling expansion | **Key fix**: extracts `father` from "Henk Stander"'s tags → ILIKE search finds "Father's ID Number" |
-| Relationship synthesis | Generates explicit note: "Father's ID Number refers to Henk Stander" |
-| LLM generation | Has both entries + explicit synthesis note → answers correctly |
-| NO_INFO retry | Fallback if sibling expansion also fails to surface the entry |
+| Stage                         | Contribution                                                                                                            |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Vector search                 | Retrieves "Henk Stander" (high similarity to the name in query)                                                         |
+| Hybrid scoring                | Does not help — attribute entry isn't in the result set yet                                                             |
+| Query keyword expansion       | Retrieves "Henk Stander" (already present); may not reach "Father's ID Number" because the title doesn't contain "Henk" |
+| Tag-keyword sibling expansion | **Key fix**: extracts `father` from "Henk Stander"'s tags → ILIKE search finds "Father's ID Number"                     |
+| Relationship synthesis        | Generates explicit note: "Father's ID Number refers to Henk Stander"                                                    |
+| LLM generation                | Has both entries + explicit synthesis note → answers correctly                                                          |
+| NO_INFO retry                 | Fallback if sibling expansion also fails to surface the entry                                                           |
 
 Prior to implementing stages 4–7, this query would produce a confident but incorrect answer (or an admission of ignorance) despite the data being present in the brain. The fix required no schema changes — only smarter use of existing tags and titles.
 
@@ -190,4 +190,4 @@ Future work includes using positive chat feedback (thumbs up/down) to inject val
 
 ---
 
-*This paper describes the production implementation in `api/chat.ts` as of April 2026.*
+_This paper describes the production implementation in `api/chat.ts` as of April 2026._

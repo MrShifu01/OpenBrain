@@ -1,5 +1,5 @@
-import type { ApiRequest } from './types';
-import type { AuthedUser } from './withAuth.js';
+import type { ApiRequest } from "./types";
+import type { AuthedUser } from "./withAuth.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 

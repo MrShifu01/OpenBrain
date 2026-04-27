@@ -287,7 +287,9 @@ export function useCaptureSheetParse({
             });
             if (splitRes.ok) {
               const splitData = await splitRes.json();
-              const splitEntries: ParsedEntry[] = Array.isArray(splitData.entries) ? splitData.entries : [];
+              const splitEntries: ParsedEntry[] = Array.isArray(splitData.entries)
+                ? splitData.entries
+                : [];
               if (splitEntries.length === 1 && splitEntries[0].title) {
                 await doSave(splitEntries[0], rawContentRef.current);
                 return;
@@ -301,22 +303,60 @@ export function useCaptureSheetParse({
                     const r2 = await authFetch("/api/capture", {
                       method: "POST",
                       headers: { "Content-Type": "application/json", ...(getEmbedHeaders() || {}) },
-                      body: JSON.stringify({ p_title: entry.title, p_content: entry.content || "", p_type: entry.type || "note", p_metadata: entry.metadata || {}, p_tags: entry.tags || [], p_brain_id: brainId }),
+                      body: JSON.stringify({
+                        p_title: entry.title,
+                        p_content: entry.content || "",
+                        p_type: entry.type || "note",
+                        p_metadata: entry.metadata || {},
+                        p_tags: entry.tags || [],
+                        p_brain_id: brainId,
+                      }),
                     });
                     if (r2.ok) {
                       const d2 = await r2.json();
-                      onCreated({ id: d2?.id || Date.now().toString(), title: entry.title, content: entry.content || "", type: (entry.type || "note") as Entry["type"], metadata: { ...(entry.metadata || {}), enrichment: { embedded: !d2.embed_error, concepts_count: 0, has_insight: false } }, pinned: false, importance: 0, tags: entry.tags || [], created_at: new Date().toISOString() } as Entry);
-                    } else { splitFailed.push(entry.title || "(untitled)"); }
-                  } catch (err) { console.error("[split:save]", err); splitFailed.push(entry.title || "(untitled)"); }
+                      onCreated({
+                        id: d2?.id || Date.now().toString(),
+                        title: entry.title,
+                        content: entry.content || "",
+                        type: (entry.type || "note") as Entry["type"],
+                        metadata: {
+                          ...(entry.metadata || {}),
+                          enrichment: {
+                            embedded: !d2.embed_error,
+                            concepts_count: 0,
+                            has_insight: false,
+                          },
+                        },
+                        pinned: false,
+                        importance: 0,
+                        tags: entry.tags || [],
+                        created_at: new Date().toISOString(),
+                      } as Entry);
+                    } else {
+                      splitFailed.push(entry.title || "(untitled)");
+                    }
+                  } catch (err) {
+                    console.error("[split:save]", err);
+                    splitFailed.push(entry.title || "(untitled)");
+                  }
                 }
                 setUploadedFiles([]);
-                if (splitFailed.length) showToast(`${splitEntries.length - splitFailed.length} of ${splitEntries.length} saved. Failed: ${splitFailed.join(", ")}`, "error");
+                if (splitFailed.length)
+                  showToast(
+                    `${splitEntries.length - splitFailed.length} of ${splitEntries.length} saved. Failed: ${splitFailed.join(", ")}`,
+                    "error",
+                  );
                 setStatus("saved");
-                setTimeout(() => { setStatus(null); onClose(); }, 700);
+                setTimeout(() => {
+                  setStatus(null);
+                  onClose();
+                }, 700);
                 return;
               }
             }
-          } catch { /* fall through to manual preview */ }
+          } catch {
+            /* fall through to manual preview */
+          }
           const errMsg =
             data?.error?.message ||
             (typeof data?.error === "string" ? data.error : null) ||
@@ -436,7 +476,10 @@ export function useCaptureSheetParse({
           }
           setUploadedFiles([]);
           if (failedTitles.length) {
-            showToast(`${parsedRaw.length - failedTitles.length} of ${parsedRaw.length} saved. Failed: ${failedTitles.join(", ")}`, "error");
+            showToast(
+              `${parsedRaw.length - failedTitles.length} of ${parsedRaw.length} saved. Failed: ${failedTitles.join(", ")}`,
+              "error",
+            );
           }
           setStatus("saved");
           setTimeout(() => {

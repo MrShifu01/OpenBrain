@@ -30,21 +30,27 @@ const GEMINI_MODEL = (process.env.GEMINI_PERSONA_EXTRACTOR_MODEL || "gemini-2.5-
 type PersonaBucket = "identity" | "family" | "habit" | "preference" | "event";
 
 interface ExtractedFact {
-  fact: string;          // third-person, ≤200 chars
+  fact: string; // third-person, ≤200 chars
   bucket: PersonaBucket;
-  confidence: number;    // 0–1
-  evidence?: string;     // verbatim quote from the source (≤200 chars)
+  confidence: number; // 0–1
+  evidence?: string; // verbatim quote from the source (≤200 chars)
 }
 
 export interface ExtractorContext {
-  userName: string;            // preferred, falls back to full
-  fullName: string;            // formal full name
+  userName: string; // preferred, falls back to full
+  fullName: string; // formal full name
   pronouns: string;
-  coreContext: string;         // the free-form "About you" textarea
-  confirmedFacts: string[];    // titles of manual / chat / pinned facts (capped)
+  coreContext: string; // the free-form "About you" textarea
+  confirmedFacts: string[]; // titles of manual / chat / pinned facts (capped)
 }
 
-const VALID_BUCKETS = new Set<PersonaBucket>(["identity", "family", "habit", "preference", "event"]);
+const VALID_BUCKETS = new Set<PersonaBucket>([
+  "identity",
+  "family",
+  "habit",
+  "preference",
+  "event",
+]);
 // Confidence floor — bumped from 0.7 to 0.85 because identity-bucket false
 // positives ("User's name is Ruan") were the most damaging failure mode.
 const MIN_FACT_CONFIDENCE = 0.85;
@@ -164,7 +170,9 @@ export async function loadExtractorContext(
       const rows = (await r.json()) as PersonaCoreRow[];
       core = rows[0];
     }
-  } catch { /* empty core is fine */ }
+  } catch {
+    /* empty core is fine */
+  }
 
   // Confirmed facts: manual, chat-tool, or pinned. Capped server-side at 200
   // for safety; we cap further in the prompt.
@@ -182,13 +190,20 @@ export async function loadExtractorContext(
             const meta = row.metadata ?? {};
             const src = String(meta.source || "");
             // User-confirmed = manual settings entry, chat tool, or explicitly pinned.
-            return src === "manual" || src === "chat" || meta.pinned === true || meta.skip_persona === true;
+            return (
+              src === "manual" ||
+              src === "chat" ||
+              meta.pinned === true ||
+              meta.skip_persona === true
+            );
           })
           .map((row) => row.title?.trim())
           .filter((t): t is string => typeof t === "string" && t.length > 0)
           .slice(0, MAX_CONFIRMED_IN_PROMPT);
       }
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
 
   return {
@@ -213,7 +228,11 @@ function tryParse(text: string): ExtractedFact[] {
   } catch {
     return [];
   }
-  const arr: any[] = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.facts) ? parsed.facts : [];
+  const arr: any[] = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.facts)
+      ? parsed.facts
+      : [];
   const out: ExtractedFact[] = [];
   for (const item of arr) {
     if (!item || typeof item !== "object") continue;
@@ -226,7 +245,8 @@ function tryParse(text: string): ExtractedFact[] {
         ? item.confidence
         : 0;
     if (confidence < MIN_FACT_CONFIDENCE) continue;
-    const evidence = typeof item.evidence === "string" ? item.evidence.trim().slice(0, 200) : undefined;
+    const evidence =
+      typeof item.evidence === "string" ? item.evidence.trim().slice(0, 200) : undefined;
     out.push({ fact, bucket, confidence, evidence });
     if (out.length >= MAX_FACTS_PER_ENTRY) break;
   }
@@ -253,7 +273,9 @@ export async function extractPersonaFacts(args: {
     `Title: ${(args.title || "").slice(0, 200)}`,
     `Content: ${(args.content || "").slice(0, 1500)}`,
     tagHint,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   try {
     const r = await fetch(

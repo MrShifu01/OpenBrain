@@ -12,10 +12,10 @@ interface UsageCounts {
 }
 
 const LIMITS: Record<Tier, UsageCounts> = {
-  free:    { captures: 0,    chats: 0,    voice: 0,    improve: 0    },
-  starter: { captures: 500,  chats: 200,  voice: 20,   improve: 20   },
-  pro:     { captures: 2000, chats: 1000, voice: 100,  improve: 9999 },
-  max:     { captures: 9999, chats: 9999, voice: 9999, improve: 9999 },
+  free: { captures: 0, chats: 0, voice: 0, improve: 0 },
+  starter: { captures: 500, chats: 200, voice: 20, improve: 20 },
+  pro: { captures: 2000, chats: 1000, voice: 100, improve: 9999 },
+  max: { captures: 9999, chats: 9999, voice: 9999, improve: 9999 },
 };
 
 const ZERO_USAGE: UsageCounts = { captures: 0, chats: 0, voice: 0, improve: 0 };
@@ -39,7 +39,9 @@ export function useSubscription(): SubscriptionState {
     let cancelled = false;
 
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || cancelled) return;
 
       const period = new Date().toISOString().slice(0, 7);
@@ -62,8 +64,7 @@ export function useSubscription(): SubscriptionState {
 
       const rawTier = (profileRes.data?.tier ?? "free") as Tier;
       const expiresAt = profileRes.data?.tier_expires_at ?? null;
-      const effectiveTier: Tier =
-        expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
+      const effectiveTier: Tier = expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
 
       setTier(effectiveTier);
       setRenewalDate(expiresAt);
@@ -72,7 +73,9 @@ export function useSubscription(): SubscriptionState {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const limits = LIMITS[tier];

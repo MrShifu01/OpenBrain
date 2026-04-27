@@ -488,7 +488,8 @@ const EntryRow = memo(function EntryRow({
 }) {
   const isPinned = !!(e as any).pinned;
   const emoji = resolveIcon(e.type, typeIcons);
-  const showAdminFlags = isAdminSync() && e.type !== "secret" && getAdminPrefs().showEnrichmentChips;
+  const showAdminFlags =
+    isAdminSync() && e.type !== "secret" && getAdminPrefs().showEnrichmentChips;
 
   const [swipeX, setSwipeX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -664,7 +665,9 @@ const EntryRow = memo(function EntryRow({
           // both views read the same in Select mode.
           background: selected ? "var(--ember-wash)" : "var(--surface)",
           transform: `translateX(${swipeX}px)`,
-          transition: dragging ? "none" : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
+          transition: dragging
+            ? "none"
+            : "transform 220ms cubic-bezier(0.25, 1, 0.5, 1), background 180ms",
           touchAction: dragging ? "none" : "pan-y",
           willChange: dragging ? "transform" : "auto",
         }}

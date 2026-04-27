@@ -1,4 +1,5 @@
 # OpenBrain: Embeddings + RAG Design
+
 **Date:** 2026-04-03  
 **Status:** Approved — implement directly
 
@@ -14,10 +15,10 @@ Replace keyword-only search and dumb top-100 chat context with semantic embeddin
 
 Two supported providers, selectable in Settings:
 
-| Provider | Model | Dimensions |
-|---|---|---|
-| OpenAI | `text-embedding-3-small` (with `dimensions: 768`) | 768 |
-| Google | `text-embedding-004` | 768 |
+| Provider | Model                                             | Dimensions |
+| -------- | ------------------------------------------------- | ---------- |
+| OpenAI   | `text-embedding-3-small` (with `dimensions: 768`) | 768        |
+| Google   | `text-embedding-004`                              | 768        |
 
 Both use 768 dimensions so they share the same `vector(768)` column. OpenAI's model natively supports dimension reduction via the `dimensions` parameter — quality loss is negligible. Google's model is natively 768.
 
@@ -49,25 +50,31 @@ The `match_entries` function is the sole pgvector interface. All callers (search
 Two modes via request body:
 
 **Single entry:**
+
 ```
 POST /api/embed
 { entry_id: "uuid" }
 ```
+
 Embeds one entry. Called fire-and-forget from capture and update handlers.
 
 **Batch backfill:**
+
 ```
 POST /api/embed
 { brain_id: "uuid", batch: true }
 ```
+
 Processes all entries in the brain where `embedded_at IS NULL` OR `embedding_provider != current_provider`. Chunks of 50, small delay between chunks to respect rate limits. Returns `{ processed: N, skipped: M }`.
 
 ### `api/capture.js` (modified)
 
 After the existing audit log fire-and-forget (line 82), add a third fire-and-forget:
+
 ```js
 fetch("/api/embed", { method: "POST", body: JSON.stringify({ entry_id: data.id }), ... }).catch(() => {});
 ```
+
 Non-blocking. Same pattern as audit log. Capture response time is unaffected.
 
 ### `api/update-entry.js` (modified)
@@ -77,6 +84,7 @@ Same fire-and-forget embed call after successful update. Content changes invalid
 ### Settings UI (modified — `SettingsView.jsx`)
 
 New "Embedding" section:
+
 - Toggle: OpenAI / Google
 - Key field: shown conditionally (Gemini API key for Google; OpenAI key already exists)
 - Button: "Re-embed all entries" → triggers `POST /api/embed { brain_id, batch: true }`
@@ -136,6 +144,7 @@ POST /api/chat
 ```
 
 Pipeline:
+
 1. Embed `message` using user's embedding provider
 2. `match_entries` → top-20 semantically relevant entries
 3. Fetch links for those 20 entries only
@@ -152,6 +161,7 @@ Pipeline:
 
 `handleChat` currently calls `callAI` with `chatContext` (top-100 slice).  
 New flow:
+
 ```
 embedding key configured?
   yes → POST /api/chat (RAG + history)

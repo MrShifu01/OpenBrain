@@ -25,15 +25,12 @@ const SB_URL = process.env.SUPABASE_URL!;
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 
-export default withAuth(
-  { methods: ["POST"], rateLimit: 30 },
-  async (ctx) => {
-    const { type } = ctx.req.body ?? {};
-    if (type === "insight_correction") return handleInsightCorrection(ctx);
-    if (type === "merge_feedback") return handleMergeFeedback(ctx);
-    return handleChatFeedback(ctx);
-  },
-);
+export default withAuth({ methods: ["POST"], rateLimit: 30 }, async (ctx) => {
+  const { type } = ctx.req.body ?? {};
+  if (type === "insight_correction") return handleInsightCorrection(ctx);
+  if (type === "merge_feedback") return handleMergeFeedback(ctx);
+  return handleChatFeedback(ctx);
+});
 
 // ── Mode 1: Chat feedback ────────────────────────────────────────────────────
 
@@ -60,7 +57,9 @@ async function handleChatFeedback({ req, res, user }: HandlerContext): Promise<v
   if (!["high", "medium", "low"].includes(confidence)) {
     throw new ApiError(400, "confidence must be high, medium, or low");
   }
-  const retrievedIds: string[] = Array.isArray(retrieved_entry_ids) ? retrieved_entry_ids.slice(0, 100) : [];
+  const retrievedIds: string[] = Array.isArray(retrieved_entry_ids)
+    ? retrieved_entry_ids.slice(0, 100)
+    : [];
   const topIds: string[] = Array.isArray(top_entry_ids) ? top_entry_ids.slice(0, 20) : [];
 
   await requireBrainAccess(user.id, brain_id);
@@ -142,7 +141,12 @@ async function handleInsightCorrection({ req, res, user }: HandlerContext): Prom
   if (!headline || typeof headline !== "string" || headline.length > 500) {
     throw new ApiError(400, "Invalid headline");
   }
-  if (!correction || typeof correction !== "string" || correction.length < 1 || correction.length > 1000) {
+  if (
+    !correction ||
+    typeof correction !== "string" ||
+    correction.length < 1 ||
+    correction.length > 1000
+  ) {
     throw new ApiError(400, "correction required (max 1000 chars)");
   }
   await requireBrainAccess(user.id, brain_id);
@@ -191,17 +195,23 @@ ${entriesSummary}`;
     if (llmRes.ok) {
       const data: any = await llmRes.json();
       const parts: any[] = data.candidates?.[0]?.content?.parts || [];
-      const text = parts.filter((p: any) => !p.thought).map((p: any) => p.text || "").join("").trim()
-        || parts.map((p: any) => p.text || "").join("").trim();
+      const text =
+        parts
+          .filter((p: any) => !p.thought)
+          .map((p: any) => p.text || "")
+          .join("")
+          .trim() ||
+        parts
+          .map((p: any) => p.text || "")
+          .join("")
+          .trim();
       const match = text.match(/\[[\s\S]*\]/);
       if (match) {
         const parsed = JSON.parse(match[0]);
         if (Array.isArray(parsed)) {
           fixes = parsed.filter(
             (f: any) =>
-              f && typeof f.id === "string" &&
-              typeof f.content === "string" &&
-              validIds.has(f.id),
+              f && typeof f.id === "string" && typeof f.content === "string" && validIds.has(f.id),
           );
         }
       }

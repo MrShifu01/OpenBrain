@@ -37,11 +37,7 @@ import { withDateContext } from "./promptContext.js";
 // backoff: 100ms → 400ms → 1.6s. 4xx other than 429 is a permanent failure
 // (auth, content policy, malformed request) — surface immediately so we
 // don't burn time/credits retrying something that will keep failing.
-async function fetchWithRetry(
-  url: string,
-  init: RequestInit,
-  label: string,
-): Promise<Response> {
+async function fetchWithRetry(url: string, init: RequestInit, label: string): Promise<Response> {
   const delays = [100, 400, 1600];
   let lastErr: unknown;
   for (let attempt = 0; attempt <= delays.length; attempt++) {
@@ -74,7 +70,12 @@ async function fetchWithRetry(
  * enrichment treats empty as "step did not succeed, leave the flag unset
  * for retry on the next pass."
  */
-export async function callAI(cfg: AICall, rawSystem: string, content: string, opts: AICallOpts = {}): Promise<string> {
+export async function callAI(
+  cfg: AICall,
+  rawSystem: string,
+  content: string,
+  opts: AICallOpts = {},
+): Promise<string> {
   if (!cfg.apiKey) return "";
   const system = withDateContext(rawSystem);
   switch (cfg.provider) {
@@ -97,23 +98,32 @@ export async function callAI(cfg: AICall, rawSystem: string, content: string, op
 
 // ── Anthropic Messages API ──────────────────────────────────────────────────
 
-async function callAnthropic(cfg: AICall, system: string, content: string, opts: AICallOpts): Promise<string> {
+async function callAnthropic(
+  cfg: AICall,
+  system: string,
+  content: string,
+  opts: AICallOpts,
+): Promise<string> {
   let res: Response;
   try {
-    res = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": cfg.apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+    res = await fetchWithRetry(
+      "https://api.anthropic.com/v1/messages",
+      {
+        method: "POST",
+        headers: {
+          "x-api-key": cfg.apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          max_tokens: opts.maxTokens ?? 1500,
+          system,
+          messages: [{ role: "user", content }],
+        }),
       },
-      body: JSON.stringify({
-        model: cfg.model,
-        max_tokens: opts.maxTokens ?? 1500,
-        system,
-        messages: [{ role: "user", content }],
-      }),
-    }, "anthropic");
+      "anthropic",
+    );
   } catch (err: any) {
     console.error(`[aiProvider:anthropic] network failure after retries: ${err?.message ?? err}`);
     return "";
@@ -133,7 +143,12 @@ async function callAnthropic(cfg: AICall, system: string, content: string, opts:
 // http://localhost:11434/v1 talks to Ollama; pointing at https://api.groq.com/openai/v1
 // talks to Groq. Same adapter.
 
-async function callOpenAI(cfg: AICall, system: string, content: string, opts: AICallOpts): Promise<string> {
+async function callOpenAI(
+  cfg: AICall,
+  system: string,
+  content: string,
+  opts: AICallOpts,
+): Promise<string> {
   const baseUrl =
     cfg.provider === "openai-compatible"
       ? cfg.baseUrl?.replace(/\/$/, "")
@@ -154,16 +169,22 @@ async function callOpenAI(cfg: AICall, system: string, content: string, opts: AI
 
   let res: Response;
   try {
-    res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
-        "Content-Type": "application/json",
+    res = await fetchWithRetry(
+      `${baseUrl}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
       },
-      body: JSON.stringify(body),
-    }, cfg.provider);
+      cfg.provider,
+    );
   } catch (err: any) {
-    console.error(`[aiProvider:${cfg.provider}] network failure after retries: ${err?.message ?? err}`);
+    console.error(
+      `[aiProvider:${cfg.provider}] network failure after retries: ${err?.message ?? err}`,
+    );
     return "";
   }
   if (!res.ok) {
@@ -184,7 +205,12 @@ async function callOpenAI(cfg: AICall, system: string, content: string, opts: AI
 // thinking by default for enrichment calls — short structured responses don't
 // benefit from it and the budget should be spent on the answer.
 
-async function callGemini(cfg: AICall, system: string, content: string, opts: AICallOpts): Promise<string> {
+async function callGemini(
+  cfg: AICall,
+  system: string,
+  content: string,
+  opts: AICallOpts,
+): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: opts.maxTokens ?? 1500,
@@ -194,15 +220,19 @@ async function callGemini(cfg: AICall, system: string, content: string, opts: AI
 
   let res: Response;
   try {
-    res = await fetchWithRetry(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: content }] }],
-        systemInstruction: { parts: [{ text: system }] },
-        generationConfig,
-      }),
-    }, "gemini");
+    res = await fetchWithRetry(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: content }] }],
+          systemInstruction: { parts: [{ text: system }] },
+          generationConfig,
+        }),
+      },
+      "gemini",
+    );
   } catch (err: any) {
     console.error(`[aiProvider:gemini] network failure after retries: ${err?.message ?? err}`);
     return "";
@@ -216,6 +246,16 @@ async function callGemini(cfg: AICall, system: string, content: string, opts: AI
   // Filter out internal `thought` parts (a precaution if thinking ever sneaks
   // back on); join the rest. If filtering leaves nothing, return whatever
   // was generated rather than an empty string.
-  const text = parts.filter((p: any) => !p.thought).map((p: any) => p.text || "").join("").trim();
-  return text || parts.map((p: any) => p.text || "").join("").trim();
+  const text = parts
+    .filter((p: any) => !p.thought)
+    .map((p: any) => p.text || "")
+    .join("")
+    .trim();
+  return (
+    text ||
+    parts
+      .map((p: any) => p.text || "")
+      .join("")
+      .trim()
+  );
 }

@@ -40,7 +40,8 @@ const hdrs = (extra: Record<string, string> = {}): Record<string, string> => ({
 const TOOLS = [
   {
     name: "retrieve_memory",
-    description: "Full semantic retrieval from the user's brain. Uses embedding + vector search + keyword expansion + graph boost to return the most relevant entries with complete metadata. Use this when the user asks about something stored in their knowledge base.",
+    description:
+      "Full semantic retrieval from the user's brain. Uses embedding + vector search + keyword expansion + graph boost to return the most relevant entries with complete metadata. Use this when the user asks about something stored in their knowledge base.",
     inputSchema: {
       type: "object",
       properties: {
@@ -52,7 +53,8 @@ const TOOLS = [
   },
   {
     name: "get_upcoming",
-    description: "Return entries with upcoming due dates, deadlines, expiry dates, or event dates. Use this when the user asks what is coming up, what is due soon, or what is expiring.",
+    description:
+      "Return entries with upcoming due dates, deadlines, expiry dates, or event dates. Use this when the user asks what is coming up, what is due soon, or what is expiring.",
     inputSchema: {
       type: "object",
       properties: {
@@ -72,21 +74,31 @@ const TOOLS = [
   },
   {
     name: "create_entry",
-    description: "Save new information to the user's knowledge base. Use this when the user says things like 'add this to Everion', 'save this note', 'remember that', 'store this phone number', or 'add this idea to my memory'.",
+    description:
+      "Save new information to the user's knowledge base. Use this when the user says things like 'add this to Everion', 'save this note', 'remember that', 'store this phone number', or 'add this idea to my memory'.",
     inputSchema: {
       type: "object",
       properties: {
         title: { type: "string", description: "Short descriptive title (max 200 chars)" },
         content: { type: "string", description: "Full content to store" },
-        type: { type: "string", description: "Entry type: note, person, recipe, task, event, document, idea, contact. Defaults to note." },
-        tags: { type: "array", items: { type: "string" }, description: "Optional tags for categorisation" },
+        type: {
+          type: "string",
+          description:
+            "Entry type: note, person, recipe, task, event, document, idea, contact. Defaults to note.",
+        },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional tags for categorisation",
+        },
       },
       required: ["title", "content"],
     },
   },
   {
     name: "search_entries",
-    description: "Low-level vector-only search. Prefer retrieve_memory for most queries — it has better coverage. Use this only when you need raw similarity scores.",
+    description:
+      "Low-level vector-only search. Prefer retrieve_memory for most queries — it has better coverage. Use this only when you need raw similarity scores.",
     inputSchema: {
       type: "object",
       properties: {
@@ -97,7 +109,8 @@ const TOOLS = [
   },
   {
     name: "update_entry",
-    description: "Update an existing entry's title, content, tags, or type. Use this after the user approves a suggested edit, merge target, or data correction. Regenerates the embedding automatically when content changes.",
+    description:
+      "Update an existing entry's title, content, tags, or type. Use this after the user approves a suggested edit, merge target, or data correction. Regenerates the embedding automatically when content changes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -105,14 +118,19 @@ const TOOLS = [
         title: { type: "string", description: "New title (optional)" },
         content: { type: "string", description: "New content (optional)" },
         type: { type: "string", description: "New entry type (optional)" },
-        tags: { type: "array", items: { type: "string" }, description: "New tags array (optional, replaces existing)" },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "New tags array (optional, replaces existing)",
+        },
       },
       required: ["id"],
     },
   },
   {
     name: "delete_entry",
-    description: "Soft-delete an entry (moves it to trash, recoverable). Use this after the user approves removing a duplicate, stale, or merged entry.",
+    description:
+      "Soft-delete an entry (moves it to trash, recoverable). Use this after the user approves removing a duplicate, stale, or merged entry.",
     inputSchema: {
       type: "object",
       properties: {
@@ -123,30 +141,39 @@ const TOOLS = [
   },
   {
     name: "gmail_sync",
-    description: "Run a manual Gmail scan. Ingests high-signal threads (invoices, deadlines, appointments, signing requests, action items) from the user's Gmail and returns the newly-created entries. Honours the user's configured categories and ignore rules.",
+    description:
+      "Run a manual Gmail scan. Ingests high-signal threads (invoices, deadlines, appointments, signing requests, action items) from the user's Gmail and returns the newly-created entries. Honours the user's configured categories and ignore rules.",
     inputSchema: {
       type: "object",
       properties: {
-        lookback_days: { type: "number", description: "Days to look back from now (1-30, default 7)" },
+        lookback_days: {
+          type: "number",
+          description: "Days to look back from now (1-30, default 7)",
+        },
       },
       required: [],
     },
   },
   {
     name: "gmail_review_queue",
-    description: "List recently-ingested Gmail entries pending user review, ranked by relevance_score. Use when the user asks what just came in from email or wants to triage new items.",
+    description:
+      "List recently-ingested Gmail entries pending user review, ranked by relevance_score. Use when the user asks what just came in from email or wants to triage new items.",
     inputSchema: {
       type: "object",
       properties: {
         limit: { type: "number", description: "Max entries to return (1-50, default 20)" },
-        since_hours: { type: "number", description: "Only include entries ingested in the last N hours (1-168, default 72)" },
+        since_hours: {
+          type: "number",
+          description: "Only include entries ingested in the last N hours (1-168, default 72)",
+        },
       },
       required: [],
     },
   },
   {
     name: "gmail_contacts",
-    description: "List the user's Gmail contacts ranked by interaction frequency. Each contact has interaction_count and last_interaction_at metadata. Use when the user asks who they talk to most or wants to find a specific correspondent.",
+    description:
+      "List the user's Gmail contacts ranked by interaction frequency. Each contact has interaction_count and last_interaction_at metadata. Use when the user asks who they talk to most or wants to find a specific correspondent.",
     inputSchema: {
       type: "object",
       properties: {
@@ -157,17 +184,20 @@ const TOOLS = [
   },
   {
     name: "gmail_ignore_pattern",
-    description: "Add a natural-language rule to the user's Gmail ignore list. Future scans skip matching emails. Use after the user says things like 'stop importing emails from X' or 'don't scan newsletters'.",
+    description:
+      "Add a natural-language rule to the user's Gmail ignore list. Future scans skip matching emails. Use after the user says things like 'stop importing emails from X' or 'don't scan newsletters'.",
     inputSchema: {
       type: "object",
       properties: {
-        pattern: { type: "string", description: "Natural-language rule, e.g. 'Ignore newsletters from substack.com'" },
+        pattern: {
+          type: "string",
+          description: "Natural-language rule, e.g. 'Ignore newsletters from substack.com'",
+        },
       },
       required: ["pattern"],
     },
   },
 ];
-
 
 // ── Plan / tier lookup ────────────────────────────────────────────────────────
 
@@ -200,7 +230,6 @@ async function getUpcoming(brainId: string, days = 30): Promise<unknown> {
 }
 
 async function searchEntries(brainId: string, query: string): Promise<unknown> {
-
   if (!GEMINI_API_KEY) throw new Error("Embedding not configured on server");
 
   const embedding = await generateEmbedding(query, GEMINI_API_KEY);
@@ -252,14 +281,19 @@ async function createEntry(
   const safeContent = content.slice(0, 200_000);
   const safeType = type.trim().slice(0, 50).toLowerCase() || "note";
   if (safeType === "secret") {
-    throw new Error("Cannot create vault entries via MCP — use the in-app Vault to encrypt secrets");
+    throw new Error(
+      "Cannot create vault entries via MCP — use the in-app Vault to encrypt secrets",
+    );
   }
   const safeTags = Array.isArray(tags) ? tags.slice(0, 20).map((t) => String(t).slice(0, 50)) : [];
 
   // Generate embedding
   let embedding: number[] | null = null;
   if (GEMINI_API_KEY) {
-    embedding = await generateEmbedding(buildEntryText({ title: safeTitle, content: safeContent, tags: safeTags }), GEMINI_API_KEY);
+    embedding = await generateEmbedding(
+      buildEntryText({ title: safeTitle, content: safeContent, tags: safeTags }),
+      GEMINI_API_KEY,
+    );
   }
 
   const id = (randomUUID as () => string)();
@@ -308,14 +342,20 @@ async function updateEntry(
   if (fields.type !== undefined) {
     const newType = fields.type.trim().slice(0, 50).toLowerCase();
     if (newType === "secret") {
-      throw new Error("Cannot retype an entry to 'secret' via MCP — move it through the in-app Vault flow");
+      throw new Error(
+        "Cannot retype an entry to 'secret' via MCP — move it through the in-app Vault flow",
+      );
     }
     patch.type = newType;
   }
-  if (fields.tags !== undefined) patch.tags = fields.tags.slice(0, 20).map((t) => String(t).slice(0, 50));
+  if (fields.tags !== undefined)
+    patch.tags = fields.tags.slice(0, 20).map((t) => String(t).slice(0, 50));
 
   // Regenerate embedding if searchable fields changed
-  if (GEMINI_API_KEY && (fields.title !== undefined || fields.content !== undefined || fields.tags !== undefined)) {
+  if (
+    GEMINI_API_KEY &&
+    (fields.title !== undefined || fields.content !== undefined || fields.tags !== undefined)
+  ) {
     const merged = {
       title: (patch.title ?? rows[0].title) as string,
       content: (patch.content ?? rows[0].content) as string,
@@ -325,14 +365,11 @@ async function updateEntry(
     if (embedding) patch.embedding = `[${embedding.join(",")}]`;
   }
 
-  const r = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-    {
-      method: "PATCH",
-      headers: hdrs({ Prefer: "return=representation" }),
-      body: JSON.stringify(patch),
-    },
-  );
+  const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: hdrs({ Prefer: "return=representation" }),
+    body: JSON.stringify(patch),
+  });
   if (!r.ok) throw new Error(`Update failed: ${await r.text().catch(() => r.status)}`);
   const updated: any[] = await r.json();
   if (GEMINI_API_KEY) await rebuildConceptGraph(brainId, GEMINI_API_KEY);
@@ -430,16 +467,14 @@ async function deleteEntry(brainId: string, id: string): Promise<unknown> {
   if (!entryRes.ok) throw new Error("Failed to fetch entry");
   const rows: any[] = await entryRes.json();
   if (!rows.length) throw new Error("Entry not found");
-  if (rows[0].type === "secret") throw new Error("Entry is locked in Vault — open the app to delete");
+  if (rows[0].type === "secret")
+    throw new Error("Entry is locked in Vault — open the app to delete");
 
-  const r = await fetch(
-    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`,
-    {
-      method: "PATCH",
-      headers: hdrs({ Prefer: "return=minimal" }),
-      body: JSON.stringify({ deleted_at: new Date().toISOString() }),
-    },
-  );
+  const r = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: hdrs({ Prefer: "return=minimal" }),
+    body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+  });
   if (!r.ok) throw new Error(`Delete failed: ${await r.text().catch(() => r.status)}`);
   return { id, deleted: true };
 }
@@ -455,7 +490,14 @@ function jsonRpcErr(id: unknown, code: number, message: string) {
 }
 
 function mcpToolResult(content: unknown) {
-  return { content: [{ type: "text", text: typeof content === "string" ? content : JSON.stringify(content, null, 2) }] };
+  return {
+    content: [
+      {
+        type: "text",
+        text: typeof content === "string" ? content : JSON.stringify(content, null, 2),
+      },
+    ],
+  };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -484,18 +526,32 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     const authHeader = (req.headers["authorization"] as string) || "";
     const key = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
     const auth = key ? await resolveApiKey(key) : null;
-    if (!auth) return res.status(401).json({ error: "invalid_client", error_description: "Invalid or missing API key" });
+    if (!auth)
+      return res
+        .status(401)
+        .json({ error: "invalid_client", error_description: "Invalid or missing API key" });
     return res.status(200).json({ access_token: key, token_type: "Bearer", expires_in: 86400 });
   }
 
   // OAuth dynamic client registration
   if (req.query._oauth === "register") {
-    return res.status(201).json({ client_id: "everion-mcp-client", grant_types: ["client_credentials"], token_endpoint_auth_method: "none" });
+    return res
+      .status(201)
+      .json({
+        client_id: "everion-mcp-client",
+        grant_types: ["client_credentials"],
+        token_endpoint_auth_method: "none",
+      });
   }
 
   // OAuth authorize endpoint — not used for client_credentials but required by discovery spec
   if (req.query._oauth === "authorize") {
-    return res.status(400).json({ error: "unsupported_response_type", error_description: "Use client_credentials grant via the token endpoint" });
+    return res
+      .status(400)
+      .json({
+        error: "unsupported_response_type",
+        error_description: "Use client_credentials grant via the token endpoint",
+      });
   }
 
   // MCP over HTTP uses POST for all requests
@@ -504,7 +560,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   // Auth
   const authHeader = (req.headers["authorization"] as string) || "";
   const rawKey = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  if (!rawKey) return res.status(401).json(jsonRpcErr(null, -32001, "Missing Authorization header"));
+  if (!rawKey)
+    return res.status(401).json(jsonRpcErr(null, -32001, "Missing Authorization header"));
 
   const auth = await resolveApiKey(rawKey);
   if (!auth) return res.status(401).json(jsonRpcErr(null, -32001, "Invalid or revoked API key"));
@@ -512,15 +569,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const { userId, brainId } = auth;
   const { jsonrpc, id, method, params } = req.body || {};
 
-  if (jsonrpc !== "2.0") return res.status(400).json(jsonRpcErr(id ?? null, -32600, "Invalid JSON-RPC version"));
+  if (jsonrpc !== "2.0")
+    return res.status(400).json(jsonRpcErr(id ?? null, -32600, "Invalid JSON-RPC version"));
 
   // ── initialize ──
   if (method === "initialize") {
-    return res.status(200).json(jsonRpcOk(id, {
-      protocolVersion: "2024-11-05",
-      capabilities: { tools: {} },
-      serverInfo: { name: "everionmind", version: "2.0.0" },
-    }));
+    return res.status(200).json(
+      jsonRpcOk(id, {
+        protocolVersion: "2024-11-05",
+        capabilities: { tools: {} },
+        serverInfo: { name: "everionmind", version: "2.0.0" },
+      }),
+    );
   }
 
   // ── tools/list ──
@@ -554,7 +614,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         }
         // Per-tool rate limit: 10 create_entry calls/min per IP
         if (!(await rateLimit(req, 10, 60_000, "create_entry"))) {
-          return res.status(200).json(jsonRpcErr(id, -32000, "Rate limit exceeded for create_entry (10/min)"));
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32000, "Rate limit exceeded for create_entry (10/min)"));
         }
         // Quota check: count against monthly captures budget
         const { plan, hasByok } = await getUserPlan(userId);
@@ -562,29 +624,55 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         try {
           quota = await checkAndIncrement(userId, "captures", plan, hasByok);
         } catch {
-          return res.status(200).json(jsonRpcErr(id, -32000, "Quota service unavailable — try again"));
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32000, "Quota service unavailable — try again"));
         }
         if (!quota.allowed) {
           log.warn("quota_exceeded", { plan, action: "captures" });
-          return res.status(200).json(jsonRpcErr(id, -32000, `Monthly capture limit reached (${plan} plan)`));
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32000, `Monthly capture limit reached (${plan} plan)`));
         }
         const iKey = req.headers["idempotency-key"] as string | undefined;
         if (iKey) {
           const existingId = await checkIdempotency(userId, iKey);
-          if (existingId) { result = { id: existingId, idempotent_replay: true }; }
+          if (existingId) {
+            result = { id: existingId, idempotent_replay: true };
+          }
         }
         if (!result) {
-          result = await createEntry(userId, brainId, args.title, args.content, args.type, args.tags);
+          result = await createEntry(
+            userId,
+            brainId,
+            args.title,
+            args.content,
+            args.type,
+            args.tags,
+          );
           if ((result as any)?.id) enrichInline((result as any).id, userId).catch(() => {});
-          if (iKey && (result as any)?.id) recordIdempotency(userId, iKey, (result as any).id).catch(() => {});
+          if (iKey && (result as any)?.id)
+            recordIdempotency(userId, iKey, (result as any).id).catch(() => {});
         }
         log.info("create_entry_ok", { entry_id: (result as any)?.id });
       } else if (toolName === "update_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
-        if (args.title === undefined && args.content === undefined && args.type === undefined && args.tags === undefined) {
-          return res.status(200).json(jsonRpcErr(id, -32602, "At least one field to update is required"));
+        if (
+          args.title === undefined &&
+          args.content === undefined &&
+          args.type === undefined &&
+          args.tags === undefined
+        ) {
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32602, "At least one field to update is required"));
         }
-        result = await updateEntry(brainId, args.id, { title: args.title, content: args.content, type: args.type, tags: args.tags });
+        result = await updateEntry(brainId, args.id, {
+          title: args.title,
+          content: args.content,
+          type: args.type,
+          tags: args.tags,
+        });
         enrichInline(args.id, userId).catch(() => {});
       } else if (toolName === "delete_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
@@ -592,7 +680,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       } else if (toolName === "gmail_sync") {
         // Per-tool rate limit: 5 gmail_sync calls/min per IP — prevents scan DoS
         if (!(await rateLimit(req, 5, 60_000, "gmail_sync"))) {
-          return res.status(200).json(jsonRpcErr(id, -32000, "Rate limit exceeded for gmail_sync (5/min)"));
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32000, "Rate limit exceeded for gmail_sync (5/min)"));
         }
         log.info("gmail_sync_start", { lookback_days: args.lookback_days });
         result = await gmailSync(userId, brainId, args.lookback_days);
@@ -603,7 +693,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       } else if (toolName === "gmail_contacts") {
         result = await gmailContacts(userId, args.limit);
       } else if (toolName === "gmail_ignore_pattern") {
-        if (!args.pattern) return res.status(200).json(jsonRpcErr(id, -32602, "pattern is required"));
+        if (!args.pattern)
+          return res.status(200).json(jsonRpcErr(id, -32602, "pattern is required"));
         result = await gmailIgnorePattern(userId, args.pattern);
       } else {
         return res.status(200).json(jsonRpcErr(id, -32601, `Unknown tool: ${toolName}`));

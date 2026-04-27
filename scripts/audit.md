@@ -8,43 +8,43 @@
 
 ## Failure Rates At A Glance
 
-| Prompt | Result |
-|---|---|
-| CAPTURE | 5/20 correct type (25% accuracy). Top failures: type_mismatch(14), phone_not_extracted(5), full_text_not_stored(3) |
-| CHAT | 5/5 thumbs-down. Symptoms: verbose_for_lookup, regurgitation, list_overload, missed_fact_in_content, wrong_mode_lookup_for_analytical |
-| QA_PARSE | 3/3 sessions with failures: type_mismatch(3), phone_not_extracted(2), price_not_extracted(1), missing_split(1), sensitive_data_untagged(1) |
-| FILL_BRAIN | generic_question(1) wrong_priority(1) already_answered(1) |
-| ENTRY_AUDIT | false_negatives(1) false_positives(1) over_suggestions(1) |
-| NUDGE | 1/3 passing. Failures: contains_json_keys(1), exposes_metadata(1), too_vague(1), exceeds_two_sentences(1) |
-| LINK_DISCOVERY | vague_rel_labels(2) missed_links(2) trivial_links(1) |
-| LINK_DISCOVERY_PAIRS | false_positives(1) vague_confirmed_labels(1) |
-| WEAK_LABEL_RENAME | still_vague_after_rename(2) hallucinated_label(1) |
-| DUPLICATE_NAMES | false_positives(1) false_negatives(1) |
-| CLUSTER_NAMING | generic_title(1) wrong_type(1) |
-| COMBINED_AUDIT | bad_concept_labels(1) generic_gaps(1) missed_entry_issues(1) |
-| FILE_SPLIT | missed_split(2) type_mismatch(1) full_text_missing(1) |
-| CONNECTION_FINDER | trivial_links(1) missed_connections(2) |
-| ENTRY_CONCEPTS | bad_concept_labels(2), passing 1/2 |
-| INSIGHT | generic(1) no_cross_reference(1) |
-| BATCH_CONCEPTS | bad_concept_labels(2) |
-| BATCH_LINKS | vague_labels(2) missed_links(1) |
-| PLAN_QUERY | missing_entity(1) generic_expanded_queries(1) |
-| SUGGESTIONS | no_deepen_questions(1) generic_questions(1) |
-| MERGE | false_negatives(1) false_positives(1) |
-| WOW | generic(1) motivational_poster_tone(1) |
-| EXTRACT_FILE | added_commentary_or_disclaimer(1) |
+| Prompt               | Result                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| CAPTURE              | 5/20 correct type (25% accuracy). Top failures: type_mismatch(14), phone_not_extracted(5), full_text_not_stored(3)                         |
+| CHAT                 | 5/5 thumbs-down. Symptoms: verbose_for_lookup, regurgitation, list_overload, missed_fact_in_content, wrong_mode_lookup_for_analytical      |
+| QA_PARSE             | 3/3 sessions with failures: type_mismatch(3), phone_not_extracted(2), price_not_extracted(1), missing_split(1), sensitive_data_untagged(1) |
+| FILL_BRAIN           | generic_question(1) wrong_priority(1) already_answered(1)                                                                                  |
+| ENTRY_AUDIT          | false_negatives(1) false_positives(1) over_suggestions(1)                                                                                  |
+| NUDGE                | 1/3 passing. Failures: contains_json_keys(1), exposes_metadata(1), too_vague(1), exceeds_two_sentences(1)                                  |
+| LINK_DISCOVERY       | vague_rel_labels(2) missed_links(2) trivial_links(1)                                                                                       |
+| LINK_DISCOVERY_PAIRS | false_positives(1) vague_confirmed_labels(1)                                                                                               |
+| WEAK_LABEL_RENAME    | still_vague_after_rename(2) hallucinated_label(1)                                                                                          |
+| DUPLICATE_NAMES      | false_positives(1) false_negatives(1)                                                                                                      |
+| CLUSTER_NAMING       | generic_title(1) wrong_type(1)                                                                                                             |
+| COMBINED_AUDIT       | bad_concept_labels(1) generic_gaps(1) missed_entry_issues(1)                                                                               |
+| FILE_SPLIT           | missed_split(2) type_mismatch(1) full_text_missing(1)                                                                                      |
+| CONNECTION_FINDER    | trivial_links(1) missed_connections(2)                                                                                                     |
+| ENTRY_CONCEPTS       | bad_concept_labels(2), passing 1/2                                                                                                         |
+| INSIGHT              | generic(1) no_cross_reference(1)                                                                                                           |
+| BATCH_CONCEPTS       | bad_concept_labels(2)                                                                                                                      |
+| BATCH_LINKS          | vague_labels(2) missed_links(1)                                                                                                            |
+| PLAN_QUERY           | missing_entity(1) generic_expanded_queries(1)                                                                                              |
+| SUGGESTIONS          | no_deepen_questions(1) generic_questions(1)                                                                                                |
+| MERGE                | false_negatives(1) false_positives(1)                                                                                                      |
+| WOW                  | generic(1) motivational_poster_tone(1)                                                                                                     |
+| EXTRACT_FILE         | added_commentary_or_disclaimer(1)                                                                                                          |
 
 ---
 
 ## Top 5 Failure Modes (cross-prompt)
 
-| Failure mode | Count |
-|---|---|
-| type_mismatch | 18× |
-| phone_not_extracted | 8× |
-| missing_split | 5× |
-| full_text_not_stored | 4× |
-| vague_rel_label | 4× |
+| Failure mode         | Count |
+| -------------------- | ----- |
+| type_mismatch        | 18×   |
+| phone_not_extracted  | 8×    |
+| missing_split        | 5×    |
+| full_text_not_stored | 4×    |
+| vague_rel_label      | 4×    |
 
 ---
 
@@ -55,6 +55,7 @@
 **[01] CAPTURE › TYPE_RULES — missing type examples**  
 Evidence: 14× type_mismatch. Types absent from working examples: place, account, procedure, ingredient, transaction.  
 Add to TYPE_RULES:
+
 - A named physical address or branch location → "place"
 - A bank account or financial summary → "account"
 - A step-by-step process or SOP → "procedure"
@@ -87,6 +88,7 @@ Rewrite SINGLE DATUM rule: `"SINGLE DATUM: your ENTIRE response is ONLY the valu
 **[08] CHAT › ANALYTICAL — positive framing + failure example**  
 Evidence: 1× analytical query answered by listing stored data. Negative framing ("do NOT") ignored by weaker models.  
 Rewrite ANALYTICAL HARD RULE:
+
 > "Analytical responses MUST ONLY contain insights the user could NOT derive by reading their own entries. Ask yourself: 'Would the user already know this?' If yes, cut it.  
 > Bad: 'Your suppliers are Meaty Boy and FreshMeat.'  
 > Good: 'Two suppliers overlap on brisket — concentration risk and pricing leverage.'"
@@ -108,6 +110,7 @@ Add: `"PHONE_FOUND check: scan the entire content and title for any digit sequen
 **[16] NUDGE › prose-only output**  
 Evidence: 1× JSON keys leaked into nudge output.  
 Add hard negative example:
+
 > "NEVER output entry_id, due_date, type, metadata keys, or any field names.  
 > Bad: 'entry_id: abc123, due_date: 2025-04-30: Pay Rand Water'  
 > Good: 'Your Rand Water payment is due 30 April — pay it before the end of the month.'"
@@ -123,6 +126,7 @@ Add banlist to all three prompts: `"BANNED labels (never use): 'relates to', 're
 **[24] COMBINED_AUDIT › CONCEPT LABEL RULES enforcement**  
 Evidence: 1 concept label violated the rules (proper nouns, possessives).  
 Add inline bad/good examples:
+
 > "Bad: 'John Smith's Phone Number', 'Meaty Boy's Brisket', 'Sarah's Role'  
 > Good: 'contact details', 'meat sourcing', 'staff roles'  
 > Rule: no names, no apostrophes, no brand names, max 3 words."
@@ -138,6 +142,7 @@ Add: `"Default to splitting. If you're unsure, split. A contact list of 3 people
 **[32] MERGE › fragmented contact detection + false positive guard**  
 Evidence: false_negative 1× (missed 3 fragmented entries), false_positive 1× (two locations merged).  
 Add:
+
 > "FRAGMENTED CONTACT: if you see 2+ entries with the same person's name in the title, these are fragments and should be merged.  
 > LOCATION GUARD: two entries representing different physical locations of the same brand are NOT duplicates."
 
@@ -146,6 +151,7 @@ Add:
 **[33] WOW › generic motivational output**  
 Evidence: 1× wow response was motivational-poster generic with no reference to actual user data.  
 Add failure example:
+
 > "Bad: 'You're building a great knowledge base! Keep it up.'  
 > Good: 'Brisket is your single point of failure — two suppliers both cover it, and your Classic Burger depends entirely on it. A third supplier would de-risk this.'  
 > If you cannot find a genuine surprising connection, return `{'wows':[]}`"

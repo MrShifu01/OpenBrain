@@ -26,6 +26,7 @@ IndexedDB queue + `window.online` event listener (Option A).
 
 **`src/lib/offlineQueue.js`**  
 Thin IndexedDB wrapper. Exposes:
+
 - `enqueue(op)` — writes `{ id, url, method, body, created_at }` to the store
 - `getAll()` — returns all queued ops ordered by `created_at` ascending (oldest first)
 - `remove(id)` — deletes a single op by ID
@@ -35,6 +36,7 @@ Falls back to `localStorage` if IndexedDB quota is exceeded, and logs a console 
 
 **`src/hooks/useOfflineSync.js`**  
 React hook. Responsibilities:
+
 - Tracks `isOnline` (initialised from `navigator.onLine`)
 - Listens to `window.online` / `window.offline` events
 - On `online`: drains the queue via `authFetch`, oldest-first
@@ -43,7 +45,8 @@ React hook. Responsibilities:
 
 ### Modified files
 
-**`src/OpenBrain.jsx`**  
+**`src/OpenBrain.jsx`**
+
 - `doSave`, `handleUpdate`, `handleDelete` each check `isOnline` before calling the API
 - If offline: call `enqueue(op)` and update local state optimistically
 - Import and use `useOfflineSync` hook; render pending badge in header
@@ -53,12 +56,14 @@ React hook. Responsibilities:
 ## Data Flow
 
 ### Offline write
+
 1. User saves/edits/deletes
 2. App checks `isOnline`
 3. Op written to IndexedDB; local state updated immediately
 4. Badge shows "X pending"
 
 ### Reconnect & drain
+
 1. `window.online` fires
 2. `useOfflineSync` checks `draining` flag — if already draining, skip
 3. Sets `draining = true`, fetches all ops from IndexedDB (oldest first)
@@ -71,23 +76,24 @@ React hook. Responsibilities:
 6. Badge disappears when queue is empty
 
 ### Conflict resolution
+
 Last write wins. Ops replay in creation order. No merge logic.
 
 ---
 
 ## Edge Cases
 
-| Case | Handling |
-|------|----------|
-| **Concurrent drain** | `draining` ref flag prevents multiple simultaneous drains if connection flaps |
-| **Image upload offline** | `/api/capture` with binary attachment cannot be serialised to IndexedDB — show "Image uploads require a connection" and block the save |
-| **Storage quota exceeded** | `enqueue()` catches quota errors, falls back to `localStorage`, shows console warning |
-| **Stale ops (>7 days)** | Ops older than 7 days are dropped at drain time with a console warning — prevents replaying ancient conflicting mutations |
-| **Pending-create then edit/delete** | Edit/delete queues behind the create; drain order (oldest-first) ensures create lands first |
-| **Auth token expiry during drain** | `authFetch` injects current token at call time; if 401, op stays in queue and retries on next `online` event after token refresh |
-| **Supabase down (online but server error)** | 5xx responses leave op in queue; retries on next `online` event or page reload |
-| **App closed before sync** | IndexedDB persists across sessions — queue survives app close and phone restart; drains on next app open if online |
-| **Temporary ID on creates** | New entry gets `Date.now()` ID locally; on sync the server returns the real ID, which replaces the temporary one in local state |
+| Case                                        | Handling                                                                                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Concurrent drain**                        | `draining` ref flag prevents multiple simultaneous drains if connection flaps                                                          |
+| **Image upload offline**                    | `/api/capture` with binary attachment cannot be serialised to IndexedDB — show "Image uploads require a connection" and block the save |
+| **Storage quota exceeded**                  | `enqueue()` catches quota errors, falls back to `localStorage`, shows console warning                                                  |
+| **Stale ops (>7 days)**                     | Ops older than 7 days are dropped at drain time with a console warning — prevents replaying ancient conflicting mutations              |
+| **Pending-create then edit/delete**         | Edit/delete queues behind the create; drain order (oldest-first) ensures create lands first                                            |
+| **Auth token expiry during drain**          | `authFetch` injects current token at call time; if 401, op stays in queue and retries on next `online` event after token refresh       |
+| **Supabase down (online but server error)** | 5xx responses leave op in queue; retries on next `online` event or page reload                                                         |
+| **App closed before sync**                  | IndexedDB persists across sessions — queue survives app close and phone restart; drains on next app open if online                     |
+| **Temporary ID on creates**                 | New entry gets `Date.now()` ID locally; on sync the server returns the real ID, which replaces the temporary one in local state        |
 
 ---
 

@@ -15,8 +15,8 @@ export default function NotionImportPanel({ brainId }: { brainId: string }) {
           <strong style={{ fontStyle: "normal", color: "var(--ink-soft)" }}>
             Markdown &amp; CSV
           </strong>
-          . Drop the .zip here. Pages become entries; database rows become entries with
-          properties as metadata.
+          . Drop the .zip here. Pages become entries; database rows become entries with properties
+          as metadata.
         </>
       }
     />

@@ -25,14 +25,20 @@ async function compressImage(file: File, maxDim = 1024, quality = 0.82): Promise
       canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob(
         (blob) => {
-          if (!blob) { resolve(file); return; }
+          if (!blob) {
+            resolve(file);
+            return;
+          }
           resolve(new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" }));
         },
         "image/jpeg",
         quality,
       );
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
     img.src = url;
   });
 }

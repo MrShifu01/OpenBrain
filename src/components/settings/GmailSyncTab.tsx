@@ -18,8 +18,6 @@ interface GmailIntegration {
   preferences: { categories: string[]; custom: string };
 }
 
-
-
 function formatLastScan(ts: string | null): string {
   if (!ts) return "Never scanned";
   const d = new Date(ts);
@@ -135,8 +133,14 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     // Refresh integration + entries shortly after the task likely completes,
     // and again later as a safety net for slower scans. The runner reports
     // success/failure in the toast; new staged items show in the inbox below.
-    setTimeout(() => { fetchIntegration(); refreshEntries(); }, 8000);
-    setTimeout(() => { fetchIntegration(); refreshEntries(); }, 30000);
+    setTimeout(() => {
+      fetchIntegration();
+      refreshEntries();
+    }, 8000);
+    setTimeout(() => {
+      fetchIntegration();
+      refreshEntries();
+    }, 30000);
   }
 
   async function handleDisconnect() {
@@ -176,10 +180,12 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         connected={!!integration}
         label={
           integration
-            ? integration.gmail_email ?? "unknown"
+            ? (integration.gmail_email ?? "unknown")
             : "Scan your inbox for invoices, deadlines, and action items."
         }
-        detail={integration ? `Last scan ${formatLastScan(integration.last_scanned_at)}` : undefined}
+        detail={
+          integration ? `Last scan ${formatLastScan(integration.last_scanned_at)}` : undefined
+        }
       >
         {integration ? (
           <>
@@ -314,7 +320,6 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
         </div>
       )}
 
-
       {modalMode && (
         <GmailSetupModal
           mode={modalMode}
@@ -339,7 +344,10 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
 
       {showStagingInbox && (
         <GmailStagingInbox
-          onClose={() => { setShowStagingInbox(false); refreshEntries(); }}
+          onClose={() => {
+            setShowStagingInbox(false);
+            refreshEntries();
+          }}
           onCountChange={setStagedCount}
         />
       )}
@@ -374,7 +382,10 @@ export function IntegrationRow({
           {label}
         </span>
         {detail && (
-          <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 2 }}>
+          <span
+            className="f-sans"
+            style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 2 }}
+          >
             · {detail}
           </span>
         )}

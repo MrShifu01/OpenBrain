@@ -57,8 +57,24 @@ export default function AccountTab({ email, isAdmin }: Props) {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const { tier: billingTier } = useSubscription();
-  const tierLabel = isAdmin ? "Admin" : billingTier === "max" ? "Max" : billingTier === "pro" ? "Pro" : billingTier === "starter" ? "Starter" : "Free";
-  const tierColor = isAdmin ? "var(--ember)" : billingTier === "max" ? "var(--ember)" : billingTier === "pro" ? "var(--ember)" : billingTier === "starter" ? "var(--moss)" : "var(--ink-ghost)";
+  const tierLabel = isAdmin
+    ? "Admin"
+    : billingTier === "max"
+      ? "Max"
+      : billingTier === "pro"
+        ? "Pro"
+        : billingTier === "starter"
+          ? "Starter"
+          : "Free";
+  const tierColor = isAdmin
+    ? "var(--ember)"
+    : billingTier === "max"
+      ? "var(--ember)"
+      : billingTier === "pro"
+        ? "var(--ember)"
+        : billingTier === "starter"
+          ? "var(--moss)"
+          : "var(--ink-ghost)";
 
   const initials = (profile.display_name || email || "?")
     .split(/\s+/)
@@ -107,16 +123,69 @@ export default function AccountTab({ email, isAdmin }: Props) {
   return (
     <div>
       {/* Profile card */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 0 20px", borderBottom: "1px solid var(--line-soft)", marginBottom: 4 }}>
-        <div style={{ width: 52, height: 52, borderRadius: "50%", background: "var(--ember-wash)", border: "1px solid var(--line-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <span className="f-serif" style={{ fontSize: 18, fontWeight: 500, color: "var(--ember)", letterSpacing: "-0.02em" }}>{initials}</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          padding: "18px 0 20px",
+          borderBottom: "1px solid var(--line-soft)",
+          marginBottom: 4,
+        }}
+      >
+        <div
+          style={{
+            width: 52,
+            height: 52,
+            borderRadius: "50%",
+            background: "var(--ember-wash)",
+            border: "1px solid var(--line-soft)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 18,
+              fontWeight: 500,
+              color: "var(--ember)",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {initials}
+          </span>
         </div>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div className="f-serif" style={{ fontSize: 15, fontWeight: 500, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+          <div
+            className="f-serif"
+            style={{
+              fontSize: 15,
+              fontWeight: 500,
+              color: "var(--ink)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {profile.display_name || email}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <span className="f-sans" style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: tierColor, background: `${tierColor}18`, padding: "3px 8px", borderRadius: 5 }}>
+            <span
+              className="f-sans"
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: tierColor,
+                background: `${tierColor}18`,
+                padding: "3px 8px",
+                borderRadius: 5,
+              }}
+            >
               {tierLabel}
             </span>
           </div>

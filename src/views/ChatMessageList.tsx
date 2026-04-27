@@ -221,9 +221,7 @@ export default function ChatMessageList({
                 /* Assistant — serif, no bubble, just prose */
                 <div style={{ maxWidth: "90%" }}>
                   {msg.tool_calls && msg.tool_calls.length > 0 && (
-                    <div
-                      style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}
-                    >
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
                       {msg.tool_calls.map((tc, j) => (
                         <span
                           key={j}
@@ -341,9 +339,7 @@ export default function ChatMessageList({
                       onClick={() => onCopy(msg.content, i)}
                       className="press"
                       aria-label="Copy response"
-                      style={actionBtnStyle(
-                        copiedIdx === i ? "var(--moss)" : "var(--ink-faint)",
-                      )}
+                      style={actionBtnStyle(copiedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
                     >
                       {copiedIdx === i ? IconCheck : IconCopy}
                       {copiedIdx === i ? "copied" : "copy"}
@@ -352,9 +348,7 @@ export default function ChatMessageList({
                       onClick={() => onShare(msg.content, i)}
                       className="press"
                       aria-label="Share response"
-                      style={actionBtnStyle(
-                        sharedIdx === i ? "var(--moss)" : "var(--ink-faint)",
-                      )}
+                      style={actionBtnStyle(sharedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
                     >
                       {sharedIdx === i ? IconCheck : IconShare}
                       {sharedIdx === i ? "shared" : "share"}

@@ -71,10 +71,12 @@ async function sentrySection(): Promise<Section> {
       ["Errors (7d)", String(eventCount)],
       ["Open issues", String(issueCount)],
       ...(Array.isArray(issues)
-        ? issues.slice(0, 3).map((i: any): [string, string] => [
-            "·",
-            `${i.title?.slice(0, 60) ?? "(no title)"} — ${i.count}× last seen ${i.lastSeen?.slice(0, 10) ?? "?"}`,
-          ])
+        ? issues
+            .slice(0, 3)
+            .map((i: any): [string, string] => [
+              "·",
+              `${i.title?.slice(0, 60) ?? "(no title)"} — ${i.count}× last seen ${i.lastSeen?.slice(0, 10) ?? "?"}`,
+            ])
         : []),
     ],
   };
@@ -147,7 +149,8 @@ async function vercelSection(): Promise<Section> {
 async function lighthouseSection(): Promise<Section> {
   const ghToken = env.GITHUB_TOKEN;
   const repo = env.GITHUB_REPOSITORY; // owner/name
-  if (!ghToken || !repo) return { title: "Lighthouse", rows: [], note: "GitHub context unavailable" };
+  if (!ghToken || !repo)
+    return { title: "Lighthouse", rows: [], note: "GitHub context unavailable" };
   const headers = { Authorization: `Bearer ${ghToken}`, Accept: "application/vnd.github+json" };
   const runs = await safeFetchJson(
     `https://api.github.com/repos/${repo}/actions/workflows/lighthouse.yml/runs?status=success&per_page=1`,
@@ -175,9 +178,7 @@ async function e2eSection(): Promise<Section> {
     { headers },
     "e2e-runs",
   );
-  const recent = (runs?.workflow_runs ?? []).filter(
-    (r: any) => new Date(r.created_at) > since,
-  );
+  const recent = (runs?.workflow_runs ?? []).filter((r: any) => new Date(r.created_at) > since);
   const total = recent.length;
   const passed = recent.filter((r: any) => r.conclusion === "success").length;
   const passRate = total ? Math.round((passed / total) * 100) : 0;

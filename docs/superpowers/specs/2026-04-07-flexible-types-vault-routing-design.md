@@ -1,4 +1,5 @@
 # Flexible Entry Types + Vault Auto-Routing — Design Spec
+
 **Date:** 2026-04-07
 
 ## Problem
@@ -21,7 +22,16 @@ New function in `src/data/constants.ts`:
 export function getTypeConfig(type: string): TypeConfig {
   if (TC[type]) return TC[type];
   // Deterministic colour from type string
-  const colours = ["#9B59B6","#E67E22","#27AE60","#2980B9","#E74C3C","#16A085","#8E44AD","#D35400"];
+  const colours = [
+    "#9B59B6",
+    "#E67E22",
+    "#27AE60",
+    "#2980B9",
+    "#E74C3C",
+    "#16A085",
+    "#8E44AD",
+    "#D35400",
+  ];
   const idx = type.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % colours.length;
   return { i: "🏷️", c: colours[idx] };
 }
@@ -34,7 +44,7 @@ All components currently accessing `TC[entry.type]` switch to `getTypeConfig(ent
 Components showing type filters (VaultView, SuggestionsView, etc.) derive available types from actual entry data:
 
 ```ts
-const availableTypes = [...new Set(entries.map(e => e.type))].sort();
+const availableTypes = [...new Set(entries.map((e) => e.type))].sort();
 ```
 
 No hardcoded lists. TC icons/colours used when known, `getTypeConfig` fallback otherwise.
@@ -42,6 +52,7 @@ No hardcoded lists. TC icons/colours used when known, `getTypeConfig` fallback o
 ### 3. Secret Auto-Routing
 
 **Client-side (QuickCapture):** After AI parses captured text, if `parsed.type === "secret"`, set a flag before calling `/api/capture`. The capture request proceeds normally (type="secret" is stored as-is). The UI then:
+
 - Shows "Saved to Vault" toast instead of regular "Saved" toast
 - Triggers a vault refresh (via `onEntryCreated` callback that checks type)
 - Does NOT show the entry in the regular entry grid

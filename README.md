@@ -22,14 +22,14 @@ npm run dev
 
 See `.env.example` for all required variables. Key ones:
 
-| Variable | Purpose |
-|---|---|
-| `VITE_SUPABASE_URL` | Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | Supabase anon key (client-side) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (server-side only) |
-| `ANTHROPIC_API_KEY` | Default Anthropic key (users can override with BYO) |
-| `UPSTASH_REDIS_REST_URL` | Distributed rate limiting (in-memory fallback if unset) |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web push notifications |
+| Variable                                 | Purpose                                                 |
+| ---------------------------------------- | ------------------------------------------------------- |
+| `VITE_SUPABASE_URL`                      | Supabase project URL                                    |
+| `VITE_SUPABASE_ANON_KEY`                 | Supabase anon key (client-side)                         |
+| `SUPABASE_SERVICE_ROLE_KEY`              | Service role key (server-side only)                     |
+| `ANTHROPIC_API_KEY`                      | Default Anthropic key (users can override with BYO)     |
+| `UPSTASH_REDIS_REST_URL`                 | Distributed rate limiting (in-memory fallback if unset) |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | Web push notifications                                  |
 
 ## Commands
 

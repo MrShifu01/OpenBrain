@@ -336,8 +336,16 @@ html.family-bronze body {
 
 /* ── ENRICHING DOT — server enrichment pending ── */
 @keyframes enriching-wave {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
-  30% { transform: translateY(-2px); opacity: 0.8; }
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  30% {
+    transform: translateY(-2px);
+    opacity: 0.8;
+  }
 }
 .enriching-dot {
   display: inline-flex;
@@ -353,8 +361,15 @@ html.family-bronze body {
   background: var(--ember);
   animation: enriching-wave 1.4s ease-in-out infinite;
 }
-.enriching-dot span:nth-child(2) { animation-delay: 0.18s; }
-.enriching-dot span:nth-child(3) { animation-delay: 0.36s; }
+.enriching-dot span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+.enriching-dot span:nth-child(3) {
+  animation-delay: 0.36s;
+}
 @media (prefers-reduced-motion: reduce) {
-  .enriching-dot span { animation: none; opacity: 0.4; }
+  .enriching-dot span {
+    animation: none;
+    opacity: 0.4;
+  }
 }

@@ -20,7 +20,11 @@ import { rateLimit } from "./_lib/rateLimit.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const SB_HEADERS = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
+const SB_HEADERS = {
+  apikey: SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  "Content-Type": "application/json",
+};
 
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.readonly",
@@ -32,7 +36,8 @@ const MICROSOFT_SCOPES = "Calendars.Read User.Read offline_access";
 
 function redirectUri(provider: string): string {
   const base = process.env.APP_URL ?? "";
-  const custom = provider === "google" ? process.env.GOOGLE_REDIRECT_URI : process.env.MICROSOFT_REDIRECT_URI;
+  const custom =
+    provider === "google" ? process.env.GOOGLE_REDIRECT_URI : process.env.MICROSOFT_REDIRECT_URI;
   return custom ?? `${base}/api/calendar-auth?provider=${provider}`;
 }
 
@@ -68,18 +73,33 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ code, client_id: process.env.GOOGLE_CLIENT_ID!, client_secret: process.env.GOOGLE_CLIENT_SECRET!, redirect_uri: redirectUri("google"), grant_type: "authorization_code" }),
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirect_uri: redirectUri("google"),
+      grant_type: "authorization_code",
+    }),
   });
   if (!tokenRes.ok) return res.redirect(302, `${appUrl}/settings?calendarError=token_exchange`);
 
   const tokens = await tokenRes.json();
-  const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { Authorization: `Bearer ${tokens.access_token}` } });
+  const profileRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
   const profile = profileRes.ok ? await profileRes.json() : {};
 
   const dbRes = await fetch(`${SB_URL}/rest/v1/calendar_integrations`, {
     method: "POST",
     headers: { ...SB_HEADERS, Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ user_id: userId, provider: "google", access_token: tokens.access_token, refresh_token: tokens.refresh_token, token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(), calendar_email: profile.email ?? null }),
+    body: JSON.stringify({
+      user_id: userId,
+      provider: "google",
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      calendar_email: profile.email ?? null,
+    }),
   });
   if (!dbRes.ok) return res.redirect(302, `${appUrl}/settings?calendarError=db_write_failed`);
   res.redirect(302, `${appUrl}/settings?calendarConnected=google`);
@@ -118,18 +138,34 @@ async function callbackMicrosoft(req: ApiRequest, res: ApiResponse) {
   const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ code, client_id: process.env.MICROSOFT_CLIENT_ID!, client_secret: process.env.MICROSOFT_CLIENT_SECRET!, redirect_uri: redirectUri("microsoft"), grant_type: "authorization_code", scope: MICROSOFT_SCOPES }),
+    body: new URLSearchParams({
+      code,
+      client_id: process.env.MICROSOFT_CLIENT_ID!,
+      client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
+      redirect_uri: redirectUri("microsoft"),
+      grant_type: "authorization_code",
+      scope: MICROSOFT_SCOPES,
+    }),
   });
   if (!tokenRes.ok) return res.redirect(302, `${appUrl}/settings?calendarError=token_exchange`);
 
   const tokens = await tokenRes.json();
-  const profileRes = await fetch("https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${tokens.access_token}` } });
+  const profileRes = await fetch("https://graph.microsoft.com/v1.0/me", {
+    headers: { Authorization: `Bearer ${tokens.access_token}` },
+  });
   const profile = profileRes.ok ? await profileRes.json() : {};
 
   const dbRes = await fetch(`${SB_URL}/rest/v1/calendar_integrations`, {
     method: "POST",
     headers: { ...SB_HEADERS, Prefer: "resolution=merge-duplicates" },
-    body: JSON.stringify({ user_id: userId, provider: "microsoft", access_token: tokens.access_token, refresh_token: tokens.refresh_token, token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(), calendar_email: profile.mail ?? profile.userPrincipalName ?? null }),
+    body: JSON.stringify({
+      user_id: userId,
+      provider: "microsoft",
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      calendar_email: profile.mail ?? profile.userPrincipalName ?? null,
+    }),
   });
   if (!dbRes.ok) return res.redirect(302, `${appUrl}/settings?calendarError=db_write_failed`);
   res.redirect(302, `${appUrl}/settings?calendarConnected=microsoft`);
@@ -156,36 +192,55 @@ async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
 /* ── Token refresh helpers ── */
 
 async function refreshGoogle(integration: any): Promise<string | null> {
-  if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000)) return integration.access_token;
+  if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000))
+    return integration.access_token;
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID!, client_secret: process.env.GOOGLE_CLIENT_SECRET!, refresh_token: integration.refresh_token, grant_type: "refresh_token" }),
+    body: new URLSearchParams({
+      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      refresh_token: integration.refresh_token,
+      grant_type: "refresh_token",
+    }),
   });
   if (!res.ok) return null;
   const t = await res.json();
   await fetch(`${SB_URL}/rest/v1/calendar_integrations?id=eq.${integration.id}`, {
     method: "PATCH",
     headers: SB_HEADERS,
-    body: JSON.stringify({ access_token: t.access_token, token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString() }),
+    body: JSON.stringify({
+      access_token: t.access_token,
+      token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString(),
+    }),
   });
   return t.access_token;
 }
 
 async function refreshMicrosoft(integration: any): Promise<string | null> {
-  if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000)) return integration.access_token;
+  if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000))
+    return integration.access_token;
   const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
   const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_id: process.env.MICROSOFT_CLIENT_ID!, client_secret: process.env.MICROSOFT_CLIENT_SECRET!, refresh_token: integration.refresh_token, grant_type: "refresh_token", scope: "Calendars.Read User.Read offline_access" }),
+    body: new URLSearchParams({
+      client_id: process.env.MICROSOFT_CLIENT_ID!,
+      client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
+      refresh_token: integration.refresh_token,
+      grant_type: "refresh_token",
+      scope: "Calendars.Read User.Read offline_access",
+    }),
   });
   if (!res.ok) return null;
   const t = await res.json();
   await fetch(`${SB_URL}/rest/v1/calendar_integrations?id=eq.${integration.id}`, {
     method: "PATCH",
     headers: SB_HEADERS,
-    body: JSON.stringify({ access_token: t.access_token, token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString() }),
+    body: JSON.stringify({
+      access_token: t.access_token,
+      token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString(),
+    }),
   });
   return t.access_token;
 }
@@ -203,10 +258,12 @@ async function fetchGoogleEvents(token: string): Promise<any[]> {
   if (!res.ok) return [];
   const data = await res.json();
   return (data.items ?? []).map((ev: any) => ({
-    id: ev.id, title: ev.summary ?? "(no title)",
+    id: ev.id,
+    title: ev.summary ?? "(no title)",
     start: ev.start?.dateTime ?? ev.start?.date,
     end: ev.end?.dateTime ?? ev.end?.date,
-    allDay: !ev.start?.dateTime, provider: "google",
+    allDay: !ev.start?.dateTime,
+    provider: "google",
   }));
 }
 
@@ -222,10 +279,12 @@ async function fetchMicrosoftEvents(token: string): Promise<any[]> {
   if (!res.ok) return [];
   const data = await res.json();
   return (data.value ?? []).map((ev: any) => ({
-    id: ev.id, title: ev.subject ?? "(no title)",
+    id: ev.id,
+    title: ev.subject ?? "(no title)",
     start: ev.start?.dateTime ? `${ev.start.dateTime}Z` : ev.start?.dateTime,
     end: ev.end?.dateTime ? `${ev.end.dateTime}Z` : ev.end?.dateTime,
-    allDay: ev.isAllDay ?? false, provider: "microsoft",
+    allDay: ev.isAllDay ?? false,
+    provider: "microsoft",
   }));
 }
 
@@ -249,10 +308,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
     if (!provider || !["google", "microsoft"].includes(provider)) {
       return res.status(400).json({ error: "Invalid provider" });
     }
-    await fetch(`${SB_URL}/rest/v1/calendar_integrations?user_id=eq.${user.id}&provider=eq.${provider}`, {
-      method: "DELETE",
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
-    });
+    await fetch(
+      `${SB_URL}/rest/v1/calendar_integrations?user_id=eq.${user.id}&provider=eq.${provider}`,
+      {
+        method: "DELETE",
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      },
+    );
     return res.status(200).json({ ok: true });
   }
 
@@ -276,17 +338,21 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   const integrations: any[] = await intRes.json();
   const allEvents: any[] = [];
 
-  await Promise.all(integrations.map(async (int) => {
-    try {
-      if (int.provider === "google") {
-        const token = await refreshGoogle(int);
-        if (token) allEvents.push(...await fetchGoogleEvents(token));
-      } else if (int.provider === "microsoft") {
-        const token = await refreshMicrosoft(int);
-        if (token) allEvents.push(...await fetchMicrosoftEvents(token));
+  await Promise.all(
+    integrations.map(async (int) => {
+      try {
+        if (int.provider === "google") {
+          const token = await refreshGoogle(int);
+          if (token) allEvents.push(...(await fetchGoogleEvents(token)));
+        } else if (int.provider === "microsoft") {
+          const token = await refreshMicrosoft(int);
+          if (token) allEvents.push(...(await fetchMicrosoftEvents(token)));
+        }
+      } catch {
+        /* skip failed provider */
       }
-    } catch { /* skip failed provider */ }
-  }));
+    }),
+  );
 
   res.status(200).json({ events: allEvents });
 }

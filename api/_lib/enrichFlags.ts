@@ -54,4 +54,3 @@ export function flagsOf(entry: EntryShape): EnrichmentFlags {
     backfilled: !!enr.backfilled_at,
   };
 }
-

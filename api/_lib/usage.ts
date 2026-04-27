@@ -3,8 +3,8 @@ import { sbHeaders } from "./sbHeaders.js";
 type UsageAction = "captures" | "chats" | "voice" | "improve";
 
 const LIMITS: Record<string, Record<UsageAction, number>> = {
-  starter: { captures: 500,  chats: 200,  voice: 20,  improve: 20       },
-  pro:     { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
+  starter: { captures: 500, chats: 200, voice: 20, improve: 20 },
+  pro: { captures: 2000, chats: 1000, voice: 100, improve: Infinity },
 };
 
 const SB_URL = process.env.SUPABASE_URL!;

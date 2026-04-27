@@ -47,7 +47,9 @@ export const IconVaultSmall = (
 export function EnrichingDot() {
   return (
     <span className="enriching-dot" aria-label="AI processing" title="AI enriching…">
-      <span /><span /><span />
+      <span />
+      <span />
+      <span />
     </span>
   );
 }

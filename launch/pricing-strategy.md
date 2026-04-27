@@ -6,11 +6,11 @@
 
 ## Tiers & Prices
 
-| Tier | Monthly | Annual | Annual saving |
-|---|---|---|---|
-| Free | $0 | $0 | — |
-| Starter | $4.99 | $49.90 | ~2 months free |
-| Pro | $9.99 | $99.90 | ~2 months free |
+| Tier    | Monthly | Annual | Annual saving  |
+| ------- | ------- | ------ | -------------- |
+| Free    | $0      | $0     | —              |
+| Starter | $4.99   | $49.90 | ~2 months free |
+| Pro     | $9.99   | $99.90 | ~2 months free |
 
 Breakeven estimate: 11 Starter users cover base Supabase + Vercel costs.
 
@@ -19,6 +19,7 @@ Breakeven estimate: 11 Starter users cover base Supabase + Vercel costs.
 ## What Each Tier Includes
 
 ### Free
+
 - Unlimited raw entry capture and storage
 - Basic keyword search
 - Tags, types, organisation
@@ -32,7 +33,9 @@ Breakeven estimate: 11 Starter users cover base Supabase + Vercel costs.
   - AI insights per entry
 
 ### Starter — $4.99 / month
+
 Everything in Free, plus:
+
 - Platform-managed AI (no keys required)
 - 500 AI-assisted captures / month
 - 200 AI chats / month
@@ -41,7 +44,9 @@ Everything in Free, plus:
 - AI models: Gemini Flash / Claude Haiku (fast, cost-efficient)
 
 ### Pro — $9.99 / month
+
 Everything in Starter, plus:
+
 - 2 000 AI-assisted captures / month
 - 1 000 AI chats / month
 - 100 voice notes / month
@@ -54,12 +59,12 @@ Everything in Starter, plus:
 
 ## Platform AI Usage Limits
 
-| Action | Free (BYOK) | Starter | Pro |
-|---|---|---|---|
+| Action             | Free (BYOK)         | Starter  | Pro        |
+| ------------------ | ------------------- | -------- | ---------- |
 | AI-parsed captures | unlimited (own key) | 500 / mo | 2 000 / mo |
-| AI chats | unlimited (own key) | 200 / mo | 1 000 / mo |
-| Voice notes | unlimited (own key) | 20 / mo | 100 / mo |
-| Improve scans | unlimited (own key) | 20 / mo | unlimited |
+| AI chats           | unlimited (own key) | 200 / mo | 1 000 / mo |
+| Voice notes        | unlimited (own key) | 20 / mo  | 100 / mo   |
+| Improve scans      | unlimited (own key) | 20 / mo  | unlimited  |
 
 BYOK users on any tier bypass platform limits entirely — the provider bills them directly.
 
@@ -67,13 +72,13 @@ BYOK users on any tier bypass platform limits entirely — the provider bills th
 
 ## AI Models by Tier
 
-| Task | Starter | Pro |
-|---|---|---|
-| Capture parsing | Gemini Flash Lite | Gemini Flash / Claude Haiku |
-| Chat / Q&A | Claude Haiku / Gemini Flash | Claude Sonnet / GPT-4o |
-| Embeddings | text-embedding-004 | text-embedding-004 |
-| Enrichment | Gemini Flash Lite | Gemini Flash |
-| Voice transcription | Groq Whisper | Groq Whisper |
+| Task                | Starter                     | Pro                         |
+| ------------------- | --------------------------- | --------------------------- |
+| Capture parsing     | Gemini Flash Lite           | Gemini Flash / Claude Haiku |
+| Chat / Q&A          | Claude Haiku / Gemini Flash | Claude Sonnet / GPT-4o      |
+| Embeddings          | text-embedding-004          | text-embedding-004          |
+| Enrichment          | Gemini Flash Lite           | Gemini Flash                |
+| Voice transcription | Groq Whisper                | Groq Whisper                |
 
 ---
 
@@ -81,12 +86,12 @@ BYOK users on any tier bypass platform limits entirely — the provider bills th
 
 Approximate blended cost at current provider rates:
 
-| Action | Cost/unit | Starter margin | Pro margin |
-|---|---|---|---|
-| AI capture (parse + embed) | ~$0.0004 | ~85% | ~88% |
-| Chat turn | ~$0.002 | ~80% | ~82% |
-| Voice note (30s) | ~$0.001 | ~85% | ~87% |
-| Improve scan | ~$0.003 | ~80% | ~82% |
+| Action                     | Cost/unit | Starter margin | Pro margin |
+| -------------------------- | --------- | -------------- | ---------- |
+| AI capture (parse + embed) | ~$0.0004  | ~85%           | ~88%       |
+| Chat turn                  | ~$0.002   | ~80%           | ~82%       |
+| Voice note (30s)           | ~$0.001   | ~85%           | ~87%       |
+| Improve scan               | ~$0.003   | ~80%           | ~82%       |
 
 Blended gross margin target: **85%+**
 
@@ -108,12 +113,12 @@ Tier is stored in `user_profiles.tier` (source of truth). `user_ai_settings.plan
 
 ## Stripe Products
 
-| Product | Stripe Price ID env var |
-|---|---|
-| Starter monthly | `STRIPE_STARTER_PRICE_ID` |
-| Pro monthly | `STRIPE_PRO_PRICE_ID` |
-| Starter annual | `STRIPE_STARTER_ANNUAL_PRICE_ID` |
-| Pro annual | `STRIPE_PRO_ANNUAL_PRICE_ID` |
+| Product         | Stripe Price ID env var          |
+| --------------- | -------------------------------- |
+| Starter monthly | `STRIPE_STARTER_PRICE_ID`        |
+| Pro monthly     | `STRIPE_PRO_PRICE_ID`            |
+| Starter annual  | `STRIPE_STARTER_ANNUAL_PRICE_ID` |
+| Pro annual      | `STRIPE_PRO_ANNUAL_PRICE_ID`     |
 
 ---
 

@@ -67,8 +67,7 @@ async function auditOnce(preset: Preset): Promise<RunResult> {
     const lhr = result.lhr as {
       categories: Record<string, { score: number | null }>;
     };
-    const score = (key: string): number =>
-      Math.round((lhr.categories[key]?.score ?? 0) * 100);
+    const score = (key: string): number => Math.round((lhr.categories[key]?.score ?? 0) * 100);
     return {
       preset,
       perf: score("performance"),

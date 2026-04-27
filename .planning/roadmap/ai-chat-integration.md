@@ -30,6 +30,7 @@ Everything below is about letting users chat with their brain from **outside** E
 **Why it's tier 0:** zero configuration. No API keys. No third-party signup. Works on any phone with Everion installed.
 
 **What to polish:**
+
 - Bigger "Chat" CTA on empty-state home screen
 - Example prompts visible before user types
 - Voice-in button (already in iOS Safari via the keyboard mic)
@@ -44,23 +45,27 @@ Everything below is about letting users chat with their brain from **outside** E
 **How:** Twilio WhatsApp Business API (or Meta Cloud API) → a small webhook → existing `api/chat.ts` handler.
 
 **User flow:**
+
 1. User opens Everion → Settings → Connect WhatsApp
 2. Scans QR code → sends pre-filled message to the Everion number
 3. Everion links their WhatsApp number to their account
 4. From then on: text the number, get answers
 
 **Pros**
+
 - Grandma already uses WhatsApp
 - No app install, no AI-chat signup
 - Works on any phone
 - Voice notes work (Whisper transcribe → chat)
 
 **Cons**
+
 - Twilio costs ~$0.005/message
 - Meta Business verification for WhatsApp Business API
 - Per-country regulations
 
 **Ship plan**
+
 - `api/whatsapp-webhook.ts` — receives Twilio POSTs, looks up user by phone, forwards to `/api/chat`
 - Phone-link table in Supabase: `{user_id, phone, verified_at}`
 - QR code on settings page = pre-filled `wa.me/<number>?text=link-<token>`
@@ -86,11 +91,13 @@ Same architecture as WhatsApp. Add once, both work.
 **User flow:** "Hey Siri, ask Everion what my wifi password is" → answer read out loud.
 
 **Pros**
+
 - Hands-free, works from lock screen
 - No typing
 - Already half-supported by iOS if app exposes intents
 
 **Cons**
+
 - iOS-only native experience (Android version is separate build)
 - Needs PWA → native shell or Capacitor wrap for App Intents
 
@@ -103,6 +110,7 @@ Same architecture as WhatsApp. Add once, both work.
 **How:** Host a remote MCP server at `https://mcp.everion.app/mcp`. Register it as a Claude.ai Connector. Use OAuth so no API keys.
 
 **What Claude.ai sees:**
+
 - `search_entries(query)` — RAG over the user's brain
 - `get_entry(id)` — full entry content
 - `list_brains()`
@@ -110,17 +118,20 @@ Same architecture as WhatsApp. Add once, both work.
 - `get_upcoming_reminders()`
 
 **Pros**
+
 - No key copy/paste — OAuth handles auth
 - Works across Claude Desktop, Claude.ai web, Claude mobile
 - Single server powers all Claude surfaces
 - Revocable from Everion settings
 
 **Cons**
+
 - Claude-only (for now — ChatGPT connectors rolling out)
 - Requires hosting (Vercel function fine)
 - MCP protocol is still evolving
 
 **Ship plan**
+
 - `api/mcp/[...path].ts` — MCP Streamable HTTP endpoint
 - OAuth flow reusing Supabase auth (Everion already has sessions)
 - Scope table: `{token, user_id, brain_ids, permissions, created_at, revoked_at}`
@@ -135,6 +146,7 @@ Same architecture as WhatsApp. Add once, both work.
 **How:** OpenAPI schema at `https://api.everion.app/v1/openapi.json` + API key as bearer token.
 
 **User flow:**
+
 1. Everion → Settings → Connect ChatGPT
 2. Generate API key (shown once, copy-paste)
 3. Click "Create Custom GPT" button → opens ChatGPT with prefilled schema
@@ -142,16 +154,19 @@ Same architecture as WhatsApp. Add once, both work.
 5. Name the GPT, save
 
 **Pros**
+
 - Works inside ChatGPT, which many users treat as their home base
 - OpenAPI is a mature standard
 
 **Cons**
+
 - Requires ChatGPT Plus ($20/mo)
 - Copy-paste API key = friction
 - GPT is only visible to its creator unless published
 - Not grandparent-tier
 
 **Ship plan**
+
 - Reuse the MCP handlers, expose as plain REST `/v1/search`, `/v1/entries/:id`, etc.
 - Generate OpenAPI schema from the same tool definitions
 - API key table: `{key_hash, user_id, scopes, last_used_at, revoked_at}` — already half-built in codebase
@@ -165,6 +180,7 @@ Same architecture as WhatsApp. Add once, both work.
 **How:** same MCP server as Level 4, but users paste the URL + API key directly.
 
 **Ship plan**
+
 - Settings page shows a code block with the snippet pre-filled
 - Supports both OAuth (for clients that understand it) and static API keys (for clients that don't)
 

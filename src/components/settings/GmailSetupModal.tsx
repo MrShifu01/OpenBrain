@@ -155,7 +155,14 @@ export default function GmailSetupModal({
         {/* Hard filters */}
         <p
           className="f-sans"
-          style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 600, color: "var(--ink-soft)", letterSpacing: "0.04em", textTransform: "uppercase" }}
+          style={{
+            margin: "0 0 6px",
+            fontSize: 12,
+            fontWeight: 600,
+            color: "var(--ink-soft)",
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
         >
           Hard filters
         </p>
@@ -171,28 +178,50 @@ export default function GmailSetupModal({
         </div>
         <p
           className="f-serif"
-          style={{ margin: "0 0 10px", fontSize: 12, color: "var(--ink-faint)", fontStyle: "italic" }}
+          style={{
+            margin: "0 0 10px",
+            fontSize: 12,
+            color: "var(--ink-faint)",
+            fontStyle: "italic",
+          }}
         >
-          Only emails matching a checked type are captured. Untick all to rely solely on your custom rules below.
+          Only emails matching a checked type are captured. Untick all to rely solely on your custom
+          rules below.
         </p>
 
         {/* Custom input — collapsible edit panel */}
-        <div style={{ marginBottom: 8, borderTop: "1px solid var(--line-soft)", borderBottom: "1px solid var(--line-soft)" }}>
+        <div
+          style={{
+            marginBottom: 8,
+            borderTop: "1px solid var(--line-soft)",
+            borderBottom: "1px solid var(--line-soft)",
+          }}
+        >
           {!customOpen ? (
             <div style={{ display: "flex", alignItems: "center", padding: "8px 0" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <span className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}>
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 13, fontWeight: 500, color: "var(--ink-soft)" }}
+                >
                   Other
                 </span>
                 {custom.trim() && (
-                  <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 8 }}>
-                    {custom.trim().slice(0, 48)}{custom.trim().length > 48 ? "…" : ""}
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 12, color: "var(--ink-faint)", marginLeft: 8 }}
+                  >
+                    {custom.trim().slice(0, 48)}
+                    {custom.trim().length > 48 ? "…" : ""}
                   </span>
                 )}
               </div>
               <button
                 type="button"
-                onClick={() => { setCustomDraft(custom); setCustomOpen(true); }}
+                onClick={() => {
+                  setCustomDraft(custom);
+                  setCustomOpen(true);
+                }}
                 className="press f-sans"
                 style={{
                   flexShrink: 0,
@@ -254,7 +283,10 @@ export default function GmailSetupModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setCustom(customDraft); setCustomOpen(false); }}
+                  onClick={() => {
+                    setCustom(customDraft);
+                    setCustomOpen(false);
+                  }}
                   className="press f-sans"
                   style={{
                     flex: 2,

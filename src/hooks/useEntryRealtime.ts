@@ -53,7 +53,9 @@ export function useEntryRealtime(
       if (token) {
         await rt.setAuth(token);
       } else {
-        console.warn("[realtime] no session token at subscribe time — broadcast will be filtered as anon");
+        console.warn(
+          "[realtime] no session token at subscribe time — broadcast will be filtered as anon",
+        );
       }
 
       if (cancelled) return;
@@ -78,8 +80,10 @@ export function useEntryRealtime(
               const next = prev.slice();
               const merged: Entry = { ...next[idx] };
               if (row.metadata !== undefined) merged.metadata = row.metadata as Entry["metadata"];
-              if ((row as any).embedded_at !== undefined) (merged as any).embedded_at = (row as any).embedded_at;
-              if ((row as any).embedding_status !== undefined) (merged as any).embedding_status = (row as any).embedding_status;
+              if ((row as any).embedded_at !== undefined)
+                (merged as any).embedded_at = (row as any).embedded_at;
+              if ((row as any).embedding_status !== undefined)
+                (merged as any).embedding_status = (row as any).embedding_status;
               if ((row as any).status !== undefined) (merged as any).status = (row as any).status;
               next[idx] = merged;
               return next;

@@ -114,11 +114,7 @@ export default function CaptureSecretPanel({
           borderTop: "1px solid var(--line-soft)",
         }}
       >
-        <button
-          onClick={onBack}
-          className="design-btn-secondary press"
-          style={{ flex: 1 }}
-        >
+        <button onClick={onBack} className="design-btn-secondary press" style={{ flex: 1 }}>
           Back
         </button>
         <button

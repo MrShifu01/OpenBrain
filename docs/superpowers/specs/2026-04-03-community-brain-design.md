@@ -1,4 +1,5 @@
 # Community Brain Design
+
 **Date:** 2026-04-03
 **Status:** Draft
 
@@ -9,6 +10,7 @@ OpenBrain currently supports three brain types: **personal**, **family**, and **
 There is no brain type for **communities**: groups larger than a household but smaller than a company, where membership is more fluid and the value comes from collective knowledge that no single person maintains.
 
 Examples of communities that lose institutional knowledge constantly:
+
 - Body corporates / HOAs — service providers, rules, AGM decisions rotate with committees
 - Sports clubs / churches / schools — contacts, event history, supplier lists, venue details
 - Stokvels / savings groups — contribution schedules, payout history, member details
@@ -53,19 +55,20 @@ ALTER TABLE brains
   ADD COLUMN IF NOT EXISTS category TEXT;
 ```
 
-| Column | Purpose |
-|--------|---------|
-| `visibility` | `private` = invite only, `invite_link` = anyone with the link, `public` = discoverable |
-| `join_code` | Short unique code for join links (e.g. `ob-dan-pienaar-7x3k`) |
-| `moderation` | `none` = anyone can add entries, `admin_approval` = entries queue for admin review |
-| `description` | Public-facing description shown on join page and discovery |
-| `category` | For discovery: `neighbourhood`, `sports`, `faith`, `savings`, `school`, `hobby`, `other` |
+| Column        | Purpose                                                                                  |
+| ------------- | ---------------------------------------------------------------------------------------- |
+| `visibility`  | `private` = invite only, `invite_link` = anyone with the link, `public` = discoverable   |
+| `join_code`   | Short unique code for join links (e.g. `ob-dan-pienaar-7x3k`)                            |
+| `moderation`  | `none` = anyone can add entries, `admin_approval` = entries queue for admin review       |
+| `description` | Public-facing description shown on join page and discovery                               |
+| `category`    | For discovery: `neighbourhood`, `sports`, `faith`, `savings`, `school`, `hobby`, `other` |
 
 ### New: `brain_members` role extension
 
 Current roles: `owner`, `member`, `viewer`.
 
 Add:
+
 - **`admin`** — can approve entries, manage members, edit brain settings (but doesn't own/pay)
 - **`contributor`** — can add entries, comment (same as current `member`)
 
@@ -104,6 +107,7 @@ CREATE INDEX idx_pending_entries_brain ON pending_entries(brain_id, status);
 #### POST /api/brains — create community brain
 
 Extend existing handler. When `type === "community"`:
+
 - Generate a unique `join_code` (8-char nanoid, prefixed with `ob-`)
 - Accept `description`, `category`, `visibility`, `moderation` from body
 - Default visibility to `invite_link` for community brains
@@ -179,6 +183,7 @@ Add to `BRAIN_TYPES`:
 ```
 
 When community is selected, show additional fields:
+
 - Description (textarea, 500 chars max)
 - Category dropdown (neighbourhood, sports, faith, savings, school, hobby, other)
 - Visibility toggle (invite link / public)
@@ -189,11 +194,13 @@ When community is selected, show additional fields:
 **File:** `src/components/JoinBrainModal.jsx`
 
 Simple modal with:
+
 - Input for join code (or paste full URL)
 - "Join" button that calls `POST /api/brains?action=join`
 - Success state that switches to the joined brain
 
 Accessible from:
+
 - Nav sidebar: "Join a Brain" button (next to "Add Family or Business Brain")
 - Direct URL: `/#join/ob-xxxxx` (parsed on app mount)
 
@@ -202,6 +209,7 @@ Accessible from:
 **File:** `src/views/CommunityDiscoverView.jsx`
 
 Grid of public community brains:
+
 - Card per brain: emoji, name, description, category badge, member count
 - Category filter tabs
 - "Join" button on each card
@@ -214,6 +222,7 @@ Accessible from nav sidebar as "Discover Communities".
 **File:** `src/views/ModerationView.jsx`
 
 For community admins. Shows pending entries:
+
 - Entry preview card (title, content, type, submitted by, timestamp)
 - Approve / Reject buttons
 - Batch approve option
@@ -224,6 +233,7 @@ For community admins. Shows pending entries:
 **File:** `src/views/BrainSettingsView.jsx`
 
 For community owners/admins:
+
 - Edit name, description, category
 - Toggle visibility (private / invite link / public)
 - Toggle moderation (open / admin approval)
@@ -234,6 +244,7 @@ For community owners/admins:
 ### 6. BrainSwitcher — show community brains
 
 Update grouping in dropdown:
+
 - Personal
 - Shared (family + business)
 - Communities (type === "community")
@@ -243,11 +254,13 @@ Each community shows member count badge.
 ### 7. Nav sidebar updates
 
 Add nav items (shown only when active brain is community type):
+
 - "Moderation" (with pending count badge) — admin/owner only
 - "Members" — view who's in the community
 - "Settings" — admin/owner only
 
 Add global nav item:
+
 - "Discover Communities" — always visible
 
 ---
@@ -256,18 +269,18 @@ Add global nav item:
 
 ### Access Control
 
-| Action | Who can do it |
-|--------|---------------|
-| Create community brain | Any authenticated user |
-| Join via invite link | Any authenticated user with the code |
-| Join public brain | Any authenticated user |
-| Add entries (unmoderated) | Contributors, admins, owner |
-| Add entries (moderated) | Admins and owner directly; contributors go to pending |
-| Approve/reject pending | Admins and owner only |
-| Edit brain settings | Admins and owner only |
-| Manage members | Admins and owner only |
-| Delete brain | Owner only |
-| Remove members | Admins and owner (admins can't remove other admins) |
+| Action                    | Who can do it                                         |
+| ------------------------- | ----------------------------------------------------- |
+| Create community brain    | Any authenticated user                                |
+| Join via invite link      | Any authenticated user with the code                  |
+| Join public brain         | Any authenticated user                                |
+| Add entries (unmoderated) | Contributors, admins, owner                           |
+| Add entries (moderated)   | Admins and owner directly; contributors go to pending |
+| Approve/reject pending    | Admins and owner only                                 |
+| Edit brain settings       | Admins and owner only                                 |
+| Manage members            | Admins and owner only                                 |
+| Delete brain              | Owner only                                            |
+| Remove members            | Admins and owner (admins can't remove other admins)   |
 
 ### Rate limiting
 
@@ -322,16 +335,16 @@ Add global nav item:
 
 Community brains benefit from the same entry types, but some patterns emerge:
 
-| Entry Type | Community Use Case |
-|------------|-------------------|
-| Contact | Trusted service providers, committee members, emergency numbers |
-| Reminder | AGM dates, payment deadlines, event schedules |
-| Decision | Meeting outcomes, rule changes, policy updates |
-| Document | Constitution, rules, permits, insurance policies |
-| Place | Venues, meeting rooms, parking info |
-| Person | Committee roles, key contacts with roles annotated |
-| Idea | Proposals for community vote, event suggestions |
-| Note | General info: gate codes, WiFi passwords, procedures |
+| Entry Type | Community Use Case                                              |
+| ---------- | --------------------------------------------------------------- |
+| Contact    | Trusted service providers, committee members, emergency numbers |
+| Reminder   | AGM dates, payment deadlines, event schedules                   |
+| Decision   | Meeting outcomes, rule changes, policy updates                  |
+| Document   | Constitution, rules, permits, insurance policies                |
+| Place      | Venues, meeting rooms, parking info                             |
+| Person     | Committee roles, key contacts with roles annotated              |
+| Idea       | Proposals for community vote, event suggestions                 |
+| Note       | General info: gate codes, WiFi passwords, procedures            |
 
 No new entry types needed. The existing types cover community use cases well.
 
@@ -340,6 +353,7 @@ No new entry types needed. The existing types cover community use cases well.
 ## Migration Path
 
 ### Phase 1 — Core (MVP)
+
 - Add `"community"` to valid brain types
 - Add `join_code`, `visibility`, `description`, `category` columns
 - Join-by-code API and frontend
@@ -347,24 +361,28 @@ No new entry types needed. The existing types cover community use cases well.
 - JoinBrainModal component
 
 ### Phase 2 — Moderation
+
 - `pending_entries` table
 - Moderation API endpoints
 - ModerationView component
 - Modified capture flow for moderated brains
 
 ### Phase 3 — Discovery
+
 - Public brain visibility
 - Discover API endpoint
 - CommunityDiscoverView
 - Category browsing and search
 
 ### Phase 4 — Community Management
+
 - BrainSettingsView
 - Member management (promote, remove)
 - Admin role support
 - Transfer ownership
 
 ### Phase 5 — Scale & Trust
+
 - Reporting mechanism (flag entries, flag members)
 - AI content screening
 - Community analytics (growth, activity, top contributors)

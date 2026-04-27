@@ -60,7 +60,14 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
     const raw = title.trim();
     if (!raw || !brainId) return;
     setBusy(true);
-    const result = parsed ?? { cleanTitle: raw, dueDate: null, dayOfMonth: null, priority: null, tags: [], energy: null };
+    const result = parsed ?? {
+      cleanTitle: raw,
+      dueDate: null,
+      dayOfMonth: null,
+      priority: null,
+      tags: [],
+      energy: null,
+    };
     const metadata: Record<string, unknown> = { status: "todo" };
     if (result.dueDate) metadata.due_date = result.dueDate;
     if (result.dayOfMonth) metadata.day_of_month = result.dayOfMonth;
@@ -84,12 +91,24 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
       });
       // §2.5: Enqueue for offline replay if the request failed due to network
       if (!res.ok && !navigator.onLine) {
-        await enqueue({ id: crypto.randomUUID(), url: "/api/capture", method: "POST", body: captureBody, created_at: new Date().toISOString() }).catch(() => {});
+        await enqueue({
+          id: crypto.randomUUID(),
+          url: "/api/capture",
+          method: "POST",
+          body: captureBody,
+          created_at: new Date().toISOString(),
+        }).catch(() => {});
       }
     } catch {
       // Network error — enqueue for retry when online
       if (!navigator.onLine) {
-        await enqueue({ id: crypto.randomUUID(), url: "/api/capture", method: "POST", body: captureBody, created_at: new Date().toISOString() }).catch(() => {});
+        await enqueue({
+          id: crypto.randomUUID(),
+          url: "/api/capture",
+          method: "POST",
+          body: captureBody,
+          created_at: new Date().toISOString(),
+        }).catch(() => {});
       }
     } finally {
       clearTimeout(timeoutId);
@@ -117,7 +136,13 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
       <CheckCircleIcon className="h-4 w-4 shrink-0" style={{ color: "var(--ink-ghost)" }} />
       <div
         className="min-w-0 flex-1"
-        style={{ display: "flex", flexDirection: "column", justifyContent: "center", paddingTop: 6, paddingBottom: 6 }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          paddingTop: 6,
+          paddingBottom: 6,
+        }}
       >
         <textarea
           ref={inputRef}
@@ -147,52 +172,82 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
             margin: 0,
           }}
         />
-        {parsed && (parsed.dueDate || parsed.dayOfMonth || parsed.priority || parsed.tags.length > 0 || parsed.energy) && (
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            {parsed.dayOfMonth && (
-              <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
-                🔁 every {parsed.dayOfMonth}{["st","nd","rd"][((parsed.dayOfMonth % 100 - 20) % 10) - 1] ?? "th"}
-              </span>
-            )}
-            {parsed.dueDate && !parsed.dayOfMonth && (
-              <span style={{ fontSize: 11, color: "var(--ember)", fontFamily: "var(--f-sans)", fontWeight: 600 }}>
-                📅 {format(new Date(parsed.dueDate + "T12:00:00"), "EEE, d MMM")}
-              </span>
-            )}
-            {parsed.priority && (
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  background: `${PRIORITY_COLOR[parsed.priority]}22`,
-                  color: PRIORITY_COLOR[parsed.priority],
-                  fontFamily: "var(--f-sans)",
-                  textTransform: "uppercase",
-                }}
-              >
-                {parsed.priority}
-              </span>
-            )}
-            {parsed.energy && (
-              <span style={{ fontSize: 11, color: "var(--ink-soft)", fontFamily: "var(--f-sans)" }}>
-                {parsed.energy === "high" ? "⚡" : parsed.energy === "low" ? "🌿" : "〰️"} {parsed.energy}
-              </span>
-            )}
-            {parsed.tags.map((t) => (
-              <span key={t} style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
-                #{t}
-              </span>
-            ))}
-          </div>
-        )}
+        {parsed &&
+          (parsed.dueDate ||
+            parsed.dayOfMonth ||
+            parsed.priority ||
+            parsed.tags.length > 0 ||
+            parsed.energy) && (
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {parsed.dayOfMonth && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ember)",
+                    fontFamily: "var(--f-sans)",
+                    fontWeight: 600,
+                  }}
+                >
+                  🔁 every {parsed.dayOfMonth}
+                  {["st", "nd", "rd"][(((parsed.dayOfMonth % 100) - 20) % 10) - 1] ?? "th"}
+                </span>
+              )}
+              {parsed.dueDate && !parsed.dayOfMonth && (
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ember)",
+                    fontFamily: "var(--f-sans)",
+                    fontWeight: 600,
+                  }}
+                >
+                  📅 {format(new Date(parsed.dueDate + "T12:00:00"), "EEE, d MMM")}
+                </span>
+              )}
+              {parsed.priority && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    background: `${PRIORITY_COLOR[parsed.priority]}22`,
+                    color: PRIORITY_COLOR[parsed.priority],
+                    fontFamily: "var(--f-sans)",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {parsed.priority}
+                </span>
+              )}
+              {parsed.energy && (
+                <span
+                  style={{ fontSize: 11, color: "var(--ink-soft)", fontFamily: "var(--f-sans)" }}
+                >
+                  {parsed.energy === "high" ? "⚡" : parsed.energy === "low" ? "🌿" : "〰️"}{" "}
+                  {parsed.energy}
+                </span>
+              )}
+              {parsed.tags.map((t) => (
+                <span
+                  key={t}
+                  style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}
+                >
+                  #{t}
+                </span>
+              ))}
+            </div>
+          )}
       </div>
       <button
         type="submit"
         disabled={busy || !title.trim()}
         className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-opacity disabled:opacity-40"
-        style={{ background: "var(--ember)", color: "var(--ember-ink)", fontFamily: "var(--f-sans)" }}
+        style={{
+          background: "var(--ember)",
+          color: "var(--ember-ink)",
+          fontFamily: "var(--f-sans)",
+        }}
       >
         {busy ? "…" : "Add"}
       </button>

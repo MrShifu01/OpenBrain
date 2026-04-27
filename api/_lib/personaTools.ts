@@ -37,7 +37,10 @@ export const PERSONA_TOOL_SCHEMAS = [
     parameters: {
       type: "object",
       properties: {
-        field: { type: "string", description: "One of: full_name, preferred_name, pronouns, context, enabled" },
+        field: {
+          type: "string",
+          description: "One of: full_name, preferred_name, pronouns, context, enabled",
+        },
         value: { type: "string", description: "New value. For 'enabled' pass 'true' or 'false'." },
       },
       required: ["field", "value"],
@@ -50,9 +53,20 @@ export const PERSONA_TOOL_SCHEMAS = [
     parameters: {
       type: "object",
       properties: {
-        text: { type: "string", description: "The fact, third person, ≤200 chars. Example: 'User wakes at 5:30 every weekday for gym.'" },
-        bucket: { type: "string", description: "One of: identity, family, habit, preference, event" },
-        source_evidence: { type: "string", description: "Optional: the user's own words (verbatim quote ≤200 chars) so the fact's lineage is preserved." },
+        text: {
+          type: "string",
+          description:
+            "The fact, third person, ≤200 chars. Example: 'User wakes at 5:30 every weekday for gym.'",
+        },
+        bucket: {
+          type: "string",
+          description: "One of: identity, family, habit, preference, event",
+        },
+        source_evidence: {
+          type: "string",
+          description:
+            "Optional: the user's own words (verbatim quote ≤200 chars) so the fact's lineage is preserved.",
+        },
       },
       required: ["text", "bucket"],
     },
@@ -65,7 +79,10 @@ export const PERSONA_TOOL_SCHEMAS = [
       type: "object",
       properties: {
         id: { type: "string", description: "Persona entry UUID to update" },
-        new_text: { type: "string", description: "Replacement fact text, third person, ≤200 chars" },
+        new_text: {
+          type: "string",
+          description: "Replacement fact text, third person, ≤200 chars",
+        },
       },
       required: ["id", "new_text"],
     },
@@ -78,7 +95,10 @@ export const PERSONA_TOOL_SCHEMAS = [
       type: "object",
       properties: {
         id: { type: "string", description: "Persona entry UUID to retire" },
-        reason: { type: "string", description: "Why it no longer applies (≤200 chars). Becomes part of the history entry." },
+        reason: {
+          type: "string",
+          description: "Why it no longer applies (≤200 chars). Becomes part of the history entry.",
+        },
       },
       required: ["id", "reason"],
     },
@@ -98,10 +118,7 @@ export const PERSONA_TOOL_SCHEMAS = [
   },
 ];
 
-export const PERSONA_DESTRUCTIVE_TOOLS = new Set([
-  "persona.update_fact",
-  "persona.retire_fact",
-]);
+export const PERSONA_DESTRUCTIVE_TOOLS = new Set(["persona.update_fact", "persona.retire_fact"]);
 
 export const PERSONA_TOOL_NAMES = new Set(PERSONA_TOOL_SCHEMAS.map((t) => t.name));
 
@@ -153,7 +170,14 @@ async function execSet(args: Record<string, any>, userId: string): Promise<unkno
     value = v;
   } else {
     const s = typeof raw === "string" ? raw.trim() : String(raw ?? "").trim();
-    const limit = field === "context" ? 4000 : field === "full_name" ? 120 : field === "preferred_name" ? 60 : 40;
+    const limit =
+      field === "context"
+        ? 4000
+        : field === "full_name"
+          ? 120
+          : field === "preferred_name"
+            ? 60
+            : 40;
     value = s ? s.slice(0, limit) : null;
   }
 
@@ -177,13 +201,15 @@ async function execAddFact(
   brainId: string,
   source: "chat" | "manual" | "capture" | "import" | "inference",
 ): Promise<unknown> {
-  const text = String(args.text || "").trim().slice(0, 200);
+  const text = String(args.text || "")
+    .trim()
+    .slice(0, 200);
   const bucket = String(args.bucket || "").trim();
   if (!text) return { error: "text required" };
   if (!VALID_BUCKETS.has(bucket)) return { error: `invalid bucket: ${bucket}` };
 
-  const sourceEvidence = typeof args.source_evidence === "string"
-    ? args.source_evidence.trim().slice(0, 200) : null;
+  const sourceEvidence =
+    typeof args.source_evidence === "string" ? args.source_evidence.trim().slice(0, 200) : null;
 
   const id = randomUUID();
   const title = text;
@@ -229,9 +255,15 @@ async function execAddFact(
   return { ok: true, fact: rows[0], summary: `Added to your About You: "${text}"` };
 }
 
-async function execUpdateFact(args: Record<string, any>, userId: string, brainId: string): Promise<unknown> {
+async function execUpdateFact(
+  args: Record<string, any>,
+  userId: string,
+  brainId: string,
+): Promise<unknown> {
   const id = String(args.id || "").trim();
-  const newText = String(args.new_text || "").trim().slice(0, 200);
+  const newText = String(args.new_text || "")
+    .trim()
+    .slice(0, 200);
   if (!id || !newText) return { error: "id and new_text required" };
 
   const existing = await fetchPersonaEntry(id, brainId, userId);
@@ -258,13 +290,20 @@ async function execUpdateFact(args: Record<string, any>, userId: string, brainId
       }),
     },
   );
-  if (!r.ok) return { error: "update_failed", detail: (await r.text().catch(() => "")).slice(0, 200) };
+  if (!r.ok)
+    return { error: "update_failed", detail: (await r.text().catch(() => "")).slice(0, 200) };
   return { ok: true, summary: `Updated: "${newText}"` };
 }
 
-async function execRetireFact(args: Record<string, any>, userId: string, brainId: string): Promise<unknown> {
+async function execRetireFact(
+  args: Record<string, any>,
+  userId: string,
+  brainId: string,
+): Promise<unknown> {
   const id = String(args.id || "").trim();
-  const reason = String(args.reason || "").trim().slice(0, 200);
+  const reason = String(args.reason || "")
+    .trim()
+    .slice(0, 200);
   if (!id) return { error: "id required" };
 
   const existing = await fetchPersonaEntry(id, brainId, userId);
@@ -272,7 +311,12 @@ async function execRetireFact(args: Record<string, any>, userId: string, brainId
 
   // 1. Flip status → archived on the original entry, add #history tag.
   const oldMeta = (existing.metadata as Record<string, unknown>) ?? {};
-  const newMeta = { ...oldMeta, status: "archived", retired_at: new Date().toISOString(), retired_reason: reason };
+  const newMeta = {
+    ...oldMeta,
+    status: "archived",
+    retired_at: new Date().toISOString(),
+    retired_reason: reason,
+  };
   const oldTags: string[] = Array.isArray(existing.tags) ? existing.tags : [];
   const newTags = oldTags.includes("history") ? oldTags : [...oldTags, "history"];
 
@@ -332,7 +376,11 @@ async function execRetireFact(args: Record<string, any>, userId: string, brainId
   return { ok: true, summary: `Moved to history: "${existing.title}"`, retired_id: id };
 }
 
-async function execPinFact(args: Record<string, any>, userId: string, brainId: string): Promise<unknown> {
+async function execPinFact(
+  args: Record<string, any>,
+  userId: string,
+  brainId: string,
+): Promise<unknown> {
   const id = String(args.id || "").trim();
   const pinned = args.pinned !== false;
   if (!id) return { error: "id required" };
@@ -363,7 +411,11 @@ interface PersonaEntry {
   metadata: Record<string, unknown> | null;
 }
 
-async function fetchPersonaEntry(id: string, brainId: string, userId?: string): Promise<PersonaEntry | null> {
+async function fetchPersonaEntry(
+  id: string,
+  brainId: string,
+  userId?: string,
+): Promise<PersonaEntry | null> {
   const userScope = userId ? `&user_id=eq.${encodeURIComponent(userId)}` : "";
   const r = await fetch(
     `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&brain_id=eq.${encodeURIComponent(brainId)}${userScope}&type=eq.persona&deleted_at=is.null&select=id,title,content,tags,metadata&limit=1`,

@@ -17,7 +17,7 @@ html.family-dusk {
 
   --ink: oklch(94% 0.01 78);
   --ink-soft: oklch(78% 0.012 72);
-  --ink-faint: oklch(72% 0.01 68);  /* was 58%; clears WCAG AA on bg + surface */
+  --ink-faint: oklch(72% 0.01 68); /* was 58%; clears WCAG AA on bg + surface */
   --ink-ghost: oklch(66% 0.008 65); /* was 42%; clears AA against bg when used for actual copy */
 
   --line: oklch(38% 0.014 64);

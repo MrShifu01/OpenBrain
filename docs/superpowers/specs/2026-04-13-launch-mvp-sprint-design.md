@@ -20,10 +20,12 @@ No code deletion. Feature flags and nav changes only.
 ### Task 1.1: Feature-flag multi-brain
 
 **New file:** `src/lib/featureFlags.ts`
+
 - Export `isMultiBrainEnabled(): boolean` reading `import.meta.env.VITE_ENABLE_MULTI_BRAIN`
 - Default: `false`
 
 **Changes:**
+
 - `src/components/BrainSwitcher.tsx` — early return `null` when flag is off
 - `src/components/CreateBrainModal.tsx` — early return `null` when flag is off
 - `src/components/settings/BrainTab.tsx` — hide tab from SettingsView when flag is off
@@ -36,6 +38,7 @@ No code deletion. Feature flags and nav changes only.
 ### Task 1.2: Disable Vault by default
 
 **Changes:**
+
 - `src/components/VaultIntroModal.tsx` — remove auto-prompt trigger. Only opens when user explicitly navigates to vault in Settings
 - `src/components/CaptureSheet.tsx` — remove VaultIntroModal trigger on secret tab access (or hide secret tab entirely when vault not set up)
 - `/api/chat.ts` — replace blocking passphrase modal logic with graceful skip. If vault data referenced but vault locked, include inline note "unlock vault in Settings to include sensitive data" instead of blocking
@@ -47,16 +50,19 @@ No code deletion. Feature flags and nav changes only.
 **Target nav:** Feed | Capture | Ask | Memory | Settings
 
 **BottomNav.tsx changes:**
+
 - Replace current items: `capture`(Home) / `refine` / FAB / `chat` / More
 - New items: `feed`(Home) / FAB(Capture) / `chat`(Ask) / `grid`(Memory) / `settings`
 - Remove "More" menu entirely
 - Remove: refine, vault, todos, timeline from nav
 
 **DesktopSidebar.tsx changes:**
+
 - Nav items: Feed, Capture (CTA button), Ask, Memory, Settings
 - Remove: brain switcher slot (hidden by flag), "New Brain" button, refine/todos/timeline
 
 **OpenBrain.tsx changes:**
+
 - Add `feed` view ID to the view system
 - Create placeholder `FeedView.tsx` — renders "Your feed is coming soon" centered message with capture CTA
 - Set `feed` as default view on app load
@@ -66,6 +72,7 @@ No code deletion. Feature flags and nav changes only.
 ### Task 1.4: Default AI provider
 
 **Changes:**
+
 - `src/data/constants.ts` — remove claude-haiku-4-5-20251001 default. Gemini 2.5 Flash Lite is hardcoded in .env
 - `/api/chat.ts` — remove Anthropic as default provider path. Ensure Gemini is the default flow. Remove claude haiku model references from allowlists
 - `src/components/OnboardingModal.tsx` — confirm no provider selection step exists (it doesn't currently)
@@ -73,6 +80,7 @@ No code deletion. Feature flags and nav changes only.
 - Remove all claude-haiku-4-5-20251001 references across the codebase (constants, chat API model allowlists, etc.)
 
 ### Phase 1 Exit Criteria
+
 1. `npm run typecheck` passes
 2. App loads with 5-item nav: Feed, Capture, Ask, Memory, Settings
 3. New user flow has zero decisions before first capture
@@ -86,6 +94,7 @@ No code deletion. Feature flags and nav changes only.
 ### Task 2.1: Brain Feed (home screen)
 
 **New API:** `/api/feed.ts`
+
 - Auth: requires valid Supabase session
 - Input: user_id (from session), brain_id (from query or default)
 - Output JSON:
@@ -106,6 +115,7 @@ No code deletion. Feature flags and nav changes only.
 - Stats: COUNT entries, COUNT links/connections, COUNT gap-analyst runs
 
 **New view:** `src/views/FeedView.tsx`
+
 - Time-aware greeting using hour of day
 - User name from Supabase auth metadata
 - Card layout:
@@ -122,6 +132,7 @@ No code deletion. Feature flags and nav changes only.
 **Replace:** `src/components/OnboardingModal.tsx`
 
 **New flow (6 steps):**
+
 1. **Welcome:** "Welcome to Everion. Let's teach your brain." + Continue button
 2. **Bulk capture:** Multi-line textarea, placeholder "One thought per line", example grayed out. Submit button "Teach my brain"
 3. **Processing:** Loading spinner/skeleton. Call `/api/capture` for each line (or batch). Show brief "Processing X thoughts..."
@@ -130,6 +141,7 @@ No code deletion. Feature flags and nav changes only.
 6. **Celebration:** Subtle scale animation on the insight card. "That's your brain working. Imagine 6 months of data." + "Start exploring" button → Feed
 
 **Requirements:**
+
 - Skip button on every step (skips to Feed)
 - Re-accessible from Settings > Help (store onboarding completion in localStorage, add "Replay onboarding" button)
 - Steps 1-6 completable in under 60 seconds (excluding AI response time)
@@ -138,6 +150,7 @@ No code deletion. Feature flags and nav changes only.
 ### Task 2.3: Global capture shortcut
 
 **Changes:**
+
 - `src/components/CaptureSheet.tsx` — remove type selector from initial view. Auto-categorize after submission
 - New: `src/components/FloatingCaptureButton.tsx` — fixed-position FAB visible on Feed, Ask, Memory, Settings views. Opens CaptureSheet
 - `src/OpenBrain.tsx` — add global `keydown` listener for `Cmd+K` / `Ctrl+K` → open CaptureSheet
@@ -147,12 +160,14 @@ No code deletion. Feature flags and nav changes only.
 ### Task 2.4: Streak + brain stats
 
 **Data model:** Add to user metadata (Supabase auth.users.raw_user_meta_data or a new `user_stats` row in a stats table):
+
 - `current_streak: number`
 - `longest_streak: number`
 - `last_capture_date: string (ISO date)`
 - `total_insights: number`
 
 **Logic (in `/api/capture` or a shared helper):**
+
 - On each capture: compare `last_capture_date` to today
   - Same day: no change
   - Yesterday: increment `current_streak`, update `longest_streak` if exceeded
@@ -160,12 +175,14 @@ No code deletion. Feature flags and nav changes only.
   - Update `last_capture_date` to today
 
 **UI:**
+
 - Feed displays streak: "X-day capture streak" with flame icon
 - Feed displays stats from `/api/feed` response
 - NudgeBanner messages at milestones (3, 7, 14, 30): "You're on fire! 7-day streak!"
 - Push notification for streak at risk: trigger via existing cron/push infrastructure when `last_capture_date` is yesterday and current time > 8pm
 
 ### Phase 2 Exit Criteria
+
 1. Feed shows personalized content for users with entries
 2. Feed shows helpful empty state for new users
 3. Onboarding delivers insight in under 60 seconds (excluding AI latency)
@@ -181,12 +198,14 @@ No code deletion. Feature flags and nav changes only.
 ### Task 3.1: Settings simplification
 
 Collapse 6 tabs to 2:
+
 - **Profile:** account (name, avatar from AccountTab), notifications (from NotificationsTab)
 - **Advanced:** AI provider + API keys (from ProvidersTab), Security/Vault (VaultView as sub-section), Storage (from StorageTab), Data export + danger zone (from DangerTab, BrainTab export)
 
 ### Task 3.2: Copy and empty states
 
 Write copy for:
+
 - Onboarding screens (done in 2.2, polish here)
 - Feed empty state: "Your brain is empty. Let's fix that. Capture your first thought and watch your brain grow."
 - Memory empty state: "Nothing here yet. Your memories will appear as you capture thoughts."
@@ -202,6 +221,7 @@ Write copy for:
 - Review `future-plans/Production-security-checklist` items — address critical ones
 
 ### Phase 3 Exit Criteria
+
 1. Settings has 2 tabs, all features findable
 2. All empty states have clear copy + CTAs
 3. No typecheck errors, no dead imports, test suite green
@@ -221,6 +241,7 @@ Write copy for:
 ### Task 4.2: Monetization banner
 
 **New component:** `src/components/EarlyAccessBanner.tsx`
+
 - Text: "Free during early access. Starter plan coming soon. Early users get 50% off."
 - Dismissible (localStorage key)
 - Subtle styling, not intrusive
@@ -233,6 +254,7 @@ Write copy for:
 - Add a test error boundary trigger (dev-only) to confirm Sentry captures errors
 
 ### Phase 4 Exit Criteria
+
 1. OG meta tags render correctly (testable via social preview tools)
 2. Early access banner visible and dismissible
 3. Sentry config verified
@@ -252,6 +274,7 @@ Write copy for:
 - Mobile responsive check (code-level, verify no breakpoint issues)
 
 ### Phase 5 Exit Criteria
+
 1. All code checks pass
 2. No critical typecheck or test failures
 
@@ -262,6 +285,7 @@ Write copy for:
 ## Files Created/Modified Summary
 
 ### New Files
+
 - `src/lib/featureFlags.ts` — feature flag helpers
 - `src/views/FeedView.tsx` — Brain Feed home screen
 - `/api/feed.ts` — Feed API endpoint
@@ -269,6 +293,7 @@ Write copy for:
 - `src/components/EarlyAccessBanner.tsx` — monetization placeholder
 
 ### Modified Files
+
 - `src/components/BrainSwitcher.tsx` — feature flag gate
 - `src/components/CreateBrainModal.tsx` — feature flag gate
 - `src/components/settings/BrainTab.tsx` — feature flag gate
@@ -288,6 +313,7 @@ Write copy for:
 - `/api/capture.ts` — streak tracking on capture
 
 ### Unchanged (kept intact)
+
 - All multi-brain API routes (server-side still works)
 - VaultView.tsx (accessible via Settings)
 - TodoView.tsx (code stays, no nav path)

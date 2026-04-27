@@ -48,12 +48,18 @@ export default function TodoRowItem({
   const pointerStartX = useRef(0);
   const pointerStartY = useRef(0);
   const [swipeX, setSwipeX] = useState(0);
-  const [swipeState, setSwipeState] = useState<"idle" | "swiping-right" | "swiping-left" | "completing" | "rescheduling">("idle");
+  const [swipeState, setSwipeState] = useState<
+    "idle" | "swiping-right" | "swiping-left" | "completing" | "rescheduling"
+  >("idle");
   const trackingRef = useRef(false);
   const rowRef = useRef<HTMLDivElement>(null);
 
-  const priority = (entry.metadata as Record<string, unknown> | undefined)?.priority as string | undefined;
-  const energy = (entry.metadata as Record<string, unknown> | undefined)?.energy as string | undefined;
+  const priority = (entry.metadata as Record<string, unknown> | undefined)?.priority as
+    | string
+    | undefined;
+  const energy = (entry.metadata as Record<string, unknown> | undefined)?.energy as
+    | string
+    | undefined;
 
   function toggleDone() {
     if (!ctx?.handleUpdate) return;
@@ -115,7 +121,9 @@ export default function TodoRowItem({
     const base = current ? new Date(current + "T12:00:00") : new Date();
     base.setDate(base.getDate() + 1);
     const next = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, "0")}-${String(base.getDate()).padStart(2, "0")}`;
-    ctx.handleUpdate(entry.id, { metadata: { ...(entry.metadata || {}), due_date: next } }).catch(() => null);
+    ctx
+      .handleUpdate(entry.id, { metadata: { ...(entry.metadata || {}), due_date: next } })
+      .catch(() => null);
     setSwipeState("idle");
   }
 
@@ -249,10 +257,14 @@ export default function TodoRowItem({
 
         {(() => {
           const enr = (entry.metadata as any)?.enrichment ?? {};
-          const pending = entry.type !== "secret" && !(enr.parsed === true && enr.has_insight === true && enr.concepts_extracted === true);
+          const pending =
+            entry.type !== "secret" &&
+            !(enr.parsed === true && enr.has_insight === true && enr.concepts_extracted === true);
           return pending ? (
             <span className="enriching-dot" aria-label="AI processing" title="AI enriching…">
-              <span /><span /><span />
+              <span />
+              <span />
+              <span />
             </span>
           ) : null;
         })()}

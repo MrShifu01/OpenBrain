@@ -12,12 +12,12 @@
 
 ## File Map
 
-| File | Change |
-|---|---|
-| `src/hooks/useRefineAnalysis.ts` | Add all new detection logic + delta scan + priority sort |
-| `src/config/prompts.ts` | Add `WEAK_LABEL_RENAME`, `DUPLICATE_NAMES`, `CLUSTER_NAMING`; update `ENTRY_AUDIT` |
-| `src/views/RefineView.tsx` | Add new LABELS entries + new section headers |
-| `src/hooks/__tests__/useRefineAnalysis.logic.test.ts` | New test file — pure logic unit tests |
+| File                                                  | Change                                                                             |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `src/hooks/useRefineAnalysis.ts`                      | Add all new detection logic + delta scan + priority sort                           |
+| `src/config/prompts.ts`                               | Add `WEAK_LABEL_RENAME`, `DUPLICATE_NAMES`, `CLUSTER_NAMING`; update `ENTRY_AUDIT` |
+| `src/views/RefineView.tsx`                            | Add new LABELS entries + new section headers                                       |
+| `src/hooks/__tests__/useRefineAnalysis.logic.test.ts` | New test file — pure logic unit tests                                              |
 
 ---
 
@@ -26,6 +26,7 @@
 Add a weight map and sort all suggestions by priority before rendering.
 
 **Files:**
+
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
 - Create: `src/hooks/__tests__/useRefineAnalysis.logic.test.ts`
@@ -43,7 +44,13 @@ describe("sortBySuggestionPriority", () => {
     const suggestions = [
       { type: "TAG_SUGGESTED", entryId: "a", field: "tags", suggestedValue: "", reason: "" },
       { type: "SENSITIVE_DATA", entryId: "b", field: "type", suggestedValue: "secret", reason: "" },
-      { type: "STALE_REMINDER", entryId: "c", field: "metadata.due_date", suggestedValue: "", reason: "" },
+      {
+        type: "STALE_REMINDER",
+        entryId: "c",
+        field: "metadata.due_date",
+        suggestedValue: "",
+        reason: "",
+      },
     ];
     const sorted = sortBySuggestionPriority(suggestions as any);
     expect(sorted[0].type).toBe("SENSITIVE_DATA");
@@ -63,11 +70,24 @@ describe("sortBySuggestionPriority", () => {
 
   it("PRIORITY_WEIGHTS has entries for all known types", () => {
     const known = [
-      "SENSITIVE_DATA", "MERGE_SUGGESTED", "STALE_REMINDER", "DEAD_URL",
-      "DUPLICATE_ENTRY", "TYPE_MISMATCH", "PHONE_FOUND", "EMAIL_FOUND",
-      "DATE_FOUND", "LINK_SUGGESTED", "CLUSTER_SUGGESTED", "CONTENT_WEAK",
-      "TAG_SUGGESTED", "TITLE_POOR", "ORPHAN_DETECTED", "SPLIT_SUGGESTED",
-      "URL_FOUND", "WEAK_LABEL",
+      "SENSITIVE_DATA",
+      "MERGE_SUGGESTED",
+      "STALE_REMINDER",
+      "DEAD_URL",
+      "DUPLICATE_ENTRY",
+      "TYPE_MISMATCH",
+      "PHONE_FOUND",
+      "EMAIL_FOUND",
+      "DATE_FOUND",
+      "LINK_SUGGESTED",
+      "CLUSTER_SUGGESTED",
+      "CONTENT_WEAK",
+      "TAG_SUGGESTED",
+      "TITLE_POOR",
+      "ORPHAN_DETECTED",
+      "SPLIT_SUGGESTED",
+      "URL_FOUND",
+      "WEAK_LABEL",
     ];
     known.forEach((t) => expect(PRIORITY_WEIGHTS).toHaveProperty(t));
   });
@@ -79,6 +99,7 @@ describe("sortBySuggestionPriority", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL — `PRIORITY_WEIGHTS` and `sortBySuggestionPriority` not exported
 
 - [ ] **Step 3: Add exports to `useRefineAnalysis.ts`**
@@ -117,15 +138,17 @@ export function sortBySuggestionPriority<T extends { type: string }>(items: T[])
 - [ ] **Step 4: Apply sort in `useRefineAnalysis.ts`**
 
 Find this line near the bottom of `useRefineAnalysis.ts`:
+
 ```typescript
-  const visible = (suggestions ?? []).filter((s) => !dismissed.has(keyOf(s)));
+const visible = (suggestions ?? []).filter((s) => !dismissed.has(keyOf(s)));
 ```
 
 Replace with:
+
 ```typescript
-  const visible = sortBySuggestionPriority(
-    (suggestions ?? []).filter((s) => !dismissed.has(keyOf(s))),
-  );
+const visible = sortBySuggestionPriority(
+  (suggestions ?? []).filter((s) => !dismissed.has(keyOf(s))),
+);
 ```
 
 - [ ] **Step 5: Run tests**
@@ -133,6 +156,7 @@ Replace with:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS (3 tests)
 
 - [ ] **Step 6: Commit**
@@ -149,6 +173,7 @@ git commit -m "feat: add priority scoring to Fix Issues suggestions"
 Flag entries that have zero links AND zero tags — they're invisible in the knowledge graph.
 
 **Files:**
+
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
 - Modify: `src/hooks/__tests__/useRefineAnalysis.logic.test.ts`
@@ -199,6 +224,7 @@ describe("detectOrphans", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL — `detectOrphans` not exported
 
 - [ ] **Step 3: Add `detectOrphans` to `useRefineAnalysis.ts`**
@@ -228,19 +254,22 @@ export function detectOrphans(
 - [ ] **Step 4: Call `detectOrphans` inside `analyze` in `useRefineAnalysis.ts`**
 
 Find in `analyze`:
+
 ```typescript
-    setSuggestions([...entrySuggestions, ...linkSuggestions]);
+setSuggestions([...entrySuggestions, ...linkSuggestions]);
 ```
 
 Replace with:
+
 ```typescript
-    const orphanSuggestions = detectOrphans(entries, links || []);
-    setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions]);
+const orphanSuggestions = detectOrphans(entries, links || []);
+setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions]);
 ```
 
 - [ ] **Step 5: Add label to `RefineView.tsx`**
 
 Find the `LABELS` object and add after `TAG_SUGGESTED`:
+
 ```typescript
   ORPHAN_DETECTED: { label: "No connections", icon: <SvgTag />, variant: "neutral" },
 ```
@@ -250,6 +279,7 @@ Find the `LABELS` object and add after `TAG_SUGGESTED`:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 7: Commit**
@@ -266,6 +296,7 @@ git commit -m "feat: detect orphan entries (no links, no tags)"
 Flag entries where `metadata.due_date` is in the past.
 
 **Files:**
+
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
 - Modify: `src/hooks/__tests__/useRefineAnalysis.logic.test.ts`
@@ -280,8 +311,12 @@ import { detectStaleReminders } from "../useRefineAnalysis";
 describe("detectStaleReminders", () => {
   it("flags entry whose due_date is in the past", () => {
     const entry = {
-      id: "r1", title: "Pay invoice", type: "reminder",
-      metadata: { due_date: "2020-01-01" }, tags: [], content: "",
+      id: "r1",
+      title: "Pay invoice",
+      type: "reminder",
+      metadata: { due_date: "2020-01-01" },
+      tags: [],
+      content: "",
     };
     const result = detectStaleReminders([entry as any]);
     expect(result).toHaveLength(1);
@@ -291,8 +326,12 @@ describe("detectStaleReminders", () => {
 
   it("does not flag entry with future due_date", () => {
     const entry = {
-      id: "r2", title: "Future task", type: "reminder",
-      metadata: { due_date: "2099-12-31" }, tags: [], content: "",
+      id: "r2",
+      title: "Future task",
+      type: "reminder",
+      metadata: { due_date: "2099-12-31" },
+      tags: [],
+      content: "",
     };
     const result = detectStaleReminders([entry as any]);
     expect(result).toHaveLength(0);
@@ -306,8 +345,13 @@ describe("detectStaleReminders", () => {
 
   it("does not flag encrypted entries", () => {
     const entry = {
-      id: "r4", title: "Secret old", type: "reminder",
-      metadata: { due_date: "2020-01-01" }, encrypted: true, tags: [], content: "",
+      id: "r4",
+      title: "Secret old",
+      type: "reminder",
+      metadata: { due_date: "2020-01-01" },
+      encrypted: true,
+      tags: [],
+      content: "",
     };
     const result = detectStaleReminders([entry as any]);
     expect(result).toHaveLength(0);
@@ -320,6 +364,7 @@ describe("detectStaleReminders", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL
 
 - [ ] **Step 3: Add `detectStaleReminders` to `useRefineAnalysis.ts`**
@@ -351,16 +396,23 @@ export function detectStaleReminders(entries: Entry[]): EntrySuggestion[] {
 - [ ] **Step 4: Call inside `analyze`**
 
 In the `analyze` callback, find:
+
 ```typescript
-    const orphanSuggestions = detectOrphans(entries, links || []);
-    setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions]);
+const orphanSuggestions = detectOrphans(entries, links || []);
+setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions]);
 ```
 
 Replace with:
+
 ```typescript
-    const orphanSuggestions = detectOrphans(entries, links || []);
-    const staleSuggestions = detectStaleReminders(entries);
-    setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions, ...staleSuggestions]);
+const orphanSuggestions = detectOrphans(entries, links || []);
+const staleSuggestions = detectStaleReminders(entries);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+]);
 ```
 
 - [ ] **Step 5: Add label to `RefineView.tsx` LABELS**
@@ -374,6 +426,7 @@ Replace with:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 7: Commit**
@@ -390,6 +443,7 @@ git commit -m "feat: detect stale/overdue reminders in Fix Issues"
 Flag entries where `metadata.url` appears to be unreachable. Uses `fetch` with `no-cors` + timeout — catches fully dead domains/DNS failures. CORS-blocked live URLs are treated as alive (conservative: no false positives).
 
 **Files:**
+
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
 
@@ -436,24 +490,29 @@ export async function checkDeadUrls(entries: Entry[]): Promise<EntrySuggestion[]
 In `analyze`, find where `batches` are processed with `Promise.all`. After all AI calls complete, add the URL check in parallel with the link discovery. Replace:
 
 ```typescript
-    const orphanSuggestions = detectOrphans(entries, links || []);
-    const staleSuggestions = detectStaleReminders(entries);
-    setSuggestions([...entrySuggestions, ...linkSuggestions, ...orphanSuggestions, ...staleSuggestions]);
+const orphanSuggestions = detectOrphans(entries, links || []);
+const staleSuggestions = detectStaleReminders(entries);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+]);
 ```
 
 With:
 
 ```typescript
-    const orphanSuggestions = detectOrphans(entries, links || []);
-    const staleSuggestions = detectStaleReminders(entries);
-    const deadUrlSuggestions = await checkDeadUrls(entries);
-    setSuggestions([
-      ...entrySuggestions,
-      ...linkSuggestions,
-      ...orphanSuggestions,
-      ...staleSuggestions,
-      ...deadUrlSuggestions,
-    ]);
+const orphanSuggestions = detectOrphans(entries, links || []);
+const staleSuggestions = detectStaleReminders(entries);
+const deadUrlSuggestions = await checkDeadUrls(entries);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+  ...deadUrlSuggestions,
+]);
 ```
 
 - [ ] **Step 3: Add label to `RefineView.tsx` LABELS**
@@ -476,6 +535,7 @@ git commit -m "feat: detect dead URLs in Fix Issues"
 Store `lastScannedAt` per brain in localStorage. On re-analyze, only send changed entries to the AI entry audit. Cross-entry checks (links, orphans, clusters) always run on the full set.
 
 **Files:**
+
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/hooks/__tests__/useRefineAnalysis.logic.test.ts`
 
@@ -510,9 +570,7 @@ describe("getChangedEntries", () => {
   });
 
   it("returns entries with no updated_at when lastScannedAt is set", () => {
-    const entries = [
-      { id: "a", title: "No date", type: "note" },
-    ];
+    const entries = [{ id: "a", title: "No date", type: "note" }];
     const result = getChangedEntries(entries as any, lastScan);
     expect(result).toHaveLength(1); // no updated_at = treat as changed
   });
@@ -524,6 +582,7 @@ describe("getChangedEntries", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL
 
 - [ ] **Step 3: Add helpers + localStorage key to `useRefineAnalysis.ts`**
@@ -548,29 +607,32 @@ export function getChangedEntries(entries: Entry[], lastScannedAt: string | null
 At the start of `analyze`, after `setSuggestions(null)`, add:
 
 ```typescript
-    const brainId = activeBrain?.id ?? "default";
-    const lastScannedAt = localStorage.getItem(deltaKey(brainId));
-    const entriesToAudit = getChangedEntries(entries, lastScannedAt);
+const brainId = activeBrain?.id ?? "default";
+const lastScannedAt = localStorage.getItem(deltaKey(brainId));
+const entriesToAudit = getChangedEntries(entries, lastScannedAt);
 ```
 
 Then replace all uses of `entries` in the AI batch loop with `entriesToAudit`:
 
 Find:
+
 ```typescript
-    const batches = [];
-    for (let i = 0; i < entries.length; i += BATCH) batches.push(entries.slice(i, i + BATCH));
+const batches = [];
+for (let i = 0; i < entries.length; i += BATCH) batches.push(entries.slice(i, i + BATCH));
 ```
 
 Replace with:
+
 ```typescript
-    const batches = [];
-    for (let i = 0; i < entriesToAudit.length; i += BATCH) batches.push(entriesToAudit.slice(i, i + BATCH));
+const batches = [];
+for (let i = 0; i < entriesToAudit.length; i += BATCH)
+  batches.push(entriesToAudit.slice(i, i + BATCH));
 ```
 
 At the end of `analyze`, just before `setLoading(false)`, add:
 
 ```typescript
-    localStorage.setItem(deltaKey(brainId), new Date().toISOString());
+localStorage.setItem(deltaKey(brainId), new Date().toISOString());
 ```
 
 - [ ] **Step 5: Run tests**
@@ -578,6 +640,7 @@ At the end of `analyze`, just before `setLoading(false)`, add:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -594,6 +657,7 @@ git commit -m "feat: delta scanning — only re-audit changed entries"
 Add a `SENSITIVE_DATA` rule to the existing `ENTRY_AUDIT` prompt. The AI already handles `secret` type in `TYPE_MISMATCH` but this gives it an explicit, dedicated check.
 
 **Files:**
+
 - Modify: `src/config/prompts.ts`
 - Modify: `src/views/RefineView.tsx`
 
@@ -608,6 +672,7 @@ Find the existing rule list in `ENTRY_AUDIT`. After rule 10 (`TAG_SUGGESTED`), a
 Also update the Hard rules `- For TYPE_MISMATCH: suggestedValue...` line — leave it, SENSITIVE_DATA is its own type with `suggestedValue: "secret"` always.
 
 Update the schema line to include `SENSITIVE_DATA` in the type enum:
+
 ```
 Schema: [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|PHONE_FOUND|EMAIL_FOUND|URL_FOUND|DATE_FOUND|TITLE_POOR|SPLIT_SUGGESTED|MERGE_SUGGESTED|CONTENT_WEAK|TAG_SUGGESTED|SENSITIVE_DATA","field":"type|metadata.phone|metadata.email|metadata.url|metadata.due_date|title|content|tags","currentValue":"...","suggestedValue":"...","reason":"max 90 chars"}]
 ```
@@ -615,40 +680,48 @@ Schema: [{"entryId":"...","entryTitle":"...","type":"TYPE_MISMATCH|PHONE_FOUND|E
 - [ ] **Step 2: Handle `SENSITIVE_DATA` in `applyEntry`**
 
 In `useRefineAnalysis.ts`, find the `applyEntry` callback. Find:
+
 ```typescript
       if (s.type === "MERGE_SUGGESTED") {
 ```
 
 Before that block, add:
+
 ```typescript
-      if (s.type === "SENSITIVE_DATA") {
-        // Reclassify as secret type
-        const body = { id: entry.id, type: "secret" };
-        try {
-          await authFetch("/api/update-entry", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
-          setEntries((prev) =>
-            prev.map((e) => (e.id === entry.id ? { ...e, type: "secret" } : e)),
-          );
-        } catch (err) { console.error("[useRefineAnalysis]", err); }
-        setDismissed((p) => new Set(p).add(key));
-        setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
-        setEditingKey(null);
-        return;
-      }
+if (s.type === "SENSITIVE_DATA") {
+  // Reclassify as secret type
+  const body = { id: entry.id, type: "secret" };
+  try {
+    await authFetch("/api/update-entry", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, type: "secret" } : e)));
+  } catch (err) {
+    console.error("[useRefineAnalysis]", err);
+  }
+  setDismissed((p) => new Set(p).add(key));
+  setApplying((p) => {
+    const n = new Set(p);
+    n.delete(key);
+    return n;
+  });
+  setEditingKey(null);
+  return;
+}
 ```
 
 - [ ] **Step 3: Add label to `RefineView.tsx` LABELS**
 
 Add a lock SVG function at the top with the other SVG helpers:
+
 ```typescript
 function SvgLock() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>; }
 ```
 
 Add to LABELS:
+
 ```typescript
   SENSITIVE_DATA: { label: "Sensitive data", icon: <SvgLock />, variant: "primary" },
 ```
@@ -667,6 +740,7 @@ git commit -m "feat: detect sensitive data in wrong entry type"
 Scan existing links for vague labels ("relates to", "related", "similar", "connected", "linked"). Send only those to AI for renaming.
 
 **Files:**
+
 - Modify: `src/config/prompts.ts`
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
@@ -710,12 +784,22 @@ describe("findWeakLinks", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL
 
 - [ ] **Step 3: Add `WEAK_LABELS` constant and `findWeakLinks` to `useRefineAnalysis.ts`**
 
 ```typescript
-const WEAK_LABELS = new Set(["relates to", "related", "related to", "similar", "connected", "linked", "link", "connection"]);
+const WEAK_LABELS = new Set([
+  "relates to",
+  "related",
+  "related to",
+  "similar",
+  "connected",
+  "linked",
+  "link",
+  "connection",
+]);
 
 export function findWeakLinks(links: RefineLink[]): RefineLink[] {
   return links.filter((l) => l.rel && WEAK_LABELS.has(l.rel.toLowerCase().trim()));
@@ -757,119 +841,142 @@ interface WeakLabelSuggestion {
 ```
 
 Update `RefineSuggestion` union:
+
 ```typescript
 type RefineSuggestion = EntrySuggestion | LinkSuggestion | WeakLabelSuggestion;
 ```
 
 In `analyze`, after the `linkSuggestions` block and before `detectOrphans`, add:
 
-```typescript
-    let weakLabelSuggestions: WeakLabelSuggestion[] = [];
-    const weakLinks = findWeakLinks(links || []);
-    if (weakLinks.length > 0) {
-      const candidates = weakLinks
-        .map((l) => {
-          const a = entryMap[l.from], b = entryMap[l.to];
-          if (!a || !b) return null;
-          return {
-            fromId: l.from, fromTitle: a.title, fromType: a.type,
-            fromContent: (a.content || "").slice(0, 150),
-            toId: l.to, toTitle: b.title, toType: b.type,
-            toContent: (b.content || "").slice(0, 150),
-            currentRel: l.rel,
-          };
-        })
-        .filter(Boolean);
-      if (candidates.length > 0) {
-        try {
-          const res = await callAI({
-            max_tokens: 800,
-            system: PROMPTS.WEAK_LABEL_RENAME,
-            brainId: activeBrain?.id,
-            messages: [{ role: "user", content: `WEAK LINKS TO RENAME:\n${JSON.stringify(candidates)}` }],
-          });
-          const data = await res.json();
-          const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
-          try {
-            const p = JSON.parse(raw);
-            if (Array.isArray(p)) {
-              weakLabelSuggestions = p
-                .filter((x: any) => x.fromId && x.toId && x.rel)
-                .map((x: any) => {
-                  const weak = weakLinks.find((l) => l.from === x.fromId && l.to === x.toId);
-                  const a = entryMap[x.fromId], b = entryMap[x.toId];
-                  return {
-                    type: "WEAK_LABEL" as const,
-                    fromId: x.fromId,
-                    toId: x.toId,
-                    fromTitle: a?.title,
-                    toTitle: b?.title,
-                    currentRel: weak?.rel || "relates to",
-                    rel: x.rel,
-                    reason: `Rename "${weak?.rel || "relates to"}" → "${x.rel}"`,
-                  };
-                });
-            }
-          } catch (err) { console.error("[useRefineAnalysis]", err); }
-        } catch (err) { console.error("[useRefineAnalysis]", err); }
+````typescript
+let weakLabelSuggestions: WeakLabelSuggestion[] = [];
+const weakLinks = findWeakLinks(links || []);
+if (weakLinks.length > 0) {
+  const candidates = weakLinks
+    .map((l) => {
+      const a = entryMap[l.from],
+        b = entryMap[l.to];
+      if (!a || !b) return null;
+      return {
+        fromId: l.from,
+        fromTitle: a.title,
+        fromType: a.type,
+        fromContent: (a.content || "").slice(0, 150),
+        toId: l.to,
+        toTitle: b.title,
+        toType: b.type,
+        toContent: (b.content || "").slice(0, 150),
+        currentRel: l.rel,
+      };
+    })
+    .filter(Boolean);
+  if (candidates.length > 0) {
+    try {
+      const res = await callAI({
+        max_tokens: 800,
+        system: PROMPTS.WEAK_LABEL_RENAME,
+        brainId: activeBrain?.id,
+        messages: [
+          { role: "user", content: `WEAK LINKS TO RENAME:\n${JSON.stringify(candidates)}` },
+        ],
+      });
+      const data = await res.json();
+      const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
+      try {
+        const p = JSON.parse(raw);
+        if (Array.isArray(p)) {
+          weakLabelSuggestions = p
+            .filter((x: any) => x.fromId && x.toId && x.rel)
+            .map((x: any) => {
+              const weak = weakLinks.find((l) => l.from === x.fromId && l.to === x.toId);
+              const a = entryMap[x.fromId],
+                b = entryMap[x.toId];
+              return {
+                type: "WEAK_LABEL" as const,
+                fromId: x.fromId,
+                toId: x.toId,
+                fromTitle: a?.title,
+                toTitle: b?.title,
+                currentRel: weak?.rel || "relates to",
+                rel: x.rel,
+                reason: `Rename "${weak?.rel || "relates to"}" → "${x.rel}"`,
+              };
+            });
+        }
+      } catch (err) {
+        console.error("[useRefineAnalysis]", err);
       }
+    } catch (err) {
+      console.error("[useRefineAnalysis]", err);
     }
-```
+  }
+}
+````
 
 - [ ] **Step 6: Add `weakLabelSuggestions` to `setSuggestions` call**
 
 ```typescript
-    setSuggestions([
-      ...entrySuggestions,
-      ...linkSuggestions,
-      ...weakLabelSuggestions,
-      ...orphanSuggestions,
-      ...staleSuggestions,
-      ...deadUrlSuggestions,
-    ]);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...weakLabelSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+  ...deadUrlSuggestions,
+]);
 ```
 
 - [ ] **Step 7: Handle `WEAK_LABEL` in `applyLink` and `keyOf`**
 
 Update `keyOf`:
+
 ```typescript
-  const keyOf = (s: RefineSuggestion): string => {
-    if (s.type === "LINK_SUGGESTED")
-      return `link:${(s as LinkSuggestion).fromId}:${(s as LinkSuggestion).toId}`;
-    if (s.type === "WEAK_LABEL")
-      return `weak:${(s as WeakLabelSuggestion).fromId}:${(s as WeakLabelSuggestion).toId}`;
-    return `entry:${(s as EntrySuggestion).entryId}:${(s as EntrySuggestion).field}`;
-  };
+const keyOf = (s: RefineSuggestion): string => {
+  if (s.type === "LINK_SUGGESTED")
+    return `link:${(s as LinkSuggestion).fromId}:${(s as LinkSuggestion).toId}`;
+  if (s.type === "WEAK_LABEL")
+    return `weak:${(s as WeakLabelSuggestion).fromId}:${(s as WeakLabelSuggestion).toId}`;
+  return `entry:${(s as EntrySuggestion).entryId}:${(s as EntrySuggestion).field}`;
+};
 ```
 
 Add `applyWeakLabel` callback after `applyLink`:
 
 ```typescript
-  const applyWeakLabel = useCallback(
-    async (s: WeakLabelSuggestion, relOverride?: string) => {
-      const rel = relOverride ?? s.rel;
-      const key = `weak:${s.fromId}:${s.toId}`;
-      setApplying((p) => new Set(p).add(key));
-      if (activeBrain?.id) {
-        recordDecision(activeBrain.id, {
-          source: "refine", type: "WEAK_LABEL",
-          action: relOverride ? "edit" : "accept",
-          originalValue: s.currentRel, finalValue: rel, reason: s.reason,
-        });
-      }
-      try {
-        await authFetch("/api/save-links", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ links: [{ from: s.fromId, to: s.toId, rel }] }),
-        });
-      } catch (err) { console.error("[useRefineAnalysis]", err); }
-      setDismissed((p) => new Set(p).add(key));
-      setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
-      setEditingKey(null);
-    },
-    [activeBrain],
-  );
+const applyWeakLabel = useCallback(
+  async (s: WeakLabelSuggestion, relOverride?: string) => {
+    const rel = relOverride ?? s.rel;
+    const key = `weak:${s.fromId}:${s.toId}`;
+    setApplying((p) => new Set(p).add(key));
+    if (activeBrain?.id) {
+      recordDecision(activeBrain.id, {
+        source: "refine",
+        type: "WEAK_LABEL",
+        action: relOverride ? "edit" : "accept",
+        originalValue: s.currentRel,
+        finalValue: rel,
+        reason: s.reason,
+      });
+    }
+    try {
+      await authFetch("/api/save-links", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: [{ from: s.fromId, to: s.toId, rel }] }),
+      });
+    } catch (err) {
+      console.error("[useRefineAnalysis]", err);
+    }
+    setDismissed((p) => new Set(p).add(key));
+    setApplying((p) => {
+      const n = new Set(p);
+      n.delete(key);
+      return n;
+    });
+    setEditingKey(null);
+  },
+  [activeBrain],
+);
 ```
 
 Return `applyWeakLabel` from the hook.
@@ -877,6 +984,7 @@ Return `applyWeakLabel` from the hook.
 - [ ] **Step 8: Add WEAK_LABEL label and rendering in `RefineView.tsx`**
 
 Add to LABELS:
+
 ```typescript
   WEAK_LABEL: { label: "Vague relationship", icon: <SvgArrowsLR />, variant: "neutral" },
 ```
@@ -888,6 +996,7 @@ In the suggestion card rendering in `RefineView.tsx`, `WEAK_LABEL` suggestions h
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 10: Commit**
@@ -904,6 +1013,7 @@ git commit -m "feat: detect and improve vague relationship labels"
 Fuzzy-match entry titles to find entries likely referring to the same entity. Run AI on candidates to confirm + suggest merge.
 
 **Files:**
+
 - Modify: `src/config/prompts.ts`
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
@@ -949,7 +1059,15 @@ describe("findNameCandidates", () => {
 
   it("does not pair encrypted entries", () => {
     const entries = [
-      { id: "a", title: "John Smith", type: "person", encrypted: true, content: "", tags: [], metadata: {} },
+      {
+        id: "a",
+        title: "John Smith",
+        type: "person",
+        encrypted: true,
+        content: "",
+        tags: [],
+        metadata: {},
+      },
       { id: "b", title: "J. Smith", type: "person", content: "", tags: [], metadata: {} },
     ];
     const pairs = findNameCandidates(entries as any);
@@ -963,13 +1081,17 @@ describe("findNameCandidates", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL
 
 - [ ] **Step 3: Add fuzzy helpers to `useRefineAnalysis.ts`**
 
 ```typescript
 export function normalizeName(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
 }
 
 export function findNameCandidates(entries: Entry[]): [Entry, Entry][] {
@@ -1015,61 +1137,71 @@ Return empty array if no confirmed duplicates: []`,
 
 After the weak label pass and before `detectOrphans`, add:
 
-```typescript
-    let duplicateSuggestions: EntrySuggestion[] = [];
-    const nameCandidates = findNameCandidates(entries);
-    if (nameCandidates.length > 0) {
-      const candidatePayload = nameCandidates.slice(0, 20).map(([a, b]) => ({
-        primaryId: a.id, primaryTitle: a.title, primaryType: a.type,
-        primaryContent: (a.content || "").slice(0, 150),
-        duplicateId: b.id, duplicateTitle: b.title, duplicateType: b.type,
-        duplicateContent: (b.content || "").slice(0, 150),
-      }));
-      try {
-        const res = await callAI({
-          max_tokens: 800,
-          system: PROMPTS.DUPLICATE_NAMES,
-          brainId: activeBrain?.id,
-          messages: [{ role: "user", content: `CANDIDATE PAIRS:\n${JSON.stringify(candidatePayload)}` }],
-        });
-        const data = await res.json();
-        const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
-        try {
-          const p = JSON.parse(raw);
-          if (Array.isArray(p)) {
-            duplicateSuggestions = p
-              .filter((x: any) => x.primaryId && x.duplicateId)
-              .map((x: any) => {
-                const primary = entryMap[x.primaryId];
-                const dup = entryMap[x.duplicateId];
-                return {
-                  type: "DUPLICATE_ENTRY",
-                  entryId: x.primaryId,
-                  entryTitle: primary?.title,
-                  field: "content",
-                  currentValue: `${primary?.title} + ${dup?.title}`,
-                  suggestedValue: x.duplicateId,
-                  reason: x.reason,
-                } as EntrySuggestion;
-              });
-          }
-        } catch (err) { console.error("[useRefineAnalysis]", err); }
-      } catch (err) { console.error("[useRefineAnalysis]", err); }
+````typescript
+let duplicateSuggestions: EntrySuggestion[] = [];
+const nameCandidates = findNameCandidates(entries);
+if (nameCandidates.length > 0) {
+  const candidatePayload = nameCandidates.slice(0, 20).map(([a, b]) => ({
+    primaryId: a.id,
+    primaryTitle: a.title,
+    primaryType: a.type,
+    primaryContent: (a.content || "").slice(0, 150),
+    duplicateId: b.id,
+    duplicateTitle: b.title,
+    duplicateType: b.type,
+    duplicateContent: (b.content || "").slice(0, 150),
+  }));
+  try {
+    const res = await callAI({
+      max_tokens: 800,
+      system: PROMPTS.DUPLICATE_NAMES,
+      brainId: activeBrain?.id,
+      messages: [
+        { role: "user", content: `CANDIDATE PAIRS:\n${JSON.stringify(candidatePayload)}` },
+      ],
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p)) {
+        duplicateSuggestions = p
+          .filter((x: any) => x.primaryId && x.duplicateId)
+          .map((x: any) => {
+            const primary = entryMap[x.primaryId];
+            const dup = entryMap[x.duplicateId];
+            return {
+              type: "DUPLICATE_ENTRY",
+              entryId: x.primaryId,
+              entryTitle: primary?.title,
+              field: "content",
+              currentValue: `${primary?.title} + ${dup?.title}`,
+              suggestedValue: x.duplicateId,
+              reason: x.reason,
+            } as EntrySuggestion;
+          });
+      }
+    } catch (err) {
+      console.error("[useRefineAnalysis]", err);
     }
-```
+  } catch (err) {
+    console.error("[useRefineAnalysis]", err);
+  }
+}
+````
 
 Add `duplicateSuggestions` to the `setSuggestions` call:
 
 ```typescript
-    setSuggestions([
-      ...entrySuggestions,
-      ...linkSuggestions,
-      ...weakLabelSuggestions,
-      ...duplicateSuggestions,
-      ...orphanSuggestions,
-      ...staleSuggestions,
-      ...deadUrlSuggestions,
-    ]);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...weakLabelSuggestions,
+  ...duplicateSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+  ...deadUrlSuggestions,
+]);
 ```
 
 - [ ] **Step 6: Handle `DUPLICATE_ENTRY` in `applyEntry`**
@@ -1077,11 +1209,13 @@ Add `duplicateSuggestions` to the `setSuggestions` call:
 `DUPLICATE_ENTRY` has the same shape as `MERGE_SUGGESTED` (entryId = keep, suggestedValue = ID to merge in). The existing `MERGE_SUGGESTED` branch in `applyEntry` already handles this. Add `DUPLICATE_ENTRY` to the check:
 
 Find:
+
 ```typescript
       if (s.type === "MERGE_SUGGESTED") {
 ```
 
 Replace with:
+
 ```typescript
       if (s.type === "MERGE_SUGGESTED" || s.type === "DUPLICATE_ENTRY") {
 ```
@@ -1097,6 +1231,7 @@ Replace with:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 9: Commit**
@@ -1113,6 +1248,7 @@ git commit -m "feat: detect duplicate entity names with fuzzy match + AI confirm
 Find groups of entries that share 2+ tags or have 3+ interconnections but no parent/hub entry. Suggest creating one.
 
 **Files:**
+
 - Modify: `src/config/prompts.ts`
 - Modify: `src/hooks/useRefineAnalysis.ts`
 - Modify: `src/views/RefineView.tsx`
@@ -1128,9 +1264,30 @@ import { detectClusters } from "../useRefineAnalysis";
 describe("detectClusters", () => {
   it("detects cluster from shared tags", () => {
     const entries = [
-      { id: "a", title: "Entry A", type: "note", tags: ["supplier", "food"], content: "", metadata: {} },
-      { id: "b", title: "Entry B", type: "note", tags: ["supplier", "food"], content: "", metadata: {} },
-      { id: "c", title: "Entry C", type: "note", tags: ["supplier", "food"], content: "", metadata: {} },
+      {
+        id: "a",
+        title: "Entry A",
+        type: "note",
+        tags: ["supplier", "food"],
+        content: "",
+        metadata: {},
+      },
+      {
+        id: "b",
+        title: "Entry B",
+        type: "note",
+        tags: ["supplier", "food"],
+        content: "",
+        metadata: {},
+      },
+      {
+        id: "c",
+        title: "Entry C",
+        type: "note",
+        tags: ["supplier", "food"],
+        content: "",
+        metadata: {},
+      },
       { id: "d", title: "Entry D", type: "note", tags: ["unrelated"], content: "", metadata: {} },
     ];
     const clusters = detectClusters(entries as any, []);
@@ -1158,8 +1315,12 @@ describe("detectClusters", () => {
       { id: "d", title: "D", type: "note", tags: [], content: "", metadata: {} },
     ];
     const links = [
-      { from: "a", to: "b" }, { from: "a", to: "c" }, { from: "a", to: "d" },
-      { from: "b", to: "c" }, { from: "b", to: "d" }, { from: "c", to: "d" },
+      { from: "a", to: "b" },
+      { from: "a", to: "c" },
+      { from: "a", to: "d" },
+      { from: "b", to: "c" },
+      { from: "b", to: "d" },
+      { from: "c", to: "d" },
     ];
     const clusters = detectClusters(entries as any, links as any);
     expect(clusters.length).toBeGreaterThan(0);
@@ -1172,6 +1333,7 @@ describe("detectClusters", () => {
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: FAIL
 
 - [ ] **Step 3: Add `ClusterInfo` interface and `detectClusters` to `useRefineAnalysis.ts`**
@@ -1259,58 +1421,77 @@ Return empty array if no cluster needs a parent entry: []`,
 
 After `duplicateSuggestions` and before `detectOrphans`:
 
-```typescript
-    let clusterSuggestions: EntrySuggestion[] = [];
-    const clusters = detectClusters(entries, links || []);
-    if (clusters.length > 0) {
-      try {
-        const res = await callAI({
-          max_tokens: 800,
-          system: PROMPTS.CLUSTER_NAMING,
-          brainId: activeBrain?.id,
-          messages: [{ role: "user", content: `CLUSTERS:\n${JSON.stringify(
+````typescript
+let clusterSuggestions: EntrySuggestion[] = [];
+const clusters = detectClusters(entries, links || []);
+if (clusters.length > 0) {
+  try {
+    const res = await callAI({
+      max_tokens: 800,
+      system: PROMPTS.CLUSTER_NAMING,
+      brainId: activeBrain?.id,
+      messages: [
+        {
+          role: "user",
+          content: `CLUSTERS:\n${JSON.stringify(
             clusters.slice(0, 10).map((c) => ({
               memberIds: c.memberIds,
               sharedTags: c.sharedTags,
               memberTitles: c.memberIds.map((id) => entryMap[id]?.title).filter(Boolean),
             })),
-          )}` }],
-        });
-        const data = await res.json();
-        const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
-        try {
-          const p = JSON.parse(raw);
-          if (Array.isArray(p)) {
-            clusterSuggestions = p
-              .filter((x: any) => x.memberIds?.length >= 3 && x.parentTitle)
-              .map((x: any) => ({
+          )}`,
+        },
+      ],
+    });
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text || "[]").replace(/```json|```/g, "").trim();
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p)) {
+        clusterSuggestions = p
+          .filter((x: any) => x.memberIds?.length >= 3 && x.parentTitle)
+          .map(
+            (x: any) =>
+              ({
                 type: "CLUSTER_SUGGESTED",
                 entryId: x.memberIds[0], // representative entry
                 entryTitle: x.parentTitle,
                 field: "content",
-                currentValue: x.memberIds.map((id: string) => entryMap[id]?.title).filter(Boolean).join(", "),
-                suggestedValue: JSON.stringify({ parentTitle: x.parentTitle, parentType: x.parentType, memberIds: x.memberIds }),
+                currentValue: x.memberIds
+                  .map((id: string) => entryMap[id]?.title)
+                  .filter(Boolean)
+                  .join(", "),
+                suggestedValue: JSON.stringify({
+                  parentTitle: x.parentTitle,
+                  parentType: x.parentType,
+                  memberIds: x.memberIds,
+                }),
                 reason: x.reason,
-              } as EntrySuggestion));
-          }
-        } catch (err) { console.error("[useRefineAnalysis]", err); }
-      } catch (err) { console.error("[useRefineAnalysis]", err); }
+              }) as EntrySuggestion,
+          );
+      }
+    } catch (err) {
+      console.error("[useRefineAnalysis]", err);
     }
-```
+  } catch (err) {
+    console.error("[useRefineAnalysis]", err);
+  }
+}
+````
 
 Add to `setSuggestions`:
 
 ```typescript
-    setSuggestions([
-      ...entrySuggestions,
-      ...linkSuggestions,
-      ...weakLabelSuggestions,
-      ...duplicateSuggestions,
-      ...clusterSuggestions,
-      ...orphanSuggestions,
-      ...staleSuggestions,
-      ...deadUrlSuggestions,
-    ]);
+setSuggestions([
+  ...entrySuggestions,
+  ...linkSuggestions,
+  ...weakLabelSuggestions,
+  ...duplicateSuggestions,
+  ...clusterSuggestions,
+  ...orphanSuggestions,
+  ...staleSuggestions,
+  ...deadUrlSuggestions,
+]);
 ```
 
 - [ ] **Step 6: Handle `CLUSTER_SUGGESTED` apply in `useRefineAnalysis.ts`**
@@ -1318,37 +1499,45 @@ Add to `setSuggestions`:
 In `applyEntry`, before the `SENSITIVE_DATA` block, add:
 
 ```typescript
-      if (s.type === "CLUSTER_SUGGESTED") {
-        // Create a new parent entry
-        try {
-          const parsed = JSON.parse(s.suggestedValue);
-          await authFetch("/api/create-entry", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: parsed.parentTitle,
-              type: parsed.parentType || "note",
-              content: `Hub entry for: ${(s.currentValue || "").slice(0, 200)}`,
-              tags: [],
-              brain_id: activeBrain?.id,
-            }),
-          });
-        } catch (err) { console.error("[useRefineAnalysis]", err); }
-        setDismissed((p) => new Set(p).add(key));
-        setApplying((p) => { const n = new Set(p); n.delete(key); return n; });
-        setEditingKey(null);
-        return;
-      }
+if (s.type === "CLUSTER_SUGGESTED") {
+  // Create a new parent entry
+  try {
+    const parsed = JSON.parse(s.suggestedValue);
+    await authFetch("/api/create-entry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: parsed.parentTitle,
+        type: parsed.parentType || "note",
+        content: `Hub entry for: ${(s.currentValue || "").slice(0, 200)}`,
+        tags: [],
+        brain_id: activeBrain?.id,
+      }),
+    });
+  } catch (err) {
+    console.error("[useRefineAnalysis]", err);
+  }
+  setDismissed((p) => new Set(p).add(key));
+  setApplying((p) => {
+    const n = new Set(p);
+    n.delete(key);
+    return n;
+  });
+  setEditingKey(null);
+  return;
+}
 ```
 
 - [ ] **Step 7: Add label to `RefineView.tsx` LABELS**
 
 Add a new SVG for cluster:
+
 ```typescript
 function SvgCluster() { return <svg className="inline h-3 w-3 align-middle" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>; }
 ```
 
 Add to LABELS:
+
 ```typescript
   CLUSTER_SUGGESTED: { label: "Create hub entry", icon: <SvgCluster />, variant: "primary" },
 ```
@@ -1358,6 +1547,7 @@ Add to LABELS:
 ```
 npx vitest run src/hooks/__tests__/useRefineAnalysis.logic.test.ts
 ```
+
 Expected: PASS
 
 - [ ] **Step 9: Run full test suite**
@@ -1365,6 +1555,7 @@ Expected: PASS
 ```
 npx vitest run
 ```
+
 Expected: all existing tests pass
 
 - [ ] **Step 10: Commit**
@@ -1379,6 +1570,7 @@ git commit -m "feat: detect entry clusters and suggest hub entries"
 ## Self-Review
 
 **Spec coverage:**
+
 - Priority scoring ✓ Task 1
 - Orphan detection ✓ Task 2
 - Stale reminder detection ✓ Task 3
@@ -1392,6 +1584,7 @@ git commit -m "feat: detect entry clusters and suggest hub entries"
 **Placeholder scan:** None — all tasks contain full code.
 
 **Type consistency:**
+
 - `EntrySuggestion`, `LinkSuggestion`, `WeakLabelSuggestion` used consistently across tasks
 - `RefineSuggestion` union updated in Task 7 to include `WeakLabelSuggestion`
 - `keyOf` updated in Task 7 handles all three types

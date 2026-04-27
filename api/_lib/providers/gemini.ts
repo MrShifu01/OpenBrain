@@ -25,8 +25,17 @@ function toMessages(
 
 function pickAnswerText(parts: any[]): string {
   const nonThought = parts.filter((p: any) => !p.thought);
-  const text = nonThought.map((p: any) => p.text || "").join("").trim();
-  return text || parts.map((p: any) => p.text || "").join("").trim();
+  const text = nonThought
+    .map((p: any) => p.text || "")
+    .join("")
+    .trim();
+  return (
+    text ||
+    parts
+      .map((p: any) => p.text || "")
+      .join("")
+      .trim()
+  );
 }
 
 export const gemini: ProviderAdapter = {
@@ -73,7 +82,11 @@ export const gemini: ProviderAdapter = {
       return { ok: true, status: 200, text: pickAnswerText(parts) };
     }
 
-    const leading = parts.filter((p: any) => p.text).map((p: any) => p.text).join("").trim();
+    const leading = parts
+      .filter((p: any) => p.text)
+      .map((p: any) => p.text)
+      .join("")
+      .trim();
     return {
       ok: true,
       status: 200,
@@ -87,7 +100,9 @@ export const gemini: ProviderAdapter = {
     messages.push({ role: "model", parts: step.rawAssistantMessage });
     messages.push({
       role: "user",
-      parts: [{ functionResponse: { name: step.toolCall!.name, response: { result: toolResult } } }],
+      parts: [
+        { functionResponse: { name: step.toolCall!.name, response: { result: toolResult } } },
+      ],
     });
   },
 };
@@ -104,7 +119,10 @@ export async function extractFile(
     // 2.5 supports up to 65535; 32768 leaves headroom and stays well within
     // the model's per-request budget for typical brand-guideline / report
     // sized documents.
-    body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { maxOutputTokens: 32768 } }),
+    body: JSON.stringify({
+      contents: [{ role: "user", parts }],
+      generationConfig: { maxOutputTokens: 32768 },
+    }),
   });
   const data: any = await r.json();
   if (!r.ok) return { ok: false, status: r.status, error: data };
@@ -112,4 +130,3 @@ export async function extractFile(
   const xParts: any[] = data.candidates?.[0]?.content?.parts || [];
   return { ok: true, status: 200, text: pickAnswerText(xParts) };
 }
-

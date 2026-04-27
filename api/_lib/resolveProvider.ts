@@ -151,7 +151,11 @@ export async function resolveEmbedProviderForUser(userId: string): Promise<{
 } | null> {
   const settings = await fetchSettings(userId);
   if (settings?.embed_openai_key) {
-    return { provider: "openai", apiKey: settings.embed_openai_key, model: "text-embedding-3-small" };
+    return {
+      provider: "openai",
+      apiKey: settings.embed_openai_key,
+      model: "text-embedding-3-small",
+    };
   }
   if (settings?.openai_key) {
     return { provider: "openai", apiKey: settings.openai_key, model: "text-embedding-3-small" };

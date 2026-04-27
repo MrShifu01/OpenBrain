@@ -14,10 +14,7 @@ export default function NotFound() {
         textAlign: "center",
       }}
     >
-      <div
-        className="micro"
-        style={{ marginBottom: 18, color: "var(--ink-faint)" }}
-      >
+      <div className="micro" style={{ marginBottom: 18, color: "var(--ink-faint)" }}>
         404 · page not found
       </div>
       <h1

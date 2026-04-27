@@ -111,7 +111,9 @@ describe("stripe-webhook handler", () => {
           id: "sub_456",
           customer: "cus_def",
           current_period_end: 1800000000,
-          items: { data: [{ price: { id: "price_starter_monthly" }, current_period_end: 1800000000 }] },
+          items: {
+            data: [{ price: { id: "price_starter_monthly" }, current_period_end: 1800000000 }],
+          },
         },
       },
     });

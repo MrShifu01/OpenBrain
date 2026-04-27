@@ -1,4 +1,5 @@
 # Impeccable Audit — EverionMind
+
 **Date:** 2026-04-14
 **Skill:** impeccable:audit
 **Scope:** Full codebase — Accessibility, Performance, Responsive Design, Theming, Anti-Patterns
@@ -7,14 +8,14 @@
 
 ## Audit Health Score
 
-| # | Dimension | Score | Key Finding |
-|---|-----------|-------|-------------|
-| 1 | Accessibility | 2/4 | 42× `outline-none` strips focus rings; OmniSearch missing combobox ARIA |
-| 2 | Performance | 3/4 | Transform-only animations; some missing memoization |
-| 3 | Responsive Design | 2/4 | Secondary action buttons ~28px tall; 14px input on mobile |
-| 4 | Theming | 3/4 | 21 undefined `ob-` tokens in NotificationSettings; hardcoded `#4ade80` |
-| 5 | Anti-Patterns | 4/4 | No AI slop tells. Clean editorial execution. |
-| **Total** | | **14/20** | **Good (address weak dimensions)** |
+| #         | Dimension         | Score     | Key Finding                                                             |
+| --------- | ----------------- | --------- | ----------------------------------------------------------------------- |
+| 1         | Accessibility     | 2/4       | 42× `outline-none` strips focus rings; OmniSearch missing combobox ARIA |
+| 2         | Performance       | 3/4       | Transform-only animations; some missing memoization                     |
+| 3         | Responsive Design | 2/4       | Secondary action buttons ~28px tall; 14px input on mobile               |
+| 4         | Theming           | 3/4       | 21 undefined `ob-` tokens in NotificationSettings; hardcoded `#4ade80`  |
+| 5         | Anti-Patterns     | 4/4       | No AI slop tells. Clean editorial execution.                            |
+| **Total** |                   | **14/20** | **Good (address weak dimensions)**                                      |
 
 ---
 
@@ -39,6 +40,7 @@ The `.impeccable.md` stated it needed to escape cyan/purple neon, glassmorphism,
 ---
 
 ### **[P1] Systemic focus ring removal across 42 interactive elements**
+
 **Location**: Codebase-wide — `CaptureSheet.tsx:586,600,681`, `BulkActionBar.tsx:261,328`, `OmniSearch.tsx:160`, `OnboardingModal.tsx:157`, `MemoryImportPanel.tsx:134` and 34 more
 **Category**: Accessibility
 **Impact**: Keyboard users and screen reader users navigating the app have no visible indicator of which element is focused. This breaks WCAG 2.1 SC 2.4.7 (Focus Visible) — a Level AA requirement. Some elements compensate with `focus:border-primary` which changes a border but provides very low-contrast feedback and may not meet the 3:1 minimum for non-text contrast.
@@ -62,6 +64,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P1] OmniSearch: no combobox ARIA pattern**
+
 **Location**: `src/components/OmniSearch.tsx:85-280`
 **Category**: Accessibility
 **Impact**: The search input opens a dropdown of results but the component presents this to screen readers as a plain `<input>`. Users with assistive technology cannot know the dropdown exists, how many results are available, or navigate between results without a mouse. WCAG 4.1.2 violation.
@@ -91,25 +94,27 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P1] NotificationSettings: 21 undefined `ob-` token references**
+
 **Location**: `src/components/NotificationSettings.tsx:55-222`
 **Category**: Theming
 **Impact**: All 21 class references (`bg-ob-surface`, `text-ob-text`, `text-ob-text-dim`, `border-ob-border`, `bg-ob-bg`, `text-ob-text-soft`, `text-ob-text-muted`) resolve to undefined CSS variables and will silently fall back to transparent/inherited values. The NotificationSettings panel likely renders with invisible text, missing backgrounds, or broken borders in production. This is a regression from a previous token refactor.
 **Recommendation**: Migrate all `ob-` tokens to the current system:
 
-| Old | Replace with |
-|-----|-------------|
-| `bg-ob-surface` | `bg-surface-container` |
-| `bg-ob-bg` | `bg-surface` |
-| `text-ob-text` | `text-on-surface` |
-| `text-ob-text-dim` / `text-ob-text-soft` | `text-on-surface-variant` |
-| `text-ob-text-muted` | `text-on-surface-variant/60` |
-| `border-ob-border` | `border-outline-variant` |
+| Old                                      | Replace with                 |
+| ---------------------------------------- | ---------------------------- |
+| `bg-ob-surface`                          | `bg-surface-container`       |
+| `bg-ob-bg`                               | `bg-surface`                 |
+| `text-ob-text`                           | `text-on-surface`            |
+| `text-ob-text-dim` / `text-ob-text-soft` | `text-on-surface-variant`    |
+| `text-ob-text-muted`                     | `text-on-surface-variant/60` |
+| `border-ob-border`                       | `border-outline-variant`     |
 
 **Suggested command**: `/normalize`
 
 ---
 
 ### **[P1] Small touch targets on secondary actions throughout mobile UI**
+
 **Location**: `BulkActionBar.tsx:165,208,225`, `EntryList.tsx:167,193`, `KeyConcepts.tsx:54`, `CaptureSheet.tsx:690`
 **Category**: Responsive Design
 **Impact**: Secondary action buttons (`py-1.5 text-xs` ≈ 28px, `py-1 text-xs` ≈ 26px) are consistently below the 44×44px minimum for touch targets. This is particularly painful in BulkActionBar and EntryList which are heavily used in the primary mobile workflow. Users with motor impairments or large fingers will frequently mis-tap.
@@ -120,6 +125,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P2] `App.tsx:192` — 14px input font triggers iOS auto-zoom**
+
 **Location**: `src/App.tsx:192`
 **Category**: Responsive Design
 **Impact**: iOS Safari auto-zooms into any focused input with `font-size < 16px`. The page zooms in without the user requesting it, then doesn't zoom back out — creating a permanently zoomed state. The `.impeccable.md` explicitly lists "Forms use 16px+ font on mobile" as a requirement.
@@ -129,6 +135,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P2] ProvidersTab: `#4ade80` hardcoded hex fallback always fires**
+
 **Location**: `src/components/settings/ProvidersTab.tsx:51`
 **Category**: Theming
 **Impact**: `var(--color-success, #4ade80)` — the token `--color-success` is never defined in `index.css` or any imported stylesheet, so the fallback `#4ade80` (lime green) always renders. This is default Tailwind green-400, which clashes with the warm amber/charcoal palette and is unthemed (same in light and dark mode).
@@ -136,7 +143,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 
 ```css
 /* index.css @theme */
---color-success: oklch(62% 0.15 142);   /* warm sage-green */
+--color-success: oklch(62% 0.15 142); /* warm sage-green */
 --color-on-success: oklch(97% 0.01 142);
 ```
 
@@ -150,6 +157,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P2] No ARIA live regions for asynchronous status updates**
+
 **Location**: `FeedView.tsx` (loading state), `CaptureSheet.tsx` (parse status), `OmniSearch.tsx` (result count)
 **Category**: Accessibility
 **Impact**: When the AI parses an entry, when feed content loads, or when search results appear, there is no announcement to screen reader users. The `AskView` and PIN component correctly use `aria-live="polite"` — but the two most-used interactions in the app (capture + search) do not.
@@ -157,7 +165,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 
 ```tsx
 <div aria-live="polite" aria-atomic="true" className="sr-only">
-  {status === 'success' ? `Entry "${previewTitle}" ready to save` : ''}
+  {status === "success" ? `Entry "${previewTitle}" ready to save` : ""}
 </div>
 ```
 
@@ -166,6 +174,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P2] BulkActionBar custom dropdowns missing interactive ARIA**
+
 **Location**: `src/components/BulkActionBar.tsx:261,328`
 **Category**: Accessibility
 **Impact**: Two `<button>` elements act as custom dropdowns but have no `aria-expanded`, `aria-haspopup`, or `aria-controls` attributes. A screen reader user activates them with no indication of what happens next.
@@ -175,6 +184,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P3] `text-[10px]` used in ~15 locations — borderline legible**
+
 **Location**: `BottomNav.tsx:60`, `BrainSwitcher.tsx:105,120`, `BulkActionBar.tsx:238,318`, `CaptureSheet.tsx:439,884`, `CreateBrainModal.tsx:155,183,210,263`, `DesktopSidebar.tsx:115`, and more
 **Category**: Accessibility
 **Impact**: 10px is below the 12px minimum most accessibility guidelines recommend. While intentional for de-emphasized labels, users with any visual impairment cannot read the content at this size on mobile. Non-decorative labels at 10px are a friction point.
@@ -184,6 +194,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P3] LoadingScreen: inline `<style>` keyframe defined inside component**
+
 **Location**: `src/components/LoadingScreen.tsx:36-40`
 **Category**: Performance
 **Impact**: The `loading-sweep` keyframe is injected into the DOM via a `<style>` tag on every mount. The other keyframes (`shimmer`, `fade-in`, `slide-up`) already live in `index.css` — this one should too.
@@ -193,6 +204,7 @@ Then remove `outline-none` from all components and only add `focus:outline-none`
 ---
 
 ### **[P3] EntryList `aria-label` uses raw title without role context**
+
 **Location**: `src/components/EntryList.tsx:56,247`
 **Category**: Accessibility
 **Impact**: `aria-label={e.title}` on card-level interactive elements gives a name but no context. Screen reader users hear the title with no indication it's a selectable entry. A prefix like "Open entry:" or a complementary `aria-describedby` referencing the type badge would improve announcements.

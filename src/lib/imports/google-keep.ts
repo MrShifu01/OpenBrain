@@ -1,12 +1,6 @@
 // Google Keep / Takeout — zip of <Title>.json files under Keep/
 import JSZip from "jszip";
-import {
-  type ImportEntry,
-  type Parser,
-  abortIfNeeded,
-  importHash,
-  yieldToUi,
-} from "./types";
+import { type ImportEntry, type Parser, abortIfNeeded, importHash, yieldToUi } from "./types";
 
 interface KeepAttachment {
   filePath?: string;
@@ -55,7 +49,10 @@ async function convertNote(note: KeepNote): Promise<ImportEntry | null> {
     ...(attachments.length > 0
       ? {
           attachments_dropped: attachments.length,
-          attachment_files: attachments.map((a) => a.filePath || "").filter(Boolean).slice(0, 10),
+          attachment_files: attachments
+            .map((a) => a.filePath || "")
+            .filter(Boolean)
+            .slice(0, 10),
         }
       : {}),
   };

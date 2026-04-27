@@ -11,9 +11,9 @@ export default function ReadwiseImportPanel({ brainId }: { brainId: string }) {
       parser={parseReadwise}
       description={
         <>
-          From Readwise, go to <em>Export → CSV</em> and download. Drop the file here.
-          Highlights are grouped by book/article — one entry per source, with all
-          highlights and notes in the body.
+          From Readwise, go to <em>Export → CSV</em> and download. Drop the file here. Highlights
+          are grouped by book/article — one entry per source, with all highlights and notes in the
+          body.
         </>
       }
     />

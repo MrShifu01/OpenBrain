@@ -48,9 +48,8 @@ async function convertMdFile(
     (typeof meta.created === "string" && meta.created) ||
     (typeof meta.date === "string" && meta.date) ||
     undefined;
-  const createdIso = created && !Number.isNaN(Date.parse(created))
-    ? new Date(created).toISOString()
-    : undefined;
+  const createdIso =
+    created && !Number.isNaN(Date.parse(created)) ? new Date(created).toISOString() : undefined;
   const hash = await importHash(source, path, title, body.slice(0, 200));
   // Strip the title H1 from body if it's the first heading — title carries it.
   const cleanBody = body.replace(/^#\s+.+\n+/, "").trim();
@@ -72,9 +71,7 @@ async function convertMdFile(
 
 function makeMdParser(source: "obsidian" | "bear"): Parser {
   return async (files, onProgress, signal) => {
-    type Task =
-      | { kind: "zip"; path: string; zf: JSZip.JSZipObject }
-      | { kind: "file"; file: File };
+    type Task = { kind: "zip"; path: string; zf: JSZip.JSZipObject } | { kind: "file"; file: File };
     const tasks: Task[] = [];
 
     for (const file of Array.from(files)) {

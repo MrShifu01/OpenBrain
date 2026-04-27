@@ -2,7 +2,10 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../../src/lib/supabase", () => ({
   supabase: {
-    auth: { onAuthStateChange: vi.fn(), getSession: vi.fn().mockResolvedValue({ data: { session: null } }) },
+    auth: {
+      onAuthStateChange: vi.fn(),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+    },
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -32,7 +35,7 @@ function renderModal() {
   return render(
     <ThemeProvider>
       <DetailModal entry={mockEntry} onClose={vi.fn()} />
-    </ThemeProvider>
+    </ThemeProvider>,
   );
 }
 

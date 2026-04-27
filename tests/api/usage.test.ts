@@ -73,10 +73,7 @@ describe("checkAndIncrement", () => {
       message: "quota_check_failed",
       status: 503,
     });
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[usage]"),
-      expect.any(Error),
-    );
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[usage]"), expect.any(Error));
     consoleSpy.mockRestore();
   });
 

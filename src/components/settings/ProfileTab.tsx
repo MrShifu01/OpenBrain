@@ -125,7 +125,7 @@ export default function ProfileTab() {
   const [showHistory, setShowHistory] = useState(false);
 
   const [newFactText, setNewFactText] = useState("");
-  const [newFactBucket, setNewFactBucket] = useState<typeof BUCKET_ORDER[number]>("preference");
+  const [newFactBucket, setNewFactBucket] = useState<(typeof BUCKET_ORDER)[number]>("preference");
   const [adding, setAdding] = useState(false);
 
   // Long-running operations now live in the global background-ops system —
@@ -161,7 +161,9 @@ export default function ProfileTab() {
         if (!cancelled) setCoreLoaded(true);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Load persona facts ────────────────────────────────────────────────────
@@ -186,37 +188,45 @@ export default function ProfileTab() {
       setFactsLoaded(true);
     }
   }
-  useEffect(() => { reloadFacts(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [brainId]);
+  useEffect(() => {
+    reloadFacts(); /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [brainId]);
 
   // ── Detect first-iteration backfill damage ────────────────────────────────
   // Wrongly-promoted entries have NO derived_from and source not in
   // (manual, chat). If any exist, surface the Reset button.
   const needsReset = useMemo(
-    () => facts.some((f) => {
-      const m = f.metadata ?? {};
-      if (m.derived_from && m.derived_from.length) return false;
-      if (m.skip_persona === true) return false;
-      const src = String(m.source || "");
-      return src !== "manual" && src !== "chat";
-    }),
+    () =>
+      facts.some((f) => {
+        const m = f.metadata ?? {};
+        if (m.derived_from && m.derived_from.length) return false;
+        if (m.skip_persona === true) return false;
+        const src = String(m.source || "");
+        return src !== "manual" && src !== "chat";
+      }),
     [facts],
   );
 
   // ── Detect any auto-extracted facts (have derived_from) ───────────────────
   // Used to gate the Wipe button — no point showing it on a clean brain.
   const hasExtractedFacts = useMemo(
-    () => facts.some((f) => {
-      const m = f.metadata ?? {};
-      if (!m.derived_from || !m.derived_from.length) return false;
-      const src = String(m.source || "");
-      return src !== "manual" && src !== "chat";
-    }),
+    () =>
+      facts.some((f) => {
+        const m = f.metadata ?? {};
+        if (!m.derived_from || !m.derived_from.length) return false;
+        const src = String(m.source || "");
+        return src !== "manual" && src !== "chat";
+      }),
     [facts],
   );
 
   // ── Bucket grouping ───────────────────────────────────────────────────────
   const grouped = useMemo(() => {
-    const out: { active: Record<string, PersonaFact[]>; fading: PersonaFact[]; history: PersonaFact[] } = {
+    const out: {
+      active: Record<string, PersonaFact[]>;
+      fading: PersonaFact[];
+      history: PersonaFact[];
+    } = {
       active: {},
       fading: [],
       history: [],
@@ -251,7 +261,11 @@ export default function ProfileTab() {
         return (b.updated_at || "").localeCompare(a.updated_at || "");
       });
     }
-    out.history.sort((a, b) => (b.metadata?.retired_at || b.updated_at).localeCompare(a.metadata?.retired_at || a.updated_at));
+    out.history.sort((a, b) =>
+      (b.metadata?.retired_at || b.updated_at).localeCompare(
+        a.metadata?.retired_at || a.updated_at,
+      ),
+    );
     return out;
   }, [facts]);
 
@@ -320,33 +334,57 @@ export default function ProfileTab() {
 
   function runBackfill() {
     if (!brainId || scanning) return;
-    ops.startTask({ kind: "persona-scan", label: "Scanning entries for persona facts", resumeKey: brainId });
+    ops.startTask({
+      kind: "persona-scan",
+      label: "Scanning entries for persona facts",
+      resumeKey: brainId,
+    });
     // Poll every few seconds to refresh the visible facts as the scan runs.
-    const poll = setInterval(() => { reloadFacts(); }, 3000);
+    const poll = setInterval(() => {
+      reloadFacts();
+    }, 3000);
     setTimeout(() => clearInterval(poll), 5 * 60_000);
   }
 
   function runReset() {
     if (!brainId || resetting) return;
-    if (!window.confirm(
-      "Undo the previous scan?\n\n" +
-      "This restores entries that were wrongly converted into persona cards back to their best-guessed original type (todos return to schedule, events to calendar, etc.).\n\n" +
-      "Manually-added facts and chat-tool facts are NOT touched.",
-    )) return;
-    ops.startTask({ kind: "persona-reset", label: "Reverting previous persona scan", resumeKey: brainId });
+    if (
+      !window.confirm(
+        "Undo the previous scan?\n\n" +
+          "This restores entries that were wrongly converted into persona cards back to their best-guessed original type (todos return to schedule, events to calendar, etc.).\n\n" +
+          "Manually-added facts and chat-tool facts are NOT touched.",
+      )
+    )
+      return;
+    ops.startTask({
+      kind: "persona-reset",
+      label: "Reverting previous persona scan",
+      resumeKey: brainId,
+    });
     // Quick reload after the one-shot completes (server-side is fast).
-    setTimeout(() => { reloadFacts(); }, 1500);
+    setTimeout(() => {
+      reloadFacts();
+    }, 1500);
   }
 
   function runWipe() {
     if (!brainId || wiping) return;
-    if (!window.confirm(
-      "Wipe every auto-extracted fact?\n\n" +
-      "This deletes all the facts the scanner produced. Manually-added facts and facts you added via chat are kept.\n\n" +
-      "After wiping, click Run scan again to re-extract with the latest prompt.",
-    )) return;
-    ops.startTask({ kind: "persona-wipe", label: "Wiping auto-extracted persona facts", resumeKey: brainId });
-    setTimeout(() => { reloadFacts(); }, 1500);
+    if (
+      !window.confirm(
+        "Wipe every auto-extracted fact?\n\n" +
+          "This deletes all the facts the scanner produced. Manually-added facts and facts you added via chat are kept.\n\n" +
+          "After wiping, click Run scan again to re-extract with the latest prompt.",
+      )
+    )
+      return;
+    ops.startTask({
+      kind: "persona-wipe",
+      label: "Wiping auto-extracted persona facts",
+      resumeKey: brainId,
+    });
+    setTimeout(() => {
+      reloadFacts();
+    }, 1500);
   }
 
   async function patchFact(id: string, metaPatch: Record<string, unknown>) {
@@ -407,7 +445,8 @@ export default function ProfileTab() {
   async function deleteFactCompletely(id: string) {
     const f = facts.find((x) => x.id === id);
     if (!f) return;
-    if (!window.confirm(`Permanently delete "${f.title}"?\n\nThis removes it from history too.`)) return;
+    if (!window.confirm(`Permanently delete "${f.title}"?\n\nThis removes it from history too.`))
+      return;
     try {
       await authFetch("/api/delete-entry", {
         method: "DELETE",
@@ -438,7 +477,9 @@ export default function ProfileTab() {
       >
         <SettingsToggle
           value={core.enabled}
-          onChange={(v) => { patchCore({ enabled: v }); }}
+          onChange={(v) => {
+            patchCore({ enabled: v });
+          }}
           ariaLabel="Personalisation toggle"
         />
       </SettingsRow>
@@ -457,9 +498,12 @@ export default function ProfileTab() {
           className="f-serif"
           style={{ margin: 0, fontSize: 13, color: "var(--ink)", lineHeight: 1.5 }}
         >
-          <strong style={{ fontWeight: 600 }}>Never put ID numbers, passport, driver's licence, banking or medical details here.</strong>{" "}
+          <strong style={{ fontWeight: 600 }}>
+            Never put ID numbers, passport, driver's licence, banking or medical details here.
+          </strong>{" "}
           Those go in your encrypted{" "}
-          <span style={{ color: "var(--ember)", fontWeight: 600 }}>Vault</span>. This profile is plaintext and is sent to the AI on every chat call.
+          <span style={{ color: "var(--ember)", fontWeight: 600 }}>Vault</span>. This profile is
+          plaintext and is sent to the AI on every chat call.
         </p>
       </div>
 
@@ -502,7 +546,8 @@ export default function ProfileTab() {
       <div style={{ marginTop: 14 }}>
         <Label>About you (free-form)</Label>
         <Hint>
-          Anything else you want the assistant to keep in mind — your work, projects, where you live, things you care about.
+          Anything else you want the assistant to keep in mind — your work, projects, where you
+          live, things you care about.
         </Hint>
         <textarea
           value={core.context}
@@ -518,7 +563,9 @@ export default function ProfileTab() {
             marginTop: 8,
           }}
         />
-        <SubHint>{core.context.length} / {CONTEXT_MAX}</SubHint>
+        <SubHint>
+          {core.context.length} / {CONTEXT_MAX}
+        </SubHint>
       </div>
 
       <div style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center" }}>
@@ -542,14 +589,29 @@ export default function ProfileTab() {
         >
           {coreSaving ? "Saving…" : "Save core"}
         </button>
-        {coreSaved && <span className="f-serif" style={{ fontSize: 13, fontStyle: "italic", color: "var(--moss)" }}>saved.</span>}
-        {coreError && <span className="f-serif" style={{ fontSize: 13, fontStyle: "italic", color: "var(--blood)" }}>{coreError}</span>}
+        {coreSaved && (
+          <span
+            className="f-serif"
+            style={{ fontSize: 13, fontStyle: "italic", color: "var(--moss)" }}
+          >
+            saved.
+          </span>
+        )}
+        {coreError && (
+          <span
+            className="f-serif"
+            style={{ fontSize: 13, fontStyle: "italic", color: "var(--blood)" }}
+          >
+            {coreError}
+          </span>
+        )}
       </div>
 
       {/* ── Living memory ─────────────────────────────────────────────────── */}
       <SectionTitle style={{ marginTop: 32 }}>Living memory</SectionTitle>
       <Hint>
-        Facts your second brain has learned about you — from chat, captures, and imports. Each one is a real entry; pinned facts never decay.
+        Facts your second brain has learned about you — from chat, captures, and imports. Each one
+        is a real entry; pinned facts never decay.
       </Hint>
 
       {/* Reset — only shown when the first-iteration backfill left junk behind */}
@@ -568,11 +630,24 @@ export default function ProfileTab() {
           }}
         >
           <div style={{ flex: 1, minWidth: 200 }}>
-            <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            <p
+              className="f-sans"
+              style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}
+            >
               Undo previous scan
             </p>
-            <p className="f-serif" style={{ margin: "2px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", lineHeight: 1.45 }}>
-              An earlier version of the scan converted whole entries into persona cards by mistake. Reset to put them back into Schedule, Calendar, etc., then run the new scan below.
+            <p
+              className="f-serif"
+              style={{
+                margin: "2px 0 0",
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                lineHeight: 1.45,
+              }}
+            >
+              An earlier version of the scan converted whole entries into persona cards by mistake.
+              Reset to put them back into Schedule, Calendar, etc., then run the new scan below.
             </p>
           </div>
           <button
@@ -614,11 +689,24 @@ export default function ProfileTab() {
           }}
         >
           <div style={{ flex: 1, minWidth: 200 }}>
-            <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            <p
+              className="f-sans"
+              style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}
+            >
               Wipe extracted facts
             </p>
-            <p className="f-serif" style={{ margin: "2px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", lineHeight: 1.45 }}>
-              Removes everything the scanner has produced so far. Your manually-added facts and chat-added facts stay. Use this before re-running the scan after a prompt update.
+            <p
+              className="f-serif"
+              style={{
+                margin: "2px 0 0",
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                lineHeight: 1.45,
+              }}
+            >
+              Removes everything the scanner has produced so far. Your manually-added facts and
+              chat-added facts stay. Use this before re-running the scan after a prompt update.
             </p>
           </div>
           <button
@@ -659,11 +747,25 @@ export default function ProfileTab() {
         }}
       >
         <div style={{ flex: 1, minWidth: 200 }}>
-          <p className="f-sans" style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          <p
+            className="f-sans"
+            style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}
+          >
             Scan existing entries
           </p>
-          <p className="f-serif" style={{ margin: "2px 0 0", fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)", lineHeight: 1.45 }}>
-            Look through every note in this brain and extract <em>short facts</em> about you. Each fact becomes its own small entry; your originals are never changed. Progress shows in the toast — safe to switch tabs or close the app.
+          <p
+            className="f-serif"
+            style={{
+              margin: "2px 0 0",
+              fontSize: 12,
+              fontStyle: "italic",
+              color: "var(--ink-faint)",
+              lineHeight: 1.45,
+            }}
+          >
+            Look through every note in this brain and extract <em>short facts</em> about you. Each
+            fact becomes its own small entry; your originals are never changed. Progress shows in
+            the toast — safe to switch tabs or close the app.
           </p>
         </div>
         <button
@@ -702,14 +804,18 @@ export default function ProfileTab() {
       >
         <select
           value={newFactBucket}
-          onChange={(e) => setNewFactBucket(e.target.value as typeof BUCKET_ORDER[number])}
+          onChange={(e) => setNewFactBucket(e.target.value as (typeof BUCKET_ORDER)[number])}
           style={{
             ...inputStyle(),
             width: 130,
             padding: "8px 10px",
           }}
         >
-          {BUCKET_ORDER.map((b) => <option key={b} value={b}>{BUCKET_LABELS[b]}</option>)}
+          {BUCKET_ORDER.map((b) => (
+            <option key={b} value={b}>
+              {BUCKET_LABELS[b]}
+            </option>
+          ))}
         </select>
         <input
           type="text"
@@ -743,7 +849,10 @@ export default function ProfileTab() {
       </div>
 
       {factsError && (
-        <p className="f-serif" style={{ color: "var(--blood)", fontStyle: "italic", fontSize: 13, marginTop: 8 }}>
+        <p
+          className="f-serif"
+          style={{ color: "var(--blood)", fontStyle: "italic", fontSize: 13, marginTop: 8 }}
+        >
           {factsError}
         </p>
       )}
@@ -752,32 +861,45 @@ export default function ProfileTab() {
       <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 18 }}>
         {!factsLoaded && <Loading />}
 
-        {factsLoaded && BUCKET_RENDER_ORDER.map((bucket) => {
-          const items = grouped.active[bucket] || [];
-          if (!items.length) return null;
-          return (
-            <div key={bucket}>
-              <BucketHeader label={BUCKET_LABELS[bucket]} count={items.length} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-                {items.map((f) => (
-                  <FactRow
-                    key={f.id}
-                    fact={f}
-                    onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
-                    onRetire={() => retireFact(f.id)}
-                    onDelete={() => deleteFactCompletely(f.id)}
-                  />
-                ))}
+        {factsLoaded &&
+          BUCKET_RENDER_ORDER.map((bucket) => {
+            const items = grouped.active[bucket] || [];
+            if (!items.length) return null;
+            return (
+              <div key={bucket}>
+                <BucketHeader label={BUCKET_LABELS[bucket]} count={items.length} />
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                  {items.map((f) => (
+                    <FactRow
+                      key={f.id}
+                      fact={f}
+                      onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
+                      onRetire={() => retireFact(f.id)}
+                      onDelete={() => deleteFactCompletely(f.id)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
 
-        {factsLoaded && Object.keys(grouped.active).length === 0 && grouped.fading.length === 0 && grouped.history.length === 0 && (
-          <p className="f-serif" style={{ fontStyle: "italic", color: "var(--ink-faint)", fontSize: 14, padding: "16px 0" }}>
-            No facts yet. Add one above, or just have a chat — the assistant will start learning who you are.
-          </p>
-        )}
+        {factsLoaded &&
+          Object.keys(grouped.active).length === 0 &&
+          grouped.fading.length === 0 &&
+          grouped.history.length === 0 && (
+            <p
+              className="f-serif"
+              style={{
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                fontSize: 14,
+                padding: "16px 0",
+              }}
+            >
+              No facts yet. Add one above, or just have a chat — the assistant will start learning
+              who you are.
+            </p>
+          )}
 
         {/* Fading */}
         {grouped.fading.length > 0 && (
@@ -787,12 +909,19 @@ export default function ProfileTab() {
               onClick={() => setShowFading((v) => !v)}
               className="f-sans"
               style={{
-                background: "transparent", border: 0, padding: 0, cursor: "pointer",
-                fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
                 color: "var(--ink-faint)",
               }}
             >
-              {showFading ? "▾" : "▸"} Fading ({grouped.fading.length}) — not in chat preamble until reinforced
+              {showFading ? "▾" : "▸"} Fading ({grouped.fading.length}) — not in chat preamble until
+              reinforced
             </button>
             {showFading && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
@@ -800,7 +929,9 @@ export default function ProfileTab() {
                   <FactRow
                     key={f.id}
                     fact={f}
-                    onPin={() => patchFact(f.id, { pinned: true, status: "active", confidence: 1.0 })}
+                    onPin={() =>
+                      patchFact(f.id, { pinned: true, status: "active", confidence: 1.0 })
+                    }
                     onRetire={() => retireFact(f.id)}
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
@@ -818,8 +949,14 @@ export default function ProfileTab() {
               onClick={() => setShowHistory((v) => !v)}
               className="f-sans"
               style={{
-                background: "transparent", border: 0, padding: 0, cursor: "pointer",
-                fontSize: 12, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase",
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
                 color: "var(--ink-faint)",
               }}
             >
@@ -894,10 +1031,16 @@ function FactRow({
             wordBreak: "break-word",
           }}
         >
-          {pinned && <span title="Pinned" style={{ marginRight: 6 }}>📌</span>}
+          {pinned && (
+            <span title="Pinned" style={{ marginRight: 6 }}>
+              📌
+            </span>
+          )}
           {fact.title}
         </p>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
+        <div
+          style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}
+        >
           <Badge>{SOURCE_LABELS[source] || source}</Badge>
           {confidence !== null && !historyMode && (
             <Badge muted>{Math.round(confidence * 100)}%</Badge>
@@ -906,7 +1049,10 @@ function FactRow({
             <Badge muted>retired {new Date(meta.retired_at).toLocaleDateString("en-ZA")}</Badge>
           )}
           {historyMode && meta.retired_reason && (
-            <span className="f-serif" style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}>
+            <span
+              className="f-serif"
+              style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+            >
               — {meta.retired_reason}
             </span>
           )}
@@ -919,12 +1065,15 @@ function FactRow({
             <IconBtn label={pinned ? "Unpin" : "Pin"} onClick={onPin}>
               {pinned ? "📍" : "📌"}
             </IconBtn>
-            <IconBtn label="Retire to history" onClick={onRetire}>↩</IconBtn>
+            <IconBtn label="Retire to history" onClick={onRetire}>
+              ↩
+            </IconBtn>
           </>
         )}
-        <IconBtn label="Delete completely" onClick={onDelete} danger>×</IconBtn>
+        <IconBtn label="Delete completely" onClick={onDelete} danger>
+          ×
+        </IconBtn>
       </div>
     </div>
   );
 }
-

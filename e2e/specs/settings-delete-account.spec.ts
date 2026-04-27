@@ -18,7 +18,9 @@ import { trackConsole } from "../helpers/console";
 // and a manual periodic check. A full destructive e2e needs an
 // ephemeral test user, which in turn needs SUPABASE_SERVICE_ROLE_KEY
 // in CI secrets — separate task, separate decision.
-test("destructive account-delete flow is gated behind a real confirmation modal", async ({ page }) => {
+test("destructive account-delete flow is gated behind a real confirmation modal", async ({
+  page,
+}) => {
   const noise = trackConsole(page);
 
   await page.addInitScript(() => {
@@ -26,8 +28,14 @@ test("destructive account-delete flow is gated behind a real confirmation modal"
   });
   await page.goto("/");
 
-  await page.getByRole("button", { name: /^Settings$/ }).first().click();
-  await page.getByRole("button", { name: /danger zone/i }).first().click();
+  await page
+    .getByRole("button", { name: /^Settings$/ })
+    .first()
+    .click();
+  await page
+    .getByRole("button", { name: /danger zone/i })
+    .first()
+    .click();
 
   const openModal = page.getByRole("button", { name: /^Export & delete$/i });
   await expect(openModal).toBeVisible();

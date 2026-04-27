@@ -11,12 +11,7 @@ import { sbHeadersNoContent } from "./sbHeaders.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 
-const UPCOMING_DATE_FIELDS = [
-  "due_date",
-  "deadline",
-  "expiry_date",
-  "event_date",
-] as const;
+const UPCOMING_DATE_FIELDS = ["due_date", "deadline", "expiry_date", "event_date"] as const;
 
 interface UpcomingEntry {
   id: string;
@@ -44,15 +39,10 @@ interface UpcomingResult {
  * Always excludes type=secret to keep vault entries out of upcoming views,
  * regardless of the calling endpoint.
  */
-export async function getUpcomingEntries(
-  brainId: string,
-  days: number,
-): Promise<UpcomingResult> {
+export async function getUpcomingEntries(brainId: string, days: number): Promise<UpcomingResult> {
   const safeDays = Math.min(Math.max(1, days), 365);
   const today = new Date().toISOString().slice(0, 10);
-  const future = new Date(Date.now() + safeDays * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  const future = new Date(Date.now() + safeDays * 86400000).toISOString().slice(0, 10);
 
   const fetches = await Promise.all(
     UPCOMING_DATE_FIELDS.map(async (field) => {

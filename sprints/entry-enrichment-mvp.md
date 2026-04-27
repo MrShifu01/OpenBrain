@@ -46,7 +46,7 @@ Entry saved
 
 - [ ] In `api/entries` POST handler, after successful DB insert, fire-and-forget:
   ```ts
-  enrichEntryInBackground(entry).catch(console.error)
+  enrichEntryInBackground(entry).catch(console.error);
   ```
 - [ ] `enrichEntryInBackground` in `src/lib/enrich/index.ts`:
   1. Run search + extraction
@@ -180,7 +180,7 @@ Every correction tells us something about the user. Extract and store structured
 - [ ] In `search.ts`, before building query, load `enrichment_user_context` for the brain
 - [ ] Append known home city if no location is already in the entry title:
   ```ts
-  const query = `"${entry.title}" ${context.home_city ?? ""}`
+  const query = `"${entry.title}" ${context.home_city ?? ""}`;
   ```
 - [ ] In `extract.ts`, include context in LLM prompt:
   ```

@@ -112,15 +112,13 @@ export default function MemoryImportPanel({ brainId, onImported }: Props) {
           className="f-serif"
           style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", margin: 0 }}
         >
-          Bring in what your AI already remembers about you. Copy the prompt, paste it into
-          a Claude or ChatGPT chat, then paste the JSON it returns below.
+          Bring in what your AI already remembers about you. Copy the prompt, paste it into a Claude
+          or ChatGPT chat, then paste the JSON it returns below.
         </p>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <SettingsButton onClick={copyPrompt}>
-          {copied ? "Copied" : "Copy prompt"}
-        </SettingsButton>
+        <SettingsButton onClick={copyPrompt}>{copied ? "Copied" : "Copy prompt"}</SettingsButton>
         <SettingsButton onClick={handleImport} disabled={!json.trim() || importing}>
           {importing ? "Importing…" : "Import memories"}
         </SettingsButton>

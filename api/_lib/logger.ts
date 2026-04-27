@@ -15,7 +15,8 @@ export function getReqId(req: ApiRequest): string {
 // and substring-based so things like `userEmail`, `access_token`, `apiKey`,
 // `sessionCookie` all get caught. Errs on the side of redacting too much
 // rather than leaking — log readability is cheaper than a credentials leak.
-const REDACT_RE = /(password|passwd|secret|token|apikey|api_key|key|jwt|cookie|session|email|authorization|bearer)/i;
+const REDACT_RE =
+  /(password|passwd|secret|token|apikey|api_key|key|jwt|cookie|session|email|authorization|bearer)/i;
 const REDACTED = "[redacted]";
 
 function redact(value: unknown, depth = 0): unknown {

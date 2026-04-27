@@ -69,16 +69,19 @@ async function handleImport({ req, res, user }: HandlerContext): Promise<void> {
   const rows = entries
     .filter((e: any) => e && typeof e === "object" && e.title)
     .map((e: any) => {
-      const created = typeof e.created_at === "string" && !Number.isNaN(Date.parse(e.created_at))
-        ? new Date(e.created_at).toISOString()
-        : null;
+      const created =
+        typeof e.created_at === "string" && !Number.isNaN(Date.parse(e.created_at))
+          ? new Date(e.created_at).toISOString()
+          : null;
       return {
         user_id: user.id,
         brain_id,
         title: String(e.title || "").slice(0, 500),
         content: String(e.content || "").slice(0, 50000),
         type: typeof e.type === "string" ? e.type.slice(0, 100) : "note",
-        tags: Array.isArray(e.tags) ? e.tags.filter((t: any) => typeof t === "string").slice(0, 20) : [],
+        tags: Array.isArray(e.tags)
+          ? e.tags.filter((t: any) => typeof t === "string").slice(0, 20)
+          : [],
         metadata: e.metadata && typeof e.metadata === "object" ? e.metadata : {},
         importance: typeof e.importance === "number" ? Math.min(5, Math.max(0, e.importance)) : 0,
         pinned: Boolean(e.pinned),
@@ -128,7 +131,9 @@ async function handleImport({ req, res, user }: HandlerContext): Promise<void> {
   }
 
   const failed = dedupedRows.length - succeeded;
-  res.status(200).json({ ok: succeeded > 0, imported: succeeded, failed, skipped, errors: batchErrors });
+  res
+    .status(200)
+    .json({ ok: succeeded > 0, imported: succeeded, failed, skipped, errors: batchErrors });
   // Background enrichment kicks off but no longer caps at 10 — the client
   // also polls /api/entries?action=enrich-batch in waves to drain the
   // remainder. This call just gets the first batch flowing immediately.

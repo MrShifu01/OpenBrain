@@ -20,9 +20,16 @@ interface Props {
 }
 
 export default function MemoryHeader({
-  appShell, entries, entriesLoaded, activeBrainId,
-  notifications = [], unreadCount = 0,
-  onDismissNotification, onMarkNotificationRead, onDismissAllNotifications, onAcceptMerge,
+  appShell,
+  entries,
+  entriesLoaded,
+  activeBrainId,
+  notifications = [],
+  unreadCount = 0,
+  onDismissNotification,
+  onMarkNotificationRead,
+  onDismissAllNotifications,
+  onAcceptMerge,
 }: Props) {
   return (
     <>

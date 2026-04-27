@@ -1,4 +1,5 @@
 # Sprint — High Severity Fixes
+
 **Created:** 2026-04-15
 **Source:** Audits/High/audit.md (11 findings)
 **Goal:** Eliminate every actively broken feature, data loss risk, security vulnerability, and compliance failure before shipping to new users.
@@ -10,6 +11,7 @@
 Each task maps 1:1 to a High audit finding. Work top-to-bottom — earlier tasks unblock or reduce risk for later ones. Mark status as you go: `[ ]` → `[~]` (in progress) → `[x]` (done).
 
 **Effort key:**
+
 - `XS` — under 30 min, single file change
 - `S` — 1–2 hours
 - `M` — half day
@@ -21,6 +23,7 @@ Each task maps 1:1 to a High audit finding. Work top-to-bottom — earlier tasks
 ## Task List
 
 ### [x] H-1 — Fix microphone permissions policy blocking voice recording
+
 **Effort:** XS | **File:** `vercel.json:44`
 
 The mic icon is live in the UI but silently does nothing in production. One character fix.
@@ -31,6 +34,7 @@ The mic icon is live in the UI but silently does nothing in production. One char
 ---
 
 ### [x] H-2 — Replace `xlsx` dependency (unpatched CVEs on user uploads)
+
 **Effort:** M | **Files:** `package.json`, `src/lib/fileExtract.ts`
 
 Two unpatched CVEs on user-controlled input (prototype pollution + ReDoS). Direct attack surface.
@@ -43,6 +47,7 @@ Two unpatched CVEs on user-controlled input (prototype pollution + ReDoS). Direc
 ---
 
 ### [x] H-3 — Implement `api/transfer.ts` (export/import return 404)
+
 **Effort:** L | **File:** `api/transfer.ts` (new)
 
 Brain backup and the GDPR/POPIA "export before delete" flow both silently fail with 404. Data portability is broken.
@@ -56,6 +61,7 @@ Brain backup and the GDPR/POPIA "export before delete" flow both silently fail w
 ---
 
 ### [x] H-4 — Fix PII leaking to Sentry + add privacy policy
+
 **Effort:** M | **Files:** `src/main.tsx`, new privacy policy page
 
 `sendDefaultPii: true` sends user emails and IPs to Sentry. No privacy policy exists. GDPR/POPIA compliance failure.
@@ -68,6 +74,7 @@ Brain backup and the GDPR/POPIA "export before delete" flow both silently fail w
 ---
 
 ### [x] H-5 — Fix 8 failing tests (CI pipeline broken)
+
 **Effort:** S | **Files:** `src/components/__tests__/settings/AccountTab.test.tsx`, `src/components/__tests__/BottomNav.test.tsx`, `tests/components/BottomNav.test.tsx`
 
 CI is broken on `main`. Two clusters of failures.
@@ -81,6 +88,7 @@ CI is broken on `main`. Two clusters of failures.
 ---
 
 ### [x] H-6 — Decompose `RefineView.tsx` (1,883 lines)
+
 **Effort:** XL | **File:** `src/views/RefineView.tsx`
 
 Single component with 1,883 lines, 6 useState, 2 useMemo. Any state change re-renders everything. Persistent across 3 audit passes.
@@ -90,6 +98,7 @@ Single component with 1,883 lines, 6 useState, 2 useMemo. Any state change re-re
 ---
 
 ### [x] H-7 — Extract `computeCompletenessScore` to shared lib
+
 **Effort:** XS | **Files:** `api/entries.ts`, `api/capture.ts`, new `api/_lib/completeness.ts`
 
 Same 30-line function copy-pasted in two API files. Any scoring change must be made twice.
@@ -101,6 +110,7 @@ Same 30-line function copy-pasted in two API files. Any scoring change must be m
 ---
 
 ### [x] H-8 — Decompose `DetailModal.tsx` (976 lines)
+
 **Effort:** L | **File:** `src/views/DetailModal.tsx`
 
 Near-1,000-line component handling display, editing, connections, sharing, AI suggestions, voice notes, and quick actions.
@@ -113,6 +123,7 @@ Near-1,000-line component handling display, editing, connections, sharing, AI su
 ---
 
 ### [x] H-9 — Fix NotificationSettings broken `ob-` tokens
+
 **Effort:** S | **File:** `src/components/NotificationSettings.tsx:55–222`
 
 21 undefined `ob-` class tokens. Notification settings panel renders with invisible text and missing backgrounds in production.
@@ -123,6 +134,7 @@ Near-1,000-line component handling display, editing, connections, sharing, AI su
 ---
 
 ### [x] H-10 — Fix concept graph race condition (concurrent saves)
+
 **Effort:** L | **Files:** `src/lib/brainConnections.ts`, `src/hooks/useRefineAnalysis.ts`, new `src/lib/graphWriter.ts`
 
 Concurrent enrichment + Refine writes silently overwrite each other's concept data. Data loss with no error shown.
@@ -136,6 +148,7 @@ Concurrent enrichment + Refine writes silently overwrite each other's concept da
 ---
 
 ### [x] H-11 — Fix `detectOrphans` using wrong field names
+
 **Effort:** XS | **File:** `src/hooks/useRefineAnalysis.ts:79`
 
 `l.from` and `l.to` are used but the canonical `Link` type uses `l.from_id` and `l.to_id`. Both are `undefined`, so every entry appears as an orphan — all orphan suggestions in Refine are fabricated.
@@ -148,19 +161,19 @@ Concurrent enrichment + Refine writes silently overwrite each other's concept da
 
 ## Sprint Summary
 
-| # | Task | Effort | Risk if skipped |
-|---|------|--------|----------------|
-| H-1 | Mic permissions | XS | Voice feature silently broken |
-| H-2 | Replace xlsx | M | CVE attack surface on uploads |
-| H-3 | Implement transfer.ts | L | Export/import 404, GDPR breach |
-| H-4 | PII + privacy policy | M | GDPR/POPIA compliance failure |
-| H-5 | Fix failing tests | S | CI broken, no confidence in merges |
-| H-6 | Decompose RefineView | XL | Compounding tech debt, render perf |
-| H-7 | Extract completeness fn | XS | Scoring logic will diverge silently |
-| H-8 | Decompose DetailModal | L | Growing tech debt on most-used view |
-| H-9 | Fix ob- tokens | S | Notifications panel invisibly broken |
-| H-10 | Graph race condition | L | Silent concept data loss |
-| H-11 | detectOrphans fields | XS | All orphan suggestions are fabricated |
+| #    | Task                    | Effort | Risk if skipped                       |
+| ---- | ----------------------- | ------ | ------------------------------------- |
+| H-1  | Mic permissions         | XS     | Voice feature silently broken         |
+| H-2  | Replace xlsx            | M      | CVE attack surface on uploads         |
+| H-3  | Implement transfer.ts   | L      | Export/import 404, GDPR breach        |
+| H-4  | PII + privacy policy    | M      | GDPR/POPIA compliance failure         |
+| H-5  | Fix failing tests       | S      | CI broken, no confidence in merges    |
+| H-6  | Decompose RefineView    | XL     | Compounding tech debt, render perf    |
+| H-7  | Extract completeness fn | XS     | Scoring logic will diverge silently   |
+| H-8  | Decompose DetailModal   | L      | Growing tech debt on most-used view   |
+| H-9  | Fix ob- tokens          | S      | Notifications panel invisibly broken  |
+| H-10 | Graph race condition    | L      | Silent concept data loss              |
+| H-11 | detectOrphans fields    | XS     | All orphan suggestions are fabricated |
 
 **Recommended order:** H-1 → H-11 → H-5 → H-7 → H-9 → H-4 → H-2 → H-3 → H-10 → H-8 → H-6
 (quickest wins first to establish momentum; data loss and compliance mid-sprint; big refactors last)

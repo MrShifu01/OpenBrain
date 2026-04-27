@@ -257,126 +257,126 @@ export default function CaptureSheet({
           fallbackFocus: () => sheetRef.current ?? document.body,
         }}
       >
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={preview ? "Confirm entry" : "Capture something"}
-        className="capture-sheet"
-        tabIndex={-1}
-        style={{
-          background: "var(--surface-high)",
-          border: "1px solid var(--line)",
-          boxShadow: "var(--lift-3)",
-          ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
-          transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-        }}
-      >
-        <div aria-live="polite" aria-atomic="true" className="sr-only">
-          {loading ? "Processing your entry…" : (status ?? "")}
-        </div>
-
-        {/* Drag handle (mobile) */}
         <div
-          ref={handleRef}
-          className="touch-none lg:hidden"
+          ref={sheetRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={preview ? "Confirm entry" : "Capture something"}
+          className="capture-sheet"
+          tabIndex={-1}
           style={{
+            background: "var(--surface-high)",
+            border: "1px solid var(--line)",
+            boxShadow: "var(--lift-3)",
+            ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
+            transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            paddingTop: 10,
-            paddingBottom: 6,
-            cursor: "grab",
+            flexDirection: "column",
+            overflow: "hidden",
           }}
         >
-          <div
-            style={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              background: "var(--line)",
-            }}
-          />
-        </div>
+          <div aria-live="polite" aria-atomic="true" className="sr-only">
+            {loading ? "Processing your entry…" : (status ?? "")}
+          </div>
 
-        {/* Body */}
-        {preview ? (
-          <CapturePreviewPanel
-            preview={previewStateObj}
-            onPreviewChange={handlePreviewChange}
-            onBack={() => {
-              setPreview(null);
-              setText(preview._raw || "");
+          {/* Drag handle (mobile) */}
+          <div
+            ref={handleRef}
+            className="touch-none lg:hidden"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              paddingTop: 10,
+              paddingBottom: 6,
+              cursor: "grab",
             }}
-            onConfirm={confirmSave}
-            loading={loading}
-            errorDetail={errorDetail}
-          />
-        ) : activeTab === "secret" ? (
-          <CaptureSecretPanel
-            form={secretForm}
-            onFormChange={setSecretForm}
-            saving={secretSaving}
-            error={secretError}
-            onBack={toggleVault}
-            onSave={async () => {
-              if (!secretForm.title.trim() || !secretForm.content.trim()) return;
-              setSecretSaving(true);
-              setSecretError("");
-              await doSave({
-                title: secretForm.title.trim(),
-                content: secretForm.content,
-                type: "secret",
-                tags: [],
-                metadata: {},
-              });
-              setSecretSaving(false);
-              if (errorDetail) setSecretError(errorDetail);
-              else setSecretForm({ title: "", content: "" });
-            }}
-          />
-        ) : (
-          <CaptureEntryBody
-            text={text}
-            onTextChange={setText}
-            uploadedFiles={uploadedFiles}
-            listening={listening}
-            loading={loading}
-            showSavedWhisper={showSavedWhisper}
-            canSave={canSave}
-            cryptoKey={cryptoKey}
-            activeTab={activeTab}
-            statusInfo={{
-              status,
-              errorDetail,
-              fileParseError,
-              statusLabel,
-            }}
-            handlers={{
-              onSave: handleSave,
-              onStartVoice: startVoice,
-              onToggleVault: toggleVault,
-              onRemoveFile: removeUploadedFile,
-              onAttachFiles: (files) => {
-                handleDocFiles(files).catch((err) => console.error("[docInput]", err));
-              },
-              onImageFile: handleImageFile,
-              onRetryFile: retryLastFile,
-              onManualFill: () => {
-                setFileParseError(null);
-                setErrorDetail(null);
-                setPreview({ title: "", content: "", type: "note", tags: [] });
-                setPreviewTitle("");
-                setPreviewTags("");
-                setPreviewType("note");
-              },
-            }}
-          />
-        )}
-      </div>
+          >
+            <div
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                background: "var(--line)",
+              }}
+            />
+          </div>
+
+          {/* Body */}
+          {preview ? (
+            <CapturePreviewPanel
+              preview={previewStateObj}
+              onPreviewChange={handlePreviewChange}
+              onBack={() => {
+                setPreview(null);
+                setText(preview._raw || "");
+              }}
+              onConfirm={confirmSave}
+              loading={loading}
+              errorDetail={errorDetail}
+            />
+          ) : activeTab === "secret" ? (
+            <CaptureSecretPanel
+              form={secretForm}
+              onFormChange={setSecretForm}
+              saving={secretSaving}
+              error={secretError}
+              onBack={toggleVault}
+              onSave={async () => {
+                if (!secretForm.title.trim() || !secretForm.content.trim()) return;
+                setSecretSaving(true);
+                setSecretError("");
+                await doSave({
+                  title: secretForm.title.trim(),
+                  content: secretForm.content,
+                  type: "secret",
+                  tags: [],
+                  metadata: {},
+                });
+                setSecretSaving(false);
+                if (errorDetail) setSecretError(errorDetail);
+                else setSecretForm({ title: "", content: "" });
+              }}
+            />
+          ) : (
+            <CaptureEntryBody
+              text={text}
+              onTextChange={setText}
+              uploadedFiles={uploadedFiles}
+              listening={listening}
+              loading={loading}
+              showSavedWhisper={showSavedWhisper}
+              canSave={canSave}
+              cryptoKey={cryptoKey}
+              activeTab={activeTab}
+              statusInfo={{
+                status,
+                errorDetail,
+                fileParseError,
+                statusLabel,
+              }}
+              handlers={{
+                onSave: handleSave,
+                onStartVoice: startVoice,
+                onToggleVault: toggleVault,
+                onRemoveFile: removeUploadedFile,
+                onAttachFiles: (files) => {
+                  handleDocFiles(files).catch((err) => console.error("[docInput]", err));
+                },
+                onImageFile: handleImageFile,
+                onRetryFile: retryLastFile,
+                onManualFill: () => {
+                  setFileParseError(null);
+                  setErrorDetail(null);
+                  setPreview({ title: "", content: "", type: "note", tags: [] });
+                  setPreviewTitle("");
+                  setPreviewTags("");
+                  setPreviewType("note");
+                },
+              }}
+            />
+          )}
+        </div>
       </FocusTrap>
     </>
   );

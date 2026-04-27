@@ -9,7 +9,10 @@ const MAX_KEY_LEN = 200;
 const CLEANUP_PROBABILITY = 0.01;
 
 export class IdempotencyError extends Error {
-  constructor(public status: number, public publicMessage: string) {
+  constructor(
+    public status: number,
+    public publicMessage: string,
+  ) {
     super(publicMessage);
     this.name = "IdempotencyError";
   }
@@ -25,16 +28,18 @@ export function normalizeIdempotencyKey(raw: unknown): string | null {
   if (typeof raw !== "string") throw new IdempotencyError(400, "Idempotency-Key must be a string");
   const key = raw.trim();
   if (!key) return null;
-  if (key.length > MAX_KEY_LEN) throw new IdempotencyError(400, `Idempotency-Key max ${MAX_KEY_LEN} chars`);
+  if (key.length > MAX_KEY_LEN)
+    throw new IdempotencyError(400, `Idempotency-Key max ${MAX_KEY_LEN} chars`);
   // ASCII printable + a few separators (RFC 7230 token + ":")
-  if (!/^[\x20-\x7e]+$/.test(key)) throw new IdempotencyError(400, "Idempotency-Key contains invalid characters");
+  if (!/^[\x20-\x7e]+$/.test(key))
+    throw new IdempotencyError(400, "Idempotency-Key contains invalid characters");
   return key;
 }
 
 type ReserveResult =
-  | { kind: "reserved" }                       // we won the slot — caller proceeds with insert
-  | { kind: "replay"; entryId: string }        // duplicate — caller returns this entry
-  | { kind: "in_flight" };                     // peer reserved the slot but hasn't finalised yet
+  | { kind: "reserved" } // we won the slot — caller proceeds with insert
+  | { kind: "replay"; entryId: string } // duplicate — caller returns this entry
+  | { kind: "in_flight" }; // peer reserved the slot but hasn't finalised yet
 
 /**
  * Atomically reserve an idempotency slot. Replaces the older
@@ -79,7 +84,11 @@ export async function reserveIdempotency(userId: string, key: string): Promise<R
  * patches rows whose entry_id is still null — so a winning patch cannot
  * overwrite another caller's id.
  */
-export async function finalizeIdempotency(userId: string, key: string, entryId: string): Promise<void> {
+export async function finalizeIdempotency(
+  userId: string,
+  key: string,
+  entryId: string,
+): Promise<void> {
   await fetch(
     `${SB_URL}/rest/v1/idempotency_keys?user_id=eq.${encodeURIComponent(userId)}&idempotency_key=eq.${encodeURIComponent(key)}&entry_id=is.null`,
     {

@@ -40,9 +40,9 @@ Or in the Vercel dashboard: **Deployments** → select deployment → **Logs** t
 
 ## Emergency contacts / services
 
-| Service | Dashboard |
-|---------|-----------|
-| Vercel (hosting) | vercel.com/dashboard |
+| Service                    | Dashboard              |
+| -------------------------- | ---------------------- |
+| Vercel (hosting)           | vercel.com/dashboard   |
 | Supabase (database + auth) | supabase.com/dashboard |
-| Sentry (error monitoring) | sentry.io |
-| Upstash (rate limiting) | console.upstash.com |
+| Sentry (error monitoring)  | sentry.io              |
+| Upstash (rate limiting)    | console.upstash.com    |

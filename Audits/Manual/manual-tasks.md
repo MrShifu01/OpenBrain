@@ -6,8 +6,7 @@ Things that require dashboard access, third-party signups, or environment config
 
 ## M-3 — Verify Upstash Redis is configured in production
 
-**Action:** Vercel dashboard
-3. Confirm rate limiting hits the Redis path in `api/_lib/rateLimit.ts`
+**Action:** Vercel dashboard 3. Confirm rate limiting hits the Redis path in `api/_lib/rateLimit.ts`
 
 ---
 
@@ -41,7 +40,6 @@ This requires a database migration and code changes. Steps:
 4. Update `api/` routes that read these keys to use the Vault API
 
 **Warning:** Do this in staging first. A bad migration here locks users out of AI features.
-
 
 ## npm install after vite-plugin-pwa downgrade
 

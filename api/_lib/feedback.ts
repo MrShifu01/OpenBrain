@@ -17,17 +17,76 @@ const SB_HEADERS: Record<string, string> = {
 // Identical to the stop word sets in chat.ts so ILIKE token extraction is
 // consistent across query-keyword expansion, sibling expansion, and feedback.
 const STOP = new Set([
-  "this","that","with","from","have","been","they","will","your",
-  "what","about","which","when","than","some","more","also","into","over","after",
-  "their","there","these","those","were","does","would","could","should","shall",
-  "might","must","just","very","even","back","most","such","both","each","much",
-  "only","then","them","make","like","well","take","come","good","know","need",
-  "feel","seem","same","tell","give","find","show","list","number","south","african",
+  "this",
+  "that",
+  "with",
+  "from",
+  "have",
+  "been",
+  "they",
+  "will",
+  "your",
+  "what",
+  "about",
+  "which",
+  "when",
+  "than",
+  "some",
+  "more",
+  "also",
+  "into",
+  "over",
+  "after",
+  "their",
+  "there",
+  "these",
+  "those",
+  "were",
+  "does",
+  "would",
+  "could",
+  "should",
+  "shall",
+  "might",
+  "must",
+  "just",
+  "very",
+  "even",
+  "back",
+  "most",
+  "such",
+  "both",
+  "each",
+  "much",
+  "only",
+  "then",
+  "them",
+  "make",
+  "like",
+  "well",
+  "take",
+  "come",
+  "good",
+  "know",
+  "need",
+  "feel",
+  "seem",
+  "same",
+  "tell",
+  "give",
+  "find",
+  "show",
+  "list",
+  "number",
+  "south",
+  "african",
 ]);
 
 /** Extract meaningful ILIKE tokens from a query string. */
 function queryTokens(query: string): string[] {
-  return query.trim().split(/\s+/)
+  return query
+    .trim()
+    .split(/\s+/)
     .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
     .filter((w) => w.length > 3 && !STOP.has(w.toLowerCase()))
     .slice(0, 6);
@@ -65,9 +124,30 @@ export async function learnKnowledgeShortcut(
 
     // Extract entity, role, attribute from tags using role-tag heuristics
     const ROLE_TAGS = new Set([
-      "father","dad","mother","mum","mom","boss","manager","partner","spouse",
-      "husband","wife","colleague","friend","brother","sister","child","son",
-      "daughter","uncle","aunt","grandfather","grandmother","grandpa","grandma",
+      "father",
+      "dad",
+      "mother",
+      "mum",
+      "mom",
+      "boss",
+      "manager",
+      "partner",
+      "spouse",
+      "husband",
+      "wife",
+      "colleague",
+      "friend",
+      "brother",
+      "sister",
+      "child",
+      "son",
+      "daughter",
+      "uncle",
+      "aunt",
+      "grandfather",
+      "grandmother",
+      "grandpa",
+      "grandma",
     ]);
 
     let entity = "";
@@ -118,20 +198,17 @@ export async function learnKnowledgeShortcut(
         const row = existing[0];
         const newUsage = row.usage_count + 1;
         const newConfidence = Math.min(row.confidence_score + 0.05, 1.0);
-        await fetch(
-          `${SB_URL}/rest/v1/knowledge_shortcuts?id=eq.${encodeURIComponent(row.id)}`,
-          {
-            method: "PATCH",
-            headers: SB_HEADERS,
-            body: JSON.stringify({
-              usage_count: newUsage,
-              confidence_score: newConfidence,
-              entry_ids: topEntryIds,
-              trigger_query_pattern: triggerPattern,
-              updated_at: new Date().toISOString(),
-            }),
-          },
-        );
+        await fetch(`${SB_URL}/rest/v1/knowledge_shortcuts?id=eq.${encodeURIComponent(row.id)}`, {
+          method: "PATCH",
+          headers: SB_HEADERS,
+          body: JSON.stringify({
+            usage_count: newUsage,
+            confidence_score: newConfidence,
+            entry_ids: topEntryIds,
+            trigger_query_pattern: triggerPattern,
+            updated_at: new Date().toISOString(),
+          }),
+        });
       } else {
         // Insert new shortcut — single event → confidence starts at 0.7, usage 1
         // Dual gate (> 0.6 AND >= 2) means this is a weak shortcut until the 2nd hit

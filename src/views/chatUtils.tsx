@@ -179,7 +179,11 @@ export function renderMarkdown(text: string): React.ReactNode {
   for (const line of lines) {
     const bullet = line.match(/^\s*[-*]\s+(.*)/);
     if (bullet) {
-      listItems.push(<li key={k++} style={{ marginBottom: 2 }}>{renderInline(bullet[1], k)}</li>);
+      listItems.push(
+        <li key={k++} style={{ marginBottom: 2 }}>
+          {renderInline(bullet[1], k)}
+        </li>,
+      );
       continue;
     }
     flushList();

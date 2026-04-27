@@ -1,4 +1,5 @@
 # Design Critique — EverionMind
+
 **Date:** 2026-04-14
 **Screens reviewed:** `id.png` (Brain/Chat), `entry.png` (Entry Detail), `detail.png` (Entry Detail v2), `good example.png` (Document Detail)
 **Scope:** Mobile UI — primary flows: querying knowledge via chat, viewing and navigating entries
@@ -7,19 +8,19 @@
 
 ## Design Health Score
 
-| # | Heuristic | Score | Key Issue |
-|---|-----------|-------|-----------|
-| 1 | Visibility of System Status | 2 | Chat response visible, but no typing indicator, no save/sync confirmation, enrichment status invisible |
-| 2 | Match System / Real World | 3 | "Brains" metaphor works but unusual; "Insight:" prefix on titles is jargony; AI says "retrieved memories" |
-| 3 | User Control and Freedom | 2 | Delete/Edit present in detail view; no visible undo; no way to clear chat conversation; no "discard" affordance |
-| 4 | Consistency and Standards | 3 | Warm palette consistent throughout; entry layouts mirror each other; icon-only bottom nav vs. text tabs in chat creates minor inconsistency |
-| 5 | Error Prevention | 2 | Delete likely has a confirmation (not visible in screenshots); no other visible guardrails or autosave indicators |
-| 6 | Recognition Rather Than Recall | 2 | Icon-only bottom navigation (good example.png); connection list has no type labels — users must remember what each connection means |
-| 7 | Flexibility and Efficiency | 1 | No keyboard shortcuts. Chat is the only visible query path. No bulk operations on entries. No quick-capture from within entry detail. |
-| 8 | Aesthetic and Minimalist Design | 3 | Genuinely clean and warm — a real departure from AI slop baseline. Connection list is visually monotonous and breaks the calm. |
-| 9 | Error Recovery | 2 | AI response when fact not found offers a phone number (DoHA) instead of guiding the user to add the missing fact |
-| 10 | Help and Documentation | 1 | No help system visible. Chat greeting serves as pseudo-onboarding but disappears once conversation starts. No tooltips anywhere. |
-| **Total** | | **21/40** | **Acceptable — significant improvements needed before users are fully at ease** |
+| #         | Heuristic                       | Score     | Key Issue                                                                                                                                   |
+| --------- | ------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | Visibility of System Status     | 2         | Chat response visible, but no typing indicator, no save/sync confirmation, enrichment status invisible                                      |
+| 2         | Match System / Real World       | 3         | "Brains" metaphor works but unusual; "Insight:" prefix on titles is jargony; AI says "retrieved memories"                                   |
+| 3         | User Control and Freedom        | 2         | Delete/Edit present in detail view; no visible undo; no way to clear chat conversation; no "discard" affordance                             |
+| 4         | Consistency and Standards       | 3         | Warm palette consistent throughout; entry layouts mirror each other; icon-only bottom nav vs. text tabs in chat creates minor inconsistency |
+| 5         | Error Prevention                | 2         | Delete likely has a confirmation (not visible in screenshots); no other visible guardrails or autosave indicators                           |
+| 6         | Recognition Rather Than Recall  | 2         | Icon-only bottom navigation (good example.png); connection list has no type labels — users must remember what each connection means         |
+| 7         | Flexibility and Efficiency      | 1         | No keyboard shortcuts. Chat is the only visible query path. No bulk operations on entries. No quick-capture from within entry detail.       |
+| 8         | Aesthetic and Minimalist Design | 3         | Genuinely clean and warm — a real departure from AI slop baseline. Connection list is visually monotonous and breaks the calm.              |
+| 9         | Error Recovery                  | 2         | AI response when fact not found offers a phone number (DoHA) instead of guiding the user to add the missing fact                            |
+| 10        | Help and Documentation          | 1         | No help system visible. Chat greeting serves as pseudo-onboarding but disappears once conversation starts. No tooltips anywhere.            |
+| **Total** |                                 | **21/40** | **Acceptable — significant improvements needed before users are fully at ease**                                                             |
 
 ---
 
@@ -63,6 +64,7 @@ The amber underline active state is subtle and well-executed. Switching context 
 ## Priority Issues
 
 ### [P1] The connections list is the product's biggest missed opportunity
+
 **What:** The "Connections" section in every entry detail view is a flat bulleted list of plain text links. No type differentiation, no visual weight, no sense of relationship strength or direction. Anywhere from 8–15 items appear in a single undifferentiated column.
 
 **Why it matters:** Connections _are_ the product. Everion's value is "your thoughts linked together." If the connections look like a Wikipedia references section, users will not feel the intelligence of the system. The emotional payoff — "look how this recipe connects to my suppliers and my ingredient notes" — is entirely absent from the current presentation.
@@ -74,6 +76,7 @@ The amber underline active state is subtle and well-executed. Switching context 
 ---
 
 ### [P1] Icon-only bottom navigation (good example.png)
+
 **What:** The bottom navigation bar in the document detail view appears to be icon-only — no text labels visible under the icons.
 
 **Why it matters:** Jordan (first-timer) sees 4 icons and doesn't know what any of them do. Even Casey (distracted mobile user) has to remember what the second icon from the left means every time. The brand promise is "calm, intelligent, trusted" — unlabeled icons create small recurring friction that erodes trust.
@@ -85,6 +88,7 @@ The amber underline active state is subtle and well-executed. Switching context 
 ---
 
 ### [P2] "Insight:" prefix on entry titles creates title hierarchy noise
+
 **What:** Entry titles read as "Insight: Jalapeño Popper Burger" — the content type ("Insight") is prepended directly to the user's title text, making it part of the headline. The type badge also appears separately (e.g., "RECIPE" badge in the header area).
 
 **Why it matters:** This double-labels the entry type — once as a prefix, once as a badge — while making the actual title harder to read at a glance. The user's title "Jalapeño Popper Burger" is the important text; "Insight:" is metadata that belongs in the badge, not the headline.
@@ -96,11 +100,13 @@ The amber underline active state is subtle and well-executed. Switching context 
 ---
 
 ### [P2] AI response language leaks system terminology
+
 **What:** The AI response in the chat (id.png) says: "Your South African National Identity Card number is not available in the **retrieved memories**." The phrase "retrieved memories" is a system/RAG implementation detail. Additionally, the response routes the user to a government phone number — treating missing knowledge as a lookup failure rather than a capture opportunity.
 
 **Why it matters:** The brand is "trusted and intelligent." An assistant that responds with system internals ("retrieved memories") and then tells you to call the government feels neither. It breaks the voice covenant.
 
 **Fix (two parts):**
+
 1. Rewrite the not-found response pattern: "You haven't saved your ID number yet. Want to add it?" — turns a failure state into a capture moment.
 2. Audit all AI system prompts for language that leaks implementation (retrieved, indexed, memory store) and replace with user-facing language (remembered, saved, stored).
 
@@ -109,6 +115,7 @@ The amber underline active state is subtle and well-executed. Switching context 
 ---
 
 ### [P2] No visible path to create a new entry
+
 **What:** None of the four screenshots show a compose/capture affordance — no floating action button, no "+" button, no prominent "New entry" trigger. The chat exists for querying. How a new user discovers they can add entries is unclear.
 
 **Why it matters:** Casey (mobile user capturing a thought on the go) needs the capture action to be immediately obvious. If the primary capture path is buried, the app fails its core promise. The design context explicitly states "quick capture is the most prominent affordance."
@@ -122,6 +129,7 @@ The amber underline active state is subtle and well-executed. Switching context 
 ## Cognitive Load Assessment
 
 **Checklist results:**
+
 - [x] Single focus — each screen has a clear focus ✓
 - [ ] Chunking — 10+ connections in one unbroken list ✗
 - [ ] Grouping — connections have no type grouping ✗
@@ -140,9 +148,11 @@ The chat UI (id.png) is low cognitive load. The entry detail views are where it 
 ## Persona Red Flags
 
 ### Casey (Distracted Mobile User) — Primary Persona
+
 Casey is on her phone, halfway through adding a thought, gets a call, comes back 5 minutes later.
 
 **Red flags found:**
+
 - **No visible capture affordance** in any screenshot. Casey opens the app to add a thought and doesn't know how. She won't look for it — she'll close the app.
 - **Bottom nav icons are in the top section of the detail view** (good example.png shows them at the bottom, which is good) — but the Delete/Edit actions are in the top header, thumb-unreachable.
 - **Chat input is at the bottom** (id.png) — correct, thumb-zone placement ✓
@@ -153,9 +163,11 @@ Casey is on her phone, halfway through adding a thought, gets a call, comes back
 ---
 
 ### Jordan (Confused First-Timer) — Secondary Persona
+
 Jordan has never used a "second brain" tool. She opens the app expecting something like Notes.app.
 
 **Red flags found:**
+
 - **"This brain / All brains"** — Jordan doesn't know what a "brain" is in this context. The tab label assumes she's built the mental model already. "My notes / All notes" or "Here / Everywhere" would be clearer without losing the metaphor.
 - **Icon-only bottom navigation** (good example.png) — Jordan sees 4 icons and taps randomly. No labels mean no orientation.
 - **"Connections" section** — Jordan sees a list of other entries and doesn't understand why they're there or what "connections" means in this context. There's no explanatory text, no empty-state guidance.
@@ -166,14 +178,17 @@ Jordan has never used a "second brain" tool. She opens the app expecting somethi
 ---
 
 ### Thoughtful Professional (Project-Specific Persona) — "Marcus"
+
 **Profile:** Knowledge worker who captures meeting notes, recipe experiments, supplier contacts, and personal documents. Uses the app as a searchable, intelligent second brain. Has 200+ entries and relies on connections to surface insights.
 
 **Behaviors:**
+
 - Searches for specific stored facts frequently ("what was that supplier's name?")
 - Reviews entry connections to discover patterns ("what notes mention this ingredient?")
 - Exports data periodically for backup
 
 **Red flags found:**
+
 - **Connection list at scale (200+ entries) will be overwhelming** with current flat list UI — no grouping, no search within connections, no filtering by type
 - **Export/backup broken** — H-3 in the existing High audit confirms the export route returns 404. Marcus trusts this app with critical data, and silent backup failure is a trust-breaker.
 - **No power-user query shortcuts** — Marcus has to type full natural language questions every time; there's no query history, no pinned frequent queries, no keyboard shortcut to focus the chat input
@@ -195,6 +210,7 @@ Based on the findings above, three things need your direction:
 
 **1. Connections list — how far do you want to go?**
 The connections section is the biggest design gap. The fix ranges from minimal (add type labels + group by type) to significant (redesign as a visual relationship explorer with type icons, strength indicators, and expand/collapse). Which scope?
+
 - **A) Minimal** — group by type, add small type label, show top 3 with expand
 - **B) Significant** — new visual treatment (not a list), relationship-aware display
 
@@ -203,6 +219,7 @@ No screenshot shows a compose/new entry button. Is this a known gap (the button 
 
 **3. Scope: all issues or priority cut?**
 I found 5 ranked issues plus minor observations. Do you want to:
+
 - **A) Top 3 only** — connections list, bottom nav labels, title prefix cleanup
 - **B) All 5** — include AI response language and capture affordance too
 - **C) Everything including minors** — full pass across all findings

@@ -20,18 +20,14 @@ export async function resolveApiKey(
   const { id: keyId, user_id: userId } = keyRows[0];
 
   const [, brainRes] = await Promise.all([
-    fetch(
-      `${SB_URL}/rest/v1/user_api_keys?id=eq.${encodeURIComponent(keyId)}`,
-      {
-        method: "PATCH",
-        headers: { ...sbHeaders(), Prefer: "return=minimal" },
-        body: JSON.stringify({ last_used_at: new Date().toISOString() }),
-      },
-    ).catch(() => {}),
-    fetch(
-      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
-      { headers: sbHeaders() },
-    ),
+    fetch(`${SB_URL}/rest/v1/user_api_keys?id=eq.${encodeURIComponent(keyId)}`, {
+      method: "PATCH",
+      headers: { ...sbHeaders(), Prefer: "return=minimal" },
+      body: JSON.stringify({ last_used_at: new Date().toISOString() }),
+    }).catch(() => {}),
+    fetch(`${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`, {
+      headers: sbHeaders(),
+    }),
   ]);
 
   if (!brainRes.ok) return null;

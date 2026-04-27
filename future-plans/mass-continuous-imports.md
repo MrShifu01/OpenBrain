@@ -46,6 +46,7 @@ backfill.ts
 ```
 
 Key concerns:
+
 - Rate limiting per API
 - Checkpoint file so a crash doesn't restart from zero
 - Filter noise before ingesting (calendar invites, promotional emails, etc.)
@@ -72,13 +73,13 @@ sync-daemon/
 
 Change detection per source:
 
-| Source | Mechanism |
-|---|---|
-| Gmail | `historyId` delta poll or Google Pub/Sub push |
-| Google Drive | `Changes.list` with `pageToken` |
-| Notion | Poll `last_edited_time` or Notion webhooks |
-| Obsidian | `chokidar` watches vault directory |
-| Computer folders | `chokidar` watches configured paths |
+| Source           | Mechanism                                     |
+| ---------------- | --------------------------------------------- |
+| Gmail            | `historyId` delta poll or Google Pub/Sub push |
+| Google Drive     | `Changes.list` with `pageToken`               |
+| Notion           | Poll `last_edited_time` or Notion webhooks    |
+| Obsidian         | `chokidar` watches vault directory            |
+| Computer folders | `chokidar` watches configured paths           |
 
 The cursor store is the critical piece — it makes sync idempotent and restartable.
 
@@ -166,21 +167,22 @@ Before anything is imported, the user gets a simple screen to shape what Everion
 ```
 
 **Design rules for this screen:**
-- Smart defaults pre-ticked — the user should only need to *untick* things, not figure out what to enable
+
+- Smart defaults pre-ticked — the user should only need to _untick_ things, not figure out what to enable
 - No technical labels. "Newsletters and subscriptions" not "Gmail label:^i category:promotions"
 - Date range is the one genuinely important setting — it determines cost and duration of the first import
 - Per-source sections only appear for sources that were connected in the previous step
 
 **What these preferences map to technically:**
 
-| User choice | Technical filter |
-|---|---|
-| "Conversations with people I know" | Only threads with replies, skip no-reply senders |
-| "Emails I wrote or replied to" | Filter by `from:me` or `in:sent` |
-| "Newsletters" unchecked | Skip Gmail `category:promotions` + `category:updates` |
-| "Last 2 years" | Set `after:` date filter on all connectors |
-| "Documents I created" | Drive filter `createdBy=me` |
-| "Photos" unchecked | Exclude mime types `image/*` |
+| User choice                        | Technical filter                                      |
+| ---------------------------------- | ----------------------------------------------------- |
+| "Conversations with people I know" | Only threads with replies, skip no-reply senders      |
+| "Emails I wrote or replied to"     | Filter by `from:me` or `in:sent`                      |
+| "Newsletters" unchecked            | Skip Gmail `category:promotions` + `category:updates` |
+| "Last 2 years"                     | Set `after:` date filter on all connectors            |
+| "Documents I created"              | Drive filter `createdBy=me`                           |
+| "Photos" unchecked                 | Exclude mime types `image/*`                          |
 
 ### Ongoing Sync — Invisible by Default
 
@@ -196,18 +198,18 @@ If something breaks, plain English:
 
 ### Technical Reality → What the User Sees
 
-| Technical reality | What she sees |
-|---|---|
-| OAuth authentication | "Sign in with Google" |
-| Connector config | A tile she taps once |
-| Preference filters | Friendly checkboxes before import |
-| File extraction (PDF, DOCX, XLSX) | Invisible |
-| Chunking + summarization | Invisible |
-| Sync daemon running | "Everything is up to date" |
-| Rate limit throttling | Progress bar just moves slowly |
-| API error | "Reconnect" prompt in plain English |
-| Deduplication | Nothing — it just works |
-| Scanned PDF (OCR needed) | "This file couldn't be read, skipping" |
+| Technical reality                 | What she sees                          |
+| --------------------------------- | -------------------------------------- |
+| OAuth authentication              | "Sign in with Google"                  |
+| Connector config                  | A tile she taps once                   |
+| Preference filters                | Friendly checkboxes before import      |
+| File extraction (PDF, DOCX, XLSX) | Invisible                              |
+| Chunking + summarization          | Invisible                              |
+| Sync daemon running               | "Everything is up to date"             |
+| Rate limit throttling             | Progress bar just moves slowly         |
+| API error                         | "Reconnect" prompt in plain English    |
+| Deduplication                     | Nothing — it just works                |
+| Scanned PDF (OCR needed)          | "This file couldn't be read, skipping" |
 
 ---
 
@@ -217,14 +219,14 @@ Most real-world content is binary, not plain text. The extractor sits between th
 
 ### Extraction by Format
 
-| Format | Library (Node.js) | Notes |
-|---|---|---|
-| PDF | `pdf-parse` or `pdfjs-dist` | Scanned PDFs return empty text — see below |
-| DOCX | `mammoth` | Preserves headings, good for semantic chunking |
-| XLSX / Excel | `xlsx` (SheetJS) | Extract per sheet; skip sheets that are pure formulas |
-| CSV | Built-in | Treat rows as structured facts |
-| Images (JPG, PNG) | Tesseract OCR or Google Vision API | Only if user opted in |
-| TXT / MD | None needed | Already plain text |
+| Format            | Library (Node.js)                  | Notes                                                 |
+| ----------------- | ---------------------------------- | ----------------------------------------------------- |
+| PDF               | `pdf-parse` or `pdfjs-dist`        | Scanned PDFs return empty text — see below            |
+| DOCX              | `mammoth`                          | Preserves headings, good for semantic chunking        |
+| XLSX / Excel      | `xlsx` (SheetJS)                   | Extract per sheet; skip sheets that are pure formulas |
+| CSV               | Built-in                           | Treat rows as structured facts                        |
+| Images (JPG, PNG) | Tesseract OCR or Google Vision API | Only if user opted in                                 |
+| TXT / MD          | None needed                        | Already plain text                                    |
 
 ### Scanned PDFs — The Edge Case
 
@@ -280,18 +282,18 @@ The AI role is narrow — it only touches one step: **summarization before inges
 
 **Does it need to be agentic?**
 
-No. Both architectures are deterministic pipelines. Agentic would mean the AI is deciding *what to do next* — here it just reads a piece of content and returns a shorter version.
+No. Both architectures are deterministic pipelines. Agentic would mean the AI is deciding _what to do next_ — here it just reads a piece of content and returns a shorter version.
 
 **Does it need a frontier model?**
 
-No. The task is simple: *"Extract the key facts from this document worth remembering."*
+No. The task is simple: _"Extract the key facts from this document worth remembering."_
 
-| Model | Cost | Verdict |
-|---|---|---|
-| Claude Opus / GPT-4o | $$$ | Overkill |
-| Claude Haiku / GPT-4o-mini | $ | Good fit — fast, cheap, capable enough |
-| Local model (Llama 3, Mistral) | Free | Works if zero API cost is a priority |
-| No AI at all | Free | Valid for structured sources like Obsidian |
+| Model                          | Cost | Verdict                                    |
+| ------------------------------ | ---- | ------------------------------------------ |
+| Claude Opus / GPT-4o           | $$$  | Overkill                                   |
+| Claude Haiku / GPT-4o-mini     | $    | Good fit — fast, cheap, capable enough     |
+| Local model (Llama 3, Mistral) | Free | Works if zero API cost is a priority       |
+| No AI at all                   | Free | Valid for structured sources like Obsidian |
 
 **Recommendation:** Use **Claude Haiku** — fractions of a cent per document, already in the Claude ecosystem. For Obsidian and local markdown files, skip summarization entirely and chunk by heading.
 

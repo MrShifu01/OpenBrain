@@ -8,9 +8,7 @@ describe("vault secrets filter", () => {
       { id: "2", title: "B", type: "note", encrypted: false },
       { id: "3", title: "C", type: "vault-item", encrypted: true },
     ];
-    const secrets = entries.filter(
-      (e) => e.type === "secret" || e.encrypted === true
-    );
+    const secrets = entries.filter((e) => e.type === "secret" || e.encrypted === true);
     expect(secrets).toHaveLength(2);
     expect(secrets.map((e) => e.id)).toContain("1");
     expect(secrets.map((e) => e.id)).toContain("3");
@@ -21,9 +19,7 @@ describe("vault secrets filter", () => {
       { id: "1", title: "A", type: "note", encrypted: false },
       { id: "2", title: "B", type: "idea", encrypted: false },
     ];
-    const secrets = entries.filter(
-      (e) => e.type === "secret" || e.encrypted === true
-    );
+    const secrets = entries.filter((e) => e.type === "secret" || e.encrypted === true);
     expect(secrets).toHaveLength(0);
   });
 
@@ -32,9 +28,7 @@ describe("vault secrets filter", () => {
       { id: "1", title: "A", type: "secret" },
       { id: "2", title: "B", type: "note" },
     ];
-    const secrets = entries.filter(
-      (e: any) => e.type === "secret" || e.encrypted === true
-    );
+    const secrets = entries.filter((e: any) => e.type === "secret" || e.encrypted === true);
     expect(secrets).toHaveLength(1);
     expect(secrets[0].id).toBe("1");
   });

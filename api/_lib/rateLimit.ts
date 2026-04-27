@@ -1,4 +1,4 @@
-import type { ApiRequest } from './types';
+import type { ApiRequest } from "./types";
 
 // Distributed rate limiter — sliding window using Upstash Redis REST API.
 // Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN env vars.
@@ -11,7 +11,9 @@ import type { ApiRequest } from './types';
 const _onVercel = !!process.env.VERCEL;
 if (!process.env.UPSTASH_REDIS_REST_URL) {
   if (_onVercel) {
-    console.error("[rateLimit] UPSTASH_REDIS_REST_URL not set — rate limiting will fail closed in serverless");
+    console.error(
+      "[rateLimit] UPSTASH_REDIS_REST_URL not set — rate limiting will fail closed in serverless",
+    );
   } else {
     console.warn("[rateLimit] No Upstash URL configured — using in-memory rate limit (dev only)");
   }
@@ -31,7 +33,10 @@ function _inMemoryLimited(key: string, windowMs: number, limit: number): boolean
   const now = Date.now();
   if (_counts.size >= _MAX_IN_MEMORY_KEYS) _evictExpired();
   const e = _counts.get(key) || { count: 0, reset: now + windowMs };
-  if (now > e.reset) { e.count = 0; e.reset = now + windowMs; }
+  if (now > e.reset) {
+    e.count = 0;
+    e.reset = now + windowMs;
+  }
   e.count++;
   _counts.set(key, e);
   return e.count > limit;
@@ -79,9 +84,14 @@ async function _upstashLimited(key: string, windowMs: number, limit: number): Pr
 function _getIp(req: ApiRequest): string {
   // S1-6: Use LAST IP in x-forwarded-for chain (closest verified hop from Vercel edge).
   // First hop is user-controlled and spoof-able. x-real-ip is harder to forge.
-  const forwarded = (req.headers["x-forwarded-for"] as string | undefined);
+  const forwarded = req.headers["x-forwarded-for"] as string | undefined;
   const lastForwarded = forwarded?.split(",").pop()?.trim();
-  return lastForwarded || (req.headers["x-real-ip"] as string | undefined) || req.socket?.remoteAddress || "unknown";
+  return (
+    lastForwarded ||
+    (req.headers["x-real-ip"] as string | undefined) ||
+    req.socket?.remoteAddress ||
+    "unknown"
+  );
 }
 
 /**
@@ -92,7 +102,12 @@ function _getIp(req: ApiRequest): string {
  * @param limit - max requests per window
  * @param windowMs - window size in milliseconds (default 60s)
  */
-export async function rateLimit(req: ApiRequest, limit: number = 20, windowMs: number = 60_000, suffix?: string): Promise<boolean> {
+export async function rateLimit(
+  req: ApiRequest,
+  limit: number = 20,
+  windowMs: number = 60_000,
+  suffix?: string,
+): Promise<boolean> {
   const ip = _getIp(req);
   const path = (req.url || "").split("?")[0].slice(0, 50);
   const key = suffix ? `${ip}:${path}:${suffix}` : `${ip}:${path}`;
@@ -103,4 +118,3 @@ export async function rateLimit(req: ApiRequest, limit: number = 20, windowMs: n
     : _inMemoryLimited(key, windowMs, limit);
   return !limited;
 }
-

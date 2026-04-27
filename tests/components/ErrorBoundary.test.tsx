@@ -12,7 +12,7 @@ describe("ErrorBoundary", () => {
     render(
       <ErrorBoundary>
         <Bomb />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     expect(screen.getByText(/something went wrong/i)).toBeInTheDocument();
     spy.mockRestore();
@@ -23,7 +23,7 @@ describe("ErrorBoundary", () => {
     const { container } = render(
       <ErrorBoundary>
         <Bomb />
-      </ErrorBoundary>
+      </ErrorBoundary>,
     );
     const iconWrap = container.querySelector('[aria-hidden="true"]');
     expect(iconWrap).not.toBeNull();

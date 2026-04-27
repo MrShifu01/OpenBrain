@@ -24,7 +24,9 @@ export type Parser = (
 
 /** 16-char hex slice of SHA-256 over a stable per-note signature. Collision
  *  odds are ~1 in 2^32 per pair — negligible for any realistic import. */
-export async function importHash(...parts: (string | number | undefined | null)[]): Promise<string> {
+export async function importHash(
+  ...parts: (string | number | undefined | null)[]
+): Promise<string> {
   const sig = parts.map((p) => String(p ?? "")).join("|");
   const enc = new TextEncoder().encode(sig);
   const buf = await crypto.subtle.digest("SHA-256", enc);

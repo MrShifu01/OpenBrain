@@ -17,8 +17,10 @@ html.family-bronze {
 
   --ink: oklch(94% 0.012 84);
   --ink-soft: oklch(78% 0.014 80);
-  --ink-faint: oklch(72% 0.012 76);  /* was 58%; clears WCAG AA on bg + surface (small italic text) */
-  --ink-ghost: oklch(66% 0.01 72);   /* was 40%; clears AA against bg when used for actual copy */
+  --ink-faint: oklch(
+    72% 0.012 76
+  ); /* was 58%; clears WCAG AA on bg + surface (small italic text) */
+  --ink-ghost: oklch(66% 0.01 72); /* was 40%; clears AA against bg when used for actual copy */
 
   --line: oklch(38% 0.014 248);
   --line-soft: oklch(31% 0.01 250);

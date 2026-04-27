@@ -33,12 +33,12 @@ const SB_HDR: Record<string, string> = {
   "Content-Type": "application/json",
 };
 
-const DAILY_DECAY = 0.012;          // ~12% drop in 10 days of zero use
-const DECAY_GRACE_DAYS = 14;        // first 14 days no decay
+const DAILY_DECAY = 0.012; // ~12% drop in 10 days of zero use
+const DECAY_GRACE_DAYS = 14; // first 14 days no decay
 const FADE_THRESHOLD = 0.45;
-const ARCHIVE_THRESHOLD = 0.20;
+const ARCHIVE_THRESHOLD = 0.2;
 const DEDUP_COSINE = 0.88;
-const PER_RUN_CAP = 5_000;          // hard cap on entries scanned per pass
+const PER_RUN_CAP = 5_000; // hard cap on entries scanned per pass
 
 interface PersonaEntry {
   id: string;
@@ -133,7 +133,8 @@ export async function runPersonaWeeklyPass(): Promise<{
   const seenPairs = new Set<string>();
   for (const [, brainRows] of byBrain) {
     if (brainRows.length < 2) continue;
-    const vecs = brainRows.map((r) => ({ id: r.id, user_id: r.user_id, vec: parseEmbedding(r.embedding) }))
+    const vecs = brainRows
+      .map((r) => ({ id: r.id, user_id: r.user_id, vec: parseEmbedding(r.embedding) }))
       .filter((x) => x.vec.length > 0);
     for (let i = 0; i < vecs.length; i++) {
       for (let j = i + 1; j < vecs.length; j++) {
@@ -169,7 +170,9 @@ export async function runPersonaWeeklyPass(): Promise<{
       );
       if (!r.ok) continue;
       const recent: PersonaEntry[] = await r.json();
-      const learned = recent.filter((e: any) => e.created_at && e.created_at >= sevenDaysAgo).length;
+      const learned = recent.filter(
+        (e: any) => e.created_at && e.created_at >= sevenDaysAgo,
+      ).length;
       const archived = recent.filter((e) => e.metadata?.status === "archived").length;
       const fading = recent.filter((e) => e.metadata?.status === "fading").length;
       const total = recent.length;
@@ -184,7 +187,9 @@ export async function runPersonaWeeklyPass(): Promise<{
         data: { learned, archived, fading, total },
       });
       if (ok) stats.digests_written += 1;
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
   }
 
   return stats;
@@ -209,7 +214,9 @@ function parseEmbedding(raw: number[] | string | null): number[] {
 
 function cosine(a: number[], b: number[]): number {
   if (a.length !== b.length || !a.length) return 0;
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i]! * b[i]!;
     na += a[i]! * a[i]!;
@@ -274,7 +281,12 @@ async function writeNotification(n: {
     const r = await fetch(`${SB_URL}/rest/v1/notifications`, {
       method: "POST",
       headers: { ...SB_HDR, Prefer: "return=minimal" },
-      body: JSON.stringify({ ...n, read: false, dismissed: false, created_at: new Date().toISOString() }),
+      body: JSON.stringify({
+        ...n,
+        read: false,
+        dismissed: false,
+        created_at: new Date().toISOString(),
+      }),
     });
     return r.ok;
   } catch {

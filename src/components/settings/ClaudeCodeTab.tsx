@@ -89,10 +89,13 @@ export default function ClaudeCodeTab() {
   function copyKey() {
     if (!revealedKey) return;
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(revealedKey.key).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }).catch(() => fallbackCopy(revealedKey.key));
+      navigator.clipboard
+        .writeText(revealedKey.key)
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch(() => fallbackCopy(revealedKey.key));
     } else {
       fallbackCopy(revealedKey.key);
     }
@@ -204,10 +207,32 @@ export default function ClaudeCodeTab() {
                 color: "var(--ink)",
               }}
             />
-            <button onClick={() => setShowKey(s => !s)} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", cursor: "pointer", color: "var(--ink-soft)" }}>
+            <button
+              onClick={() => setShowKey((s) => !s)}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                cursor: "pointer",
+                color: "var(--ink-soft)",
+              }}
+            >
               {showKey ? "Hide" : "Show"}
             </button>
-            <button onClick={copyKey} style={{ fontSize: 12, padding: "4px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "var(--surface)", cursor: "pointer", color: "var(--ink-soft)" }}>
+            <button
+              onClick={copyKey}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--line)",
+                background: "var(--surface)",
+                cursor: "pointer",
+                color: "var(--ink-soft)",
+              }}
+            >
               {copied ? "Copied!" : "Copy"}
             </button>
           </div>

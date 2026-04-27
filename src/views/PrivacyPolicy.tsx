@@ -97,9 +97,9 @@ export default function PrivacyPolicy() {
         </p>
 
         <Section title="What we store">
-          Of your content: your entries, your concepts, and the sync metadata they need.
-          That's it — we don't analyze, mine, or sell what you wrote. We do not store your
-          device ID or your IP address beyond 24 hours.
+          Of your content: your entries, your concepts, and the sync metadata they need. That's it —
+          we don't analyze, mine, or sell what you wrote. We do not store your device ID or your IP
+          address beyond 24 hours.
         </Section>
 
         <Section title="End-to-end encryption">
@@ -109,30 +109,28 @@ export default function PrivacyPolicy() {
         </Section>
 
         <Section title="AI processing">
-          We use Google Gemini to embed your entries (so search can find them) and enrich them
-          with summaries and tags. When you chat with your memory, the entries relevant to your
-          question are sent to the AI provider of your choice — bring your own key for OpenAI,
-          Anthropic, or Groq, or use the bundled Gemini. Providers don't train on your data,
-          under our agreements.
+          We use Google Gemini to embed your entries (so search can find them) and enrich them with
+          summaries and tags. When you chat with your memory, the entries relevant to your question
+          are sent to the AI provider of your choice — bring your own key for OpenAI, Anthropic, or
+          Groq, or use the bundled Gemini. Providers don't train on your data, under our agreements.
         </Section>
 
         <Section title="Where your data lives">
           Database and auth: Supabase, EU West (Ireland). Hosting: Vercel global edge network.
           Transactional email: Resend. Error monitoring: Sentry (no PII). Product analytics:
-          PostHog, only after you accept the consent banner — and never your entry contents.
-          No ad networks. No session replay.
+          PostHog, only after you accept the consent banner — and never your entry contents. No ad
+          networks. No session replay.
         </Section>
 
         <Section title="Retention">
           We keep your data while your account exists so the app can do its job. When you delete
-          your account, every row we have of you is scrubbed within 48 hours, including
-          embeddings, push subscriptions, and integration tokens.
+          your account, every row we have of you is scrubbed within 48 hours, including embeddings,
+          push subscriptions, and integration tokens.
         </Section>
 
         <Section title="Your rights">
-          Export, delete, transfer. All self-service, no email required. POPIA (South Africa)
-          and GDPR (EU) requests — including right of access, rectification, and erasure — can
-          go to{" "}
+          Export, delete, transfer. All self-service, no email required. POPIA (South Africa) and
+          GDPR (EU) requests — including right of access, rectification, and erasure — can go to{" "}
           <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>

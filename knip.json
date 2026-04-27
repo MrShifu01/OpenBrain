@@ -12,12 +12,7 @@
     "e2e/**",
     "playwright.config.ts"
   ],
-  "ignoreDependencies": [
-    "@fontsource-variable/geist",
-    "tw-animate-css",
-    "tailwindcss",
-    "shadcn"
-  ],
+  "ignoreDependencies": ["@fontsource-variable/geist", "tw-animate-css", "tailwindcss", "shadcn"],
   "entry": [
     "api/*.ts",
     "src/sw.js",
@@ -25,12 +20,6 @@
     "tests/**/*.test.{ts,tsx}",
     "scripts/**/*.ts"
   ],
-  "project": [
-    "src/**/*.{ts,tsx}",
-    "api/**/*.ts",
-    "tests/**/*.ts"
-  ],
-  "tags": [
-    "-lintignore"
-  ]
+  "project": ["src/**/*.{ts,tsx}", "api/**/*.ts", "tests/**/*.ts"],
+  "tags": ["-lintignore"]
 }

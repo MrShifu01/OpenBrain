@@ -561,7 +561,10 @@ export default function Landing({ onAuth }: LandingProps) {
           <a
             className="press"
             href="#what"
-            onClick={(e) => { e.preventDefault(); goto("landing#what"); }}
+            onClick={(e) => {
+              e.preventDefault();
+              goto("landing#what");
+            }}
             style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
           >
             What it is
@@ -569,7 +572,10 @@ export default function Landing({ onAuth }: LandingProps) {
           <a
             className="press"
             href="#pricing"
-            onClick={(e) => { e.preventDefault(); goto("landing#pricing"); }}
+            onClick={(e) => {
+              e.preventDefault();
+              goto("landing#pricing");
+            }}
             style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
           >
             Pricing
@@ -577,7 +583,10 @@ export default function Landing({ onAuth }: LandingProps) {
           <a
             className="press"
             href="/privacy"
-            onClick={(e) => { e.preventDefault(); goto("privacy"); }}
+            onClick={(e) => {
+              e.preventDefault();
+              goto("privacy");
+            }}
             style={{ cursor: "pointer", color: "inherit", textDecoration: "none" }}
           >
             Privacy
@@ -601,286 +610,175 @@ export default function Landing({ onAuth }: LandingProps) {
       </header>
 
       <main>
-      {/* HERO */}
-      <section
-        style={{
-          position: "relative",
-          minHeight: "calc(100vh - 80px)",
-          padding: "80px 40px 120px",
-          overflow: "hidden",
-        }}
-      >
-        <Motes count={44} />
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: "30%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-            width: 900,
-            height: 900,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, var(--ember-wash) 0%, transparent 60%)",
-            pointerEvents: "none",
-            opacity: 0.6,
-          }}
-        />
-        <div
+        {/* HERO */}
+        <section
           style={{
             position: "relative",
-            maxWidth: 940,
-            margin: "0 auto",
-            textAlign: "center",
-            paddingTop: 80,
+            minHeight: "calc(100vh - 80px)",
+            padding: "80px 40px 120px",
+            overflow: "hidden",
           }}
         >
-          <div className="micro anim-fade-up" style={{ marginBottom: 24, animationDelay: "50ms" }}>
-            <span style={{ color: "var(--ember)" }}>●</span> A quiet place for the things you want
-            to remember
-          </div>
-          <h1
-            className="f-serif anim-fade-up"
-            style={{
-              fontSize: "clamp(48px, 8vw, 104px)",
-              lineHeight: 0.98,
-              fontWeight: 400,
-              margin: 0,
-              letterSpacing: "-0.025em",
-              fontVariationSettings: '"opsz" 72',
-              color: "var(--ink)",
-              animationDelay: "120ms",
-            }}
-          >
-            your second memory,
-            <br />
-            <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>quietly kept.</span>
-          </h1>
-          <p
-            className="f-serif anim-fade-up"
-            style={{
-              fontSize: "clamp(17px, 2vw, 22px)",
-              lineHeight: 1.5,
-              color: "var(--ink-soft)",
-              maxWidth: 620,
-              margin: "36px auto 48px",
-              animationDelay: "240ms",
-            }}
-          >
-            Everion is a private room where you keep notes, links, half-thoughts and the things
-            worth not forgetting — and an AI that actually reads them when you ask.
-          </p>
-
-          {/* Live-feeling capture bar */}
+          <Motes count={44} />
           <div
-            className="anim-fade-up"
-            style={{ animationDelay: "360ms", maxWidth: 640, margin: "0 auto" }}
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: "30%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 900,
+              height: 900,
+              borderRadius: "50%",
+              background: "radial-gradient(circle, var(--ember-wash) 0%, transparent 60%)",
+              pointerEvents: "none",
+              opacity: 0.6,
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              maxWidth: 940,
+              margin: "0 auto",
+              textAlign: "center",
+              paddingTop: 80,
+            }}
           >
             <div
+              className="micro anim-fade-up"
+              style={{ marginBottom: 24, animationDelay: "50ms" }}
+            >
+              <span style={{ color: "var(--ember)" }}>●</span> A quiet place for the things you want
+              to remember
+            </div>
+            <h1
+              className="f-serif anim-fade-up"
               style={{
-                background: "var(--surface)",
-                border: "1px solid var(--line)",
-                borderRadius: 28,
-                padding: "14px 18px 14px 24px",
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                boxShadow: "var(--lift-2)",
+                fontSize: "clamp(48px, 8vw, 104px)",
+                lineHeight: 0.98,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.025em",
+                fontVariationSettings: '"opsz" 72',
+                color: "var(--ink)",
+                animationDelay: "120ms",
               }}
             >
-              <svg
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                style={{ color: "var(--ember)", flexShrink: 0 }}
-                aria-hidden="true"
-              >
-                <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4" />
-              </svg>
+              your second memory,
+              <br />
+              <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>quietly kept.</span>
+            </h1>
+            <p
+              className="f-serif anim-fade-up"
+              style={{
+                fontSize: "clamp(17px, 2vw, 22px)",
+                lineHeight: 1.5,
+                color: "var(--ink-soft)",
+                maxWidth: 620,
+                margin: "36px auto 48px",
+                animationDelay: "240ms",
+              }}
+            >
+              Everion is a private room where you keep notes, links, half-thoughts and the things
+              worth not forgetting — and an AI that actually reads them when you ask.
+            </p>
+
+            {/* Live-feeling capture bar */}
+            <div
+              className="anim-fade-up"
+              style={{ animationDelay: "360ms", maxWidth: 640, margin: "0 auto" }}
+            >
               <div
-                className="f-serif"
                 style={{
-                  flex: 1,
-                  textAlign: "left",
-                  fontSize: 17,
-                  color: "var(--ink-soft)",
-                  fontStyle: "italic",
-                  minHeight: 26,
+                  background: "var(--surface)",
+                  border: "1px solid var(--line)",
+                  borderRadius: 28,
+                  padding: "14px 18px 14px 24px",
                   display: "flex",
                   alignItems: "center",
+                  gap: 12,
+                  boxShadow: "var(--lift-2)",
                 }}
               >
-                {typed}
-                <span
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  style={{ color: "var(--ember)", flexShrink: 0 }}
+                  aria-hidden="true"
+                >
+                  <path d="M5 19c3-9 8-14 14-14-1 6-4 12-12 14M8 12l4 4" />
+                </svg>
+                <div
+                  className="f-serif"
                   style={{
-                    display: "inline-block",
-                    width: 1,
-                    height: 18,
-                    background: "var(--ember)",
-                    marginLeft: 2,
-                    animation: "design-breathe 1s ease-in-out infinite",
-                    ["--b-low" as string]: "0.2",
-                    ["--b-high" as string]: "1",
+                    flex: 1,
+                    textAlign: "left",
+                    fontSize: 17,
+                    color: "var(--ink-soft)",
+                    fontStyle: "italic",
+                    minHeight: 26,
+                    display: "flex",
+                    alignItems: "center",
                   }}
-                />
+                >
+                  {typed}
+                  <span
+                    style={{
+                      display: "inline-block",
+                      width: 1,
+                      height: 18,
+                      background: "var(--ember)",
+                      marginLeft: 2,
+                      animation: "design-breathe 1s ease-in-out infinite",
+                      ["--b-low" as string]: "0.2",
+                      ["--b-high" as string]: "1",
+                    }}
+                  />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <Kbd>{MOD}</Kbd>
+                  <Kbd>K</Kbd>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <Kbd>{MOD}</Kbd>
-                <Kbd>K</Kbd>
+              <div className="micro" style={{ marginTop: 14, opacity: 0.7 }}>
+                nothing leaves your device until you say so · end-to-end encrypted vault
               </div>
-            </div>
-            <div className="micro" style={{ marginTop: 14, opacity: 0.7 }}>
-              nothing leaves your device until you say so · end-to-end encrypted vault
             </div>
           </div>
-        </div>
 
-        <div
-          style={{
-            position: "absolute",
-            bottom: 32,
-            left: "50%",
-            transform: "translateX(-50%)",
-          }}
-        >
           <div
-            className="f-serif"
             style={{
-              fontSize: 14,
-              fontStyle: "italic",
-              color: "var(--ink-ghost)",
-              textAlign: "center",
+              position: "absolute",
+              bottom: 32,
+              left: "50%",
+              transform: "translateX(-50%)",
             }}
           >
-            what it does
-            <br />
-            <span style={{ fontSize: 20 }}>↓</span>
+            <div
+              className="f-serif"
+              style={{
+                fontSize: 14,
+                fontStyle: "italic",
+                color: "var(--ink-ghost)",
+                textAlign: "center",
+              }}
+            >
+              what it does
+              <br />
+              <span style={{ fontSize: 20 }}>↓</span>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* WHAT IT IS */}
-      <section id="what" style={{ padding: "120px 40px", maxWidth: 1120, margin: "0 auto" }}>
-        <Micro style={{ marginBottom: 24 }}>What Everion is</Micro>
-        <h2
-          className="f-serif"
-          style={{
-            fontSize: "clamp(32px, 5vw, 56px)",
-            lineHeight: 1.1,
-            fontWeight: 400,
-            margin: 0,
-            letterSpacing: "-0.02em",
-            maxWidth: 880,
-            color: "var(--ink)",
-          }}
-        >
-          It is the place where the thought goes —{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
-            and then stays findable.
-          </span>
-        </h2>
-        <p
-          className="f-serif"
-          style={{
-            fontSize: 19,
-            lineHeight: 1.6,
-            color: "var(--ink-soft)",
-            maxWidth: 680,
-            marginTop: 32,
-          }}
-        >
-          Not a to-do app. Not a chat-with-your-docs. Not a wiki you have to organize. Everion is
-          one opinionated surface for capture, one for chat, one for the shape of what you know. It
-          treats your memory like a place — warm, private, uncluttered — not a database.
-        </p>
-      </section>
-
-      {/* FOUR PILLARS */}
-      <section style={{ padding: "40px 40px 120px", maxWidth: 1120, margin: "0 auto" }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-            gap: 24,
-          }}
-        >
-          <Pillar
-            n="01"
-            title="Capture"
-            sub="lighter than opening a text box"
-            body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. No form. No title required. It's fast enough that you actually use it."
-          />
-          <Pillar
-            n="02"
-            title="Recall"
-            sub="ask, don't search"
-            body="Chat with your memory. The AI reads your entries, cites sources, and answers in plain language. 'what did I save about my dad this year' works."
-          />
-          <Pillar
-            n="03"
-            title="Synthesize"
-            sub="connections you didn't see"
-            body="Everion notices when three notes rhyme. It surfaces unexpected pairings. Not a daily report — a quiet nudge when something's worth the glance."
-          />
-          <Pillar
-            n="04"
-            title="The Shape"
-            sub="the night sky of your mind"
-            body="Every entry becomes a concept. Concepts become constellations. Pan around the idea-sky you've been making without meaning to."
-          />
-        </div>
-      </section>
-
-      {/* DEMO */}
-      <section
-        style={{
-          padding: "120px 40px",
-          background: "var(--surface-low)",
-          borderTop: "1px solid var(--line-soft)",
-          borderBottom: "1px solid var(--line-soft)",
-        }}
-      >
-        <div style={{ maxWidth: 1120, margin: "0 auto" }}>
-          <Micro style={{ marginBottom: 16 }}>A demo — not a screenshot</Micro>
-          <h2
-            className="f-serif"
-            style={{
-              fontSize: "clamp(28px, 4.5vw, 48px)",
-              lineHeight: 1.1,
-              fontWeight: 400,
-              margin: 0,
-              letterSpacing: "-0.02em",
-              maxWidth: 820,
-              color: "var(--ink)",
-            }}
-          >
-            Type a thought. Watch it find its place.
-          </h2>
-          <p
-            className="f-serif"
-            style={{
-              fontSize: 17,
-              lineHeight: 1.6,
-              color: "var(--ink-soft)",
-              maxWidth: 620,
-              marginTop: 20,
-            }}
-          >
-            This is real. The entries below are what Everion would save if you typed right now.
-          </p>
-          <LandingDemo />
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section id="pricing" style={{ padding: "120px 40px", maxWidth: 1040, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 56 }}>
-          <Micro style={{ marginBottom: 16 }}>Pricing</Micro>
+        {/* WHAT IT IS */}
+        <section id="what" style={{ padding: "120px 40px", maxWidth: 1120, margin: "0 auto" }}>
+          <Micro style={{ marginBottom: 24 }}>What Everion is</Micro>
           <h2
             className="f-serif"
             style={{
@@ -889,52 +787,166 @@ export default function Landing({ onAuth }: LandingProps) {
               fontWeight: 400,
               margin: 0,
               letterSpacing: "-0.02em",
+              maxWidth: 880,
               color: "var(--ink)",
             }}
           >
-            Two tiers. Both honest.
+            It is the place where the thought goes —{" "}
+            <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
+              and then stays findable.
+            </span>
           </h2>
-        </div>
-        <div
+          <p
+            className="f-serif"
+            style={{
+              fontSize: 19,
+              lineHeight: 1.6,
+              color: "var(--ink-soft)",
+              maxWidth: 680,
+              marginTop: 32,
+            }}
+          >
+            Not a to-do app. Not a chat-with-your-docs. Not a wiki you have to organize. Everion is
+            one opinionated surface for capture, one for chat, one for the shape of what you know.
+            It treats your memory like a place — warm, private, uncluttered — not a database.
+          </p>
+        </section>
+
+        {/* FOUR PILLARS */}
+        <section style={{ padding: "40px 40px 120px", maxWidth: 1120, margin: "0 auto" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 24,
+            }}
+          >
+            <Pillar
+              n="01"
+              title="Capture"
+              sub="lighter than opening a text box"
+              body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. No form. No title required. It's fast enough that you actually use it."
+            />
+            <Pillar
+              n="02"
+              title="Recall"
+              sub="ask, don't search"
+              body="Chat with your memory. The AI reads your entries, cites sources, and answers in plain language. 'what did I save about my dad this year' works."
+            />
+            <Pillar
+              n="03"
+              title="Synthesize"
+              sub="connections you didn't see"
+              body="Everion notices when three notes rhyme. It surfaces unexpected pairings. Not a daily report — a quiet nudge when something's worth the glance."
+            />
+            <Pillar
+              n="04"
+              title="The Shape"
+              sub="the night sky of your mind"
+              body="Every entry becomes a concept. Concepts become constellations. Pan around the idea-sky you've been making without meaning to."
+            />
+          </div>
+        </section>
+
+        {/* DEMO */}
+        <section
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 20,
-            maxWidth: 780,
-            margin: "0 auto",
+            padding: "120px 40px",
+            background: "var(--surface-low)",
+            borderTop: "1px solid var(--line-soft)",
+            borderBottom: "1px solid var(--line-soft)",
           }}
         >
-          <PlanCard
-            tier="Hobby"
-            price="free"
-            body="Unlimited entries, local-first, end-to-end encrypted vault, one brain, bring your own AI key."
-            bullets={[
-              "Unlimited entries",
-              "Local-first, offline",
-              "Encrypted vault",
-              "Bring your own AI key",
-            ]}
-            cta="Start free"
-            onCta={() => goto("signup")}
-          />
-          <PlanCard
-            tier="Pro"
-            price="$6"
-            suffix="/mo"
-            body="For the people who actually live here. Hosted AI, sync across devices, shared brains, priority support."
-            bullets={[
-              "Everything in Hobby",
-              "Hosted AI (no key required)",
-              "Cross-device sync",
-              "Shared brains with 2 people",
-              "Export anywhere, anytime",
-            ]}
-            cta="Start 14-day trial"
-            onCta={() => goto("signup")}
-            featured
-          />
-        </div>
-      </section>
+          <div style={{ maxWidth: 1120, margin: "0 auto" }}>
+            <Micro style={{ marginBottom: 16 }}>A demo — not a screenshot</Micro>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: "clamp(28px, 4.5vw, 48px)",
+                lineHeight: 1.1,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.02em",
+                maxWidth: 820,
+                color: "var(--ink)",
+              }}
+            >
+              Type a thought. Watch it find its place.
+            </h2>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 17,
+                lineHeight: 1.6,
+                color: "var(--ink-soft)",
+                maxWidth: 620,
+                marginTop: 20,
+              }}
+            >
+              This is real. The entries below are what Everion would save if you typed right now.
+            </p>
+            <LandingDemo />
+          </div>
+        </section>
+
+        {/* PRICING */}
+        <section id="pricing" style={{ padding: "120px 40px", maxWidth: 1040, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <Micro style={{ marginBottom: 16 }}>Pricing</Micro>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: "clamp(32px, 5vw, 56px)",
+                lineHeight: 1.1,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+              }}
+            >
+              Two tiers. Both honest.
+            </h2>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 20,
+              maxWidth: 780,
+              margin: "0 auto",
+            }}
+          >
+            <PlanCard
+              tier="Hobby"
+              price="free"
+              body="Unlimited entries, local-first, end-to-end encrypted vault, one brain, bring your own AI key."
+              bullets={[
+                "Unlimited entries",
+                "Local-first, offline",
+                "Encrypted vault",
+                "Bring your own AI key",
+              ]}
+              cta="Start free"
+              onCta={() => goto("signup")}
+            />
+            <PlanCard
+              tier="Pro"
+              price="$6"
+              suffix="/mo"
+              body="For the people who actually live here. Hosted AI, sync across devices, shared brains, priority support."
+              bullets={[
+                "Everything in Hobby",
+                "Hosted AI (no key required)",
+                "Cross-device sync",
+                "Shared brains with 2 people",
+                "Export anywhere, anytime",
+              ]}
+              cta="Start 14-day trial"
+              onCta={() => goto("signup")}
+              featured
+            />
+          </div>
+        </section>
       </main>
 
       {/* FOOTER */}

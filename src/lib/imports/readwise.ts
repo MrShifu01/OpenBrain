@@ -31,7 +31,7 @@ function pickColumn(headers: string[], ...candidates: string[]): number {
 }
 
 function rowToReadwise(headers: string[], row: string[]): ReadwiseRow {
-  const get = (idx: number): string => (idx >= 0 ? row[idx]?.trim() ?? "" : "");
+  const get = (idx: number): string => (idx >= 0 ? (row[idx]?.trim() ?? "") : "");
   return {
     highlight: get(pickColumn(headers, "Highlight")),
     bookTitle: get(pickColumn(headers, "Book Title", "Title")),
@@ -103,9 +103,8 @@ export const parseReadwise: Parser = async (files, onProgress, signal) => {
       .map((r) => r.highlightedAt)
       .filter(Boolean)
       .sort()[0];
-    const createdIso = created && !Number.isNaN(Date.parse(created))
-      ? new Date(created).toISOString()
-      : undefined;
+    const createdIso =
+      created && !Number.isNaN(Date.parse(created)) ? new Date(created).toISOString() : undefined;
     const hash = await importHash("readwise", first.bookTitle, first.bookAuthor);
     out.push({
       title,

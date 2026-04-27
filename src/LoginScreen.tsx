@@ -39,7 +39,9 @@ interface LoginScreenProps {
   initialIntent?: "login" | "signup";
 }
 
-export default function LoginScreen({ initialIntent = "login" }: LoginScreenProps = {}): JSX.Element {
+export default function LoginScreen({
+  initialIntent = "login",
+}: LoginScreenProps = {}): JSX.Element {
   const isInvited = useMemo(hasInvite, []);
   const startSignup = initialIntent === "signup" || isInvited;
   const {
@@ -162,8 +164,8 @@ export default function LoginScreen({ initialIntent = "login" }: LoginScreenProp
                   margin: 0,
                 }}
               >
-                A quiet place for the things you want to remember. Notes, links,
-                half-thoughts — and an AI that actually reads them when you ask.
+                A quiet place for the things you want to remember. Notes, links, half-thoughts — and
+                an AI that actually reads them when you ask.
               </p>
             </div>
 

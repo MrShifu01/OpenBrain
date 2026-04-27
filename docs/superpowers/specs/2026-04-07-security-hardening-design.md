@@ -1,7 +1,9 @@
 # Security Hardening — Design Spec
+
 **Date:** 2026-04-07
 
 ## Scope
+
 SEC-12 security headers, SEC-16 HMAC cron auth, brain API key hashing, ARCH-6 PIN hash server-side.
 
 ---
@@ -34,7 +36,8 @@ Applied in: `api/capture.ts`, `api/brains.ts`, `api/chat.ts`, `api/llm.ts`, `api
 ```ts
 // Verify: HMAC of today's UTC date string
 function verifyCronHmac(header: string, secret: string): boolean {
-  const expected = crypto.createHmac("sha256", secret)
+  const expected = crypto
+    .createHmac("sha256", secret)
     .update(new Date().toISOString().slice(0, 10)) // "2026-04-07"
     .digest("hex");
   return header === `HMAC ${expected}`;
@@ -50,6 +53,7 @@ Cron runner sends: `Authorization: HMAC <hex>`. Vercel cron trigger validated vi
 **Problem:** Keys stored plaintext in `brain_api_keys.api_key`. Should store hash, show once.
 
 **Solution:** Use Node.js built-in `crypto.scrypt` (no native addon needed on Vercel). On key generation:
+
 1. Generate `ob_<32 hex bytes>` (keep current format)
 2. Store `scrypt(key, salt, 32)` hash + salt in DB
 3. Return plaintext key to UI once — never stored server-side again
@@ -58,6 +62,7 @@ Cron runner sends: `Authorization: HMAC <hex>`. Vercel cron trigger validated vi
 **Migration 014:** Add `api_key_hash TEXT`, `api_key_salt TEXT` columns. Rename `api_key` to `api_key_prefix` (first 8 chars, for display). Drop plaintext column after migration.
 
 **DB columns after migration:**
+
 - `api_key_prefix TEXT` — first 8 chars (`ob_xxxxxx`) for user identification
 - `api_key_hash TEXT NOT NULL` — scrypt hash
 - `api_key_salt TEXT NOT NULL` — random 16-byte hex salt
@@ -69,6 +74,7 @@ Cron runner sends: `Authorization: HMAC <hex>`. Vercel cron trigger validated vi
 **Problem:** PBKDF2 PIN hash stored in `localStorage` — XSS accessible.
 
 **Solution:**
+
 1. New `POST /api/pin/verify` endpoint — accepts `{ pinHash: string }`, compares to DB record, returns `{ valid: boolean }`.
 2. New `POST /api/pin/setup` — stores hash in `user_ai_settings.pin_hash` column.
 3. New `DELETE /api/pin` — removes pin from DB.

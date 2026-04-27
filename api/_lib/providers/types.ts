@@ -52,9 +52,5 @@ export interface ChatStep {
 export interface ProviderAdapter {
   completion(opts: CompletionOptions, config: ProviderConfig): Promise<CompletionResult>;
   chatStep(round: ChatRound, config: ProviderConfig): Promise<ChatStep>;
-  appendToolResult(
-    messages: any[],
-    step: ChatStep,
-    toolResult: unknown,
-  ): void;
+  appendToolResult(messages: any[], step: ChatStep, toolResult: unknown): void;
 }

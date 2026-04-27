@@ -39,24 +39,20 @@ type OpStatus = "running" | "done" | "error";
 
 interface OpTask {
   id: string;
-  kind: string;          // looks up the runner in TASK_RUNNERS
-  label: string;         // user-facing
+  kind: string; // looks up the runner in TASK_RUNNERS
+  label: string; // user-facing
   status: OpStatus;
   progress?: { current: number; total?: number; suffix?: string };
-  result?: string;       // success message
+  result?: string; // success message
   error?: string;
   startedAt: number;
   finishedAt?: number;
-  resumeKey?: string;    // passed to the runner on resume
+  resumeKey?: string; // passed to the runner on resume
 }
 
 interface BackgroundOpsContext {
   tasks: OpTask[];
-  startTask: (opts: {
-    kind: string;
-    label: string;
-    resumeKey?: string;
-  }) => string; // returns task id
+  startTask: (opts: { kind: string; label: string; resumeKey?: string }) => string; // returns task id
   isRunning: (kind: string, resumeKey?: string) => boolean;
   dismissTask: (id: string) => void;
   dismissAll: () => void;
@@ -83,7 +79,9 @@ function saveToStorage(tasks: OpTask[]): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-  } catch { /* storage full / disabled */ }
+  } catch {
+    /* storage full / disabled */
+  }
 }
 
 export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
@@ -103,45 +101,48 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   }, []);
 
-  const runTask = useCallback(async (task: OpTask): Promise<void> => {
-    if (runningIds.current.has(task.id)) return; // already executing
-    runningIds.current.add(task.id);
+  const runTask = useCallback(
+    async (task: OpTask): Promise<void> => {
+      if (runningIds.current.has(task.id)) return; // already executing
+      runningIds.current.add(task.id);
 
-    const runner = TASK_RUNNERS[task.kind];
-    if (!runner) {
-      updateTask(task.id, {
-        status: "error",
-        error: `No runner registered for "${task.kind}"`,
-        finishedAt: Date.now(),
-      });
-      runningIds.current.delete(task.id);
-      return;
-    }
+      const runner = TASK_RUNNERS[task.kind];
+      if (!runner) {
+        updateTask(task.id, {
+          status: "error",
+          error: `No runner registered for "${task.kind}"`,
+          finishedAt: Date.now(),
+        });
+        runningIds.current.delete(task.id);
+        return;
+      }
 
-    const helpers: TaskHelpers = {
-      setProgress: (p) => updateTask(task.id, { progress: p }),
-      setLabel: (l) => updateTask(task.id, { label: l }),
-    };
+      const helpers: TaskHelpers = {
+        setProgress: (p) => updateTask(task.id, { progress: p }),
+        setLabel: (l) => updateTask(task.id, { label: l }),
+      };
 
-    try {
-      const result = await runner(task.resumeKey || "", helpers);
-      updateTask(task.id, {
-        status: "done",
-        result: result || "Done.",
-        finishedAt: Date.now(),
-        progress: undefined,
-      });
-    } catch (err: any) {
-      updateTask(task.id, {
-        status: "error",
-        error: err?.message || "Failed",
-        finishedAt: Date.now(),
-        progress: undefined,
-      });
-    } finally {
-      runningIds.current.delete(task.id);
-    }
-  }, [updateTask]);
+      try {
+        const result = await runner(task.resumeKey || "", helpers);
+        updateTask(task.id, {
+          status: "done",
+          result: result || "Done.",
+          finishedAt: Date.now(),
+          progress: undefined,
+        });
+      } catch (err: any) {
+        updateTask(task.id, {
+          status: "error",
+          error: err?.message || "Failed",
+          finishedAt: Date.now(),
+          progress: undefined,
+        });
+      } finally {
+        runningIds.current.delete(task.id);
+      }
+    },
+    [updateTask],
+  );
 
   // Hydrate-and-resume: on mount, kick off any tasks left in 'running' state.
   // The 1.5s delay matters: on a fresh tab (especially Safari restoring a
@@ -153,7 +154,9 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
     if (!stale.length) return;
     const timer = setTimeout(() => {
       for (const t of stale) {
-        runTask(t).catch(() => { /* runner records its own errors */ });
+        runTask(t).catch(() => {
+          /* runner records its own errors */
+        });
       }
     }, 1500);
     return () => clearTimeout(timer);
@@ -175,24 +178,29 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  const startTask = useCallback<BackgroundOpsContext["startTask"]>((opts) => {
-    const id =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `op_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const task: OpTask = {
-      id,
-      kind: opts.kind,
-      label: opts.label,
-      status: "running",
-      startedAt: Date.now(),
-      resumeKey: opts.resumeKey,
-    };
-    setTasks((prev) => [...prev, task]);
-    // Fire-and-forget — runner updates the task as it goes.
-    runTask(task).catch(() => { /* runner records its own errors */ });
-    return id;
-  }, [runTask]);
+  const startTask = useCallback<BackgroundOpsContext["startTask"]>(
+    (opts) => {
+      const id =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `op_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const task: OpTask = {
+        id,
+        kind: opts.kind,
+        label: opts.label,
+        status: "running",
+        startedAt: Date.now(),
+        resumeKey: opts.resumeKey,
+      };
+      setTasks((prev) => [...prev, task]);
+      // Fire-and-forget — runner updates the task as it goes.
+      runTask(task).catch(() => {
+        /* runner records its own errors */
+      });
+      return id;
+    },
+    [runTask],
+  );
 
   const isRunning = useCallback<BackgroundOpsContext["isRunning"]>((kind, resumeKey) => {
     return tasksRef.current.some(

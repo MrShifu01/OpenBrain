@@ -39,11 +39,15 @@ export const anthropic: ProviderAdapter = {
     };
     if (opts.system) body.system = opts.system.slice(0, 10000);
 
-    const r = await fetch(API_URL, { method: "POST", headers: headers(config.key), body: JSON.stringify(body) });
+    const r = await fetch(API_URL, {
+      method: "POST",
+      headers: headers(config.key),
+      body: JSON.stringify(body),
+    });
     const data: any = await r.json();
     if (!r.ok) return { ok: false, status: r.status, error: data };
 
-    const text = (data.content as any[] || [])
+    const text = ((data.content as any[]) || [])
       .filter((c: any) => c.type === "text")
       .map((c: any) => c.text)
       .join("")
@@ -70,11 +74,19 @@ export const anthropic: ProviderAdapter = {
     const toolUse = content.find((c: any) => c.type === "tool_use");
 
     if (!toolUse) {
-      const text = content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim();
+      const text = content
+        .filter((c: any) => c.type === "text")
+        .map((c: any) => c.text)
+        .join("")
+        .trim();
       return { ok: true, status: 200, text };
     }
 
-    const leadingText = content.filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim();
+    const leadingText = content
+      .filter((c: any) => c.type === "text")
+      .map((c: any) => c.text)
+      .join("")
+      .trim();
     return {
       ok: true,
       status: 200,
@@ -89,7 +101,9 @@ export const anthropic: ProviderAdapter = {
     messages.push({ role: "assistant", content: step.rawAssistantMessage });
     messages.push({
       role: "user",
-      content: [{ type: "tool_result", tool_use_id: step.toolCallId, content: JSON.stringify(toolResult) }],
+      content: [
+        { type: "tool_result", tool_use_id: step.toolCallId, content: JSON.stringify(toolResult) },
+      ],
     });
   },
 };

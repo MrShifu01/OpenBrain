@@ -40,6 +40,7 @@ Before the audit, a full code hygiene pass was completed:
 ## SECURITY — 78/100
 
 **What's solid:**
+
 - Cryptography is textbook-correct: PBKDF2 310k iterations, AES-256-GCM, random IV/salt (`src/lib/crypto.ts`)
 - CSP header comprehensive with scoped connect-src, script-src, style-src, font-src, img-src (`vercel.json:39`)
 - All API endpoints enforce `verifyAuth()` before processing
@@ -51,19 +52,20 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| HIGH | Permissions-Policy blocks microphone (`microphone=()`) but app uses MediaRecorder for voice capture — silently broken in production | `vercel.json:44` vs `src/hooks/useVoiceRecorder.ts:22` |
-| HIGH | No error monitoring (Sentry) — production errors invisible | `src/ErrorBoundary.tsx:23` |
-| MEDIUM | `xlsx` has 2 unpatched high-severity CVEs (prototype pollution, ReDoS), no fix available | `package.json` |
-| MEDIUM | `loadUserAISettings` still hydrates non-sensitive settings back into localStorage | `src/lib/aiSettings.ts:130-156` |
-| LOW | Empty catch block swallows vault fetch errors silently | `src/hooks/useVaultOps.ts:70` |
+| Sev    | Finding                                                                                                                             | Location                                               |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| HIGH   | Permissions-Policy blocks microphone (`microphone=()`) but app uses MediaRecorder for voice capture — silently broken in production | `vercel.json:44` vs `src/hooks/useVoiceRecorder.ts:22` |
+| HIGH   | No error monitoring (Sentry) — production errors invisible                                                                          | `src/ErrorBoundary.tsx:23`                             |
+| MEDIUM | `xlsx` has 2 unpatched high-severity CVEs (prototype pollution, ReDoS), no fix available                                            | `package.json`                                         |
+| MEDIUM | `loadUserAISettings` still hydrates non-sensitive settings back into localStorage                                                   | `src/lib/aiSettings.ts:130-156`                        |
+| LOW    | Empty catch block swallows vault fetch errors silently                                                                              | `src/hooks/useVaultOps.ts:70`                          |
 
 ---
 
 ## PERFORMANCE — 76/100
 
 **What's solid:**
+
 - Code splitting with `React.lazy` on 5 heavy views (`src/OpenBrain.tsx:75-79`)
 - `lazyRetry` handles stale chunk hashes gracefully
 - List virtualization via `@tanstack/react-virtual` in EntryList
@@ -73,18 +75,19 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| HIGH | RefineView.tsx is 1,883 lines — not decomposed | `src/views/RefineView.tsx` |
-| HIGH | DetailModal.tsx is 1,037 lines | `src/views/DetailModal.tsx` |
-| MEDIUM | CaptureSheet.tsx (1,075 lines) eagerly imported on critical render path | `src/components/CaptureSheet.tsx` |
-| MEDIUM | GraphView dependency tree is 280MB (cosmograph + duckdb + luma.gl) for one view | `src/views/GraphView.tsx` |
+| Sev    | Finding                                                                         | Location                          |
+| ------ | ------------------------------------------------------------------------------- | --------------------------------- |
+| HIGH   | RefineView.tsx is 1,883 lines — not decomposed                                  | `src/views/RefineView.tsx`        |
+| HIGH   | DetailModal.tsx is 1,037 lines                                                  | `src/views/DetailModal.tsx`       |
+| MEDIUM | CaptureSheet.tsx (1,075 lines) eagerly imported on critical render path         | `src/components/CaptureSheet.tsx` |
+| MEDIUM | GraphView dependency tree is 280MB (cosmograph + duckdb + luma.gl) for one view | `src/views/GraphView.tsx`         |
 
 ---
 
 ## ARCHITECTURE — 84/100
 
 **What's solid:**
+
 - Clean separation: `src/lib/` (logic), `src/hooks/` (React), `src/components/` (UI), `src/views/` (pages), `src/context/` (state)
 - Context split by domain: `EntriesContext`, `BrainContext`
 - Custom hooks extract logic well (10+ focused hooks)
@@ -93,17 +96,18 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| HIGH | `computeCompletenessScore` duplicated verbatim across two API files | `api/entries.ts:11` and `api/capture.ts:12` |
-| MEDIUM | OpenBrain.tsx at 1,032 lines — god component owning entries, nav, search, filters | `src/OpenBrain.tsx` |
-| MEDIUM | No client-side router — no deep linking, no browser back/forward | `src/OpenBrain.tsx:92-97` |
+| Sev    | Finding                                                                           | Location                                    |
+| ------ | --------------------------------------------------------------------------------- | ------------------------------------------- |
+| HIGH   | `computeCompletenessScore` duplicated verbatim across two API files               | `api/entries.ts:11` and `api/capture.ts:12` |
+| MEDIUM | OpenBrain.tsx at 1,032 lines — god component owning entries, nav, search, filters | `src/OpenBrain.tsx`                         |
+| MEDIUM | No client-side router — no deep linking, no browser back/forward                  | `src/OpenBrain.tsx:92-97`                   |
 
 ---
 
 ## CODE QUALITY / TYPES — 80/100
 
 **What's solid:**
+
 - Zero `@ts-ignore` / `@ts-nocheck` in src/
 - TypeScript strict mode, ESLint + Prettier enforced in CI
 - 76 test files, 449+ passing tests
@@ -111,18 +115,19 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| MEDIUM | 68 occurrences of `: any` across 23 source files | Multiple |
-| MEDIUM | RefineView.tsx needs decomposition into sub-components | `src/views/RefineView.tsx` |
-| LOW | Empty catch block in useVaultOps.ts:70 | `src/hooks/useVaultOps.ts:70` |
-| LOW | `lazyRetry` helper uses `Promise<any>` return type | `src/OpenBrain.tsx:57` |
+| Sev    | Finding                                                | Location                      |
+| ------ | ------------------------------------------------------ | ----------------------------- |
+| MEDIUM | 68 occurrences of `: any` across 23 source files       | Multiple                      |
+| MEDIUM | RefineView.tsx needs decomposition into sub-components | `src/views/RefineView.tsx`    |
+| LOW    | Empty catch block in useVaultOps.ts:70                 | `src/hooks/useVaultOps.ts:70` |
+| LOW    | `lazyRetry` helper uses `Promise<any>` return type     | `src/OpenBrain.tsx:57`        |
 
 ---
 
 ## UX / UI — 82/100
 
 **What's solid:**
+
 - Skeleton loading screens with `role="status"` and `aria-label`
 - ErrorBoundary wired at app root with recovery button
 - Focus traps on modals, `aria-current="page"` on nav
@@ -133,17 +138,18 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| MEDIUM | Many interactive elements in large components likely lack aria labels | DetailModal, RefineView, CaptureSheet |
-| MEDIUM | Destructive actions use native `window.confirm()` — inconsistent with polished UI | `src/views/TrashView.tsx:52,68` |
-| LOW | Voice recording broken in production due to Permissions-Policy (see Security) | `vercel.json:44` |
+| Sev    | Finding                                                                           | Location                              |
+| ------ | --------------------------------------------------------------------------------- | ------------------------------------- |
+| MEDIUM | Many interactive elements in large components likely lack aria labels             | DetailModal, RefineView, CaptureSheet |
+| MEDIUM | Destructive actions use native `window.confirm()` — inconsistent with polished UI | `src/views/TrashView.tsx:52,68`       |
+| LOW    | Voice recording broken in production due to Permissions-Policy (see Security)     | `vercel.json:44`                      |
 
 ---
 
 ## MAINTAINABILITY — 78/100
 
 **What's solid:**
+
 - CI/CD: GitHub Actions with typecheck, lint, format:check, test
 - `.env.example` with all 12 vars documented
 - 22 Supabase migrations with sequential numbering
@@ -151,17 +157,18 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| MEDIUM | `xlsx` has unpatched high-severity CVEs | `package.json` |
-| LOW | No Dependabot/Renovate configured | `.github/` |
-| LOW | CI does not include build step — build failures caught only at deploy time | `.github/workflows/ci.yml` |
+| Sev    | Finding                                                                    | Location                   |
+| ------ | -------------------------------------------------------------------------- | -------------------------- |
+| MEDIUM | `xlsx` has unpatched high-severity CVEs                                    | `package.json`             |
+| LOW    | No Dependabot/Renovate configured                                          | `.github/`                 |
+| LOW    | CI does not include build step — build failures caught only at deploy time | `.github/workflows/ci.yml` |
 
 ---
 
 ## USER PERSPECTIVE — 80/100
 
 **What's solid:**
+
 - Onboarding flow: name input, use-case selection, vault teaser
 - Offline support with IndexedDB queue and retry logic
 - PWA installable, background capture with toast feedback
@@ -169,34 +176,34 @@ Before the audit, a full code hygiene pass was completed:
 
 **Findings:**
 
-| Sev | Finding | Location |
-|-----|---------|----------|
-| MEDIUM | No URL-based routing — no bookmarks, deep links, or browser history | `src/OpenBrain.tsx` |
+| Sev    | Finding                                                              | Location                        |
+| ------ | -------------------------------------------------------------------- | ------------------------------- |
+| MEDIUM | No URL-based routing — no bookmarks, deep links, or browser history  | `src/OpenBrain.tsx`             |
 | MEDIUM | Offline sync drops operations after 3 retries with only console.warn | `src/hooks/useOfflineSync.ts:8` |
-| LOW | No keyboard shortcuts for power users | App-wide |
+| LOW    | No keyboard shortcuts for power users                                | App-wide                        |
 
 ---
 
 ## TOP ACTIONS (priority order)
 
-| # | Priority | Action | Impact |
-|---|----------|--------|--------|
-| 1 | HIGH | Fix Permissions-Policy: change `microphone=()` to `microphone=(self)` in `vercel.json:44` | Unblocks voice recording in production |
-| 2 | HIGH | Add error monitoring (Sentry) — wire to `ErrorBoundary.componentDidCatch` | Operational visibility |
-| 3 | HIGH | Decompose `RefineView.tsx` (1,883 lines) and `DetailModal.tsx` (1,037 lines) | Maintainability + bundle size |
-| 4 | HIGH | Extract duplicated `computeCompletenessScore` to `api/_lib/` | DRY / bug risk |
-| 5 | MEDIUM | Replace `xlsx` dependency (unpatched high-severity CVEs) | Security |
-| 6 | MEDIUM | Add client-side router for deep linking and browser history | UX for knowledge management |
-| 7 | MEDIUM | Reduce `: any` usage (68 occurrences across 23 files) | Type safety |
-| 8 | LOW | Add `npm run build` step to CI pipeline | CI reliability |
+| #   | Priority | Action                                                                                    | Impact                                 |
+| --- | -------- | ----------------------------------------------------------------------------------------- | -------------------------------------- |
+| 1   | HIGH     | Fix Permissions-Policy: change `microphone=()` to `microphone=(self)` in `vercel.json:44` | Unblocks voice recording in production |
+| 2   | HIGH     | Add error monitoring (Sentry) — wire to `ErrorBoundary.componentDidCatch`                 | Operational visibility                 |
+| 3   | HIGH     | Decompose `RefineView.tsx` (1,883 lines) and `DetailModal.tsx` (1,037 lines)              | Maintainability + bundle size          |
+| 4   | HIGH     | Extract duplicated `computeCompletenessScore` to `api/_lib/`                              | DRY / bug risk                         |
+| 5   | MEDIUM   | Replace `xlsx` dependency (unpatched high-severity CVEs)                                  | Security                               |
+| 6   | MEDIUM   | Add client-side router for deep linking and browser history                               | UX for knowledge management            |
+| 7   | MEDIUM   | Reduce `: any` usage (68 occurrences across 23 files)                                     | Type safety                            |
+| 8   | LOW      | Add `npm run build` step to CI pipeline                                                   | CI reliability                         |
 
 ---
 
 ## Score History
 
-| Date | Pass | Score | Grade |
-|------|------|-------|-------|
-| 2026-04-02 | 1 | 74 | C+ |
-| 2026-04-08 | 2 | 75 | C+ |
-| 2026-04-08 | 3 | 78 | C+ |
-| 2026-04-12 | 5 | 80 | B- |
+| Date       | Pass | Score | Grade |
+| ---------- | ---- | ----- | ----- |
+| 2026-04-02 | 1    | 74    | C+    |
+| 2026-04-08 | 2    | 75    | C+    |
+| 2026-04-08 | 3    | 78    | C+    |
+| 2026-04-12 | 5    | 80    | B-    |

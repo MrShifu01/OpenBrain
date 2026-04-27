@@ -100,7 +100,7 @@ Multiple: [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","me
 CRITICAL: Any phone number found ANYWHERE in the input MUST go into metadata.phone.`;
 
 const TIER_OPTIONS = ["free", "starter", "pro", "max"] as const;
-type TierOption = typeof TIER_OPTIONS[number];
+type TierOption = (typeof TIER_OPTIONS)[number];
 
 function TierChanger() {
   const [current, setCurrent] = useState<TierOption>("free");
@@ -125,8 +125,13 @@ function TierChanger() {
   async function save() {
     setSaving(true);
     setMsg(null);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setSaving(false); return; }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      setSaving(false);
+      return;
+    }
     const { error } = await supabase
       .from("user_profiles")
       .update({ tier: selected })
@@ -141,7 +146,9 @@ function TierChanger() {
   }
 
   return (
-    <div style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}>
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
       <div style={{ marginBottom: 14 }}>
         <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
           Your tier
@@ -167,7 +174,9 @@ function TierChanger() {
           }}
         >
           {TIER_OPTIONS.map((t) => (
-            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
+            <option key={t} value={t}>
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </option>
           ))}
         </select>
         <SettingsButton onClick={save} disabled={saving || selected === current}>
@@ -175,7 +184,14 @@ function TierChanger() {
         </SettingsButton>
       </div>
       {msg && (
-        <div className="f-sans" style={{ fontSize: 12, marginTop: 8, color: msg.startsWith("Error") ? "var(--blood)" : "var(--moss)" }}>
+        <div
+          className="f-sans"
+          style={{
+            fontSize: 12,
+            marginTop: 8,
+            color: msg.startsWith("Error") ? "var(--blood)" : "var(--moss)",
+          }}
+        >
           {msg}
         </div>
       )}
@@ -187,7 +203,9 @@ function MockGmailReviewSection() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <div style={{ borderBottom: "1px solid var(--line-soft)", paddingBottom: 20, marginBottom: 4 }}>
+      <div
+        style={{ borderBottom: "1px solid var(--line-soft)", paddingBottom: 20, marginBottom: 4 }}
+      >
         <SettingsRow
           label="Gmail review UI"
           hint="Opens the swipe review modal with mock cards — no Gmail scan needed."
@@ -218,8 +236,8 @@ function AdminDisplaySection() {
           Admin display
         </div>
         <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
-          Toggle the admin-only debug overlays scattered through the app.
-          Off = hidden for you (and only you), On = back where they were.
+          Toggle the admin-only debug overlays scattered through the app. Off = hidden for you (and
+          only you), On = back where they were.
         </div>
       </div>
 

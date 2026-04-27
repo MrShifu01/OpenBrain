@@ -14,7 +14,11 @@ export function _resetSessionCache(): void {
   _sessionCache = null;
 }
 
-async function fetchWithToken(url: string, options: RequestInit, token: string | undefined): Promise<Response> {
+async function fetchWithToken(
+  url: string,
+  options: RequestInit,
+  token: string | undefined,
+): Promise<Response> {
   return fetch(url, {
     ...options,
     headers: {
@@ -46,7 +50,9 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   // 401: attempt a single token refresh then retry once
   if (response.status === 401) {
     _sessionCache = null;
-    const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+    const {
+      data: { session: refreshed },
+    } = await supabase.auth.refreshSession();
     if (refreshed?.access_token) {
       _sessionCache = { token: refreshed.access_token, expiresAt: Date.now() + TTL_MS };
       const retried = await fetchWithToken(url, options, refreshed.access_token);

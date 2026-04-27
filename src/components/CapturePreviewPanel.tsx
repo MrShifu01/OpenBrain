@@ -204,11 +204,7 @@ export default function CapturePreviewPanel({
           borderTop: "1px solid var(--line-soft)",
         }}
       >
-        <button
-          className="design-btn-secondary press"
-          onClick={onBack}
-          style={{ flex: 1 }}
-        >
+        <button className="design-btn-secondary press" onClick={onBack} style={{ flex: 1 }}>
           Back
         </button>
         <button

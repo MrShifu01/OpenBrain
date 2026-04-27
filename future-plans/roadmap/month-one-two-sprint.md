@@ -44,13 +44,13 @@
 
 ## Acquisition Channels (pick 2, commit 4 weeks each)
 
-| Channel | Why it fits | Effort | Signal to watch |
-|---|---|---|---|
-| **SEO content** — "best second brain app 2026", "Notion alternatives", "AI journaling apps" | High intent traffic, compounds | 2–4 blog posts/week | Organic signups/week |
-| **Twitter/X build-in-public** | Aligns with indie-dev narrative, shareable insights | Daily posts, 15min | Follower growth, reply-to-DM rate |
-| **Reddit** (r/productivity, r/PKMS, r/Notion, r/ObsidianMD) | Exact audience, competitive positioning works | 2–3 thoughtful posts/week | Signups per post |
-| **Partner with a PKM creator** (YouTube, newsletter) | One endorsement > 100 cold posts | 1 outreach campaign | Referral conversions |
-| **Product Hunt re-launches** | New features = new PH launches every 6 months | Low | Spike in signups |
+| Channel                                                                                     | Why it fits                                         | Effort                    | Signal to watch                   |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------- | --------------------------------- |
+| **SEO content** — "best second brain app 2026", "Notion alternatives", "AI journaling apps" | High intent traffic, compounds                      | 2–4 blog posts/week       | Organic signups/week              |
+| **Twitter/X build-in-public**                                                               | Aligns with indie-dev narrative, shareable insights | Daily posts, 15min        | Follower growth, reply-to-DM rate |
+| **Reddit** (r/productivity, r/PKMS, r/Notion, r/ObsidianMD)                                 | Exact audience, competitive positioning works       | 2–3 thoughtful posts/week | Signups per post                  |
+| **Partner with a PKM creator** (YouTube, newsletter)                                        | One endorsement > 100 cold posts                    | 1 outreach campaign       | Referral conversions              |
+| **Product Hunt re-launches**                                                                | New features = new PH launches every 6 months       | Low                       | Spike in signups                  |
 
 > **Do NOT** run paid ads before Day 7 retention ≥ 25%. You'll burn money fast.
 
