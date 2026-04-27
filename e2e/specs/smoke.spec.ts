@@ -14,6 +14,8 @@ test("admin lands on the signed-in shell, not the login screen", async ({ page }
   await page.goto("/");
   // The login screen renders this CTA. If we see it, auth replay failed.
   await expect(page.getByRole("button", { name: /sign in/i })).toHaveCount(0);
-  // The signed-in shell renders the Everion brand banner.
-  await expect(page.getByRole("banner")).toBeVisible();
+  // The signed-in shell renders one or more <header role="banner"> elements
+  // (DesktopHeader + the memory-topbar on the entries view). Either one
+  // proves we're past auth.
+  await expect(page.getByRole("banner").first()).toBeVisible();
 });
