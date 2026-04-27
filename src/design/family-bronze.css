@@ -17,8 +17,8 @@ html.family-bronze {
 
   --ink: oklch(94% 0.012 84);
   --ink-soft: oklch(78% 0.014 80);
-  --ink-faint: oklch(58% 0.012 76);
-  --ink-ghost: oklch(40% 0.01 72);
+  --ink-faint: oklch(65% 0.012 76);  /* was 58%; bumped to clear WCAG AA (4.5:1) on dark bg */
+  --ink-ghost: oklch(60% 0.01 72);   /* was 40%; bumped to clear AA when used for any actual copy */
 
   --line: oklch(38% 0.014 248);
   --line-soft: oklch(31% 0.01 250);
