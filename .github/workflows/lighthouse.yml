@@ -45,8 +45,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          # Glob inside the dot-prefixed dir; bare `.lighthouse/` is
-          # filtered out by upload-artifact's hidden-file default.
-          path: .lighthouse/*
+          path: .lighthouse/
+          # The dir is dot-prefixed; default hidden-file filter would
+          # silently drop everything inside. Flip the flag so reports
+          # actually upload.
+          include-hidden-files: true
           retention-days: 90
           if-no-files-found: error
