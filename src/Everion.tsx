@@ -659,6 +659,7 @@ function EverionContent({
                         max_tokens: 800,
                         system: PROMPTS.QA_PARSE,
                         brainId: activeBrain?.id,
+                        json: true,
                         messages: [
                           { role: "user", content: `Question: ${item.q}\nAnswer: ${item.a}` },
                         ],

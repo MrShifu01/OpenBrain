@@ -22,6 +22,14 @@ interface CallAIOptions {
   task?: string;
   /** When provided, auto-injects user learnings into the system prompt */
   brainId?: string;
+  /**
+   * Hint that the response must be valid JSON. Server forwards this to the
+   * provider's structured-output flag (Gemini responseMimeType, OpenAI
+   * response_format). Most extraction prompts (CAPTURE, ENTRY_AUDIT,
+   * COMBINED_AUDIT, etc.) should set this. Callers must still validate
+   * the parsed shape.
+   */
+  json?: boolean;
 }
 
 export async function callAI({
@@ -30,6 +38,7 @@ export async function callAI({
   max_tokens,
   memoryGuide,
   brainId,
+  json,
 }: CallAIOptions = {}): Promise<Response> {
   // Always use server-side Gemini — no user key sent so server routes to GEMINI_API_KEY
   const endpoint = `/api/llm?provider=google`;
@@ -57,6 +66,7 @@ export async function callAI({
         messages,
         system: fullSystem,
         max_tokens,
+        json,
       }),
     });
   } catch (err: any) {

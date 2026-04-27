@@ -202,7 +202,35 @@ CONFIDENCE LABELS: For each suggestion, include a "confidence" field:
 Rules:
 - Only suggest if confidence > 75%
 - If nothing to suggest in a section, use empty array
-- Max 6 items per section (entries, links, gaps)`,
+- Max 6 items per section (entries, links, gaps)
+
+## Example
+
+INPUT (3 weak entries + brain summary):
+Weak entries:
+  [a1] "Note" type=note tags=[] content="Joe Bloggs 082 111 3333 plumber fixes burst pipes"
+  [a2] "Sale" type=note tags=[] content="Sold the car for R85,000 on 15 May 2026 to Pieter at FoxTrade"
+  [a3] "Omega" type=note tags=[] content="I take Omega 3"
+Brain summary: 12 supplier entries, 4 person entries, 2 vehicle entries, 8 transaction entries, 6 reminders.
+
+OUTPUT:
+{
+  "entries": [
+    {"entryId":"a1","entryTitle":"Note","type":"TYPE_MISMATCH","field":"type","currentValue":"note","suggestedValue":"person","reason":"Named individual with phone — should be person not note","confidence":"extracted"},
+    {"entryId":"a1","entryTitle":"Note","type":"PHONE_FOUND","field":"metadata.cellphone","currentValue":"","suggestedValue":"082 111 3333","reason":"Phone number in content but missing from metadata","confidence":"extracted"},
+    {"entryId":"a2","entryTitle":"Sale","type":"TYPE_MISMATCH","field":"type","currentValue":"note","suggestedValue":"transaction","reason":"Has amount, date, party — fits transaction shape","confidence":"extracted"},
+    {"entryId":"a3","entryTitle":"Omega","type":"CONTENT_WEAK","field":"content","currentValue":"I take Omega 3","suggestedValue":"Add dosage, frequency, brand, and reason for taking it","confidence":"inferred"}
+  ],
+  "links": [],
+  "gaps": [
+    {"q":"What dosage and brand of Omega 3 are you taking?","cat":"health","p":"medium"}
+  ],
+  "concepts": [
+    {"label":"contractors","entry_ids":["a1"]},
+    {"label":"vehicle transactions","entry_ids":["a2"]}
+  ],
+  "relationships": []
+}`,
 
   /** File upload: split a document into multiple entries */
   FILE_SPLIT: `You are an AI assistant that intelligently splits uploaded document content into separate, focused OpenBrain entries. Each entry should capture ONE distinct piece of information — do NOT create long monolithic entries.
@@ -250,7 +278,26 @@ EXTRACTION RULES:
 Return ONLY a valid JSON array:
 [{"title":"...","content":"...","type":"...","icon":"SINGLE_EMOJI","metadata":{},"tags":[]}]
 
-If the content is already a single focused topic, return it as a single entry. Never return an empty array — always extract at least one entry.`,
+If the content is already a single focused topic, return it as a single entry. If the document is genuinely empty, decorative, or has no extractable information, return an empty array [] — do not invent content.
+
+## Example
+
+INPUT (a recipe document):
+"Granny's Lemon Cake — serves 8, prep 20m, bake 35m. 250g flour, 200g sugar, 3 eggs, 100ml lemon juice, zest of 2 lemons. Cream butter and sugar. Add eggs one at a time. Fold in flour. Bake at 180C for 35 min."
+
+OUTPUT (single entry — one recipe):
+[
+  {"title":"Granny's Lemon Cake","type":"recipe","icon":"🍳","content":"A traditional lemon cake serving 8. Cream butter and sugar, add eggs one at a time, fold in flour and lemon zest, bake at 180C for 35 min.","metadata":{"serves":8,"prep_time":"20m","cook_time":"35m","full_text":"Granny's Lemon Cake — serves 8, prep 20m, bake 35m. 250g flour, 200g sugar, 3 eggs, 100ml lemon juice, zest of 2 lemons. Cream butter and sugar. Add eggs one at a time. Fold in flour. Bake at 180C for 35 min."},"tags":["dessert","cake","lemon"]}
+]
+
+INPUT (a contact list with 2 entries):
+"Plumber: Joe Bloggs 082 111 3333 fixes burst pipes. Electrician: Mary Wong 071 222 4444 COC certified."
+
+OUTPUT (split — 2 distinct people):
+[
+  {"title":"Joe Bloggs","type":"person","icon":"👤","content":"Plumber. Fixes burst pipes.","metadata":{"name":"Joe Bloggs","cellphone":"082 111 3333"},"tags":["plumber","contractor"]},
+  {"title":"Mary Wong","type":"person","icon":"👤","content":"Electrician. COC certified.","metadata":{"name":"Mary Wong","cellphone":"071 222 4444"},"tags":["electrician","contractor"]}
+]`,
 
   /** contactPipeline: batch-categorize parsed contacts from a VCF import */
   CONTACT_CATEGORIZE: `You are categorizing personal contacts for a knowledge base. You receive a JSON array of contacts, each with name, company, title, and notes. For each contact in order, infer ONE category and relevant tags.

@@ -31,9 +31,11 @@ function pickAnswerText(parts: any[]): string {
 
 export const gemini: ProviderAdapter = {
   async completion(opts: CompletionOptions, config: ProviderConfig): Promise<CompletionResult> {
+    const generationConfig: Record<string, unknown> = { maxOutputTokens: opts.max_tokens || 1000 };
+    if (opts.json) generationConfig.responseMimeType = "application/json";
     const body: Record<string, any> = {
       contents: toMessages(opts.messages),
-      generationConfig: { maxOutputTokens: opts.max_tokens || 1000 },
+      generationConfig,
     };
     if (opts.system) body.systemInstruction = { parts: [{ text: opts.system.slice(0, 10000) }] };
 

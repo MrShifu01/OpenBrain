@@ -3,10 +3,12 @@ import { PROMPTS } from "../../src/config/prompts";
 
 describe("prompts", () => {
   it("exports all required prompt keys", () => {
+    // CHAT was deleted — server has its own CHAT prompt; the client copy
+    // was registered but never imported anywhere. Server-side chat goes
+    // through api/_lib/prompts.ts CHAT_AGENT instead.
     const expectedKeys = [
       "CAPTURE",
       "NUDGE",
-      "CHAT",
       "QA_PARSE",
       "FILL_BRAIN",
       "ENTRY_AUDIT",

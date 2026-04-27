@@ -162,6 +162,7 @@ export function useBackgroundCapture() {
               system: PROMPTS.CAPTURE,
               max_tokens: captureMaxTokens,
               brainId,
+              json: true,
               messages: [{ role: "user", content: input }],
             });
             const aiData = await aiRes.json();

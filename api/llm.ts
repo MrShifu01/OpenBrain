@@ -286,7 +286,7 @@ async function fetchEntryTitle(entryId: string, brainId: string): Promise<string
 
 async function handleCompletion(
   res: ApiResponse,
-  opts: { messages: any[]; max_tokens?: number; system?: string },
+  opts: { messages: any[]; max_tokens?: number; system?: string; json?: boolean },
   provider: ProviderConfig,
 ): Promise<void> {
   const adapter = getAdapter(provider.provider);
@@ -617,7 +617,7 @@ export default withAuth(
     }
 
     // Default: text completion (enrichment parsing, insight, etc.)
-    const { messages, max_tokens, system } = req.body;
+    const { messages, max_tokens, system, json } = req.body;
     if (!Array.isArray(messages) || messages.length === 0) return res.status(400).json({ error: "messages must be a non-empty array" });
     if (messages.length > 50) return res.status(400).json({ error: "Too many messages" });
     for (const msg of messages) {
@@ -631,6 +631,6 @@ export default withAuth(
 
     const provider = await resolveProvider(user.id);
     if (!provider) return res.status(402).json({ error: "no_ai_provider", message: "Add an API key in Settings or upgrade to Pro." });
-    return handleCompletion(res, { messages, max_tokens, system }, provider);
+    return handleCompletion(res, { messages, max_tokens, system, json }, provider);
   },
 );

@@ -39,6 +39,7 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
     const aiRes = await callAI({
       max_tokens: 1024,
       system: ENTRY_CONCEPTS_PROMPT,
+      json: true,
       messages: [{ role: "user", content: entryText }],
     });
     if (!aiRes.ok) {
@@ -166,6 +167,7 @@ export async function findAndSaveConnections(
     const aiRes = await callAI({
       max_tokens: 512,
       system: `You are a knowledge-graph builder. Given a NEW entry and EXISTING entries, find meaningful connections.\nRULES:\n- Only connect where a real, specific relationship exists (supplier→business, person→place, idea→business, etc.)\n- "rel" label: short phrase 2-4 words describing the relationship\n- Do NOT connect entries just because they share a type\n- Return 0–5 connections. Quality over quantity.\n- "from" = new entry ID. "to" = existing entry ID.\n- Return ONLY valid JSON array: [{"from":"...","to":"...","rel":"..."}]\n- If no connections: []`,
+      json: true,
       messages: [{ role: "user", content: newEntryText }],
     });
     if (!aiRes.ok) return;

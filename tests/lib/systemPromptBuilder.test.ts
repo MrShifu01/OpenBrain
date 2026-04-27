@@ -13,13 +13,27 @@ beforeEach(() => {
   mockGetLearnings.mockReturnValue("");
 });
 
+// Every prompt now starts with a [Context] block carrying today's date —
+// flash-lite has no internal clock and "this Friday" was extracting wrong
+// without it. Tests assert the rest of the structure around that prefix.
+const DATE_CONTEXT_RE = /^\[Context\]\nToday is \d{4}-\d{2}-\d{2} \(\w+\)\..*?\n\n/s;
+
 describe("buildSystemPrompt", () => {
-  it("returns empty string when called with no arguments", () => {
-    expect(buildSystemPrompt({})).toBe("");
+  it("always prepends [Context] with today's date", () => {
+    const result = buildSystemPrompt({ base: "anything" });
+    expect(result).toMatch(DATE_CONTEXT_RE);
   });
 
-  it("returns base unchanged when no memoryGuide or brainId", () => {
-    expect(buildSystemPrompt({ base: "You are helpful." })).toBe("You are helpful.");
+  it("returns just the date context when called with no arguments", () => {
+    const result = buildSystemPrompt({});
+    expect(result).toMatch(DATE_CONTEXT_RE);
+    // Empty base means nothing after the context block.
+    expect(result.replace(DATE_CONTEXT_RE, "")).toBe("");
+  });
+
+  it("appends base unchanged after the date context when no memoryGuide or brainId", () => {
+    const result = buildSystemPrompt({ base: "You are helpful." });
+    expect(result.replace(DATE_CONTEXT_RE, "")).toBe("You are helpful.");
   });
 
   it("prepends memory guide in Classification Guide / Task format", () => {
@@ -27,7 +41,10 @@ describe("buildSystemPrompt", () => {
       base: "Classify this.",
       memoryGuide: "Use types: note, task.",
     });
-    expect(result).toBe("[Classification Guide]\nUse types: note, task.\n\n[Task]\nClassify this.");
+    // Guide wraps the context-prefixed task. Stripping the context from
+    // inside the [Task] block leaves the original base.
+    expect(result.startsWith("[Classification Guide]\nUse types: note, task.\n\n[Task]\n[Context]\n")).toBe(true);
+    expect(result.endsWith("Classify this.")).toBe(true);
   });
 
   it("appends learnings block when brainId is provided and learnings exist", () => {
@@ -50,7 +67,7 @@ describe("buildSystemPrompt", () => {
       brainId: "brain-1",
       withLearnings: true,
     });
-    expect(result).toBe("Do something.");
+    expect(result.replace(DATE_CONTEXT_RE, "")).toBe("Do something.");
     expect(result).not.toContain("LEARNING CONTEXT");
   });
 

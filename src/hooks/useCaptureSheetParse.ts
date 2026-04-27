@@ -265,12 +265,15 @@ export function useCaptureSheetParse({
       try {
         const hasFiles = uploadedFiles.length > 0;
         const hasMultipleFiles = uploadedFiles.length > 1;
-        const todayISO = new Date().toISOString().slice(0, 10);
         const basePrompt = hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE;
         const res = await callAI({
-          system: `Today's date is ${todayISO}.\n\n${basePrompt}`,
+          // Today's date is injected centrally by buildSystemPrompt — no need
+          // to prepend it here. JSON mode forces Gemini's structured output
+          // so the response doesn't arrive wrapped in markdown.
+          system: basePrompt,
           max_tokens: 4000,
           brainId,
+          json: true,
           messages: [{ role: "user", content: input }],
         });
         const data = await res.json();

@@ -10,6 +10,13 @@ export interface CompletionOptions {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   max_tokens?: number;
   system?: string;
+  /**
+   * Hint that the response must be valid JSON. Adapters set provider-native
+   * structured-output flags (Gemini responseMimeType, OpenAI response_format,
+   * Anthropic prefill). Callers must still validate the parsed shape — this
+   * is a hint, not a guarantee.
+   */
+  json?: boolean;
 }
 
 export interface CompletionResult {
