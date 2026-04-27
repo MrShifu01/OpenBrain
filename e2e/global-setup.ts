@@ -113,6 +113,11 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
       // pick the right email up immediately, before the auth state effect
       // gets a chance to run.
       localStorage.setItem("everion_email", emailValue);
+      // Pre-decline the analytics consent banner. Without this it sits
+      // pinned to the bottom of the viewport and intercepts pointer
+      // events on the floating capture pill (and anything else in the
+      // bottom-right). No spec exercises the banner itself.
+      localStorage.setItem("everion_analytics_consent", "declined");
     },
     [storageKey, JSON.stringify(supabaseSession), email],
   );
