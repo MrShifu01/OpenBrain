@@ -15,10 +15,57 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <!--
+      Google Fonts CSS: load async so it doesn't block first paint. The
+      print/onload swap is the standard pattern — browser still respects
+      `display=swap` once the stylesheet arrives. The <noscript> mirror
+      keeps it working with JS disabled.
+    -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" /></noscript>
+    <!--
+      Inline app-shell shown on the first paint, before main.tsx parses.
+      React replaces #root.children once it mounts, so this disappears
+      naturally. Goal: something on screen at ~500ms instead of white
+      until 4-5s on a cold cell connection. No external assets — must
+      not introduce another network request to fix a network problem.
+    -->
+    <style>
+      html, body { margin: 0; background: #0e0e0e; color: #f0ede6; }
+      .app-shell-boot {
+        position: fixed; inset: 0; display: flex;
+        align-items: center; justify-content: center;
+        flex-direction: column; gap: 24px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: #0e0e0e;
+      }
+      .app-shell-boot__brand {
+        font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+        color: #f0ede6; opacity: 0.92;
+      }
+      .app-shell-boot__bar {
+        width: 96px; height: 1px; border-radius: 999px;
+        background: rgba(240, 237, 230, 0.12); overflow: hidden;
+      }
+      .app-shell-boot__bar::after {
+        content: ""; display: block; width: 50%; height: 100%;
+        background: #c97a3c; border-radius: 999px;
+        animation: app-shell-sweep 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      @keyframes app-shell-sweep {
+        0%   { transform: translateX(-100%); }
+        100% { transform: translateX(200%); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-shell-boot" aria-hidden="true">
+        <div class="app-shell-boot__brand">Everion Mind</div>
+        <div class="app-shell-boot__bar"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

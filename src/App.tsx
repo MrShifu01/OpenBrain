@@ -1,19 +1,23 @@
-import { useState, useEffect, type JSX } from "react";
+import { useState, useEffect, lazy, Suspense, type JSX } from "react";
 import { supabase } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
-import Everion from "./Everion";
 import LoginScreen from "./LoginScreen";
 import Landing from "./views/Landing";
-import AdminView from "./views/AdminView";
-import ResetPasswordView from "./views/ResetPasswordView";
 import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
 import UpdateToast from "./components/UpdateToast";
 import type { Session } from "@supabase/auth-js";
+
+// Heavy code paths a first-paint visitor almost never hits — keep them out
+// of the main bundle. Everion is the signed-in shell (most of the app).
+// AdminView and ResetPasswordView are rare routes.
+const Everion = lazy(() => import("./Everion"));
+const AdminView = lazy(() => import("./views/AdminView"));
+const ResetPasswordView = lazy(() => import("./views/ResetPasswordView"));
 
 const PENDING_INVITE_KEY = "ob_pending_invite";
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
@@ -251,7 +255,9 @@ export default function App(): JSX.Element {
   if (showResetPassword)
     return (
       <ThemeProvider>
-        <ResetPasswordView onDone={() => setShowResetPassword(false)} />
+        <Suspense fallback={<LoadingScreen />}>
+          <ResetPasswordView onDone={() => setShowResetPassword(false)} />
+        </Suspense>
       </ThemeProvider>
     );
 
@@ -265,7 +271,9 @@ export default function App(): JSX.Element {
     }
     return (
       <ThemeProvider>
-        <AdminView />
+        <Suspense fallback={<LoadingScreen />}>
+          <AdminView />
+        </Suspense>
       </ThemeProvider>
     );
   }
@@ -294,7 +302,9 @@ export default function App(): JSX.Element {
               {inviteMsg}
             </div>
           )}
-          <Everion initialShowCapture={earlyCapture} />
+          <Suspense fallback={<LoadingScreen />}>
+            <Everion initialShowCapture={earlyCapture} />
+          </Suspense>
           <UpdateToast />
         </MemoryProvider>
       </ErrorBoundary>
