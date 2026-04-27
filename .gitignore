@@ -59,3 +59,6 @@ test-results/
 playwright-report/
 /blob-report/
 /.playwright/
+
+# Lighthouse audit reports — large HTML, regenerated on demand
+.lighthouse/

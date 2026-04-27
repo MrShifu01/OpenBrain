@@ -16,7 +16,8 @@
     "knip": "knip",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\"",
-    "audit:prompts": "tsx scripts/mock-prompt-audit/analyse.ts"
+    "audit:prompts": "tsx scripts/mock-prompt-audit/analyse.ts",
+    "lighthouse": "tsx scripts/lighthouse.ts"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
@@ -25,6 +26,7 @@
     "@supabase/postgrest-js": "^2.102.1",
     "@supabase/realtime-js": "^2.18.1",
     "@tanstack/react-virtual": "^3.13.23",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "chrono-node": "^2.9.0",
     "clsx": "^2.1.1",
@@ -73,6 +75,7 @@
     "globals": "^17.4.0",
     "jsdom": "^29.0.2",
     "knip": "^6.4.0",
+    "lighthouse": "^13.1.0",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "shadcn": "^4.2.0",

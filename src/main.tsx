@@ -1,6 +1,7 @@
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SpeedInsights } from "@vercel/speed-insights/react";
+import { Analytics } from "@vercel/analytics/react";
 import * as Sentry from "@sentry/react";
 import "./index.css";
 import App from "./App";
@@ -60,6 +61,7 @@ function Root() {
     <>
       <App />
       {consent === "accepted" && <SpeedInsights />}
+      {consent === "accepted" && <Analytics />}
       {consent === null && <ConsentBanner onDecision={handleDecision} />}
     </>
   );
