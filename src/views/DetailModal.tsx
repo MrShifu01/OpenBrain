@@ -167,8 +167,8 @@ No explanation, no punctuation, just one word.`,
           setAiMsg({ text: `✓ ${word} · ${usedModel}`, ok: true });
         }
       } else {
-        const errData = await res.json().catch(() => ({}));
-        setAiMsg({ text: (errData as any)?.error || `HTTP ${res.status}`, ok: false });
+        const errData: { error?: string } = await res.json().catch(() => ({}));
+        setAiMsg({ text: errData?.error || `HTTP ${res.status}`, ok: false });
       }
     } catch (err: any) {
       setAiMsg({ text: err?.message || "Request failed", ok: false });
@@ -188,9 +188,9 @@ No explanation, no punctuation, just one word.`,
     toggleExtraBrain: _toggleExtraBrain,
   } = useEntryEdit({ entry, editing, onUpdate, onTypeIconChange, brains });
   const isSecret = entry.type === "secret";
-  const isPinned = !!(entry as any).pinned;
+  const isPinned = !!entry.pinned;
   const isContact = entry.type === "contact" || entry.type === "person";
-  const isGmailEntry = entry.type === "gmail-flag" || (entry.metadata as any)?.source === "gmail";
+  const isGmailEntry = entry.type === "gmail-flag" || entry.metadata?.source === "gmail";
 
   async function handleIgnoreEmail() {
     setIgnoringEmail(true);
@@ -200,9 +200,9 @@ No explanation, no punctuation, just one word.`,
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          subject: (entry.metadata as any)?.gmail_subject,
-          from: (entry.metadata as any)?.gmail_from,
-          email_type: (entry.metadata as any)?.email_type,
+          subject: entry.metadata?.gmail_subject,
+          from: entry.metadata?.gmail_from,
+          email_type: entry.metadata?.email_type,
           content_preview: entry.content?.slice(0, 300),
         }),
       });
@@ -408,7 +408,11 @@ No explanation, no punctuation, just one word.`,
           />
           <span className="f-sans" style={{ fontSize: 13, color: "var(--ink-faint)" }}>
             {(() => {
-              const iso = (entry as any).created_at || (entry as any).createdAt;
+              // Some legacy rows have camelCase `createdAt` instead of the
+              // canonical snake_case `created_at` — accept either.
+              const iso =
+                entry.created_at ||
+                (entry as Entry & { createdAt?: string }).createdAt;
               if (!iso) return "";
               const then = new Date(iso).getTime();
               const diff = mountedAt - then;
@@ -997,9 +1001,12 @@ No explanation, no punctuation, just one word.`,
 
                   {/* Concepts — ember-wash chips under a CONCEPTS micro label */}
                   {(() => {
-                    const rawConcepts =
-                      ((entry.metadata as any)?.concepts as unknown) ??
-                      (entry as any).concepts ??
+                    // Concepts can live on metadata.concepts (canonical) or
+                    // entry.concepts (legacy graph-extractor output that was
+                    // written to the entry root before the metadata move).
+                    const rawConcepts: unknown =
+                      entry.metadata?.concepts ??
+                      (entry as Entry & { concepts?: unknown }).concepts ??
                       [];
                     const concepts = Array.isArray(rawConcepts)
                       ? rawConcepts.filter((c) => typeof c === "string")

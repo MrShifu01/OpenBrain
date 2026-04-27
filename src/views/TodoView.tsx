@@ -632,10 +632,60 @@ export default function TodoView({ entries: propEntries, typeIcons = {}, activeB
               )}
 
               {todayTotal === 0 && todoList.length === 0 && completed.length === 0 && (
-                <div className="mt-8 flex flex-col items-center justify-center py-16 text-center">
-                  <div className="mb-4" style={{ fontSize: 40, opacity: 0.3 }}>☑</div>
-                  <p className="mb-1 text-lg font-semibold" style={{ fontFamily: "var(--f-sans)", color: "var(--ink)" }}>All clear</p>
-                  <p className="max-w-xs text-sm" style={{ color: "var(--ink-faint)" }}>Add todos above, or they'll appear automatically when entries have due dates.</p>
+                <div className="mt-8 flex flex-col items-center justify-center gap-4 py-16 text-center">
+                  <div
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: "50%",
+                      background: "var(--ember-wash)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                      style={{ color: "var(--ember)" }}
+                      aria-hidden="true"
+                    >
+                      <path d="M9 11l3 3 7-7" />
+                      <path d="M21 12a9 9 0 1 1-9-9" />
+                    </svg>
+                  </div>
+                  <h2
+                    className="f-serif"
+                    style={{
+                      fontSize: 24,
+                      fontWeight: 400,
+                      letterSpacing: "-0.01em",
+                      color: "var(--ink)",
+                      margin: 0,
+                    }}
+                  >
+                    All clear.
+                  </h2>
+                  <p
+                    className="f-serif"
+                    style={{
+                      fontSize: 15,
+                      fontStyle: "italic",
+                      color: "var(--ink-soft)",
+                      margin: 0,
+                      maxWidth: 360,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Add a todo above, or capture an entry with a date and it'll
+                    show up here automatically.
+                  </p>
                 </div>
               )}
             </div>

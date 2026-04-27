@@ -69,6 +69,16 @@ interface EntryMetadata {
   ai_insight?: string;
   ai_insight_short?: string;
   full_text?: string;
+  // Provenance — what created this entry (gmail-scan, manual capture, etc).
+  // DetailModal branches on `source === "gmail"` to surface the "ignore email"
+  // affordance.
+  source?: string;
+  gmail_subject?: string;
+  gmail_from?: string;
+  email_type?: string;
+  // Extracted concepts (graph nodes). Read-only on the client; the brain
+  // graph extractor on the server populates this.
+  concepts?: string[];
   [key: string]: unknown;
 }
 

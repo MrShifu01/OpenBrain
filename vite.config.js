@@ -83,6 +83,28 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,ico,png,svg}'],
+        // Exclude heavy lazy chunks from the precache. These are
+        // dynamic-imported only when a user actually uses the feature
+        // (PDF capture, .xlsx import, GraphView, AdminTab). Including
+        // them would force a 3+ MB background download on every first
+        // visit — punishing cellular users for features they may never
+        // open. Workbox falls back to network on demand for these.
+        // Sentry is consent-gated; precaching it would download the SDK
+        // even for users who decline analytics.
+        globIgnores: [
+          '**/exceljs.min-*.{js,mjs}',
+          '**/pdf-*.{js,mjs}',
+          '**/pdf.worker-*.{js,mjs}',
+          '**/jszip.min-*.{js,mjs}',
+          '**/nlpParser-*.{js,mjs}',
+          '**/AdminTab-*.{js,mjs}',
+          '**/GraphView-*.{js,mjs}',
+          '**/sentry-*.{js,mjs}',
+        ],
+        // Vite-pwa's default cap is 2 MB — pdf.worker is 2.2 MB raw, which
+        // would warn even after we ignore it. Dropping the limit slightly
+        // is fine because the ignored set is now under any one-file cap.
+        maximumFileSizeToCacheInBytes: 1_500_000,
       },
     }),
   ],

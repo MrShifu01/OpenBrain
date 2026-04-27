@@ -550,13 +550,26 @@ select:focus-visible {
   outline: none !important;
 }
 
-/* ── Reduced motion ── */
+/* ── Reduced motion ──
+   Honor the OS-level "reduce motion" preference (System Settings →
+   Accessibility on macOS / iOS, "Show animations" toggle on Windows /
+   Android). Vestibular sensitivity is real for ~10% of users — a sliding
+   capture sheet or zoom-in modal can trigger nausea or dizziness.
+
+   We don't fully disable animations (which would feel broken) — we shrink
+   them to ~zero duration so they "snap" rather than slide. iteration-count:1
+   stops infinite animations (shimmer, pulse). scroll-behavior:auto disables
+   smooth-scroll-into-view, which is a separate vestibular trigger. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
