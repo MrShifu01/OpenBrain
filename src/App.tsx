@@ -2,6 +2,7 @@ import { useState, useEffect, type JSX } from "react";
 import { supabase } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
+import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
 import Everion from "./Everion";
 import LoginScreen from "./LoginScreen";
 import Landing from "./views/Landing";
@@ -115,7 +116,10 @@ export default function App(): JSX.Element {
     supabase.auth
       .getSession()
       .then(async ({ data: { session } }) => {
-        if (session?.user?.id) await loadSettings(session.user.id);
+        if (session?.user?.id) {
+          await loadSettings(session.user.id);
+          identifyPostHogUser(session.user.id, session.user.email ?? "");
+        }
         setSession(session);
       })
       .catch(async () => {
@@ -128,7 +132,14 @@ export default function App(): JSX.Element {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_e, session) => {
-      if (session?.user?.id) await loadSettings(session.user.id);
+      if (session?.user?.id) {
+        await loadSettings(session.user.id);
+        identifyPostHogUser(session.user.id, session.user.email ?? "");
+      } else {
+        // Sign-out — drop the PostHog session so a shared device doesn't
+        // merge two users' behaviour into one identified profile.
+        resetPostHog();
+      }
       setSession(session);
     });
     return () => subscription.unsubscribe();

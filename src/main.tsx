@@ -10,6 +10,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import PrivacyPolicy from "./views/PrivacyPolicy";
 import TermsOfService from "./views/TermsOfService";
 import { ConsentBanner, getConsentDecision } from "./components/ConsentBanner";
+import { initPostHog } from "./lib/posthog";
 
 // Paint the correct design family class on <html> before React mounts so the
 // first frame uses the right theme tokens.
@@ -24,7 +25,10 @@ function initSentry() {
 }
 
 // Init immediately if user already consented in a previous session
-if (getConsentDecision() === "accepted") initSentry();
+if (getConsentDecision() === "accepted") {
+  initSentry();
+  initPostHog();
+}
 
 // When a new service worker takes control (after skipWaiting), reload so the
 // fresh chunks are served instead of the stale cached ones.
@@ -40,7 +44,10 @@ function Root() {
   const [consent, setConsent] = useState(() => getConsentDecision());
 
   function handleDecision(decision: "accepted" | "declined") {
-    if (decision === "accepted") initSentry();
+    if (decision === "accepted") {
+      initSentry();
+      initPostHog();
+    }
     setConsent(decision);
   }
 
