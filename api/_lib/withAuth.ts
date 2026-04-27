@@ -31,7 +31,7 @@ export interface HandlerContext {
   req_id: string;
 }
 
-export interface WithAuthOptions {
+interface WithAuthOptions {
   /** HTTP methods allowed (default ["POST"]). Request with other methods → 405. */
   methods?: string[];
   /**
@@ -116,7 +116,7 @@ export async function requireBrainAccess(userId: string, brainId: string | undef
 // Used by endpoints authenticated via em_* personal API keys (v1, mcp, etc.)
 // where the "identity" is (userId, keyId, brainId) rather than a Supabase user.
 
-export interface ApiKeyContext {
+interface ApiKeyContext {
   req: ApiRequest;
   res: ApiResponse;
   auth: { userId: string; keyId: string; brainId: string };

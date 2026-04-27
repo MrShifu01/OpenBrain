@@ -1,7 +1,7 @@
 import type { ProviderConfig, ChatStep, ToolSpec } from "./types.js";
 import { getAdapter } from "./select.js";
 
-export interface ChatRunnerResult {
+interface ChatRunnerResult {
   ok: boolean;
   status: number;
   reply?: string;
@@ -20,7 +20,7 @@ export interface ConfirmPolicy {
   defaultConfirmText: (toolName: string) => string;
 }
 
-export interface ChatRunnerOptions {
+interface ChatRunnerOptions {
   config: ProviderConfig;
   system: string;
   tools: ToolSpec[];

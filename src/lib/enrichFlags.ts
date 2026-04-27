@@ -11,7 +11,7 @@
 
 import type { Entry } from "../types";
 
-export interface EnrichmentFlags {
+interface EnrichmentFlags {
   parsed: boolean;
   has_insight: boolean;
   concepts_extracted: boolean;
@@ -32,12 +32,6 @@ export function flagsOf(entry: Entry): EnrichmentFlags {
     embedding_status: embeddingStatus,
     backfilled: !!enr.backfilled_at,
   };
-}
-
-export function isFullyEnriched(entry: Entry): boolean {
-  if (entry.type === "secret") return true;
-  const f = flagsOf(entry);
-  return f.parsed && f.has_insight && f.concepts_extracted && f.embedded;
 }
 
 export function isPendingEnrichment(entry: Entry): boolean {

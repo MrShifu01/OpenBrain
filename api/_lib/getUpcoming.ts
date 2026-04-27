@@ -11,14 +11,14 @@ import { sbHeadersNoContent } from "./sbHeaders.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 
-export const UPCOMING_DATE_FIELDS = [
+const UPCOMING_DATE_FIELDS = [
   "due_date",
   "deadline",
   "expiry_date",
   "event_date",
 ] as const;
 
-export interface UpcomingEntry {
+interface UpcomingEntry {
   id: string;
   title: string | null;
   type: string | null;
@@ -30,7 +30,7 @@ export interface UpcomingEntry {
   _date_field: (typeof UPCOMING_DATE_FIELDS)[number];
 }
 
-export interface UpcomingResult {
+interface UpcomingResult {
   entries: UpcomingEntry[];
   days: number;
   from: string;

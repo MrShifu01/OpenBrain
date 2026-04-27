@@ -115,11 +115,6 @@ export function mergeGraph(existing: ConceptGraph, incoming: ConceptGraph): Conc
   return { concepts: [...conceptMap.values()], relationships: [...relMap.values()] };
 }
 
-/** Get all concepts that reference a given entry */
-export function getConceptsForEntry(graph: ConceptGraph, entryId: string): Concept[] {
-  return graph.concepts.filter((c) => c.source_entries.includes(entryId));
-}
-
 /** Get top N concepts by degree (number of relationships) — "god nodes" */
 export function getGodNodes(graph: ConceptGraph, topN = 10, filter?: Set<string>): Concept[] {
   const GENERIC = new Set(["note", "task", "item", "thing", "entry", "other", "general"]);

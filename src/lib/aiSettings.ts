@@ -247,7 +247,7 @@ export function isAIConfigured(): boolean {
 
 // ── Singleton interface ──────────────────────────────────────────────────────
 
-export interface AISnapshot {
+interface AISnapshot {
   groqKey: string | null;
   geminiKey: string | null;
   anthropicKey: string | null;
@@ -265,7 +265,7 @@ export interface AISnapshot {
   isLoaded: boolean;
 }
 
-export interface AISettingsPatch {
+interface AISettingsPatch {
   groq_key?: string | null;
   gemini_key?: string | null;
   anthropic_key?: string | null;

@@ -35,9 +35,9 @@ import {
 } from "react";
 import { TASK_RUNNERS, type TaskHelpers } from "../lib/backgroundTaskRegistry";
 
-export type OpStatus = "running" | "done" | "error";
+type OpStatus = "running" | "done" | "error";
 
-export interface OpTask {
+interface OpTask {
   id: string;
   kind: string;          // looks up the runner in TASK_RUNNERS
   label: string;         // user-facing

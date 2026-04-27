@@ -15,7 +15,7 @@ const SB_HEADERS: Record<string, string> = {
 const GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash-lite").trim();
 const REBUILD_DEBOUNCE_MS = 10 * 60 * 1000; // 10 minutes
 
-export interface RetrievedEntry {
+interface RetrievedEntry {
   id: string;
   title: string;
   content: string;
@@ -27,7 +27,7 @@ export interface RetrievedEntry {
   _score: number;
 }
 
-export interface RetrievalResult {
+interface RetrievalResult {
   entries: RetrievedEntry[];
   concepts: Array<{ name: string; description?: string }>;
 }

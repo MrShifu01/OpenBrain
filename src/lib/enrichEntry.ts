@@ -3,7 +3,7 @@ import type { Entry } from "../types";
 import { SKIP_META_KEYS } from "./entryConstants";
 import { aiSettings } from "./aiSettings";
 
-export interface EnrichError {
+interface EnrichError {
   step: string;
   message: string;
 }
@@ -37,30 +37,6 @@ function mergeEnrichmentFlags(
 ): Record<string, unknown> {
   const existing = (entry.metadata as any)?.enrichment ?? {};
   return { ...(entry.metadata ?? {}), enrichment: { ...existing, ...patch } };
-}
-
-export function isFullyEnriched(
-  entry: Entry,
-  _allEntries: Entry[],
-  entryIdsWithConcepts?: Set<string>,
-): boolean {
-  const f = readFlags(entry);
-  const hasConcepts = f.concepts || (entryIdsWithConcepts?.has(entry.id) ?? false);
-  return f.embedded && hasConcepts && f.insight && f.parsed;
-}
-
-export function getEnrichmentGaps(
-  entry: Entry,
-  _allEntries: Entry[],
-  entryIdsWithConcepts?: Set<string>,
-): string[] {
-  const f = readFlags(entry);
-  const gaps: string[] = [];
-  if (!f.embedded) gaps.push("embedding");
-  if (!f.concepts && !(entryIdsWithConcepts?.has(entry.id) ?? false)) gaps.push("concepts");
-  if (!f.insight) gaps.push("insight");
-  if (!f.parsed) gaps.push("parsed");
-  return gaps;
 }
 
 /**

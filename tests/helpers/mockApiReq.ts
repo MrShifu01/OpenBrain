@@ -15,7 +15,7 @@
 import { Readable } from "stream";
 import { vi } from "vitest";
 
-export interface MockReqOptions {
+interface MockReqOptions {
   method?: string;
   query?: Record<string, string>;
   headers?: Record<string, string>;

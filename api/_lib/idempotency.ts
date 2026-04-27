@@ -31,7 +31,7 @@ export function normalizeIdempotencyKey(raw: unknown): string | null {
   return key;
 }
 
-export type ReserveResult =
+type ReserveResult =
   | { kind: "reserved" }                       // we won the slot — caller proceeds with insert
   | { kind: "replay"; entryId: string }        // duplicate — caller returns this entry
   | { kind: "in_flight" };                     // peer reserved the slot but hasn't finalised yet

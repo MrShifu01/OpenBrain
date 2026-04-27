@@ -2,9 +2,9 @@ import { useState, useEffect, Fragment } from "react";
 import { hasAIAccess } from "../lib/aiSettings";
 import type { Entry } from "../types";
 
-export const SUGGESTIONS_TTL = 86_400_000; // 24 h
+const SUGGESTIONS_TTL = 86_400_000; // 24 h
 
-export function cacheKey(brainId: string | undefined) {
+function cacheKey(brainId: string | undefined) {
   return `everion_chat_suggestions_${brainId ?? "default"}`;
 }
 
@@ -65,7 +65,7 @@ export const TOOL_LABELS: Record<string, string> = {
   delete_entry: "deleted entry",
 };
 
-export const RICH_PATTERN =
+const RICH_PATTERN =
   /(\+\d[\d\s-]{8,13}\d|\b0\d{9}\b|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|https?:\/\/[^\s<>]+)/g;
 
 const PHONE_RE = /(\+\d[\d\s-]{8,13}\d|\b0\d{9}\b)/;
@@ -83,7 +83,7 @@ export function firstEmail(text: string): string | null {
   return m ? m[0] : null;
 }
 
-export function renderRichText(text: string): React.ReactNode[] {
+function renderRichText(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
@@ -144,7 +144,7 @@ export function renderRichText(text: string): React.ReactNode[] {
   return parts;
 }
 
-export function renderInline(text: string, baseKey: number): React.ReactNode {
+function renderInline(text: string, baseKey: number): React.ReactNode {
   const segments = text.split(/(\*\*[^*\n]+\*\*)/g);
   if (segments.length === 1) return <>{renderRichText(text)}</>;
   return (

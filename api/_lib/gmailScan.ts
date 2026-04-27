@@ -196,7 +196,7 @@ const SB_HEADERS = {
 
 // ── OAuth token refresh ─────────────────────────────────────────────────────
 
-export async function refreshGmailToken(integration: any): Promise<string | null> {
+async function refreshGmailToken(integration: any): Promise<string | null> {
   const currentAccessToken = decryptToken(integration.access_token ?? "");
   if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000)) {
     return currentAccessToken;
@@ -878,7 +878,7 @@ async function upsertGmailContact(
 
 // ── Types exposed to callers ────────────────────────────────────────────────
 
-export interface ScanResultItem {
+interface ScanResultItem {
   entryId: string;
   groupIds: string[];          // all entry IDs in the sender group (thread-level)
   groupCount: number;          // number of threads from this sender in the scan
@@ -894,7 +894,7 @@ export interface ScanResultItem {
   relevanceScore: number;
 }
 
-export interface ScanDebug {
+interface ScanDebug {
   sinceDate: string;
   totalGmailCount: number;
   emailsFetched: number;
@@ -1219,7 +1219,7 @@ function groupBySender(items: ScanResultItem[]): ScanResultItem[] {
 
 // ── Public: deep (cursor-paged) scan — used for historical back-fill ────────
 
-export interface DeepScanResult {
+interface DeepScanResult {
   nextCursor: string | null;
   processed: number;
   created: number;

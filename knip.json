@@ -12,12 +12,15 @@
     "e2e/**",
     "playwright.config.ts"
   ],
+  "ignoreDependencies": [
+    "@fontsource-variable/geist",
+    "tw-animate-css",
+    "tailwindcss",
+    "shadcn"
+  ],
   "entry": [
-    "src/main.tsx",
-    "src/sw.js",
     "api/*.ts",
-    "vite.config.js",
-    "eslint.config.js",
+    "src/sw.js",
     "sheriff.config.ts",
     "tests/**/*.test.{ts,tsx}",
     "scripts/**/*.ts"

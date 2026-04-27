@@ -17,7 +17,7 @@ export interface TaskHelpers {
   setLabel: (label: string) => void;
 }
 
-export type TaskRunner = (resumeKey: string, helpers: TaskHelpers) => Promise<string>;
+type TaskRunner = (resumeKey: string, helpers: TaskHelpers) => Promise<string>;
 
 // authFetch with one retry on network error — covers Safari's "Load failed"
 // when a resumed task fires before the network/auth is fully warm. Server

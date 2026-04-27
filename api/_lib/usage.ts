@@ -1,6 +1,6 @@
 import { sbHeaders } from "./sbHeaders.js";
 
-export type UsageAction = "captures" | "chats" | "voice" | "improve";
+type UsageAction = "captures" | "chats" | "voice" | "improve";
 
 const LIMITS: Record<string, Record<UsageAction, number>> = {
   starter: { captures: 500,  chats: 200,  voice: 20,  improve: 20       },

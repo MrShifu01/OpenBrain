@@ -1,10 +1,10 @@
 import * as chrono from "chrono-node";
 import { format } from "date-fns";
 
-export type ParsedPriority = "p1" | "p2" | "p3" | "p4" | null;
-export type ParsedEnergy = "low" | "medium" | "high" | null;
+type ParsedPriority = "p1" | "p2" | "p3" | "p4" | null;
+type ParsedEnergy = "low" | "medium" | "high" | null;
 
-export interface ParseResult {
+interface ParseResult {
   cleanTitle: string;
   dueDate: string | null; // yyyy-MM-dd
   dayOfMonth: number | null; // 1–31, for monthly recurring

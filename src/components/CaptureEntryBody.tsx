@@ -11,18 +11,18 @@ import {
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
-export interface UploadedFile {
+interface UploadedFile {
   name: string;
 }
 
-export interface EntryStatusInfo {
+interface EntryStatusInfo {
   status: string | null;
   errorDetail: string | null;
   fileParseError: string | null;
   statusLabel: Record<string, string>;
 }
 
-export interface EntryActionHandlers {
+interface EntryActionHandlers {
   onSave: () => void;
   onStartVoice: () => void;
   onToggleVault: () => void;

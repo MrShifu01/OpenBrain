@@ -27,9 +27,9 @@ const SB_URL = (process.env.SUPABASE_URL || "").trim();
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
 const GEMINI_MODEL = (process.env.GEMINI_PERSONA_EXTRACTOR_MODEL || "gemini-2.5-flash-lite").trim();
 
-export type PersonaBucket = "identity" | "family" | "habit" | "preference" | "event";
+type PersonaBucket = "identity" | "family" | "habit" | "preference" | "event";
 
-export interface ExtractedFact {
+interface ExtractedFact {
   fact: string;          // third-person, ≤200 chars
   bucket: PersonaBucket;
   confidence: number;    // 0–1

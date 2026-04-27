@@ -10,7 +10,7 @@
  * format is actually uploaded.
  */
 
-export type ExtractSource =
+type ExtractSource =
   | "pdfjs"
   | "mammoth"
   | "exceljs"
@@ -18,7 +18,7 @@ export type ExtractSource =
   | "html"
   | "csv";
 
-export interface ExtractResult {
+interface ExtractResult {
   text: string;
   source: ExtractSource;
 }

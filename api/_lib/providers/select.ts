@@ -13,7 +13,7 @@ export interface UserAISettings {
   gemini_byok_model?: string | null;
 }
 
-export interface ManagedGeminiOptions {
+interface ManagedGeminiOptions {
   key: string;
   starterModel: string;
   starterChatModel: string;
@@ -21,7 +21,7 @@ export interface ManagedGeminiOptions {
   proChatModel: string;
 }
 
-export interface SelectOptions {
+interface SelectOptions {
   forChat?: boolean;
   managed?: ManagedGeminiOptions;
   sanitizeGeminiModel?: (m: string | null | undefined) => string;

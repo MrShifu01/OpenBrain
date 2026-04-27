@@ -171,7 +171,7 @@ async function execSet(args: Record<string, any>, userId: string): Promise<unkno
   return { ok: true, field, value };
 }
 
-export async function execAddFact(
+async function execAddFact(
   args: Record<string, any>,
   userId: string,
   brainId: string,

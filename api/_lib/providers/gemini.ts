@@ -111,8 +111,3 @@ export async function extractFile(
   return { ok: true, status: 200, text: pickAnswerText(xParts) };
 }
 
-export function messagesToGeminiContents(
-  messages: Array<{ role: "user" | "assistant"; content: string }>,
-): Array<{ role: string; parts: Array<{ text: string }> }> {
-  return toMessages(messages);
-}

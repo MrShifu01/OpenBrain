@@ -19,7 +19,7 @@ export interface AICall {
   baseUrl?: string;
 }
 
-export interface AICallOpts {
+interface AICallOpts {
   /** Hard cap on output tokens. Adapter applies provider-specific defaults. */
   maxTokens?: number;
   /**
