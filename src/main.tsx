@@ -12,6 +12,7 @@ import PrivacyPolicy from "./views/PrivacyPolicy";
 import TermsOfService from "./views/TermsOfService";
 import NotFound from "./views/NotFound";
 import { ConsentBanner, getConsentDecision } from "./components/ConsentBanner";
+import UpdatePrompt from "./components/UpdatePrompt";
 import { initPostHog } from "./lib/posthog";
 
 // Paint the correct design family class on <html> before React mounts so the
@@ -84,6 +85,7 @@ function Root() {
       {consent === "accepted" && <SpeedInsights />}
       {consent === "accepted" && <Analytics />}
       {consent === null && <ConsentBanner onDecision={handleDecision} />}
+      <UpdatePrompt />
     </>
   );
 }

@@ -156,6 +156,12 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
 
 async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+  // IP-based limit on the OAuth bootstrap. Both initiate (302 to Google) and
+  // callback (token exchange + DB write) hit external services and writes;
+  // unbounded grinding would burn Google quota and pollute integrations.
+  if (!(await rateLimit(req, 30, 60_000, "gmail-auth"))) {
+    return void res.status(429).json({ error: "Too many requests" });
+  }
   const { provider, code } = req.query as Record<string, string>;
   if (provider !== "google") return res.status(400).json({ error: "Only google provider supported" });
   if (code) return callbackGoogle(req, res);
@@ -183,7 +189,11 @@ async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
 // outside the wrapper because it has its own queryToken-based bootstrap and a
 // 302 redirect response that doesn't fit withAuth.
 const authedHandler = withAuth(
-  { methods: ["GET", "POST", "PUT", "DELETE"], rateLimit: false },
+  // Outer baseline 60/min catches the cheap actions (GET integration, PUT
+  // preferences, POST ignore, DELETE) that don't have inner action-specific
+  // limits. Expensive actions (scan: 5/min, deep-scan: 3/min) still throttle
+  // tighter inside the handler.
+  { methods: ["GET", "POST", "PUT", "DELETE"], rateLimit: 60 },
   async ({ req, res, user }) => {
     const action = (req.query.action as string) ?? "";
 

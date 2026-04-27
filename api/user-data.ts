@@ -618,7 +618,7 @@ const handleApiKeys = withAuth(
 
 // ── /api/notification-prefs (rewritten to /api/user-data?resource=prefs) ──
 const handleNotificationPrefs = withAuth(
-  { methods: ["GET", "POST"], rateLimit: false },
+  { methods: ["GET", "POST"], rateLimit: 30 },
   async ({ req, res, user }) => {
     const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
 
@@ -651,7 +651,7 @@ const handleNotificationPrefs = withAuth(
 
 // ── /api/push-subscribe (rewritten to /api/user-data?resource=push) ──
 const handlePushSubscribe = withAuth(
-  { methods: ["POST", "DELETE"], rateLimit: false },
+  { methods: ["POST", "DELETE"], rateLimit: 20 },
   async ({ req, res, user }) => {
     const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
     const getRes = await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, { headers: adminHdrs });

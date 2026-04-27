@@ -418,6 +418,19 @@ function EverionContent({
                         >
                           Remember something.
                         </p>
+                        <p
+                          className="f-sans"
+                          style={{
+                            fontSize: 13,
+                            color: "var(--ink-faint)",
+                            margin: 0,
+                            maxWidth: 380,
+                            lineHeight: 1.55,
+                          }}
+                        >
+                          A name, a thought, a link, a voice note. Everion
+                          organises and surfaces it later when it matters.
+                        </p>
                         <button
                           onClick={() => appShell.setShowCapture(true)}
                           className="design-btn-primary press"
