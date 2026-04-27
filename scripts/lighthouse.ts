@@ -47,7 +47,7 @@ interface RunResult {
   htmlPath: string;
 }
 
-async function audit(preset: Preset): Promise<RunResult> {
+async function auditOnce(preset: Preset): Promise<RunResult> {
   const chrome = await chromeLauncher.launch({
     chromeFlags: ["--headless=new", "--no-sandbox", "--disable-gpu"],
   });
@@ -89,6 +89,24 @@ async function audit(preset: Preset): Promise<RunResult> {
   }
 }
 
+// Retry once on Chrome protocol flakes ("Execution context was destroyed",
+// "Target closed", etc.). One retry beats marking the weekly run red on a
+// transient that has nothing to do with the site under test.
+async function audit(preset: Preset): Promise<RunResult | null> {
+  try {
+    return await auditOnce(preset);
+  } catch (err) {
+    console.warn(`  ${preset} attempt 1 failed: ${(err as Error).message}`);
+    console.warn(`  retrying ${preset}…`);
+    try {
+      return await auditOnce(preset);
+    } catch (err2) {
+      console.error(`  ${preset} attempt 2 failed: ${(err2 as Error).message}`);
+      return null;
+    }
+  }
+}
+
 function flag(n: number): string {
   if (n >= 90) return "✓";
   if (n >= 75) return "!";
@@ -101,15 +119,20 @@ function pad(s: string | number, w: number): string {
 
 async function main(): Promise<void> {
   console.log(`\nLighthouse → ${URL_TO_AUDIT}\n`);
-  const results: RunResult[] = [];
+  const results: Array<RunResult | { preset: Preset; failed: true }> = [];
   for (const preset of PRESETS) {
     console.log(`  running ${preset}…`);
-    results.push(await audit(preset));
+    const r = await audit(preset);
+    results.push(r ?? { preset, failed: true });
   }
 
   console.log("\n  Preset     Perf    A11y    Best    SEO");
   console.log("  ──────────────────────────────────────────");
   for (const r of results) {
+    if ("failed" in r) {
+      console.log(`  ${pad(r.preset, 9)}  (audit failed twice — see logs)`);
+      continue;
+    }
     console.log(
       `  ${pad(r.preset, 9)}  ${pad(r.perf, 3)} ${flag(r.perf)}   ${pad(
         r.a11y,
@@ -119,6 +142,11 @@ async function main(): Promise<void> {
   }
   console.log("\n  ✓ ≥90   ! ≥75   ✗ <75\n");
   console.log(`  reports → ${OUT_DIR}/${stamp}-*.{html,json}\n`);
+
+  // Exit non-zero only if EVERY preset failed. Partial success still
+  // uploads useful artifacts and shouldn't redden the weekly run.
+  const allFailed = results.every((r) => "failed" in r);
+  if (allFailed) process.exit(1);
 }
 
 main().catch((err) => {
