@@ -322,7 +322,46 @@ const handleHealth = withAuth(
     } catch { groq = false; }
   }
 
-    res.status(200).json({ db, gemini, geminiModel, geminiError, groq });
+  // Test Upstash — required for distributed rate limiting + Stripe webhook
+  // idempotency. If it's unreachable we silently fall back to in-memory
+  // limits (zero protection in serverless), so an external monitor needs
+  // to know.
+  const UPSTASH_URL = (process.env.UPSTASH_REDIS_REST_URL || "").trim();
+  const UPSTASH_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || "").trim();
+  let upstash = false;
+  if (UPSTASH_URL && UPSTASH_TOKEN) {
+    try {
+      const r = await fetch(`${UPSTASH_URL}/ping`, {
+        headers: { Authorization: `Bearer ${UPSTASH_TOKEN}` },
+      });
+      upstash = r.ok;
+    } catch { upstash = false; }
+  }
+
+  // Critical deps: db must be up, and at least one configured AI provider
+  // must respond. Upstash is "required if configured" — if the env vars
+  // are present but the service is down, that's a real degradation.
+  // Optional deps that aren't configured (e.g. Groq when GROQ_API_KEY is
+  // empty) don't count as failures.
+  const failures: string[] = [];
+  if (!db) failures.push("db");
+  if (GEMINI_API_KEY && !gemini) failures.push("gemini");
+  if (GROQ_API_KEY && !groq) failures.push("groq");
+  if (UPSTASH_URL && UPSTASH_TOKEN && !upstash) failures.push("upstash");
+  // No AI provider at all is a configuration error, not a runtime failure.
+  if (!GEMINI_API_KEY && !GROQ_API_KEY) failures.push("no_ai_provider_configured");
+
+  const status = failures.length === 0 ? 200 : 503;
+    res.status(status).json({
+      ok: failures.length === 0,
+      failures,
+      db,
+      gemini,
+      geminiModel,
+      geminiError,
+      groq,
+      upstash,
+    });
   },
 );
 

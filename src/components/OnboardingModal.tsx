@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useState, useRef, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import MemoryImportPanel from "./MemoryImportPanel";
@@ -144,6 +145,15 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
       className="fixed inset-0 z-50 flex items-center justify-center"
       style={{ background: "var(--scrim)", padding: 16 }}
     >
+      <FocusTrap
+        focusTrapOptions={{
+          // Don't escape-deactivate — onboarding has its own Skip control,
+          // and we don't want a stray Escape to drop a brand-new user back
+          // into an empty Memory tab without explanation.
+          escapeDeactivates: false,
+          allowOutsideClick: true,
+        }}
+      >
       <div
         role="dialog"
         aria-modal="true"
@@ -522,6 +532,7 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
           </div>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

@@ -33,12 +33,46 @@ interface AICallOpts {
 
 import { withDateContext } from "./promptContext.js";
 
+// Retry transient failures (5xx + network errors + 429) with exponential
+// backoff: 100ms → 400ms → 1.6s. 4xx other than 429 is a permanent failure
+// (auth, content policy, malformed request) — surface immediately so we
+// don't burn time/credits retrying something that will keep failing.
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  label: string,
+): Promise<Response> {
+  const delays = [100, 400, 1600];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const res = await fetch(url, init);
+      const transient = res.status >= 500 || res.status === 429;
+      if (!transient || attempt === delays.length) return res;
+      console.warn(
+        `[aiProvider:${label}] HTTP ${res.status} on attempt ${attempt + 1}/${delays.length + 1} — retrying in ${delays[attempt]}ms`,
+      );
+    } catch (err) {
+      lastErr = err;
+      if (attempt === delays.length) throw err;
+      console.warn(
+        `[aiProvider:${label}] network error on attempt ${attempt + 1}/${delays.length + 1} — retrying in ${delays[attempt]}ms`,
+      );
+    }
+    await new Promise((r) => setTimeout(r, delays[attempt]));
+  }
+  // Unreachable — the loop returns or throws on the final attempt — but TS
+  // can't prove that, so re-throw the last error.
+  throw lastErr ?? new Error("fetchWithRetry exhausted retries");
+}
+
 /**
  * Call the configured AI provider with a system prompt + user content.
- * Returns the response text on success, "" on any failure (HTTP error,
- * unparseable response, missing key). Errors are logged with provider
- * context but not thrown — enrichment treats empty as "step did not
- * succeed, leave the flag unset for retry."
+ * Returns the response text on success, "" on permanent failure (4xx auth,
+ * malformed request, missing key, or 5xx after 3 retries with exponential
+ * backoff). Errors are logged with provider context but not thrown —
+ * enrichment treats empty as "step did not succeed, leave the flag unset
+ * for retry on the next pass."
  */
 export async function callAI(cfg: AICall, rawSystem: string, content: string, opts: AICallOpts = {}): Promise<string> {
   if (!cfg.apiKey) return "";
@@ -64,20 +98,26 @@ export async function callAI(cfg: AICall, rawSystem: string, content: string, op
 // ── Anthropic Messages API ──────────────────────────────────────────────────
 
 async function callAnthropic(cfg: AICall, system: string, content: string, opts: AICallOpts): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": cfg.apiKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      max_tokens: opts.maxTokens ?? 1500,
-      system,
-      messages: [{ role: "user", content }],
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": cfg.apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        max_tokens: opts.maxTokens ?? 1500,
+        system,
+        messages: [{ role: "user", content }],
+      }),
+    }, "anthropic");
+  } catch (err: any) {
+    console.error(`[aiProvider:anthropic] network failure after retries: ${err?.message ?? err}`);
+    return "";
+  }
   if (!res.ok) {
     console.error(`[aiProvider:anthropic] HTTP ${res.status}`, await res.text().catch(() => ""));
     return "";
@@ -112,14 +152,20 @@ async function callOpenAI(cfg: AICall, system: string, content: string, opts: AI
   };
   if (opts.json) body.response_format = { type: "json_object" };
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }, cfg.provider);
+  } catch (err: any) {
+    console.error(`[aiProvider:${cfg.provider}] network failure after retries: ${err?.message ?? err}`);
+    return "";
+  }
   if (!res.ok) {
     console.error(
       `[aiProvider:${cfg.provider}] HTTP ${res.status}`,
@@ -146,15 +192,21 @@ async function callGemini(cfg: AICall, system: string, content: string, opts: AI
   };
   if (opts.json) generationConfig.responseMimeType = "application/json";
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: content }] }],
-      systemInstruction: { parts: [{ text: system }] },
-      generationConfig,
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetchWithRetry(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: content }] }],
+        systemInstruction: { parts: [{ text: system }] },
+        generationConfig,
+      }),
+    }, "gemini");
+  } catch (err: any) {
+    console.error(`[aiProvider:gemini] network failure after retries: ${err?.message ?? err}`);
+    return "";
+  }
   if (!res.ok) {
     console.error(`[aiProvider:gemini] HTTP ${res.status}`, await res.text().catch(() => ""));
     return "";

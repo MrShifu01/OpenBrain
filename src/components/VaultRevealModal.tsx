@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 import type { Entry } from "../types";
 import { decryptEntry, getCachedVaultKey, hasCachedVaultKey } from "../lib/crypto";
 import { verifyPin, getStoredPinHash, setupPin } from "../lib/pin";
@@ -123,6 +124,14 @@ export default function VaultRevealModal({
           if (e.target === e.currentTarget) onClose();
         }}
       >
+        <FocusTrap
+          focusTrapOptions={{
+            initialFocus: () => inputRef.current ?? false,
+            escapeDeactivates: true,
+            onDeactivate: onClose,
+            allowOutsideClick: true,
+          }}
+        >
         <div
           role="dialog"
           aria-modal="true"
@@ -361,6 +370,7 @@ export default function VaultRevealModal({
             </>
           )}
         </div>
+        </FocusTrap>
       </div>
     </>
   );

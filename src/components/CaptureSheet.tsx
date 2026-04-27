@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import FocusTrap from "focus-trap-react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
 import { useBrain as useBrainCtx } from "../context/BrainContext";
@@ -153,31 +154,10 @@ export default function CaptureSheet({
     };
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    const el = sheetRef.current;
-    if (!el || !isOpen) return;
-    function trap(e: KeyboardEvent) {
-      if (e.key !== "Tab") return;
-      const focusable = el!.querySelectorAll<HTMLElement>(
-        'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last?.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first?.focus();
-        }
-      }
-    }
-    el.addEventListener("keydown", trap);
-    return () => el.removeEventListener("keydown", trap);
-  }, [isOpen]);
+  // Tab focus is now trapped by <FocusTrap> below, which is a proper
+  // shift-Tab-aware boundary trap rather than the pre-WCAG-AA partial
+  // implementation that only fired when activeElement was at the ends
+  // of the focusable list.
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -263,12 +243,27 @@ export default function CaptureSheet({
       />
 
       {/* Sheet container */}
+      <FocusTrap
+        active={isOpen && visible}
+        focusTrapOptions={{
+          // Capture handles its own Escape (and a "go back to typing"
+          // path when the preview is open). Don't let FocusTrap
+          // double-handle it.
+          escapeDeactivates: false,
+          // Outside clicks dismiss via the scrim handler — let them.
+          allowOutsideClick: true,
+          // The sheet animates in over 350ms; if focus is requested
+          // before the children mount, fall back to the dialog root.
+          fallbackFocus: () => sheetRef.current ?? document.body,
+        }}
+      >
       <div
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={preview ? "Confirm entry" : "Capture something"}
         className="capture-sheet"
+        tabIndex={-1}
         style={{
           background: "var(--surface-high)",
           border: "1px solid var(--line)",
@@ -382,6 +377,7 @@ export default function CaptureSheet({
           />
         )}
       </div>
+      </FocusTrap>
     </>
   );
 }

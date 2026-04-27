@@ -3,6 +3,19 @@ import * as Sentry from "@sentry/react";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
+  /**
+   * Optional view-scoped fallback. When set, rendering errors in `children`
+   * show this instead of the full-screen "Something went wrong" view, so a
+   * crash inside e.g. ChatView doesn't blow away the surrounding shell.
+   * The function receives the captured error and a reset callback that
+   * clears the boundary's error state.
+   */
+  fallback?: (error: Error, reset: () => void) => ReactNode;
+  /**
+   * Sentry tag — helps filter "errors in ChatView" vs "errors in VaultView"
+   * vs the global app-shell boundary in dashboards.
+   */
+  name?: string;
 }
 
 interface ErrorBoundaryState {
@@ -21,12 +34,23 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("OpenBrain error:", error, info.componentStack);
-    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
+    const tag = this.props.name ?? "root";
+    console.error(`OpenBrain error [${tag}]:`, error, info.componentStack);
+    Sentry.captureException(error, {
+      tags: { boundary: tag },
+      extra: { componentStack: info.componentStack },
+    });
   }
 
+  reset = () => this.setState({ hasError: false, error: null });
+
   render() {
-    if (this.state.hasError) {
+    if (this.state.hasError && this.state.error) {
+      // View-scoped boundary — render the caller's fallback inside the
+      // surrounding shell so the rest of the app keeps working.
+      if (this.props.fallback) {
+        return this.props.fallback(this.state.error, this.reset);
+      }
       return (
         <div
           className="flex min-h-screen items-center justify-center p-10"
@@ -66,9 +90,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
               {this.state.error?.message || "Unknown error"}
             </p>
             <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null });
-              }}
+              onClick={this.reset}
               className="cursor-pointer rounded-xl border-none px-8 py-3 text-sm font-bold"
               style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >

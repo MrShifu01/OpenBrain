@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import FocusTrap from "focus-trap-react";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
@@ -300,6 +301,18 @@ No explanation, no punctuation, just one word.`,
       }}
       onClick={editing ? undefined : onClose}
     >
+      <FocusTrap
+        focusTrapOptions={{
+          // Detail modal has its own Escape handler that respects edit-mode
+          // state (Escape leaves edit, second Escape closes). Keep that.
+          escapeDeactivates: false,
+          allowOutsideClick: true,
+          // Some entry types (file thumbnails, embedded media) render
+          // before any focusable child mounts. Fall back to the dialog
+          // root so the trap doesn't bail.
+          fallbackFocus: "[role=dialog]",
+        }}
+      >
       <div
         className="relative flex w-full flex-col"
         style={{
@@ -1212,6 +1225,7 @@ No explanation, no punctuation, just one word.`,
           </div>
         )}
       </div>
+      </FocusTrap>
     </div>
   );
 }

@@ -35,6 +35,8 @@ const GraphView = lazy(() => import("./views/GraphView"));
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
 import MemoryHeader from "./MemoryHeader";
 import CaptureWelcomeScreen from "./CaptureWelcomeScreen";
+import ErrorBoundary from "./ErrorBoundary";
+import ViewError from "./components/ViewError";
 import { useNotifications } from "./hooks/useNotifications";
 import { useAppShell, type AppShellState } from "./hooks/useAppShell";
 import { useDataLayer } from "./hooks/useDataLayer";
@@ -498,9 +500,16 @@ function EverionContent({
             )}
 
             {appShell.view === "chat" && ff("chat") && (
-              <Suspense fallback={<Loader />}>
-                <ChatView brainId={activeBrain?.id} onNavigate={appShell.setView} />
-              </Suspense>
+              <ErrorBoundary
+                name="ChatView"
+                fallback={(error, reset) => (
+                  <ViewError view="Chat" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <ChatView brainId={activeBrain?.id} onNavigate={appShell.setView} />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {appShell.view === "graph" && ff("graph") && (
               <Suspense fallback={<Loader />}>
@@ -517,29 +526,43 @@ function EverionContent({
               </Suspense>
             )}
             {appShell.view === "vault" && ff("vault") && (
-              <Suspense fallback={<Loader />}>
-                <VaultView
-                  entries={entries}
-                  onSelect={setSelected}
-                  cryptoKey={cryptoKey}
-                  onVaultUnlock={handleVaultUnlock}
-                  brainId={activeBrain?.id}
-                  onEntryCreated={(e: Entry) => setEntries((prev) => [e, ...prev])}
-                />
-              </Suspense>
+              <ErrorBoundary
+                name="VaultView"
+                fallback={(error, reset) => (
+                  <ViewError view="Vault" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <VaultView
+                    entries={entries}
+                    onSelect={setSelected}
+                    cryptoKey={cryptoKey}
+                    onVaultUnlock={handleVaultUnlock}
+                    brainId={activeBrain?.id}
+                    onEntryCreated={(e: Entry) => setEntries((prev) => [e, ...prev])}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {appShell.view === "settings" && (
               <SettingsView onNavigate={appShell.setView} />
             )}
             {appShell.view === "capture" && (
-              <CaptureWelcomeScreen
-                entriesLoaded={entriesLoaded}
-                entries={entries}
-                activeBrainName={activeBrain?.name}
-                typeIcons={appShell.typeIcons}
-                onNavigate={appShell.setView}
-                onSelectEntry={setSelected}
-              />
+              <ErrorBoundary
+                name="CaptureWelcomeScreen"
+                fallback={(error, reset) => (
+                  <ViewError view="Capture" error={error} onReset={reset} />
+                )}
+              >
+                <CaptureWelcomeScreen
+                  entriesLoaded={entriesLoaded}
+                  entries={entries}
+                  activeBrainName={activeBrain?.name}
+                  typeIcons={appShell.typeIcons}
+                  onNavigate={appShell.setView}
+                  onSelectEntry={setSelected}
+                />
+              </ErrorBoundary>
             )}
           </div>
 
