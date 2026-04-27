@@ -25,11 +25,11 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
       }}
     >
       <p className="text-sm" style={{ color: "var(--color-on-surface-variant)" }}>
-        This app uses{" "}
+        Accept to enable{" "}
         <a href="https://sentry.io" target="_blank" rel="noopener noreferrer" className="underline">
           Sentry
         </a>{" "}
-        for error tracking and{" "}
+        (error tracking),{" "}
         <a
           href="https://vercel.com/docs/speed-insights"
           target="_blank"
@@ -38,7 +38,16 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
         >
           Vercel Speed Insights
         </a>{" "}
-        for performance monitoring. No personal data is collected.{" "}
+        (performance), and{" "}
+        <a
+          href="https://posthog.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          PostHog
+        </a>{" "}
+        (product analytics). Your entry contents are never sent to any of them.{" "}
         <a href="/privacy" className="underline">
           Privacy policy
         </a>

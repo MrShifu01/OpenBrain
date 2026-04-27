@@ -565,11 +565,12 @@ export default function Landing({ onAuth }: LandingProps) {
             Sign in
           </button>
           <button
-            className="design-btn-primary press"
+            className="design-btn-primary press landing-nav-cta"
             style={{ height: 36, minHeight: 36, fontSize: 13, whiteSpace: "nowrap" }}
             onClick={() => goto("signup")}
           >
-            Start remembering
+            <span className="landing-nav-cta-full">Start remembering</span>
+            <span className="landing-nav-cta-short">Sign up</span>
           </button>
         </nav>
       </header>
@@ -1000,11 +1001,16 @@ export default function Landing({ onAuth }: LandingProps) {
       {/* Responsive CSS */}
       <style>{`
         .landing-demo-grid { grid-template-columns: 1fr 1fr; }
+        .landing-nav-cta-short { display: none; }
         @media (max-width: 820px) {
           .landing-demo-grid { grid-template-columns: 1fr !important; }
-          .landing-nav { padding: 14px 20px !important; }
-          .landing-nav-links { gap: 12px !important; }
+          .landing-nav { padding: 14px 16px !important; gap: 12px !important; }
+          .landing-nav-links { gap: 8px !important; }
           .landing-nav-links a:not(button) { display: none !important; }
+        }
+        @media (max-width: 460px) {
+          .landing-nav-cta-full { display: none; }
+          .landing-nav-cta-short { display: inline; }
         }
       `}</style>
     </div>
