@@ -59,8 +59,19 @@ jobs:
 
       - name: Resolve target URL
         id: target
+        # Why we don't use github.event.deployment_status.target_url even
+        # on production deploys: Vercel reports the underlying *.vercel.app
+        # URL, which has Deployment Protection (HTTP 401 to anyone without
+        # SSO). The production custom domain is unprotected, points at the
+        # same deploy via Vercel's alias system, and is what real users hit.
         run: |
-          URL="${{ github.event.deployment_status.target_url || inputs.target_url || 'https://everion.smashburgerbar.co.za' }}"
+          if [[ "${{ github.event_name }}" == "deployment_status" ]]; then
+            URL="https://everion.smashburgerbar.co.za"
+          elif [[ -n "${{ inputs.target_url }}" ]]; then
+            URL="${{ inputs.target_url }}"
+          else
+            URL="https://everion.smashburgerbar.co.za"
+          fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "Testing against: $URL"
 
