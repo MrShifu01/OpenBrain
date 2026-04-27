@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
+import { friendlyError } from "../lib/friendlyError";
 
 interface Props {
   onDone: () => void;
@@ -27,7 +28,7 @@ export default function ResetPasswordView({ onDone }: Props) {
     const { error } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (error) {
-      setError(error.message);
+      setError(friendlyError(error.message));
       return;
     }
     setDone(true);

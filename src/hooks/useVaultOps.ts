@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
+import { friendlyError } from "../lib/friendlyError";
 import {
   setupVault,
   unlockVault,
@@ -148,8 +149,8 @@ export function useVaultOps({
       setGeneratedRecoveryKey(recoveryKey);
       onVaultUnlock(key);
       setStatus("show-recovery");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(friendlyError(e));
     }
     setBusy(false);
   }, [passphrase, confirmPhrase, onVaultUnlock]);

@@ -125,8 +125,24 @@ export default function TermsOfService() {
         </Section>
 
         <Section title="Third parties">
-          The app uses Supabase (database + auth), your chosen AI provider, Vercel (hosting), and
-          Sentry (error monitoring, no PII). Your use is also subject to their terms.
+          The app uses Supabase (database + auth, EU West region), Vercel (hosting), Resend
+          (transactional email), Sentry (error monitoring, no PII), PostHog (analytics, only
+          after you consent), and Google Gemini (embeddings + enrichment). When you chat with
+          your memory, the AI provider you select handles the request. Your use is also
+          subject to their terms.
+        </Section>
+
+        <Section title="AI output">
+          Everion uses AI to summarize, enrich, link, and answer questions about your entries.
+          AI can be wrong, biased, or out of date. Treat its output as a starting point, not a
+          fact. Don't rely on it for medical, legal, financial, or safety-critical decisions
+          without checking the source.
+        </Section>
+
+        <Section title="Governing law">
+          These terms are governed by the laws of South Africa. Disputes that can't be resolved
+          informally go to the courts of South Africa, unless local consumer-protection law
+          gives you a different right.
         </Section>
 
         <Section title="As-is">
@@ -139,7 +155,7 @@ export default function TermsOfService() {
           className="f-serif"
           style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
         >
-          last touched 21 April 2026. write to{" "}
+          last touched 27 April 2026. write to{" "}
           <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>{" "}

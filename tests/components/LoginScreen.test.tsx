@@ -68,7 +68,7 @@ describe("LoginScreen — error handling", () => {
     });
   });
 
-  it("passes other error messages through unchanged", async () => {
+  it("rewrites rate-limit errors into a friendly message", async () => {
     mockSignInWithOtp.mockResolvedValue({
       error: { message: "Email rate limit exceeded" },
       data: {},
@@ -82,7 +82,26 @@ describe("LoginScreen — error handling", () => {
     await userEvent.click(screen.getByText("Send access code"));
 
     await waitFor(() => {
-      expect(screen.getByText("Email rate limit exceeded")).toBeInTheDocument();
+      expect(screen.queryByText("Email rate limit exceeded")).not.toBeInTheDocument();
+      expect(screen.getByText(/too many attempts/i)).toBeInTheDocument();
+    });
+  });
+
+  it("passes unmapped error messages through unchanged", async () => {
+    mockSignInWithOtp.mockResolvedValue({
+      error: { message: "Some bespoke server message" },
+      data: {},
+    });
+
+    const { default: LoginScreen } = await import("../../src/LoginScreen");
+    render(<LoginScreen />);
+
+    await showMagicLinkForm();
+    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send access code"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Some bespoke server message")).toBeInTheDocument();
     });
   });
 

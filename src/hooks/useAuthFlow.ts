@@ -1,12 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
-
-function toFriendlyError(msg: string): string {
-  if (msg.toLowerCase().includes("database error saving new user")) {
-    return "Account setup failed. Please try again in a moment.";
-  }
-  return msg;
-}
+import { friendlyError as toFriendlyError } from "../lib/friendlyError";
 
 function redirectUrl(): string {
   const raw = import.meta.env.VITE_APP_URL || window.location.origin;
@@ -74,7 +68,7 @@ export function useAuthFlow() {
       token: otpCode.trim(),
       type: "magiclink",
     });
-    if (error) setError(error.message);
+    if (error) setError(toFriendlyError(error.message));
     setVerifying(false);
   };
 
@@ -86,7 +80,7 @@ export function useAuthFlow() {
       email,
       options: { emailRedirectTo: redirectUrl() },
     });
-    if (error) setError(error.message);
+    if (error) setError(toFriendlyError(error.message));
     setLoading(false);
   };
 
@@ -100,10 +94,10 @@ export function useAuthFlow() {
         password,
         options: { emailRedirectTo: redirectUrl() },
       });
-      if (error) setError(error.message);
+      if (error) setError(toFriendlyError(error.message));
       else if (data?.user) setSignupSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(toFriendlyError(err instanceof Error ? err.message : "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -115,9 +109,9 @@ export function useAuthFlow() {
     setError(null);
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setError(error.message);
+      if (error) setError(toFriendlyError(error.message));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unexpected error occurred");
+      setError(toFriendlyError(err instanceof Error ? err.message : "Something went wrong. Please try again."));
     } finally {
       setLoading(false);
     }
@@ -131,7 +125,7 @@ export function useAuthFlow() {
       options: { redirectTo: redirectUrl() },
     });
     if (error) {
-      setError(error.message);
+      setError(toFriendlyError(error.message));
       setLoading(false);
     }
     // On success the browser redirects — no further state needed.

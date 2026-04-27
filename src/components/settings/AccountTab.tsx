@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { clearAISettingsCache } from "../../lib/aiSettings";
+import { friendlyError } from "../../lib/friendlyError";
 import SettingsRow, { SettingsButton, SettingsExpand, SettingsText } from "./SettingsRow";
 import { useSubscription } from "../../lib/useSubscription";
 
@@ -88,7 +89,7 @@ export default function AccountTab({ email, isAdmin }: Props) {
     writeProfileCache(profile);
     const { error: err } = await supabase.auth.updateUser({ data: profile });
     setProfileSaving(false);
-    if (err) setProfileError(err.message);
+    if (err) setProfileError(friendlyError(err.message));
     else setProfileSaved(true);
   }
 
@@ -98,7 +99,7 @@ export default function AccountTab({ email, isAdmin }: Props) {
     clearAISettingsCache();
     const { error: err } = await supabase.auth.signOut();
     if (err) {
-      setError(err.message);
+      setError(friendlyError(err.message));
       setSigningOut(false);
     }
   }

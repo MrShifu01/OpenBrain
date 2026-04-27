@@ -163,6 +163,19 @@ export default function ChatComposer({
           {IconSend}
         </button>
       </div>
+      <div
+        className="f-sans"
+        style={{
+          maxWidth: 820,
+          margin: "8px auto 0",
+          fontSize: 11,
+          color: "var(--ink-faint)",
+          textAlign: "center",
+          letterSpacing: "0.01em",
+        }}
+      >
+        AI-generated. Can be wrong — check anything that matters.
+      </div>
     </div>
   );
 }
