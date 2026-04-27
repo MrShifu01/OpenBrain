@@ -24,6 +24,14 @@ const ALLOW: Array<RegExp> = [
   /WebSocket connection.*closed/i,
   // Vite HMR / dev-only chatter — only present in `npm run dev` runs
   /\[vite\]/i,
+  // The Playwright webServer boots `npm run dev` (Vite only — no Vercel
+  // functions), so any /api/* call throws "Failed to fetch". The app's
+  // authFetch wrapper logs these as "[OpenBrain] /api/X failed". Both
+  // are environmental, not real regressions.
+  // TODO: switch playwright.config webServer to `vercel dev` and remove
+  // these two entries.
+  /TypeError: Failed to fetch/i,
+  /\[OpenBrain\] \/api\/.*failed/i,
 ];
 
 export interface ConsoleTracker {
@@ -43,6 +51,11 @@ export function trackConsole(page: Page): ConsoleTracker {
   page.on("console", (msg) => {
     if (msg.type() !== "error") return;
     const text = msg.text();
+    // Chromium auto-emits "Failed to load resource: the server responded
+    // with a status of <N>" for every non-2xx response. The response
+    // listener below already governs network failures and intentionally
+    // ignores 4xx, so we'd double-count if we kept these.
+    if (/^Failed to load resource:/.test(text)) return;
     if (ALLOW.some((rx) => rx.test(text))) return;
     errors.push(`console.error: ${text}`);
   });
