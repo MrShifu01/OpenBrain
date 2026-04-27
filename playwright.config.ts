@@ -16,6 +16,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : [["list"], ["html", { open: "never" }]],
+  // Remote URLs hit cold lambdas + CDN warm-up on first request; the
+  // default 5s assertion timeout races hydration. 15s gives the app
+  // time to render without giving up too early on a real bug.
+  expect: { timeout: isRemote ? 15_000 : 5_000 },
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL,
