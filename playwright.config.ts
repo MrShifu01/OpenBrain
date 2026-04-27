@@ -1,6 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:5174";
+// When E2E_BASE_URL is set we're testing against a deployed URL (a Vercel
+// preview from the GitHub Actions workflow, or production for the daily
+// cron). When unset we fall back to a local Vite dev server.
+const remoteBaseURL = process.env.E2E_BASE_URL;
+const baseURL = remoteBaseURL ?? "http://localhost:5174";
+const isRemote = Boolean(remoteBaseURL);
 
 export default defineConfig({
   testDir: "./e2e/specs",
@@ -18,6 +23,10 @@ export default defineConfig({
     storageState: "e2e/.auth/admin.json",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
+    // Remote URLs incur real network latency; bump the per-action timeout
+    // so the default 5s assertion doesn't race CDN warm-up or cold lambdas.
+    actionTimeout: isRemote ? 15_000 : undefined,
+    navigationTimeout: isRemote ? 30_000 : undefined,
   },
   projects: [
     {
@@ -25,10 +34,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: "npm run dev -- --port 5174",
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  // Spawn a local Vite dev server only when there's no remote URL to test.
+  webServer: isRemote
+    ? undefined
+    : {
+        command: "npm run dev -- --port 5174",
+        url: baseURL,
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+      },
 });

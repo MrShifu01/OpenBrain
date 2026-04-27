@@ -1,27 +1,39 @@
 name: E2E
 
-# Runs the Playwright smoke + flow tests against a fresh boot of the app.
-# Triggered:
-#   - Daily at 06:30 UTC on weekdays (08:30 SAST)
-#   - Manually via the "Run workflow" button in GitHub Actions
-#   - On every push to main, after the regular CI passes
+# Tests run against real deployed URLs, not a local dev server. Three triggers:
 #
-# Requires repo secrets:
-#   - E2E_ADMIN_EMAIL      (the Supabase auth admin email — same as VITE_ADMIN_EMAIL)
-#   - E2E_ADMIN_PASSWORD   (that account's password)
-#   - VITE_SUPABASE_URL    (https://<project-ref>.supabase.co)
-#   - VITE_SUPABASE_ANON_KEY
-# Add them at: Settings → Secrets and variables → Actions → New repository secret
+#   1. deployment_status — fires after every Vercel deploy (preview + prod).
+#      Tests the actual URL Vercel just brought up. This is the workhorse:
+#      every push that ships a preview gets validated before merge.
+#
+#   2. schedule — daily 06:30 UTC against production. Catches drift even
+#      when no deploys are happening (Supabase / Gemini / DNS changes).
+#
+#   3. workflow_dispatch — manual, with optional URL input. Useful for
+#      poking a specific preview or rerunning against staging.
+#
+# Required repo secrets:
+#   E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 
 on:
+  deployment_status:
   schedule:
     - cron: '30 6 * * 1-5'
   workflow_dispatch:
-  push:
-    branches: [main]
+    inputs:
+      target_url:
+        description: 'URL to test against (defaults to production)'
+        required: false
+        default: 'https://everion.smashburgerbar.co.za'
 
 jobs:
   e2e:
+    # Skip the noisy "pending"/"in_progress" deployment_status events;
+    # only run when a deploy actually succeeded.
+    if: |
+      (github.event_name == 'deployment_status' && github.event.deployment_status.state == 'success') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -38,11 +50,18 @@ jobs:
 
       - name: Run Playwright tests
         env:
+          # Pick the right URL for the trigger:
+          #   deployment_status → the deploy's own target_url
+          #   workflow_dispatch → the manual input (or its default)
+          #   schedule          → the literal production URL
+          E2E_BASE_URL: >-
+            ${{ github.event.deployment_status.target_url
+              || inputs.target_url
+              || 'https://everion.smashburgerbar.co.za' }}
           E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
           E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
         run: npm run test:e2e
 
       - name: Upload Playwright report
