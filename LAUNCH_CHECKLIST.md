@@ -54,6 +54,36 @@ Project-specific, prioritized for solo dev shipping a public-scale product.
 - [x] **Production e2e watchdog** ✅ (smoke + onboarding + capture, daily + on-deploy)
 - [ ] **Sentry alerts configured** 🟡
   Default project settings often have alerts off — confirm Sentry actually emails/Slacks you on new error rates.
+- [x] **Lighthouse weekly synthetic audit** ✅
+  `.github/workflows/lighthouse.yml` runs Sun 04:00 UTC + on-demand. Mobile + desktop, scores never fail the build (monitoring not gating). Reports uploaded as 90-day artifacts. Retries once per preset on Chrome protocol flakes.
+
+### Weekly automated roll-up (custom — wire after API tokens are in place)
+
+A single Monday-morning email aggregating all five tools so I see the whole picture in one inbox instead of five dashboards. Runs as a GitHub Actions cron, sends via Resend.
+
+- [ ] **Add GitHub Actions secrets** ❌
+  Repo → Settings → Secrets and variables → Actions:
+  - `SENTRY_AUTH_TOKEN` (Sentry → Settings → Auth Tokens; scopes: `event:read`, `project:read`, `org:read`)
+  - `SENTRY_ORG`, `SENTRY_PROJECT` (slugs from project URL)
+  - `POSTHOG_API_KEY` (PostHog → Personal API Keys; scopes: `query:read`, `project:read`)
+  - `POSTHOG_PROJECT_ID` (numeric, top of Project Settings)
+  - `VERCEL_TOKEN` (vercel.com/account/tokens; scope: Read)
+  - `VERCEL_PROJECT_ID` (`prj_xxx` from project settings)
+  - `RESEND_API_KEY` (same as in Vercel — duplicate it here for the workflow to send the digest)
+  - `WEEKLY_REPORT_TO` (recipient email)
+
+  Lighthouse + e2e numbers come from this repo's own workflow runs — `GITHUB_TOKEN` is auto-injected, no extra secret needed.
+
+- [ ] **Wire `scripts/weekly-roll-up.ts`** ❌
+  Pulls last-7d metrics: Sentry error count + new issues, PostHog DAU + total captures, Vercel pageviews + bandwidth, latest Lighthouse scores (from artifact), e2e pass rate (from workflow runs). Composes one HTML email, sends via Resend.
+
+- [ ] **Wire `.github/workflows/weekly-roll-up.yml`** ❌
+  Cron `0 6 * * 1` (Mon 06:00 UTC). On-demand `workflow_dispatch` for manual runs. Calls the script, fails the workflow if the email send fails so I notice in GitHub.
+
+- [ ] **Dry-run the first send** ❌
+  First run: log the composed email body to stdout instead of sending, eyeball the numbers. Flip to live send once the format looks right.
+
+  Subject format: `Everion weekly — 23 errors, 142 DAU, e2e ✓, perf 91/85`
 
 ### Billing (if Stripe is part of launch)
 
@@ -128,5 +158,6 @@ Project-specific, prioritized for solo dev shipping a public-scale product.
 3. **RLS audit** — 1 hour going through every Supabase table. Critical.
 4. **Onboarding stranger test** — 3 people, this week, before another line of code.
 5. **Vercel Pro upgrade** — flip the switch when ready ($20/mo).
+6. **Add the 8 GitHub Actions secrets** for the weekly roll-up (see Telemetry section). 10 min if API portals cooperate.
 
 The rest is a 2-week backlog. Don't try to do everything before launch — you'll never launch. Pick the three things that scare you most and do those first.
