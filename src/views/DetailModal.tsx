@@ -79,8 +79,8 @@ interface DetailModalProps {
   entry: Entry;
   onClose: () => void;
   onDelete?: (id: string) => void | Promise<void>;
-  onUpdate?: (id: string, changes: any) => Promise<void>;
-  onReorder?: (entry: any) => void;
+  onUpdate?: (id: string, changes: Partial<Entry>) => Promise<void>;
+  onReorder?: (entry: Entry) => void;
   canWrite?: boolean;
   brains?: Brain[];
   vaultUnlocked?: boolean;
@@ -170,8 +170,9 @@ No explanation, no punctuation, just one word.`,
         const errData: { error?: string } = await res.json().catch(() => ({}));
         setAiMsg({ text: errData?.error || `HTTP ${res.status}`, ok: false });
       }
-    } catch (err: any) {
-      setAiMsg({ text: err?.message || "Request failed", ok: false });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Request failed";
+      setAiMsg({ text: message, ok: false });
     }
     setAiTyping(false);
   }

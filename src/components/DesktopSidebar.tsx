@@ -268,6 +268,7 @@ export default function DesktopSidebar({
       >
         <button
           onClick={() => onNavigate("settings")}
+          aria-current={view === "settings" ? "page" : undefined}
           className="press"
           style={{
             display: "flex",

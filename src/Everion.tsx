@@ -544,18 +544,32 @@ function EverionContent({
               </ErrorBoundary>
             )}
             {appShell.view === "graph" && ff("graph") && (
-              <Suspense fallback={<Loader />}>
-                <GraphView openEntry={setSelected} />
-              </Suspense>
+              <ErrorBoundary
+                name="GraphView"
+                fallback={(error, reset) => (
+                  <ViewError view="Graph" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <GraphView openEntry={setSelected} />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {appShell.view === "todos" && ff("todos") && (
-              <Suspense fallback={<Loader />}>
-                <TodoView
-                  entries={entries}
-                  typeIcons={appShell.typeIcons}
-                  activeBrainId={activeBrain?.id}
-                />
-              </Suspense>
+              <ErrorBoundary
+                name="TodoView"
+                fallback={(error, reset) => (
+                  <ViewError view="Schedule" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <TodoView
+                    entries={entries}
+                    typeIcons={appShell.typeIcons}
+                    activeBrainId={activeBrain?.id}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {appShell.view === "vault" && ff("vault") && (
               <ErrorBoundary

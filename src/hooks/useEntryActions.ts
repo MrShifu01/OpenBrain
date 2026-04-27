@@ -27,6 +27,23 @@ interface UseEntryActionsParams {
   cryptoKey: CryptoKey | null;
 }
 
+// Undoable action history. Discriminated union — `type` narrows the shape.
+// Used by handleUndo to pick the right rollback path. Was `any` before.
+type LastAction =
+  | { type: "delete"; entry: Entry }
+  | {
+      type: "update";
+      id: string;
+      previous: Pick<Entry, "title" | "content" | "type" | "tags" | "metadata">;
+    }
+  | { type: "create"; id: string };
+
+interface PendingDelete {
+  id: string;
+  entry: Entry;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
 export function useEntryActions({
   entries,
   setEntries,
@@ -36,9 +53,9 @@ export function useEntryActions({
   refreshCount,
   cryptoKey,
 }: UseEntryActionsParams) {
-  const [lastAction, setLastAction] = useState<any>(null);
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const pendingDeleteRef = useRef<any>(null);
+  const pendingDeleteRef = useRef<PendingDelete | null>(null);
 
   const commitPendingDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return;
@@ -88,16 +105,23 @@ export function useEntryActions({
         showToast("You can't save while offline.", "error");
         return;
       }
-      const entryType = (changes as any).type || previous?.type;
+      const entryType = changes.type || previous?.type;
       const isSecret = entryType === "secret";
-      let serverChanges: any = { ...changes };
-      if (isSecret && cryptoKey && ((changes as any).content || (changes as any).metadata)) {
+      // Wire-payload shape — accepts encrypted ciphertext (string) for
+      // metadata when the entry is a secret, in addition to the normal
+      // EntryMetadata object. The server decrypts back into the object
+      // before persisting. Omit-then-extend so metadata isn't intersected
+      // with EntryMetadata.
+      let serverChanges: Omit<Partial<Entry>, "metadata"> & {
+        metadata?: Entry["metadata"] | string;
+      } = { ...changes };
+      if (isSecret && cryptoKey && (changes.content || changes.metadata)) {
         const encrypted = await encryptEntry(
-          { content: (changes as any).content, metadata: (changes as any).metadata },
+          { content: changes.content, metadata: changes.metadata },
           cryptoKey,
         );
-        if ((changes as any).content) serverChanges.content = encrypted.content;
-        if ((changes as any).metadata) serverChanges.metadata = encrypted.metadata;
+        if (changes.content) serverChanges.content = encrypted.content;
+        if (changes.metadata) serverChanges.metadata = encrypted.metadata;
       }
 
       // Apply optimistically before the request so the UI feels instant
@@ -106,7 +130,7 @@ export function useEntryActions({
         writeEntriesCache(next);
         return next;
       });
-      setSelected((prev: any) => (prev?.id === id ? { ...prev, ...changes } : prev));
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...changes } : prev));
 
       try {
         const res = await authFetch("/api/update-entry", {
@@ -117,7 +141,8 @@ export function useEntryActions({
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error((data?.message || data?.error) ?? `HTTP ${res.status}`);
         if (Array.isArray(data) && data.length === 0) throw new Error(`No row matched id=${id}`);
-      } catch (e: any) {
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
         // Rollback optimistic update to previous state
         if (previous) {
           setEntries((prev) => {
@@ -125,12 +150,12 @@ export function useEntryActions({
             writeEntriesCache(rolled);
             return rolled;
           });
-          setSelected((prev: any) => (prev?.id === id ? previous : prev));
+          setSelected((prev) => (prev?.id === id ? previous : prev));
         }
         captureError(e, "handleUpdate");
         if (!options?.silent) {
-          showError(`Save failed: ${e.message}`);
-          setSaveError(`Save failed: ${e.message}`);
+          showError(`Save failed: ${message}`);
+          setSaveError(`Save failed: ${message}`);
           setTimeout(() => setSaveError(null), 5000);
         }
         return;
@@ -164,7 +189,7 @@ export function useEntryActions({
       // Record user-initiated edits as learning signals. Skip silent updates
       // (enrichment pipeline, auto-flag writes) — those aren't human decisions.
       // brain_id lives on the entry; only record if we can attribute the edit.
-      const brainId = (previous as any)?.brain_id;
+      const brainId = previous?.brain_id;
       if (previous && brainId && !options?.silent) {
         const c = changes as Partial<Entry>;
         if (c.title !== undefined && c.title !== previous.title) {
@@ -213,8 +238,9 @@ export function useEntryActions({
   const handleUndo = useCallback(() => {
     if (!lastAction) return;
     if (lastAction.type === "delete" && pendingDeleteRef.current) {
-      clearTimeout(pendingDeleteRef.current.timer);
-      setEntries((prev) => [pendingDeleteRef.current.entry, ...prev]);
+      const pending = pendingDeleteRef.current;
+      clearTimeout(pending.timer);
+      setEntries((prev) => [pending.entry, ...prev]);
       pendingDeleteRef.current = null;
     }
     if (lastAction.type === "update") {
@@ -225,7 +251,7 @@ export function useEntryActions({
         body: JSON.stringify({ id, ...previous }),
       }).catch((err) => captureError(err, "undo:update"));
       setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...previous } : e)));
-      setSelected((prev: any) => (prev?.id === id ? { ...prev, ...previous } : prev));
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...previous } : prev));
     }
     if (lastAction.type === "create") {
       const { id } = lastAction;

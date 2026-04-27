@@ -9,7 +9,7 @@ Re-run on every dependency upgrade or feature that adds a heavy SDK.
 |---|---:|---:|---|---|
 | `index` (entry) | 229 | 71 | ✅ | React + main entry. Cannot meaningfully shrink without eliminating React. |
 | `Everion` | 294 | 74 | ✅ | Main shell — sidebar, headers, view router. Will shrink when god-components are extracted. |
-| `lib` | 401 | 98 | ✅ | Shared utilities (search index, friendlyError, posthog wrapper, etc). Watch for bloat as helpers grow. |
+| `lib` | 401 | 98 | ❌ | **NOT eager** (re-checked 2026-04-27 against `dist/index.html` modulepreload list). Despite the name, this chunk is only fetched via dynamic `import()` from the `notifications` chunk. Most of the size is `underscore@1.13.8` pulled by `mammoth` for `.docx` parsing in `fileExtract.ts`. Mammoth is itself fully lazy, so underscore costs nothing on first paint. |
 | `module` | 183 | 61 | ✅ | Vendored chunk — `react-dom`, `@vercel/*`, `tailwindcss-animate` etc. |
 | `supabase` | 151 | 39 | ✅ | Auth + realtime + REST client. Required for first paint to verify session. |
 | `sentry` | 85 | 29 | 🟡 | Loaded only after the user accepts the consent banner — see `src/main.tsx::initSentry()`. |
@@ -32,7 +32,7 @@ Re-run on every dependency upgrade or feature that adds a heavy SDK.
 
 ## What this means
 
-**Eager first-paint cost (gzip):** ~370 KB across `index`, `Everion`, `lib`, `module`, `supabase`. That's roughly the React + Supabase + main shell baseline — within the budget of "Lighthouse mobile ≥ 90 perf" once gzip + brotli are applied at the edge. The audit's earlier warning about pdfjs being eagerly preloaded is no longer true (fixed in the manualChunks rebalance commit `a6010b7`).
+**Eager first-paint cost (gzip):** ~270 KB across the modulepreload set: `rolldown-runtime`, `react-dom`, `jsx-runtime`, `preload-helper`, `LoadingScreen`, `aiSettings`, `authFetch`, `usageTracker`, `supabase` (×2), `sentry`. That's the React + Supabase + Sentry + auth-bootstrap baseline — within the budget of "Lighthouse mobile ≥ 90 perf" once gzip + brotli are applied at the edge. Sentry being preloaded is intentional: ErrorBoundary needs `Sentry.captureException` ready before any error fires; the consent gate stops `Sentry.init()` (network reporting) but the SDK bytes load either way.
 
 **Heaviest chunks are correctly lazy.** exceljs (256 KB gzip!) and pdfjs (121 KB) only load when the user actually interacts with a spreadsheet or PDF. A user who never uploads either never pays for them.
 

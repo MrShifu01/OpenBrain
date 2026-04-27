@@ -106,7 +106,10 @@ describe("useEntryActions", () => {
       result.current.handleCreated({ id: "new-id" } as any);
     });
     expect(result.current.lastAction?.type).toBe("create");
-    expect(result.current.lastAction?.id).toBe("new-id");
+    // Narrow via the discriminant so id is in scope for this branch only.
+    if (result.current.lastAction?.type === "create") {
+      expect(result.current.lastAction.id).toBe("new-id");
+    }
   });
 
   it("saveError is null by default", () => {
