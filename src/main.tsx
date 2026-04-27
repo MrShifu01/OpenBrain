@@ -27,7 +27,9 @@ function initSentry() {
 // Init immediately if user already consented in a previous session
 if (getConsentDecision() === "accepted") {
   initSentry();
-  initPostHog();
+  // Fire-and-forget — posthog-js is lazy-imported so this returns quickly
+  // and the actual SDK loads in a separate chunk after the app is up.
+  void initPostHog();
 }
 
 // When a new service worker takes control (after skipWaiting), reload so the
@@ -46,7 +48,7 @@ function Root() {
   function handleDecision(decision: "accepted" | "declined") {
     if (decision === "accepted") {
       initSentry();
-      initPostHog();
+      void initPostHog();
     }
     setConsent(decision);
   }

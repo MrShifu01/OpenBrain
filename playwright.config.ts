@@ -17,9 +17,11 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? "github" : [["list"], ["html", { open: "never" }]],
   // Remote URLs hit cold lambdas + CDN warm-up on first request; the
-  // default 5s assertion timeout races hydration. 15s gives the app
-  // time to render without giving up too early on a real bug.
-  expect: { timeout: isRemote ? 15_000 : 5_000 },
+  // default 5s assertion timeout races hydration. Local Vite cold
+  // compile (posthog-js + the rest of the dep graph) also takes more
+  // than 5s on first request after a fresh boot. 10s local / 15s remote
+  // gives the app time to render without giving up too early on a real bug.
+  expect: { timeout: isRemote ? 15_000 : 10_000 },
   globalSetup: "./e2e/global-setup.ts",
   use: {
     baseURL,
