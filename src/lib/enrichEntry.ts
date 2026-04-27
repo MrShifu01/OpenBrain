@@ -8,6 +8,12 @@ interface EnrichError {
   message: string;
 }
 
+// Standard catch-block shape: Error has .message; thrown primitives don't.
+// Idiomatic narrowing avoids the `as any` escape we used to need here.
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 type OnUpdate = (id: string, changes: any) => Promise<void>;
 type OnPhase = (phase: string) => void;
 
@@ -19,14 +25,14 @@ interface StepFlags {
 }
 
 function readFlags(entry: Entry): StepFlags {
-  const e = (entry.metadata as any)?.enrichment ?? {};
+  const e = entry.metadata?.enrichment ?? {};
   const metaKeys = Object.keys(entry.metadata ?? {}).filter((k) => !SKIP_META_KEYS.has(k));
   return {
-    embedded: e.embedded ?? Boolean((entry as any).embedded_at),
+    embedded: e.embedded ?? Boolean(entry.embedded_at),
     concepts: (e.concepts_count ?? 0) > 0,
     // explicit false (e.g. Gmail entries) always requires a parse run, even if metaKeys exist
     parsed: e.parsed !== false && (e.parsed === true || metaKeys.length > 0),
-    insight: !!(entry.metadata as any)?.ai_insight || e.has_insight === true,
+    insight: !!entry.metadata?.ai_insight || e.has_insight === true,
   };
 }
 
@@ -35,7 +41,7 @@ function mergeEnrichmentFlags(
   entry: Entry,
   patch: Record<string, unknown>,
 ): Record<string, unknown> {
-  const existing = (entry.metadata as any)?.enrichment ?? {};
+  const existing = entry.metadata?.enrichment ?? {};
   return { ...(entry.metadata ?? {}), enrichment: { ...existing, ...patch } };
 }
 
@@ -83,7 +89,7 @@ async function runParseStep(
   onUpdate: OnUpdate,
 ): Promise<{ entry: Entry; error?: EnrichError }> {
   const { PROMPTS } = await import("../config/prompts");
-  const rawText = String((entry.metadata as any)?.full_text || entry.content || entry.title);
+  const rawText = String(entry.metadata?.full_text || entry.content || entry.title);
   try {
     const res = await authFetch("/api/llm", {
       method: "POST",
@@ -107,7 +113,7 @@ async function runParseStep(
       const newMeta = { ...(result.metadata || {}) };
       delete newMeta.confidence;
       if (rawText.length > 200 && !newMeta.full_text) newMeta.full_text = rawText;
-      const existing = (entry.metadata as any)?.enrichment ?? {};
+      const existing = entry.metadata?.enrichment ?? {};
       const mergedMeta = {
         ...(entry.metadata ?? {}),
         ...newMeta,
@@ -132,7 +138,7 @@ async function runParseStep(
     const preview = rawAI.slice(0, 120) || "(empty response)";
     return { entry, error: { step: "parsed", message: `AI returned no usable JSON: ${preview}` } };
   } catch (err) {
-    return { entry, error: { step: "parsed", message: String((err as any)?.message ?? err) } };
+    return { entry, error: { step: "parsed", message: errorMessage(err) } };
   }
 }
 
@@ -152,7 +158,7 @@ async function runEmbedStep(entry: Entry, onUpdate: OnUpdate): Promise<EnrichErr
     await onUpdate(entry.id, { metadata: mergeEnrichmentFlags(entry, { embedded: true }) });
     return null;
   } catch (err) {
-    return { step: "embedding", message: String((err as any)?.message ?? err) };
+    return { step: "embedding", message: errorMessage(err) };
   }
 }
 
@@ -180,7 +186,7 @@ async function runConceptsStep(
     });
     return null;
   } catch (err) {
-    return { step: "concepts", message: String((err as any)?.message ?? err) };
+    return { step: "concepts", message: errorMessage(err) };
   }
 }
 
@@ -206,7 +212,7 @@ async function runInsightStep(
     await onUpdate(entry.id, { metadata: mergeEnrichmentFlags(entry, { has_insight: true }) });
     return null;
   } catch (err) {
-    return { step: "insight", message: String((err as any)?.message ?? err) };
+    return { step: "insight", message: errorMessage(err) };
   }
 }
 

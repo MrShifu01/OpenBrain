@@ -78,7 +78,13 @@ function buildOgSvg() {
 }
 
 async function renderOg(outPath) {
-  const buf = await sharp(Buffer.from(buildOgSvg())).png().toBuffer();
+  // compressionLevel 9 + adaptiveFiltering + palette mode collapses the flat
+  // espresso ground (most of the canvas) into an 8-bit palette PNG; the
+  // brain mark + wordmark stay sharp because they're solid-colour stroke /
+  // sans-serif text. Cuts ~75% off the file size with no perceptible diff.
+  const buf = await sharp(Buffer.from(buildOgSvg()))
+    .png({ compressionLevel: 9, adaptiveFiltering: true, palette: true, quality: 90 })
+    .toBuffer();
   writeFileSync(outPath, buf);
   console.log(`wrote ${outPath} (${buf.length} bytes)`);
 }

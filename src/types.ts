@@ -33,6 +33,18 @@ type ConfidenceLevel = "extracted" | "inferred";
 
 export type Workspace = "business" | "personal" | "both";
 
+// Enrichment-pipeline state. Lives on metadata.enrichment so the four
+// step handlers in src/lib/enrichEntry.ts can each read/write their own
+// flag without clobbering siblings. Keep these names in sync with that
+// file — readFlags() / mergeEnrichmentFlags().
+interface EnrichmentFlags {
+  parsed?: boolean;
+  embedded?: boolean;
+  concepts_count?: number;
+  has_related?: boolean;
+  has_insight?: boolean;
+}
+
 interface EntryMetadata {
   phone?: string;
   email?: string;
@@ -51,6 +63,12 @@ interface EntryMetadata {
   energy?: "low" | "medium" | "high";
   workspace?: Workspace;
   confidence?: Record<string, ConfidenceLevel>;
+  // Enrichment-pipeline housekeeping fields. Explicit so enrichEntry.ts
+  // doesn't need to cast through `any` to read them.
+  enrichment?: EnrichmentFlags;
+  ai_insight?: string;
+  ai_insight_short?: string;
+  full_text?: string;
   [key: string]: unknown;
 }
 
