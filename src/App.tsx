@@ -3,7 +3,6 @@ import { supabase } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
-import LoginScreen from "./LoginScreen";
 import Landing from "./views/Landing";
 import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
@@ -14,8 +13,10 @@ import type { Session } from "@supabase/auth-js";
 
 // Heavy code paths a first-paint visitor almost never hits — keep them out
 // of the main bundle. Everion is the signed-in shell (most of the app).
+// LoginScreen is ~1000 lines and only loads after the user clicks "Sign in".
 // AdminView and ResetPasswordView are rare routes.
 const Everion = lazy(() => import("./Everion"));
+const LoginScreen = lazy(() => import("./LoginScreen"));
 const AdminView = lazy(() => import("./views/AdminView"));
 const ResetPasswordView = lazy(() => import("./views/ResetPasswordView"));
 
@@ -249,7 +250,13 @@ export default function App(): JSX.Element {
   if (!session)
     return (
       <ThemeProvider>
-        {showLogin ? <LoginScreen /> : <Landing onAuth={() => setShowLogin(true)} />}
+        {showLogin ? (
+          <Suspense fallback={<LoadingScreen />}>
+            <LoginScreen />
+          </Suspense>
+        ) : (
+          <Landing onAuth={() => setShowLogin(true)} />
+        )}
       </ThemeProvider>
     );
   if (showResetPassword)
