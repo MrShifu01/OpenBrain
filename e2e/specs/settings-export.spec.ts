@@ -29,11 +29,11 @@ test("user can reach the export affordance and the export API returns data", asy
     .first()
     .click();
 
-  // Switch to the Danger zone tab. The label in src/views/SettingsView.tsx
-  // is "Danger zone" — match case-insensitively to absorb trivial copy
-  // changes.
+  // Switch to the Privacy & danger tab. The label in src/views/SettingsView.tsx
+  // is "Privacy & danger" — match case-insensitively to absorb trivial copy
+  // changes. Danger zone is rendered as a sub-section inside it.
   await page
-    .getByRole("button", { name: /danger zone/i })
+    .getByRole("button", { name: /privacy & danger/i })
     .first()
     .click();
 

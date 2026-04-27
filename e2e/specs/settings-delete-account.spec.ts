@@ -33,7 +33,7 @@ test("destructive account-delete flow is gated behind a real confirmation modal"
     .first()
     .click();
   await page
-    .getByRole("button", { name: /danger zone/i })
+    .getByRole("button", { name: /privacy & danger/i })
     .first()
     .click();
 
