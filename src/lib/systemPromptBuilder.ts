@@ -9,13 +9,28 @@ interface SystemPromptOptions {
   withLearnings?: boolean;
 }
 
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/**
+ * Today's date as the model needs it. The model has no internal clock —
+ * without this, "this Friday", "next Monday", "tomorrow" become guesswork.
+ * The "this Friday → weekly recurring" calendar bug had this as one root
+ * cause. Cheap to inject; saves a class of date-extraction errors.
+ */
+function todayContextLine(): string {
+  const d = new Date();
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `Today is ${iso} (${DAY_NAMES[d.getDay()]}). Use this when resolving relative dates like "today", "tomorrow", "this Friday", "next month".`;
+}
+
 export function buildSystemPrompt({
   base = "",
   memoryGuide,
   brainId,
   withLearnings = false,
 }: SystemPromptOptions): string {
-  let prompt = base;
+  // Date context goes first — every prompt benefits, none are hurt.
+  let prompt = `[Context]\n${todayContextLine()}\n\n${base}`;
 
   if (memoryGuide) {
     prompt = `[Classification Guide]\n${memoryGuide}\n\n[Task]\n${prompt}`;

@@ -1,5 +1,6 @@
 import type { ProviderConfig, ChatStep, ToolSpec } from "./types.js";
 import { getAdapter } from "./select.js";
+import { withDateContext } from "../promptContext.js";
 
 interface ChatRunnerResult {
   ok: boolean;
@@ -73,12 +74,15 @@ export async function runChat(opts: ChatRunnerOptions): Promise<ChatRunnerResult
     };
   }
 
-  const providerMessages = initialToProviderShape(opts.config.provider, opts.initialMessages, opts.system);
+  // Inject today's date so "this Friday", "next Monday" etc. resolve
+  // correctly. Single point of injection across all chat providers.
+  const system = withDateContext(opts.system);
+  const providerMessages = initialToProviderShape(opts.config.provider, opts.initialMessages, system);
   const max = opts.maxRounds ?? 5;
 
   for (let round = 0; round < max; round++) {
     const step: ChatStep = await adapter.chatStep(
-      { messages: providerMessages, system: opts.system, tools: opts.tools },
+      { messages: providerMessages, system, tools: opts.tools },
       opts.config,
     );
 

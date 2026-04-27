@@ -31,6 +31,8 @@ interface AICallOpts {
   json?: boolean;
 }
 
+import { withDateContext } from "./promptContext.js";
+
 /**
  * Call the configured AI provider with a system prompt + user content.
  * Returns the response text on success, "" on any failure (HTTP error,
@@ -38,8 +40,9 @@ interface AICallOpts {
  * context but not thrown — enrichment treats empty as "step did not
  * succeed, leave the flag unset for retry."
  */
-export async function callAI(cfg: AICall, system: string, content: string, opts: AICallOpts = {}): Promise<string> {
+export async function callAI(cfg: AICall, rawSystem: string, content: string, opts: AICallOpts = {}): Promise<string> {
   if (!cfg.apiKey) return "";
+  const system = withDateContext(rawSystem);
   switch (cfg.provider) {
     case "anthropic":
       return callAnthropic(cfg, system, content, opts);
