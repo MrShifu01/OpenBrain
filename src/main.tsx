@@ -17,6 +17,21 @@ import { initPostHog } from "./lib/posthog";
 // first frame uses the right theme tokens.
 applyInitialDesignTheme();
 
+// Load Google Fonts CSS via DOM injection rather than a render-blocking
+// <link rel="stylesheet"> in index.html. The bytes are already in flight
+// thanks to <link rel="preload" as="style"> in the HTML head, so this is
+// effectively cache-warm. Why not the onload="this.media='all'" trick?
+// CSP `script-src 'self'` blocks inline event handlers — captured by e2e
+// when we tried it. JS injection is allowed, so do it from here.
+(function loadFontsAsync() {
+  const href =
+    "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap";
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = href;
+  document.head.appendChild(link);
+})();
+
 function initSentry() {
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
