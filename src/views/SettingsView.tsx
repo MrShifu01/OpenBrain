@@ -351,10 +351,11 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     <div
       className="settings-root"
       style={{
-        // height (not min-height) is required so the flex-1 settings-body
-        // resolves to a definite height — the desktop nav's surface-low
-        // background needs that to extend to the bottom of the viewport.
-        height: "100dvh",
+        // height/overflow are set in the stylesheet so the mobile media
+        // query can flatten them without !important. Desktop fixes the
+        // viewport height (so the sidebar can have its own scroll); mobile
+        // lets the page itself scroll, which avoids the iOS nested-scroll
+        // rubber-band that delays touch routing into an inner container.
         background: "var(--bg)",
         fontFamily: "var(--f-sans)",
         display: "flex",
@@ -422,10 +423,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
         })}
       </nav>
 
-      <div
-        className="settings-body"
-        style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}
-      >
+      <div className="settings-body" style={{ flex: 1, display: "flex", minHeight: 0 }}>
         <nav
           className="settings-desktop-nav scrollbar-hide"
           style={{
@@ -468,7 +466,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           })}
         </nav>
 
-        <div className="settings-content scrollbar-hide" style={{ flex: 1, overflowY: "auto" }}>
+        <div className="settings-content scrollbar-hide" style={{ flex: 1 }}>
           <div className="settings-content-inner" style={{ maxWidth: 720 }}>
             {visited.has("personal") && (
               <div style={{ display: section === "personal" ? "block" : "none" }}>
@@ -628,17 +626,31 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
       </div>
 
       <style>{`
+        /* Desktop: viewport-locked layout. The root pins to 100dvh so the
+           sidebar can have its own scroll independent of the content
+           panel — both use overflow-y: auto. */
+        .settings-root { height: 100dvh; }
+        .settings-body { overflow: hidden; }
+        .settings-content { overflow-y: auto; padding: 32px 40px; }
         .settings-topbar { padding: 18px 32px; min-height: 72px; }
-        .settings-content { padding: 32px 40px; }
         .settings-mobile-tabs { display: none; }
         .settings-desktop-nav { display: flex; }
+
+        /* Mobile: flatten to a single page-level scroll. Nesting an inner
+           overflow-y: auto inside an overflow: hidden parent causes iOS to
+           rubber-band the outer page on the first touch and only re-route
+           into the inner container after a few hundred ms — the "screen
+           feels static, then suddenly scrolls" symptom. Dropping the inner
+           scroll lets every device scroll the page natively with no touch
+           routing delay. */
         @media (max-width: 1024px) {
+          .settings-root { height: auto; min-height: 100vh; min-height: 100dvh; }
+          .settings-body { overflow: visible; flex-direction: column; }
+          .settings-content { overflow: visible; padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
+          .settings-content-inner { max-width: 100%; }
           .settings-topbar { display: none; }
           .settings-mobile-tabs { display: flex; }
           .settings-desktop-nav { display: none; }
-          .settings-content { padding: 20px 16px calc(96px + env(safe-area-inset-bottom)); }
-          .settings-body { flex-direction: column; }
-          .settings-content-inner { max-width: 100%; }
         }
       `}</style>
     </div>
