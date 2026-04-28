@@ -21,7 +21,7 @@ import { retrieveEntries, rebuildConceptGraph } from "./_lib/retrievalCore.js";
 import { getUpcomingEntries } from "./_lib/getUpcoming.js";
 import { scanGmailForUser, type GmailPreferences } from "./_lib/gmailScan.js";
 import { enrichInline, enrichBrain } from "./_lib/enrich.js";
-import { checkIdempotency, recordIdempotency } from "./_lib/idempotency.js";
+import { reserveIdempotency, finalizeIdempotency } from "./_lib/idempotency.js";
 import { checkAndIncrement } from "./_lib/usage.js";
 import { getReqId, createLogger } from "./_lib/logger.js";
 const SB_URL = process.env.SUPABASE_URL!;
@@ -636,9 +636,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
         }
         const iKey = req.headers["idempotency-key"] as string | undefined;
         if (iKey) {
-          const existingId = await checkIdempotency(userId, iKey);
-          if (existingId) {
-            result = { id: existingId, idempotent_replay: true };
+          // reserve atomically — replay returns the prior entry, in_flight
+          // means a peer is mid-insert (surface as transient so client retries).
+          const reservation = await reserveIdempotency(userId, iKey);
+          if (reservation.kind === "replay") {
+            result = { id: reservation.entryId, idempotent_replay: true };
+          } else if (reservation.kind === "in_flight") {
+            return res
+              .status(200)
+              .json(jsonRpcErr(id, -32000, "Duplicate request in flight — retry shortly"));
           }
         }
         if (!result) {
@@ -652,7 +658,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           );
           if ((result as any)?.id) enrichInline((result as any).id, userId).catch(() => {});
           if (iKey && (result as any)?.id)
-            recordIdempotency(userId, iKey, (result as any).id).catch(() => {});
+            finalizeIdempotency(userId, iKey, (result as any).id).catch(() => {});
         }
         log.info("create_entry_ok", { entry_id: (result as any)?.id });
       } else if (toolName === "update_entry") {

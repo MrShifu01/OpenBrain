@@ -511,23 +511,24 @@ export default function ProfileTab() {
 
   async function patchFact(id: string, metaPatch: Record<string, unknown>) {
     if (!brainId) return;
-    const f = facts.find((x) => x.id === id);
-    if (!f) return;
-    const newMeta = { ...(f.metadata ?? {}), ...metaPatch };
-    // Optimistic: pin/unpin/etc reflects in the UI before the network
-    // round-trip. Without this the icon doesn't appear to do anything on
-    // a slow connection until the reload returns ~1s later.
-    setFacts((prev) => prev.map((x) => (x.id === id ? { ...x, metadata: newMeta } : x)));
-    try {
-      await authFetch("/api/entries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, metadata: newMeta }),
-      });
-      await reloadFacts();
-    } catch {
-      /* swallow; reload will reflect server truth */
-    }
+    setFacts((prev) =>
+      prev.map((x) => {
+        if (x.id !== id) return x;
+        const newMeta = { ...(x.metadata ?? {}), ...metaPatch };
+        // Fire-and-forget PATCH against the latest server state. We deliberately
+        // do NOT reloadFacts here — the GET handler caches for 5 min, and a
+        // rapid pin/unpin sequence used to race against stale cache responses
+        // (the pin would flip back). Optimistic state is the source of truth
+        // for status-neutral patches; the next bigger reload (wipe / scan /
+        // audit / restore) reconciles against server truth.
+        authFetch("/api/entries", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, metadata: newMeta }),
+        }).catch(() => {});
+        return { ...x, metadata: newMeta };
+      }),
+    );
   }
 
   async function retireFact(id: string) {
@@ -615,24 +616,35 @@ export default function ProfileTab() {
     const f = facts.find((x) => x.id === id);
     if (!f) return;
     const tags = (Array.isArray(f.tags) ? f.tags : []).filter((t) => t !== "rejected");
+    // Strip rejection fields entirely instead of setting them to undefined
+    // (PostgREST keeps undefined keys as nulls inside jsonb, and the prior
+    // metadata still contained rejected_at / rejected_reason — that broke
+    // the restore because the server merge re-introduced rejected status
+    // on the next read). Build a fresh metadata object.
+    const oldMeta = f.metadata ?? {};
+    const {
+      rejected_at: _ra,
+      rejected_reason: _rr,
+      rejected_by: _rb,
+      ...rest
+    } = oldMeta as Record<string, unknown>;
+    const newMeta = { ...rest, status: "active" as const };
+
+    // Optimistic — flip the row out of "rejected" immediately so it returns
+    // to its original active bucket. The server PATCH then persists.
+    setFacts((prev) => prev.map((x) => (x.id === id ? { ...x, tags, metadata: newMeta } : x)));
+
     try {
       await authFetch("/api/entries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          tags,
-          metadata: {
-            ...(f.metadata ?? {}),
-            status: "active",
-            rejected_at: undefined,
-            rejected_reason: undefined,
-          },
-        }),
+        body: JSON.stringify({ id, tags, metadata: newMeta }),
       });
-      await reloadFacts();
-    } catch {
-      /* ignore */
+      // Trigger a re-distill so the rejected_summary doesn't keep teaching
+      // the model to skip something the user just said WAS them after all.
+      authFetch("/api/entries?action=distill-rejected", { method: "POST" }).catch(() => {});
+    } catch (e: any) {
+      setFactsError(e?.message || "Could not restore");
     }
   }
 

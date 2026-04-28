@@ -14,6 +14,7 @@ import {
 import { flagsOf } from "./_lib/enrichFlags.js";
 import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
+import { distillGmailForUser } from "./_lib/distillGmail.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
@@ -50,6 +51,11 @@ export default withAuth(
     if (ctx.req.method === "GET" && action === "persona-prompt") return handlePersonaPrompt(ctx);
     if (ctx.req.method === "POST" && action === "distill-rejected")
       return handleDistillRejected(ctx);
+    if (ctx.req.method === "POST" && action === "distill-gmail")
+      return handleDistillGmail(ctx);
+    if (ctx.req.method === "POST" && action === "gmail-decision")
+      return handleGmailDecision(ctx);
+    if (ctx.req.method === "GET" && action === "gmail-prompt") return handleGmailPrompt(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill")
       return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")
@@ -609,6 +615,116 @@ async function handleDistillRejected({ res, user }: HandlerContext): Promise<voi
   if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
   const result = await distillRejectedForUser(user.id);
   res.status(result.ok ? 200 : 502).json(result);
+}
+
+// ── POST /api/entries?action=distill-gmail — admin only ──
+// On-demand Gmail accept/reject distillation. Same shape as the persona
+// version; refreshes accepted_summary + rejected_summary on gmail_integrations.
+async function handleDistillGmail({ res, user }: HandlerContext): Promise<void> {
+  if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
+  const result = await distillGmailForUser(user.id);
+  res.status(result.ok ? 200 : 502).json(result);
+}
+
+// ── POST /api/entries?action=gmail-decision ──
+// Records a user's accept/reject of a staged Gmail entry. The decision row
+// becomes part of the learning set the classifier prompt reads from on the
+// next scan. After every 20 decisions we fire a fire-and-forget distill so
+// the rules stay current without manual intervention.
+async function handleGmailDecision({ req, res, user }: HandlerContext): Promise<void> {
+  const { decision, subject, from_email, from_name, snippet, reason, source_id } =
+    req.body ?? {};
+  if (decision !== "accept" && decision !== "reject") {
+    throw new ApiError(400, "decision must be 'accept' or 'reject'");
+  }
+  const row: Record<string, unknown> = {
+    user_id: user.id,
+    decision,
+    subject: typeof subject === "string" ? subject.slice(0, 500) : null,
+    from_email: typeof from_email === "string" ? from_email.slice(0, 200) : null,
+    from_name: typeof from_name === "string" ? from_name.slice(0, 200) : null,
+    snippet: typeof snippet === "string" ? snippet.slice(0, 600) : null,
+    reason: typeof reason === "string" ? reason.slice(0, 200) : null,
+    source_id: typeof source_id === "string" ? source_id.slice(0, 100) : null,
+  };
+  const insert = await fetch(`${SB_URL}/rest/v1/gmail_decisions`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify(row),
+  });
+  if (!insert.ok) {
+    const body = await insert.text().catch(() => "");
+    throw new ApiError(502, `gmail_decisions insert HTTP ${insert.status}: ${body.slice(0, 200)}`);
+  }
+
+  // Auto-fire distill at multiples of 20. Fire-and-forget so the user's
+  // accept/reject roundtrip stays snappy.
+  const countRes = await fetch(
+    `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${encodeURIComponent(user.id)}&select=id`,
+    { headers: sbHeaders({ Prefer: "count=exact" }) },
+  ).catch(() => null);
+  const total = parseInt(
+    countRes?.headers.get("content-range")?.split("/")[1] || "0",
+    10,
+  );
+  if (total > 0 && total % 20 === 0) {
+    distillGmailForUser(user.id).catch(() => {});
+  }
+
+  res.status(200).json({ ok: true, total });
+}
+
+// ── GET /api/entries?action=gmail-prompt — admin only ──
+// Returns the live Gmail classifier learnings + a sample rendered prompt so
+// the admin debug panel can show the same "watch it learn" view we have
+// for persona.
+async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
+  if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
+  const r = await fetch(
+    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(user.id)}&select=accepted_summary,rejected_summary,summary_updated_at,preferences&limit=1`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!r.ok) throw new ApiError(502, `gmail_integrations HTTP ${r.status}`);
+  const rows: any[] = await r.json();
+  const integ = rows[0] ?? null;
+  if (!integ) {
+    res.status(200).json({
+      connected: false,
+      acceptedSummary: null,
+      rejectedSummary: null,
+      summaryUpdatedAt: null,
+      recentAccepts: [],
+      recentRejects: [],
+      counts: { accepts: 0, rejects: 0 },
+    });
+    return;
+  }
+
+  const { loadRecentGmailDecisions } = await import("./_lib/distillGmail.js");
+  const recent = await loadRecentGmailDecisions(user.id, 5);
+
+  // Counts per side for the panel header.
+  const cAcc = await fetch(
+    `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${encodeURIComponent(user.id)}&decision=eq.accept&select=id`,
+    { headers: sbHeaders({ Prefer: "count=exact" }) },
+  );
+  const cRej = await fetch(
+    `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${encodeURIComponent(user.id)}&decision=eq.reject&select=id`,
+    { headers: sbHeaders({ Prefer: "count=exact" }) },
+  );
+  const accepts = parseInt(cAcc.headers.get("content-range")?.split("/")[1] || "0", 10);
+  const rejects = parseInt(cRej.headers.get("content-range")?.split("/")[1] || "0", 10);
+
+  res.status(200).json({
+    connected: true,
+    acceptedSummary: integ.accepted_summary ?? null,
+    rejectedSummary: integ.rejected_summary ?? null,
+    summaryUpdatedAt: integ.summary_updated_at ?? null,
+    recentAccepts: recent.accepts,
+    recentRejects: recent.rejects,
+    counts: { accepts, rejects },
+    preferences: integ.preferences ?? null,
+  });
 }
 
 function isAdminUser(user: { email?: string }): boolean {

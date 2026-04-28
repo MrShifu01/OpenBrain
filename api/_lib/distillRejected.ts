@@ -85,44 +85,73 @@ Example output:
 
 Return ONLY the bullet list. No extra text.`;
 
-  try {
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+  // 429s are common on the free tier — flash-lite has a low requests/minute
+  // ceiling. Try the primary model, then back off and retry, then fall back
+  // to a heavier-but-less-rate-limited model. Better to spend ~1s on a
+  // backup call than surface "Failed: HTTP 429" to the user.
+  const FALLBACK_MODELS = [GEMINI_MODEL, "gemini-2.0-flash", "gemini-2.5-flash"];
+  const requestBody = JSON.stringify({
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `User's rejected facts (${rows.length} total):\n\n${block}` }],
-            },
-          ],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 600 },
-        }),
+        role: "user",
+        parts: [{ text: `User's rejected facts (${rows.length} total):\n\n${block}` }],
       },
-    );
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => "");
-      return {
-        ok: false,
-        summary: null,
-        count: rows.length,
-        reason: `gemini HTTP ${resp.status}: ${body.slice(0, 200)}`,
-      };
-    }
-    const data: any = await resp.json();
-    const summary = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-    if (!summary) {
-      return { ok: false, summary: null, count: rows.length, reason: "empty summary" };
-    }
+    ],
+    generationConfig: { temperature: 0.2, maxOutputTokens: 600 },
+  });
 
-    await persistSummary(userId, summary);
-    return { ok: true, summary, count: rows.length };
-  } catch (e: any) {
-    return { ok: false, summary: null, count: rows.length, reason: String(e?.message ?? e) };
+  let lastError = "";
+  for (let attempt = 0; attempt < FALLBACK_MODELS.length; attempt += 1) {
+    const model = FALLBACK_MODELS[attempt]!;
+    try {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: requestBody,
+        },
+      );
+      if (resp.status === 429) {
+        // Tight retry on 429 before falling back to the next model — the
+        // per-minute window is short and a 1-second pause usually clears it.
+        await new Promise((r) => setTimeout(r, 1500));
+        const retry = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: requestBody },
+        );
+        if (!retry.ok) {
+          lastError = `${model} HTTP ${retry.status} after retry`;
+          continue;
+        }
+        const data: any = await retry.json();
+        const summary = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+        if (!summary) {
+          lastError = `${model} empty summary`;
+          continue;
+        }
+        await persistSummary(userId, summary);
+        return { ok: true, summary, count: rows.length };
+      }
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        lastError = `${model} HTTP ${resp.status}: ${body.slice(0, 120)}`;
+        continue;
+      }
+      const data: any = await resp.json();
+      const summary = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+      if (!summary) {
+        lastError = `${model} empty summary`;
+        continue;
+      }
+      await persistSummary(userId, summary);
+      return { ok: true, summary, count: rows.length };
+    } catch (e: any) {
+      lastError = `${model}: ${String(e?.message ?? e)}`;
+    }
   }
+  return { ok: false, summary: null, count: rows.length, reason: lastError };
 }
 
 async function persistSummary(userId: string, summary: string | null): Promise<void> {

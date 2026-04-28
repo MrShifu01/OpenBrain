@@ -980,6 +980,7 @@ interface AuditResult {
   rejected_duplicates: number;
   rejected_pattern: number;
   rejected_core: number;
+  rejected_rules: number;
   kept: number;
 }
 
@@ -1000,6 +1001,7 @@ export async function auditPersonaForBrain(
     rejected_duplicates: 0,
     rejected_pattern: 0,
     rejected_core: 0,
+    rejected_rules: 0,
     kept: 0,
   };
 
@@ -1155,6 +1157,46 @@ export async function auditPersonaForBrain(
     }
   }
 
+  // ── Phase 4: distilled skip rules (LLM judgment) ────────────────────────
+  // The user's rejected_summary captures higher-level patterns the embedding
+  // pool can't always express ("skip work activity", "skip transient moods").
+  // Send the still-active candidate facts to Gemini in one bulk call along
+  // with the rules, get a yes/no per fact. Bulk-classification keeps cost
+  // bounded — one Flash call per audit even with 100s of candidates.
+  const rejectByRules = new Set<string>();
+  if (apiKey) {
+    try {
+      const cr2 = await fetch(
+        `${SB_URL}/rest/v1/user_personas?user_id=eq.${encodeURIComponent(userId)}&select=rejected_summary&limit=1`,
+        { headers: SB_HDR },
+      );
+      let rules = "";
+      if (cr2.ok) {
+        const rr = (await cr2.json().catch(() => [])) as Array<{
+          rejected_summary: string | null;
+        }>;
+        rules = (rr[0]?.rejected_summary ?? "").trim();
+      }
+      // Skip if no distilled rules yet — Phase 1-3 have already done their job.
+      if (rules) {
+        const candidates = winners.filter((row) => {
+          if (row.metadata?.pinned === true) return false;
+          const src = String(row.metadata?.source || "");
+          if (src === "manual" || src === "chat") return false;
+          if (row.metadata?.skip_persona === true) return false;
+          if (rejectByPattern.has(row.id) || rejectByCore.has(row.id)) return false;
+          return true;
+        });
+        if (candidates.length > 0) {
+          const ruledOutIds = await classifyAgainstRules(rules, candidates, apiKey);
+          for (const id of ruledOutIds) rejectByRules.add(id);
+        }
+      }
+    } catch (e) {
+      console.error("[audit:phase4] rules pass failed:", e);
+    }
+  }
+
   // Apply: bulk-PATCH each marked id with status=rejected + reason.
   async function markRejected(id: string, reason: string): Promise<boolean> {
     const row = active.find((a) => a.id === id);
@@ -1178,10 +1220,101 @@ export async function auditPersonaForBrain(
   for (const id of rejectByCore) {
     if (await markRejected(id, "already in your About You")) out.rejected_core++;
   }
+  for (const id of rejectByRules) {
+    if (await markRejected(id, "matches your distilled skip rules")) out.rejected_rules++;
+  }
 
   out.kept =
-    out.scanned - out.rejected_duplicates - out.rejected_pattern - out.rejected_core;
+    out.scanned -
+    out.rejected_duplicates -
+    out.rejected_pattern -
+    out.rejected_core -
+    out.rejected_rules;
   return out;
+}
+
+// Bulk-classify candidate facts against the user's distilled skip rules.
+// One Gemini Flash call returns an array of indices to reject.
+async function classifyAgainstRules(
+  rules: string,
+  candidates: AuditRow[],
+  apiKey: string,
+): Promise<string[]> {
+  if (!candidates.length) return [];
+  const model =
+    (process.env.GEMINI_AUDIT_RULES_MODEL || "gemini-2.5-flash-lite").trim() ||
+    "gemini-2.5-flash-lite";
+
+  const block = candidates
+    .map((row, i) => {
+      const reason = row.metadata?.bucket ? ` [${row.metadata.bucket}]` : "";
+      return `${i}. ${row.title}${reason}`;
+    })
+    .join("\n");
+
+  const systemPrompt = `You apply the user's "skip rules" to a list of persona facts.
+
+The user has personally taught us these rules — anything matching them does NOT belong in their living memory and should be removed.
+
+For each candidate fact below, decide: does it MATCH any skip rule? Apply judgment, not literal-string matching — a rule like "skip work activity" should match "User attended Q3 review meeting" even though the rule doesn't mention reviews or meetings.
+
+Be conservative. If a fact is genuinely identity-defining (a relationship, a lasting habit, a core preference), KEEP it even if it brushes against a rule.
+
+Return ONLY a JSON array of integer indices to REJECT. Example: [0, 3, 7]. Empty array if all candidates pass.`;
+
+  const userPart = `Skip rules:\n${rules.slice(0, 2000)}\n\nCandidates:\n${block}`;
+
+  const FALLBACK = [model, "gemini-2.0-flash"];
+  for (const m of FALLBACK) {
+    try {
+      let r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: userPart }] }],
+            generationConfig: {
+              temperature: 0,
+              responseMimeType: "application/json",
+              maxOutputTokens: 600,
+            },
+          }),
+        },
+      );
+      if (r.status === 429) {
+        await new Promise((res) => setTimeout(res, 1500));
+        r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: systemPrompt }] },
+              contents: [{ role: "user", parts: [{ text: userPart }] }],
+              generationConfig: {
+                temperature: 0,
+                responseMimeType: "application/json",
+                maxOutputTokens: 600,
+              },
+            }),
+          },
+        );
+      }
+      if (!r.ok) continue;
+      const data: any = await r.json();
+      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+      const arr = JSON.parse(text);
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .filter((n) => typeof n === "number" && n >= 0 && n < candidates.length)
+        .map((n) => candidates[n]!.id);
+    } catch {
+      // try next model
+    }
+  }
+  return [];
 }
 
 // ── Public: enrichAllBrains (daily cron) ────────────────────────────────────

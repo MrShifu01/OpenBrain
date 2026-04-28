@@ -201,6 +201,37 @@ export function defaultPreferences(): GmailPreferences {
   };
 }
 
+// Loads the distilled accept/reject summaries + last 5 examples per side and
+// folds them into the GmailLearnings shape buildPrompt expects. Both summary
+// columns can be NULL (no decisions yet, or below MIN_FOR_DISTILL) — the
+// classifier prompt simply omits those blocks in that case.
+export async function loadGmailLearnings(
+  userId: string,
+  integration: any,
+): Promise<GmailLearnings> {
+  const { loadRecentGmailDecisions } = await import("./distillGmail.js");
+  const acceptedSummary = (integration.accepted_summary ?? "").trim() || null;
+  const rejectedSummary = (integration.rejected_summary ?? "").trim() || null;
+  const recent = await loadRecentGmailDecisions(userId, 5).catch(() => ({
+    accepts: [],
+    rejects: [],
+  }));
+  return {
+    acceptedSummary,
+    rejectedSummary,
+    recentAccepts: recent.accepts.map((a) => ({
+      subject: a.subject,
+      from: a.from,
+      reason: a.reason,
+    })),
+    recentRejects: recent.rejects.map((r) => ({
+      subject: r.subject,
+      from: r.from,
+      reason: r.reason,
+    })),
+  };
+}
+
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SB_HEADERS = {
@@ -535,7 +566,32 @@ const GMAIL_TYPE_MAP: Record<string, string> = {
   "signing-requests": "signing-request",
 };
 
-function buildPrompt(blocks: ThreadBlock[], prefs: GmailPreferences): string {
+// ── Learnings ──────────────────────────────────────────────────────────────
+// Distilled rules + recent specific examples derived from the user's prior
+// accept / reject decisions. Either can be empty (especially on first scan
+// or before MIN_FOR_DISTILL accumulates), in which case the prompt simply
+// omits those sections — the classifier then falls back to category logic.
+export interface GmailLearnings {
+  acceptedSummary: string | null;
+  rejectedSummary: string | null;
+  recentAccepts: Array<{ subject: string; from: string; reason: string | null }>;
+  recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
+}
+
+export function emptyLearnings(): GmailLearnings {
+  return {
+    acceptedSummary: null,
+    rejectedSummary: null,
+    recentAccepts: [],
+    recentRejects: [],
+  };
+}
+
+export function buildPrompt(
+  blocks: ThreadBlock[],
+  prefs: GmailPreferences,
+  learnings: GmailLearnings = emptyLearnings(),
+): string {
   const effectiveCategories = getEffectiveCategories(prefs);
   const hasCustom = !!prefs.custom?.trim();
 
@@ -549,6 +605,33 @@ function buildPrompt(blocks: ThreadBlock[], prefs: GmailPreferences): string {
   const customLine = hasCustom
     ? `\nScoring hints (negative signals — use judgment, do not hard-block clearly important emails):\n${prefs.custom.trim()}`
     : "";
+
+  // ── Learned rules — strongest signal in the prompt ──
+  // The user has personally curated these via accept/reject. KEEP rules
+  // describe what they want surfaced; SKIP rules describe noise. We also
+  // include the last 5 specific examples per side so the model anchors the
+  // rules to recent concrete cases.
+  const keepRulesBlock = learnings.acceptedSummary
+    ? `\n\nKEEP RULES (the user has taught us these are the kinds of emails to surface — apply as judgment, not as a literal allow-list):\n${learnings.acceptedSummary.slice(0, 1500)}`
+    : "";
+  const skipRulesBlock = learnings.rejectedSummary
+    ? `\n\nSKIP RULES (the user has taught us to filter these out — apply as judgment, not as a literal deny-list):\n${learnings.rejectedSummary.slice(0, 1500)}`
+    : "";
+  const acceptExamplesBlock = learnings.recentAccepts.length
+    ? `\n\nRECENT KEPT EMAILS (the user just accepted these — surface anything semantically similar):\n${learnings.recentAccepts
+        .map(
+          (a) => `  • From: ${a.from} — Subject: "${a.subject}"${a.reason ? ` (${a.reason})` : ""}`,
+        )
+        .join("\n")}`
+    : "";
+  const rejectExamplesBlock = learnings.recentRejects.length
+    ? `\n\nRECENT SKIPPED EMAILS (the user just rejected these — never resurface them or anything semantically similar):\n${learnings.recentRejects
+        .map(
+          (r) => `  • From: ${r.from} — Subject: "${r.subject}"${r.reason ? ` (${r.reason})` : ""}`,
+        )
+        .join("\n")}`
+    : "";
+  const learningsBlock = `${keepRulesBlock}${skipRulesBlock}${acceptExamplesBlock}${rejectExamplesBlock}`;
 
   const threadBlocks = blocks
     .map((b, i) => {
@@ -596,7 +679,7 @@ title: specific and informative (max 80 chars) — include sender name + amount 
 summary: one sentence capturing the outstanding obligation including key numbers found.
 
 Format: [{"index":0,"type":"invoices","title":"Acme Corp – R1,200 due 30 Apr","due_date":"2026-04-30","amount":"R1,200.00","account_number":"62012345678","reference_number":"INV-2026-001","urgency":"high","summary":"One sentence."}]
-${customLine}
+${customLine}${learningsBlock}
 
 Threads:
 ${threadBlocks}`;
@@ -1371,7 +1454,8 @@ export async function deepScanBatch(
     };
   }
 
-  const prompt = buildPrompt(usableBlocks, prefs);
+  const learnings = await loadGmailLearnings(integration.user_id, integration);
+  const prompt = buildPrompt(usableBlocks, prefs, learnings);
   const classified = geminiKey
     ? (await classifyWithGemini(prompt, geminiKey)).results
     : await classifyWithLLM(prompt);
@@ -1549,7 +1633,8 @@ export async function scanGmailForUser(
     }
 
     const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-    const prompt = buildPrompt(usableBlocks, prefs);
+    const learnings = await loadGmailLearnings(integration.user_id, integration);
+    const prompt = buildPrompt(usableBlocks, prefs, learnings);
     let classified: any[];
     if (geminiKey) {
       const { results, error, model } = await classifyWithGemini(prompt, geminiKey);

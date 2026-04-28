@@ -75,6 +75,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id, status: "active" }),
     }).catch(() => {});
+    recordDecision(entry, "accept", null);
     // Tell the app shell its inbox chip just shrank by one.
     window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
@@ -83,18 +84,50 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
     setTimeout(() => advance(idx), 300);
   }
 
-  function triggerReject(idx: number) {
+  function triggerReject(idx: number, reason?: string | null) {
     const entry = entries[idx];
     authFetch("/api/entries", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id }),
     }).catch(() => {});
+    recordDecision(entry, "reject", reason ?? null);
     window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
     setExiting("left");
     setDragX(-700);
     setTimeout(() => advance(idx), 300);
+  }
+
+  // Persist the user's accept/reject choice as a learning signal. Pulls the
+  // sender / subject / snippet out of the entry's metadata so the next scan's
+  // distillation pass has enough context to find patterns. Fire-and-forget;
+  // the staging UI doesn't block on the network round-trip.
+  function recordDecision(entry: any, decision: "accept" | "reject", reason: string | null) {
+    const meta = entry?.metadata ?? {};
+    const gmail = meta.gmail ?? {};
+    const fromHeader = String(gmail.from || meta.from || "");
+    const fromEmailMatch = fromHeader.match(/<([^>]+)>/);
+    const from_email = fromEmailMatch ? fromEmailMatch[1] : fromHeader;
+    const from_name = fromEmailMatch
+      ? fromHeader
+          .replace(/<[^>]+>/, "")
+          .trim()
+          .replace(/^"|"$/g, "")
+      : "";
+    authFetch("/api/entries?action=gmail-decision", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        decision,
+        subject: gmail.subject || entry?.title || "",
+        from_email,
+        from_name,
+        snippet: (entry?.content || "").slice(0, 400),
+        reason,
+        source_id: entry?.id,
+      }),
+    }).catch(() => {});
   }
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
