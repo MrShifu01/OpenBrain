@@ -32,6 +32,21 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
 
 - [ ] **Vercel Pro upgrade** ❌
       Currently on Hobby (12-function cap, 100 GB bandwidth, 60s function timeout). `vercel.json` already configures `maxDuration: 300` on `gmail.ts` / `llm.ts` / `user-data.ts` — those will time out at 60s on Hobby. Upgrade before launch ($20/mo).
+- [ ] **Supabase Pro upgrade** ❌ (CRITICAL — confirmed on Free tier 2026-04-28)
+      Free tier ships with **zero automated backups** and a 500 MB database cap. At ~3 KB per entry (768-dim embedding + content) you fit ~150k entries before hitting the cap, then writes start rejecting. For a public-scale product this is a launch blocker.
+      Pro ($25/mo) gets:
+      - Daily automated backups, 7-day retention
+      - 8 GB DB (16× headroom)
+      - 250 GB bandwidth/month (125× headroom)
+      - Branching for safer DDL changes
+      - Restore via dashboard one-click
+      Optional PITR add-on (~$100/mo) for restore-to-any-second; daily is fine for a memory app where users can re-import.
+      Upgrade at <https://supabase.com/dashboard/project/wfvoqpdfzkqnenzjxhui/settings/billing>.
+
+      **If you're staying on Free tier longer** (not recommended, but workable for closed beta):
+      - Set up `scripts/db-backup.ts` + a GitHub Action running `pg_dump` nightly, upload the dump to GitHub Releases / Vercel Blob / S3
+      - GitHub Actions has 2000 free minutes/month, the dump itself runs in seconds
+      - You're still on the 500 MB cap and have no transaction-time recovery, but at least you have *something* if the DB nukes itself
 - [ ] **Custom domain SSL + DNS verified** 🟡
       `everion.smashburgerbar.co.za` is live. Confirm SSL grade A on ssllabs.com and DNS has both A + AAAA records.
 - [x] **Vercel Deployment Protection on previews** ✅
@@ -274,11 +289,11 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [x] **Staging Supabase project** ✅ — `everion-staging` (`rsnrvebcjbstfxhkfsjq`, eu-west-1, free tier, $0/mo). Schema mirrors production via `supabase/migrations/*.sql`. URL + anon key in `.env.example`. Workflow: apply new migrations to staging FIRST, verify, THEN apply to production. Drift check reminder saved to Christian's Everion memory for 2026-05-28.
 - [ ] **Pin `/status` link somewhere user-visible** ❌ — landing page footer + login screen "having trouble?" link + support email signature. Page exists; users have no way to find it during an incident.
 - [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
-- [ ] **Test Supabase backup restore** ❌ — automated daily backups are running (Supabase Pro, 7-day retention), but never restored. A backup you've never restored is a hope, not a backup.
+- [ ] **Test Supabase backup restore** ❌ — depends on the Pro-upgrade above. **Currently on Free tier (no automated backups exist).** Once Pro is on, backups run daily automatically with 7-day retention; this item becomes a one-time dry-run + a quarterly habit. A backup you've never restored is a hope, not a backup.
 
-  **Step 0: confirm you're actually on Pro** (1 min)
+  **Step 0: confirm Pro is active** (1 min, after you've upgraded)
   - Open <https://supabase.com/dashboard/project/wfvoqpdfzkqnenzjxhui/database/backups>
-  - You should see 7 daily entries. If empty, you're on Free — upgrade to Pro before launch (you're already paying for branching anyway, branch cost $0.01344/hr means Pro is active).
+  - You should see 7 daily entries. If empty, you're still on Free — see "Supabase Pro upgrade" item above.
 
   **Step 1: dry-run a restore to a fresh project** (15 min, do this once before launch)
   - Backups page → pick any daily backup → "Restore"
