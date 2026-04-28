@@ -258,60 +258,102 @@ function eachDayInRange(
   }
 }
 
-/** Generate recurring date keys for an entry within range, calling onDate per match. */
-function expandRecurringDates(
-  entry: Entry,
-  range: { from: string; to: string },
-  onDate: (key: string) => void,
-): void {
-  const m = (entry.metadata || {}) as Record<string, unknown>;
-  const text = `${entry.title || ""} ${entry.content || ""}`;
+/* ─── Recurrence parsing ─── */
 
-  // Monthly via day_of_month
-  let domNum: number | null = null;
-  const domRaw = m.day_of_month;
-  if (domRaw !== undefined && domRaw !== null && domRaw !== "") {
-    const n = parseInt(String(domRaw), 10);
-    if (!isNaN(n) && n >= 1 && n <= 31) domNum = n;
-  }
-  if (domNum === null) {
-    const match = text.match(
-      /every\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i,
-    );
-    if (match) {
-      const n = parseInt(match[1] ?? match[2], 10);
-      if (!isNaN(n) && n >= 1 && n <= 31) domNum = n;
+/**
+ * Phase 2 canonical recurrence shape. Stored at metadata.recurrence.
+ * Engine reads the canonical shape FIRST; if absent, falls back to legacy
+ * day_of_week / day_of_month + content scanning so existing entries keep
+ * working until backfill catches up.
+ */
+export interface Recurrence {
+  freq: "weekly" | "monthly";
+  /** Weekly: 0-indexed day-of-week (0 = Sunday). Multiple days allowed. */
+  dow?: number[];
+  /** Monthly: day-of-month 1-31. Multiple days allowed. */
+  dom?: number[];
+}
+
+interface ParsedRecurrence {
+  dows: Set<number>;
+  doms: Set<number>;
+}
+
+function parseRecurrence(entry: Entry): ParsedRecurrence | null {
+  const m = (entry.metadata || {}) as Record<string, unknown>;
+  const dows = new Set<number>();
+  const doms = new Set<number>();
+
+  // Canonical recurrence object (Phase 2 forward).
+  const rec = m.recurrence as Recurrence | null | undefined;
+  if (rec && typeof rec === "object") {
+    if (Array.isArray(rec.dow)) {
+      for (const d of rec.dow) if (typeof d === "number" && d >= 0 && d <= 6) dows.add(d);
+    }
+    if (Array.isArray(rec.dom)) {
+      for (const d of rec.dom) if (typeof d === "number" && d >= 1 && d <= 31) doms.add(d);
     }
   }
 
-  // Weekly via day_of_week
-  let dowIdx: number | null = null;
+  // Legacy day_of_week (string).
   const rawDay = ((m.day_of_week || m.weekday || m.recurring_day || "") as string)
     .toString()
     .toLowerCase()
     .trim();
-  if (rawDay && DOW[rawDay] !== undefined) dowIdx = DOW[rawDay];
-  if (dowIdx === null) {
+  if (rawDay && DOW[rawDay] !== undefined) dows.add(DOW[rawDay]);
+
+  // Legacy day_of_month (string or number).
+  const domRaw = m.day_of_month;
+  if (domRaw !== undefined && domRaw !== null && domRaw !== "") {
+    const n = parseInt(String(domRaw), 10);
+    if (!isNaN(n) && n >= 1 && n <= 31) doms.add(n);
+  }
+
+  // Content fallback — only applied when no metadata recurrence at all.
+  // Lets pure-content "every Friday" notes still recur, but doesn't fire when
+  // the user has explicitly set the metadata (avoids double-extraction).
+  if (dows.size === 0 && doms.size === 0) {
+    const text = `${entry.title || ""} ${entry.content || ""}`;
     const dowMatch = text.match(
       /every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i,
     );
     if (dowMatch) {
       const key = dowMatch[1].toLowerCase();
-      if (DOW[key] !== undefined) dowIdx = DOW[key];
+      if (DOW[key] !== undefined) dows.add(DOW[key]);
+    }
+    const domMatch = text.match(
+      /every\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i,
+    );
+    if (domMatch) {
+      const n = parseInt(domMatch[1] ?? domMatch[2], 10);
+      if (!isNaN(n) && n >= 1 && n <= 31) doms.add(n);
     }
   }
 
-  if (domNum === null && dowIdx === null) return;
+  if (dows.size === 0 && doms.size === 0) return null;
+  return { dows, doms };
+}
+
+/** Generate recurring date keys for an entry within range. */
+function expandRecurringDates(
+  entry: Entry,
+  range: { from: string; to: string },
+  onDate: (key: string) => void,
+): void {
+  const parsed = parseRecurrence(entry);
+  if (!parsed) return;
 
   eachDayInRange(range.from, range.to, (year, mon, day, dow) => {
-    if (domNum !== null) {
+    if (parsed.doms.size > 0) {
       const lastDay = new Date(year, mon + 1, 0).getDate();
-      if (day === Math.min(domNum, lastDay)) {
-        onDate(dateKey(year, mon, day));
-        return;
+      for (const dom of parsed.doms) {
+        if (day === Math.min(dom, lastDay)) {
+          onDate(dateKey(year, mon, day));
+          return;
+        }
       }
     }
-    if (dowIdx !== null && dow === dowIdx) {
+    if (parsed.dows.has(dow)) {
       onDate(dateKey(year, mon, day));
     }
   });

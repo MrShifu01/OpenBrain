@@ -120,7 +120,14 @@ export default function TodoSomedayTab({
                 try {
                   await onUpdate?.(entry.id, {
                     type: "todo",
-                    metadata: { ...(entry.metadata || {}), due_date: dateStr, status: "todo" },
+                    metadata: {
+                      ...(entry.metadata || {}),
+                      // Canonical Phase 2 field; legacy due_date mirrored for
+                      // any callers still reading it.
+                      scheduled_for: dateStr,
+                      due_date: dateStr,
+                      status: "todo",
+                    },
                   });
                 } finally {
                   setBusyId(null);

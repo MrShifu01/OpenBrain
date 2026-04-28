@@ -220,6 +220,73 @@ describe("getPlacements recurrence", () => {
   });
 });
 
+// ─── Canonical recurrence object (Phase 2) ─────────────────────────────────
+
+describe("getPlacements canonical recurrence", () => {
+  it("expands recurrence.dow weekly", () => {
+    const e = entry({ recurrence: { freq: "weekly", dow: [3] } });
+    expect(getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true })).toEqual([
+      "2026-05-06",
+      "2026-05-13",
+      "2026-05-20",
+      "2026-05-27",
+    ]);
+  });
+
+  it("expands multiple recurrence.dow days in the same week", () => {
+    const e = entry({ recurrence: { freq: "weekly", dow: [1, 4] } }); // Mon + Thu
+    const out = getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true });
+    // May 2026 Mons: 4, 11, 18, 25.  Thus: 7, 14, 21, 28.
+    expect(out).toEqual([
+      "2026-05-04",
+      "2026-05-07",
+      "2026-05-11",
+      "2026-05-14",
+      "2026-05-18",
+      "2026-05-21",
+      "2026-05-25",
+      "2026-05-28",
+    ]);
+  });
+
+  it("expands recurrence.dom monthly", () => {
+    const e = entry({ recurrence: { freq: "monthly", dom: [15] } });
+    expect(getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true })).toEqual([
+      "2026-05-15",
+    ]);
+  });
+
+  it("treats canonical recurrence and legacy day_of_week as equivalent (dedupes)", () => {
+    const e = entry({ recurrence: { freq: "weekly", dow: [3] }, day_of_week: "wednesday" });
+    expect(getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true })).toEqual([
+      "2026-05-06",
+      "2026-05-13",
+      "2026-05-20",
+      "2026-05-27",
+    ]);
+  });
+
+  it("scheduled_for blocks recurrence the same way due_date does", () => {
+    const e = entry({
+      scheduled_for: "2026-05-06",
+      recurrence: { freq: "weekly", dow: [3] },
+    });
+    expect(getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true })).toEqual([
+      "2026-05-06",
+    ]);
+  });
+
+  it("ignores invalid dow values (out of range)", () => {
+    const e = entry({ recurrence: { freq: "weekly", dow: [-1, 7, 3] } });
+    expect(getPlacements(e, { mode: "calendar", range: MAY, expandRecurrence: true })).toEqual([
+      "2026-05-06",
+      "2026-05-13",
+      "2026-05-20",
+      "2026-05-27",
+    ]);
+  });
+});
+
 // ─── Type filters ──────────────────────────────────────────────────────────
 
 describe("getPlacements type filters", () => {

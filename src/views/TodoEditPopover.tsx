@@ -3,17 +3,24 @@ import type { Entry } from "../types";
 
 const REPEAT_OPTIONS = [
   { value: "none", label: "Never" },
-  { value: "daily", label: "Daily" },
   { value: "weekly", label: "Weekly" },
-  { value: "biweekly", label: "Biweekly" },
   { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
 ] as const;
 
-function getRepeat(entry: Entry): string {
+type RepeatValue = (typeof REPEAT_OPTIONS)[number]["value"];
+
+// Read a recurrence summary from either the canonical Phase 2 field
+// (metadata.recurrence) or legacy day_of_week / day_of_month. The popover
+// only edits weekly/monthly today — daily/biweekly/yearly used to live
+// here as labels only with no engine support, so they're dropped.
+function getRepeat(entry: Entry): RepeatValue {
   const m = (entry.metadata || {}) as Record<string, unknown>;
-  const r = String(m.repeat ?? "");
-  return REPEAT_OPTIONS.some((o) => o.value === r) ? r : "none";
+  const rec = m.recurrence as { freq?: string; dow?: unknown; dom?: unknown } | undefined;
+  if (rec?.freq === "weekly" || (Array.isArray(rec?.dow) && rec.dow.length > 0)) return "weekly";
+  if (rec?.freq === "monthly" || (Array.isArray(rec?.dom) && rec.dom.length > 0)) return "monthly";
+  if (m.day_of_week) return "weekly";
+  if (m.day_of_month) return "monthly";
+  return "none";
 }
 
 interface Props {
@@ -26,10 +33,13 @@ interface Props {
 export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props) {
   const [title, setTitle] = useState(entry.title || "");
   const [content, setContent] = useState(entry.content || "");
-  const [dueDate, setDueDate] = useState(
-    String((entry.metadata as { due_date?: string } | undefined)?.due_date ?? ""),
-  );
-  const [repeat, setRepeat] = useState(getRepeat(entry));
+  // Read either the canonical scheduled_for or legacy due_date so existing
+  // entries open with the right initial value.
+  const [dueDate, setDueDate] = useState(() => {
+    const m = (entry.metadata || {}) as Record<string, unknown>;
+    return String(m.scheduled_for ?? m.due_date ?? "");
+  });
+  const [repeat, setRepeat] = useState<RepeatValue>(getRepeat(entry));
   const [saving, setSaving] = useState(false);
 
   const W = 320;
@@ -43,10 +53,41 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
   async function save() {
     setSaving(true);
     const meta = { ...(entry.metadata || {}) } as Record<string, unknown>;
-    if (dueDate) meta.due_date = dueDate;
-    else delete meta.due_date;
-    if (repeat !== "none") meta.repeat = repeat;
-    else delete meta.repeat;
+
+    // ── Canonical scheduled_for (Phase 2). Mirror to legacy due_date for
+    //    back-compat with any callers that still read it.
+    if (dueDate) {
+      meta.scheduled_for = dueDate;
+      meta.due_date = dueDate;
+    } else {
+      delete meta.scheduled_for;
+      delete meta.due_date;
+    }
+
+    // ── Canonical recurrence object. Translate the dropdown:
+    //    weekly  → recurrence.dow = [day-of-week of dueDate, fallback Mon]
+    //    monthly → recurrence.dom = [day-of-month of dueDate, fallback 1]
+    //    none    → drop recurrence + legacy day_of_week / day_of_month
+    if (repeat === "weekly") {
+      const dow = dueDate ? new Date(dueDate + "T12:00:00").getDay() : 1;
+      meta.recurrence = { freq: "weekly", dow: [dow] };
+      delete meta.day_of_week;
+      delete meta.day_of_month;
+    } else if (repeat === "monthly") {
+      const dom = dueDate ? new Date(dueDate + "T12:00:00").getDate() : 1;
+      meta.recurrence = { freq: "monthly", dom: [dom] };
+      delete meta.day_of_week;
+      delete meta.day_of_month;
+    } else {
+      delete meta.recurrence;
+      delete meta.day_of_week;
+      delete meta.day_of_month;
+    }
+
+    // Legacy `repeat` string (no engine support) — clear it; canonical
+    // recurrence above replaces it.
+    delete meta.repeat;
+
     await onSave({ title, content, metadata: meta as Entry["metadata"] });
     setSaving(false);
     onClose();
@@ -146,7 +187,7 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             </span>
             <select
               value={repeat}
-              onChange={(e) => setRepeat(e.target.value)}
+              onChange={(e) => setRepeat(e.target.value as RepeatValue)}
               className="flex-1 rounded-xl border px-3 py-1.5 text-sm outline-none"
               style={{
                 background: "var(--surface-low)",
