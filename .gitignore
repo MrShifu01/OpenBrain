@@ -71,3 +71,4 @@ playwright-report/
 
 # Lighthouse audit reports — large HTML, regenerated on demand
 .lighthouse/
+docs/everion-mind-for-notebooklm.md
