@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import GmailScanReviewModal from "./settings/GmailScanReviewModal";
+import { useStagedCount } from "../hooks/useStagedCount";
 
 interface Props {
   notifications: AppNotification[];
@@ -221,53 +222,95 @@ function AutoMergedCard({ n, onDismiss }: { n: AppNotification; onDismiss: () =>
   );
 }
 
-function GmailScanCard({ n }: { n: AppNotification }) {
+function GmailScanCard({
+  n,
+  onDismiss,
+  onOpenInbox,
+}: {
+  n: AppNotification;
+  onDismiss: () => void;
+  onOpenInbox: () => void;
+}) {
+  const created = (n.data?.created ?? 0) as number;
+  const hasItems = created > 0;
   return (
-    <div
-      style={{
-        padding: "12px 16px",
-        borderBottom: "1px solid var(--line-soft)",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-      }}
-    >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: "50%",
-          background: "var(--surface)",
-          border: "1px solid var(--line-soft)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-          marginTop: 1,
-        }}
-      >
-        <svg
-          width="12"
-          height="12"
-          fill="none"
-          stroke="var(--ink-faint)"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          viewBox="0 0 24 24"
+    <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--line-soft)" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <div
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: "50%",
+            background: hasItems ? "var(--ember-wash)" : "var(--surface)",
+            border: hasItems ? "none" : "1px solid var(--line-soft)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+            marginTop: 1,
+          }}
         >
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-          <path d="M22 6l-10 7L2 6" />
-        </svg>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
-          {n.title}
+          <svg
+            width="12"
+            height="12"
+            fill="none"
+            stroke={hasItems ? "var(--ember)" : "var(--ink-faint)"}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+          >
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <path d="M22 6l-10 7L2 6" />
+          </svg>
         </div>
-        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
-          {n.body}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+            {n.title}
+          </div>
+          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            {n.body}
+          </div>
         </div>
       </div>
+      {hasItems && (
+        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+          <button
+            onClick={onDismiss}
+            className="press f-sans"
+            style={{
+              flex: 1,
+              height: 32,
+              borderRadius: 7,
+              border: "1px solid var(--line)",
+              background: "transparent",
+              color: "var(--ink-soft)",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Dismiss
+          </button>
+          <button
+            onClick={onOpenInbox}
+            className="press f-sans"
+            style={{
+              flex: 1,
+              height: 32,
+              borderRadius: 7,
+              border: "none",
+              background: "var(--ember)",
+              color: "var(--ember-ink)",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Open inbox
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -373,11 +416,28 @@ export default function NotificationBell({
   const [reviewItems, setReviewItems] = useState<any[] | null>(null);
   const [reviewNotifId, setReviewNotifId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const stagedCount = useStagedCount();
+
+  // Auto-dismiss "Gmail scan finished — Staged N clusters" notifications
+  // once the staging inbox is empty. The user has reviewed everything; the
+  // prompt-to-review is stale. Only fires for notifs that promised items
+  // (data.created > 0); pure-informational ones ("No new entries") stay
+  // until the bell is closed.
+  useEffect(() => {
+    if (stagedCount > 0) return;
+    notifications
+      .filter((n) => n.type === "gmail_scan" && ((n.data?.created ?? 0) as number) > 0)
+      .forEach((n) => onDismiss(n.id));
+  }, [stagedCount, notifications, onDismiss]);
 
   function handleClose() {
     setOpen(false);
-    // Auto-dismiss informational scan notifications — they need no action
-    notifications.filter((n) => n.type === "gmail_scan").forEach((n) => onDismiss(n.id));
+    // Auto-dismiss informational scan notifications with nothing to review.
+    // The ones with staged items persist — the staged-count watcher above
+    // dismisses them once the user actually reviews the inbox.
+    notifications
+      .filter((n) => n.type === "gmail_scan" && !(((n.data?.created ?? 0) as number) > 0))
+      .forEach((n) => onDismiss(n.id));
   }
 
   // Close on outside click
@@ -404,6 +464,14 @@ export default function NotificationBell({
     setReviewItems(n.data.items ?? []);
     setReviewNotifId(n.id);
     setOpen(false);
+  }
+
+  function openGmailInbox(n: AppNotification) {
+    // Two-stage event handled in Everion.tsx: switches to Settings, then
+    // tells GmailSyncTab to open its staging inbox.
+    window.dispatchEvent(new CustomEvent("everion:open-gmail-inbox"));
+    setOpen(false);
+    onDismiss(n.id);
   }
 
   return (
@@ -514,7 +582,14 @@ export default function NotificationBell({
                 );
               }
               if (n.type === "gmail_scan") {
-                return <GmailScanCard key={n.id} n={n} />;
+                return (
+                  <GmailScanCard
+                    key={n.id}
+                    n={n}
+                    onDismiss={() => onDismiss(n.id)}
+                    onOpenInbox={() => openGmailInbox(n)}
+                  />
+                );
               }
               if (n.type === "gmail_review") {
                 return (
