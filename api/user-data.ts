@@ -74,6 +74,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   if (resource === "activity") return handleActivity(req, res);
   if (resource === "health") return handleHealth(req, res);
+  if (resource === "status") return handlePublicStatus(req, res);
   if (resource === "vault") return handleVault(req, res);
   if (resource === "pin") return handlePin(req, res);
   if (resource === "account") return handleDeleteAccount(req, res);
@@ -274,6 +275,32 @@ const handleActivity = withAuth(
     return void res.status(r.ok ? 201 : 502).json({ ok: r.ok });
   },
 );
+
+// ── /api/status (rewritten to /api/user-data?resource=status) — public ──
+//
+// Public, unauthenticated status check for the user-facing /status page.
+// Returns minimal info: API up + DB reachable + AI provider key configured.
+// Does NOT do a real Gemini inference call (would burn quota and could be
+// abused). For deep diagnostics use /api/health (auth-gated).
+//
+// Cache-Control: 15s edge cache + 60s stale-while-revalidate so a flood of
+// users hitting /status during an incident doesn't spawn 1000 cold-start
+// pings of the DB.
+async function handlePublicStatus(_req: ApiRequest, res: ApiResponse): Promise<void> {
+  let db = false;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/entries?select=id&limit=1`, {
+      headers: { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` },
+    });
+    db = r.ok;
+  } catch {
+    db = false;
+  }
+  const ai = !!(process.env.GEMINI_API_KEY || "").trim();
+  const ok = db && ai;
+  res.setHeader("Cache-Control", "public, s-maxage=15, stale-while-revalidate=60");
+  res.status(200).json({ ok, db, ai, ts: new Date().toISOString() });
+}
 
 // ── /api/health (rewritten to /api/user-data?resource=health) ──
 const handleHealth = withAuth(

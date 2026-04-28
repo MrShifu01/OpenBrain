@@ -18,6 +18,7 @@ const Everion = lazy(() => import("./Everion"));
 const LoginScreen = lazy(() => import("./LoginScreen"));
 const AdminView = lazy(() => import("./views/AdminView"));
 const ResetPasswordView = lazy(() => import("./views/ResetPasswordView"));
+const StatusPage = lazy(() => import("./views/StatusPage"));
 
 const PENDING_INVITE_KEY = "ob_pending_invite";
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
@@ -37,7 +38,25 @@ function getHashTokens(): {
   return null;
 }
 
+// Top-level route dispatcher. The /status route renders ahead of every
+// other check so a user who can't sign in (Supabase auth down, expired
+// keys, browser network issue) still sees the public status page.
+// Pulling the dispatch out keeps the AppMain hook order stable and
+// satisfies react-hooks/rules-of-hooks.
 export default function App(): JSX.Element {
+  if (typeof window !== "undefined" && window.location.pathname === "/status") {
+    return (
+      <ThemeProvider>
+        <Suspense fallback={<LoadingScreen />}>
+          <StatusPage />
+        </Suspense>
+      </ThemeProvider>
+    );
+  }
+  return <AppMain />;
+}
+
+function AppMain(): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
