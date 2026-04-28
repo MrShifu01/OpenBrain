@@ -75,6 +75,8 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id, status: "active" }),
     }).catch(() => {});
+    // Tell the app shell its inbox chip just shrank by one.
+    window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
     setExiting("right");
     setDragX(700);
@@ -88,6 +90,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id }),
     }).catch(() => {});
+    window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
     setExiting("left");
     setDragX(-700);
@@ -322,6 +325,12 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           boxSizing: "border-box",
           cursor: "grab",
           userSelect: "none",
+          // Without this, mobile browsers steal the horizontal motion for
+          // native scroll / iOS back-swipe and the pointer-move handlers
+          // never fire — buttons work because they're discrete clicks, but
+          // the Tinder swipe never gets a chance to track.
+          touchAction: "none",
+          WebkitUserSelect: "none",
           transform: `translateX(${dragX}px) rotate(${dragX * 0.04}deg)`,
           transition: cardTransition,
           boxShadow: "0 8px 32px oklch(0% 0 0 / 0.18)",

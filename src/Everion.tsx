@@ -19,6 +19,7 @@ import { BackgroundTaskToast } from "./components/BackgroundTaskToast";
 import { BackgroundOpsToast } from "./components/BackgroundOpsToast";
 import { BackgroundOpsProvider } from "./hooks/useBackgroundOps";
 import { useBackgroundCapture } from "./hooks/useBackgroundCapture";
+import { useStagedCount } from "./hooks/useStagedCount";
 import { VirtualGrid, VirtualTimeline } from "./components/EntryList";
 import BulkActionBar from "./components/BulkActionBar";
 import OnboardingModal from "./components/OnboardingModal";
@@ -187,6 +188,7 @@ function EverionContent({
   );
 
   const allEntries = useMemo(() => [...entries, ...vaultEntries], [entries, vaultEntries]);
+  const stagedCount = useStagedCount();
   const { conceptMap, godNodes } = useConceptGraph();
   const { isDark, toggleTheme } = useTheme();
   const { isAdmin, adminFlags } = useAdminDevMode();
@@ -201,6 +203,21 @@ function EverionContent({
       appShell.setView("memory");
     }
   }, [adminFlags, appShell.view, appShell.setView]);
+
+  // Toast deep-link: when the gmail-scan toast's "Review" CTA fires, switch
+  // to Settings and tell GmailSyncTab to open its staging inbox. Two-stage
+  // event so the tab has time to mount before being asked to open the inbox.
+  useEffect(() => {
+    function handleOpenGmailInbox() {
+      appShell.setView("settings");
+      // 60ms gives SettingsView time to lazy-mount GmailSyncTab.
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("everion:open-staging-inbox"));
+      }, 60);
+    }
+    window.addEventListener("everion:open-gmail-inbox", handleOpenGmailInbox);
+    return () => window.removeEventListener("everion:open-gmail-inbox", handleOpenGmailInbox);
+  }, [appShell]);
 
   // Index concept names into the search index so grid search finds entries by concept
   useEffect(() => {
@@ -271,6 +288,7 @@ function EverionContent({
         entryCount={entries.length}
         onShowCreateBrain={() => {}}
         navViews={visibleNavViews}
+        inboxCount={stagedCount}
         searchInput={appShell.searchInput}
         onSearchChange={appShell.setSearchInput}
       ></DesktopSidebar>

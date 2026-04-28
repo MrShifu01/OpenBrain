@@ -102,6 +102,26 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     fetchStagedCount();
   }, []);
 
+  // Cross-component deep-link: the gmail-scan toast's Review CTA dispatches
+  // this event after the app shell switches to Settings. Open the inbox
+  // and refresh the count in case the scan landed extra items between
+  // the original count fetch and this nav.
+  useEffect(() => {
+    function handleOpenInbox() {
+      fetchStagedCount();
+      setShowStagingInbox(true);
+    }
+    function handleStagedChanged() {
+      fetchStagedCount();
+    }
+    window.addEventListener("everion:open-staging-inbox", handleOpenInbox);
+    window.addEventListener("everion:staged-changed", handleStagedChanged);
+    return () => {
+      window.removeEventListener("everion:open-staging-inbox", handleOpenInbox);
+      window.removeEventListener("everion:staged-changed", handleStagedChanged);
+    };
+  }, []);
+
   async function handleConnect(preferences: { categories: string[]; custom: string }) {
     const {
       data: { session },

@@ -17,7 +17,18 @@ export interface TaskHelpers {
   setLabel: (label: string) => void;
 }
 
-type TaskRunner = (resumeKey: string, helpers: TaskHelpers) => Promise<string>;
+interface TaskAction {
+  label: string;
+  event: string;
+  detail?: Record<string, unknown>;
+}
+
+interface TaskOutput {
+  result: string;
+  action?: TaskAction;
+}
+
+type TaskRunner = (resumeKey: string, helpers: TaskHelpers) => Promise<string | TaskOutput>;
 
 // authFetch with one retry on network error — covers Safari's "Load failed"
 // when a resumed task fires before the network/auth is fully warm. Server
@@ -200,7 +211,14 @@ const gmailScan: TaskRunner = async (brainId) => {
   if (!r?.ok) throw new Error(data?.error ?? "Scan failed");
   const created: number = data?.created ?? 0;
   if (created === 0) return "No new items found.";
-  return `${created} new ${created === 1 ? "item" : "items"} flagged for review.`;
+  // Notify any badge listeners that staged count just changed.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("everion:staged-changed"));
+  }
+  return {
+    result: `${created} new ${created === 1 ? "item" : "items"} flagged for review.`,
+    action: { label: "Review", event: "everion:open-gmail-inbox" },
+  };
 };
 
 // ── Registry ────────────────────────────────────────────────────────────────

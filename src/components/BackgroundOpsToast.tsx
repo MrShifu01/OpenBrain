@@ -113,11 +113,29 @@ export function BackgroundOpsToast() {
               </p>
             </div>
 
+            {isDone && task.action && (
+              <button
+                onClick={() => {
+                  window.dispatchEvent(
+                    new CustomEvent(task.action!.event, { detail: task.action!.detail }),
+                  );
+                  dismissTask(task.id);
+                }}
+                className="press-scale ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                style={{
+                  background: "var(--color-primary)",
+                  color: "var(--color-on-primary)",
+                }}
+              >
+                {task.action.label}
+              </button>
+            )}
+
             {!isActive && (
               <button
                 onClick={() => dismissTask(task.id)}
                 aria-label="Dismiss"
-                className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 <svg

@@ -37,6 +37,16 @@ import { TASK_RUNNERS, type TaskHelpers } from "../lib/backgroundTaskRegistry";
 
 type OpStatus = "running" | "done" | "error";
 
+// Optional CTA surfaced in the success toast. The `event` is a window
+// CustomEvent name that listeners (e.g. main app shell) react to. Keeps
+// runners closure-free — they can name a navigation intent without
+// holding any React refs.
+export interface OpTaskAction {
+  label: string;
+  event: string;
+  detail?: Record<string, unknown>;
+}
+
 interface OpTask {
   id: string;
   kind: string; // looks up the runner in TASK_RUNNERS
@@ -45,6 +55,7 @@ interface OpTask {
   progress?: { current: number; total?: number; suffix?: string };
   result?: string; // success message
   error?: string;
+  action?: OpTaskAction;
   startedAt: number;
   finishedAt?: number;
   resumeKey?: string; // passed to the runner on resume
@@ -123,10 +134,16 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
       };
 
       try {
-        const result = await runner(task.resumeKey || "", helpers);
+        const out = await runner(task.resumeKey || "", helpers);
+        // Runners may return a plain string (legacy) or { result, action }
+        // for tasks that want to surface a CTA in the toast.
+        const resultText = typeof out === "string" ? out : out?.result || "Done.";
+        const action =
+          typeof out === "object" && out !== null && "action" in out ? out.action : undefined;
         updateTask(task.id, {
           status: "done",
-          result: result || "Done.",
+          result: resultText,
+          action,
           finishedAt: Date.now(),
           progress: undefined,
         });
