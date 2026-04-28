@@ -806,24 +806,43 @@ export default function Landing({ onAuth }: LandingProps) {
                     fontSize: 17,
                     color: "var(--ink-soft)",
                     fontStyle: "italic",
-                    minHeight: 26,
-                    display: "flex",
+                    // Grid-stack the ghosts and the live typed string in one
+                    // cell so the container's intrinsic height = the tallest
+                    // phrase at the current width. Without this, the typewriter
+                    // bumped the entire page up/down every keystroke as
+                    // phrases wrapped to 1/2/3 lines.
+                    display: "grid",
                     alignItems: "center",
                   }}
                 >
-                  {typed}
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 1,
-                      height: 18,
-                      background: "var(--ember)",
-                      marginLeft: 2,
-                      animation: "design-breathe 1s ease-in-out infinite",
-                      ["--b-low" as string]: "0.2",
-                      ["--b-high" as string]: "1",
-                    }}
-                  />
+                  {phrases.map((p, i) => (
+                    <span
+                      key={`ghost-${i}`}
+                      aria-hidden="true"
+                      style={{
+                        gridArea: "1 / 1",
+                        visibility: "hidden",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {p}
+                    </span>
+                  ))}
+                  <span style={{ gridArea: "1 / 1" }}>
+                    {typed}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 1,
+                        height: 18,
+                        background: "var(--ember)",
+                        marginLeft: 2,
+                        animation: "design-breathe 1s ease-in-out infinite",
+                        ["--b-low" as string]: "0.2",
+                        ["--b-high" as string]: "1",
+                      }}
+                    />
+                  </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <Kbd>{MOD}</Kbd>

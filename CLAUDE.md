@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+> **DEFAULT RESPONSE STYLE: caveman skill, full intensity.**
+> All user-facing prose in this project follows the `caveman` skill (full mode by default). Drop articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries (sure/of course/happy to), and hedging. Fragments OK. Short synonyms (fix not "implement a solution for"). **Code blocks, file paths, and exact error strings stay verbatim — never compress those.** Switch to lite only if user asks; switch off only on explicit request.
+> Skill lives at `~/.claude/plugins/cache/caveman/.../skills/caveman/SKILL.md`. Invoke `/caveman lite|full|ultra` to change intensity mid-session.
+
 > **HARD LIMIT — Vercel Hobby plan: max 12 serverless functions.**
 > The project is at exactly 12 `api/*.ts` files — the maximum allowed.
 > **Never create a new top-level file in `api/` without first consolidating an existing endpoint.**
