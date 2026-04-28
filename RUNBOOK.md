@@ -170,6 +170,64 @@ recent migrations and recent webhook activity.
 
 ---
 
+## DB-restore procedure (DIY pg_dump backups)
+
+**When to use this:** the database has been corrupted, a destructive
+migration ran in production, or rows are missing and you need to roll
+back to yesterday's state. The `db-backup.yml` GitHub Action runs daily
+at 03:17 UTC and stores 30 days of dumps as private GitHub Releases
+tagged `backup-YYYY-MM-DD`.
+
+**You need:** the `gh` CLI authenticated to this repo, `psql` (Postgres
+17 client), and a fresh empty Supabase project to restore *into*. Never
+restore over production directly — restore to a new project, verify it
+looks right, THEN repoint the app.
+
+**Steps:**
+
+1. List available backups:
+   ```bash
+   gh release list --limit 50 --json tagName --jq '.[] | select(.tagName | startswith("backup-")) | .tagName'
+   ```
+
+2. Download the dump you want (e.g. yesterday's):
+   ```bash
+   gh release download backup-2026-04-27 --pattern '*.sql.gz'
+   ```
+
+3. Spin up a fresh Supabase project (dashboard → New Project) for the
+   restore target. Don't restore into staging, that already has its own
+   shape. Don't restore into production until you've verified the dump.
+
+4. Apply the dump:
+   ```bash
+   gunzip -c db-2026-04-27.sql.gz | psql "$NEW_PROJECT_DB_URL"
+   ```
+
+5. Verify a known row exists:
+   ```sql
+   SELECT count(*) FROM entries;
+   SELECT count(*) FROM brains;
+   ```
+   Counts should roughly match production-at-backup-time.
+
+**What the dump does NOT contain:**
+
+- The `auth` schema (Supabase-managed). Restored project has no users —
+  if this is full disaster recovery, users will need to re-sign-up. For
+  partial restore (e.g. recover deleted entries) you'd dump affected
+  tables from the new project and re-INSERT into prod.
+- Realtime publication state. Re-add the `entries` table to
+  `supabase_realtime` after restore (see migration `047`).
+- RLS policies will exist but won't match any user IDs unless you also
+  restore the `auth.users` rows separately.
+
+**For full disaster recovery you want Supabase Pro.** This DIY is a
+stop-gap, useful for "I dropped the wrong table" rather than "the
+project got nuked".
+
+---
+
 ## When you can't tell which one of the above is happening
 
 Open Sentry first (most signal per second), then Vercel function

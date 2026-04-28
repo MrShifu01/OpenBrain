@@ -43,10 +43,14 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
       Optional PITR add-on (~$100/mo) for restore-to-any-second; daily is fine for a memory app where users can re-import.
       Upgrade at <https://supabase.com/dashboard/project/wfvoqpdfzkqnenzjxhui/settings/billing>.
 
-      **If you're staying on Free tier longer** (not recommended, but workable for closed beta):
-      - Set up `scripts/db-backup.ts` + a GitHub Action running `pg_dump` nightly, upload the dump to GitHub Releases / Vercel Blob / S3
-      - GitHub Actions has 2000 free minutes/month, the dump itself runs in seconds
-      - You're still on the 500 MB cap and have no transaction-time recovery, but at least you have *something* if the DB nukes itself
+      **DIY pg_dump backup workflow shipped 2026-04-28** — `.github/workflows/db-backup.yml` runs daily at 03:17 UTC, dumps the `public` schema, gzips, uploads as a private GitHub Release tagged `backup-YYYY-MM-DD`, and prunes anything older than 30 days. Restore procedure is in `RUNBOOK.md`. **One setup step left:**
+
+      - [ ] Add `SUPABASE_DB_URL` to repo secrets (Settings → Secrets and variables → Actions). Format:
+            `postgresql://postgres.<project-ref>:<password>@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`
+            (Session pooler mode, port 5432 — NOT the transaction pooler on 6543, which doesn't support pg_dump.) Get the URI from Supabase dashboard → Project Settings → Database → Connection string → URI.
+      - [ ] Trigger the workflow once via `workflow_dispatch` to confirm the first dump lands. Then it runs daily.
+
+      **DIY backups are a stop-gap.** They cover "I dropped the wrong table" but not "the project got nuked" (the `auth` schema isn't dumped, so users can't be restored). Pro is still the right answer before public launch.
 - [ ] **Custom domain SSL + DNS verified** 🟡
       `everion.smashburgerbar.co.za` is live. Confirm SSL grade A on ssllabs.com and DNS has both A + AAAA records.
 - [x] **Vercel Deployment Protection on previews** ✅
