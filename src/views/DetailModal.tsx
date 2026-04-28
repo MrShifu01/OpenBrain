@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import FocusTrap from "focus-trap-react";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Entry, Brain } from "../types";
+import { BrainContext } from "../context/BrainContext";
+import { isFeatureEnabled } from "../lib/featureFlags";
+import { useAdminDevMode } from "../hooks/useAdminDevMode";
+import MoveToBrainModal from "../components/MoveToBrainModal";
 
 // ── Metadata highlights ───────────────────────────────────────────────────────
 
@@ -120,6 +124,17 @@ export default function DetailModal({
   }, []);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [movingBrain, setMovingBrain] = useState(false);
+  // Read BrainContext directly (not via useBrain) so DetailModal can render
+  // outside a provider in tests. Multi-brain UI only appears when both the
+  // feature flag is on AND the context is available with >1 brain.
+  const brainCtx = useContext(BrainContext);
+  const activeBrain = brainCtx?.activeBrain ?? null;
+  const ctxBrains = brainCtx?.brains ?? [];
+  const refreshBrains = brainCtx?.refresh;
+  const { adminFlags } = useAdminDevMode();
+  const showMoveBrain =
+    isFeatureEnabled("multiBrain", adminFlags) && !!brainCtx && ctxBrains.length > 1;
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(entry.title);
   const [editContent, setEditContent] = useState(entry.content ?? "");
@@ -517,6 +532,39 @@ No explanation, no punctuation, just one word.`,
                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
             </button>
+
+            {/* Move to brain (multi-brain phase 1) */}
+            {canWrite && showMoveBrain && (
+              <button
+                aria-label="Move to brain"
+                title="Move to brain"
+                className="design-btn-ghost press"
+                onClick={() => setMovingBrain(true)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  minHeight: 32,
+                  padding: 0,
+                  color: "var(--ink-faint)",
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M3 12h13" />
+                  <path d="m13 6 6 6-6 6" />
+                  <rect x="20" y="4" width="2" height="16" rx="1" />
+                </svg>
+              </button>
+            )}
 
             {/* More / edit */}
             {canWrite && (
@@ -1291,6 +1339,19 @@ No explanation, no punctuation, just one word.`,
           )}
         </div>
       </FocusTrap>
+      {movingBrain && activeBrain && (
+        <MoveToBrainModal
+          entry={entry}
+          currentBrain={activeBrain}
+          brains={ctxBrains}
+          onClose={() => setMovingBrain(false)}
+          onMoved={() => {
+            setMovingBrain(false);
+            refreshBrains?.()?.catch(() => {});
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 }

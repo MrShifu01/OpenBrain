@@ -23,6 +23,11 @@ export const FEATURE_FLAGS = {
     icon: "∞",
     prodEnabled: import.meta.env.VITE_FEATURE_SOMEDAY === "true",
   },
+  multiBrain: {
+    label: "Multi-brain",
+    icon: "🧠",
+    prodEnabled: import.meta.env.VITE_FEATURE_MULTI_BRAIN === "true",
+  },
 } as const satisfies Record<string, { label: string; icon: string; prodEnabled: boolean }>;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

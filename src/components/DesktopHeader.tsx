@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
+import BrainSwitcher from "./BrainSwitcher";
+import { isFeatureEnabled } from "../lib/featureFlags";
+import { useAdminDevMode } from "../hooks/useAdminDevMode";
 
 interface DesktopHeaderProps {
   searchInput: string;
@@ -85,6 +88,8 @@ export default function DesktopHeader({
   onAcceptMerge,
 }: DesktopHeaderProps) {
   const [email, setEmail] = useState(readCachedEmail);
+  const { adminFlags } = useAdminDevMode();
+  const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
 
   // Email is cached lazily by SettingsView/AccountTab. Re-read on mount in
   // case the user signed in mid-session and the initial render captured "".
@@ -109,6 +114,8 @@ export default function DesktopHeader({
         borderBottom: "1px solid var(--line-soft)",
       }}
     >
+      {showBrainSwitcher && <BrainSwitcher />}
+
       {/* Search — opens OmniSearch on Cmd/Ctrl+/, also feeds the memory grid
           filter (same wiring as the old sidebar search). */}
       <div

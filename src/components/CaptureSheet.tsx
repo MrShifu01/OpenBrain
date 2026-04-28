@@ -3,10 +3,12 @@ import FocusTrap from "focus-trap-react";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
 import { useBrain as useBrainCtx } from "../context/BrainContext";
-import type { Entry } from "../types";
+import type { Brain, Entry } from "../types";
 import CapturePreviewPanel, { type PreviewState } from "./CapturePreviewPanel";
 import CaptureSecretPanel, { type SecretForm } from "./CaptureSecretPanel";
 import CaptureEntryBody from "./CaptureEntryBody";
+import { isFeatureEnabled } from "../lib/featureFlags";
+import { useAdminDevMode } from "../hooks/useAdminDevMode";
 
 interface CaptureSheetProps {
   isOpen: boolean;
@@ -52,7 +54,12 @@ export default function CaptureSheet({
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState("");
 
-  useBrainCtx(); // keep context subscription warm for offline/online syncs
+  const brainCtx = useBrainCtx(); // keep context subscription warm + give pill access
+  const { adminFlags } = useAdminDevMode();
+  const showBrainPill = isFeatureEnabled("multiBrain", adminFlags);
+  // Per-capture brain override — does NOT change app-wide active brain.
+  const [captureBrain, setCaptureBrain] = useState<Brain | null>(null);
+  const effectiveBrainId = captureBrain?.id ?? brainId;
   const [showSavedWhisper, setShowSavedWhisper] = useState(false);
 
   // Drag-to-close + entrance animation
@@ -86,7 +93,14 @@ export default function CaptureSheet({
     confirmSave,
     handleImageFile,
     handleDocFiles,
-  } = useCaptureSheetParse({ brainId, isOnline, cryptoKey, onCreated, onClose, onBackgroundSave });
+  } = useCaptureSheetParse({
+    brainId: effectiveBrainId,
+    isOnline,
+    cryptoKey,
+    onCreated,
+    onClose,
+    onBackgroundSave,
+  });
 
   const { listening, startVoice, resetListening } = useVoiceRecorder({
     onTranscript: (t) => setText((prev) => (prev ? `${prev} ${t}` : t)),
@@ -123,6 +137,7 @@ export default function CaptureSheet({
       setSomedayActive(false);
       setSecretForm({ title: "", content: "" });
       setSecretError("");
+      setCaptureBrain(null);
       resetState();
       setLoading(false);
       resetListening();
@@ -305,6 +320,15 @@ export default function CaptureSheet({
             {loading ? "Processing your entry…" : (status ?? "")}
           </div>
 
+          {showBrainPill && brainCtx.brains.length > 1 && !preview && activeTab === "entry" && (
+            <CaptureBrainPill
+              brains={brainCtx.brains}
+              activeBrain={brainCtx.activeBrain}
+              captureBrain={captureBrain}
+              onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+            />
+          )}
+
           {/* Drag handle (mobile) */}
           <div
             ref={handleRef}
@@ -409,5 +433,173 @@ export default function CaptureSheet({
         </div>
       </FocusTrap>
     </>
+  );
+}
+
+// ── Per-capture brain override pill ────────────────────────────────────────
+// Lightweight inline picker. Doesn't change the app-wide active brain.
+// Resets each time the sheet closes.
+
+interface CaptureBrainPillProps {
+  brains: Brain[];
+  activeBrain: Brain | null;
+  captureBrain: Brain | null;
+  onPick: (b: Brain) => void;
+}
+
+function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: CaptureBrainPillProps) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const target = captureBrain ?? activeBrain;
+  if (!target) return null;
+  const personal = brains.find((b) => b.is_personal);
+  const others = brains.filter((b) => !b.is_personal).sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = personal ? [personal, ...others] : others;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "10px 16px 0",
+        fontSize: 11,
+        color: "var(--ink-faint)",
+      }}
+    >
+      <span>Capture into</span>
+      <div ref={ref} style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          className="press"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: 26,
+            padding: "0 8px",
+            background: captureBrain ? "var(--ember-wash)" : "var(--surface)",
+            border: `1px solid ${captureBrain ? "var(--ember)" : "var(--line-soft)"}`,
+            borderRadius: 6,
+            color: "var(--ink)",
+            fontSize: 12,
+            fontWeight: 500,
+            cursor: "pointer",
+            maxWidth: 180,
+          }}
+        >
+          {target.is_personal && (
+            <span aria-hidden="true" style={{ color: "var(--ember)", fontSize: 10 }}>
+              ★
+            </span>
+          )}
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
+            }}
+          >
+            {target.name}
+          </span>
+          <svg
+            aria-hidden="true"
+            width="10"
+            height="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+            style={{ flexShrink: 0, opacity: 0.6 }}
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </button>
+        {open && (
+          <div
+            role="listbox"
+            style={{
+              position: "absolute",
+              top: "calc(100% + 4px)",
+              left: 0,
+              minWidth: 200,
+              background: "var(--bg)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 8,
+              boxShadow: "0 10px 32px rgba(0,0,0,0.18)",
+              padding: 4,
+              zIndex: 60,
+            }}
+          >
+            {sorted.map((b) => {
+              const selected = b.id === target.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onPick(b);
+                    setOpen(false);
+                  }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    width: "100%",
+                    padding: "6px 8px",
+                    background: selected ? "var(--ember-wash)" : "transparent",
+                    border: 0,
+                    borderRadius: 4,
+                    color: "var(--ink)",
+                    fontSize: 12,
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                >
+                  {b.is_personal ? (
+                    <span style={{ color: "var(--ember)", width: 12, textAlign: "center" }}>★</span>
+                  ) : (
+                    <span style={{ width: 12 }} />
+                  )}
+                  <span
+                    style={{
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {b.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

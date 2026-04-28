@@ -157,49 +157,171 @@ const handleProfile = withAuth(
 
 // ── /api/brains (rewritten to /api/user-data?resource=brains) ──
 //
-// GET   — list owned brains, auto-create personal brain on first call.
-// PATCH — update brain metadata (e.g. someday_categories list). Body:
-//         { id: uuid, metadata: object }. Only the brain owner can write.
-//         metadata is shallow-merged with the existing column (caller passes
-//         only the keys they want to change).
+// GET     — list owned brains, auto-create personal brain on first call.
+// POST    — create a new (non-personal) brain. Body: { name, description? }.
+//           Phase 1 of multi-brain: solo-only, no sharing.
+// PATCH   — update brain metadata (e.g. someday_categories) OR name/description.
+//           Body: { id, metadata? } | { id, name?, description? }.
+// DELETE  — delete a non-personal brain by id (cascades to entries via FK).
+// POST ?action=set-active — persist user_ai_settings.active_brain_id for
+//           cross-device active-brain sync. Body: { id: uuid | null }.
 const handleBrains = withAuth(
-  { methods: ["GET", "PATCH"], rateLimit: 60 },
+  { methods: ["GET", "POST", "PATCH", "DELETE"], rateLimit: 60 },
   async ({ req, res, user }) => {
-    if (req.method === "PATCH") {
-      const { id, metadata } = (req.body ?? {}) as { id?: string; metadata?: unknown };
-      if (!id || typeof id !== "string")
-        return void res.status(400).json({ error: "id required" });
-      if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
-        return void res.status(400).json({ error: "metadata must be a plain object" });
-      // Cap payload size — single brain.metadata is for small org settings,
-      // not arbitrary data dumping.
-      const serialized = JSON.stringify(metadata);
-      if (serialized.length > 16_384)
-        return void res.status(413).json({ error: "metadata too large (max 16KB)" });
+    const action = req.query.action as string | undefined;
 
-      // Read current to shallow-merge.
-      const cur = await fetch(
-        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=metadata`,
+    // ── set-active: persist active brain to user_ai_settings (cross-device) ──
+    if (req.method === "POST" && action === "set-active") {
+      const { id } = (req.body ?? {}) as { id?: string | null };
+      if (id !== null && (typeof id !== "string" || id.length > 100))
+        return void res.status(400).json({ error: "id must be uuid or null" });
+
+      // If id is provided, verify ownership before persisting.
+      if (id) {
+        const own = await fetch(
+          `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id`,
+          { headers: hdrs() },
+        );
+        const ownRows: any[] = own.ok ? await own.json() : [];
+        if (!ownRows.length) return void res.status(403).json({ error: "Forbidden" });
+      }
+
+      // Upsert into user_ai_settings (PK on user_id) — works whether row exists or not.
+      const r = await fetch(`${SB_URL}/rest/v1/user_ai_settings`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "resolution=merge-duplicates,return=minimal" }),
+        body: JSON.stringify({
+          user_id: user.id,
+          active_brain_id: id,
+          updated_at: new Date().toISOString(),
+        }),
+      });
+      if (!r.ok) return void res.status(502).json({ error: "Failed to set active brain" });
+      return void res.status(200).json({ ok: true, active_brain_id: id });
+    }
+
+    // ── POST: create a new brain (non-personal) ──
+    if (req.method === "POST") {
+      const { name, description } = (req.body ?? {}) as {
+        name?: unknown;
+        description?: unknown;
+      };
+      if (typeof name !== "string" || !name.trim())
+        return void res.status(400).json({ error: "name required" });
+      const trimmedName = name.trim().slice(0, 60);
+      const trimmedDesc =
+        typeof description === "string" ? description.trim().slice(0, 280) : null;
+
+      const r = await fetch(`${SB_URL}/rest/v1/brains`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=representation" }),
+        body: JSON.stringify({
+          name: trimmedName,
+          description: trimmedDesc,
+          owner_id: user.id,
+          is_personal: false,
+        }),
+      });
+      if (!r.ok) {
+        const detail = await r.text().catch(() => String(r.status));
+        return void res.status(502).json({ error: `Failed to create brain: ${detail.slice(0, 200)}` });
+      }
+      const [row]: any[] = await r.json();
+      return void res.status(201).json(row);
+    }
+
+    // ── DELETE: remove a non-personal brain ──
+    if (req.method === "DELETE") {
+      const id = req.query.id as string | undefined;
+      if (!id) return void res.status(400).json({ error: "id required" });
+
+      // Block delete if this is the user's personal brain or not theirs.
+      const guard = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id,is_personal`,
         { headers: hdrs() },
       );
-      if (!cur.ok) return void res.status(502).json({ error: "Failed to read brain" });
-      const curRows: any[] = await cur.json();
-      if (!curRows.length) return void res.status(403).json({ error: "Forbidden" });
-      const merged = { ...(curRows[0].metadata ?? {}), ...(metadata as Record<string, unknown>) };
+      const rows: any[] = guard.ok ? await guard.json() : [];
+      if (!rows.length) return void res.status(403).json({ error: "Forbidden" });
+      if (rows[0].is_personal)
+        return void res.status(400).json({ error: "Cannot delete personal brain" });
+
+      const del = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}`,
+        { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
+      );
+      if (!del.ok) return void res.status(502).json({ error: "Failed to delete brain" });
+      return void res.status(200).json({ ok: true });
+    }
+
+    if (req.method === "PATCH") {
+      const body = (req.body ?? {}) as {
+        id?: string;
+        metadata?: unknown;
+        name?: unknown;
+        description?: unknown;
+      };
+      const { id, metadata } = body;
+      if (!id || typeof id !== "string")
+        return void res.status(400).json({ error: "id required" });
+
+      // Branch A: metadata-only patch (existing behavior, shallow-merged).
+      if (metadata !== undefined) {
+        if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+          return void res.status(400).json({ error: "metadata must be a plain object" });
+        const serialized = JSON.stringify(metadata);
+        if (serialized.length > 16_384)
+          return void res.status(413).json({ error: "metadata too large (max 16KB)" });
+
+        const cur = await fetch(
+          `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=metadata`,
+          { headers: hdrs() },
+        );
+        if (!cur.ok) return void res.status(502).json({ error: "Failed to read brain" });
+        const curRows: any[] = await cur.json();
+        if (!curRows.length) return void res.status(403).json({ error: "Forbidden" });
+        const merged = { ...(curRows[0].metadata ?? {}), ...(metadata as Record<string, unknown>) };
+
+        const upd = await fetch(
+          `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}`,
+          {
+            method: "PATCH",
+            headers: hdrs({ Prefer: "return=representation" }),
+            body: JSON.stringify({ metadata: merged }),
+          },
+        );
+        if (!upd.ok) return void res.status(502).json({ error: "Failed to update brain" });
+        const [row]: any[] = await upd.json();
+        return void res.status(200).json(row);
+      }
+
+      // Branch B: rename / description patch.
+      const patch: Record<string, unknown> = {};
+      if (typeof body.name === "string" && body.name.trim()) {
+        patch.name = body.name.trim().slice(0, 60);
+      }
+      if (typeof body.description === "string") {
+        patch.description = body.description.trim().slice(0, 280) || null;
+      } else if (body.description === null) {
+        patch.description = null;
+      }
+      if (!Object.keys(patch).length)
+        return void res.status(400).json({ error: "Nothing to update" });
 
       const upd = await fetch(
         `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}`,
         {
           method: "PATCH",
           headers: hdrs({ Prefer: "return=representation" }),
-          body: JSON.stringify({ metadata: merged }),
+          body: JSON.stringify(patch),
         },
       );
       if (!upd.ok) return void res.status(502).json({ error: "Failed to update brain" });
-      const [row]: any[] = await upd.json();
-      return void res.status(200).json(row);
+      const updRows: any[] = await upd.json();
+      if (!updRows.length) return void res.status(403).json({ error: "Forbidden" });
+      return void res.status(200).json(updRows[0]);
     }
 
+    // ── GET: list brains + active_brain_id from user_ai_settings ──
     const owned = await fetch(
       `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
       { headers: hdrs() },
@@ -211,7 +333,7 @@ const handleBrains = withAuth(
       const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
         method: "POST",
         headers: hdrs({ Prefer: "return=representation" }),
-        body: JSON.stringify({ name: "My Brain", owner_id: user.id }),
+        body: JSON.stringify({ name: "My Brain", owner_id: user.id, is_personal: true }),
       });
       if (createRes.ok) {
         const [newBrain]: any[] = await createRes.json();
@@ -226,6 +348,27 @@ const handleBrains = withAuth(
         ownedData = [newBrain];
       }
     }
+
+    // Backwards compat: response is the array of brains. Active id is exposed
+    // via X-Active-Brain-Id header so existing clients (which do `.json()`
+    // and expect an array) keep working unchanged.
+    let activeBrainId: string | null = null;
+    try {
+      const ar = await fetch(
+        `${SB_URL}/rest/v1/user_ai_settings?user_id=eq.${encodeURIComponent(user.id)}&select=active_brain_id&limit=1`,
+        { headers: hdrs() },
+      );
+      if (ar.ok) {
+        const arows: any[] = await ar.json();
+        const candidate = arows[0]?.active_brain_id;
+        if (candidate && ownedData.some((b) => b.id === candidate)) {
+          activeBrainId = candidate;
+        }
+      }
+    } catch {
+      /* ignore — header simply absent */
+    }
+    if (activeBrainId) res.setHeader("X-Active-Brain-Id", activeBrainId);
     return void res.status(200).json(ownedData);
   },
 );

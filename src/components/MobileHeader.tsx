@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
+import BrainSwitcher from "./BrainSwitcher";
+import { isFeatureEnabled } from "../lib/featureFlags";
+import { useAdminDevMode } from "../hooks/useAdminDevMode";
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -31,6 +34,9 @@ export default function MobileHeader({
   onDismissAllNotifications,
   onAcceptMerge,
 }: MobileHeaderProps) {
+  const { adminFlags } = useAdminDevMode();
+  const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
+
   return (
     <header
       className="safe-top sticky top-0 z-30 flex items-center justify-between gap-2 px-4 py-3 lg:hidden"
@@ -62,6 +68,7 @@ export default function MobileHeader({
         >
           Everion
         </span>
+        {showBrainSwitcher && <BrainSwitcher compact />}
         {children}
       </div>
 

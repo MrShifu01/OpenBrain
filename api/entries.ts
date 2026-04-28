@@ -67,6 +67,7 @@ export default withAuth(
       return handleRetryFailed(ctx);
     if (ctx.req.method === "POST" && action === "empty-trash") return handleEmptyTrash(ctx);
     if (ctx.req.method === "POST" && action === "merge_into") return handleMergeInto(ctx);
+    if (ctx.req.method === "POST" && action === "move") return handleMoveEntry(ctx);
     if (ctx.req.method === "GET") return handleGet(ctx);
     if (ctx.req.method === "DELETE") return handleDelete(ctx);
     if (ctx.req.method === "PATCH") return handlePatch(ctx);
@@ -1034,6 +1035,86 @@ async function handleMergeInto({ req, res, user }: HandlerContext): Promise<void
   const [updated] = await patchRes.json();
   res.status(200).json(updated ?? { ok: true });
   enrichInline(target_id, user.id).catch(() => {});
+}
+
+// ── POST /api/entries?action=move&id=<entry>&brain_id=<dest> — move entry between brains ──
+//
+// Phase 1 of multi-brain. Caller must own both source and destination brains
+// (no sharing yet in phase 1, so cross-user moves are impossible by RLS anyway).
+// Side effects:
+//   1. UPDATE entries SET brain_id = <dest>
+//   2. Strip the entry from the SOURCE brain's concept_graph snapshot — graph
+//      view in the source brain immediately stops referencing the moved entry.
+//   3. Mark embedding_status = 'pending' so the destination brain's enrichment
+//      pass re-derives concepts and similarity in its own context.
+async function handleMoveEntry({ req, res, user, req_id }: HandlerContext): Promise<void> {
+  const id = req.query.id as string | undefined;
+  const dest = req.query.brain_id as string | undefined;
+  if (!id || typeof id !== "string" || id.length > 100)
+    throw new ApiError(400, "Missing or invalid id");
+  if (!dest || typeof dest !== "string" || dest.length > 100)
+    throw new ApiError(400, "Missing or invalid brain_id");
+
+  // Load the entry to discover the source brain.
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=id,brain_id,user_id`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!entryRes.ok) throw new ApiError(502, "Database error");
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) throw new ApiError(404, "Entry not found");
+  if (entry.user_id !== user.id) throw new ApiError(403, "Forbidden");
+
+  // Caller must own both brains. Source check guards the read; dest check
+  // prevents moving an entry into a brain the user doesn't own.
+  await Promise.all([
+    requireBrainAccess(user.id, entry.brain_id),
+    requireBrainAccess(user.id, dest),
+  ]);
+
+  if (entry.brain_id === dest) {
+    return void res.status(200).json({ ok: true, unchanged: true });
+  }
+
+  const sourceBrainId: string = entry.brain_id;
+
+  const upd = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      brain_id: dest,
+      // Force re-enrichment in the new brain context.
+      embedding_status: "pending",
+      embedded_at: null,
+    }),
+  });
+  if (!upd.ok) throw new ApiError(502, "Failed to move entry");
+
+  // Strip from source brain's concept graph snapshot. Don't await — fire and
+  // forget; failure here just leaves a dangling reference until next rebuild.
+  stripDeletedFromConceptGraph(sourceBrainId, id).catch((err: any) =>
+    console.error("[move:concept-graph]", err?.message ?? err),
+  );
+
+  // Audit trail
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entry_move",
+      resource_id: id,
+      request_id: req_id,
+      details: { from: sourceBrainId, to: dest },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  // Re-enrich in destination brain context. Best-effort; user sees move
+  // immediately even if enrichment is slow.
+  enrichInline(id, user.id).catch(() => {});
+
+  res.status(200).json({ ok: true, brain_id: dest });
 }
 
 // ── /api/graph (rewritten to /api/entries?resource=graph) ──

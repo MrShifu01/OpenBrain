@@ -118,6 +118,11 @@ export interface Brain {
   name: string;
   owner_id?: string;
   created_at?: string;
+  /** True for the auto-created personal brain. Cannot be deleted. */
+  is_personal?: boolean;
+  /** Optional short description set by owner (multi-brain phase 1). */
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
 }
 
 export interface ToastEvent {
