@@ -560,6 +560,113 @@ function PushTestSection() {
   );
 }
 
+// Toggles the admin-only "daily roundup" push that fires at the end of the
+// GitHub Actions cron-daily run with counts (push sent, gmail created,
+// brains enriched, persona decay). Stored in user_metadata.notification_prefs
+// so it rides the existing /api/user-data?resource=prefs endpoint — no new
+// serverless function.
+function DailySummarySection() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await authFetch("/api/user-data?resource=prefs", { method: "GET" });
+        const data = await r.json().catch(() => null);
+        setEnabled(data?.admin_summary_enabled === true);
+      } catch {
+        setEnabled(false);
+      }
+    })();
+  }, []);
+
+  async function toggle(next: boolean) {
+    setSaving(true);
+    setMsg(null);
+    const prev = enabled;
+    setEnabled(next);
+    try {
+      const r = await authFetch("/api/user-data?resource=prefs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ admin_summary_enabled: next }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setMsg(next ? "On — fires after each cron run." : "Off — no roundup notification.");
+    } catch (e: any) {
+      setEnabled(prev);
+      setMsg(`Error: ${e?.message ?? e}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const on = enabled === true;
+  return (
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
+      <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            Daily roundup notification
+          </div>
+          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            Push notification at the end of the daily cron with counts (push sent, emails staged,
+            brains enriched, persona decay).
+          </div>
+        </div>
+        <button
+          onClick={() => !saving && enabled !== null && toggle(!on)}
+          role="switch"
+          aria-checked={on}
+          aria-label="Daily roundup toggle"
+          disabled={enabled === null || saving}
+          className="press"
+          style={{
+            width: 40,
+            height: 22,
+            borderRadius: 999,
+            background: on ? "var(--ember)" : "var(--surface-high)",
+            border: `1px solid ${on ? "var(--ember)" : "var(--line)"}`,
+            position: "relative",
+            padding: 0,
+            cursor: enabled === null || saving ? "wait" : "pointer",
+            flexShrink: 0,
+            opacity: enabled === null ? 0.5 : 1,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 1,
+              left: on ? 19 : 1,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: on ? "var(--ember-ink)" : "var(--ink-faint)",
+              transition: "left 200ms cubic-bezier(.16,1,.3,1)",
+            }}
+          />
+        </button>
+      </div>
+      {msg && (
+        <div
+          className="f-sans"
+          style={{
+            fontSize: 12,
+            color: msg.startsWith("Error") ? "var(--blood)" : "var(--ink-faint)",
+          }}
+        >
+          {msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminTab() {
   const [authResult, setAuthResult] = useState<TestResult>({ status: "idle" });
   const [llmResult, setLlmResult] = useState<TestResult>({ status: "idle" });
@@ -844,6 +951,7 @@ export default function AdminTab() {
     <div>
       <TierChanger />
       <PushTestSection />
+      <DailySummarySection />
       <MockGmailReviewSection />
       <AdminDisplaySection />
       <FeatureFlagsSection />

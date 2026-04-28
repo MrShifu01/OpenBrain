@@ -944,6 +944,50 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
     });
   }
 
+  // ── Admin summary push ──
+  // One extra notification only to the admin so they can see at a glance
+  // that the cron actually ran + what it touched. Reuses the same VAPID
+  // session set up above; silently no-ops if VAPID isn't configured or the
+  // admin has no saved subscription.
+  const adminEmail = (process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || "")
+    .trim()
+    .toLowerCase();
+  if (subject && pub && priv && adminEmail) {
+    try {
+      const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
+      const localPart = adminEmail.split("@")[0] || adminEmail;
+      const r = await fetch(
+        `${SB_URL}/auth/v1/admin/users?filter=${encodeURIComponent(localPart)}`,
+        { headers: adminHdrs },
+      );
+      if (r.ok) {
+        const data: any = await r.json().catch(() => null);
+        const list: any[] = Array.isArray(data?.users) ? data.users : [];
+        const admin = list.find((u) => (u.email || "").toLowerCase() === adminEmail);
+        const adminSub = admin?.user_metadata?.push_subscription;
+        const summaryOn = admin?.user_metadata?.notification_prefs?.admin_summary_enabled === true;
+        if (
+          summaryOn &&
+          adminSub?.endpoint &&
+          adminSub?.keys?.p256dh &&
+          adminSub?.keys?.auth
+        ) {
+          const body =
+            `push ${pushResults.sent}/${pushResults.sent + pushResults.skipped + pushResults.errors} · ` +
+            `gmail ${gmailResults.created}/${gmailResults.users}u · ` +
+            `enrich ${enrichResults.processed}/${enrichResults.brains}b · ` +
+            `decay ${personaDecay.decayed}d ${personaDecay.archived}a`;
+          await webpush.sendNotification(
+            { endpoint: adminSub.endpoint, keys: adminSub.keys },
+            JSON.stringify({ title: "Everion · daily cron ✓", body, url: "/" }),
+          );
+        }
+      }
+    } catch (err: any) {
+      console.error("[cron/daily] admin summary push failed:", err?.message);
+    }
+  }
+
   return void res.status(200).json({
     push: pushResults,
     gmail: gmailResults,
