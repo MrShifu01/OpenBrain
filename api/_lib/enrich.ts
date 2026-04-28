@@ -1049,10 +1049,29 @@ export async function auditPersonaForBrain(
     }
   }
 
+  // ── Protected facts ─────────────────────────────────────────────────────
+  // Anything the user explicitly created or kept must never be removed by
+  // the audit, even when two of them look "similar" (e.g. a Father and a
+  // Brother who share a name — same embedding, different person, both real).
+  // Manual/chat sources, pinned facts, and skip_persona-marked rows are all
+  // off-limits.
+  const isProtected = (row: AuditRow): boolean => {
+    const m = row.metadata ?? {};
+    if (m.pinned === true) return true;
+    if (m.skip_persona === true) return true;
+    const src = String(m.source || "");
+    return src === "manual" || src === "chat";
+  };
+
   // Phase 1: dedup within the active set itself. Two facts that look like
   // each other → keep the one with higher confidence (or pinned, or older).
-  // We scan in stable order so the chosen "winner" is deterministic.
+  // Protected facts are seeded into the winner pool first so they CAN be
+  // the canonical winner that auto-extracted dups dedupe against, but they
+  // can NEVER be the loser themselves.
   const sorted = [...active].sort((a, b) => {
+    const aProt = isProtected(a) ? 1 : 0;
+    const bProt = isProtected(b) ? 1 : 0;
+    if (aProt !== bProt) return bProt - aProt;
     const ap = a.metadata?.pinned ? 1 : 0;
     const bp = b.metadata?.pinned ? 1 : 0;
     if (ap !== bp) return bp - ap;
@@ -1075,6 +1094,16 @@ export async function auditPersonaForBrain(
       .replace(/[.…]+$/g, "")
       .replace(/\s+/g, " ");
     const embed = parseEmbedding(row.embedding);
+
+    // Protected rows always win. They're added to the winner pool so
+    // similar AUTO-extracted facts can still be deduped against them,
+    // but they themselves are never marked as duplicates.
+    if (isProtected(row)) {
+      winners.push(row);
+      winnerTitles.add(norm);
+      if (embed.length) winnerEmbeds.push(embed);
+      continue;
+    }
 
     let isDup = false;
     if (winnerTitles.has(norm)) {
