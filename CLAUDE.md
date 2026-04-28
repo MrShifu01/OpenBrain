@@ -97,7 +97,8 @@ Key facts:
 
 - Service role key bypasses RLS; Vercel functions use it (node user-agent in logs)
 - Browser SDK calls show as iPhone/Chrome Safari user-agents
-- `entry_brains` and `audit_log` tables do NOT exist — errors from them are expected/silent
+- `entry_brains` table does NOT exist — errors from it are expected/silent
+- `audit_log` is live as of migration 057 (2026-04-28) — security-relevant actions persist. Service-role insert only; users can read their own rows via RLS.
 - `user_usage` has no row for new billing periods → 406 on `.single()` (fixed with `.maybeSingle()`)
 
 ## AI provider in use

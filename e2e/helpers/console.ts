@@ -3,7 +3,7 @@
  *
  * Naïve `page.on("pageerror", err => throw err)` is a flake factory in this
  * codebase — Supabase realtime reconnects, intentionally-missing tables
- * (audit_log, entry_brains), and Vite HMR all log noise that isn't actionable.
+ * (entry_brains), and Vite HMR all log noise that isn't actionable.
  *
  * Pattern: collect errors with an allow-list, assert "no NEW errors" at the
  * end of each spec via `noise.assertNoNew()`. New errors fail the test;
@@ -16,8 +16,6 @@ import type { Page } from "@playwright/test";
 // Each entry MUST have a comment explaining why it's allowed.
 // Remove the entry the moment the underlying noise source is fixed.
 const ALLOW: Array<RegExp> = [
-  // audit_log table does not exist by design — see CLAUDE.md
-  /audit_log/i,
   // entry_brains table does not exist by design — see CLAUDE.md
   /entry_brains/i,
   // Supabase realtime reconnect chatter — not actionable
