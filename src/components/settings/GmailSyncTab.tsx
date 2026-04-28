@@ -371,6 +371,13 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           onCountChange={setStagedCount}
         />
       )}
+
+      {/* Admin-only: live Gmail classifier prompt + KEEP/SKIP rule learnings.
+          Behind a separate adminPref so it stays out of the way unless
+          turned on in the Admin tab. */}
+      {isAdmin && adminPrefs.showGmailPromptDebug && integration && (
+        <GmailPromptDebug staged={stagedCount} />
+      )}
     </div>
   );
 }
@@ -446,5 +453,390 @@ export function DisconnectButton({
     >
       {disabled ? "Disconnecting…" : "Disconnect"}
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GmailPromptDebug — live KEEP / SKIP rule learnings panel.
+//
+// Mirrors PersonaPromptDebug. Calls GET /api/entries?action=gmail-prompt
+// (admin-only on the server) and shows the user's distilled accept/reject
+// summaries plus the most recent specific decisions. Manual "Distill now"
+// button regenerates both summaries on demand. Auto-refreshes whenever the
+// staging count changes (proxy for "decisions just happened").
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface GmailPromptPayload {
+  connected: boolean;
+  acceptedSummary: string | null;
+  rejectedSummary: string | null;
+  summaryUpdatedAt: string | null;
+  recentAccepts: Array<{ subject: string; from: string; reason: string | null }>;
+  recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
+  counts: { accepts: number; rejects: number };
+}
+
+function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
+  const [data, setData] = useState<GmailPromptPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(true);
+  const [distilling, setDistilling] = useState(false);
+  const [distillMsg, setDistillMsg] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const r = await authFetch("/api/entries?action=gmail-prompt");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const json = (await r.json()) as GmailPromptPayload;
+      setData(json);
+    } catch (e: any) {
+      setErr(String(e?.message ?? e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [collapsed, staged]);
+
+  async function distill() {
+    setDistilling(true);
+    setDistillMsg(null);
+    try {
+      const r = await authFetch("/api/entries?action=distill-gmail", { method: "POST" });
+      const json = await r.json().catch(() => null);
+      if (!r.ok || !json?.ok) {
+        setDistillMsg(`Failed: ${json?.reason ?? `HTTP ${r.status}`}`);
+        return;
+      }
+      const accepts = json.accept_count ?? 0;
+      const rejects = json.reject_count ?? 0;
+      setDistillMsg(`Distilled ${accepts} accepts + ${rejects} rejects.`);
+      await load();
+    } catch (e: any) {
+      setDistillMsg(`Failed: ${String(e?.message ?? e)}`);
+    } finally {
+      setDistilling(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 32, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+        className="press"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "8px 4px",
+          background: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: 14,
+            height: 14,
+            color: "var(--ember)",
+            transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+            transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
+          }}
+        >
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path
+              d="M1 1L5 5L9 1"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span
+          className="f-mono"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ember)",
+          }}
+        >
+          Admin · live gmail prompt
+        </span>
+        <span
+          className="f-sans"
+          style={{ fontSize: 11, color: "var(--ink-faint)", fontStyle: "italic" }}
+        >
+          watch the classifier learn
+        </span>
+      </button>
+
+      {!collapsed && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 16,
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          {loading && !data && (
+            <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}>
+              loading…
+            </p>
+          )}
+          {err && (
+            <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
+              error: {err}
+            </p>
+          )}
+          {data && (
+            <>
+              <div
+                className="f-sans"
+                style={{
+                  fontSize: 11,
+                  color: "var(--ink-faint)",
+                  display: "flex",
+                  gap: 16,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>
+                  <strong style={{ color: "var(--moss)" }}>{data.counts.accepts}</strong> accepts
+                </span>
+                <span>
+                  <strong style={{ color: "var(--blood)" }}>{data.counts.rejects}</strong> rejects
+                </span>
+                {data.summaryUpdatedAt && (
+                  <span>
+                    updated{" "}
+                    {new Date(data.summaryUpdatedAt).toLocaleString(undefined, {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                )}
+              </div>
+
+              <SummaryBlock
+                label={`KEEP rules (${data.counts.accepts})`}
+                color="var(--moss)"
+                value={data.acceptedSummary}
+                emptyText="No KEEP summary yet — happens automatically after ~3 accepts. Accept a few emails the user-style way, then click Distill now."
+              />
+
+              <SummaryBlock
+                label={`SKIP rules (${data.counts.rejects})`}
+                color="var(--blood)"
+                value={data.rejectedSummary}
+                emptyText="No SKIP summary yet — happens automatically after ~3 rejects. Swipe-left a few noisy emails, then click Distill now."
+              />
+
+              <RecentList
+                label={`Recent kept (${data.recentAccepts.length})`}
+                items={data.recentAccepts}
+                emptyText="No recent accepts."
+              />
+              <RecentList
+                label={`Recent skipped (${data.recentRejects.length})`}
+                items={data.recentRejects}
+                emptyText="No recent rejects."
+              />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={distill}
+                  disabled={distilling}
+                  className="press f-sans"
+                  style={{
+                    height: 30,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    background: "var(--ember-wash)",
+                    color: "var(--ember)",
+                    border: "1px solid color-mix(in oklch, var(--ember) 30%, transparent)",
+                    cursor: distilling ? "wait" : "pointer",
+                  }}
+                >
+                  {distilling ? "Distilling…" : "Distill now"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => load()}
+                  disabled={loading}
+                  className="press f-sans"
+                  style={{
+                    height: 30,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    background: "transparent",
+                    color: "var(--ink-soft)",
+                    border: "1px solid var(--line-soft)",
+                    cursor: loading ? "wait" : "pointer",
+                  }}
+                >
+                  {loading ? "Refreshing…" : "Refresh"}
+                </button>
+                {distillMsg && (
+                  <span
+                    className="f-sans"
+                    style={{
+                      fontSize: 11,
+                      fontStyle: "italic",
+                      color: distillMsg.startsWith("Failed") ? "var(--blood)" : "var(--ink-faint)",
+                    }}
+                  >
+                    {distillMsg}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryBlock({
+  label,
+  color,
+  value,
+  emptyText,
+}: {
+  label: string;
+  color: string;
+  value: string | null;
+  emptyText: string;
+}): React.ReactElement {
+  return (
+    <div>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color,
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {value ? (
+        <pre
+          className="f-mono"
+          style={{
+            margin: 0,
+            padding: 10,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "var(--ink-soft)",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            lineHeight: 1.55,
+          }}
+        >
+          {value}
+        </pre>
+      ) : (
+        <div
+          className="f-serif"
+          style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          {emptyText}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecentList({
+  label,
+  items,
+  emptyText,
+}: {
+  label: string;
+  items: Array<{ subject: string; from: string; reason: string | null }>;
+  emptyText: string;
+}): React.ReactElement {
+  return (
+    <div>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--ink-faint)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {items.length === 0 ? (
+        <div
+          className="f-serif"
+          style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          {emptyText}
+        </div>
+      ) : (
+        <ul
+          style={{
+            margin: 0,
+            paddingLeft: 18,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          {items.map((it, i) => (
+            <li
+              key={i}
+              className="f-mono"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.5 }}
+            >
+              <span style={{ color: "var(--ink-faint)" }}>{it.from}</span> — {it.subject}
+              {it.reason && (
+                <span style={{ color: "var(--ink-faint)", fontStyle: "italic" }}>
+                  {" — "}
+                  {it.reason}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

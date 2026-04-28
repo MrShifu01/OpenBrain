@@ -28,6 +28,8 @@ export interface AdminPrefs {
   showEnrichmentAdminExtras: boolean;
   /** Live persona-extractor prompt + learnings panel at bottom of Personal. */
   showPersonaPromptDebug: boolean;
+  /** Live Gmail classifier prompt + KEEP/SKIP rule learnings panel. */
+  showGmailPromptDebug: boolean;
 }
 
 export const ADMIN_PREF_DEFS: Array<{
@@ -65,6 +67,11 @@ export const ADMIN_PREF_DEFS: Array<{
     label: "Persona prompt debug",
     hint: "Live extractor prompt + rejected/confirmed learnings at bottom of Personal.",
   },
+  {
+    key: "showGmailPromptDebug",
+    label: "Gmail prompt debug",
+    hint: "Live KEEP/SKIP rule learnings + recent decisions inside the Gmail tab.",
+  },
 ];
 
 const DEFAULTS: AdminPrefs = {
@@ -74,6 +81,7 @@ const DEFAULTS: AdminPrefs = {
   showGmailScanDebug: true,
   showEnrichmentAdminExtras: true,
   showPersonaPromptDebug: false,
+  showGmailPromptDebug: false,
 };
 
 export function getAdminPrefs(): AdminPrefs {
