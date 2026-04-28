@@ -205,6 +205,19 @@ export default function ProfileTab() {
     reloadFacts(); /* eslint-disable-line react-hooks/exhaustive-deps */
   }, [brainId]);
 
+  // When any of the long-running persona ops transition from running → idle,
+  // reload immediately. Without this the UI only reflects the wipe/scan/reset
+  // result on a manual refresh — the previous setTimeout(reloadFacts, 1500)
+  // approach raced ops that took longer than 1.5s and ran twice for ones
+  // that finished sooner.
+  const opsActive = scanning || wiping || resetting;
+  useEffect(() => {
+    if (!opsActive) {
+      reloadFacts();
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [opsActive]);
+
   // ── Detect first-iteration backfill damage ────────────────────────────────
   // Wrongly-promoted entries have NO derived_from and source not in
   // (manual, chat). If any exist, surface the Reset button.
@@ -363,7 +376,8 @@ export default function ProfileTab() {
       label: "Scanning entries for persona facts",
       resumeKey: brainId,
     });
-    // Poll every few seconds to refresh the visible facts as the scan runs.
+    // Poll every few seconds to show in-flight extractions as they land.
+    // Final reload on completion is handled by the opsActive effect above.
     const poll = setInterval(() => {
       reloadFacts();
     }, 3000);
@@ -385,10 +399,6 @@ export default function ProfileTab() {
       label: "Reverting previous persona scan",
       resumeKey: brainId,
     });
-    // Quick reload after the one-shot completes (server-side is fast).
-    setTimeout(() => {
-      reloadFacts();
-    }, 1500);
   }
 
   function runWipe() {
@@ -401,14 +411,23 @@ export default function ProfileTab() {
       )
     )
       return;
+    // Optimistic clear — wipe deletes any active fact whose source is the
+    // scanner. Drop those locally NOW so the UI reflects the action; the
+    // useEffect above will reconcile against server truth when the op ends.
+    setFacts((prev) =>
+      prev.filter((f) => {
+        const m = f.metadata ?? {};
+        const src = String(m.source || "");
+        if (src === "manual" || src === "chat") return true;
+        if (m.skip_persona === true) return true;
+        return false;
+      }),
+    );
     ops.startTask({
       kind: "persona-wipe",
       label: "Wiping auto-extracted persona facts",
       resumeKey: brainId,
     });
-    setTimeout(() => {
-      reloadFacts();
-    }, 1500);
   }
 
   async function patchFact(id: string, metaPatch: Record<string, unknown>) {
@@ -416,6 +435,10 @@ export default function ProfileTab() {
     const f = facts.find((x) => x.id === id);
     if (!f) return;
     const newMeta = { ...(f.metadata ?? {}), ...metaPatch };
+    // Optimistic: pin/unpin/etc reflects in the UI before the network
+    // round-trip. Without this the icon doesn't appear to do anything on
+    // a slow connection until the reload returns ~1s later.
+    setFacts((prev) => prev.map((x) => (x.id === id ? { ...x, metadata: newMeta } : x)));
     try {
       await authFetch("/api/entries", {
         method: "PATCH",
@@ -472,24 +495,28 @@ export default function ProfileTab() {
     if (!f) return;
     const tags = Array.isArray(f.tags) ? f.tags : [];
     const newTags = tags.includes("rejected") ? tags : [...tags, "rejected"];
+    const newMeta = {
+      ...(f.metadata ?? {}),
+      status: "rejected" as const,
+      rejected_at: new Date().toISOString(),
+      rejected_reason: reason || undefined,
+    };
+    // Close dialog + flip the fact to rejected locally NOW. The active list
+    // re-groups instantly so the user sees the fact disappear; reload below
+    // reconciles against server truth.
+    setRejectingFact(null);
+    setFacts((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, tags: newTags, metadata: newMeta } : x)),
+    );
     try {
       await authFetch("/api/entries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id,
-          changes: {
-            tags: newTags,
-            metadata: {
-              ...(f.metadata ?? {}),
-              status: "rejected",
-              rejected_at: new Date().toISOString(),
-              rejected_reason: reason || null,
-            },
-          },
+          changes: { tags: newTags, metadata: newMeta },
         }),
       });
-      setRejectingFact(null);
       await reloadFacts();
     } catch (e: any) {
       setFactsError(e?.message || "Could not mark as not-me");
@@ -1233,9 +1260,15 @@ function FactRow({
             ↻
           </IconBtn>
         )}
-        <IconBtn label="Delete completely" onClick={onDelete} danger>
-          ×
-        </IconBtn>
+        {/* Delete is a hard-purge — only useful in history/rejected where the
+            fact is already off the chat preamble. On active/fading the user
+            should pick Retire (no longer true) or Not me (not who I am);
+            neither path needs raw delete. */}
+        {(historyMode || rejectedMode) && (
+          <IconBtn label="Delete completely" onClick={onDelete} danger>
+            ×
+          </IconBtn>
+        )}
       </div>
     </div>
   );
@@ -1260,6 +1293,24 @@ function RejectDialog({
 }) {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Body-lock on open. Without this, iOS Safari anchors the fixed-positioned
+  // modal to whatever scroll offset the user was at when they tapped — the
+  // dialog ends up far below the fold and you have to scroll to find it.
+  // Same trick CaptureSheet/DetailModal use: pin the body at -scrollY, then
+  // restore on unmount so the user lands exactly where they were.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   function pickChip(chip: string) {
     setReason(chip);
