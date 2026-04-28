@@ -361,6 +361,134 @@ function CalEventRow({ ev }: { ev: ExternalCalEvent }) {
   );
 }
 
+/* ─── Done today section (Phase 4 of schedule fix) ─── */
+//
+// Completed items used to vanish from My Day. With one accidental swipe a
+// user lost the entry until they navigated to Week → Completed (collapsed
+// by default) and re-opened it. This pane sits at the bottom of My Day,
+// collapsed by default, with a per-row Reopen button that flips status
+// back to "todo" — undo for the whole day, not just the last action.
+
+function DoneTodaySection({
+  items,
+  onReopen,
+}: {
+  items: Entry[];
+  onReopen: (id: string, entry: Entry) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="press"
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "transparent",
+          border: 0,
+          padding: "6px 4px",
+          cursor: "pointer",
+          color: "var(--ink-faint)",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: 18,
+            height: 18,
+            borderRadius: "50%",
+            background: "var(--moss-wash, color-mix(in oklch, var(--ember) 12%, transparent))",
+            color: "var(--moss, var(--ember))",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
+          ✓
+        </span>
+        <span
+          className="f-sans"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+          }}
+        >
+          Done today · {items.length}
+        </span>
+        <span style={{ marginLeft: "auto", fontSize: 12 }}>{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div
+          className="divide-y rounded-2xl border px-3"
+          style={{ background: "var(--surface)", borderColor: "var(--line-soft)", marginTop: 6 }}
+        >
+          {items.map((entry) => (
+            <div key={entry.id} className="flex items-center gap-3 py-2.5" style={{ opacity: 0.7 }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: "50%",
+                  background: "var(--ember)",
+                  color: "var(--ember-ink)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                }}
+              >
+                ✓
+              </span>
+              <p
+                className="f-sans"
+                style={{
+                  margin: 0,
+                  flex: 1,
+                  fontSize: 13,
+                  color: "var(--ink-soft)",
+                  textDecoration: "line-through",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {entry.title}
+              </p>
+              <button
+                onClick={() => onReopen(entry.id, entry)}
+                className="press f-sans"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  borderRadius: 6,
+                  background: "transparent",
+                  border: "1px solid var(--line-soft)",
+                  color: "var(--ember)",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                }}
+              >
+                Reopen
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main TodoView ─── */
 interface TodoViewProps {
   entries?: Entry[];
@@ -492,6 +620,38 @@ export default function TodoView({
   const todayItems = taskMap[todayKey] || [];
   const todayCalEvents = calEventMap[todayKey] || [];
   const todayTotal = overdue.length + todayItems.length + todayCalEvents.length;
+
+  // Done today — reversible-completion pane. Phase 4: completed items used
+  // to vanish entirely from My Day, so a misclick / accidental swipe meant
+  // the entry was gone with no recovery path. Now they appear in a tucked-
+  // away "Done today" section with a per-row Reopen button.
+  const doneToday = useMemo(() => {
+    return entries.filter((e) => {
+      if (!isDone(e)) return false;
+      const m = (e.metadata || {}) as Record<string, unknown>;
+      // Heuristic: a date-bound entry counts as "done today" only if its
+      // schedule lands on today. Undated todos count if their updated_at
+      // is from today (they were just completed). Anything else is in
+      // the Week tab's collapsed Completed section, not My Day.
+      const placements = getActionPlacements({
+        ...e,
+        metadata: { ...m, status: undefined },
+      } as Entry);
+      if (placements.includes(todayKey)) return true;
+      if (placements.length === 0 && e.type === "todo") {
+        const updated = String(e.updated_at || "").slice(0, 10);
+        return updated === todayKey;
+      }
+      return false;
+    });
+  }, [entries, todayKey]);
+
+  const reopenEntry = (id: string, entry: Entry) => {
+    if (!ctx?.handleUpdate) return;
+    const m = { ...((entry.metadata || {}) as Record<string, unknown>) };
+    delete m.status;
+    ctx.handleUpdate(id, { metadata: m as Entry["metadata"] }).catch(() => null);
+  };
 
   function renderSwipeableItem(item: TodoItem, showDate: boolean) {
     return (
@@ -773,6 +933,10 @@ export default function TodoView({
                     {todoList.map(renderEntryRow)}
                   </div>
                 </div>
+              )}
+
+              {doneToday.length > 0 && (
+                <DoneTodaySection items={doneToday} onReopen={reopenEntry} />
               )}
 
               {todayTotal === 0 && todoList.length === 0 && completed.length === 0 && (
