@@ -474,6 +474,7 @@ interface GmailPromptPayload {
   recentAccepts: Array<{ subject: string; from: string; reason: string | null }>;
   recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
   counts: { accepts: number; rejects: number };
+  prompt: string | null;
 }
 
 function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
@@ -483,6 +484,7 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
   const [collapsed, setCollapsed] = useState(true);
   const [distilling, setDistilling] = useState(false);
   const [distillMsg, setDistillMsg] = useState<string | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -663,7 +665,7 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
                 emptyText="No recent rejects."
               />
 
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <button
                   type="button"
                   onClick={distill}
@@ -702,6 +704,34 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
                 >
                   {loading ? "Refreshing…" : "Refresh"}
                 </button>
+                {data.prompt && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRaw((v) => !v)}
+                    className="press f-sans"
+                    style={{
+                      height: 30,
+                      padding: "0 12px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      borderRadius: 6,
+                      background: "transparent",
+                      color: showRaw ? "var(--ember)" : "var(--ink-soft)",
+                      border: `1px solid ${showRaw ? "var(--ember)" : "var(--line-soft)"}`,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {showRaw ? "Hide raw prompt" : "Show raw prompt"}
+                  </button>
+                )}
+                {data.prompt && (
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
+                  >
+                    {data.prompt.length.toLocaleString()} chars
+                  </span>
+                )}
                 {distillMsg && (
                   <span
                     className="f-sans"
@@ -709,12 +739,35 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
                       fontSize: 11,
                       fontStyle: "italic",
                       color: distillMsg.startsWith("Failed") ? "var(--blood)" : "var(--ink-faint)",
+                      width: "100%",
                     }}
                   >
                     {distillMsg}
                   </span>
                 )}
               </div>
+
+              {showRaw && data.prompt && (
+                <pre
+                  className="f-mono"
+                  style={{
+                    margin: 0,
+                    padding: 12,
+                    background: "var(--surface)",
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    color: "var(--ink-soft)",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    maxHeight: 480,
+                    overflowY: "auto",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {data.prompt}
+                </pre>
+              )}
             </>
           )}
         </div>

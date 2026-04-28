@@ -15,6 +15,11 @@ import { flagsOf } from "./_lib/enrichFlags.js";
 import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
 import { distillGmailForUser } from "./_lib/distillGmail.js";
+import {
+  buildPrompt as buildGmailPrompt,
+  loadGmailLearnings,
+  defaultPreferences as defaultGmailPreferences,
+} from "./_lib/gmailScan.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
@@ -696,6 +701,7 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
       recentAccepts: [],
       recentRejects: [],
       counts: { accepts: 0, rejects: 0 },
+      prompt: null,
     });
     return;
   }
@@ -715,6 +721,31 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
   const accepts = parseInt(cAcc.headers.get("content-range")?.split("/")[1] || "0", 10);
   const rejects = parseInt(cRej.headers.get("content-range")?.split("/")[1] || "0", 10);
 
+  // Render the literal classifier prompt template the live scan uses, with
+  // a placeholder block instead of real email threads. Same buildPrompt +
+  // loadGmailLearnings the runtime calls — what you see is exactly what
+  // Gemini sees, minus the per-scan thread data.
+  let prompt: string | null = null;
+  try {
+    const learnings = await loadGmailLearnings(user.id, integ);
+    const prefs = integ.preferences ?? defaultGmailPreferences();
+    const placeholder: any = {
+      messages: [
+        {
+          from: "<sender will appear here at scan time>",
+          subject: "<subject>",
+          date: "<date>",
+          body: "<email body, up to 400 chars>",
+          attachments: [],
+        },
+      ],
+      participants: ["<all participants>"],
+    };
+    prompt = buildGmailPrompt([placeholder], prefs, learnings);
+  } catch (e: any) {
+    console.error("[gmail-prompt] template render failed:", e?.message ?? e);
+  }
+
   res.status(200).json({
     connected: true,
     acceptedSummary: integ.accepted_summary ?? null,
@@ -724,6 +755,7 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
     recentRejects: recent.rejects,
     counts: { accepts, rejects },
     preferences: integ.preferences ?? null,
+    prompt,
   });
 }
 
