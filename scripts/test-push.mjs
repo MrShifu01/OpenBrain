@@ -58,43 +58,66 @@ const sbHost = (() => {
 })();
 console.log(`[test-push] sb host: ${sbHost} · key prefix: ${keyPrefix}… (len=${SB_KEY.length})`);
 
-// Find the user by email. We page through admin users until we hit a match
-// — the admin REST API doesn't expose an email filter, but pages of 50 are
-// cheap and the user count here is tiny.
-async function listUsersPage(page) {
-  // Single retry on 5xx — Supabase auth-admin occasionally returns transient
-  // "Database error finding users" 500s under load.
+// Find the user by email.
+//
+// First try a filtered lookup (GoTrue ≥ 2.96 supports `?filter=email.eq.X`).
+// This pushes the WHERE down to the database so we don't iterate all users —
+// works around the "Database error finding users" 500 the paginated listUsers
+// endpoint returns when one of the rows in auth.users is malformed.
+//
+// Fall back to paginated listing if the filtered route returns 4xx (older
+// GoTrue) so the script still works on stale projects.
+console.log(`[test-push] looking up user by email: ${TARGET_EMAIL}`);
+
+async function fetchOnce(url) {
+  // Single retry on 5xx — auth-admin occasionally has transient blips.
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, {
-      headers: adminHdrs,
-    });
-    if (r.ok) return r.json();
+    const r = await fetch(url, { headers: adminHdrs });
+    if (r.ok) return { ok: true, data: await r.json().catch(() => null) };
     const body = await r.text().catch(() => "");
     if (r.status >= 500 && attempt === 0) {
-      console.log(`[test-push] HTTP ${r.status}, retrying once… body: ${body.slice(0, 200)}`);
+      console.log(`[test-push] HTTP ${r.status}, retrying once…`);
       await new Promise((res) => setTimeout(res, 1500));
       continue;
     }
-    fail(
-      `admin users HTTP ${r.status}: ${body.slice(0, 300)}\n` +
-        `  hint: if "Database error finding users" — check that SUPABASE_SERVICE_ROLE_KEY ` +
-        `in GitHub Secrets matches the one in Vercel exactly (NOT the anon key, NOT the ` +
-        `publishable key). Service-role JWTs are ~200+ chars and start with "eyJ".`,
-    );
+    return { ok: false, status: r.status, body };
+  }
+  return { ok: false, status: 0, body: "no response" };
+}
+
+let user = null;
+
+const filterUrl = `${SB_URL}/auth/v1/admin/users?filter=${encodeURIComponent(`email.eq.${TARGET_EMAIL}`)}`;
+const filtered = await fetchOnce(filterUrl);
+if (filtered.ok) {
+  const users = Array.isArray(filtered.data?.users) ? filtered.data.users : [];
+  user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
+  if (!user && users.length === 1) user = users[0];
+}
+
+if (!user) {
+  // Pagination fallback.
+  console.log(`[test-push] filter route gave nothing — falling back to paginated listing`);
+  let page = 1;
+  while (page < 50) {
+    const paged = await fetchOnce(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`);
+    if (!paged.ok) {
+      fail(
+        `admin users HTTP ${paged.status}: ${(paged.body || "").slice(0, 300)}\n` +
+          `  Both filtered + paginated listUsers failed. This is usually a Supabase backend ` +
+          `issue (one of your auth.users rows has malformed JSON in raw_user_meta_data). ` +
+          `Workaround: in Supabase dashboard → Authentication → Users → find any user with ` +
+          `weird metadata and clean it. Or add ADMIN_USER_ID to GH secrets so we look up by ID.`,
+      );
+    }
+    const users = Array.isArray(paged.data?.users) ? paged.data.users : [];
+    user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
+    if (user) break;
+    if (users.length < 50) break;
+    page += 1;
   }
 }
 
-console.log(`[test-push] looking up user by email: ${TARGET_EMAIL}`);
-let user = null;
-let page = 1;
-while (page < 50) {
-  const data = await listUsersPage(page);
-  const users = Array.isArray(data?.users) ? data.users : [];
-  user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
-  if (user) break;
-  if (users.length < 50) break;
-  page += 1;
-}
 if (!user) fail(`no user found with email ${TARGET_EMAIL}`);
 console.log(`[test-push] found user ${user.id}`);
 
