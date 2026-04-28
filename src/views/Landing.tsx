@@ -257,69 +257,146 @@ function PlanCard({
   );
 }
 
+// Pre-recorded demo scenarios. Honest landing-page showcase: visitors pick a
+// scenario chip and see real captured input + the structured output Everion
+// would produce. The textarea is read-only — the right column would have to
+// be faked anyway (a logged-out visitor has no memory to surface "related"
+// entries from), so a scripted demo is strictly more honest than a live
+// classifier with fabricated relateds.
+interface DemoScenario {
+  key: string;
+  chipLabel: string;
+  input: string;
+  inferredType: string;
+  concepts: string[];
+  related: { title: string; meta: string };
+}
+
+const DEMO_SCENARIOS: DemoScenario[] = [
+  {
+    key: "friendship",
+    chipLabel: "Friendship",
+    input:
+      "she said the thing that tipped it was realizing she hadn't opened her sketchbook in four months",
+    inferredType: "note",
+    concepts: ["priya", "friendship", "creative-block"],
+    related: {
+      title: "Coffee with Priya — she's leaving the firm",
+      meta: "5 days ago · friendship, career",
+    },
+  },
+  {
+    key: "travel",
+    chipLabel: "Travel",
+    input: "renew italian passport before march — appointment slots open six weeks ahead",
+    inferredType: "reminder",
+    concepts: ["passport", "italy", "deadline"],
+    related: {
+      title: "Italy trip — Florence and Siena confirmed",
+      meta: "2 weeks ago · travel, italy",
+    },
+  },
+  {
+    key: "idea",
+    chipLabel: "Idea",
+    input:
+      "what if her apology in chapter nine is the thing that breaks her — not the betrayal itself",
+    inferredType: "idea",
+    concepts: ["novel-draft", "character-arc", "chapter-9"],
+    related: {
+      title: "Beta reader said chapter 8 felt cold",
+      meta: "3 weeks ago · novel-draft, feedback",
+    },
+  },
+  {
+    key: "link",
+    chipLabel: "Link",
+    input: "https://aeon.co/essays/the-real-history-of-the-public-library",
+    inferredType: "link",
+    concepts: ["libraries", "civic-history", "longread"],
+    related: {
+      title: "'Bibliophobia' — civic-infrastructure thread",
+      meta: "11 days ago · books, civic",
+    },
+  },
+];
+
 function LandingDemo() {
-  const [input, setInput] = useState(
-    "she said the thing that tipped it was realizing she hadn't opened her sketchbook in four months",
-  );
-  const [saved, setSaved] = useState(false);
-  const inferredType = /reminder|call|email|text/i.test(input)
-    ? "reminder"
-    : /http|aeon|com\b|\.co/i.test(input)
-      ? "link"
-      : /story|maybe|idea/i.test(input)
-        ? "idea"
-        : "note";
-  const concepts = ["priya", "friendship", "career"];
+  const [scenarioKey, setScenarioKey] = useState<string>(DEMO_SCENARIOS[0].key);
+  const scenario = DEMO_SCENARIOS.find((s) => s.key === scenarioKey) ?? DEMO_SCENARIOS[0];
+
   return (
-    <div
-      className="landing-demo-grid"
-      style={{
-        marginTop: 48,
-        display: "grid",
-        gap: 32,
-        maxWidth: 1000,
-      }}
-    >
-      <div>
-        <Micro style={{ marginBottom: 12 }}>you type</Micro>
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 18,
-            padding: 20,
-            minHeight: 200,
-          }}
-        >
-          <textarea
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              setSaved(false);
-            }}
-            className="f-serif"
-            placeholder="type anything…"
-            style={{
-              width: "100%",
-              minHeight: 120,
-              resize: "none",
-              fontSize: 17,
-              lineHeight: 1.55,
-              color: "var(--ink)",
-              background: "transparent",
-              border: 0,
-              outline: 0,
-              padding: 0,
-            }}
-          />
+    <div style={{ marginTop: 48, maxWidth: 1000 }}>
+      {/* Scenario picker */}
+      <div
+        role="tablist"
+        aria-label="Demo scenario"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+          marginBottom: 20,
+        }}
+      >
+        {DEMO_SCENARIOS.map((s) => {
+          const active = s.key === scenarioKey;
+          return (
+            <button
+              key={s.key}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setScenarioKey(s.key)}
+              className="press f-sans"
+              style={{
+                padding: "8px 16px",
+                fontSize: 13,
+                fontWeight: 500,
+                borderRadius: 999,
+                border: `1px solid ${active ? "var(--ember)" : "var(--line)"}`,
+                background: active ? "var(--ember-wash)" : "transparent",
+                color: active ? "var(--ember)" : "var(--ink-soft)",
+                cursor: "pointer",
+                transition: "background 180ms, color 180ms, border-color 180ms",
+              }}
+            >
+              {s.chipLabel}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        className="landing-demo-grid"
+        style={{
+          display: "grid",
+          gap: 32,
+        }}
+      >
+        <div>
+          <Micro style={{ marginBottom: 12 }}>you type</Micro>
           <div
             style={{
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 18,
+              padding: 20,
+              minHeight: 200,
               display: "flex",
+              flexDirection: "column",
               justifyContent: "space-between",
-              alignItems: "center",
-              marginTop: 12,
             }}
           >
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 17,
+                lineHeight: 1.55,
+                color: "var(--ink)",
+                margin: 0,
+              }}
+            >
+              {scenario.input}
+            </p>
             <div
               style={{
                 display: "flex",
@@ -327,66 +404,73 @@ function LandingDemo() {
                 gap: 8,
                 color: "var(--ink-faint)",
                 fontSize: 13,
+                marginTop: 16,
               }}
             >
-              <span className="f-sans">inferred: {inferredType}</span>
+              <span className="f-sans">inferred: {scenario.inferredType}</span>
             </div>
-            <button
-              className="design-btn-primary press"
-              style={{ height: 34, minHeight: 34, fontSize: 13 }}
-              onClick={() => setSaved(true)}
-            >
-              Capture
-            </button>
           </div>
         </div>
-      </div>
-      <div>
-        <Micro style={{ marginBottom: 12 }}>everion finds</Micro>
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line)",
-            borderRadius: 18,
-            padding: 20,
-            minHeight: 200,
-          }}
-        >
-          <div className="micro" style={{ color: "var(--ember)", marginBottom: 10 }}>
-            {saved ? "● saved · concepts extracted" : "○ preview — unsaved"}
-          </div>
+        <div>
+          <Micro style={{ marginBottom: 12 }}>everion finds</Micro>
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              flexWrap: "wrap",
-              marginBottom: 16,
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 18,
+              padding: 20,
+              minHeight: 200,
             }}
           >
-            {concepts.map((c) => (
-              <span key={c} className="design-chip f-sans" style={{ fontSize: 12 }}>
-                {c}
-              </span>
-            ))}
-          </div>
-          <Micro style={{ marginBottom: 10, opacity: 0.7 }}>related, already in memory</Micro>
-          <div style={{ borderLeft: "2px solid var(--line-soft)", paddingLeft: 14 }}>
-            <div
-              className="f-serif"
-              style={{ fontSize: 15, fontWeight: 450, marginBottom: 2, color: "var(--ink)" }}
-            >
-              Coffee with Priya — she's leaving the firm
+            <div className="micro" style={{ color: "var(--ember)", marginBottom: 10 }}>
+              ● captured · concepts extracted
             </div>
             <div
-              className="f-serif"
-              style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                flexWrap: "wrap",
+                marginBottom: 16,
+              }}
             >
-              5 days ago · friendship, career
+              {scenario.concepts.map((c) => (
+                <span key={c} className="design-chip f-sans" style={{ fontSize: 12 }}>
+                  {c}
+                </span>
+              ))}
+            </div>
+            <Micro style={{ marginBottom: 10, opacity: 0.7 }}>related, already in memory</Micro>
+            <div style={{ borderLeft: "2px solid var(--line-soft)", paddingLeft: 14 }}>
+              <div
+                className="f-serif"
+                style={{ fontSize: 15, fontWeight: 450, marginBottom: 2, color: "var(--ink)" }}
+              >
+                {scenario.related.title}
+              </div>
+              <div
+                className="f-serif"
+                style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic" }}
+              >
+                {scenario.related.meta}
+              </div>
             </div>
           </div>
         </div>
       </div>
+
+      <p
+        className="f-sans"
+        style={{
+          marginTop: 20,
+          fontSize: 13,
+          color: "var(--ink-faint)",
+          textAlign: "center",
+          fontStyle: "italic",
+        }}
+      >
+        scripted preview · sign up to try it on your own thoughts
+      </p>
     </div>
   );
 }
@@ -517,7 +601,7 @@ export default function Landing({ onAuth }: LandingProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "18px 40px",
+          padding: "calc(18px + env(safe-area-inset-top)) 40px 18px",
           background: "color-mix(in oklch, var(--bg) 82%, transparent)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
@@ -1043,7 +1127,7 @@ export default function Landing({ onAuth }: LandingProps) {
         .landing-nav-cta-short { display: none; }
         @media (max-width: 820px) {
           .landing-demo-grid { grid-template-columns: 1fr !important; }
-          .landing-nav { padding: 14px 16px !important; gap: 12px !important; }
+          .landing-nav { padding: calc(14px + env(safe-area-inset-top)) 16px 14px !important; gap: 12px !important; }
           .landing-nav-links { gap: 8px !important; }
           .landing-nav-links a:not(button) { display: none !important; }
         }
