@@ -156,35 +156,79 @@ const handleProfile = withAuth(
 );
 
 // ── /api/brains (rewritten to /api/user-data?resource=brains) ──
-const handleBrains = withAuth({ methods: ["GET"], rateLimit: 60 }, async ({ res, user }) => {
-  const owned = await fetch(
-    `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
-    { headers: hdrs() },
-  );
-  if (!owned.ok) return void res.status(502).json({ error: "Failed to fetch brains" });
-  let ownedData: any[] = await owned.json();
+//
+// GET   — list owned brains, auto-create personal brain on first call.
+// PATCH — update brain metadata (e.g. someday_categories list). Body:
+//         { id: uuid, metadata: object }. Only the brain owner can write.
+//         metadata is shallow-merged with the existing column (caller passes
+//         only the keys they want to change).
+const handleBrains = withAuth(
+  { methods: ["GET", "PATCH"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (req.method === "PATCH") {
+      const { id, metadata } = (req.body ?? {}) as { id?: string; metadata?: unknown };
+      if (!id || typeof id !== "string")
+        return void res.status(400).json({ error: "id required" });
+      if (!metadata || typeof metadata !== "object" || Array.isArray(metadata))
+        return void res.status(400).json({ error: "metadata must be a plain object" });
+      // Cap payload size — single brain.metadata is for small org settings,
+      // not arbitrary data dumping.
+      const serialized = JSON.stringify(metadata);
+      if (serialized.length > 16_384)
+        return void res.status(413).json({ error: "metadata too large (max 16KB)" });
 
-  if (ownedData.length === 0) {
-    const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
-      method: "POST",
-      headers: hdrs({ Prefer: "return=representation" }),
-      body: JSON.stringify({ name: "My Brain", owner_id: user.id }),
-    });
-    if (createRes.ok) {
-      const [newBrain]: any[] = await createRes.json();
-      await fetch(
-        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=is.null`,
+      // Read current to shallow-merge.
+      const cur = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=metadata`,
+        { headers: hdrs() },
+      );
+      if (!cur.ok) return void res.status(502).json({ error: "Failed to read brain" });
+      const curRows: any[] = await cur.json();
+      if (!curRows.length) return void res.status(403).json({ error: "Forbidden" });
+      const merged = { ...(curRows[0].metadata ?? {}), ...(metadata as Record<string, unknown>) };
+
+      const upd = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}`,
         {
           method: "PATCH",
-          headers: hdrs({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ brain_id: newBrain.id }),
+          headers: hdrs({ Prefer: "return=representation" }),
+          body: JSON.stringify({ metadata: merged }),
         },
-      ).catch(() => {});
-      ownedData = [newBrain];
+      );
+      if (!upd.ok) return void res.status(502).json({ error: "Failed to update brain" });
+      const [row]: any[] = await upd.json();
+      return void res.status(200).json(row);
     }
-  }
-  return void res.status(200).json(ownedData);
-});
+
+    const owned = await fetch(
+      `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
+      { headers: hdrs() },
+    );
+    if (!owned.ok) return void res.status(502).json({ error: "Failed to fetch brains" });
+    let ownedData: any[] = await owned.json();
+
+    if (ownedData.length === 0) {
+      const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=representation" }),
+        body: JSON.stringify({ name: "My Brain", owner_id: user.id }),
+      });
+      if (createRes.ok) {
+        const [newBrain]: any[] = await createRes.json();
+        await fetch(
+          `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=is.null`,
+          {
+            method: "PATCH",
+            headers: hdrs({ Prefer: "return=minimal" }),
+            body: JSON.stringify({ brain_id: newBrain.id }),
+          },
+        ).catch(() => {});
+        ownedData = [newBrain];
+      }
+    }
+    return void res.status(200).json(ownedData);
+  },
+);
 
 // ── /api/memory (rewritten to /api/user-data?resource=memory) ──
 const handleMemory = withAuth(

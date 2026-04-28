@@ -31,11 +31,13 @@ const UNTAGGED = "__untagged__";
 // have it, so it adds no signal.
 const HIDDEN_CATEGORY_TAGS = new Set(["launch"]);
 
-// localStorage key for user-defined category list, scoped per brain.
+// Categories live on the brain (server-side, JSONB column) so they sync
+// across devices. localStorage acts as an optimistic cache so the chips
+// render instantly on every load and writes don't block the UI.
 const userCatsKey = (brainId: string | undefined) =>
   brainId ? `everion.someday.categories.${brainId}` : "everion.someday.categories.default";
 
-function readUserCategories(brainId: string | undefined): string[] {
+function readCachedCategories(brainId: string | undefined): string[] {
   try {
     const raw = localStorage.getItem(userCatsKey(brainId));
     if (!raw) return [];
@@ -46,11 +48,40 @@ function readUserCategories(brainId: string | undefined): string[] {
   }
 }
 
-function writeUserCategories(brainId: string | undefined, list: string[]) {
+function writeCachedCategories(brainId: string | undefined, list: string[]) {
   try {
     localStorage.setItem(userCatsKey(brainId), JSON.stringify(list));
   } catch {
     /* quota or disabled — ignore */
+  }
+}
+
+// Pull the current category list from the brain row. Returns null on any
+// failure so the caller can fall back to the local cache.
+async function fetchBrainCategories(brainId: string): Promise<string[] | null> {
+  try {
+    const res = await authFetch("/api/brains");
+    if (!res.ok) return null;
+    const brains: Array<{ id: string; metadata?: { someday_categories?: unknown } }> =
+      await res.json();
+    const brain = brains.find((b) => b.id === brainId);
+    const list = brain?.metadata?.someday_categories;
+    if (!Array.isArray(list)) return [];
+    return list.filter((s): s is string => typeof s === "string" && !!s.trim());
+  } catch {
+    return null;
+  }
+}
+
+async function pushBrainCategories(brainId: string, list: string[]): Promise<void> {
+  try {
+    await authFetch("/api/brains", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: brainId, metadata: { someday_categories: list } }),
+    });
+  } catch (err) {
+    console.error("[someday-cats-sync]", err);
   }
 }
 
@@ -73,16 +104,41 @@ export default function TodoSomedayTab({
   const [scheduleId, setScheduleId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string>(ALL);
 
-  // User-defined category list (persisted). Empty buckets stay until the
-  // user explicitly deletes them.
-  const [userCategories, setUserCategories] = useState<string[]>(() => readUserCategories(brainId));
+  // User-defined category list. Optimistic flow:
+  //   1. Render from localStorage cache immediately (no flicker).
+  //   2. Fetch from brain on mount; if server has newer/different list,
+  //      adopt it and update the cache.
+  //   3. Every mutation writes localStorage synchronously and PATCHes the
+  //      brain in the background.
+  const [userCategories, setUserCategories] = useState<string[]>(() =>
+    readCachedCategories(brainId),
+  );
   useEffect(() => {
-    setUserCategories(readUserCategories(brainId));
+    setUserCategories(readCachedCategories(brainId));
+    if (!brainId) return;
+    let cancelled = false;
+    fetchBrainCategories(brainId).then((server) => {
+      if (cancelled || !server) return;
+      const cached = readCachedCategories(brainId);
+      // Server is authoritative; merge cache only if server is empty (covers
+      // first-ever sync after upgrading from local-only).
+      const next = server.length === 0 && cached.length > 0 ? cached : server;
+      setUserCategories(next);
+      writeCachedCategories(brainId, next);
+      // Backfill server if it had nothing and cache had local categories.
+      if (server.length === 0 && cached.length > 0) {
+        pushBrainCategories(brainId, cached);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [brainId]);
   const persistUserCategories = (next: string[]) => {
     const cleaned = Array.from(new Set(next.map((s) => s.trim()).filter(Boolean)));
     setUserCategories(cleaned);
-    writeUserCategories(brainId, cleaned);
+    writeCachedCategories(brainId, cleaned);
+    if (brainId) pushBrainCategories(brainId, cleaned);
   };
 
   const allItems = useMemo(

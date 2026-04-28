@@ -41,6 +41,25 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
   });
   const [repeat, setRepeat] = useState<RepeatValue>(getRepeat(entry));
   const [saving, setSaving] = useState(false);
+  const [reenriching, setReenriching] = useState(false);
+
+  // Escape hatch for the AI firewall (Phase 3). The firewall normally fills
+  // *missing* fields only — once tags/summary/type are set the AI never
+  // overwrites them. If the user wants AI to redo those, clear them here and
+  // flip `enrichment.parsed = false` so the next pass re-parses. USER_OWNED
+  // keys (status, scheduled_for, recurrence, …) are still untouched — AI
+  // never writes those regardless.
+  async function reenrich() {
+    setReenriching(true);
+    const meta = { ...(entry.metadata || {}) } as Record<string, unknown>;
+    const enrichment = { ...((meta.enrichment as Record<string, unknown>) || {}) };
+    enrichment.parsed = false;
+    meta.enrichment = enrichment;
+    delete meta.summary;
+    await onSave({ tags: [], metadata: meta as Entry["metadata"] });
+    setReenriching(false);
+    onClose();
+  }
 
   const W = 320;
   const EST_H = 310;
@@ -215,6 +234,20 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             }}
           >
             {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            onClick={reenrich}
+            disabled={reenriching || saving}
+            title="Clear AI-derived tags/summary and let the AI re-parse this entry. Schedule and status are never touched."
+            className="w-full text-[11px] underline-offset-2 hover:underline disabled:opacity-40"
+            style={{
+              background: "transparent",
+              color: "var(--ink-faint)",
+              fontFamily: "var(--f-sans)",
+              padding: "4px 0 0",
+            }}
+          >
+            {reenriching ? "Re-enriching…" : "↻ Let AI re-derive tags & summary"}
           </button>
         </div>
       </div>
