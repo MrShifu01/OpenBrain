@@ -299,6 +299,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
   const { activeBrain, refresh } = useBrain();
   const [section, setSection] = useState<SectionId>(deriveInitialSection);
   const [email, setEmail] = useState(() => getCachedEmail());
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [gmailOpen, setGmailOpen] = useState(false);
   const [apiOpen, setApiOpen] = useState(false);
@@ -527,7 +528,32 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   title="Connections"
                   subtitle="notifications, external services, and developer access."
                 />
-                <NotificationSettings />
+                <SettingsRow
+                  label="Notifications"
+                  hint="daily capture prompts, weekly nudges, and push delivery."
+                >
+                  <SettingsButton onClick={() => setNotificationsOpen((o) => !o)}>
+                    {notificationsOpen ? "Done" : "Manage"}
+                  </SettingsButton>
+                </SettingsRow>
+                {/*
+                  Always-mounted on the Connections tab so the prefs fetch fires
+                  the moment the user lands here, not on Manage click. We hide
+                  the body via display:none rather than conditionally render so
+                  opening "Manage" feels instant — no spinner, no first-paint
+                  network round-trip.
+                */}
+                <div
+                  style={{
+                    display: notificationsOpen ? "flex" : "none",
+                    flexDirection: "column",
+                    gap: 12,
+                    padding: "0 0 18px",
+                    borderBottom: "1px solid var(--line-soft)",
+                  }}
+                >
+                  <NotificationSettings />
+                </div>
                 <SubSection
                   title="Integrations"
                   subtitle="external connections and developer access."
