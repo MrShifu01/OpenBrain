@@ -243,17 +243,19 @@ const EntryCard = memo(function EntryCard({
           <div
             style={{
               position: "absolute",
-              top: 12,
+              bottom: 12,
               right: 12,
-              width: 20,
-              height: 20,
-              minHeight: 20,
-              borderRadius: 4,
+              width: 22,
+              height: 22,
+              minHeight: 22,
+              borderRadius: 6,
               border: `1px solid ${selected ? "var(--ember)" : "var(--line)"}`,
               background: selected ? "var(--ember)" : "var(--surface-high)",
+              boxShadow: "var(--lift-1)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              pointerEvents: "none",
             }}
           >
             {selected && (

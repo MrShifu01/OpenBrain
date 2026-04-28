@@ -36,7 +36,34 @@ interface Props {
   externalEvents: ExternalCalEvent[];
   brainId?: string;
   onAdded: () => void;
+  onUpdate?: (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => Promise<void>;
+  onDelete?: (id: string) => void;
 }
+
+type RepeatMode = "none" | "weekly" | "monthly";
+
+const SPECIFIC_DATE_KEYS_FOR_EDITOR = [
+  "due_date",
+  "event_date",
+  "deadline",
+  "renewal_date",
+  "expiry_date",
+  "appointment_date",
+  "scheduled_date",
+  "match_date",
+  "game_date",
+  "date",
+] as const;
+
+const WEEKDAY_NAMES = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -440,15 +467,55 @@ function DayCell({
   );
 }
 
-function EventCard({ event }: { event: CalEvent }) {
+function EventCard({
+  event,
+  onUpdate,
+  onDelete,
+}: {
+  event: CalEvent;
+  onUpdate?: Props["onUpdate"];
+  onDelete?: Props["onDelete"];
+}) {
+  const editable = event.source === "entry" && !!event.entry;
+  const [editing, setEditing] = useState(false);
+
+  if (editing && event.entry) {
+    return (
+      <EventEditor
+        entry={event.entry}
+        defaultDateKey={toDateKey(event.start)}
+        onSave={async (changes) => {
+          if (onUpdate && event.entry) await onUpdate(event.entry.id, changes);
+          setEditing(false);
+        }}
+        onCancel={() => setEditing(false)}
+        onDelete={
+          onDelete && event.entry
+            ? () => {
+                onDelete(event.entry!.id);
+                setEditing(false);
+              }
+            : undefined
+        }
+      />
+    );
+  }
+
   const color = eventSourceColor(event.source);
   const kind = eventSourceKind(event.source);
   const time = event.allDay ? "All day" : `${formatTime(event.start)} – ${formatTime(event.end)}`;
   const sourceLabel =
     event.source === "entry" ? "Todo" : event.source === "google" ? "Google" : "Outlook";
+
+  const Tag = editable ? "button" : "div";
   return (
-    <div
+    <Tag
+      onClick={editable ? () => setEditing(true) : undefined}
+      aria-label={editable ? `Edit ${event.title}` : undefined}
+      className={editable ? "press" : undefined}
       style={{
+        width: "100%",
+        textAlign: "left",
         background: "var(--surface-low)",
         border: "1px solid var(--line-soft)",
         borderRadius: 12,
@@ -456,6 +523,9 @@ function EventCard({ event }: { event: CalEvent }) {
         display: "flex",
         gap: 10,
         alignItems: "flex-start",
+        cursor: editable ? "pointer" : "default",
+        font: "inherit",
+        color: "inherit",
       }}
     >
       <span
@@ -515,6 +585,218 @@ function EventCard({ event }: { event: CalEvent }) {
           </span>
         </div>
       </div>
+    </Tag>
+  );
+}
+
+function deriveCurrentDateKey(metadata: Record<string, unknown>): string | null {
+  for (const k of SPECIFIC_DATE_KEYS_FOR_EDITOR) {
+    const v = metadata[k];
+    if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10);
+  }
+  return null;
+}
+
+function deriveOriginalDateKeyName(metadata: Record<string, unknown>): string {
+  for (const k of SPECIFIC_DATE_KEYS_FOR_EDITOR) {
+    if (typeof metadata[k] === "string") return k;
+  }
+  return "event_date";
+}
+
+function deriveCurrentRepeat(metadata: Record<string, unknown>): RepeatMode {
+  if (metadata.day_of_month != null && metadata.day_of_month !== "") return "monthly";
+  const dow = (metadata.day_of_week ?? metadata.weekday ?? metadata.recurring_day) as
+    | string
+    | undefined;
+  if (typeof dow === "string" && dow.trim()) return "weekly";
+  return "none";
+}
+
+function EventEditor({
+  entry,
+  defaultDateKey,
+  onSave,
+  onCancel,
+  onDelete,
+}: {
+  entry: Entry;
+  defaultDateKey: string;
+  onSave: (changes: Partial<Entry>) => Promise<void>;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  const meta = (entry.metadata || {}) as Record<string, unknown>;
+  const [title, setTitle] = useState(entry.title || "");
+  const [dateStr, setDateStr] = useState(deriveCurrentDateKey(meta) ?? defaultDateKey);
+  const [repeat, setRepeat] = useState<RepeatMode>(deriveCurrentRepeat(meta));
+  const [saving, setSaving] = useState(false);
+
+  async function submit() {
+    setSaving(true);
+    const next: Record<string, unknown> = { ...meta };
+
+    // Always reset recurrence + specific-date fields, then set the chosen mode.
+    SPECIFIC_DATE_KEYS_FOR_EDITOR.forEach((k) => delete next[k]);
+    delete next.day_of_week;
+    delete next.weekday;
+    delete next.recurring_day;
+    delete next.day_of_month;
+
+    const picked = parseISO(dateStr + "T00:00:00");
+
+    if (repeat === "none") {
+      const fieldName = deriveOriginalDateKeyName(meta);
+      next[fieldName] = dateStr;
+    } else if (repeat === "weekly") {
+      next.day_of_week = WEEKDAY_NAMES[picked.getDay()];
+    } else {
+      next.day_of_month = picked.getDate();
+    }
+
+    const changes: Partial<Entry> = { metadata: next as Entry["metadata"] };
+    if (title.trim() && title !== entry.title) changes.title = title.trim();
+
+    await onSave(changes);
+    setSaving(false);
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "8px 10px",
+    fontSize: 13,
+    fontFamily: "var(--f-sans)",
+    color: "var(--ink)",
+    background: "var(--surface-high)",
+    border: "1px solid var(--line)",
+    borderRadius: 8,
+    outline: "none",
+  };
+
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--ember)",
+        borderRadius: 12,
+        padding: 14,
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+      }}
+    >
+      <input
+        autoFocus
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="Title"
+        className="f-sans"
+        style={{ ...fieldStyle, fontSize: 14, fontWeight: 500 }}
+      />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--ink-faint)",
+            }}
+          >
+            Date
+          </span>
+          <input
+            type="date"
+            value={dateStr}
+            onChange={(e) => setDateStr(e.target.value)}
+            style={fieldStyle}
+          />
+        </label>
+        <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 4 }}>
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: "var(--ink-faint)",
+            }}
+          >
+            Repeat
+          </span>
+          <select
+            value={repeat}
+            onChange={(e) => setRepeat(e.target.value as RepeatMode)}
+            style={fieldStyle}
+          >
+            <option value="none">None — one shot</option>
+            <option value="weekly">Every week (same weekday)</option>
+            <option value="monthly">Every month (same day-of-month)</option>
+          </select>
+        </label>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+        {onDelete ? (
+          <button
+            onClick={onDelete}
+            disabled={saving}
+            className="press f-sans"
+            style={{
+              padding: "8px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--blood)",
+              background: "transparent",
+              border: "1px solid color-mix(in oklch, var(--blood) 35%, transparent)",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Delete
+          </button>
+        ) : (
+          <span />
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="press f-sans"
+            style={{
+              padding: "8px 12px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--ink-soft)",
+              background: "transparent",
+              border: "1px solid var(--line)",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={saving}
+            className="press f-sans"
+            style={{
+              padding: "8px 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--ember-ink)",
+              background: "var(--ember)",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -523,10 +805,14 @@ function DayDetailContent({
   date,
   events,
   onClose,
+  onUpdate,
+  onDelete,
 }: {
   date: Date;
   events: CalEvent[];
   onClose?: () => void;
+  onUpdate?: Props["onUpdate"];
+  onDelete?: Props["onDelete"];
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -605,7 +891,7 @@ function DayDetailContent({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {events.map((ev) => (
-            <EventCard key={ev.id} event={ev} />
+            <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -881,10 +1167,14 @@ function WeekStrip({
   navDate,
   todayKey,
   eventMap,
+  onUpdate,
+  onDelete,
 }: {
   navDate: Date;
   todayKey: string;
   eventMap: Record<string, CalEvent[]>;
+  onUpdate?: Props["onUpdate"];
+  onDelete?: Props["onDelete"];
 }) {
   const days = useMemo(() => buildWeek(navDate), [navDate]);
   return (
@@ -969,7 +1259,7 @@ function WeekStrip({
             {events.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} />
+                  <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
                 ))}
               </div>
             ) : (
@@ -995,9 +1285,13 @@ function WeekStrip({
 function MyDayList({
   todayKey,
   eventMap,
+  onUpdate,
+  onDelete,
 }: {
   todayKey: string;
   eventMap: Record<string, CalEvent[]>;
+  onUpdate?: Props["onUpdate"];
+  onDelete?: Props["onDelete"];
 }) {
   // Today + next 13 days that have events. Today is always shown so the
   // page never collapses to "nothing".
@@ -1112,7 +1406,7 @@ function MyDayList({
             {events.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} />
+                  <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
                 ))}
               </div>
             ) : (
@@ -1137,7 +1431,14 @@ function MyDayList({
 
 // ── Main component ────────────────────────────────────────────────────────
 
-export default function TodoCalendarTab({ entries, externalEvents, brainId, onAdded }: Props) {
+export default function TodoCalendarTab({
+  entries,
+  externalEvents,
+  brainId,
+  onAdded,
+  onUpdate,
+  onDelete,
+}: Props) {
   const [navDate, setNavDate] = useState(new Date());
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
@@ -1299,9 +1600,22 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
             />
           )}
           {view === "week" && (
-            <WeekStrip navDate={navDate} todayKey={todayKey} eventMap={eventMap} />
+            <WeekStrip
+              navDate={navDate}
+              todayKey={todayKey}
+              eventMap={eventMap}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
           )}
-          {view === "myday" && <MyDayList todayKey={todayKey} eventMap={eventMap} />}
+          {view === "myday" && (
+            <MyDayList
+              todayKey={todayKey}
+              eventMap={eventMap}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          )}
         </div>
 
         {/* Desktop side panel — only for the month grid; week and my-day
@@ -1312,6 +1626,8 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
               date={parseISO(selectedKey + "T00:00:00")}
               events={selectedEvents}
               onClose={() => setSelectedKey(null)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
             />
           </SidePanel>
         )}
@@ -1321,7 +1637,12 @@ export default function TodoCalendarTab({ entries, externalEvents, brainId, onAd
       {!isDesktop && view === "calendar" && (
         <BottomSheet open={sheetOpen && !!selectedKey} onClose={() => setSheetOpen(false)}>
           {selectedKey && (
-            <DayDetailContent date={parseISO(selectedKey + "T00:00:00")} events={selectedEvents} />
+            <DayDetailContent
+              date={parseISO(selectedKey + "T00:00:00")}
+              events={selectedEvents}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
           )}
         </BottomSheet>
       )}

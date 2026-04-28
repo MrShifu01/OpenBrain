@@ -599,6 +599,8 @@ export default function TodoView({
             externalEvents={externalEvents}
             brainId={activeBrainId}
             onAdded={() => ctx?.refreshEntries()}
+            onUpdate={ctx?.handleUpdate}
+            onDelete={ctx?.handleDelete}
           />
         )}
 
