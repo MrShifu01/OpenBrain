@@ -115,7 +115,6 @@ export default async function globalTeardown(): Promise<void> {
     }
   }
 
-  // eslint-disable-next-line no-console -- this only runs in test harness
   console.log(
     `[e2e:teardown] swept ${deleted}/${leaks.length} e2e residue ${leaks.length === 1 ? "entry" : "entries"}`,
   );

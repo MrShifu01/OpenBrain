@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useState, useRef, useEffect } from "react";
 import FocusTrap from "focus-trap-react";
 import { authFetch } from "../lib/authFetch";

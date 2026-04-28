@@ -261,9 +261,24 @@ function buildEntryText(entry: {
 // vector, which leaves embedding_status='pending' forever.
 const EMBED_DIM = 768;
 
+// Retry transient failures (rate limit / service unavailable) before giving
+// up — without this, a single 429 from the Gemini free tier permanently
+// stamps the entry as embedding_status='failed' (see stepEmbed below).
+async function fetchEmbedWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const delays = [500, 1500, 3500];
+  for (let i = 0; i <= delays.length; i++) {
+    const r = await fetch(url, init);
+    if (r.ok) return r;
+    const transient = r.status === 429 || r.status === 503;
+    if (!transient || i === delays.length) return r;
+    await new Promise((res) => setTimeout(res, delays[i]));
+  }
+  throw new Error("retry exhausted");
+}
+
 async function generateEmbedding(text: string, embed: EmbedConfig): Promise<number[]> {
   if (embed.provider === "gemini") {
-    const r = await fetch(
+    const r = await fetchEmbedWithRetry(
       `https://generativelanguage.googleapis.com/v1beta/models/${embed.model}:embedContent?key=${encodeURIComponent(embed.apiKey)}`,
       {
         method: "POST",
@@ -285,7 +300,7 @@ async function generateEmbedding(text: string, embed: EmbedConfig): Promise<numb
     return values;
   }
   // OpenAI
-  const r = await fetch("https://api.openai.com/v1/embeddings", {
+  const r = await fetchEmbedWithRetry("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: { Authorization: `Bearer ${embed.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: embed.model, input: text, dimensions: EMBED_DIM }),

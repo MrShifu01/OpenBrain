@@ -502,7 +502,7 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
   }
 
   useEffect(() => {
-    if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
+    if (!collapsed) load();
   }, [collapsed, staged]);
 
   async function distill() {

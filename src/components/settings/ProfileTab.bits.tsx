@@ -61,28 +61,6 @@ export function Badge({ children, muted }: { children: React.ReactNode; muted?: 
   );
 }
 
-export function BucketHeader({ label, count }: { label: string; count: number }) {
-  return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-      <h3
-        className="f-serif"
-        style={{
-          margin: 0,
-          fontSize: 16,
-          fontWeight: 500,
-          color: "var(--ink)",
-          letterSpacing: "-0.005em",
-        }}
-      >
-        {label}
-      </h3>
-      <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
-        {count}
-      </span>
-    </div>
-  );
-}
-
 export function SectionTitle({
   children,
   style,

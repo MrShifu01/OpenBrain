@@ -102,7 +102,10 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
     const hasMore = rows.length > limit;
     const results = hasMore ? rows.slice(0, limit) : rows;
     const nextCursor = hasMore ? results[results.length - 1].created_at : null;
-    res.setHeader("Cache-Control", "private, max-age=300");
+    // No browser caching — entries get pinned/edited/deleted/restored often
+    // and a stale 5-min response causes "ghost" state in the UI (we hit this
+    // exact race on pin/unpin and persona reject/restore).
+    res.setHeader("Cache-Control", "no-store");
     res.status(200).json({ entries: results, nextCursor, hasMore });
     return;
   }
@@ -1035,7 +1038,10 @@ async function handleMergeInto({ req, res, user }: HandlerContext): Promise<void
 
 // ── /api/graph (rewritten to /api/entries?resource=graph) ──
 async function handleGraph({ req, res, user }: HandlerContext): Promise<void> {
-  res.setHeader("Cache-Control", "private, max-age=3600");
+  // No browser caching — entries get added/deleted regularly, and an hour-stale
+  // graph hides new connections from the user. Cost is one extra fetch when
+  // GraphView re-mounts.
+  res.setHeader("Cache-Control", "no-store");
   if (req.method !== "GET" && req.method !== "POST") throw new ApiError(405, "Method not allowed");
 
   if (req.method === "GET") {

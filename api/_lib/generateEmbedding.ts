@@ -35,8 +35,25 @@ export function buildEntryText(entry: {
 
 const GOOGLE_EMBED_MODEL = "gemini-embedding-001";
 
+// Retry transient failures (rate limit + service unavailable) with exponential
+// backoff. Without this, a single 429 from Gemini's free tier permanently
+// marks an entry as embedding_status='failed' in enrich.ts, leaving it
+// unsearchable until the user manually retries.
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  const delays = [500, 1500, 3500];
+  for (let i = 0; i <= delays.length; i++) {
+    const res = await fetch(url, init);
+    if (res.ok) return res;
+    const transient = res.status === 429 || res.status === 503;
+    if (!transient || i === delays.length) return res;
+    await new Promise((r) => setTimeout(r, delays[i]));
+  }
+  // Unreachable — for-loop returns or throws. Satisfies TS control-flow.
+  throw new Error("retry exhausted");
+}
+
 async function generateGoogleEmbedding(text: string, apiKey: string): Promise<number[]> {
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_EMBED_MODEL}:embedContent?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",
@@ -66,7 +83,7 @@ async function generateGoogleEmbeddingBatch(texts: string[], apiKey: string): Pr
     content: { parts: [{ text }] },
     outputDimensionality: 768,
   }));
-  const res = await fetch(
+  const res = await fetchWithRetry(
     `https://generativelanguage.googleapis.com/v1beta/models/${GOOGLE_EMBED_MODEL}:batchEmbedContents?key=${encodeURIComponent(apiKey)}`,
     {
       method: "POST",

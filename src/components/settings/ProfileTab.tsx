@@ -240,7 +240,7 @@ export default function ProfileTab() {
     }
   }
   useEffect(() => {
-    reloadFacts(); /* eslint-disable-line react-hooks/exhaustive-deps */
+    reloadFacts();
   }, [brainId]);
 
   // First time facts arrive, collapse every populated bucket — opt-in
@@ -2053,7 +2053,7 @@ function PersonaPromptDebug({
   // Auto-load when expanded; auto-refresh whenever facts change so the
   // panel always shows current learnings.
   useEffect(() => {
-    if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
+    if (!collapsed) load();
   }, [collapsed, brainId, refreshKey]);
 
   async function distill() {

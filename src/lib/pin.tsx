@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, useRef } from "react";
 import { getUserId } from "./aiSettings";
 import { authFetch } from "./authFetch";
