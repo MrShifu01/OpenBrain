@@ -23,9 +23,10 @@ Multiple entries: an array of the above. Split when the text contains 2+ distinc
 7. DOCUMENT / CONTRACT / CERTIFICATE: official documents (incl. licences, passports — NOT "reminder").
 8. PROPERTY: real estate asset. PROCEDURE: SOP or how-to.
 9. REMINDER: time-sensitive deadline or recurring obligation.
-10. NOTE: only when nothing above fits — no entity, no date, no price, no phone.
+10. SOMEDAY: GTD inbox item with NO date. Trigger phrases: "add to my someday list", "for someday", "maybe later", "no date", "future-me". Use this only when the user explicitly signals it has no time commitment.
+11. NOTE: only when nothing above fits — no entity, no date, no price, no phone.
 
-INTENT CHECK: input that tells the user to do something ("pay", "call", "remember to", "remind me", "book", "schedule") → type="reminder" or "task", regardless of any business/person mentioned in it.
+INTENT CHECK: input that tells the user to do something ("pay", "call", "remember to", "remind me", "book", "schedule") → type="reminder" or "task", regardless of any business/person mentioned in it. EXCEPTION: if the user explicitly says "someday" / "no date" / "maybe later", prefer type="someday" over reminder/task.
 
 ## Confidence (required on every AI-populated field)
 

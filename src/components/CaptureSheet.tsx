@@ -26,6 +26,10 @@ interface CaptureSheetProps {
     rawContent?: string;
   }) => void;
   onNavigate?: (id: string) => void;
+  /** Power-feature: when true, show the Someday toggle in the action bar.
+   *  When the user toggles it on, Capture skips AI classification and stores
+   *  the raw text as type="someday" — a no-date GTD inbox item. */
+  somedayEnabled?: boolean;
 }
 
 export default function CaptureSheet({
@@ -39,9 +43,11 @@ export default function CaptureSheet({
   onBackgroundFiles: _onBackgroundFiles,
   onBackgroundSave,
   onNavigate,
+  somedayEnabled = false,
 }: CaptureSheetProps) {
   const [text, setText] = useState("");
   const [activeTab, setActiveTab] = useState<"entry" | "secret">("entry");
+  const [somedayActive, setSomedayActive] = useState(false);
   const [secretForm, setSecretForm] = useState<SecretForm>({ title: "", content: "" });
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState("");
@@ -114,6 +120,7 @@ export default function CaptureSheet({
       setVisible(false);
       setText("");
       setActiveTab("entry");
+      setSomedayActive(false);
       setSecretForm({ title: "", content: "" });
       setSecretError("");
       resetState();
@@ -200,7 +207,25 @@ export default function CaptureSheet({
       : secretForm.title.trim().length > 0 && secretForm.content.trim().length > 0;
 
   const handleSave = () => {
-    if (activeTab === "entry") capture(text, () => setText(""));
+    if (activeTab !== "entry") return;
+    if (somedayActive) {
+      // Skip AI classification — raw text saved verbatim as GTD-inbox item.
+      // Someday entries have no date; Schedule action in TodoView later flips
+      // them to type="todo" with metadata.due_date.
+      const t = text.trim();
+      if (!t) return;
+      const title = t.length > 60 ? t.slice(0, 57) + "…" : t;
+      doSave({ title, content: t, type: "someday", tags: [], metadata: {} }, t);
+      setText("");
+      return;
+    }
+    capture(text, () => setText(""));
+  };
+
+  const toggleSomeday = () => {
+    if (!somedayEnabled) return;
+    setSomedayActive((v) => !v);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   const toggleVault = () => {
@@ -351,6 +376,8 @@ export default function CaptureSheet({
               canSave={canSave}
               cryptoKey={cryptoKey}
               activeTab={activeTab}
+              somedayEnabled={somedayEnabled}
+              somedayActive={somedayActive}
               statusInfo={{
                 status,
                 errorDetail,
@@ -361,6 +388,7 @@ export default function CaptureSheet({
                 onSave: handleSave,
                 onStartVoice: startVoice,
                 onToggleVault: toggleVault,
+                onToggleSomeday: toggleSomeday,
                 onRemoveFile: removeUploadedFile,
                 onAttachFiles: (files) => {
                   handleDocFiles(files).catch((err) => console.error("[docInput]", err));

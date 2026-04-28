@@ -26,6 +26,7 @@ interface EntryActionHandlers {
   onSave: () => void;
   onStartVoice: () => void;
   onToggleVault: () => void;
+  onToggleSomeday?: () => void;
   onRemoveFile: (name: string) => void;
   onAttachFiles: (files: File[]) => void;
   onImageFile: (file: File) => void;
@@ -47,6 +48,8 @@ interface Props {
   canSave: boolean;
   cryptoKey: CryptoKey | null | undefined;
   activeTab: "entry" | "secret";
+  somedayEnabled?: boolean;
+  somedayActive?: boolean;
   statusInfo: EntryStatusInfo;
   handlers: EntryActionHandlers;
 }
@@ -62,6 +65,8 @@ export default function CaptureEntryBody({
   canSave,
   cryptoKey,
   activeTab,
+  somedayEnabled = false,
+  somedayActive = false,
   statusInfo,
   handlers,
 }: Props) {
@@ -139,9 +144,11 @@ export default function CaptureEntryBody({
           placeholder={
             listening
               ? "listening… tap stop when done"
-              : uploadedFiles.length > 0
-                ? "optional: describe what this is…"
-                : "remember something…"
+              : somedayActive
+                ? "someday… something for the future, no date"
+                : uploadedFiles.length > 0
+                  ? "optional: describe what this is…"
+                  : "remember something…"
           }
           rows={5}
           className="f-serif"
@@ -397,6 +404,28 @@ export default function CaptureEntryBody({
           >
             {IconVault}
           </button>
+          {somedayEnabled && (
+            <button
+              onClick={handlers.onToggleSomeday}
+              className="design-btn-ghost press"
+              aria-label="Save to someday list"
+              aria-pressed={somedayActive}
+              style={{
+                width: 40,
+                height: 40,
+                minHeight: 40,
+                padding: 0,
+                fontSize: 18,
+                fontWeight: 600,
+                color: somedayActive ? "var(--ember)" : "var(--ink-faint)",
+              }}
+              title={
+                somedayActive ? "Someday on — saves with no date" : "Send to Someday list (no date)"
+              }
+            >
+              ∞
+            </button>
+          )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -416,7 +445,13 @@ export default function CaptureEntryBody({
             style={{ height: 40, minHeight: 40, borderRadius: 8 }}
           >
             {IconSend}
-            {loading ? "Saving…" : extracting ? "Reading file…" : "Capture"}
+            {loading
+              ? "Saving…"
+              : extracting
+                ? "Reading file…"
+                : somedayActive
+                  ? "Save to Someday"
+                  : "Capture"}
           </button>
         </div>
       </div>

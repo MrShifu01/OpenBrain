@@ -17,6 +17,7 @@ import TodoQuickAdd from "./TodoQuickAdd";
 import TodoCalendarTab from "./TodoCalendarTab";
 import TodoEditPopover from "./TodoEditPopover";
 import TodoRowItem from "./TodoRowItem";
+import TodoSomedayTab from "./TodoSomedayTab";
 
 /* ─── Karma Bar ─── */
 function KarmaBar({ points, streak }: { points: number; streak: number }) {
@@ -365,14 +366,16 @@ interface TodoViewProps {
   entries?: Entry[];
   typeIcons?: Record<string, string>;
   activeBrainId?: string;
+  somedayEnabled?: boolean;
 }
 
-type Tab = "today" | "list" | "calendar";
+type Tab = "today" | "list" | "calendar" | "someday";
 
 export default function TodoView({
   entries: propEntries,
   typeIcons = {},
   activeBrainId,
+  somedayEnabled = false,
 }: TodoViewProps) {
   const ctx = useEntries();
   const entries = propEntries || ctx?.entries || [];
@@ -510,10 +513,16 @@ export default function TodoView({
     );
   }
 
-  const TABS: { id: Tab; label: string }[] = [
+  const somedayCount = useMemo(
+    () => entries.filter((e) => e.type === "someday" && !isDone(e)).length,
+    [entries],
+  );
+
+  const TABS: { id: Tab; label: string; count?: number }[] = [
     { id: "today", label: "My Day" },
     { id: "list", label: "Week" },
     { id: "calendar", label: "Calendar" },
+    ...(somedayEnabled ? [{ id: "someday" as const, label: "Someday", count: somedayCount }] : []),
   ];
 
   return (
@@ -563,9 +572,11 @@ export default function TodoView({
           margin: "0 auto",
         }}
       >
-        {/* Mobile tab switcher */}
+        {/* Tab switcher — mobile-only by default, but surfaced on desktop too
+            when Someday is enabled so power users can flip between the four
+            views without leaving the schedule shell. */}
         <div
-          className="mb-4 flex items-center overflow-hidden rounded-xl border lg:hidden"
+          className={`mb-4 flex items-center overflow-hidden rounded-xl border ${somedayEnabled ? "" : "lg:hidden"}`}
           style={{ borderColor: "var(--line-soft)" }}
         >
           {TABS.map((t, i) => (
@@ -580,6 +591,18 @@ export default function TodoView({
               }}
             >
               {t.label}
+              {typeof t.count === "number" && t.count > 0 && (
+                <span
+                  style={{
+                    marginLeft: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    opacity: 0.7,
+                  }}
+                >
+                  {t.count}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -601,6 +624,17 @@ export default function TodoView({
             onAdded={() => ctx?.refreshEntries()}
             onUpdate={ctx?.handleUpdate}
             onDelete={ctx?.handleDelete}
+          />
+        )}
+
+        {/* ── Someday tab ── */}
+        {tab === "someday" && somedayEnabled && (
+          <TodoSomedayTab
+            entries={entries}
+            brainId={activeBrainId}
+            onUpdate={ctx?.handleUpdate}
+            onDelete={ctx?.handleDelete}
+            onAdded={() => ctx?.refreshEntries()}
           />
         )}
 

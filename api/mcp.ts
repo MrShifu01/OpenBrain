@@ -75,7 +75,7 @@ const TOOLS = [
   {
     name: "create_entry",
     description:
-      "Save new information to the user's knowledge base. Use this when the user says things like 'add this to Everion', 'save this note', 'remember that', 'store this phone number', or 'add this idea to my memory'.",
+      "Save new information to the user's knowledge base. Use this when the user says things like 'add this to Everion', 'save this note', 'remember that', 'store this phone number', or 'add this idea to my memory'. For Someday/Maybe items (no date, GTD-style 'maybe later' list — phrases like 'add to my someday list', 'add to someday', 'put this in someday', 'for someday', 'maybe later', 'no date'), pass type='someday'. To bulk-add a checklist into Someday, call create_entry once per item with type='someday'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -84,7 +84,7 @@ const TOOLS = [
         type: {
           type: "string",
           description:
-            "Entry type: note, person, recipe, task, event, document, idea, contact. Defaults to note.",
+            "Entry type: note, person, recipe, task, todo, someday (no-date GTD inbox), event, document, idea, contact. Defaults to note. Use 'someday' for items the user wants to capture without committing to a date.",
         },
         tags: {
           type: "array",
@@ -535,23 +535,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   // OAuth dynamic client registration
   if (req.query._oauth === "register") {
-    return res
-      .status(201)
-      .json({
-        client_id: "everion-mcp-client",
-        grant_types: ["client_credentials"],
-        token_endpoint_auth_method: "none",
-      });
+    return res.status(201).json({
+      client_id: "everion-mcp-client",
+      grant_types: ["client_credentials"],
+      token_endpoint_auth_method: "none",
+    });
   }
 
   // OAuth authorize endpoint — not used for client_credentials but required by discovery spec
   if (req.query._oauth === "authorize") {
-    return res
-      .status(400)
-      .json({
-        error: "unsupported_response_type",
-        error_description: "Use client_credentials grant via the token endpoint",
-      });
+    return res.status(400).json({
+      error: "unsupported_response_type",
+      error_description: "Use client_credentials grant via the token endpoint",
+    });
   }
 
   // MCP over HTTP uses POST for all requests

@@ -594,6 +594,7 @@ function EverionContent({
                     entries={entries}
                     typeIcons={appShell.typeIcons}
                     activeBrainId={activeBrain?.id}
+                    somedayEnabled={ff("someday")}
                   />
                 </Suspense>
               </ErrorBoundary>
@@ -849,6 +850,7 @@ function EverionContent({
                 appShell.setShowCapture(false);
                 appShell.setView(id);
               }}
+              somedayEnabled={ff("someday")}
             />
           </Suspense>
           {appShell.view !== "capture" && !appShell.showCapture && (

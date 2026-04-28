@@ -18,6 +18,11 @@ export const FEATURE_FLAGS = {
     prodEnabled: import.meta.env.VITE_FEATURE_TIMELINE === "true",
   },
   vault: { label: "Vault", icon: "🔐", prodEnabled: import.meta.env.VITE_FEATURE_VAULT === "true" },
+  someday: {
+    label: "Someday list",
+    icon: "∞",
+    prodEnabled: import.meta.env.VITE_FEATURE_SOMEDAY === "true",
+  },
 } as const satisfies Record<string, { label: string; icon: string; prodEnabled: boolean }>;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;
