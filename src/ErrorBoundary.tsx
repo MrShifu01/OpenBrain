@@ -1,6 +1,41 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
 
+// Detect chunk-load / dynamic-import failures caused by a stale Service
+// Worker serving HTML that references chunk hashes from a previous build.
+// Browsers expose this with a few different surfaces; match all of them.
+function isStaleBundleError(error: Error | null): boolean {
+  if (!error) return false;
+  const msg = error.message || "";
+  const name = error.name || "";
+  return (
+    name === "ChunkLoadError" ||
+    /Loading chunk \d+ failed/i.test(msg) ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Importing a module script failed/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  );
+}
+
+async function hardRecoverFromStaleBundle(): Promise<void> {
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+    }
+  } catch {
+    // best-effort; reload anyway
+  }
+  // Cache-bust the document URL so we don't get a 304 from intermediaries.
+  const url = new URL(window.location.href);
+  url.searchParams.set("_sw", Date.now().toString(36));
+  window.location.replace(url.toString());
+}
+
 interface ErrorBoundaryProps {
   children: ReactNode;
   /**
@@ -37,12 +72,36 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     const tag = this.props.name ?? "root";
     console.error(`OpenBrain error [${tag}]:`, error, info.componentStack);
     Sentry.captureException(error, {
-      tags: { boundary: tag },
+      tags: { boundary: tag, staleBundle: isStaleBundleError(error) },
       extra: { componentStack: info.componentStack },
     });
+    // Auto-recover stale-bundle errors once per page load. The flag is on
+    // sessionStorage so we don't loop if the recovery itself somehow fails.
+    if (isStaleBundleError(error)) {
+      try {
+        const KEY = "everion:sw-recovered";
+        if (!sessionStorage.getItem(KEY)) {
+          sessionStorage.setItem(KEY, "1");
+          void hardRecoverFromStaleBundle();
+        }
+      } catch {
+        void hardRecoverFromStaleBundle();
+      }
+    }
   }
 
-  reset = () => this.setState({ hasError: false, error: null });
+  reset = () => {
+    // If this looks like a stale-bundle error (PWA service worker holding an
+    // old index.html that references chunk hashes from a previous deploy),
+    // a plain re-render won't help — the same import will fail again. Force
+    // a clean reload: unregister the SW, drop all caches, then reload from
+    // the network so the user picks up the current build.
+    if (isStaleBundleError(this.state.error)) {
+      void hardRecoverFromStaleBundle();
+      return;
+    }
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
     if (this.state.hasError && this.state.error) {

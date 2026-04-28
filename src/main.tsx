@@ -58,6 +58,46 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Catch dynamic-import failures that happen outside React (e.g. an early
+// lazy() route chunk fails before any boundary mounts). Without this, the
+// page just dies silently with "Importing a module script failed". We
+// unregister the SW + clear caches once per session, then reload.
+function looksLikeStaleBundle(reason: unknown): boolean {
+  const msg = reason instanceof Error ? reason.message : String(reason ?? "");
+  return (
+    /Loading chunk \d+ failed/i.test(msg) ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Importing a module script failed/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg)
+  );
+}
+async function recoverFromStaleBundle(): Promise<void> {
+  try {
+    const KEY = "everion:sw-recovered";
+    if (sessionStorage.getItem(KEY)) return;
+    sessionStorage.setItem(KEY, "1");
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+    }
+  } catch {
+    // fall through
+  }
+  const url = new URL(window.location.href);
+  url.searchParams.set("_sw", Date.now().toString(36));
+  window.location.replace(url.toString());
+}
+window.addEventListener("unhandledrejection", (e) => {
+  if (looksLikeStaleBundle(e.reason)) void recoverFromStaleBundle();
+});
+window.addEventListener("error", (e) => {
+  if (looksLikeStaleBundle(e.error ?? e.message)) void recoverFromStaleBundle();
+});
+
 const pathname = window.location.pathname;
 
 function Root() {
