@@ -213,6 +213,120 @@ export function getActionPlacements(entry: Entry): string[] {
   return getPlacements(entry, { mode: "actions" });
 }
 
+/* ─── Debug inspector (Phase 5) ─── */
+
+export interface PlacementExplanation {
+  /** Final placements — what the engine actually returns. */
+  dates: string[];
+  /** Why the engine returned each date, OR why it returned nothing. One line
+   *  per signal (metadata key, recurrence rule, exclusion). Read top to
+   *  bottom for a play-by-play of how the placement was decided. */
+  trace: string[];
+  /** True if the entry is excluded entirely — the trace explains why. */
+  excluded: boolean;
+}
+
+/**
+ * Returns the same dates as getPlacements PLUS a human-readable trace of
+ * which signals contributed and which exclusions fired. Used by the admin
+ * "Why isn't X showing?" inspector — never call from production paths.
+ */
+export function explainPlacements(
+  entry: Entry,
+  options: PlacementOptions = {},
+): PlacementExplanation {
+  const { mode = "calendar", range, expandRecurrence = false, includeCompleted = false } = options;
+  const trace: string[] = [];
+
+  if (!includeCompleted && isDone(entry)) {
+    return {
+      dates: [],
+      trace: ['Excluded: metadata.status === "done" (set includeCompleted=true to override)'],
+      excluded: true,
+    };
+  }
+  if (NON_SCHEDULABLE_TYPES.has(entry.type)) {
+    return {
+      dates: [],
+      trace: [`Excluded: type="${entry.type}" is never schedulable`],
+      excluded: true,
+    };
+  }
+
+  const dates = new Set<string>();
+  const m = (entry.metadata || {}) as Record<string, unknown>;
+  const keys = mode === "actions" ? ACTION_DATE_KEYS : CALENDAR_DATE_KEYS;
+  trace.push(`Mode: ${mode} (checking keys: ${keys.join(", ")})`);
+
+  for (const k of keys) {
+    const v = m[k];
+    if (typeof v === "string" && DATE_RE.test(v)) {
+      const d = v.slice(0, 10);
+      dates.add(d);
+      trace.push(`+ ${d} from metadata.${k}`);
+    }
+  }
+
+  if (mode === "calendar") {
+    for (const [k, v] of Object.entries(m)) {
+      if (NON_CALENDAR_DATE_KEYS.has(k)) continue;
+      if (keys.includes(k)) continue;
+      if (typeof v === "string" && DATE_RE.test(v)) {
+        const d = v.slice(0, 10);
+        dates.add(d);
+        trace.push(`+ ${d} from metadata.${k} (open scan)`);
+      }
+    }
+  }
+
+  if (expandRecurrence) {
+    if (!range) {
+      trace.push("! Recurrence skipped: no range supplied");
+    } else if (hasSpecificDate(m)) {
+      const specific = SPECIFIC_DATE_KEYS.filter((k) => {
+        const v = m[k];
+        return typeof v === "string" && DATE_RE.test(v);
+      });
+      trace.push(`Recurrence skipped: specific date set (${specific.join(", ")})`);
+    } else {
+      const before = dates.size;
+      const recurringKeys: string[] = [];
+      expandRecurringDates(entry, range, (key) => {
+        if (!dates.has(key)) recurringKeys.push(key);
+        dates.add(key);
+      });
+      const added = dates.size - before;
+      if (added === 0) {
+        trace.push("Recurrence: no rule detected (no day_of_week / day_of_month / recurrence)");
+      } else {
+        trace.push(
+          `+ ${added} recurring date(s): ${recurringKeys.slice(0, 5).join(", ")}${recurringKeys.length > 5 ? ` +${recurringKeys.length - 5} more` : ""}`,
+        );
+      }
+    }
+  }
+
+  let result = [...dates];
+  if (range) {
+    const before = result.length;
+    result = result.filter((d) => d >= range.from && d <= range.to);
+    if (result.length < before) {
+      trace.push(
+        `- ${before - result.length} date(s) trimmed by range [${range.from} → ${range.to}]`,
+      );
+    }
+  }
+  result.sort();
+
+  if (result.length === 0) {
+    trace.push("Result: no placements (entry will not appear)");
+  } else {
+    trace.push(`Result: ${result.length} placement(s)`);
+  }
+
+  return { dates: result, trace, excluded: false };
+}
+
 /** Calendar placements within a month. Recurrence expanded. */
 export function getCalendarPlacements(entry: Entry, range: { from: string; to: string }): string[] {
   return getPlacements(entry, {

@@ -11,6 +11,8 @@ import {
 } from "../../lib/adminPrefs";
 import GmailScanReviewModal from "./GmailScanReviewModal";
 import { MOCK_REVIEW_ITEMS } from "../../data/mockGmailReviewItems";
+import { useEntries } from "../../context/EntriesContext";
+import { explainPlacements, toDateKey } from "../../views/todoUtils";
 
 type TestStatus = "idle" | "running" | "pass" | "fail";
 
@@ -195,6 +197,213 @@ function TierChanger() {
           {msg}
         </div>
       )}
+    </div>
+  );
+}
+
+// Phase 5 of the schedule fix: paste an entry id, see exactly which signals
+// the placement engine considered, what dates it landed on, and what
+// exclusions fired. Catches future "why isn't X showing?" regressions in
+// seconds without needing to dig through SQL or code.
+function ScheduleInspectorSection() {
+  const ctx = useEntries();
+  const [input, setInput] = useState("");
+  const [resolved, setResolved] = useState<{
+    id: string;
+    title: string;
+    type: string;
+    metadata: string;
+    actions: ReturnType<typeof explainPlacements>;
+    calendar: ReturnType<typeof explainPlacements>;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  function inspect() {
+    setError(null);
+    setResolved(null);
+    const raw = input.trim();
+    if (!raw) {
+      setError("Paste an entry id, search title, or full UUID");
+      return;
+    }
+    const all = ctx?.entries ?? [];
+    const byId = all.find((e) => e.id === raw);
+    const byPartialId = !byId && raw.length >= 6 ? all.find((e) => e.id.startsWith(raw)) : null;
+    const byTitle =
+      !byId && !byPartialId
+        ? all.find((e) => (e.title || "").toLowerCase().includes(raw.toLowerCase()))
+        : null;
+    const entry = byId ?? byPartialId ?? byTitle;
+    if (!entry) {
+      setError(`No entry matched "${raw}". Try a UUID, a UUID prefix, or part of the title.`);
+      return;
+    }
+
+    // Use the visible-month range for calendar mode so the trace matches
+    // what TodoCalendarTab would actually compute.
+    const today = new Date();
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const range = { from: toDateKey(first), to: toDateKey(last) };
+
+    const actions = explainPlacements(entry, { mode: "actions" });
+    const calendar = explainPlacements(entry, {
+      mode: "calendar",
+      range,
+      expandRecurrence: true,
+    });
+
+    setResolved({
+      id: entry.id,
+      title: entry.title,
+      type: entry.type,
+      metadata: JSON.stringify(entry.metadata ?? {}, null, 2),
+      actions,
+      calendar,
+    });
+  }
+
+  return (
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
+      <div style={{ marginBottom: 14 }}>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          Schedule inspector
+        </div>
+        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          Paste an entry id (or part of its title) to see why it appears — or doesn't appear — on
+          the Schedule views.
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && inspect()}
+          placeholder="entry-id, uuid prefix, or part of the title"
+          className="f-sans"
+          style={{
+            flex: 1,
+            padding: "8px 10px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line)",
+            borderRadius: 6,
+            color: "var(--ink)",
+            fontSize: 13,
+            outline: "none",
+          }}
+        />
+        <SettingsButton onClick={inspect}>Inspect</SettingsButton>
+      </div>
+      {error && (
+        <div className="f-sans" style={{ fontSize: 12, marginTop: 8, color: "var(--blood)" }}>
+          {error}
+        </div>
+      )}
+      {resolved && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 8,
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+          }}
+        >
+          <div
+            className="f-mono"
+            style={{ fontSize: 11, color: "var(--ink-faint)", marginBottom: 6 }}
+          >
+            {resolved.id}
+          </div>
+          <div
+            className="f-sans"
+            style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}
+          >
+            {resolved.title}
+          </div>
+          <div
+            className="f-sans"
+            style={{ fontSize: 12, color: "var(--ink-faint)", marginBottom: 12 }}
+          >
+            type=<strong style={{ color: "var(--ink)" }}>{resolved.type}</strong>
+          </div>
+          <PlacementTraceBlock label="My Day / Week (actions mode)" detail={resolved.actions} />
+          <PlacementTraceBlock label="Calendar (this month)" detail={resolved.calendar} />
+          <details>
+            <summary
+              className="f-sans"
+              style={{ fontSize: 11, color: "var(--ink-faint)", cursor: "pointer" }}
+            >
+              metadata JSON
+            </summary>
+            <pre
+              style={{
+                margin: "6px 0 0",
+                fontFamily: "var(--f-mono)",
+                fontSize: 11,
+                color: "var(--ink-soft)",
+                background: "var(--surface)",
+                padding: 10,
+                borderRadius: 6,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                maxHeight: 240,
+                overflow: "auto",
+              }}
+            >
+              {resolved.metadata}
+            </pre>
+          </details>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlacementTraceBlock({
+  label,
+  detail,
+}: {
+  label: string;
+  detail: ReturnType<typeof explainPlacements>;
+}) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: detail.excluded ? "var(--blood)" : "var(--ember)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        className="f-sans"
+        style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)", marginBottom: 4 }}
+      >
+        {detail.dates.length === 0 ? "(no placements)" : detail.dates.join(", ")}
+      </div>
+      <ul
+        style={{
+          margin: 0,
+          paddingLeft: 16,
+          fontSize: 12,
+          color: "var(--ink-soft)",
+          fontFamily: "var(--f-mono)",
+          lineHeight: 1.5,
+        }}
+      >
+        {detail.trace.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -952,6 +1161,7 @@ export default function AdminTab() {
       <TierChanger />
       <PushTestSection />
       <DailySummarySection />
+      <ScheduleInspectorSection />
       <MockGmailReviewSection />
       <AdminDisplaySection />
       <FeatureFlagsSection />
