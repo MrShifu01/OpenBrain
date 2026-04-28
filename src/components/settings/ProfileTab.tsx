@@ -148,6 +148,7 @@ export default function ProfileTab() {
   const scanning = brainId ? ops.isRunning("persona-scan", brainId) : false;
   const wiping = brainId ? ops.isRunning("persona-wipe", brainId) : false;
   const resetting = brainId ? ops.isRunning("persona-reset", brainId) : false;
+  const auditing = brainId ? ops.isRunning("persona-audit", brainId) : false;
 
   // ── Load core ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -210,7 +211,7 @@ export default function ProfileTab() {
   // result on a manual refresh — the previous setTimeout(reloadFacts, 1500)
   // approach raced ops that took longer than 1.5s and ran twice for ones
   // that finished sooner.
-  const opsActive = scanning || wiping || resetting;
+  const opsActive = scanning || wiping || resetting || auditing;
   useEffect(() => {
     if (!opsActive) {
       reloadFacts();
@@ -397,6 +398,26 @@ export default function ProfileTab() {
     ops.startTask({
       kind: "persona-reset",
       label: "Reverting previous persona scan",
+      resumeKey: brainId,
+    });
+  }
+
+  function runAudit() {
+    if (!brainId || auditing) return;
+    if (
+      !window.confirm(
+        "Audit your living memory?\n\n" +
+          "Walks every active fact and bulk-rejects ones that:\n" +
+          " · duplicate another fact\n" +
+          " · match a fact you marked as Not me\n" +
+          " · are already covered by your About You\n\n" +
+          "Pinned facts and ones you added manually are never touched. Anything rejected stays in the Not me section so you can restore it if the audit got it wrong.",
+      )
+    )
+      return;
+    ops.startTask({
+      kind: "persona-audit",
+      label: "Auditing living memory",
       resumeKey: brainId,
     });
   }
@@ -777,6 +798,67 @@ export default function ProfileTab() {
             }}
           >
             {resetting ? "Reverting…" : "Reset previous scan"}
+          </button>
+        </div>
+      )}
+
+      {/* Audit — re-evaluates active facts against the current prompt rules,
+          bulk-rejects ones that duplicate, match a Not-me pattern, or are
+          already covered by About-You. Always-visible companion to Wipe. */}
+      {hasExtractedFacts && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <p
+              className="f-sans"
+              style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}
+            >
+              Audit living memory
+            </p>
+            <p
+              className="f-serif"
+              style={{
+                margin: "2px 0 0",
+                fontSize: 12,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                lineHeight: 1.45,
+              }}
+            >
+              Removes duplicates, facts matching things you marked as Not me, and ones already
+              covered by your About You. Pinned and manually-added facts are never touched.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={runAudit}
+            disabled={auditing || !brainId}
+            className="press f-sans"
+            style={{
+              height: 34,
+              padding: "0 14px",
+              fontSize: 12,
+              fontWeight: 600,
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ember)",
+              border: "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
+              cursor: auditing ? "wait" : "pointer",
+              opacity: auditing ? 0.6 : 1,
+            }}
+          >
+            {auditing ? "Auditing…" : "Run audit"}
           </button>
         </div>
       )}

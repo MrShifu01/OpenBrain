@@ -364,7 +364,7 @@ async function stepPersonaExtract(
   entry: Entry,
   userId: string,
   brainId: string | null,
-  precomputed: { context: ExtractorContext; existingEmbeddings: number[][] } | null,
+  precomputed: { context: ExtractorContext; dedup: PersonaDedupSet } | null,
 ): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
   const enr = (meta.enrichment ?? {}) as Record<string, unknown>;
@@ -398,21 +398,24 @@ async function stepPersonaExtract(
   const stampedMeta = { ...meta, enrichment: { ...enr, persona_extracted: true } };
   if (!facts.length || !brainId) return stampedMeta;
 
-  // Existing-fact embeddings for inline cosine dedup. Provided by batch
-  // callers; falls back to a per-entry fetch otherwise.
+  // Dedup set for inline duplicate refusal. Provided by batch callers
+  // (backfill); falls back to a per-entry fetch otherwise.
   //
-  // CRITICAL: share the SAME array reference across all entries in a batch.
-  // We push newly-inserted embeddings to it as we go, so the next entry's
-  // dedup check sees them. A spread copy here would silently break dedup
-  // across entries — every "User lives in Bloemfontein" emitted by a
-  // different source entry would slip through.
-  const existing: number[][] =
-    precomputed?.existingEmbeddings ?? (await fetchActivePersonaEmbeddings(userId, brainId));
+  // CRITICAL: share the SAME set references across all entries in a batch.
+  // We push newly-inserted facts (embedding AND normalized title) to them
+  // as we go, so the next entry's dedup check sees them. A spread copy here
+  // would silently break dedup across entries — every "User runs Smash
+  // Burger Bar" emitted by a different source entry would slip through.
+  const dedup: PersonaDedupSet =
+    precomputed?.dedup ?? (await fetchPersonaDedupSet(userId, brainId));
 
   for (const f of facts) {
     try {
-      const inserted = await insertExtractedFactDeduped(f, entry, userId, brainId, existing);
-      if (inserted) existing.push(inserted);
+      const inserted = await insertExtractedFactDeduped(f, entry, userId, brainId, dedup);
+      if (inserted) {
+        dedup.embeddings.push(inserted.embedding);
+        dedup.titles.add(inserted.title);
+      }
     } catch (err: any) {
       console.error("[persona:extract] insert failed", entry.id, err?.message ?? err);
     }
@@ -425,11 +428,17 @@ async function insertExtractedFactDeduped(
   source: Entry,
   userId: string,
   brainId: string,
-  existingEmbeddings: number[][],
-): Promise<number[] | null> {
+  dedup: PersonaDedupSet,
+): Promise<{ embedding: number[]; title: string } | null> {
   const id = randomUUID();
   const title = fact.fact;
   const content = fact.evidence ? `${fact.fact}\n\nFrom: "${fact.evidence}"` : fact.fact;
+
+  // Title-based fast-path. Catches word-for-word repeats even when the
+  // existing fact's embedding is missing (gen failed last time). Cheap —
+  // no embedding call at all if we already know it's a dup by title.
+  const normTitle = normalizeTitle(title);
+  if (dedup.titles.has(normTitle)) return null;
 
   // Generate the new fact's embedding first — we need it for dedup either
   // way. If the API key is missing we skip the dedup check (and embedding).
@@ -446,11 +455,11 @@ async function insertExtractedFactDeduped(
     }
   }
 
-  // Dedup against existing active facts. Skip if any existing fact is too
-  // similar — this is what catches "User works at Smash Burger Bar" being
-  // emitted 3 times across 3 different source entries in the same scan.
-  if (embedding && existingEmbeddings.length) {
-    for (const ev of existingEmbeddings) {
+  // Dedup against existing facts via cosine. Catches "User works at Smash
+  // Burger Bar" vs "User runs Smash Burger Bar" — title-equality misses
+  // those but cosine doesn't.
+  if (embedding && dedup.embeddings.length) {
+    for (const ev of dedup.embeddings) {
       if (cosineSim(embedding, ev) >= FACT_DEDUP_COSINE) {
         return null; // duplicate — skip insert
       }
@@ -492,24 +501,53 @@ async function insertExtractedFactDeduped(
   if (!r.ok) {
     throw new Error(`insert HTTP ${r.status}: ${await r.text().catch(() => "")}`);
   }
-  return embedding;
+  // Even if embedding was null, hand back the title so the caller can add
+  // it to the in-memory dedup set — same-batch repeats get caught by the
+  // fast-path on the next insert.
+  return { embedding: embedding ?? [], title: normTitle };
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-async function fetchActivePersonaEmbeddings(userId: string, brainId: string): Promise<number[][]> {
+export interface PersonaDedupSet {
+  embeddings: number[][];
+  titles: Set<string>; // normalized — lowercase, trimmed, collapsed whitespace
+}
+
+function normalizeTitle(s: string): string {
+  return s
+    .toLowerCase()
+    .trim()
+    .replace(/[.…]+$/g, "") // trailing periods / ellipsis
+    .replace(/\s+/g, " ");
+}
+
+// Pulls everything we need to refuse a duplicate insert. Includes ALL non-
+// deleted persona facts regardless of status:
+//   - active: obvious
+//   - fading: still searchable; user could rescue, don't re-extract
+//   - archived (history): user said "no longer true" — don't resurrect
+//   - rejected (Not me): user said "not who I am" — definitely don't re-extract
+// Title set is a fallback for facts whose embedding generation failed; on
+// a word-for-word repeat it's the only thing that catches the dupe.
+async function fetchPersonaDedupSet(userId: string, brainId: string): Promise<PersonaDedupSet> {
+  const empty: PersonaDedupSet = { embeddings: [], titles: new Set() };
   const r = await fetch(
-    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=embedding&limit=500`,
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&select=title,embedding&limit=1000`,
     { headers: SB_HDR },
   );
-  if (!r.ok) return [];
-  const rows: Array<{ embedding: string | number[] | null }> = await r.json().catch(() => []);
-  const out: number[][] = [];
+  if (!r.ok) return empty;
+  const rows: Array<{ title: string | null; embedding: string | number[] | null }> = await r
+    .json()
+    .catch(() => []);
+  const embeddings: number[][] = [];
+  const titles = new Set<string>();
   for (const row of rows) {
     const v = parseEmbedding(row.embedding);
-    if (v.length) out.push(v);
+    if (v.length) embeddings.push(v);
+    if (row.title) titles.add(normalizeTitle(row.title));
   }
-  return out;
+  return { embeddings, titles };
 }
 
 function parseEmbedding(raw: number[] | string | null): number[] {
@@ -695,13 +733,13 @@ export async function backfillPersonaForBrain(
   // Cheaper and more reliable than threading return values through the step.
   const beforeCount = await countPersonaEntries(userId, brainId);
 
-  // Load identity context + existing fact embeddings ONCE for the whole
-  // batch — both are stable across entries and the prompt + dedup behaviour
-  // depends on them. The same `existingEmbeddings` array is reused inside
-  // the step so duplicates within this batch are also caught.
+  // Load identity context + dedup set ONCE for the whole batch — both
+  // are stable across entries. The same `dedup` set is reused inside the
+  // step and accumulates new inserts so duplicates within this batch are
+  // caught even before they hit the database.
   const context = await loadExtractorContext(userId, brainId);
-  const existingEmbeddings = await fetchActivePersonaEmbeddings(userId, brainId);
-  const precomputed = { context, existingEmbeddings };
+  const dedup = await fetchPersonaDedupSet(userId, brainId);
+  const precomputed = { context, dedup };
 
   for (const entry of batch) {
     try {
@@ -915,6 +953,206 @@ export async function wipeExtractedPersonaForBrain(
   }
 
   return { deleted, cleared };
+}
+
+// ── Public: auditPersonaForBrain ────────────────────────────────────────────
+//
+// Re-evaluates every active auto-extracted persona fact against the user's
+// CURRENT prompt rules and bulk-rejects ones that:
+//   1. Duplicate another active fact (cosine ≥ 0.85 or normalized title match)
+//   2. Match a previously-rejected pattern (cosine ≥ 0.85 vs rejected pool)
+//   3. Are already covered by the user's About-You text (cosine ≥ 0.72)
+//
+// Pinned facts and user-confirmed sources (manual / chat / skip_persona)
+// are NEVER touched. Rejection is reversible — the user can un-reject from
+// the "Not me" section if the audit was wrong.
+//
+// Why audit instead of re-running scan: scan only adds. Audit reviews what's
+// already there using context that wasn't available when those facts were
+// first extracted (the user's later rejections, an updated About-You).
+
+const AUDIT_DUP_COSINE = 0.85;
+const AUDIT_REJECTED_COSINE = 0.85;
+const AUDIT_CORE_COSINE = 0.72;
+
+interface AuditResult {
+  scanned: number;
+  rejected_duplicates: number;
+  rejected_pattern: number;
+  rejected_core: number;
+  kept: number;
+}
+
+interface AuditRow {
+  id: string;
+  title: string;
+  metadata: Record<string, any> | null;
+  embedding: string | number[] | null;
+  created_at: string;
+}
+
+export async function auditPersonaForBrain(
+  userId: string,
+  brainId: string,
+): Promise<AuditResult> {
+  const out: AuditResult = {
+    scanned: 0,
+    rejected_duplicates: 0,
+    rejected_pattern: 0,
+    rejected_core: 0,
+    kept: 0,
+  };
+
+  // Pull active persona facts in this brain.
+  const ar = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=id,title,metadata,embedding,created_at&limit=1000`,
+    { headers: SB_HDR },
+  );
+  if (!ar.ok) return out;
+  const active: AuditRow[] = await ar.json();
+  out.scanned = active.length;
+  if (!active.length) return out;
+
+  // Pull rejected facts (with embeddings) — the model of what user said is "not me".
+  const rr = await fetch(
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.rejected&select=embedding&limit=500`,
+    { headers: SB_HDR },
+  );
+  const rejectedEmbeds: number[][] = [];
+  if (rr.ok) {
+    const rows: Array<{ embedding: string | number[] | null }> = await rr.json().catch(() => []);
+    for (const row of rows) {
+      const v = parseEmbedding(row.embedding);
+      if (v.length) rejectedEmbeds.push(v);
+    }
+  }
+
+  // Pull core profile + embed it. About-You is plain text; embed once.
+  const cr = await fetch(
+    `${SB_URL}/rest/v1/user_personas?user_id=eq.${encodeURIComponent(userId)}&select=context&limit=1`,
+    { headers: SB_HDR },
+  );
+  let coreEmbed: number[] | null = null;
+  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
+  if (cr.ok && apiKey) {
+    const rows = (await cr.json().catch(() => [])) as Array<{ context: string | null }>;
+    const text = (rows[0]?.context || "").trim();
+    if (text) {
+      try {
+        coreEmbed = await personaGenerateEmbedding(
+          personaBuildEntryText({ title: "About you", content: text, tags: ["persona"] }),
+          apiKey,
+        );
+      } catch {
+        coreEmbed = null;
+      }
+    }
+  }
+
+  // Phase 1: dedup within the active set itself. Two facts that look like
+  // each other → keep the one with higher confidence (or pinned, or older).
+  // We scan in stable order so the chosen "winner" is deterministic.
+  const sorted = [...active].sort((a, b) => {
+    const ap = a.metadata?.pinned ? 1 : 0;
+    const bp = b.metadata?.pinned ? 1 : 0;
+    if (ap !== bp) return bp - ap;
+    const ac = (a.metadata?.confidence as number) ?? 0.5;
+    const bc = (b.metadata?.confidence as number) ?? 0.5;
+    if (ac !== bc) return bc - ac;
+    return a.created_at.localeCompare(b.created_at);
+  });
+
+  const winners: AuditRow[] = [];
+  const winnerEmbeds: number[][] = [];
+  const winnerTitles = new Set<string>();
+  const dupTargets = new Set<string>(); // ids to reject as duplicates
+
+  for (const row of sorted) {
+    const title = row.title || "";
+    const norm = title
+      .toLowerCase()
+      .trim()
+      .replace(/[.…]+$/g, "")
+      .replace(/\s+/g, " ");
+    const embed = parseEmbedding(row.embedding);
+
+    let isDup = false;
+    if (winnerTitles.has(norm)) {
+      isDup = true;
+    } else if (embed.length) {
+      for (const w of winnerEmbeds) {
+        if (cosineSim(embed, w) >= AUDIT_DUP_COSINE) {
+          isDup = true;
+          break;
+        }
+      }
+    }
+
+    if (isDup) {
+      dupTargets.add(row.id);
+    } else {
+      winners.push(row);
+      winnerTitles.add(norm);
+      if (embed.length) winnerEmbeds.push(embed);
+    }
+  }
+
+  // Phase 2 + 3: for each surviving "winner", check vs rejected pool and
+  // vs core profile. Pinned facts skip both — user explicitly kept them.
+  const rejectByPattern = new Set<string>();
+  const rejectByCore = new Set<string>();
+  for (const row of winners) {
+    if (row.metadata?.pinned === true) continue;
+    const src = String(row.metadata?.source || "");
+    // User-confirmed entries are off-limits.
+    if (src === "manual" || src === "chat") continue;
+    if (row.metadata?.skip_persona === true) continue;
+
+    const embed = parseEmbedding(row.embedding);
+    if (!embed.length) continue;
+
+    let matched = false;
+    for (const re of rejectedEmbeds) {
+      if (cosineSim(embed, re) >= AUDIT_REJECTED_COSINE) {
+        rejectByPattern.add(row.id);
+        matched = true;
+        break;
+      }
+    }
+    if (matched) continue;
+
+    if (coreEmbed && cosineSim(embed, coreEmbed) >= AUDIT_CORE_COSINE) {
+      rejectByCore.add(row.id);
+    }
+  }
+
+  // Apply: bulk-PATCH each marked id with status=rejected + reason.
+  async function markRejected(id: string, reason: string): Promise<boolean> {
+    const row = active.find((a) => a.id === id);
+    if (!row) return false;
+    const meta = { ...(row.metadata ?? {}) };
+    const tags: string[] = Array.isArray((row as any).tags) ? (row as any).tags : [];
+    if (!tags.includes("rejected")) tags.push("rejected");
+    meta.status = "rejected";
+    meta.rejected_at = new Date().toISOString();
+    meta.rejected_reason = reason;
+    meta.rejected_by = "audit";
+    return patchEntryFields(id, userId, { metadata: meta, tags });
+  }
+
+  for (const id of dupTargets) {
+    if (await markRejected(id, "duplicate of another fact")) out.rejected_duplicates++;
+  }
+  for (const id of rejectByPattern) {
+    if (await markRejected(id, "matches a fact you marked as not-me")) out.rejected_pattern++;
+  }
+  for (const id of rejectByCore) {
+    if (await markRejected(id, "already in your About You")) out.rejected_core++;
+  }
+
+  out.kept =
+    out.scanned - out.rejected_duplicates - out.rejected_pattern - out.rejected_core;
+  return out;
 }
 
 // ── Public: enrichAllBrains (daily cron) ────────────────────────────────────

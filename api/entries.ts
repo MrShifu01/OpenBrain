@@ -9,6 +9,7 @@ import {
   backfillPersonaForBrain,
   revertBackfilledPersonaForBrain,
   wipeExtractedPersonaForBrain,
+  auditPersonaForBrain,
 } from "./_lib/enrich.js";
 import { flagsOf } from "./_lib/enrichFlags.js";
 
@@ -43,6 +44,7 @@ export default withAuth(
       return handleRevertPersonaBackfill(ctx);
     if (ctx.req.method === "POST" && action === "wipe-persona-extracted")
       return handleWipePersonaExtracted(ctx);
+    if (ctx.req.method === "POST" && action === "audit-persona") return handleAuditPersona(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill")
       return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")
@@ -561,6 +563,21 @@ async function handleWipePersonaExtracted({ req, res, user }: HandlerContext): P
   if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
   await requireBrainAccess(user.id, brain_id);
   const result = await wipeExtractedPersonaForBrain(user.id, brain_id);
+  res.status(200).json(result);
+}
+
+// ── POST /api/entries?action=audit-persona ──
+// Walks every active persona fact and bulk-rejects ones that:
+//   1. Duplicate another active fact (cosine ≥ 0.85 / normalized title match)
+//   2. Match a previously-rejected pattern (cosine ≥ 0.85 vs rejected pool)
+//   3. Are already covered by the user's About-You text (cosine ≥ 0.72)
+// User-confirmed sources (manual / chat / pinned) are NEVER touched. The
+// rejected-status preserves provenance so the user can un-reject if wrong.
+async function handleAuditPersona({ req, res, user }: HandlerContext): Promise<void> {
+  const { brain_id } = req.body;
+  if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
+  await requireBrainAccess(user.id, brain_id);
+  const result = await auditPersonaForBrain(user.id, brain_id);
   res.status(200).json(result);
 }
 

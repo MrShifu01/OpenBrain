@@ -103,6 +103,32 @@ const personaReset: TaskRunner = async (brainId) => {
   return `Reverted ${data.reverted} ${data.reverted === 1 ? "entry" : "entries"} back to original type.`;
 };
 
+const personaAudit: TaskRunner = async (brainId) => {
+  if (!brainId) throw new Error("brain_id required");
+  const r = await retryFetch("/api/entries?action=audit-persona", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ brain_id: brainId }),
+  });
+  if (!r?.ok) throw new Error(`HTTP ${r?.status ?? "?"}`);
+  const data = (await r.json()) as {
+    scanned: number;
+    rejected_duplicates: number;
+    rejected_pattern: number;
+    rejected_core: number;
+    kept: number;
+  };
+  if (data.scanned === 0) return "Nothing to audit yet.";
+  const removed = data.rejected_duplicates + data.rejected_pattern + data.rejected_core;
+  if (removed === 0)
+    return `Audited ${data.scanned} ${data.scanned === 1 ? "fact" : "facts"} · all clean.`;
+  const parts: string[] = [];
+  if (data.rejected_duplicates) parts.push(`${data.rejected_duplicates} dupes`);
+  if (data.rejected_pattern) parts.push(`${data.rejected_pattern} match a not-me pattern`);
+  if (data.rejected_core) parts.push(`${data.rejected_core} covered by About You`);
+  return `Removed ${removed}: ${parts.join(", ")} · ${data.kept} kept.`;
+};
+
 // ── Enrichment ──────────────────────────────────────────────────────────────
 
 const enrichRunNow: TaskRunner = async (brainId, h) => {
@@ -183,6 +209,7 @@ export const TASK_RUNNERS: Record<string, TaskRunner> = {
   "persona-scan": personaScan,
   "persona-wipe": personaWipe,
   "persona-reset": personaReset,
+  "persona-audit": personaAudit,
   "enrich-run-now": enrichRunNow,
   "enrich-clear-backfill": enrichClearBackfill,
   "enrich-retry-failed": enrichRetryFailed,
