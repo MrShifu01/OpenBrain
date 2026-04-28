@@ -409,6 +409,157 @@ function FeatureFlagsSection() {
   );
 }
 
+// Admin-only push diagnostic. Triggers the test-push GitHub Actions
+// workflow (NOT the Vercel cron path) — keeps the test isolated so we can
+// tell whether VAPID + the saved subscription are healthy without Vercel
+// being part of the loop. Stays on Hobby plan: no new serverless function,
+// just another action handler in the existing user-data.ts.
+function PushTestSection() {
+  const [enabled, setEnabled] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<TestResult>({ status: "idle" });
+  const [title, setTitle] = useState("Everion · test push");
+  const [body, setBody] = useState(
+    "Sent from GitHub Actions. If you see this, push is wired correctly.",
+  );
+
+  async function send() {
+    setSending(true);
+    setResult({ status: "running" });
+    const t0 = Date.now();
+    try {
+      const res = await authFetch("/api/user-data?resource=trigger-test-push", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, body }),
+      });
+      const ms = Date.now() - t0;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setResult({
+          status: "fail",
+          latencyMs: ms,
+          detail: data?.error || `HTTP ${res.status}`,
+        });
+        return;
+      }
+      setResult({
+        status: "pass",
+        latencyMs: ms,
+        detail: [
+          "Workflow dispatched. Push delivery happens on the GH Actions runner.",
+          data.run_url ? `Run: ${data.run_url}` : "",
+          "Notification arrives in ~10–30s if VAPID + your subscription are healthy.",
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      });
+    } catch (e: any) {
+      setResult({
+        status: "fail",
+        latencyMs: Date.now() - t0,
+        detail: String(e?.message ?? e),
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
+      <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            Push diagnostics
+          </div>
+          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            Toggle on, then send a test push to your own device via the GitHub Actions workflow
+            (bypasses Vercel cron entirely).
+          </div>
+        </div>
+        <button
+          onClick={() => setEnabled((v) => !v)}
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Push diagnostics toggle"
+          className="press"
+          style={{
+            width: 40,
+            height: 22,
+            borderRadius: 999,
+            background: enabled ? "var(--ember)" : "var(--surface-high)",
+            border: `1px solid ${enabled ? "var(--ember)" : "var(--line)"}`,
+            position: "relative",
+            padding: 0,
+            cursor: "pointer",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 1,
+              left: enabled ? 19 : 1,
+              width: 18,
+              height: 18,
+              borderRadius: "50%",
+              background: enabled ? "var(--ember-ink)" : "var(--ink-faint)",
+              transition: "left 200ms cubic-bezier(.16,1,.3,1)",
+            }}
+          />
+        </button>
+      </div>
+
+      {enabled && (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={80}
+              placeholder="Title"
+              className="f-sans"
+              style={{
+                padding: "8px 10px",
+                background: "var(--surface-low)",
+                border: "1px solid var(--line)",
+                borderRadius: 6,
+                color: "var(--ink)",
+                fontSize: 13,
+                outline: "none",
+              }}
+            />
+            <input
+              type="text"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              maxLength={200}
+              placeholder="Body"
+              className="f-sans"
+              style={{
+                padding: "8px 10px",
+                background: "var(--surface-low)",
+                border: "1px solid var(--line)",
+                borderRadius: 6,
+                color: "var(--ink)",
+                fontSize: 13,
+                outline: "none",
+              }}
+            />
+          </div>
+          <SettingsButton onClick={send} disabled={sending}>
+            {sending ? "Dispatching…" : "Send test push (via GH Actions)"}
+          </SettingsButton>
+          <ResultBlock result={result} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminTab() {
   const [authResult, setAuthResult] = useState<TestResult>({ status: "idle" });
   const [llmResult, setLlmResult] = useState<TestResult>({ status: "idle" });
@@ -692,6 +843,7 @@ export default function AdminTab() {
   return (
     <div>
       <TierChanger />
+      <PushTestSection />
       <MockGmailReviewSection />
       <AdminDisplaySection />
       <FeatureFlagsSection />

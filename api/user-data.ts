@@ -83,6 +83,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "push") return handlePushSubscribe(req, res);
   if (resource === "brains") return handleBrains(req, res);
   if (resource === "cron-daily") return handleCronDaily(req, res);
+  if (resource === "trigger-test-push") return handleTriggerTestPush(req, res);
   if (resource === "notifications") return handleNotifications(req, res);
   if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
   if (resource === "stripe-portal") return handleStripePortal(req, res);
@@ -763,6 +764,64 @@ const handlePushSubscribe = withAuth(
     });
     if (!r.ok) return void res.status(500).json({ error: "Failed to remove subscription" });
     return void res.status(200).json({ ok: true });
+  },
+);
+
+// ── /api/user-data?resource=trigger-test-push ──
+// Admin-only. Dispatches the test-push GitHub Actions workflow that runs
+// webpush directly from the GH runner — proves whether VAPID + the saved
+// subscription work without Vercel cron being part of the loop. Doesn't
+// add a new serverless function (Hobby plan: 12 cap), just another
+// resource handler.
+const handleTriggerTestPush = withAuth(
+  { methods: ["POST"], rateLimit: 10 },
+  async ({ req, res, user }) => {
+    const adminEmail = (process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || "").trim();
+    if (!adminEmail || !user.email || user.email !== adminEmail) {
+      return void res.status(403).json({ error: "Forbidden" });
+    }
+
+    const ghToken = (process.env.GH_DISPATCH_TOKEN || "").trim();
+    if (!ghToken) {
+      return void res.status(500).json({
+        error:
+          "GH_DISPATCH_TOKEN not configured. Add a fine-grained GitHub PAT with actions:write on this repo to Vercel env.",
+      });
+    }
+    const owner = (process.env.GH_OWNER || "MrShifu01").trim();
+    const repo = (process.env.GH_REPO || "EverionMind").trim();
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const inputs: Record<string, string> = {};
+    if (typeof body.title === "string" && body.title.trim()) inputs.title = body.title.slice(0, 80);
+    if (typeof body.body === "string" && body.body.trim()) inputs.body = body.body.slice(0, 200);
+    if (typeof body.target_email === "string" && body.target_email.trim()) {
+      inputs.target_email = body.target_email.slice(0, 200);
+    }
+
+    const dispatchUrl = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/test-push.yml/dispatches`;
+    const r = await fetch(dispatchUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ghToken}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ref: "main", inputs }),
+    });
+
+    // GitHub returns 204 No Content on success.
+    if (r.status === 204) {
+      return void res.status(200).json({
+        ok: true,
+        run_url: `https://github.com/${owner}/${repo}/actions/workflows/test-push.yml`,
+      });
+    }
+    const errText = await r.text().catch(() => "");
+    return void res.status(502).json({
+      error: `GitHub dispatch HTTP ${r.status}: ${errText.slice(0, 200)}`,
+    });
   },
 );
 
