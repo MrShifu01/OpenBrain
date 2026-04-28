@@ -19,6 +19,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import SettingsRow, { SettingsToggle } from "./SettingsRow";
 import { authFetch } from "../../lib/authFetch";
 import { useBrain } from "../../context/BrainContext";
@@ -1273,7 +1274,12 @@ function RejectDialog({
     }
   }
 
-  return (
+  // Portal to document.body to escape any transformed ancestor — the
+  // settings tab is wrapped in animate-view-enter which applies a
+  // transform, and `position: fixed` becomes ancestor-relative (not
+  // viewport-relative) once any ancestor has a transform. Without the
+  // portal, the dialog ends up far down the page instead of centered.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -1434,6 +1440,7 @@ function RejectDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
