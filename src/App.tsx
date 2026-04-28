@@ -8,7 +8,6 @@ import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
-import UpdateToast from "./components/UpdateToast";
 import type { Session } from "@supabase/auth-js";
 
 // Heavy code paths a first-paint visitor almost never hits — keep them out
@@ -323,7 +322,6 @@ export default function App(): JSX.Element {
           <Suspense fallback={<LoadingScreen />}>
             <Everion initialShowCapture={earlyCapture} />
           </Suspense>
-          <UpdateToast />
         </MemoryProvider>
       </ErrorBoundary>
     </ThemeProvider>

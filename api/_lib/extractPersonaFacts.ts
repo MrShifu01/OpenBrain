@@ -42,6 +42,7 @@ export interface ExtractorContext {
   pronouns: string;
   coreContext: string; // the free-form "About you" textarea
   confirmedFacts: string[]; // titles of manual / chat / pinned facts (capped)
+  rejectedFacts: Array<{ title: string; reason: string | null }>; // user-rejected — teach the model
 }
 
 const VALID_BUCKETS = new Set<PersonaBucket>([
@@ -60,6 +61,9 @@ const MAX_FACTS_PER_ENTRY = 6;
 // Cap for the "already confirmed" list — long enough to cover the average
 // user's About You, short enough that it doesn't blow the prompt budget.
 const MAX_CONFIRMED_IN_PROMPT = 50;
+// Cap for rejected facts — keep last N most-recently rejected. Reasons matter
+// more than count: 20 well-reasoned rejections teach better than 100 unannotated.
+const MAX_REJECTED_IN_PROMPT = 20;
 
 interface GeminiResponse {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -80,26 +84,47 @@ function buildPrompt(ctx: ExtractorContext): string {
       ? ` (full name: ${ctx.fullName})`
       : "";
   const pronounPart = ctx.pronouns ? `\nPronouns: ${ctx.pronouns}` : "";
-  const contextPart = ctx.coreContext ? `\nAbout: ${ctx.coreContext.slice(0, 600)}` : "";
+
+  // Core profile (free-form About You) — used as a stop-list, not just identity.
+  // Without this, the extractor would happily reproduce "User runs X" from a
+  // related entry even though the user already wrote "I run X" into their
+  // About You.
+  const coreProfileBlock = ctx.coreContext
+    ? `\n\nUSER'S CORE PROFILE — anything stated or implied here is ALREADY KNOWN. NEVER extract a fact that overlaps with the content of this profile, even if rephrased:\n"""\n${ctx.coreContext.slice(0, 1000)}\n"""`
+    : "";
 
   const confirmedBlock = ctx.confirmedFacts.length
-    ? `\n\nWHAT THE USER HAS ALREADY CONFIRMED ABOUT THEMSELVES (NEVER re-extract any of these — even rephrased):\n${ctx.confirmedFacts
+    ? `\n\nFACTS THE USER HAS ALREADY CONFIRMED (NEVER re-extract any of these — even rephrased):\n${ctx.confirmedFacts
         .slice(0, MAX_CONFIRMED_IN_PROMPT)
         .map((f) => `  • ${f}`)
+        .join("\n")}`
+    : "";
+
+  // Rejected facts teach the model the user's personal definition of
+  // "persona-worthy". Two facts can both be true about the user; only one
+  // belongs in the chat preamble. Reasons turn the stop-list into a judgment
+  // teacher — apply the same rule to similar entries, not just exact matches.
+  const rejectedBlock = ctx.rejectedFacts.length
+    ? `\n\nREJECTED PATTERNS — the user has explicitly said these are NOT defining their identity. Do NOT extract anything semantically similar; apply the same judgment to entries of the same shape:\n${ctx.rejectedFacts
+        .slice(0, MAX_REJECTED_IN_PROMPT)
+        .map(
+          (r) => `  • "${r.title}"${r.reason ? ` — reason: "${r.reason.slice(0, 160)}"` : ""}`,
+        )
         .join("\n")}`
     : "";
 
   return `You read a single captured entry and extract durable, third-person facts about WHO THE USER IS. Each extracted fact is injected into every future chat so the assistant "knows" the user without being told again.
 
 THE USER:
-Name: ${namePart}${aliasPart}${pronounPart}${contextPart}${confirmedBlock}
+Name: ${namePart}${aliasPart}${pronounPart}${coreProfileBlock}${confirmedBlock}${rejectedBlock}
 
 ABSOLUTE RULES:
 1. Only extract facts about THE USER named above — not about other people, not about the world.
 2. If the entry is primarily about a DIFFERENT person (a contact card, a note about an employee, a friend's details, a supplier's record), return {"facts": []}. The presence of a name OTHER than the user's name is the strongest signal this is not about the user.
-3. NEVER extract a fact that already appears in "WHAT THE USER HAS ALREADY CONFIRMED" — not even rephrased. If the entry only restates known info, return {"facts": []}.
-4. NEVER invent facts. If unsure, omit.
-5. Each fact must be third person ("User…"), ≤200 characters, and durable (true today AND likely true in 3 months).
+3. NEVER extract a fact that overlaps with the USER'S CORE PROFILE or with FACTS THE USER HAS ALREADY CONFIRMED — not even rephrased, not even a sub-fact, not even at higher specificity. If the entry only restates known info, return {"facts": []}.
+4. NEVER extract a fact that matches the shape of any REJECTED PATTERN above. The user has personally defined what does and does not belong in their persona — respect that. If the entry resembles a rejected pattern in topic or framing, return {"facts": []} even if the surface words differ.
+5. NEVER invent facts. If unsure, omit.
+6. Each fact must be third person ("User…"), ≤200 characters, and durable (true today AND likely true in 3 months).
 
 INCLUDE (only if clearly about THE USER):
 - Identity / role: "User is a software engineer at Smash Burger"
@@ -156,6 +181,7 @@ export async function loadExtractorContext(
     pronouns: "",
     coreContext: "",
     confirmedFacts: [],
+    rejectedFacts: [],
   };
   if (!SB_URL || !userId) return empty;
 
@@ -177,10 +203,13 @@ export async function loadExtractorContext(
   // Confirmed facts: manual, chat-tool, or pinned. Capped server-side at 200
   // for safety; we cap further in the prompt.
   let confirmedFacts: string[] = [];
+  let rejectedFacts: Array<{ title: string; reason: string | null }> = [];
   if (brainId) {
     try {
+      // Single round-trip pulls everything we need: active confirmed-source
+      // facts AND rejected ones. Caller-side filter below splits them.
       const r = await fetch(
-        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=title,metadata&order=updated_at.desc&limit=200`,
+        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&select=title,metadata,updated_at&order=updated_at.desc&limit=300`,
         { headers: sbHeaders() },
       );
       if (r.ok) {
@@ -188,6 +217,7 @@ export async function loadExtractorContext(
         confirmedFacts = rows
           .filter((row) => {
             const meta = row.metadata ?? {};
+            if (String(meta.status || "") !== "active") return false;
             const src = String(meta.source || "");
             // User-confirmed = manual settings entry, chat tool, or explicitly pinned.
             return (
@@ -200,6 +230,17 @@ export async function loadExtractorContext(
           .map((row) => row.title?.trim())
           .filter((t): t is string => typeof t === "string" && t.length > 0)
           .slice(0, MAX_CONFIRMED_IN_PROMPT);
+        rejectedFacts = rows
+          .filter((row) => String(row.metadata?.status || "") === "rejected")
+          .map((row) => ({
+            title: (row.title || "").trim(),
+            reason:
+              typeof row.metadata?.rejected_reason === "string"
+                ? row.metadata.rejected_reason.trim() || null
+                : null,
+          }))
+          .filter((r) => r.title.length > 0)
+          .slice(0, MAX_REJECTED_IN_PROMPT);
       }
     } catch {
       /* fall through */
@@ -212,6 +253,7 @@ export async function loadExtractorContext(
     pronouns: (core?.pronouns || "").trim(),
     coreContext: (core?.context || "").trim(),
     confirmedFacts,
+    rejectedFacts,
   };
 }
 

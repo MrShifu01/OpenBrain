@@ -50,19 +50,29 @@ interface PersonaFact {
   tags: string[] | null;
   metadata: {
     bucket?: string;
-    status?: "active" | "fading" | "archived";
+    status?: "active" | "fading" | "archived" | "rejected";
     source?: string;
     confidence?: number;
     pinned?: boolean;
     last_referenced_at?: string;
     retired_at?: string;
     retired_reason?: string;
+    rejected_at?: string;
+    rejected_reason?: string;
     derived_from?: string[];
     skip_persona?: boolean;
   } | null;
   created_at: string;
   updated_at: string;
 }
+
+const REJECT_REASON_CHIPS = [
+  "Just a task I did",
+  "About someone else",
+  "Work activity, not who I am",
+  "One-off event",
+  "Not who I am",
+];
 
 const EMPTY_CORE: ProfileFields = {
   full_name: "",
@@ -123,6 +133,8 @@ export default function ProfileTab() {
   const [factsError, setFactsError] = useState<string | null>(null);
   const [showFading, setShowFading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showRejected, setShowRejected] = useState(false);
+  const [rejectingFact, setRejectingFact] = useState<PersonaFact | null>(null);
 
   const [newFactText, setNewFactText] = useState("");
   const [newFactBucket, setNewFactBucket] = useState<(typeof BUCKET_ORDER)[number]>("preference");
@@ -226,13 +238,19 @@ export default function ProfileTab() {
       active: Record<string, PersonaFact[]>;
       fading: PersonaFact[];
       history: PersonaFact[];
+      rejected: PersonaFact[];
     } = {
       active: {},
       fading: [],
       history: [],
+      rejected: [],
     };
     for (const f of facts) {
       const status = f.metadata?.status || "active";
+      if (status === "rejected") {
+        out.rejected.push(f);
+        continue;
+      }
       if (status === "archived") {
         out.history.push(f);
         continue;
@@ -264,6 +282,11 @@ export default function ProfileTab() {
     out.history.sort((a, b) =>
       (b.metadata?.retired_at || b.updated_at).localeCompare(
         a.metadata?.retired_at || a.updated_at,
+      ),
+    );
+    out.rejected.sort((a, b) =>
+      (b.metadata?.rejected_at || b.updated_at).localeCompare(
+        a.metadata?.rejected_at || a.updated_at,
       ),
     );
     return out;
@@ -439,6 +462,63 @@ export default function ProfileTab() {
       await reloadFacts();
     } catch (e: any) {
       setFactsError(e?.message || "Could not retire");
+    }
+  }
+
+  async function rejectFact(id: string, reason: string | null) {
+    if (!brainId) return;
+    const f = facts.find((x) => x.id === id);
+    if (!f) return;
+    const tags = Array.isArray(f.tags) ? f.tags : [];
+    const newTags = tags.includes("rejected") ? tags : [...tags, "rejected"];
+    try {
+      await authFetch("/api/entries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          changes: {
+            tags: newTags,
+            metadata: {
+              ...(f.metadata ?? {}),
+              status: "rejected",
+              rejected_at: new Date().toISOString(),
+              rejected_reason: reason || null,
+            },
+          },
+        }),
+      });
+      setRejectingFact(null);
+      await reloadFacts();
+    } catch (e: any) {
+      setFactsError(e?.message || "Could not mark as not-me");
+    }
+  }
+
+  async function unrejectFact(id: string) {
+    const f = facts.find((x) => x.id === id);
+    if (!f) return;
+    const tags = (Array.isArray(f.tags) ? f.tags : []).filter((t) => t !== "rejected");
+    try {
+      await authFetch("/api/entries", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          changes: {
+            tags,
+            metadata: {
+              ...(f.metadata ?? {}),
+              status: "active",
+              rejected_at: undefined,
+              rejected_reason: undefined,
+            },
+          },
+        }),
+      });
+      await reloadFacts();
+    } catch {
+      /* ignore */
     }
   }
 
@@ -875,6 +955,7 @@ export default function ProfileTab() {
                       fact={f}
                       onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
                       onRetire={() => retireFact(f.id)}
+                      onReject={() => setRejectingFact(f)}
                       onDelete={() => deleteFactCompletely(f.id)}
                     />
                   ))}
@@ -886,7 +967,8 @@ export default function ProfileTab() {
         {factsLoaded &&
           Object.keys(grouped.active).length === 0 &&
           grouped.fading.length === 0 &&
-          grouped.history.length === 0 && (
+          grouped.history.length === 0 &&
+          grouped.rejected.length === 0 && (
             <p
               className="f-serif"
               style={{
@@ -933,6 +1015,7 @@ export default function ProfileTab() {
                       patchFact(f.id, { pinned: true, status: "active", confidence: 1.0 })
                     }
                     onRetire={() => retireFact(f.id)}
+                    onReject={() => setRejectingFact(f)}
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
                 ))}
@@ -971,6 +1054,48 @@ export default function ProfileTab() {
                     historyMode
                     onPin={() => {}}
                     onRetire={() => {}}
+                    onReject={() => {}}
+                    onDelete={() => deleteFactCompletely(f.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Rejected — facts the user said are NOT defining their identity.
+            Stay here so the user can see what's been suppressed and undo. */}
+        {grouped.rejected.length > 0 && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowRejected((v) => !v)}
+              className="f-sans"
+              style={{
+                background: "transparent",
+                border: 0,
+                padding: 0,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "var(--ink-faint)",
+              }}
+            >
+              {showRejected ? "▾" : "▸"} Not me ({grouped.rejected.length}) — won't be re-extracted
+            </button>
+            {showRejected && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                {grouped.rejected.map((f) => (
+                  <FactRow
+                    key={f.id}
+                    fact={f}
+                    rejectedMode
+                    onPin={() => {}}
+                    onRetire={() => {}}
+                    onReject={() => {}}
+                    onUnreject={() => unrejectFact(f.id)}
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
                 ))}
@@ -979,6 +1104,14 @@ export default function ProfileTab() {
           </div>
         )}
       </div>
+
+      {rejectingFact && (
+        <RejectDialog
+          fact={rejectingFact}
+          onCancel={() => setRejectingFact(null)}
+          onConfirm={(reason) => rejectFact(rejectingFact.id, reason)}
+        />
+      )}
     </div>
   );
 }
@@ -990,14 +1123,20 @@ export default function ProfileTab() {
 function FactRow({
   fact,
   historyMode,
+  rejectedMode,
   onPin,
   onRetire,
+  onReject,
+  onUnreject,
   onDelete,
 }: {
   fact: PersonaFact;
   historyMode?: boolean;
+  rejectedMode?: boolean;
   onPin: () => void;
   onRetire: () => void;
+  onReject: () => void;
+  onUnreject?: () => void;
   onDelete: () => void;
 }) {
   const meta = fact.metadata ?? {};
@@ -1013,11 +1152,14 @@ function FactRow({
         padding: "10px 12px",
         background: pinned
           ? "color-mix(in oklch, var(--ember-wash) 60%, var(--surface))"
-          : "var(--surface)",
+          : rejectedMode
+            ? "color-mix(in oklch, var(--ink-faint) 4%, var(--surface))"
+            : "var(--surface)",
         border: pinned
           ? "1px solid color-mix(in oklch, var(--ember) 25%, var(--line-soft))"
           : "1px solid var(--line-soft)",
         borderRadius: 8,
+        opacity: rejectedMode ? 0.7 : 1,
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -1029,6 +1171,7 @@ function FactRow({
             color: "var(--ink)",
             lineHeight: 1.5,
             wordBreak: "break-word",
+            textDecoration: rejectedMode ? "line-through" : undefined,
           }}
         >
           {pinned && (
@@ -1042,7 +1185,7 @@ function FactRow({
           style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}
         >
           <Badge>{SOURCE_LABELS[source] || source}</Badge>
-          {confidence !== null && !historyMode && (
+          {confidence !== null && !historyMode && !rejectedMode && (
             <Badge muted>{Math.round(confidence * 100)}%</Badge>
           )}
           {historyMode && meta.retired_at && (
@@ -1056,23 +1199,240 @@ function FactRow({
               — {meta.retired_reason}
             </span>
           )}
+          {rejectedMode && meta.rejected_at && (
+            <Badge muted>not me · {new Date(meta.rejected_at).toLocaleDateString("en-ZA")}</Badge>
+          )}
+          {rejectedMode && meta.rejected_reason && (
+            <span
+              className="f-serif"
+              style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+            >
+              — {meta.rejected_reason}
+            </span>
+          )}
         </div>
       </div>
 
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-        {!historyMode && (
+        {!historyMode && !rejectedMode && (
           <>
             <IconBtn label={pinned ? "Unpin" : "Pin"} onClick={onPin}>
               {pinned ? "📍" : "📌"}
             </IconBtn>
-            <IconBtn label="Retire to history" onClick={onRetire}>
+            <IconBtn label="Retire to history (no longer true)" onClick={onRetire}>
               ↩
             </IconBtn>
+            <IconBtn label="Not me — won't be re-extracted" onClick={onReject}>
+              ⊘
+            </IconBtn>
           </>
+        )}
+        {rejectedMode && onUnreject && (
+          <IconBtn label="Restore — count this as defining" onClick={onUnreject}>
+            ↻
+          </IconBtn>
         )}
         <IconBtn label="Delete completely" onClick={onDelete} danger>
           ×
         </IconBtn>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RejectDialog — quick chips for the common reasons + freeform fallback. The
+// reason is what teaches the extractor; chips just speed up the most common
+// cases. The dialog is intentionally lightweight (no portal, no FocusTrap) —
+// it's nested inside the settings page which already has its own focus
+// management, and Escape exits via the cancel button.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function RejectDialog({
+  fact,
+  onCancel,
+  onConfirm,
+}: {
+  fact: PersonaFact;
+  onCancel: () => void;
+  onConfirm: (reason: string | null) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function pickChip(chip: string) {
+    setReason(chip);
+  }
+
+  async function confirm() {
+    setSubmitting(true);
+    try {
+      await onConfirm(reason.trim() || null);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Mark fact as not me"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "var(--scrim, rgba(0,0,0,0.4))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 200,
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "min(440px, 100%)",
+          background: "var(--surface-high)",
+          border: "1px solid var(--line)",
+          borderRadius: 14,
+          boxShadow: "var(--lift-3)",
+          padding: 22,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <div>
+          <h3
+            className="f-serif"
+            style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "var(--ink)" }}
+          >
+            Not me?
+          </h3>
+          <p
+            className="f-serif"
+            style={{
+              margin: "6px 0 0",
+              fontSize: 13,
+              fontStyle: "italic",
+              color: "var(--ink-faint)",
+              lineHeight: 1.5,
+            }}
+          >
+            "{fact.title}"
+          </p>
+          <p
+            className="f-sans"
+            style={{
+              margin: "10px 0 0",
+              fontSize: 12,
+              color: "var(--ink-soft)",
+              lineHeight: 1.5,
+            }}
+          >
+            Pick a reason. Future scans will skip this fact <em>and others like it</em>. The reason
+            teaches the extractor your personal definition of "persona-worthy".
+          </p>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {REJECT_REASON_CHIPS.map((chip) => {
+            const active = reason === chip;
+            return (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => pickChip(chip)}
+                className="press f-sans"
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: active ? "var(--ember-wash)" : "transparent",
+                  color: active ? "var(--ember)" : "var(--ink-soft)",
+                  border: active
+                    ? "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))"
+                    : "1px solid var(--line-soft)",
+                  cursor: "pointer",
+                }}
+              >
+                {chip}
+              </button>
+            );
+          })}
+        </div>
+
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          maxLength={200}
+          placeholder="Or write your own reason…"
+          className="f-serif"
+          style={{
+            width: "100%",
+            background: "var(--surface)",
+            color: "var(--ink)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            padding: "10px 12px",
+            fontSize: 14,
+            lineHeight: 1.5,
+            outline: "none",
+            resize: "vertical",
+          }}
+        />
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            className="press f-sans"
+            style={{
+              height: 36,
+              padding: "0 14px",
+              fontSize: 13,
+              fontWeight: 500,
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ink-soft)",
+              border: "1px solid var(--line-soft)",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={confirm}
+            disabled={submitting}
+            className="press f-sans"
+            style={{
+              height: 36,
+              padding: "0 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              background: "var(--ember)",
+              color: "var(--ember-ink)",
+              border: 0,
+              cursor: submitting ? "wait" : "pointer",
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            {submitting ? "Saving…" : "Mark as not me"}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -263,25 +263,24 @@ export default function DesktopHeader({
             marginLeft: 6,
             width: 36,
             height: 36,
-            // box-sizing keeps the 1px border inside the 36×36 box; without
-            // this the user-agent button defaults to content-box and the
-            // avatar renders 38×36 — slight oval, not a circle.
+            aspectRatio: "1 / 1",
             boxSizing: "border-box",
             flexShrink: 0,
             padding: 0,
+            border: 0,
             borderRadius: "50%",
+            lineHeight: 0,
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             background: "var(--ember-wash)",
             color: "var(--ember)",
-            border: "1px solid color-mix(in oklch, var(--ember) 28%, transparent)",
             cursor: "pointer",
           }}
         >
           <svg
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -289,9 +288,10 @@ export default function DesktopHeader({
             strokeLinecap="round"
             strokeLinejoin="round"
             aria-hidden="true"
+            style={{ display: "block" }}
           >
-            <circle cx="12" cy="9" r="3.5" />
-            <path d="M5.5 19c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5" />
+            <circle cx="12" cy="10" r="3.5" />
+            <path d="M6 18.5c1-2.7 3.4-4.2 6-4.2s5 1.5 6 4.2" />
           </svg>
         </button>
       </div>

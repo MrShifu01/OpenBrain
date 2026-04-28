@@ -3,6 +3,11 @@ import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 
+// Cross-brain assignment is gated until shared/community brains lands. Flip
+// this back to true when that feature ships — the picker code below is left
+// intact so restoring is a single-line change.
+const SHARED_BRAINS_ENABLED = false;
+
 interface Props {
   selectedIds: Set<string>;
   entries: Entry[];
@@ -165,6 +170,64 @@ export default function BulkActionBar({
   // Hard-coded `bottom-24` = 96px gets eaten by the home indicator on iPhones
   // with a tall safe area, hiding the pill. z-index above BottomNav (50).
   if (!expanded) {
+    // While a bulk delete is in flight, replace all controls with a single
+    // "Deleting…" indicator so the user sees the action was acknowledged.
+    // The pill auto-dismisses (onCancel) once onDelete completes, but if the
+    // delete is slow this prevents a "did anything happen?" gap.
+    if (deleting) {
+      return (
+        <div
+          className="fixed left-1/2 -translate-x-1/2"
+          style={{
+            bottom: "calc(68px + env(safe-area-inset-bottom))",
+            zIndex: 55,
+            width: "auto",
+            maxWidth: "92vw",
+          }}
+        >
+          <div
+            className="flex items-center gap-3 rounded-full border py-2.5 pr-5 pl-5 shadow-lg"
+            style={{
+              background: "var(--color-surface-container-high)",
+              borderColor: "var(--color-outline-variant)",
+              boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.18))",
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <svg
+              className="h-4 w-4 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              style={{ color: "var(--color-error, var(--blood))" }}
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="3"
+                opacity="0.25"
+              />
+              <path
+                d="M22 12a10 10 0 0 1-10 10"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+            <span
+              className="text-xs font-semibold whitespace-nowrap"
+              style={{ color: "var(--color-on-surface)" }}
+            >
+              Deleting {count} {count === 1 ? "entry" : "entries"}…
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         className="fixed left-1/2 -translate-x-1/2"
@@ -203,7 +266,9 @@ export default function BulkActionBar({
             </button>
           )}
           {/* Delete — most-common bulk action surfaced inline so it doesn't
-              hide behind the More panel. Confirm before destructive op. */}
+              hide behind the More panel. Confirm before destructive op.
+              On success, dismiss the pill — keeping it open after action is
+              taken just creates a "what now?" moment for the user. */}
           {onDelete && (
             <button
               onClick={async () => {
@@ -213,6 +278,7 @@ export default function BulkActionBar({
                 setDeleting(true);
                 try {
                   await onDelete(Array.from(selectedIds));
+                  onCancel();
                 } finally {
                   setDeleting(false);
                 }
@@ -402,7 +468,8 @@ export default function BulkActionBar({
             )}
           </div>
 
-          {/* Brain multi-picker */}
+          {/* Brain multi-picker — hidden until shared brains ships. */}
+          {SHARED_BRAINS_ENABLED && (
           <div ref={brainsRef} className="relative flex flex-1 flex-col gap-1">
             <label
               className="text-[11px] font-semibold tracking-wide uppercase"
@@ -478,6 +545,7 @@ export default function BulkActionBar({
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Apply */}
