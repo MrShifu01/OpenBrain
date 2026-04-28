@@ -834,14 +834,20 @@ const handleTriggerTestPush = withAuth(
 // 20:30 will fire at the top of the 20:00 hour in their local tz.
 
 function localHour(tz: string, d: Date = new Date()): number {
+  // Use formatToParts — more reliable than parsing a formatted string.
+  // Some Node Intl locales (notably en-GB) include locale-specific glyphs
+  // or render hour 0 as "24" when the formatter is asked for hour-only.
+  // Pulling the explicit "hour" part avoids every one of those traps.
   try {
-    const v = new Intl.DateTimeFormat("en-GB", {
+    const parts = new Intl.DateTimeFormat("en-US", {
       hour: "2-digit",
       hour12: false,
       timeZone: tz || "UTC",
-    }).format(d);
-    const n = parseInt(v, 10);
-    return Number.isFinite(n) ? n : d.getUTCHours();
+    }).formatToParts(d);
+    const part = parts.find((p) => p.type === "hour");
+    const n = part ? parseInt(part.value, 10) : NaN;
+    if (Number.isFinite(n)) return n === 24 ? 0 : n;
+    return d.getUTCHours();
   } catch {
     return d.getUTCHours();
   }
@@ -937,12 +943,16 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
   const now = new Date();
   const dailyR = { sent: 0, skipped: 0, errors: 0 };
   const nudgeR = { sent: 0, skipped: 0, errors: 0 };
+  console.log(
+    `[cron/hourly] now=${now.toISOString()} utc_hour=${now.getUTCHours()} users=${users.length}`,
+  );
 
   for (const user of users) {
     const meta = user.user_metadata ?? {};
     const prefs = meta.notification_prefs ?? {};
     const sub = meta.push_subscription;
     if (!sub?.endpoint || !sub?.keys) {
+      console.log(`[cron/hourly] ${user.email ?? user.id} skip: no push subscription`);
       dailyR.skipped++;
       nudgeR.skipped++;
       continue;
@@ -954,7 +964,11 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
       const targetHour = parseInt(String(prefs.daily_time || "20:00").split(":")[0], 10);
       const lastSent = prefs.daily_last_sent_at ? new Date(prefs.daily_last_sent_at).getTime() : 0;
       const hoursSince = (now.getTime() - lastSent) / 3_600_000;
-      if (localHour(tz, now) === targetHour && hoursSince >= 23) {
+      const lh = localHour(tz, now);
+      console.log(
+        `[cron/hourly] ${user.email ?? user.id} daily: tz=${tz} target=${targetHour} local=${lh} hoursSince=${hoursSince.toFixed(1)} match=${lh === targetHour && hoursSince >= 23}`,
+      );
+      if (lh === targetHour && hoursSince >= 23) {
         try {
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
@@ -982,6 +996,7 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
         dailyR.skipped++;
       }
     } else {
+      console.log(`[cron/hourly] ${user.email ?? user.id} daily: disabled`);
       dailyR.skipped++;
     }
 
@@ -1020,6 +1035,7 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
     }
   }
 
+  console.log(`[cron/hourly] done daily=${JSON.stringify(dailyR)} nudge=${JSON.stringify(nudgeR)}`);
   return void res.status(200).json({ daily: dailyR, nudge: nudgeR });
 }
 

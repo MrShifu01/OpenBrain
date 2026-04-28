@@ -48,6 +48,7 @@ import type { Entry } from "./types";
 import { useAdminDevMode } from "./hooks/useAdminDevMode";
 import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "./lib/featureFlags";
 import { syncTimezoneIfChanged } from "./lib/syncTimezone";
+import { supabase } from "./lib/supabase";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 function lazyRetry(fn: () => Promise<any>) {
@@ -205,11 +206,17 @@ function EverionContent({
     }
   }, [adminFlags, appShell.view, appShell.setView]);
 
-  // Auto-sync IANA timezone whenever the app boots. The browser's Intl
-  // API knows the user's actual zone; we PATCH it to notification_prefs
-  // so the hourly cron fires at the right local time even after travel.
+  // Auto-sync IANA timezone on mount AND on every auth state change.
+  // Mount alone misses the case where the app loads pre-auth and the
+  // useEffect closure has already fired by the time the session lands.
   useEffect(() => {
     syncTimezoneIfChanged();
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        syncTimezoneIfChanged();
+      }
+    });
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   // Toast deep-link: when the gmail-scan toast's "Review" CTA fires, switch
