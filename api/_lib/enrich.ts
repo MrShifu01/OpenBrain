@@ -151,6 +151,33 @@ async function patchMetadata(
 }
 
 // ── Step: parse ─────────────────────────────────────────────────────────────
+//
+// Phase 3 of the schedule fix: this step used to do `{...meta, ...resultMeta}`
+// — AI wins. After capture that's harmless (the user hasn't touched anything
+// yet). But the same step also runs on re-enrichment (Settings → AI → Run-now,
+// daily cron, brain rescan), which means AI could overwrite a date or status
+// the user just set in the UI. That was the source of multiple "I edited X
+// and it reverted" reports.
+//
+// Two guards now:
+//   1. USER_OWNED_KEYS are never accepted from AI. These are fields the user
+//      controls directly through the UI — completion state and schedule.
+//   2. For all other keys, user metadata wins. AI can fill MISSING fields but
+//      never overwrite a value the user already set.
+
+// Fields the AI is forbidden from writing under any circumstance. The user
+// controls these through the UI; AI re-running over edited entries was
+// hallucinating values like status:"open"/"pending"/"in progress".
+const USER_OWNED_KEYS = new Set([
+  "status",
+  "scheduled_for",
+  "due_date",
+  "deadline",
+  "event_date",
+  "recurrence",
+  "day_of_week",
+  "day_of_month",
+]);
 
 async function stepParse(entry: Entry, cfg: AICall): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
@@ -163,10 +190,21 @@ async function stepParse(entry: Entry, cfg: AICall): Promise<Record<string, any>
   const candidate = parseAIJSON(aiRaw);
   const parsed = candidate ? CaptureResultSchema.safeParse(candidate) : null;
   if (parsed?.success && (parsed.data.type || parsed.data.title || parsed.data.content)) {
-    const { confidence: _c, ...resultMeta } = parsed.data.metadata ?? {};
+    const { confidence: _c, ...rawAIMeta } = parsed.data.metadata ?? {};
+
+    // Strip user-owned + already-set keys before merging. AI fills in MISSING
+    // fields only — it can never overwrite a user-set value, and it can never
+    // touch the user-controlled set above even on a fresh entry.
+    const safeAIMeta: Record<string, any> = {};
+    for (const [k, v] of Object.entries(rawAIMeta)) {
+      if (USER_OWNED_KEYS.has(k)) continue;
+      if (meta[k] !== undefined && meta[k] !== null && meta[k] !== "") continue;
+      safeAIMeta[k] = v;
+    }
+
     return {
+      ...safeAIMeta,
       ...meta,
-      ...resultMeta,
       enrichment: { ...(meta.enrichment ?? {}), parsed: true },
     };
   }

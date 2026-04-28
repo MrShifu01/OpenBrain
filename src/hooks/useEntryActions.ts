@@ -107,6 +107,20 @@ export function useEntryActions({
       }
       const entryType = changes.type || previous?.type;
       const isSecret = entryType === "secret";
+      // Phase 3 of schedule fix: stamp user_edited_at whenever metadata is
+      // included in the update so the enrichment pipeline can tell user
+      // edits apart from initial AI extraction. The marker is also a tag
+      // for "do NOT have AI re-derive these fields" — see USER_OWNED_KEYS
+      // in api/_lib/enrich.ts.
+      if (changes.metadata && typeof changes.metadata === "object") {
+        changes = {
+          ...changes,
+          metadata: {
+            ...(changes.metadata as Record<string, unknown>),
+            user_edited_at: new Date().toISOString(),
+          } as Entry["metadata"],
+        };
+      }
       // Wire-payload shape — accepts encrypted ciphertext (string) for
       // metadata when the entry is a secret, in addition to the normal
       // EntryMetadata object. The server decrypts back into the object
