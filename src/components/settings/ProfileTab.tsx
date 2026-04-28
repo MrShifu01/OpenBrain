@@ -135,7 +135,17 @@ export default function ProfileTab() {
   const [showFading, setShowFading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showRejected, setShowRejected] = useState(false);
+  const [collapsedBuckets, setCollapsedBuckets] = useState<Set<string>>(new Set());
   const [rejectingFact, setRejectingFact] = useState<PersonaFact | null>(null);
+
+  function toggleBucket(bucket: string) {
+    setCollapsedBuckets((prev) => {
+      const next = new Set(prev);
+      if (next.has(bucket)) next.delete(bucket);
+      else next.add(bucket);
+      return next;
+    });
+  }
 
   const [newFactText, setNewFactText] = useState("");
   const [newFactBucket, setNewFactBucket] = useState<(typeof BUCKET_ORDER)[number]>("preference");
@@ -1055,21 +1065,55 @@ export default function ProfileTab() {
           BUCKET_RENDER_ORDER.map((bucket) => {
             const items = grouped.active[bucket] || [];
             if (!items.length) return null;
+            const collapsed = collapsedBuckets.has(bucket);
             return (
               <div key={bucket}>
-                <BucketHeader label={BUCKET_LABELS[bucket]} count={items.length} />
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-                  {items.map((f) => (
-                    <FactRow
-                      key={f.id}
-                      fact={f}
-                      onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
-                      onRetire={() => retireFact(f.id)}
-                      onReject={() => setRejectingFact(f)}
-                      onDelete={() => deleteFactCompletely(f.id)}
-                    />
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleBucket(bucket)}
+                  aria-expanded={!collapsed}
+                  className="press"
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 8,
+                    width: "100%",
+                    padding: "4px 0",
+                    background: "transparent",
+                    border: 0,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: "inline-block",
+                      width: 12,
+                      fontSize: 11,
+                      color: "var(--ink-faint)",
+                      transform: collapsed ? "rotate(-90deg)" : "none",
+                      transition: "transform 160ms ease",
+                    }}
+                  >
+                    ▾
+                  </span>
+                  <BucketHeader label={BUCKET_LABELS[bucket]} count={items.length} />
+                </button>
+                {!collapsed && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                    {items.map((f) => (
+                      <FactRow
+                        key={f.id}
+                        fact={f}
+                        onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
+                        onRetire={() => retireFact(f.id)}
+                        onReject={() => setRejectingFact(f)}
+                        onDelete={() => deleteFactCompletely(f.id)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
