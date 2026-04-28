@@ -39,6 +39,10 @@ interface Props {
   uploadedFiles: UploadedFile[];
   listening: boolean;
   loading: boolean;
+  /** Background file extraction in progress. Doesn't block textarea so the
+   *  user can keep typing instructions while a PDF/image processes. Does
+   *  block Save (we don't want to save before all files are read). */
+  extracting?: boolean;
   showSavedWhisper: boolean;
   canSave: boolean;
   cryptoKey: CryptoKey | null | undefined;
@@ -53,6 +57,7 @@ export default function CaptureEntryBody({
   uploadedFiles,
   listening,
   loading,
+  extracting = false,
   showSavedWhisper,
   canSave,
   cryptoKey,
@@ -127,7 +132,13 @@ export default function CaptureEntryBody({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canSave && !loading)
+            if (
+              (e.metaKey || e.ctrlKey) &&
+              e.key === "Enter" &&
+              canSave &&
+              !loading &&
+              !extracting
+            )
               handlers.onSave();
           }}
           disabled={loading}
@@ -328,7 +339,7 @@ export default function CaptureEntryBody({
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
           <button
             onClick={handlers.onStartVoice}
-            disabled={loading && !listening}
+            disabled={(loading || extracting) && !listening}
             aria-label={listening ? "Stop recording" : "Voice note"}
             className="design-btn-ghost press"
             style={{
@@ -343,7 +354,7 @@ export default function CaptureEntryBody({
           </button>
           <button
             onClick={() => cameraRef.current?.click()}
-            disabled={loading}
+            disabled={loading || extracting}
             aria-label="Take photo"
             className="design-btn-ghost press lg:hidden"
             style={{
@@ -358,7 +369,7 @@ export default function CaptureEntryBody({
           </button>
           <button
             onClick={() => docRef.current?.click()}
-            disabled={loading}
+            disabled={loading || extracting}
             aria-label="Attach files"
             className="design-btn-ghost press"
             style={{
@@ -406,12 +417,12 @@ export default function CaptureEntryBody({
           </span>
           <button
             onClick={handlers.onSave}
-            disabled={!canSave || loading}
+            disabled={!canSave || loading || extracting}
             className="design-btn-primary press"
             style={{ height: 40, minHeight: 40, borderRadius: 8 }}
           >
             {IconSend}
-            {loading ? "Saving…" : "Capture"}
+            {loading ? "Saving…" : extracting ? "Reading file…" : "Capture"}
           </button>
         </div>
       </div>

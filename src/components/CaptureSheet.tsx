@@ -56,6 +56,7 @@ export default function CaptureSheet({
   const {
     loading,
     setLoading,
+    extracting,
     status,
     setStatus,
     errorDetail,
@@ -345,6 +346,7 @@ export default function CaptureSheet({
               uploadedFiles={uploadedFiles}
               listening={listening}
               loading={loading}
+              extracting={extracting}
               showSavedWhisper={showSavedWhisper}
               canSave={canSave}
               cryptoKey={cryptoKey}

@@ -55,6 +55,11 @@ export function useCaptureSheetParse({
   onBackgroundSave,
 }: UseCaptureSheetParseOptions) {
   const [loading, setLoading] = useState(false);
+  // Extraction state — separate from loading so the textarea stays editable
+  // while an image/PDF/Excel is being read. Loading still blocks the textarea
+  // and Capture button (real save in flight). Extracting blocks only Capture
+  // (so a user can type instructions while the file processes in parallel).
+  const [extracting, setExtracting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [fileParseError, setFileParseError] = useState<string | null>(null);
@@ -597,7 +602,7 @@ export function useCaptureSheetParse({
       setErrorDetail("Image too large (max 5 MB)");
       return;
     }
-    setLoading(true);
+    setExtracting(true);
     setStatus("reading");
     setErrorDetail(null);
     setFileParseError(null);
@@ -615,7 +620,7 @@ export function useCaptureSheetParse({
       setFileParseError(file.name);
       setErrorDetail(e?.message || "Extraction failed.");
     }
-    setLoading(false);
+    setExtracting(false);
     setStatus(null);
   }, []);
 
@@ -722,7 +727,7 @@ export function useCaptureSheetParse({
           await handleImageFile(file);
           continue;
         }
-        setLoading(true);
+        setExtracting(true);
         setStatus(`Reading ${file.name}…`);
         setErrorDetail(null);
         setFileParseError(null);
@@ -741,7 +746,7 @@ export function useCaptureSheetParse({
           setFileParseError(file.name);
           setErrorDetail(e?.message || "Could not read file.");
         }
-        setLoading(false);
+        setExtracting(false);
         setStatus(null);
       }
     },
@@ -760,6 +765,7 @@ export function useCaptureSheetParse({
   return {
     loading,
     setLoading,
+    extracting,
     status,
     setStatus,
     errorDetail,
