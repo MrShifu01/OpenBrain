@@ -23,6 +23,7 @@ export default defineConfig({
   // gives the app time to render without giving up too early on a real bug.
   expect: { timeout: isRemote ? 15_000 : 10_000 },
   globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
   use: {
     baseURL,
     trace: "on-first-retry",

@@ -132,13 +132,7 @@ export default function CaptureEntryBody({
           value={text}
           onChange={(e) => onTextChange(e.target.value)}
           onKeyDown={(e) => {
-            if (
-              (e.metaKey || e.ctrlKey) &&
-              e.key === "Enter" &&
-              canSave &&
-              !loading &&
-              !extracting
-            )
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canSave && !loading && !extracting)
               handlers.onSave();
           }}
           disabled={loading}

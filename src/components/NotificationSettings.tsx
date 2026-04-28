@@ -78,6 +78,11 @@ export default function NotificationSettings(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  // Subscribing state — push subscription on mobile can take 5–15s while
+  // the browser hits FCM/APNs and round-trips to the server. Without a
+  // visible loading state the user thinks the app froze and force-quits.
+  // null = idle, "subscribing" = setting up, "unsubscribing" = tearing down
+  const [busy, setBusy] = useState<null | "subscribing" | "unsubscribing">(null);
 
   const pushSupported = "serviceWorker" in navigator && "PushManager" in window;
   const iosNoStandalone = isIOS() && !("Notification" in window);
@@ -100,18 +105,25 @@ export default function NotificationSettings(): JSX.Element {
   }, []);
 
   async function handleEnable() {
-    if (!pushSupported) return;
-    const perm = await Notification.requestPermission();
-    setPermission(perm);
-    if (perm !== "granted") return;
-
+    if (!pushSupported || busy) return;
+    setBusy("subscribing");
     try {
+      // Permission prompt is fast (native dialog) but we keep the busy
+      // state on so the UI doesn't flash idle between dialog dismissal
+      // and the slow pushManager.subscribe() that follows.
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== "granted") return;
+
       const reg = await navigator.serviceWorker.ready;
       const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidKey) {
         flash("VAPID key not configured — push notifications need server setup");
         return;
       }
+      // pushManager.subscribe is the slow step — it round-trips to the
+      // browser's push service (FCM on Android/Chrome, APNs on iOS).
+      // Can take 5–15s on a cold mobile connection.
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
@@ -136,20 +148,27 @@ export default function NotificationSettings(): JSX.Element {
     } catch (err: any) {
       console.error("[Push] subscribe error:", err);
       flash("Failed to enable — " + (err.message || "unknown error"));
+    } finally {
+      setBusy(null);
     }
   }
 
   async function handleDisable() {
-    if (!subscription) return;
-    const endpoint = subscription.endpoint;
-    await subscription.unsubscribe();
-    setSubscription(null);
-    await authFetch("/api/push-subscribe", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ endpoint }),
-    });
-    flash("Notifications disabled");
+    if (!subscription || busy) return;
+    setBusy("unsubscribing");
+    try {
+      const endpoint = subscription.endpoint;
+      await subscription.unsubscribe();
+      setSubscription(null);
+      await authFetch("/api/push-subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint }),
+      });
+      flash("Notifications disabled");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function savePref(updates: Partial<NotificationPrefs>): Promise<void> {
@@ -259,14 +278,24 @@ export default function NotificationSettings(): JSX.Element {
       ) : (
         <SettingsRow
           label="Push notifications"
-          hint={subscribed ? "active on this device." : "not subscribed on this device."}
+          hint={
+            busy === "subscribing"
+              ? "talking to your browser's push service — this can take a few seconds on mobile…"
+              : busy === "unsubscribing"
+                ? "removing this device…"
+                : subscribed
+                  ? "active on this device."
+                  : "not subscribed on this device."
+          }
         >
           {subscribed ? (
-            <SettingsButton onClick={handleDisable} danger>
-              Disable
+            <SettingsButton onClick={handleDisable} disabled={!!busy} danger>
+              {busy === "unsubscribing" ? "Disabling…" : "Disable"}
             </SettingsButton>
           ) : (
-            <SettingsButton onClick={handleEnable}>Enable</SettingsButton>
+            <SettingsButton onClick={handleEnable} disabled={!!busy}>
+              {busy === "subscribing" ? "Enabling…" : "Enable"}
+            </SettingsButton>
           )}
         </SettingsRow>
       )}
