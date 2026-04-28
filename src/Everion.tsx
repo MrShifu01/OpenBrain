@@ -47,6 +47,7 @@ import { useEntries } from "./context/EntriesContext";
 import type { Entry } from "./types";
 import { useAdminDevMode } from "./hooks/useAdminDevMode";
 import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "./lib/featureFlags";
+import { syncTimezoneIfChanged } from "./lib/syncTimezone";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 function lazyRetry(fn: () => Promise<any>) {
@@ -203,6 +204,13 @@ function EverionContent({
       appShell.setView("memory");
     }
   }, [adminFlags, appShell.view, appShell.setView]);
+
+  // Auto-sync IANA timezone whenever the app boots. The browser's Intl
+  // API knows the user's actual zone; we PATCH it to notification_prefs
+  // so the hourly cron fires at the right local time even after travel.
+  useEffect(() => {
+    syncTimezoneIfChanged();
+  }, []);
 
   // Toast deep-link: when the gmail-scan toast's "Review" CTA fires, switch
   // to Settings and tell GmailSyncTab to open its staging inbox. Two-stage

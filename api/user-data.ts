@@ -83,6 +83,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "push") return handlePushSubscribe(req, res);
   if (resource === "brains") return handleBrains(req, res);
   if (resource === "cron-daily") return handleCronDaily(req, res);
+  if (resource === "cron-hourly") return handleCronHourly(req, res);
   if (resource === "trigger-test-push") return handleTriggerTestPush(req, res);
   if (resource === "notifications") return handleNotifications(req, res);
   if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
@@ -825,97 +826,219 @@ const handleTriggerTestPush = withAuth(
   },
 );
 
+// ── tz / time helpers (shared by hourly + daily crons) ──
+//
+// Internationally-correct: every comparison is done in the user's IANA
+// timezone via Intl. DST is handled by the runtime — no manual offset math.
+// Resolution is hourly because the cron itself runs hourly; users picking
+// 20:30 will fire at the top of the 20:00 hour in their local tz.
+
+function localHour(tz: string, d: Date = new Date()): number {
+  try {
+    const v = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      hour12: false,
+      timeZone: tz || "UTC",
+    }).format(d);
+    const n = parseInt(v, 10);
+    return Number.isFinite(n) ? n : d.getUTCHours();
+  } catch {
+    return d.getUTCHours();
+  }
+}
+
+function localWeekday(tz: string, d: Date = new Date()): string {
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      weekday: "long",
+      timeZone: tz || "UTC",
+    })
+      .format(d)
+      .toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+// Enumerate every signed-up user. Avoids the broken paginated listUsers
+// admin endpoint by pulling distinct user_ids from public.entries, then
+// single-fetching each via /admin/users/{id}.
+async function enumerateUsers(tag: string): Promise<any[]> {
+  const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
+  const userIds = new Set<string>();
+  let from = 0;
+  const PAGE = 1000;
+  while (true) {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/entries?select=user_id&order=user_id.asc&limit=${PAGE}&offset=${from}`,
+      { headers: adminHdrs },
+    );
+    if (!r.ok) {
+      console.error(`[${tag}] entries enum HTTP ${r.status}`);
+      break;
+    }
+    const rows: Array<{ user_id: string }> = await r.json().catch(() => []);
+    for (const row of rows) if (row.user_id) userIds.add(row.user_id);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+
+  const users: any[] = [];
+  for (const id of userIds) {
+    const r = await fetch(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+      headers: adminHdrs,
+    });
+    if (!r.ok) {
+      console.error(`[${tag}] admin get ${id} HTTP ${r.status}`);
+      continue;
+    }
+    users.push(await r.json());
+  }
+  console.log(`[${tag}] enumerated ${users.length} users`);
+  return users;
+}
+
+async function patchUserPrefs(userId: string, meta: any, patch: Record<string, any>): Promise<void> {
+  const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
+  const prefs = meta.notification_prefs ?? {};
+  await fetch(`${SB_URL}/auth/v1/admin/users/${userId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...adminHdrs },
+    body: JSON.stringify({
+      user_metadata: { ...meta, notification_prefs: { ...prefs, ...patch } },
+    }),
+  });
+}
+
+// ── /api/cron/hourly (rewritten to /api/user-data?resource=cron-hourly) ──
+//
+// Fires every hour from .github/workflows/cron-hourly.yml. For each user
+// with notifications enabled, checks whether *now* matches their chosen
+// local time (daily prompt) or their chosen local day+time (weekly nudge),
+// using their stored IANA timezone. Per-user dedup via {daily,nudge}_last_sent_at
+// stops double-fires across DST boundaries or retries.
+async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void> {
+  const auth = (req.headers as any).authorization as string | undefined;
+  if (!process.env.CRON_SECRET || !verifyCronBearer(auth, process.env.CRON_SECRET)) {
+    return void res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const subject = process.env.VAPID_SUBJECT;
+  const pub = process.env.VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (!subject || !pub || !priv) {
+    console.warn("[cron/hourly] VAPID env vars not set — skipping push notifications");
+    return void res.status(200).json({ daily: { sent: 0 }, nudge: { sent: 0 } });
+  }
+  webpush.setVapidDetails(subject, pub, priv);
+
+  const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
+  const users = await enumerateUsers("cron/hourly");
+  const now = new Date();
+  const dailyR = { sent: 0, skipped: 0, errors: 0 };
+  const nudgeR = { sent: 0, skipped: 0, errors: 0 };
+
+  for (const user of users) {
+    const meta = user.user_metadata ?? {};
+    const prefs = meta.notification_prefs ?? {};
+    const sub = meta.push_subscription;
+    if (!sub?.endpoint || !sub?.keys) {
+      dailyR.skipped++;
+      nudgeR.skipped++;
+      continue;
+    }
+
+    // ── Daily capture prompt ──
+    if (prefs.daily_enabled) {
+      const tz = prefs.daily_timezone || "UTC";
+      const targetHour = parseInt(String(prefs.daily_time || "20:00").split(":")[0], 10);
+      const lastSent = prefs.daily_last_sent_at ? new Date(prefs.daily_last_sent_at).getTime() : 0;
+      const hoursSince = (now.getTime() - lastSent) / 3_600_000;
+      if (localHour(tz, now) === targetHour && hoursSince >= 23) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: sub.keys },
+            JSON.stringify({
+              title: "Everion",
+              body: "What's worth remembering from today?",
+              url: "/capture",
+            }),
+          );
+          await patchUserPrefs(user.id, meta, { daily_last_sent_at: now.toISOString() });
+          dailyR.sent++;
+        } catch (err: any) {
+          console.error(`[cron/hourly] daily push failed for ${user.id}:`, err.message);
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            const { push_subscription: _rm, ...rest } = meta;
+            await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json", ...adminHdrs },
+              body: JSON.stringify({ user_metadata: rest }),
+            });
+          }
+          dailyR.errors++;
+        }
+      } else {
+        dailyR.skipped++;
+      }
+    } else {
+      dailyR.skipped++;
+    }
+
+    // ── Quiet nudge (weekly) ──
+    if (prefs.nudge_enabled) {
+      const tz = prefs.nudge_timezone || "UTC";
+      const targetHour = parseInt(String(prefs.nudge_time || "10:00").split(":")[0], 10);
+      const targetDay = String(prefs.nudge_day || "sunday").toLowerCase();
+      const lastSent = prefs.nudge_last_sent_at ? new Date(prefs.nudge_last_sent_at).getTime() : 0;
+      const daysSince = (now.getTime() - lastSent) / 86_400_000;
+      if (
+        localWeekday(tz, now) === targetDay &&
+        localHour(tz, now) === targetHour &&
+        daysSince >= 6
+      ) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: sub.keys },
+            JSON.stringify({
+              title: "Everion · nudge",
+              body: "Something in your memory rhymes with this week.",
+              url: "/",
+            }),
+          );
+          await patchUserPrefs(user.id, meta, { nudge_last_sent_at: now.toISOString() });
+          nudgeR.sent++;
+        } catch (err: any) {
+          console.error(`[cron/hourly] nudge push failed for ${user.id}:`, err.message);
+          nudgeR.errors++;
+        }
+      } else {
+        nudgeR.skipped++;
+      }
+    } else {
+      nudgeR.skipped++;
+    }
+  }
+
+  return void res.status(200).json({ daily: dailyR, nudge: nudgeR });
+}
+
 // ── /api/cron/daily (rewritten to /api/user-data?resource=cron-daily) ──
-// Scheduled at 18:00 UTC (20:00 SAST) via vercel.json.
-// Sends push notifications + runs Gmail inbox scan for all connected users.
+//
+// Heavy work that should fire once per day regardless of any user's tz:
+// Gmail inbox scan, enrich-all-brains catch-up, persona hygiene. The
+// per-user time-aware push notifications now live in handleCronHourly.
 async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void> {
   const auth = (req.headers as any).authorization as string | undefined;
   if (!process.env.CRON_SECRET || !verifyCronBearer(auth, process.env.CRON_SECRET)) {
     return void res.status(401).json({ error: "Unauthorized" });
   }
 
-  // ── Push notifications ──
-  const pushResults = { sent: 0, skipped: 0, errors: 0 };
+  // VAPID setup is still needed for the admin summary at the end
   const subject = process.env.VAPID_SUBJECT;
   const pub = process.env.VAPID_PUBLIC_KEY;
   const priv = process.env.VAPID_PRIVATE_KEY;
-
-  if (subject && pub && priv) {
-    webpush.setVapidDetails(subject, pub, priv);
-
-    const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
-
-    // Enumerate users without the paginated listUsers admin route — it 500s
-    // ("Database error finding users") on a bad row in auth.users for this
-    // project. Pull distinct user_ids from public.entries (every signed-up
-    // user has rows there) then single-fetch each via /admin/users/{id},
-    // which works fine.
-    const userIds = new Set<string>();
-    let from = 0;
-    const PAGE = 1000;
-    while (true) {
-      const r = await fetch(
-        `${SB_URL}/rest/v1/entries?select=user_id&order=user_id.asc&limit=${PAGE}&offset=${from}`,
-        { headers: adminHdrs },
-      );
-      if (!r.ok) {
-        console.error(`[cron/daily] entries enum HTTP ${r.status}`);
-        break;
-      }
-      const rows: Array<{ user_id: string }> = await r.json().catch(() => []);
-      for (const row of rows) if (row.user_id) userIds.add(row.user_id);
-      if (rows.length < PAGE) break;
-      from += PAGE;
-    }
-
-    const users: any[] = [];
-    for (const id of userIds) {
-      const r = await fetch(
-        `${SB_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`,
-        { headers: adminHdrs },
-      );
-      if (!r.ok) {
-        console.error(`[cron/daily] admin get ${id} HTTP ${r.status}`);
-        continue;
-      }
-      users.push(await r.json());
-    }
-    console.log(`[cron/daily] enumerated ${users.length} users`);
-
-    for (const user of users) {
-      const meta = user.user_metadata ?? {};
-      const prefs = meta.notification_prefs ?? {};
-      const sub = meta.push_subscription;
-      if (!prefs.daily_enabled || !sub?.endpoint || !sub?.keys) {
-        pushResults.skipped++;
-        continue;
-      }
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: sub.keys },
-          JSON.stringify({
-            title: "Everion",
-            body: "What's worth remembering from today?",
-            url: "/capture",
-          }),
-        );
-        pushResults.sent++;
-      } catch (err: any) {
-        console.error(`[cron/daily] push failed for ${user.id}:`, err.message);
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          const { push_subscription: _rm, ...rest } = meta;
-          await fetch(`${SB_URL}/auth/v1/admin/users/${user.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json", ...adminHdrs },
-            body: JSON.stringify({ user_metadata: rest }),
-          });
-        }
-        pushResults.errors++;
-      }
-    }
-  } else {
-    console.warn("[cron/daily] VAPID env vars not set — skipping push notifications");
-  }
+  if (subject && pub && priv) webpush.setVapidDetails(subject, pub, priv);
 
   // ── Gmail inbox scan ──
   const gmailResults = await runGmailScanAllUsers().catch((e) => {
@@ -973,7 +1096,6 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
           adminSub?.keys?.auth
         ) {
           const body =
-            `push ${pushResults.sent}/${pushResults.sent + pushResults.skipped + pushResults.errors} · ` +
             `gmail ${gmailResults.created}/${gmailResults.users}u · ` +
             `enrich ${enrichResults.processed}/${enrichResults.brains}b · ` +
             `decay ${personaDecay.decayed}d ${personaDecay.archived}a`;
@@ -989,7 +1111,6 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
   }
 
   return void res.status(200).json({
-    push: pushResults,
     gmail: gmailResults,
     enrich: enrichResults,
     persona_decay: personaDecay,

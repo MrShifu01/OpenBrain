@@ -33,6 +33,7 @@
     { "source": "/api/pin", "destination": "/api/user-data?resource=pin" },
     { "source": "/api/brains", "destination": "/api/user-data?resource=brains" },
     { "source": "/api/cron/daily", "destination": "/api/user-data?resource=cron-daily" },
+    { "source": "/api/cron/hourly", "destination": "/api/user-data?resource=cron-hourly" },
     { "source": "/api/memory", "destination": "/api/user-data?resource=memory" },
     { "source": "/api/activity", "destination": "/api/user-data?resource=activity" },
     { "source": "/api/health", "destination": "/api/user-data?resource=health" },

@@ -69,6 +69,83 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
 };
 
+// Time + timezone controls for the daily prompt. Auto-detected timezone
+// is shown read-only by default; "Change" reveals an editable input for
+// users who want to lock to a specific zone regardless of where their
+// device is. Mirrors the existing Quiet-nudge layout.
+function DailyTimingControls({
+  prefs,
+  savePref,
+}: {
+  prefs: NotificationPrefs;
+  savePref: (u: Partial<NotificationPrefs>) => Promise<void>;
+}): JSX.Element {
+  const detected = detectTimezone();
+  const [editTz, setEditTz] = useState(false);
+  const usingDetected = prefs.daily_timezone === detected;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 10,
+        padding: "4px 0 16px",
+        borderBottom: "1px solid var(--line-soft)",
+      }}
+    >
+      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span className="micro">time</span>
+        <input
+          type="time"
+          value={prefs.daily_time}
+          style={inputStyle}
+          onChange={(e) => savePref({ daily_time: e.target.value })}
+        />
+      </label>
+      <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 200 }}>
+        <span
+          className="micro"
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
+        >
+          <span>timezone {usingDetected ? "(auto-detected)" : "(custom)"}</span>
+          <button
+            type="button"
+            onClick={() => {
+              if (editTz && !usingDetected) savePref({ daily_timezone: detected });
+              setEditTz((v) => !v);
+            }}
+            className="press"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--ember)",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            {editTz ? (usingDetected ? "Done" : "Reset") : "Change"}
+          </button>
+        </span>
+        <input
+          type="text"
+          value={prefs.daily_timezone}
+          readOnly={!editTz}
+          style={{
+            ...inputStyle,
+            opacity: editTz ? 1 : 0.7,
+            cursor: editTz ? "text" : "default",
+          }}
+          onChange={(e) => savePref({ daily_timezone: e.target.value })}
+          placeholder="e.g. Europe/London"
+        />
+      </label>
+    </div>
+  );
+}
+
 export default function NotificationSettings(): JSX.Element {
   const [permission, setPermission] = useState<string>(
     "Notification" in window ? Notification.permission : "unsupported",
@@ -304,7 +381,7 @@ export default function NotificationSettings(): JSX.Element {
         <>
           <SettingsRow
             label="Daily capture prompt"
-            hint="a nightly nudge at 20:00 to capture what's worth remembering."
+            hint={`a nightly nudge at ${prefs.daily_time} (${prefs.daily_timezone}) to capture what's worth remembering.`}
           >
             <SettingsToggle
               value={prefs.daily_enabled}
@@ -312,6 +389,7 @@ export default function NotificationSettings(): JSX.Element {
               ariaLabel="Daily capture prompt"
             />
           </SettingsRow>
+          {prefs.daily_enabled && <DailyTimingControls prefs={prefs} savePref={savePref} />}
 
           <SettingsRow
             label="Quiet nudge"
