@@ -146,10 +146,26 @@ async function handleAnswer({ brainId }: Auth, body: any) {
 // ── /v1/ingest ────────────────────────────────────────────────────────────────
 
 async function handleIngest({ userId, brainId }: Auth, body: any) {
-  const { title, content, type = "note", tags = [] } = body;
+  const { title, content, type = "note", tags = [], metadata, importance } = body;
   if (!title || typeof title !== "string") throw { status: 400, message: "title is required" };
   if (!content || typeof content !== "string")
     throw { status: 400, message: "content is required" };
+  if (
+    metadata !== undefined &&
+    metadata !== null &&
+    (typeof metadata !== "object" || Array.isArray(metadata))
+  ) {
+    throw { status: 400, message: "metadata must be an object" };
+  }
+  if (metadata && JSON.stringify(metadata).length > 64_000) {
+    throw { status: 400, message: "metadata too large — max 64 KB" };
+  }
+  if (importance !== undefined && importance !== null) {
+    const n = Number(importance);
+    if (!Number.isFinite(n) || n < 0 || n > 100) {
+      throw { status: 400, message: "importance must be a number between 0 and 100" };
+    }
+  }
 
   // Quota enforcement for external API ingest
   const settingsRes = await fetch(
@@ -186,21 +202,24 @@ async function handleIngest({ userId, brainId }: Auth, body: any) {
 
   const id = (randomUUID as () => string)();
   const now = new Date().toISOString();
+  const insertBody: Record<string, unknown> = {
+    id,
+    user_id: userId,
+    brain_id: brainId,
+    title: safeTitle,
+    content: safeContent,
+    type: safeType,
+    tags: safeTags,
+    embedding: embedding ? `[${embedding.join(",")}]` : null,
+    created_at: now,
+    updated_at: now,
+  };
+  if (metadata && typeof metadata === "object") insertBody.metadata = metadata;
+  if (importance !== undefined && importance !== null) insertBody.importance = Number(importance);
   const r = await fetch(`${SB_URL}/rest/v1/entries`, {
     method: "POST",
     headers: hdrs({ Prefer: "return=representation" }),
-    body: JSON.stringify({
-      id,
-      user_id: userId,
-      brain_id: brainId,
-      title: safeTitle,
-      content: safeContent,
-      type: safeType,
-      tags: safeTags,
-      embedding: embedding ? `[${embedding.join(",")}]` : null,
-      created_at: now,
-      updated_at: now,
-    }),
+    body: JSON.stringify(insertBody),
   });
   if (!r.ok)
     throw new Error(`Failed to create entry: ${await r.text().catch(() => String(r.status))}`);
