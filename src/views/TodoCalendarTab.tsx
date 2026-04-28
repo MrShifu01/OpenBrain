@@ -14,7 +14,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import type { Entry } from "../types";
-import { type ExternalCalEvent, toDateKey, addRecurring, isDone, extractDates } from "./todoUtils";
+import { type ExternalCalEvent, toDateKey, getPlacements } from "./todoUtils";
 import QuickAdd from "./TodoQuickAdd";
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -95,16 +95,18 @@ function eventSourceKind(source: CalEvent["source"]): "internal" | "external" {
   return source === "entry" ? "internal" : "external";
 }
 
-function entriesToCalEvents(entries: Entry[]): CalEvent[] {
+function entriesToCalEvents(entries: Entry[], range: { from: string; to: string }): CalEvent[] {
+  // getPlacements does the type/done filter (persona, secret, completed) and
+  // expands recurrence within the visible-month range. One call per entry,
+  // one source of truth — no risk of static + recurring disagreeing.
   const events: CalEvent[] = [];
-  entries.forEach((e) => {
-    if (isDone(e)) return;
-    // Persona facts and vault secrets never belong on the calendar — they're
-    // not time-bound. Without this skip, a persona entry's bookkeeping
-    // timestamps (e.g. last_referenced_at) leak into extractDates and make
-    // every fact show up as a "Todo" on the day it was last touched.
-    if (e.type === "persona" || e.type === "secret") return;
-    extractDates(e).forEach((d) => {
+  for (const e of entries) {
+    const placements = getPlacements(e, {
+      mode: "calendar",
+      range,
+      expandRecurrence: true,
+    });
+    for (const d of placements) {
       const day = parseISO(d);
       events.push({
         id: `entry-${e.id}-${d}`,
@@ -115,8 +117,8 @@ function entriesToCalEvents(entries: Entry[]): CalEvent[] {
         source: "entry",
         entry: e,
       });
-    });
-  });
+    }
+  }
   return events;
 }
 
@@ -1447,14 +1449,26 @@ export default function TodoCalendarTab({
   const isDesktop = useIsDesktop(1024);
   const quickAddRef = useRef<HTMLDivElement | null>(null);
 
-  // Build the event map once per inputs.
-  const calEvents = useMemo(
-    () => [...entriesToCalEvents(entries), ...externalToCalEvents(externalEvents)],
-    [entries, externalEvents],
-  );
-
   const year = navDate.getFullYear();
   const month = navDate.getMonth();
+
+  // Recurrence is expanded within the visible month; navigating to a new
+  // month rebuilds calEvents. Wider buffer (±1 day) covers Sunday-of-previous
+  // and Saturday-of-next that appear at the grid edges.
+  const visibleRange = useMemo(() => {
+    const first = new Date(year, month, 1);
+    first.setDate(first.getDate() - 1);
+    const last = new Date(year, month + 1, 0);
+    last.setDate(last.getDate() + 1);
+    return { from: toDateKey(first), to: toDateKey(last) };
+  }, [year, month]);
+
+  // Build the event map once per inputs. entriesToCalEvents now expands
+  // recurrence + filters persona/secret/done — no second addRecurring pass.
+  const calEvents = useMemo(
+    () => [...entriesToCalEvents(entries, visibleRange), ...externalToCalEvents(externalEvents)],
+    [entries, externalEvents, visibleRange],
+  );
 
   const eventMap = useMemo(() => {
     const map: Record<string, CalEvent[]> = {};
@@ -1463,27 +1477,8 @@ export default function TodoCalendarTab({
       if (!map[key]) map[key] = [];
       map[key].push(ev);
     });
-    addRecurring(
-      entries,
-      (key, e) => {
-        if (!map[key]) map[key] = [];
-        if (!map[key].find((ev) => ev.id === `entry-${e.id}-recurring`)) {
-          map[key].push({
-            id: `entry-${e.id}-recurring`,
-            title: e.title,
-            start: startOfDay(parseISO(key)),
-            end: endOfDay(parseISO(key)),
-            allDay: true,
-            source: "entry",
-            entry: e,
-          });
-        }
-      },
-      year,
-      month,
-    );
     return map;
-  }, [calEvents, entries, year, month]);
+  }, [calEvents]);
 
   const selectedEvents = selectedKey ? eventMap[selectedKey] || [] : [];
 

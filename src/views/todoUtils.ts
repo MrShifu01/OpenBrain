@@ -1,7 +1,37 @@
 import type { Entry } from "../types";
 
-/* ─── Date extraction ─── */
-const ALL_DATE_KEYS = [
+// ─────────────────────────────────────────────────────────────────────────────
+// Schedule placement — single source of truth.
+//
+// Every "where does this entry appear?" question in the Schedule UI flows
+// through `getPlacements(entry, options)`. Calendar grid, My Day list, Week
+// view, overdue scan, "undated todos" bucket — all of them.
+//
+// Why the unification:
+//   Before, three functions answered slightly different questions:
+//   - extractDates       (calendar grid)   17 metadata keys + content regex
+//   - extractActionDates (My Day, Week)    only due_date + deadline
+//   - addRecurring       (both)            day_of_week / day_of_month + content regex
+//   They disagreed. Entries showed in some views and not others. The content
+//   regex caught false positives (any "2026-04-28" string inside content text
+//   landed the entry on that day).
+//
+// What stays vs what changed in this refactor:
+//   - STAYS: explicit metadata-key date placement, day_of_week / day_of_month
+//     recurrence, the "specific date wins over recurrence" rule.
+//   - CHANGED: content-regex date scanning is GONE. If you want an entry on
+//     a calendar day, set metadata.due_date / event_date / deadline, OR mark
+//     it recurring via day_of_week / day_of_month. Hidden inline dates inside
+//     content are NOT auto-placed any more — too many false positives.
+//   - NEW: metadata.scheduled_for is recognised as the canonical action date
+//     (alongside due_date / deadline). Phase 2 makes scheduled_for primary.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/* ─── Date constants ─── */
+
+// Date keys that surface an entry on the calendar grid.
+const CALENDAR_DATE_KEYS = [
+  "scheduled_for",
   "deadline",
   "due_date",
   "valid_to",
@@ -19,9 +49,14 @@ const ALL_DATE_KEYS = [
   "expiry",
   "renewal_date",
 ];
-// Bookkeeping timestamps that are NOT calendar dates. The broad
-// Object.values walk in extractDates pulled these in and falsely placed
-// every persona / fading entry on the calendar at its last reference.
+
+// Date keys that mark an entry as actionable (My Day / Week / overdue).
+// Narrower than the calendar set: a passport's expiry doesn't belong on My Day.
+const ACTION_DATE_KEYS = ["scheduled_for", "due_date", "deadline"];
+
+// Bookkeeping timestamps that look like dates but aren't calendar-relevant.
+// Without this exclusion, the broad metadata walk would drag persona facts'
+// last_referenced_at onto the day they were last touched.
 const NON_CALENDAR_DATE_KEYS = new Set([
   "last_referenced_at",
   "last_decayed_at",
@@ -31,10 +66,31 @@ const NON_CALENDAR_DATE_KEYS = new Set([
   "embedded_at",
   "deleted_at",
   "backfilled_at",
+  "user_edited_at",
 ]);
-const ACTION_DATE_KEYS = ["due_date", "deadline"];
+
+// Specific-date keys: presence of any of these means the entry has a
+// concrete one-shot date. Recurrence expansion bails when one is set, so we
+// don't fabricate every Wednesday on top of "Wednesday 1 May" specifically.
+const SPECIFIC_DATE_KEYS = [
+  "scheduled_for",
+  "due_date",
+  "event_date",
+  "deadline",
+  "renewal_date",
+  "expiry_date",
+  "appointment_date",
+  "scheduled_date",
+  "match_date",
+  "game_date",
+  "date",
+];
+
+// Entry types that NEVER appear in the schedule UI regardless of metadata.
+const NON_SCHEDULABLE_TYPES = new Set(["secret", "persona"]);
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-const CONTENT_DATE_RE = /\b(\d{4}-\d{2}-\d{2})\b/g;
+
 const DOW: Record<string, number> = {
   sunday: 0,
   monday: 1,
@@ -52,30 +108,39 @@ const DOW: Record<string, number> = {
   sat: 6,
 };
 
-export function extractDates(entry: Entry): string[] {
-  const m = (entry.metadata || {}) as Record<string, unknown>;
-  const dates = new Set<string>();
-  ALL_DATE_KEYS.forEach((k) => {
-    if (m[k] && DATE_RE.test(String(m[k]))) dates.add(String(m[k]).slice(0, 10));
-  });
-  Object.entries(m).forEach(([k, v]) => {
-    if (NON_CALENDAR_DATE_KEYS.has(k)) return;
-    if (typeof v === "string" && DATE_RE.test(v)) dates.add(v.slice(0, 10));
-  });
-  const text = `${entry.title || ""} ${entry.content || ""}`;
-  let match;
-  while ((match = CONTENT_DATE_RE.exec(text)) !== null) dates.add(match[1]);
-  return [...dates];
+/* ─── Public types ─── */
+
+export interface PlacementOptions {
+  /** "actions" = narrow placement (My Day / Week / overdue scan).
+   *  "calendar" = wide placement (Calendar grid). Defaults to "calendar". */
+  mode?: "actions" | "calendar";
+  /** Restrict output to YYYY-MM-DD dates within [from, to] inclusive.
+   *  Required if expandRecurrence is true (recurrence has no natural bound). */
+  range?: { from: string; to: string };
+  /** Generate recurring instances within range. Off by default — callers that
+   *  want "this entry's specific dates" pass false; callers that want
+   *  "every day this entry should appear in this month" pass true. */
+  expandRecurrence?: boolean;
+  /** Include entries whose metadata.status is "done". Default false. */
+  includeCompleted?: boolean;
 }
 
-export function extractActionDates(entry: Entry): string[] {
-  const m = (entry.metadata || {}) as Record<string, unknown>;
-  const dates = new Set<string>();
-  ACTION_DATE_KEYS.forEach((k) => {
-    if (m[k] && DATE_RE.test(String(m[k]))) dates.add(String(m[k]).slice(0, 10));
-  });
-  return [...dates];
+export interface TodoItem {
+  entry: Entry;
+  dateStr: string;
 }
+
+export interface ExternalCalEvent {
+  id: string;
+  title: string;
+  start: string; // ISO
+  end: string; // ISO
+  allDay?: boolean;
+  provider: "google" | "microsoft";
+  calendarEmail?: string;
+}
+
+/* ─── Public helpers ─── */
 
 export function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -93,43 +158,71 @@ export function isDone(entry: Entry): boolean {
   return (entry.metadata as { status?: string } | undefined)?.status === "done";
 }
 
-export interface TodoItem {
-  entry: Entry;
-  dateStr: string;
+/* ─── The single placement function ─── */
+
+export function getPlacements(entry: Entry, options: PlacementOptions = {}): string[] {
+  const { mode = "calendar", range, expandRecurrence = false, includeCompleted = false } = options;
+
+  if (!includeCompleted && isDone(entry)) return [];
+  if (NON_SCHEDULABLE_TYPES.has(entry.type)) return [];
+
+  const dates = new Set<string>();
+  const m = (entry.metadata || {}) as Record<string, unknown>;
+
+  // ── Explicit dates from known metadata keys ───────────────────────────
+  const keys = mode === "actions" ? ACTION_DATE_KEYS : CALENDAR_DATE_KEYS;
+  for (const k of keys) {
+    const v = m[k];
+    if (typeof v === "string" && DATE_RE.test(v)) dates.add(v.slice(0, 10));
+  }
+
+  // ── Calendar mode: also pick up unknown date-shaped string values ─────
+  // Lets uncommon-but-explicit metadata.foo_date keys still surface, while
+  // ignoring bookkeeping timestamps. NOT a content-regex scan — only
+  // metadata fields, only top-level, only string values.
+  if (mode === "calendar") {
+    for (const [k, v] of Object.entries(m)) {
+      if (NON_CALENDAR_DATE_KEYS.has(k)) continue;
+      if (typeof v === "string" && DATE_RE.test(v)) dates.add(v.slice(0, 10));
+    }
+  }
+
+  // ── Recurrence expansion ──────────────────────────────────────────────
+  if (expandRecurrence) {
+    if (!range) {
+      throw new Error("getPlacements: expandRecurrence requires a range");
+    }
+    if (!hasSpecificDate(m)) {
+      expandRecurringDates(entry, range, (key) => dates.add(key));
+    }
+  }
+
+  // ── Range clamp ──────────────────────────────────────────────────────
+  let result = [...dates];
+  if (range) {
+    result = result.filter((d) => d >= range.from && d <= range.to);
+  }
+  result.sort();
+  return result;
 }
 
-/* ─── External calendar event shape ─── */
-export interface ExternalCalEvent {
-  id: string;
-  title: string;
-  start: string; // ISO
-  end: string; // ISO
-  allDay?: boolean;
-  provider: "google" | "microsoft";
-  calendarEmail?: string;
+/* ─── Convenience wrappers ─── */
+
+/** Action placements — for My Day, Week, overdue. No recurrence expansion. */
+export function getActionPlacements(entry: Entry): string[] {
+  return getPlacements(entry, { mode: "actions" });
 }
 
-function dateKey(year: number, mon: number, day: number): string {
-  return `${year}-${String(mon + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+/** Calendar placements within a month. Recurrence expanded. */
+export function getCalendarPlacements(entry: Entry, range: { from: string; to: string }): string[] {
+  return getPlacements(entry, {
+    mode: "calendar",
+    range,
+    expandRecurrence: true,
+  });
 }
 
-// Metadata keys whose presence means this entry refers to ONE specific
-// calendar date — not a recurring schedule. If any of these are set,
-// addRecurring must bail out: the AI sometimes over-extracts and writes
-// both event_date and day_of_week for a phrase like "this Friday", which
-// then duplicates the entry onto every Friday of the visible month.
-const SPECIFIC_DATE_KEYS = [
-  "due_date",
-  "event_date",
-  "deadline",
-  "renewal_date",
-  "expiry_date",
-  "appointment_date",
-  "scheduled_date",
-  "match_date",
-  "game_date",
-  "date",
-];
+/* ─── Internal helpers ─── */
 
 function hasSpecificDate(metadata: Record<string, unknown>): boolean {
   return SPECIFIC_DATE_KEYS.some((key) => {
@@ -138,65 +231,135 @@ function hasSpecificDate(metadata: Record<string, unknown>): boolean {
   });
 }
 
-/* ─── Recurring helper ─── */
+function dateKey(year: number, mon: number, day: number): string {
+  return `${year}-${String(mon + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseDateKey(key: string): { y: number; m: number; d: number } | null {
+  const match = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  return { y: Number(match[1]), m: Number(match[2]) - 1, d: Number(match[3]) };
+}
+
+/** Iterate every YYYY-MM-DD between from and to inclusive, calling visit. */
+function eachDayInRange(
+  from: string,
+  to: string,
+  visit: (year: number, mon: number, day: number, dow: number) => void,
+): void {
+  const start = parseDateKey(from);
+  const end = parseDateKey(to);
+  if (!start || !end) return;
+  const cursor = new Date(start.y, start.m, start.d);
+  const stop = new Date(end.y, end.m, end.d);
+  while (cursor.getTime() <= stop.getTime()) {
+    visit(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), cursor.getDay());
+    cursor.setDate(cursor.getDate() + 1);
+  }
+}
+
+/** Generate recurring date keys for an entry within range, calling onDate per match. */
+function expandRecurringDates(
+  entry: Entry,
+  range: { from: string; to: string },
+  onDate: (key: string) => void,
+): void {
+  const m = (entry.metadata || {}) as Record<string, unknown>;
+  const text = `${entry.title || ""} ${entry.content || ""}`;
+
+  // Monthly via day_of_month
+  let domNum: number | null = null;
+  const domRaw = m.day_of_month;
+  if (domRaw !== undefined && domRaw !== null && domRaw !== "") {
+    const n = parseInt(String(domRaw), 10);
+    if (!isNaN(n) && n >= 1 && n <= 31) domNum = n;
+  }
+  if (domNum === null) {
+    const match = text.match(
+      /every\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i,
+    );
+    if (match) {
+      const n = parseInt(match[1] ?? match[2], 10);
+      if (!isNaN(n) && n >= 1 && n <= 31) domNum = n;
+    }
+  }
+
+  // Weekly via day_of_week
+  let dowIdx: number | null = null;
+  const rawDay = ((m.day_of_week || m.weekday || m.recurring_day || "") as string)
+    .toString()
+    .toLowerCase()
+    .trim();
+  if (rawDay && DOW[rawDay] !== undefined) dowIdx = DOW[rawDay];
+  if (dowIdx === null) {
+    const dowMatch = text.match(
+      /every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i,
+    );
+    if (dowMatch) {
+      const key = dowMatch[1].toLowerCase();
+      if (DOW[key] !== undefined) dowIdx = DOW[key];
+    }
+  }
+
+  if (domNum === null && dowIdx === null) return;
+
+  eachDayInRange(range.from, range.to, (year, mon, day, dow) => {
+    if (domNum !== null) {
+      const lastDay = new Date(year, mon + 1, 0).getDate();
+      if (day === Math.min(domNum, lastDay)) {
+        onDate(dateKey(year, mon, day));
+        return;
+      }
+    }
+    if (dowIdx !== null && dow === dowIdx) {
+      onDate(dateKey(year, mon, day));
+    }
+  });
+}
+
+/* ─── Deprecated wrappers ─── */
+//
+// Kept for backwards compatibility while call sites migrate. Each one is a
+// thin shim around getPlacements with the legacy semantics. Phase 2 will
+// remove these in favour of getPlacements / getCalendarPlacements.
+
+/**
+ * @deprecated Use getPlacements(entry, { mode: "calendar" }) instead.
+ *  Note: this no longer scans content for date-shaped strings — only
+ *  metadata keys. Callers that depended on the regex must surface dates
+ *  explicitly via metadata.scheduled_for / due_date / event_date.
+ */
+export function extractDates(entry: Entry): string[] {
+  return getPlacements(entry, { mode: "calendar", includeCompleted: true });
+}
+
+/**
+ * @deprecated Use getActionPlacements(entry) instead.
+ */
+export function extractActionDates(entry: Entry): string[] {
+  return getPlacements(entry, { mode: "actions", includeCompleted: true });
+}
+
+/**
+ * @deprecated Use getCalendarPlacements(entry, { from, to }) instead.
+ *  Legacy signature: mutates a map via the `add` callback for every recurring
+ *  date in the target month. New code should use the unified function which
+ *  returns an array, not a callback.
+ */
 export function addRecurring(
   entries: Entry[],
   add: (key: string, e: Entry) => void,
   targetYear?: number,
   targetMon?: number,
-) {
+): void {
   const now = new Date();
   const year = targetYear ?? now.getFullYear();
   const mon = targetMon ?? now.getMonth();
-  const daysInMonth = new Date(year, mon + 1, 0).getDate();
-  entries.forEach((e) => {
-    const m = (e.metadata || {}) as Record<string, unknown>;
-
-    // One-shot dated entry — extractDates already placed it on its real
-    // date. Don't fabricate weekly/monthly occurrences from a stray
-    // day_of_week the AI shouldn't have set.
-    if (hasSpecificDate(m)) return;
-
-    // ── Monthly recurring (day_of_month) ──
-    const domRaw = m.day_of_month;
-    if (domRaw !== undefined && domRaw !== null && domRaw !== "") {
-      const dom = parseInt(String(domRaw), 10);
-      if (!isNaN(dom) && dom >= 1 && dom <= 31) {
-        const day = Math.min(dom, daysInMonth);
-        add(dateKey(year, mon, day), e);
-        return;
-      }
-    }
-
-    // ── Also scan text for "every 1st/15th of the month" ──
-    const text = `${e.title || ""} ${e.content || ""}`;
-    const domTextMatch = text.match(
-      /every\s+(\d+)(?:st|nd|rd|th)(?:\s+of\s+(?:every|the|each)?\s*month)?|(\d+)(?:st|nd|rd|th)\s+of\s+every\s+month/i,
-    );
-    if (domTextMatch) {
-      const dom = parseInt(domTextMatch[1] ?? domTextMatch[2], 10);
-      if (!isNaN(dom) && dom >= 1 && dom <= 31) {
-        const day = Math.min(dom, daysInMonth);
-        add(dateKey(year, mon, day), e);
-        return;
-      }
-    }
-
-    // ── Weekly recurring (day_of_week) ──
-    let rawDay = (m.day_of_week || m.weekday || m.recurring_day || "")
-      .toString()
-      .toLowerCase()
-      .trim();
-    if (!rawDay) {
-      const dowMatch = text.match(
-        /every\s+(sun(?:day)?|mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?)/i,
-      );
-      if (dowMatch) rawDay = dowMatch[1];
-    }
-    const dowIndex = DOW[rawDay];
-    if (dowIndex === undefined) return;
-    for (let d = 1; d <= daysInMonth; d++) {
-      if (new Date(year, mon, d).getDay() === dowIndex) add(dateKey(year, mon, d), e);
-    }
-  });
+  const lastDay = new Date(year, mon + 1, 0).getDate();
+  const range = { from: dateKey(year, mon, 1), to: dateKey(year, mon, lastDay) };
+  for (const e of entries) {
+    if (NON_SCHEDULABLE_TYPES.has(e.type)) continue;
+    if (hasSpecificDate((e.metadata || {}) as Record<string, unknown>)) continue;
+    expandRecurringDates(e, range, (key) => add(key, e));
+  }
 }

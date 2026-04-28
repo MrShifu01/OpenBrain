@@ -10,8 +10,8 @@ import {
   toDateKey,
   fmtTime,
   isDone,
-  extractActionDates,
-  addRecurring,
+  getPlacements,
+  getActionPlacements,
 } from "./todoUtils";
 import TodoQuickAdd from "./TodoQuickAdd";
 import TodoCalendarTab from "./TodoCalendarTab";
@@ -413,18 +413,29 @@ export default function TodoView({
       .catch(() => null);
   }, []);
 
-  const mkAdd = (map: Record<string, Entry[]>) => (key: string, e: Entry) => {
-    if (!map[key]) map[key] = [];
-    if (!map[key].find((x) => x.id === e.id)) map[key].push(e);
-  };
-
   const taskMap = useMemo(() => {
+    // Wide window: 60 days back to 60 days forward. Covers overdue + this
+    // week + a buffer for navigation. Recurrence is expanded once across
+    // the whole window so My Day / Week never have to re-compute.
+    const today = new Date();
+    const back = new Date(today);
+    back.setDate(today.getDate() - 60);
+    const fwd = new Date(today);
+    fwd.setDate(today.getDate() + 60);
+    const range = { from: toDateKey(back), to: toDateKey(fwd) };
+
     const map: Record<string, Entry[]> = {};
-    const add = mkAdd(map);
-    entries.forEach((e) => {
-      if (!isDone(e)) extractActionDates(e).forEach((d) => add(d, e));
-    });
-    addRecurring(entries, add);
+    for (const e of entries) {
+      const placements = getPlacements(e, {
+        mode: "actions",
+        range,
+        expandRecurrence: true,
+      });
+      for (const d of placements) {
+        if (!map[d]) map[d] = [];
+        if (!map[d].find((x) => x.id === e.id)) map[d].push(e);
+      }
+    }
     return map;
   }, [entries]);
 
@@ -456,8 +467,7 @@ export default function TodoView({
   const overdue = useMemo(() => {
     const seen = new Set<string>();
     return entries
-      .filter((e) => !isDone(e))
-      .flatMap((e) => extractActionDates(e).map((d) => ({ entry: e, dateStr: d })))
+      .flatMap((e) => getActionPlacements(e).map((d) => ({ entry: e, dateStr: d })))
       .filter(({ entry, dateStr }) => {
         if (dateStr >= mondayKey) return false;
         const k = `${entry.id}-${dateStr}`;
@@ -470,7 +480,7 @@ export default function TodoView({
 
   const todoList = useMemo(
     () =>
-      entries.filter((e) => !isDone(e) && e.type === "todo" && extractActionDates(e).length === 0),
+      entries.filter((e) => !isDone(e) && e.type === "todo" && getActionPlacements(e).length === 0),
     [entries],
   );
 
