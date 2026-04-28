@@ -536,24 +536,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                     {notificationsOpen ? "Done" : "Manage"}
                   </SettingsButton>
                 </SettingsRow>
-                {/*
-                  Always-mounted on the Connections tab so the prefs fetch fires
-                  the moment the user lands here, not on Manage click. We hide
-                  the body via display:none rather than conditionally render so
-                  opening "Manage" feels instant — no spinner, no first-paint
-                  network round-trip.
-                */}
-                <div
-                  style={{
-                    display: notificationsOpen ? "flex" : "none",
-                    flexDirection: "column",
-                    gap: 12,
-                    padding: "0 0 18px",
-                    borderBottom: "1px solid var(--line-soft)",
-                  }}
-                >
+                <SettingsExpand open={notificationsOpen} keepMounted>
                   <NotificationSettings />
-                </div>
+                </SettingsExpand>
                 <SubSection
                   title="Integrations"
                   subtitle="external connections and developer access."
@@ -563,7 +548,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                     {calendarOpen ? "Done" : "Manage"}
                   </SettingsButton>
                 </SettingsRow>
-                <SettingsExpand open={calendarOpen}>
+                <SettingsExpand open={calendarOpen} keepMounted>
                   <CalendarSyncTab />
                 </SettingsExpand>
 
@@ -575,7 +560,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                     {gmailOpen ? "Done" : "Manage"}
                   </SettingsButton>
                 </SettingsRow>
-                <SettingsExpand open={gmailOpen}>
+                <SettingsExpand open={gmailOpen} keepMounted>
                   <GmailSyncTab isAdmin={isAdmin} />
                 </SettingsExpand>
 

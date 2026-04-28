@@ -63,23 +63,32 @@ export default function SettingsRow({ label, hint, children, last }: SettingsRow
  * Canonical inline-expand panel for SettingsRow disclosures. Sits directly below
  * a SettingsRow whose action toggles `open`. Renders the same padding + hairline
  * divider as a row so the visual rhythm continues unbroken.
+ *
+ * `keepMounted`: when true the children stay mounted while collapsed (hidden via
+ * display:none). Use this when the inner panel does its own data fetch on mount
+ * and you want it to fire as soon as the surrounding tab is visited — opening
+ * "Manage" then feels instant. Default off because the cost of preloading
+ * heavier panels (API tokens, OAuth state) isn't worth it if the user never
+ * opens them.
  */
 export function SettingsExpand({
   open,
   children,
   last,
+  keepMounted,
 }: {
   open: boolean;
   children: ReactNode;
   last?: boolean;
+  keepMounted?: boolean;
 }) {
-  if (!open) return null;
+  if (!open && !keepMounted) return null;
   return (
     <div
       style={{
         padding: "0 0 18px",
         borderBottom: last ? "none" : "1px solid var(--line-soft)",
-        display: "flex",
+        display: open ? "flex" : "none",
         flexDirection: "column",
         gap: 12,
       }}
