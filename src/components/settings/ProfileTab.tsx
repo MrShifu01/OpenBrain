@@ -215,8 +215,14 @@ export default function ProfileTab() {
   async function reloadFacts() {
     if (!brainId) return;
     try {
+      // Cache-bust — the entries GET handler sets Cache-Control: max-age=300
+      // for performance on the timeline view, but the persona-facts list
+      // needs to reflect a just-persisted PATCH (reject / retire / pin)
+      // immediately. The unique `_t` defeats the browser cache without
+      // changing the server-side policy that other views rely on.
       const r = await authFetch(
-        `/api/entries?brain_id=${encodeURIComponent(brainId)}&type=persona`,
+        `/api/entries?brain_id=${encodeURIComponent(brainId)}&type=persona&_t=${Date.now()}`,
+        { cache: "no-store" },
       );
       if (!r?.ok) throw new Error("fetch_failed");
       const data = await r.json();
@@ -1279,7 +1285,15 @@ export default function ProfileTab() {
           turned on in the Admin tab. Pinned to the very bottom of Personal
           so it never gets in the way of the actual settings UI. */}
       {isAdmin && adminPrefs.showPersonaPromptDebug && brainId && (
-        <PersonaPromptDebug brainId={brainId} factsLength={facts.length} />
+        <PersonaPromptDebug
+          brainId={brainId}
+          /* refreshKey changes whenever a fact's status or pinned-ness
+             changes, not just when length changes — so reject/retire/pin
+             trigger the debug panel to auto-refresh. */
+          refreshKey={facts
+            .map((f) => `${f.id}:${f.metadata?.status || "active"}:${f.metadata?.pinned ? 1 : 0}`)
+            .join("|")}
+        />
       )}
 
       {rejectingFact && (
@@ -1984,10 +1998,10 @@ interface PersonaPromptPayload {
 
 function PersonaPromptDebug({
   brainId,
-  factsLength,
+  refreshKey,
 }: {
   brainId: string;
-  factsLength: number;
+  refreshKey: string;
 }): JSX.Element {
   const [data, setData] = useState<PersonaPromptPayload | null>(null);
   const [loading, setLoading] = useState(false);
@@ -2016,7 +2030,7 @@ function PersonaPromptDebug({
   // panel always shows current learnings.
   useEffect(() => {
     if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
-  }, [collapsed, brainId, factsLength]);
+  }, [collapsed, brainId, refreshKey]);
 
   return (
     <div
