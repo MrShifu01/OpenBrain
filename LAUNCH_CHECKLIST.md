@@ -274,4 +274,26 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [x] **Staging Supabase project** ✅ — `everion-staging` (`rsnrvebcjbstfxhkfsjq`, eu-west-1, free tier, $0/mo). Schema mirrors production via `supabase/migrations/*.sql`. URL + anon key in `.env.example`. Workflow: apply new migrations to staging FIRST, verify, THEN apply to production. Drift check reminder saved to Christian's Everion memory for 2026-05-28.
 - [ ] **Pin `/status` link somewhere user-visible** ❌ — landing page footer + login screen "having trouble?" link + support email signature. Page exists; users have no way to find it during an incident.
 - [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
-- [ ] **Test Supabase backup restore** ❌ — automated daily backups are running (Supabase Pro), but never restored. One-time exercise: pull yesterday's backup into a fresh project, verify a known row exists. Quarterly thereafter. See `docs/launch-runbook-alerts-and-dns.md` for steps if it exists, otherwise improvise via the Supabase dashboard "Restore" UI.
+- [ ] **Test Supabase backup restore** ❌ — automated daily backups are running (Supabase Pro, 7-day retention), but never restored. A backup you've never restored is a hope, not a backup.
+
+  **Step 0: confirm you're actually on Pro** (1 min)
+  - Open <https://supabase.com/dashboard/project/wfvoqpdfzkqnenzjxhui/database/backups>
+  - You should see 7 daily entries. If empty, you're on Free — upgrade to Pro before launch (you're already paying for branching anyway, branch cost $0.01344/hr means Pro is active).
+
+  **Step 1: dry-run a restore to a fresh project** (15 min, do this once before launch)
+  - Backups page → pick any daily backup → "Restore"
+  - **Choose "Restore to new project"** (NOT in-place; in-place is destructive)
+  - Wait ~5 min for the new project to provision
+  - Open SQL editor on the restored project: `SELECT COUNT(*) FROM entries;`
+  - Row count should match production at the backup snapshot time. If it does, restores work.
+  - Delete the test project so it doesn't sit on your bill.
+
+  **Step 2: re-run quarterly**
+  - 15 min every 90 days. The only way to know backups are real and not just claimed.
+
+  **Optional: PITR add-on (~$100/mo)** — restore to any second, not just daily snapshots. Toggle in dashboard → Settings → Add-ons. Worth it if your data is irreplaceable; for a memory app where users can re-import, daily is probably enough.
+
+  **What backups DON'T cover**
+  - Auth users are backed up on the same schedule (different schema, same dashboard restore).
+  - Storage objects need separate config — N/A here, you don't use Supabase Storage.
+  - Vault crypto material — vault uses passphrase-derived keys the server can't read. Backups capture the encrypted blobs but a user who forgets their master password can't recover, backup or no backup. By design.
