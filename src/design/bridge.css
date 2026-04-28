@@ -6,7 +6,13 @@
 
 html.family-dusk,
 html.family-paper,
-html.family-bronze {
+html.family-bronze,
+html.family-aurora,
+html.family-atelier,
+html.family-blueprint,
+html.family-botanical,
+html.family-newsprint,
+html.family-zine {
   /* Tailwind 4 @theme tokens the existing components consume */
   --color-background: var(--bg);
   --color-surface: var(--surface);
@@ -108,12 +114,10 @@ html.family-bronze {
   --sidebar-ring: var(--ember);
 }
 
-/* Re-skin the project-specific .nav-item and entry-card to the Dusk/Paper/Bronze idiom.
-   These have highly specific visual language in the existing CSS; override here so
-   every family looks correct without touching the components. */
-html.family-dusk .nav-item,
-html.family-paper .nav-item,
-html.family-bronze .nav-item {
+/* Re-skin the project-specific .nav-item and entry-card to the active family idiom.
+   Attribute selector covers every family-* class: dusk, paper, bronze, aurora, atelier,
+   blueprint, botanical, newsprint, zine. */
+html[class*="family-"] .nav-item {
   font-family: var(--f-sans);
   border-left: 2px solid transparent;
   border-radius: 6px;
@@ -125,15 +129,11 @@ html.family-bronze .nav-item {
     background 180ms ease,
     color 180ms ease;
 }
-html.family-dusk .nav-item:hover,
-html.family-paper .nav-item:hover,
-html.family-bronze .nav-item:hover {
+html[class*="family-"] .nav-item:hover {
   background: var(--surface);
   color: var(--ink);
 }
-html.family-dusk .nav-item.active,
-html.family-paper .nav-item.active,
-html.family-bronze .nav-item.active {
+html[class*="family-"] .nav-item.active {
   background: var(--surface);
   color: var(--ink);
   font-weight: 500;
@@ -142,96 +142,62 @@ html.family-bronze .nav-item.active {
 }
 
 /* Entry card hue and shadow discipline — no shadows, just --line + --surface */
-html.family-dusk .entry-card,
-html.family-paper .entry-card,
-html.family-bronze .entry-card {
+html[class*="family-"] .entry-card {
   background: var(--surface);
   border-color: var(--line-soft) !important;
   box-shadow: none !important;
 }
-html.family-dusk .entry-card:hover,
-html.family-paper .entry-card:hover,
-html.family-bronze .entry-card:hover,
-html.family-dusk .entry-card:focus-visible,
-html.family-paper .entry-card:focus-visible,
-html.family-bronze .entry-card:focus-visible {
+html[class*="family-"] .entry-card:hover,
+html[class*="family-"] .entry-card:focus-visible {
   background: var(--surface-high);
   border-color: var(--line) !important;
 }
-html.family-dusk .entry-card--pinned,
-html.family-paper .entry-card--pinned,
-html.family-bronze .entry-card--pinned {
+html[class*="family-"] .entry-card--pinned {
   background: var(--surface-high);
   border-left: 2px solid var(--ember) !important;
 }
 
 /* Kill the synapse-bg and grain — the new design uses ambient motes, not gradients */
-html.family-dusk .synapse-bg,
-html.family-paper .synapse-bg,
-html.family-bronze .synapse-bg,
-html.family-dusk .grain,
-html.family-paper .grain,
-html.family-bronze .grain {
+html[class*="family-"] .synapse-bg,
+html[class*="family-"] .grain {
   display: none !important;
 }
 
 /* Remove heavy glow effects — the new design is quiet */
-html.family-dusk .synapse-glow,
-html.family-paper .synapse-glow,
-html.family-bronze .synapse-glow,
-html.family-dusk .ai-glow,
-html.family-paper .ai-glow,
-html.family-bronze .ai-glow,
-html.family-dusk .nav-glow,
-html.family-paper .nav-glow,
-html.family-bronze .nav-glow,
-html.family-dusk .cta-glow,
-html.family-paper .cta-glow,
-html.family-bronze .cta-glow,
-html.family-dusk .ai-button-glow,
-html.family-paper .ai-button-glow,
-html.family-bronze .ai-button-glow {
+html[class*="family-"] .synapse-glow,
+html[class*="family-"] .ai-glow,
+html[class*="family-"] .nav-glow,
+html[class*="family-"] .cta-glow,
+html[class*="family-"] .ai-button-glow {
   box-shadow: var(--lift-2) !important;
 }
-html.family-dusk .glow-text,
-html.family-paper .glow-text,
-html.family-bronze .glow-text {
+html[class*="family-"] .glow-text {
   text-shadow: none !important;
 }
 
 /* Glass panels → plain surfaces, keep backdrop blur soft */
-html.family-dusk .glass-panel,
-html.family-paper .glass-panel,
-html.family-bronze .glass-panel {
+html[class*="family-"] .glass-panel {
   background: color-mix(in oklch, var(--surface-high) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-html.family-dusk .glass-panel-dark,
-html.family-paper .glass-panel-dark,
-html.family-bronze .glass-panel-dark {
+html[class*="family-"] .glass-panel-dark {
   background: color-mix(in oklch, var(--surface-low) 85%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 /* Headline font utility now pulls the active family serif */
-html.family-dusk .font-headline,
-html.family-paper .font-headline,
-html.family-bronze .font-headline {
+html[class*="family-"] .font-headline {
   font-family: var(--f-serif);
   letter-spacing: -0.015em;
 }
-html.family-dusk .font-body,
-html.family-paper .font-body,
-html.family-bronze .font-body {
+html[class*="family-"] .font-body {
   font-family: var(--f-sans);
 }
 
 /* Body inherits the family fonts */
-html.family-dusk body,
-html.family-paper body,
-html.family-bronze body {
+html[class*="family-"] body {
   font-family: var(--f-sans);
 }
 

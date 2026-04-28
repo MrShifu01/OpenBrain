@@ -1,6 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
-export type DesignVariant = "dusk" | "paper" | "bronze";
+export type DesignVariant =
+  | "dusk"
+  | "paper"
+  | "bronze"
+  | "aurora"
+  | "atelier"
+  | "blueprint"
+  | "botanical"
+  | "newsprint"
+  | "zine";
 export type DesignMode = "light" | "dark";
 
 interface DesignThemeValue {
@@ -15,13 +24,29 @@ const STORAGE_VARIANT = "everion:design:variant";
 const STORAGE_MODE = "everion:design:mode";
 const LEGACY_THEME_KEY = "openbrain_theme";
 
-const VARIANTS: DesignVariant[] = ["dusk", "paper", "bronze"];
+const VARIANTS: DesignVariant[] = [
+  "dusk",
+  "paper",
+  "bronze",
+  "aurora",
+  "atelier",
+  "blueprint",
+  "botanical",
+  "newsprint",
+  "zine",
+];
 const MODES: DesignMode[] = ["light", "dark"];
 
 const VARIANT_DEFAULT_MODE: Record<DesignVariant, DesignMode> = {
   dusk: "dark",
   paper: "light",
   bronze: "dark",
+  aurora: "light",
+  atelier: "light",
+  blueprint: "light",
+  botanical: "light",
+  newsprint: "light",
+  zine: "light",
 };
 
 function loadVariant(): DesignVariant {
@@ -39,9 +64,11 @@ function loadMode(variant: DesignVariant): DesignMode {
   return VARIANT_DEFAULT_MODE[variant];
 }
 
+const FAMILY_CLASSES = VARIANTS.map((v) => `family-${v}`);
+
 function applyToDocument(variant: DesignVariant, mode: DesignMode) {
   const html = document.documentElement;
-  html.classList.remove("family-dusk", "family-paper", "family-bronze");
+  for (const c of FAMILY_CLASSES) html.classList.remove(c);
   html.classList.add(`family-${variant}`);
   html.classList.remove("theme-dark", "theme-light");
   html.classList.add(`theme-${mode}`);
@@ -87,12 +114,24 @@ export const VARIANT_LABEL: Record<DesignVariant, string> = {
   dusk: "Dusk / Vellum",
   paper: "Paper / Ink",
   bronze: "Bronze / Slate",
+  aurora: "Aurora",
+  atelier: "Atelier",
+  blueprint: "Blueprint",
+  botanical: "Botanical",
+  newsprint: "Newsprint",
+  zine: "Zine",
 };
 
 export const VARIANT_BLURB: Record<DesignVariant, string> = {
   dusk: "warm charcoal at night, ivory by day. ember accent. humanist serif.",
   paper: "ivory paper, oxblood ink, sharp corners. editorial, book-like.",
   bronze: "cooler slate, brass accent, monumental serif. architectural.",
+  aurora: "pastel risograph. peach + mint on cream. chunky black outlines.",
+  atelier: "bold editorial. warm cream, terracotta accents, dm serif display.",
+  blueprint: "drafting vellum + cyan ink. graph-paper grid. mono labels.",
+  botanical: "sage + clay + oat paper. soft rounded, organic, calm.",
+  newsprint: "newspaper. all-serif. halftone background. printed rules.",
+  zine: "photocopy aesthetic. xerox black + riso red. chunky, hand-cut.",
 };
 
 export function applyInitialDesignTheme() {

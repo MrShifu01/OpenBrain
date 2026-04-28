@@ -31,12 +31,7 @@
   transform: scale(0.97);
 }
 
-html.theme-dusk body,
-html.theme-paper body,
-html.theme-bronze body,
-html.family-dusk body,
-html.family-paper body,
-html.family-bronze body {
+html[class*="family-"] body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--f-sans);

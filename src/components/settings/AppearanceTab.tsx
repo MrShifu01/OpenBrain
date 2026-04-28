@@ -28,9 +28,55 @@ const VARIANT_SWATCHES: Record<
     ember: "oklch(76% 0.105 82)",
     ink: "oklch(94% 0.012 84)",
   },
+  aurora: {
+    bg: "oklch(96% 0.020 84)",
+    surface: "oklch(93% 0.026 82)",
+    ember: "oklch(78% 0.130 32)",
+    ink: "oklch(20% 0.028 280)",
+  },
+  atelier: {
+    bg: "oklch(95% 0.022 82)",
+    surface: "oklch(91% 0.026 80)",
+    ember: "oklch(58% 0.140 38)",
+    ink: "oklch(18% 0.030 270)",
+  },
+  blueprint: {
+    bg: "oklch(20% 0.060 245)",
+    surface: "oklch(28% 0.062 245)",
+    ember: "oklch(82% 0.140 200)",
+    ink: "oklch(94% 0.020 200)",
+  },
+  botanical: {
+    bg: "oklch(94% 0.020 92)",
+    surface: "oklch(89% 0.024 90)",
+    ember: "oklch(60% 0.110 38)",
+    ink: "oklch(28% 0.040 152)",
+  },
+  newsprint: {
+    bg: "oklch(94% 0.012 88)",
+    surface: "oklch(90% 0.014 86)",
+    ember: "oklch(38% 0.180 28)",
+    ink: "oklch(14% 0.008 60)",
+  },
+  zine: {
+    bg: "oklch(95% 0.008 92)",
+    surface: "oklch(91% 0.012 88)",
+    ember: "oklch(56% 0.220 25)",
+    ink: "oklch(15% 0.005 60)",
+  },
 };
 
-const VARIANTS: DesignVariant[] = ["dusk", "paper", "bronze"];
+const VARIANTS: DesignVariant[] = [
+  "dusk",
+  "paper",
+  "bronze",
+  "aurora",
+  "atelier",
+  "blueprint",
+  "botanical",
+  "newsprint",
+  "zine",
+];
 const MODES: DesignMode[] = ["light", "dark"];
 
 export default function AppearanceTab() {
