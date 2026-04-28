@@ -4,6 +4,11 @@ interface GmailPreferences {
   categories: string[];
   custom: string;
   lookbackDays?: 1 | 7 | 30;
+  // When true (default) the scan ignores the categories pre-filter and
+  // pulls every thread in the lookback window, then clusters ~95% similar
+  // emails into a single review card. Categories below only matter if the
+  // user turns this off (legacy "narrow scan" mode).
+  fetchAll?: boolean;
 }
 
 interface Category {
@@ -82,6 +87,7 @@ export default function GmailSetupModal({
   const [lookbackDays, setLookbackDays] = useState<1 | 7 | 30>(
     initialPreferences?.lookbackDays ?? 7,
   );
+  const [fetchAll, setFetchAll] = useState<boolean>(initialPreferences?.fetchAll ?? true);
   const [saving, setSaving] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customDraft, setCustomDraft] = useState(initialPreferences?.custom ?? "");
@@ -91,7 +97,12 @@ export default function GmailSetupModal({
   }
 
   async function handleSubmit() {
-    const prefs: GmailPreferences = { categories: selected, custom: custom.trim(), lookbackDays };
+    const prefs: GmailPreferences = {
+      categories: selected,
+      custom: custom.trim(),
+      lookbackDays,
+      fetchAll,
+    };
     if (mode === "connect") {
       onConnect?.(prefs);
     } else {
@@ -152,7 +163,7 @@ export default function GmailSetupModal({
           </div>
         </div>
 
-        {/* Hard filters */}
+        {/* Scan mode */}
         <p
           className="f-sans"
           style={{
@@ -164,9 +175,37 @@ export default function GmailSetupModal({
             textTransform: "uppercase",
           }}
         >
-          Hard filters
+          Scan mode
         </p>
-        <div style={{ marginBottom: 4 }}>
+        <ScanModeToggle fetchAll={fetchAll} onChange={setFetchAll} />
+
+        {/* Hard filters */}
+        <p
+          className="f-sans"
+          style={{
+            margin: "14px 0 6px",
+            fontSize: 12,
+            fontWeight: 600,
+            color: fetchAll ? "var(--ink-faint)" : "var(--ink-soft)",
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          Hard filters{" "}
+          {fetchAll && (
+            <span style={{ textTransform: "none", fontWeight: 400, fontStyle: "italic" }}>
+              — ignored in cluster mode
+            </span>
+          )}
+        </p>
+        <div
+          style={{
+            marginBottom: 4,
+            opacity: fetchAll ? 0.45 : 1,
+            pointerEvents: fetchAll ? "none" : "auto",
+            transition: "opacity 180ms",
+          }}
+        >
           {highCats.map((cat) => (
             <CategoryRow
               key={cat.id}
@@ -183,10 +222,12 @@ export default function GmailSetupModal({
             fontSize: 12,
             color: "var(--ink-faint)",
             fontStyle: "italic",
+            opacity: fetchAll ? 0.6 : 1,
           }}
         >
-          Only emails matching a checked type are captured. Untick all to rely solely on your custom
-          rules below.
+          {fetchAll
+            ? "Cluster mode pulls every email and groups ~95% similar messages into one card. Filters above only apply if you switch to narrow scan."
+            : "Only emails matching a checked type are captured. Untick all to rely solely on your custom rules below."}
         </p>
 
         {/* Custom input — collapsible edit panel */}
@@ -402,6 +443,76 @@ export default function GmailSetupModal({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function ScanModeToggle({
+  fetchAll,
+  onChange,
+}: {
+  fetchAll: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  const options: { id: "cluster" | "narrow"; label: string; hint: string; value: boolean }[] = [
+    {
+      id: "cluster",
+      label: "Cluster",
+      hint: "Pull everything, group ~95% similar into one card",
+      value: true,
+    },
+    {
+      id: "narrow",
+      label: "Narrow",
+      hint: "Only emails matching the filters below",
+      value: false,
+    },
+  ];
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      {options.map((opt) => {
+        const active = fetchAll === opt.value;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className="press f-sans"
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
+              background: active ? "var(--ember-wash)" : "var(--surface)",
+              cursor: "pointer",
+              textAlign: "left",
+              transition: "background 150ms, border-color 150ms",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                color: active ? "var(--ember)" : "var(--ink-soft)",
+                marginBottom: 2,
+              }}
+            >
+              {opt.label}
+            </div>
+            <div
+              className="f-serif"
+              style={{
+                fontSize: 11,
+                fontStyle: "italic",
+                color: "var(--ink-faint)",
+                lineHeight: 1.4,
+              }}
+            >
+              {opt.hint}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

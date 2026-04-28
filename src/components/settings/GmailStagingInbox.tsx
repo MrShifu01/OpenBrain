@@ -105,8 +105,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   // the staging UI doesn't block on the network round-trip.
   function recordDecision(entry: any, decision: "accept" | "reject", reason: string | null) {
     const meta = entry?.metadata ?? {};
-    const gmail = meta.gmail ?? {};
-    const fromHeader = String(gmail.from || meta.from || "");
+    const fromHeader = String(meta.gmail_from || meta.from || "");
     const fromEmailMatch = fromHeader.match(/<([^>]+)>/);
     const from_email = fromEmailMatch ? fromEmailMatch[1] : fromHeader;
     const from_name = fromEmailMatch
@@ -115,15 +114,39 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           .trim()
           .replace(/^"|"$/g, "")
       : "";
+
+    // Cluster mode: record one signal that captures the cluster shape so
+    // the distiller learns at the right level of generality. The reason
+    // line includes the cluster size + sender domain + a few member
+    // subjects so the LLM can spot the pattern without being given 50
+    // separate rejection rows for the same kind of email.
+    const cluster = meta.cluster as
+      | { size: number; sender_domain?: string; members?: Array<{ subject: string }> }
+      | undefined;
+    let augmentedSubject = meta.gmail_subject || entry?.title || "";
+    let augmentedSnippet = (entry?.content || "").slice(0, 400);
+    if (cluster?.size && cluster.size > 1) {
+      const memberSubjects =
+        cluster.members
+          ?.slice(0, 5)
+          .map((m) => m.subject)
+          .filter(Boolean)
+          .join(" | ") ?? "";
+      augmentedSubject = `[cluster ×${cluster.size}] ${augmentedSubject}`;
+      augmentedSnippet = `Cluster of ${cluster.size} similar emails from ${
+        cluster.sender_domain || "(unknown)"
+      }. Sample subjects: ${memberSubjects}`;
+    }
+
     authFetch("/api/entries?action=gmail-decision", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         decision,
-        subject: gmail.subject || entry?.title || "",
+        subject: augmentedSubject,
         from_email,
         from_name,
-        snippet: (entry?.content || "").slice(0, 400),
+        snippet: augmentedSnippet,
         reason,
         source_id: entry?.id,
       }),
@@ -166,6 +189,14 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   const meta = (current?.metadata ?? {}) as Record<string, any>;
   const urgency = meta.urgency ?? "low";
   const typeLabel = TYPE_LABELS[current?.type ?? ""] ?? current?.type ?? "Gmail";
+  const cluster = meta.cluster as
+    | {
+        size: number;
+        sender_domain?: string;
+        members?: Array<{ subject: string; from: string; snippet?: string }>;
+      }
+    | undefined;
+  const clusterSize = cluster?.size ?? 0;
   const isParsed = meta.enrichment?.parsed === true;
   const hasInsight = !!meta.ai_insight || meta.enrichment?.has_insight === true;
   const isEmbedded = !!current?.embedded_at;
@@ -387,8 +418,16 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           </span>
         </div>
 
-        {/* Type + urgency */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+        {/* Type + urgency + cluster badge */}
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+            marginBottom: 12,
+            flexWrap: "wrap",
+          }}
+        >
           <span
             style={{
               fontSize: 11,
@@ -402,6 +441,27 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           >
             {typeLabel}
           </span>
+          {clusterSize > 1 && (
+            <span
+              title={
+                cluster?.sender_domain
+                  ? `${clusterSize} similar emails from ${cluster.sender_domain}`
+                  : `${clusterSize} similar emails`
+              }
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: "var(--f-sans)",
+                color: "var(--ember)",
+                background: "var(--ember-wash)",
+                border: "1px solid color-mix(in oklch, var(--ember) 30%, transparent)",
+                borderRadius: 999,
+                padding: "2px 10px",
+              }}
+            >
+              {clusterSize} similar
+            </span>
+          )}
           {urgency !== "low" && (
             <span
               style={{

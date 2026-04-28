@@ -1,5 +1,9 @@
 import { parse as parseHtml } from "node-html-parser";
-import { generateEmbedding, buildEntryText } from "./generateEmbedding.js";
+import {
+  generateEmbedding,
+  generateEmbeddingsBatch,
+  buildEntryText,
+} from "./generateEmbedding.js";
 import { computeCompletenessScore } from "./completeness.js";
 import { storeNotification } from "./mergeDetect.js";
 import { encryptToken, decryptToken } from "./gmailTokenCrypto.js";
@@ -190,14 +194,20 @@ export interface GmailPreferences {
   custom: string;
   lookbackDays?: 1 | 7 | 30;
   minRelevanceScore?: number;
+  // "Fetch everything" mode. When true the scan includes Promotions + Social
+  // and skips the subject-keyword pre-filter entirely. Pairs with cluster
+  // mode in the staging inbox so the user can reject 50 newsletters in one
+  // swipe instead of seeing nothing because none of them matched a keyword.
+  fetchAll?: boolean;
 }
 
 export function defaultPreferences(): GmailPreferences {
   return {
-    categories: ["invoices", "action-required", "subscription-renewal", "appointment", "deadline"],
+    categories: [],
     custom: "",
     lookbackDays: 7,
     minRelevanceScore: 60,
+    fetchAll: true,
   };
 }
 
@@ -300,31 +310,58 @@ const CATEGORY_SUBJECT_KEYWORDS: Record<string, string[]> = {
   "signing-requests": ["sign", "signature", "docusign", "hellosign", "adobe sign"],
 };
 
-// Base exclusions that always apply — spam/trash/chats/calendar noise and the
-// Promotions/Social categories Gmail already classifies as bulk.
-const BASE_EXCLUSIONS =
-  "-in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats -category:promotions -category:social";
+// Hard exclusions that always apply — spam/trash/chats/calendar noise. We
+// USED to also strip Promotions + Social, but that masked 60-80% of most
+// users' inboxes and made cluster mode useless. Those tabs are now opt-in
+// to exclude (see baseExclusions()).
+const HARD_EXCLUSIONS =
+  "-in:spam -in:trash -from:calendar-notification@google.com -from:googlecalendar-noreply@google.com -label:chats";
 
-// Returns the categories to use for filtering/classification.
-// Empty selection always falls back to all known categories so the LLM has
-// positive match criteria. Custom rules are exclusion hints applied on top.
+function baseExclusions(prefs: GmailPreferences): string {
+  // fetchAll === true (default) → include Promotions + Social so the user
+  // can reject newsletter clusters in cluster mode. fetchAll === false
+  // restores the old narrow scan for users who want only Primary tab.
+  if (prefs.fetchAll === false) {
+    return `${HARD_EXCLUSIONS} -category:promotions -category:social`;
+  }
+  return HARD_EXCLUSIONS;
+}
+
+// Returns the categories to use for the LLM classifier.
+// fetchAll mode short-circuits — no narrowing, the cluster step downstream
+// is the only filtering that happens. In legacy mode an empty selection
+// still falls back to all known categories so the classifier has match
+// criteria to cite.
 function getEffectiveCategories(prefs: GmailPreferences): string[] {
+  if (prefs.fetchAll) return Object.keys(CATEGORY_DESCRIPTIONS);
   if (prefs.categories.length > 0) return prefs.categories;
   return Object.keys(CATEGORY_DESCRIPTIONS);
 }
 
-function buildSubjectFilter(categories: string[]): string {
-  const keywords = [...new Set(categories.flatMap((c) => CATEGORY_SUBJECT_KEYWORDS[c] ?? []))];
+// Subject pre-filter that runs at the Gmail API level. fetchAll explicitly
+// emits an empty filter so the user gets EVERY thread in the lookback
+// window, not just keyword matches. Without this, a user who unticked all
+// categories silently saw nothing because the keyword OR-list was still
+// applied via the all-categories fallback.
+function buildSubjectFilter(prefs: GmailPreferences): string {
+  if (prefs.fetchAll) return "";
+  const cats =
+    prefs.categories.length > 0 ? prefs.categories : Object.keys(CATEGORY_SUBJECT_KEYWORDS);
+  const keywords = [...new Set(cats.flatMap((c) => CATEGORY_SUBJECT_KEYWORDS[c] ?? []))];
   if (!keywords.length) return "";
   const parts = keywords.map((k) => (k.includes(" ") ? `"${k}"` : k)).join(" OR ");
   return `subject:(${parts})`;
 }
 
-function buildGmailQuery(sinceMs: number | undefined, subjectFilter: string): string {
+function buildGmailQuery(
+  sinceMs: number | undefined,
+  subjectFilter: string,
+  prefs: GmailPreferences,
+): string {
   const sinceUnix = sinceMs
     ? Math.floor(sinceMs / 1000)
     : Math.floor((Date.now() - 25 * 3600 * 1000) / 1000);
-  const q = `after:${sinceUnix} ${BASE_EXCLUSIONS}`;
+  const q = `after:${sinceUnix} ${baseExclusions(prefs)}`;
   return subjectFilter ? `${q} ${subjectFilter}` : q;
 }
 
@@ -1378,6 +1415,270 @@ function groupBySender(items: ScanResultItem[]): ScanResultItem[] {
   return Array.from(groupMap.values());
 }
 
+// ── Cluster mode (fetchAll) ──────────────────────────────────────────────
+// Groups thread blocks by ~95% semantic similarity so the user reviews
+// "21 newsletters from Substack" as ONE card, not 21. Clustering is two
+// passes: (1) cheap signature match (sender domain + normalised subject),
+// (2) embedding cosine ≥ 0.92 to merge near-duplicates that don't share a
+// signature. The cluster representative is the most-recent thread.
+
+const CLUSTER_COSINE_THRESHOLD = 0.92;
+
+interface ThreadCluster {
+  representative: ThreadBlock;
+  members: ThreadBlock[];
+  signature: { senderDomain: string; subjectNorm: string };
+}
+
+function clusterSignature(block: ThreadBlock): {
+  senderDomain: string;
+  subjectNorm: string;
+} {
+  const fromHeader = block.primary.from || "";
+  const email = extractEmail(fromHeader) || fromHeader;
+  const at = email.indexOf("@");
+  const senderDomain = at >= 0 ? email.slice(at + 1).toLowerCase() : email.toLowerCase();
+  const subjectNorm = (block.primary.subject || "")
+    .toLowerCase()
+    .replace(/^(re|fwd|fw):\s*/gi, "")
+    .replace(/\[[^\]]*\]/g, "") // [ticket #123]
+    .replace(/#\w+/g, "") // #1234
+    .replace(/\d{4,}/g, "") // long numbers
+    .replace(/\s+/g, " ")
+    .trim();
+  return { senderDomain, subjectNorm };
+}
+
+function cosineLocal(a: number[], b: number[]): number {
+  if (!a.length || a.length !== b.length) return 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
+  }
+  if (na === 0 || nb === 0) return 0;
+  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+}
+
+function blockEmbedText(block: ThreadBlock): string {
+  return [
+    block.primary.from || "",
+    block.primary.subject || "",
+    (block.primary.body || "").slice(0, 500),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export async function clusterThreadBlocks(
+  blocks: ThreadBlock[],
+  geminiKey: string,
+): Promise<ThreadCluster[]> {
+  if (blocks.length === 0) return [];
+
+  // Pass 1: signature buckets. Same sender + same normalised subject
+  // collapses immediately without an embedding call.
+  const buckets = new Map<string, ThreadBlock[]>();
+  for (const b of blocks) {
+    const sig = clusterSignature(b);
+    const key = `${sig.senderDomain}::${sig.subjectNorm}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(b);
+  }
+  const initialClusters: ThreadCluster[] = [];
+  for (const list of buckets.values()) {
+    list.sort((a, b) => (b.primary.date || "").localeCompare(a.primary.date || ""));
+    initialClusters.push({
+      representative: list[0]!,
+      members: list,
+      signature: clusterSignature(list[0]!),
+    });
+  }
+
+  // Pass 2: embedding-based merge across signature clusters.
+  // We only embed each cluster's REPRESENTATIVE (not every member) — the
+  // signature pre-clustering already collapsed obvious duplicates so this
+  // call is bounded by unique-signature count, not raw thread count.
+  if (!geminiKey || initialClusters.length < 2) return initialClusters;
+
+  const texts = initialClusters.map((c) => blockEmbedText(c.representative));
+  let embeds: number[][] = [];
+  try {
+    embeds = await generateEmbeddingsBatch(texts, geminiKey);
+  } catch {
+    return initialClusters; // signature-only is still useful
+  }
+
+  const merged: ThreadCluster[] = [];
+  const mergedEmbeds: number[][] = [];
+  for (let i = 0; i < initialClusters.length; i++) {
+    const c = initialClusters[i]!;
+    const e = embeds[i] ?? [];
+    let bestIdx = -1;
+    let bestSim = CLUSTER_COSINE_THRESHOLD;
+    for (let m = 0; m < merged.length; m++) {
+      const sim = cosineLocal(e, mergedEmbeds[m]!);
+      if (sim >= bestSim) {
+        bestSim = sim;
+        bestIdx = m;
+      }
+    }
+    if (bestIdx >= 0) {
+      merged[bestIdx]!.members.push(...c.members);
+    } else {
+      merged.push(c);
+      mergedEmbeds.push(e);
+    }
+  }
+
+  // Sort each cluster's members by date desc; representative stays the latest.
+  for (const c of merged) {
+    c.members.sort((a, b) => (b.primary.date || "").localeCompare(a.primary.date || ""));
+    c.representative = c.members[0]!;
+    c.signature = clusterSignature(c.representative);
+  }
+
+  return merged;
+}
+
+// Persist each cluster as ONE staged entry. The user reviews via the
+// staging inbox: accept rolls the cluster into a kept summary, reject
+// drops it and feeds the rejection signal into gmail_decisions for the
+// classifier to learn from on the next scan.
+export async function persistClusters(
+  integration: any,
+  brainId: string | null,
+  clusters: ThreadCluster[],
+  importedThreadIds: Set<string>,
+  importedMessageIds: Set<string>,
+  importedSubjectFromKeys: Set<string>,
+  geminiKey: string,
+  debug: ScanDebug,
+): Promise<{ created: number }> {
+  let created = 0;
+
+  for (const cluster of clusters) {
+    // Filter members already imported.
+    const fresh = cluster.members.filter((b) => {
+      if (importedThreadIds.has(b.threadId)) return false;
+      if (b.messageIds.some((id) => importedMessageIds.has(id))) return false;
+      const key = `${extractEmail(b.primary.from)}::${normalizeSubject(b.primary.subject)}`;
+      return !importedSubjectFromKeys.has(key);
+    });
+    if (fresh.length === 0) {
+      debug.skippedDuplicates++;
+      continue;
+    }
+
+    // Reserve dedup keys so concurrent runs can't double-stage.
+    for (const b of fresh) {
+      importedThreadIds.add(b.threadId);
+      for (const id of b.messageIds) importedMessageIds.add(id);
+      importedSubjectFromKeys.add(
+        `${extractEmail(b.primary.from)}::${normalizeSubject(b.primary.subject)}`,
+      );
+    }
+
+    const rep = fresh[0]!;
+    const sig = clusterSignature(rep);
+    const size = fresh.length;
+    const title =
+      size > 1
+        ? `${size} from ${sig.senderDomain || "unknown"} — ${rep.primary.subject || "(no subject)"}`.slice(
+            0,
+            120,
+          )
+        : (rep.primary.subject || "(no subject)").slice(0, 120);
+
+    // Content shows the representative snippet plus a list of the other
+    // member subjects so the user can verify before accepting.
+    const repBody = (rep.primary.body || "").slice(0, 400);
+    const otherSubjects = fresh
+      .slice(1, 6)
+      .map((b) => `• ${b.primary.subject || "(no subject)"}`)
+      .join("\n");
+    const content = [
+      repBody,
+      size > 1 ? `\n\n— ${size - 1} similar email${size - 1 === 1 ? "" : "s"}:\n${otherSubjects}` : "",
+      size > 6 ? `\n…and ${size - 6} more` : "",
+    ]
+      .filter(Boolean)
+      .join("");
+
+    const metadata: Record<string, any> = {
+      source: "gmail",
+      gmail_thread_id: rep.threadId,
+      gmail_message_id: rep.primary.id,
+      gmail_from: rep.primary.from,
+      gmail_subject: rep.primary.subject,
+      gmail_date: rep.primary.date,
+      gmail_participants: rep.participants,
+      cluster: {
+        size,
+        sender_domain: sig.senderDomain,
+        subject_norm: sig.subjectNorm,
+        members: fresh.map((b) => ({
+          thread_id: b.threadId,
+          message_id: b.primary.id,
+          subject: b.primary.subject,
+          from: b.primary.from,
+          snippet: (b.primary.body || "").slice(0, 200),
+        })),
+      },
+      enrichment: { parsed: false },
+    };
+
+    const entry: Record<string, any> = {
+      user_id: integration.user_id,
+      title,
+      content,
+      type: "gmail",
+      tags: ["gmail", "cluster"],
+      metadata,
+      status: "staged",
+    };
+    if (brainId) entry.brain_id = brainId;
+
+    const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
+      method: "POST",
+      headers: { ...SB_HEADERS, Prefer: "return=representation" },
+      body: JSON.stringify(entry),
+    });
+    if (!insertRes.ok) {
+      debug.insertErrors++;
+      continue;
+    }
+    const rows: any[] = await insertRes.json();
+    const inserted = rows[0];
+    if (!inserted) continue;
+    created++;
+    debug.created++;
+
+    // Fire-and-forget embedding for the cluster summary.
+    if (inserted?.id && geminiKey) {
+      generateEmbedding(buildEntryText({ title, content, tags: ["gmail", "cluster"] }), geminiKey)
+        .then((vec) =>
+          fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(inserted.id)}`, {
+            method: "PATCH",
+            headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+            body: JSON.stringify({
+              embedding: `[${vec.join(",")}]`,
+              embedded_at: new Date().toISOString(),
+              embedding_provider: "google",
+              embedding_status: "done",
+            }),
+          }),
+        )
+        .catch((err) => console.error(`[gmail-cluster:embed] entry ${inserted.id}:`, err));
+    }
+  }
+
+  return { created };
+}
+
 // ── Public: deep (cursor-paged) scan — used for historical back-fill ────────
 
 interface DeepScanResult {
@@ -1405,9 +1706,12 @@ export async function deepScanBatch(
     };
 
   const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
-  const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
-  const subjectFilter = buildSubjectFilter(getEffectiveCategories(prefs));
-  const query = buildGmailQuery(params.sinceMs, subjectFilter);
+  // Merge with defaults so existing users (whose saved preferences predate
+  // fetchAll) inherit the new "scan everything + cluster" default without
+  // having to re-edit. They can still flip it off in the prefs modal.
+  const prefs: GmailPreferences = { ...defaultPreferences(), ...(integration.preferences ?? {}) };
+  const subjectFilter = buildSubjectFilter(prefs);
+  const query = buildGmailQuery(params.sinceMs, subjectFilter, prefs);
 
   // Deep-scan uses polling (time-based) so it can target a historical window.
   const { refs, nextPageToken, resultSizeEstimate } = await fetchMessageList(
@@ -1511,8 +1815,11 @@ export async function scanGmailForUser(
       return { created: 0, debug, entries: [] };
     }
 
-    const prefs: GmailPreferences = integration.preferences ?? defaultPreferences();
-    const subjectFilter = buildSubjectFilter(getEffectiveCategories(prefs));
+    // Merge with defaults so existing users (whose saved preferences predate
+  // fetchAll) inherit the new "scan everything + cluster" default without
+  // having to re-edit. They can still flip it off in the prefs modal.
+  const prefs: GmailPreferences = { ...defaultPreferences(), ...(integration.preferences ?? {}) };
+    const subjectFilter = buildSubjectFilter(prefs);
 
     // Resolve the message list:
     //  1. Manual scans OR no history_id → polling (time-based, honours subject filter)
@@ -1539,7 +1846,7 @@ export async function scanGmailForUser(
         integration.last_scanned_at && !manual
           ? new Date(integration.last_scanned_at).getTime()
           : Date.now() - days * 86_400_000;
-      const query = buildGmailQuery(sinceMs, subjectFilter);
+      const query = buildGmailQuery(sinceMs, subjectFilter, prefs);
       debug.sinceDate = new Date(sinceMs).toISOString();
       debug.syncMode = "polling";
       const { refs: polled, resultSizeEstimate } = await fetchMessageList(
@@ -1633,6 +1940,41 @@ export async function scanGmailForUser(
     }
 
     const geminiKey = (process.env.GEMINI_API_KEY ?? "").trim();
+
+    // ── fetchAll mode: skip the LLM classifier entirely. Cluster every
+    // thread by ~95% semantic similarity, stage one entry per cluster.
+    // The user reviews via the staging inbox; rejected clusters teach
+    // the next scan via gmail_decisions. The classifier only runs in
+    // legacy mode (fetchAll === false) where the categories pre-filter
+    // narrows the corpus first.
+    if (prefs.fetchAll) {
+      const clusters = await clusterThreadBlocks(usableBlocks, geminiKey);
+      debug.classifierUsed = "cluster";
+      debug.classifierModel = "gemini-embedding-001";
+      debug.classified = clusters.length;
+      const { created } = await persistClusters(
+        integration,
+        brainId,
+        clusters,
+        importedThreadIds,
+        importedMessageIds,
+        importedSubjectFromKeys,
+        geminiKey,
+        debug,
+      );
+      const totalMembers = clusters.reduce((acc, c) => acc + c.members.length, 0);
+      storeNotification(
+        integration.user_id,
+        "gmail_scan",
+        "Gmail scan finished",
+        created > 0
+          ? `Staged ${created} cluster${created === 1 ? "" : "s"} (${totalMembers} email${totalMembers === 1 ? "" : "s"}). Open inbox to review.`
+          : "No new emails to review.",
+        { created, members: totalMembers },
+      ).catch(() => {});
+      return { created, debug, entries: [] };
+    }
+
     const learnings = await loadGmailLearnings(integration.user_id, integration);
     const prompt = buildPrompt(usableBlocks, prefs, learnings);
     let classified: any[];
