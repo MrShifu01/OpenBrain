@@ -42,7 +42,8 @@ export interface ExtractorContext {
   pronouns: string;
   coreContext: string; // the free-form "About you" textarea
   confirmedFacts: string[]; // titles of manual / chat / pinned facts (capped)
-  rejectedFacts: Array<{ title: string; reason: string | null }>; // user-rejected — teach the model
+  rejectedFacts: Array<{ title: string; reason: string | null }>; // recent N — concrete examples
+  rejectedSummary: string | null; // LLM-distilled skip rules — bounded, long-term memory
 }
 
 const VALID_BUCKETS = new Set<PersonaBucket>([
@@ -61,9 +62,11 @@ const MAX_FACTS_PER_ENTRY = 6;
 // Cap for the "already confirmed" list — long enough to cover the average
 // user's About You, short enough that it doesn't blow the prompt budget.
 const MAX_CONFIRMED_IN_PROMPT = 50;
-// Cap for rejected facts — keep last N most-recently rejected. Reasons matter
-// more than count: 20 well-reasoned rejections teach better than 100 unannotated.
-const MAX_REJECTED_IN_PROMPT = 20;
+// Cap for SPECIFIC rejected facts — only the most recent few, kept for
+// concreteness ("you literally rejected this last week"). The bulk of
+// long-term learning lives in rejected_summary, an LLM-distilled set of
+// 5-10 short skip rules that doesn't grow with rejection count.
+const MAX_REJECTED_IN_PROMPT = 5;
 
 interface GeminiResponse {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -100,18 +103,26 @@ export function buildPrompt(ctx: ExtractorContext): string {
         .join("\n")}`
     : "";
 
-  // Rejected facts teach the model the user's personal definition of
-  // "persona-worthy". Two facts can both be true about the user; only one
-  // belongs in the chat preamble. Reasons turn the stop-list into a judgment
-  // teacher — apply the same rule to similar entries, not just exact matches.
-  const rejectedBlock = ctx.rejectedFacts.length
-    ? `\n\nREJECTED PATTERNS — the user has explicitly said these are NOT defining their identity. Do NOT extract anything semantically similar; apply the same judgment to entries of the same shape:\n${ctx.rejectedFacts
+  // Rejected patterns teach the model the user's personal definition of
+  // "persona-worthy". Two parts:
+  //   1. rejectedSummary — LLM-distilled rules. Bounded, generalizes well,
+  //      doesn't grow with rejection count. Refreshed weekly.
+  //   2. rejectedFacts (last 5) — concrete recent examples. Anchors the
+  //      rules to literal, recent-memory cases the user just rejected.
+  const rejectedSummaryBlock = ctx.rejectedSummary
+    ? `\n\nREJECTED PATTERNS (rules the user has taught us — apply these as judgment, not as a literal stop-list):\n${ctx.rejectedSummary.slice(0, 1500)}`
+    : "";
+
+  const rejectedExamplesBlock = ctx.rejectedFacts.length
+    ? `\n\nRECENT SPECIFIC REJECTIONS (the last few literal facts the user said are NOT them — never re-extract these or anything semantically similar):\n${ctx.rejectedFacts
         .slice(0, MAX_REJECTED_IN_PROMPT)
         .map(
           (r) => `  • "${r.title}"${r.reason ? ` — reason: "${r.reason.slice(0, 160)}"` : ""}`,
         )
         .join("\n")}`
     : "";
+
+  const rejectedBlock = `${rejectedSummaryBlock}${rejectedExamplesBlock}`;
 
   return `You read a single captured entry and extract durable, third-person facts about WHO THE USER IS. Each extracted fact is injected into every future chat so the assistant "knows" the user without being told again.
 
@@ -164,6 +175,7 @@ interface PersonaCoreRow {
   pronouns: string | null;
   context: string | null;
   enabled: boolean | null;
+  rejected_summary: string | null;
 }
 
 interface PersonaEntryRow {
@@ -182,6 +194,7 @@ export async function loadExtractorContext(
     coreContext: "",
     confirmedFacts: [],
     rejectedFacts: [],
+    rejectedSummary: null,
   };
   if (!SB_URL || !userId) return empty;
 
@@ -189,7 +202,7 @@ export async function loadExtractorContext(
   let core: PersonaCoreRow | undefined;
   try {
     const r = await fetch(
-      `${SB_URL}/rest/v1/user_personas?user_id=eq.${encodeURIComponent(userId)}&select=full_name,preferred_name,pronouns,context,enabled&limit=1`,
+      `${SB_URL}/rest/v1/user_personas?user_id=eq.${encodeURIComponent(userId)}&select=full_name,preferred_name,pronouns,context,enabled,rejected_summary&limit=1`,
       { headers: sbHeaders() },
     );
     if (r.ok) {
@@ -254,6 +267,7 @@ export async function loadExtractorContext(
     coreContext: (core?.context || "").trim(),
     confirmedFacts,
     rejectedFacts,
+    rejectedSummary: (core?.rejected_summary || "").trim() || null,
   };
 }
 

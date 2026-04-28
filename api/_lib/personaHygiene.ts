@@ -110,8 +110,23 @@ export async function runPersonaDecayPass(): Promise<{
 export async function runPersonaWeeklyPass(): Promise<{
   dedups_proposed: number;
   digests_written: number;
+  rejected_summaries_written: number;
 }> {
-  const stats = { dedups_proposed: 0, digests_written: 0 };
+  const stats = {
+    dedups_proposed: 0,
+    digests_written: 0,
+    rejected_summaries_written: 0,
+  };
+
+  // Distill the rejected pool into bounded skip rules. Runs first so the
+  // refreshed summary is in place before any UI poll. Failures are non-fatal.
+  try {
+    const { distillRejectedForAllUsers } = await import("./distillRejected.js");
+    const distill = await distillRejectedForAllUsers();
+    stats.rejected_summaries_written = distill.summaries_written;
+  } catch (e) {
+    console.error("[persona/weekly] distill rejected failed:", e);
+  }
 
   // Pull all active persona entries with embeddings, group by brain.
   const r = await fetch(

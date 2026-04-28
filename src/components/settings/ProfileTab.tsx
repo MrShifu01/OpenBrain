@@ -597,6 +597,15 @@ export default function ProfileTab() {
         body: JSON.stringify({ id, tags: newTags, metadata: newMeta }),
       });
       await reloadFacts();
+      // Auto-distill the rejected pool every 20 rejections so the prompt's
+      // skip rules stay current without the user having to remember to hit
+      // "Distill now". Fire-and-forget — failures show up next weekly run.
+      const rejectedCount = facts.filter(
+        (x) => x.metadata?.status === "rejected" || x.id === id,
+      ).length;
+      if (rejectedCount > 0 && rejectedCount % 20 === 0) {
+        authFetch("/api/entries?action=distill-rejected", { method: "POST" }).catch(() => {});
+      }
     } catch (e: any) {
       setFactsError(e?.message || "Could not mark as not-me");
     }
@@ -1992,6 +2001,7 @@ interface PersonaPromptPayload {
     coreContext: string;
     confirmedFacts: string[];
     rejectedFacts: Array<{ title: string; reason: string | null }>;
+    rejectedSummary: string | null;
   };
   prompt: string;
 }
@@ -2008,6 +2018,8 @@ function PersonaPromptDebug({
   const [err, setErr] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const [collapsed, setCollapsed] = useState(true);
+  const [distilling, setDistilling] = useState(false);
+  const [distillMsg, setDistillMsg] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -2031,6 +2043,29 @@ function PersonaPromptDebug({
   useEffect(() => {
     if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
   }, [collapsed, brainId, refreshKey]);
+
+  async function distill() {
+    setDistilling(true);
+    setDistillMsg(null);
+    try {
+      const r = await authFetch("/api/entries?action=distill-rejected", { method: "POST" });
+      const json = await r.json().catch(() => null);
+      if (!r.ok || !json?.ok) {
+        setDistillMsg(`Failed: ${json?.reason ?? `HTTP ${r.status}`}`);
+        return;
+      }
+      setDistillMsg(
+        json.summary
+          ? `Distilled ${json.count} rejections into new rules.`
+          : `${json.count} rejections — too few to distill yet.`,
+      );
+      await load();
+    } catch (e: any) {
+      setDistillMsg(`Failed: ${String(e?.message ?? e)}`);
+    } finally {
+      setDistilling(false);
+    }
+  }
 
   return (
     <div
@@ -2145,10 +2180,93 @@ function PersonaPromptDebug({
                 emptyText="None yet — facts confirmed via chat or pinned will appear here."
               />
 
+              <div>
+                <div
+                  className="f-sans"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                    color: "var(--ink-faint)",
+                    marginBottom: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <span>Distilled skip rules</span>
+                  <button
+                    type="button"
+                    onClick={distill}
+                    disabled={distilling}
+                    className="press f-sans"
+                    style={{
+                      height: 22,
+                      padding: "0 8px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: "0.04em",
+                      textTransform: "uppercase",
+                      borderRadius: 999,
+                      background: "var(--ember-wash)",
+                      color: "var(--ember)",
+                      border: "1px solid color-mix(in oklch, var(--ember) 30%, transparent)",
+                      cursor: distilling ? "wait" : "pointer",
+                    }}
+                  >
+                    {distilling ? "Distilling…" : "Distill now"}
+                  </button>
+                  {distillMsg && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 500,
+                        textTransform: "none",
+                        letterSpacing: 0,
+                        color: distillMsg.startsWith("Failed")
+                          ? "var(--blood)"
+                          : "var(--ink-faint)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {distillMsg}
+                    </span>
+                  )}
+                </div>
+                {data.context.rejectedSummary ? (
+                  <pre
+                    className="f-mono"
+                    style={{
+                      margin: 0,
+                      padding: 10,
+                      background: "var(--surface)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: "var(--ink-soft)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {data.context.rejectedSummary}
+                  </pre>
+                ) : (
+                  <div
+                    className="f-serif"
+                    style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+                  >
+                    No distilled summary yet — happens automatically after ~20 rejections, or click{" "}
+                    <em>Distill now</em>.
+                  </div>
+                )}
+              </div>
+
               <DebugRejectedList
-                label={`Rejected patterns the model now skips (${data.context.rejectedFacts.length})`}
+                label={`Recent specific rejections (${data.context.rejectedFacts.length})`}
                 items={data.context.rejectedFacts}
-                emptyText="Nothing rejected yet. Mark facts as Not me and they appear here — the next scan will skip anything similar."
+                emptyText="No recent rejections. Mark facts as Not me and the most recent few appear here as concrete examples for the prompt."
               />
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

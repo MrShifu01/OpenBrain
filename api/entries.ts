@@ -13,6 +13,7 @@ import {
 } from "./_lib/enrich.js";
 import { flagsOf } from "./_lib/enrichFlags.js";
 import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
+import { distillRejectedForUser } from "./_lib/distillRejected.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
@@ -47,6 +48,8 @@ export default withAuth(
       return handleWipePersonaExtracted(ctx);
     if (ctx.req.method === "POST" && action === "audit-persona") return handleAuditPersona(ctx);
     if (ctx.req.method === "GET" && action === "persona-prompt") return handlePersonaPrompt(ctx);
+    if (ctx.req.method === "POST" && action === "distill-rejected")
+      return handleDistillRejected(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill")
       return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")
@@ -596,6 +599,16 @@ async function handlePersonaPrompt({ req, res, user }: HandlerContext): Promise<
   const ctx = await loadExtractorContext(user.id, brain_id);
   const prompt = buildPrompt(ctx);
   res.status(200).json({ context: ctx, prompt });
+}
+
+// ── POST /api/entries?action=distill-rejected — admin only ──
+// On-demand refresh of the user's rejected-pattern summary. Same logic that
+// runs weekly via runPersonaWeeklyPass, but exposed here so the admin can
+// watch the summary update in real time after rejecting new facts.
+async function handleDistillRejected({ res, user }: HandlerContext): Promise<void> {
+  if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
+  const result = await distillRejectedForUser(user.id);
+  res.status(result.ok ? 200 : 502).json(result);
 }
 
 function isAdminUser(user: { email?: string }): boolean {
