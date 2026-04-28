@@ -58,19 +58,19 @@ const sbHost = (() => {
 })();
 console.log(`[test-push] sb host: ${sbHost} · key prefix: ${keyPrefix}… (len=${SB_KEY.length})`);
 
-// Find the user by email.
+// Find the user.
 //
-// First try a filtered lookup (GoTrue ≥ 2.96 supports `?filter=email.eq.X`).
-// This pushes the WHERE down to the database so we don't iterate all users —
-// works around the "Database error finding users" 500 the paginated listUsers
-// endpoint returns when one of the rows in auth.users is malformed.
-//
-// Fall back to paginated listing if the filtered route returns 4xx (older
-// GoTrue) so the script still works on stale projects.
-console.log(`[test-push] looking up user by email: ${TARGET_EMAIL}`);
+// listUsers (paginated) is broken on this project — returns "Database error
+// finding users" 500. The paginated SELECT trips on a bad row in auth.users
+// somewhere. Two routes that DO work:
+//   1. /admin/users/{id}          — direct lookup by UUID (cheapest, surest)
+//   2. /admin/users?filter=<text> — GoTrue's partial-match filter (substring)
+// Try ID first if TEST_PUSH_USER_ID / ADMIN_USER_ID provided, else partial
+// filter using the local-part of the email.
+
+console.log(`[test-push] looking up user`);
 
 async function fetchOnce(url) {
-  // Single retry on 5xx — auth-admin occasionally has transient blips.
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const r = await fetch(url, { headers: adminHdrs });
     if (r.ok) return { ok: true, data: await r.json().catch(() => null) };
@@ -86,39 +86,36 @@ async function fetchOnce(url) {
 }
 
 let user = null;
+const userIdHint = (process.env.TEST_PUSH_USER_ID || process.env.ADMIN_USER_ID || "").trim();
 
-const filterUrl = `${SB_URL}/auth/v1/admin/users?filter=${encodeURIComponent(`email.eq.${TARGET_EMAIL}`)}`;
-const filtered = await fetchOnce(filterUrl);
-if (filtered.ok) {
+if (userIdHint) {
+  console.log(`[test-push] direct lookup by id: ${userIdHint}`);
+  const r = await fetchOnce(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(userIdHint)}`);
+  if (r.ok) user = r.data;
+  else console.log(`[test-push] id lookup failed (HTTP ${r.status}) — falling back to filter`);
+}
+
+if (!user) {
+  // GoTrue's filter is a partial-match against email/phone — not PostgREST
+  // syntax. Use the part before @ so it actually matches.
+  const localPart = TARGET_EMAIL.split("@")[0] || TARGET_EMAIL;
+  const filterUrl = `${SB_URL}/auth/v1/admin/users?filter=${encodeURIComponent(localPart)}`;
+  console.log(`[test-push] filter lookup (partial): ${localPart}`);
+  const filtered = await fetchOnce(filterUrl);
+  if (!filtered.ok) {
+    fail(
+      `admin users HTTP ${filtered.status}: ${(filtered.body || "").slice(0, 300)}\n` +
+        `  Both ID + filter routes failed. Add ADMIN_USER_ID to GitHub Secrets ` +
+        `(it's a UUID, get it from Supabase Dashboard → Authentication → Users).`,
+    );
+  }
   const users = Array.isArray(filtered.data?.users) ? filtered.data.users : [];
   user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
   if (!user && users.length === 1) user = users[0];
 }
 
-if (!user) {
-  // Pagination fallback.
-  console.log(`[test-push] filter route gave nothing — falling back to paginated listing`);
-  let page = 1;
-  while (page < 50) {
-    const paged = await fetchOnce(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`);
-    if (!paged.ok) {
-      fail(
-        `admin users HTTP ${paged.status}: ${(paged.body || "").slice(0, 300)}\n` +
-          `  Both filtered + paginated listUsers failed. This is usually a Supabase backend ` +
-          `issue (one of your auth.users rows has malformed JSON in raw_user_meta_data). ` +
-          `Workaround: in Supabase dashboard → Authentication → Users → find any user with ` +
-          `weird metadata and clean it. Or add ADMIN_USER_ID to GH secrets so we look up by ID.`,
-      );
-    }
-    const users = Array.isArray(paged.data?.users) ? paged.data.users : [];
-    user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
-    if (user) break;
-    if (users.length < 50) break;
-    page += 1;
-  }
-}
-
-if (!user) fail(`no user found with email ${TARGET_EMAIL}`);
+if (!user) fail(`no user found for ${TARGET_EMAIL}`);
+console.log(`[test-push] found user ${user.id}`);
 console.log(`[test-push] found user ${user.id}`);
 
 const meta = user.user_metadata ?? {};
