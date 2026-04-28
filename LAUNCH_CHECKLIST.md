@@ -187,6 +187,63 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 
 ---
 
+## Owner-only tasks (Christian's flat to-do list)
+
+Distilled from the rest of the file. **Only items that require Christian — clicking dashboard buttons, paying for things, talking to humans, making business decisions.** Code work is tracked in the sections above. Updated 2026-04-28.
+
+### 🚨 Before public launch (P0 — ordered by impact)
+
+- [ ] **Upgrade Supabase to Pro** ($25/mo). No backups exist on Free tier. <https://supabase.com/dashboard/project/wfvoqpdfzkqnenzjxhui/settings/billing>
+- [ ] **Upgrade Vercel to Hobby → Pro** ($20/mo). Hobby times out functions at 60s; `vercel.json` already requests 300s.
+- [ ] **Add `SUPABASE_DB_URL` secret to GitHub repo**. Settings → Secrets and variables → Actions → New secret. Get the URI from Supabase → Project Settings → Database → Connection string → URI (Session pooler, port **5432** not 6543). This activates the daily DIY backup workflow until Pro is on.
+- [ ] **Trigger first DB backup**: `gh workflow run db-backup.yml` then `gh release list` to confirm `backup-2026-04-28` lands.
+- [ ] **Rotate keys** exposed in any AI/chat session: Resend, Groq, Upstash REST token, CRON_SECRET, VAPID private key. Don't rotate Supabase keys mid-launch (logs everyone out).
+- [ ] **Configure Sentry alerts** — 3 rules from `docs/launch-runbook-alerts-and-dns.md`: error-rate spike (>10/min), new issue type, slow `/api/llm`+`/api/capture` p95. ~5 min.
+- [ ] **Confirm SSL grade A** on <https://www.ssllabs.com/ssltest/analyze.html?d=everion.smashburgerbar.co.za>.
+- [ ] **Confirm DNS A + AAAA records** for `everion.smashburgerbar.co.za`. Dig from a public resolver: `nslookup everion.smashburgerbar.co.za 1.1.1.1`.
+- [ ] **Configure Resend SPF / DKIM / DMARC** for `noreply@everion.smashburgerbar.co.za`. Records in <https://resend.com/domains>; paste into your DNS provider for `smashburgerbar.co.za`. Verify at <https://www.mail-tester.com> — aim for 10/10.
+- [ ] **Customer support channel**: forward `support@everion.smashburgerbar.co.za` to your inbox. Add the link in app footer.
+
+### 💳 Stripe (only if billing is part of launch)
+
+- [ ] **Configure live Stripe products**: copy product IDs from live mode into `STRIPE_STARTER_PRICE_ID`, `STRIPE_PRO_PRICE_ID`, etc. in Vercel env vars.
+- [ ] **Wire Stripe live webhook signing secret** into `STRIPE_WEBHOOK_SECRET` (Vercel env). Different from test mode secret.
+- [ ] **SA VAT decision**: register for VAT if you'll cross R1M/year, use Stripe Tax. If not, document the call.
+- [ ] **End-to-end subscription cancellation test**: subscribe → portal → cancel → confirm webhook → DB updates → user sees correct state.
+
+### 📊 Weekly roll-up email setup
+
+Eight GitHub Actions secrets to add (Settings → Secrets and variables → Actions). Detailed in the Telemetry section above. ~10 min if API portals cooperate.
+
+- [ ] `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`
+- [ ] `POSTHOG_API_KEY`, `POSTHOG_PROJECT_ID`
+- [ ] `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`
+- [ ] `RESEND_API_KEY` (duplicate from Vercel env)
+- [ ] `WEEKLY_REPORT_TO` (your email)
+- [ ] **Dry-run** the first send with stdout-only mode, eyeball numbers, then flip to live.
+
+### 👥 People stuff (P0 + P1 — cannot be delegated)
+
+- [ ] **Onboarding test with 3 strangers** — friends/family who haven't seen the app. Have them screen-record while you watch silently, no coaching. Single highest-value pre-launch task. Today/this week.
+- [ ] **Real-device QA pass**: real iPhone Safari, real Android Chrome, Windows Chrome + Firefox, Mac Safari + Chrome. PWA install flow on each. ~1 hr.
+- [ ] **Co-admin on every dashboard** (bus factor): Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min/provider × 8 = 80 min total.
+- [ ] **Optional but cheap insurance**: 30-min legal review of `src/views/PrivacyPolicy.tsx` + `src/views/TermsOfService.tsx` drafts before launch. Plain English drafts exist; lawyer-vet for ZAR-jurisdiction.
+
+### 🔗 Visibility (small but high-leverage)
+
+- [ ] **Pin `/status` link** in landing-page footer + login screen "having trouble?" link + support email signature. Page exists at `https://everion.smashburgerbar.co.za/status` — currently nobody can find it during an outage.
+
+### 🗓️ One-time then quarterly
+
+- [ ] **Test the Supabase backup restore once** — see "Test Supabase backup restore" item above for the 15-min procedure. Repeat every 90 days.
+
+### 🔋 Performance (do once before launch)
+
+- [ ] **Run Lighthouse on production**: target ≥90 Performance, ≥95 Accessibility, ≥95 Best Practices, ≥95 SEO. Fix anything red. Mobile + desktop both. (Weekly synthetic audit already running, but eyeball the numbers once before opening signups.)
+- [ ] **Bundle-size eyeball**: `npm run build`, look at `dist/assets/`. If main chunk >500 KB gzipped, lazy-load more views.
+
+---
+
 ## What to do this week, in order
 
 1. **Onboarding stranger test** — 3 people, this week, before another line of code. _Cannot be delegated to Claude — needs Christian to recruit._
