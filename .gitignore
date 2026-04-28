@@ -50,6 +50,15 @@ scripts/mock-prompt-audit/
 # Graphify build artifacts
 graphify-out/
 .graphify_chunk_*.json
+
+# Generated lighthouse reports (run on demand, not source)
+.lighthouse-*
+
+# Supabase CLI scratch (project link cache, not credentials but still ephemeral)
+supabase/.temp/
+
+# Walkthrough screenshots — regenerated on demand
+screenshots/walkthrough-*
 .graphify_detect.json
 .graphify_python
 
