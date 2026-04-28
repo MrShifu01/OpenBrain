@@ -57,22 +57,263 @@ import SettingsRow, { SettingsButton, SettingsToggle } from "./settings/Settings
 const cardClasses = "design-card"; // legacy placeholder — unused now
 const labelClasses = "text-[13px] font-bold text-on-surface m-0 mb-0.5";
 const subClasses = "text-[11px] text-on-surface-variant m-0 mb-3";
-const inputStyle: React.CSSProperties = {
+
+// ── Shared styled controls ──────────────────────────────────────────────
+//
+// Native <input type="time"> renders very differently across browsers and
+// OS skins (especially iOS Safari) and clashes with the rest of the app.
+// We strip native chrome with appearance:none and use our design tokens
+// so every control here looks like part of the same family — same height,
+// same border, same ember focus ring, same fonts.
+
+const fieldStyle: React.CSSProperties = {
   padding: "0 12px",
-  height: 36,
+  height: 38,
   background: "var(--surface-low)",
-  border: "1px solid var(--line)",
-  borderRadius: 8,
+  border: "1px solid var(--line-soft)",
+  borderRadius: 10,
   color: "var(--ink)",
   fontFamily: "var(--f-sans)",
   fontSize: 13,
+  fontWeight: 500,
   outline: "none",
+  transition: "border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
 };
 
-// Time + timezone controls for the daily prompt. Auto-detected timezone
-// is shown read-only by default; "Change" reveals an editable input for
-// users who want to lock to a specific zone regardless of where their
-// device is. Mirrors the existing Quiet-nudge layout.
+// Stripped-native <select> with our chevron baked in via background-image.
+// Looks identical across Chrome, Safari, Firefox, iOS — and on mobile the
+// OS still shows its native picker when tapped, which is what users want.
+function StyledSelect({
+  value,
+  onChange,
+  children,
+  width,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: React.ReactNode;
+  width?: number | string;
+  ariaLabel?: string;
+}): JSX.Element {
+  return (
+    <select
+      aria-label={ariaLabel}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="press"
+      style={{
+        ...fieldStyle,
+        width: width ?? "auto",
+        appearance: "none",
+        WebkitAppearance: "none",
+        MozAppearance: "none",
+        paddingRight: 32,
+        cursor: "pointer",
+        backgroundImage:
+          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1L5 5L9 1' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 12px center",
+        backgroundSize: "10px 6px",
+      }}
+    >
+      {children}
+    </select>
+  );
+}
+
+// 24 hour options shown in localized 12-hour format ("8:00 PM") but stored
+// as "HH:00". Cron is hourly, so this matches the actual resolution; minute
+// precision in the UI would lie about when notifications actually fire.
+const HOURS = Array.from({ length: 24 }, (_, h) => {
+  const period = h < 12 ? "AM" : "PM";
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return {
+    value: String(h).padStart(2, "0") + ":00",
+    label: `${display}:00 ${period}`,
+  };
+});
+
+function HourSelect({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ariaLabel?: string;
+}): JSX.Element {
+  // Normalize "20:00" or "20:30" to nearest hour bucket so the select shows
+  // a matching option (DB might still hold a legacy minute-level value).
+  const hourOnly = (value || "20:00").split(":")[0].padStart(2, "0") + ":00";
+  return (
+    <StyledSelect value={hourOnly} onChange={onChange} width={140} ariaLabel={ariaLabel}>
+      {HOURS.map((h) => (
+        <option key={h.value} value={h.value}>
+          {h.label}
+        </option>
+      ))}
+    </StyledSelect>
+  );
+}
+
+function DaySelect({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ariaLabel?: string;
+}): JSX.Element {
+  return (
+    <StyledSelect value={value} onChange={onChange} width={140} ariaLabel={ariaLabel}>
+      {DAYS_OF_WEEK.map((d) => (
+        <option key={d} value={d}>
+          {d.charAt(0).toUpperCase() + d.slice(1)}
+        </option>
+      ))}
+    </StyledSelect>
+  );
+}
+
+// Pretty timezone chip. Auto-detected by default — read-only with a Change
+// pill that flips to an editable input. Avoids the bare text field that
+// looked like a stray bug-report form.
+function TimezoneField({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  ariaLabel?: string;
+}): JSX.Element {
+  const detected = detectTimezone();
+  const usingDetected = value === detected;
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <div style={{ display: "flex", gap: 6, alignItems: "stretch" }}>
+        <input
+          aria-label={ariaLabel}
+          type="text"
+          value={value}
+          autoFocus
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={() => setEditing(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === "Escape") setEditing(false);
+          }}
+          placeholder="e.g. Europe/London"
+          style={{ ...fieldStyle, flex: 1, minWidth: 180 }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            onChange(detected);
+            setEditing(false);
+          }}
+          className="press"
+          style={{
+            ...fieldStyle,
+            padding: "0 14px",
+            color: "var(--ember)",
+            background: "transparent",
+            border: "1px solid var(--line-soft)",
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          Reset
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      aria-label={ariaLabel}
+      className="press"
+      style={{
+        ...fieldStyle,
+        flex: 1,
+        minWidth: 200,
+        cursor: "pointer",
+        textAlign: "left",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        justifyContent: "space-between",
+      }}
+    >
+      <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        {usingDetected && (
+          <span
+            aria-hidden
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: "var(--ember)",
+              flexShrink: 0,
+            }}
+          />
+        )}
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {value || detected}
+        </span>
+      </span>
+      <span style={{ fontSize: 11, color: "var(--ink-faint)", fontWeight: 600, flexShrink: 0 }}>
+        {usingDetected ? "auto" : "custom"}
+      </span>
+    </button>
+  );
+}
+
+// Container row used by both Daily and Nudge timing controls. Card-style
+// surface that visually groups the time/day/tz fields under their toggle
+// instead of leaving them to float as bare inputs.
+function TimingCard({ children }: { children: React.ReactNode }): JSX.Element {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 12,
+        padding: 14,
+        marginBottom: 14,
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 12,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }): JSX.Element {
+  return (
+    <span
+      className="micro"
+      style={{
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        fontSize: 10,
+        fontWeight: 600,
+        color: "var(--ink-faint)",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function DailyTimingControls({
   prefs,
   savePref,
@@ -80,69 +321,62 @@ function DailyTimingControls({
   prefs: NotificationPrefs;
   savePref: (u: Partial<NotificationPrefs>) => Promise<void>;
 }): JSX.Element {
-  const detected = detectTimezone();
-  const [editTz, setEditTz] = useState(false);
-  const usingDetected = prefs.daily_timezone === detected;
-
   return (
-    <div
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 10,
-        padding: "4px 0 16px",
-        borderBottom: "1px solid var(--line-soft)",
-      }}
-    >
-      <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span className="micro">time</span>
-        <input
-          type="time"
+    <TimingCard>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <FieldLabel>Time</FieldLabel>
+        <HourSelect
           value={prefs.daily_time}
-          style={inputStyle}
-          onChange={(e) => savePref({ daily_time: e.target.value })}
+          onChange={(v) => savePref({ daily_time: v })}
+          ariaLabel="Daily prompt time"
         />
       </label>
-      <label style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 200 }}>
-        <span
-          className="micro"
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
-        >
-          <span>timezone {usingDetected ? "(auto-detected)" : "(custom)"}</span>
-          <button
-            type="button"
-            onClick={() => {
-              if (editTz && !usingDetected) savePref({ daily_timezone: detected });
-              setEditTz((v) => !v);
-            }}
-            className="press"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "var(--ember)",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            {editTz ? (usingDetected ? "Done" : "Reset") : "Change"}
-          </button>
-        </span>
-        <input
-          type="text"
+      <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 220 }}>
+        <FieldLabel>Timezone</FieldLabel>
+        <TimezoneField
           value={prefs.daily_timezone}
-          readOnly={!editTz}
-          style={{
-            ...inputStyle,
-            opacity: editTz ? 1 : 0.7,
-            cursor: editTz ? "text" : "default",
-          }}
-          onChange={(e) => savePref({ daily_timezone: e.target.value })}
-          placeholder="e.g. Europe/London"
+          onChange={(v) => savePref({ daily_timezone: v })}
+          ariaLabel="Daily prompt timezone"
         />
       </label>
-    </div>
+    </TimingCard>
+  );
+}
+
+function NudgeTimingControls({
+  prefs,
+  savePref,
+}: {
+  prefs: NotificationPrefs;
+  savePref: (u: Partial<NotificationPrefs>) => Promise<void>;
+}): JSX.Element {
+  return (
+    <TimingCard>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <FieldLabel>Day</FieldLabel>
+        <DaySelect
+          value={prefs.nudge_day}
+          onChange={(v) => savePref({ nudge_day: v })}
+          ariaLabel="Nudge day of week"
+        />
+      </label>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <FieldLabel>Time</FieldLabel>
+        <HourSelect
+          value={prefs.nudge_time}
+          onChange={(v) => savePref({ nudge_time: v })}
+          ariaLabel="Nudge time"
+        />
+      </label>
+      <label style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 220 }}>
+        <FieldLabel>Timezone</FieldLabel>
+        <TimezoneField
+          value={prefs.nudge_timezone}
+          onChange={(v) => savePref({ nudge_timezone: v })}
+          ariaLabel="Nudge timezone"
+        />
+      </label>
+    </TimingCard>
   );
 }
 
@@ -401,52 +635,7 @@ export default function NotificationSettings(): JSX.Element {
               ariaLabel="Quiet nudge"
             />
           </SettingsRow>
-          {prefs.nudge_enabled && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 10,
-                padding: "4px 0 16px",
-                borderBottom: "1px solid var(--line-soft)",
-              }}
-            >
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="micro">day</span>
-                <select
-                  value={prefs.nudge_day}
-                  style={inputStyle}
-                  onChange={(e) => savePref({ nudge_day: e.target.value })}
-                >
-                  {DAYS_OF_WEEK.map((d) => (
-                    <option key={d} value={d}>
-                      {d.charAt(0).toUpperCase() + d.slice(1)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <span className="micro">time</span>
-                <input
-                  type="time"
-                  value={prefs.nudge_time}
-                  style={inputStyle}
-                  onChange={(e) => savePref({ nudge_time: e.target.value })}
-                />
-              </label>
-              <label
-                style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1, minWidth: 160 }}
-              >
-                <span className="micro">timezone</span>
-                <input
-                  type="text"
-                  value={prefs.nudge_timezone}
-                  style={inputStyle}
-                  onChange={(e) => savePref({ nudge_timezone: e.target.value })}
-                />
-              </label>
-            </div>
-          )}
+          {prefs.nudge_enabled && <NudgeTimingControls prefs={prefs} savePref={savePref} />}
 
           <SettingsRow
             label="Expiry reminders"
