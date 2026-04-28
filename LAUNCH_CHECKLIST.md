@@ -160,7 +160,7 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 ## P2 — Post-launch backlog
 
 - [ ] **More e2e specs** — calendar persona-facts, vault unlock, search round-trip. Add as real regressions ship per skill Rule 7. **Update 2026-04-27:** `404.spec.ts` and `search.spec.ts` (3 sub-tests covering Cmd+/, Cmd+K, mobile search button) shipped. Vault unlock + calendar still owed.
-- [ ] **Status page** — Vercel + Supabase status pages suffice initially. Add a custom one (statuspage.io free tier) once ≥100 users.
+- [x] **Public status page** ✅ — `/status` lives at `https://everion.smashburgerbar.co.za/status`. Polls `/api/status` every 30s, shows API/DB/AI provider up/down. Public, no auth, edge-cached 15s + SWR 60s. Renders ahead of the auth gate so it works even when Supabase auth itself is down. Built 2026-04-28.
 - [x] **Sentry source maps** ✅ — `@sentry/vite-plugin` wired in `vite.config.js`, conditional on `SENTRY_AUTH_TOKEN` + `VITE_SENTRY_DSN`. Maps deleted post-upload so they're not publicly fetchable.
 - [ ] **PostHog cohorts + funnels** — set up after a week of real data. Don't pre-cook.
 - [x] **Operational runbook** ✅ — `RUNBOOK.md` covers top-5 failure modes + Vercel rollback procedure.
@@ -185,8 +185,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P0 — Stability-critical (do before opening public signups)
 
-- [ ] **AI provider calls have no retry / backoff** ❌
-      `api/_lib/aiProvider.ts` returns `""` (empty string) on HTTP error with no retry, and `api/llm.ts` Groq transcription path follows the same pattern. A single transient Gemini outage cascades as a silent feature failure. Implement 3× exponential backoff (100ms → 400ms → 1.6s) and surface a 503 (with friendly UI message) on permanent failure rather than silent empty content.
+- [ ] **AI provider calls have no retry / backoff** 🟡
+      Embedding paths fixed 2026-04-28 (`api/_lib/generateEmbedding.ts` + `api/_lib/enrich.ts` — both wrap fetch in 4-attempt exponential backoff for 429/503 only). `api/_lib/aiProvider.ts` and `api/llm.ts` Groq transcription **still** silently return `""` on transient failure. Same backoff pattern needs applying there.
 
 - [ ] **Inner ErrorBoundaries missing on risky views** ❌
       Only one ErrorBoundary in `src/main.tsx` + one in `src/App.tsx` — both wrap the whole tree. A render error in `ChatView`, `VaultView`, or `CaptureWelcomeScreen` crashes the entire app. Wrap each in its own `<ErrorBoundary fallback={<ViewError />}>` so one bad render doesn't blow away the user's session.
@@ -266,4 +266,12 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [ ] **Remove `as any` ratchet** — once the count is at 0, add an ESLint rule that fails CI on `any`. (`@typescript-eslint/no-explicit-any` set to error.)
 - [x] **Settings consolidation** ✅ — collapsed 12 sections to 5 (Personal / Account / Brain / Connections / Privacy & danger) + Admin gated. URL aliases preserve OAuth callbacks and `?tab=billing` deep links from /api/capture and /api/llm.
 - [ ] **CSP nonce migration** — drop `'unsafe-inline'` from `style-src`. Plan a one-week migration once inline-style hotspots are mapped.
-- [ ] **Per-user audit log** — for "who deleted what / when" support questions. Lightweight table, append-only, surfaced in `/settings/security`.
+- [x] **Per-user audit log table** ✅ — `audit_log` exists in production with 369 rows since 2026-04-25, written by `api/capture.ts`, `api/entries.ts`, `api/llm.ts`. RLS lets users read their own rows. Migration `057_audit_log.sql` ratifies the schema (idempotent — table was added inline in `000_init.sql`).
+- [ ] **Audit-log UI surface** — show users their own activity in `/settings/security`. Backend ready (RLS done); just wire a paginated table reader.
+
+### Operations & bus factor (added 2026-04-28)
+
+- [x] **Staging Supabase project** ✅ — `everion-staging` (`rsnrvebcjbstfxhkfsjq`, eu-west-1, free tier, $0/mo). Schema mirrors production via `supabase/migrations/*.sql`. URL + anon key in `.env.example`. Workflow: apply new migrations to staging FIRST, verify, THEN apply to production. Drift check reminder saved to Christian's Everion memory for 2026-05-28.
+- [ ] **Pin `/status` link somewhere user-visible** ❌ — landing page footer + login screen "having trouble?" link + support email signature. Page exists; users have no way to find it during an incident.
+- [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
+- [ ] **Test Supabase backup restore** ❌ — automated daily backups are running (Supabase Pro), but never restored. One-time exercise: pull yesterday's backup into a fresh project, verify a known row exists. Quarterly thereafter. See `docs/launch-runbook-alerts-and-dns.md` for steps if it exists, otherwise improvise via the Supabase dashboard "Restore" UI.
