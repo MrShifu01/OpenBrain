@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, type JSX } from "react";
+import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
 import type { Entry } from "../types";
@@ -12,8 +12,47 @@ import { isDone } from "./todoUtils";
 // up), and Drop (soft-delete). Quick-add at the top stores raw text directly
 // as a someday entry, no AI parsing — feels like jotting on a Post-it.
 //
+// Categories: the user creates and manages categories explicitly. Each
+// category is just a tag, but we persist the *list* in localStorage so empty
+// categories survive (you can create a bucket before adding anything to it),
+// and we expose Rename / Delete on each chip. Renaming bulk-updates every
+// someday entry that carries the tag. The quick-add auto-tags new items
+// with the active filter; each row has an inline "Move to…" picker so you
+// can rebucket without leaving the tab.
+//
 // Gated behind the `someday` power feature in Everion.tsx; the parent
 // TodoView only mounts this when the flag is on.
+
+const ALL = "__all__";
+const UNTAGGED = "__untagged__";
+
+// Tag we always strip from category chips. Every bulk-imported launch entry
+// has it as a marker, but it's not useful as a filter — every item would
+// have it, so it adds no signal.
+const HIDDEN_CATEGORY_TAGS = new Set(["launch"]);
+
+// localStorage key for user-defined category list, scoped per brain.
+const userCatsKey = (brainId: string | undefined) =>
+  brainId ? `everion.someday.categories.${brainId}` : "everion.someday.categories.default";
+
+function readUserCategories(brainId: string | undefined): string[] {
+  try {
+    const raw = localStorage.getItem(userCatsKey(brainId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((s) => typeof s === "string" && s.trim()) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeUserCategories(brainId: string | undefined, list: string[]) {
+  try {
+    localStorage.setItem(userCatsKey(brainId), JSON.stringify(list));
+  } catch {
+    /* quota or disabled — ignore */
+  }
+}
 
 interface Props {
   entries: Entry[];
@@ -32,8 +71,21 @@ export default function TodoSomedayTab({
 }: Props): JSX.Element {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
+  const [selectedTag, setSelectedTag] = useState<string>(ALL);
 
-  const items = useMemo(
+  // User-defined category list (persisted). Empty buckets stay until the
+  // user explicitly deletes them.
+  const [userCategories, setUserCategories] = useState<string[]>(() => readUserCategories(brainId));
+  useEffect(() => {
+    setUserCategories(readUserCategories(brainId));
+  }, [brainId]);
+  const persistUserCategories = (next: string[]) => {
+    const cleaned = Array.from(new Set(next.map((s) => s.trim()).filter(Boolean)));
+    setUserCategories(cleaned);
+    writeUserCategories(brainId, cleaned);
+  };
+
+  const allItems = useMemo(
     () =>
       entries
         .filter((e) => e.type === "someday" && !isDone(e))
@@ -42,6 +94,45 @@ export default function TodoSomedayTab({
         ),
     [entries],
   );
+
+  // Category list: union of (a) tags currently in use across someday items
+  // and (b) user-declared categories — so a freshly-created empty bucket
+  // still shows up. Counts come from items only.
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of allItems) {
+      for (const raw of e.tags ?? []) {
+        const tag = raw.trim();
+        if (!tag) continue;
+        if (HIDDEN_CATEGORY_TAGS.has(tag)) continue;
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    for (const tag of userCategories) {
+      if (!counts.has(tag)) counts.set(tag, 0);
+    }
+    return [...counts.entries()]
+      .map(([tag, n]) => ({ tag, n }))
+      .sort((a, b) => b.n - a.n || a.tag.localeCompare(b.tag));
+  }, [allItems, userCategories]);
+
+  const untaggedCount = useMemo(
+    () =>
+      allItems.filter((e) =>
+        (e.tags ?? []).every((t) => !t.trim() || HIDDEN_CATEGORY_TAGS.has(t.trim())),
+      ).length,
+    [allItems],
+  );
+
+  const items = useMemo(() => {
+    if (selectedTag === ALL) return allItems;
+    if (selectedTag === UNTAGGED) {
+      return allItems.filter((e) =>
+        (e.tags ?? []).every((t) => !t.trim() || HIDDEN_CATEGORY_TAGS.has(t.trim())),
+      );
+    }
+    return allItems.filter((e) => (e.tags ?? []).some((t) => t.trim() === selectedTag));
+  }, [allItems, selectedTag]);
 
   const completedItems = useMemo(
     () =>
@@ -52,6 +143,76 @@ export default function TodoSomedayTab({
         ),
     [entries],
   );
+
+  // All known category tags for inline rebucketing dropdown (no hidden tags).
+  const knownTags = useMemo(() => categories.map((c) => c.tag), [categories]);
+
+  const createCategory = (raw: string) => {
+    const name = raw.trim();
+    if (!name) return;
+    if (HIDDEN_CATEGORY_TAGS.has(name)) return;
+    if (userCategories.includes(name) || knownTags.includes(name)) {
+      setSelectedTag(name);
+      return;
+    }
+    persistUserCategories([...userCategories, name]);
+    setSelectedTag(name);
+  };
+
+  const renameCategory = async (oldName: string, newRaw: string) => {
+    const newName = newRaw.trim();
+    if (!newName || newName === oldName) return;
+    if (HIDDEN_CATEGORY_TAGS.has(newName)) return;
+    // Bulk-update every someday entry carrying the old tag.
+    const affected = allItems.filter((e) => (e.tags ?? []).some((t) => t.trim() === oldName));
+    for (const entry of affected) {
+      const next = (entry.tags ?? []).map((t) => (t.trim() === oldName ? newName : t));
+      try {
+        await onUpdate?.(entry.id, { tags: next });
+      } catch (err) {
+        console.error("[someday-rename]", err);
+      }
+    }
+    // Persist in user list too (covers empty buckets).
+    persistUserCategories(
+      userCategories.map((t) => (t === oldName ? newName : t)).filter((t) => t !== ""),
+    );
+    if (selectedTag === oldName) setSelectedTag(newName);
+  };
+
+  const deleteCategory = async (name: string) => {
+    // Strip the tag from every someday entry that has it. Items themselves
+    // are kept — they just become untagged (or keep other tags).
+    const affected = allItems.filter((e) => (e.tags ?? []).some((t) => t.trim() === name));
+    for (const entry of affected) {
+      const next = (entry.tags ?? []).filter((t) => t.trim() !== name);
+      try {
+        await onUpdate?.(entry.id, { tags: next });
+      } catch (err) {
+        console.error("[someday-delete-cat]", err);
+      }
+    }
+    persistUserCategories(userCategories.filter((t) => t !== name));
+    if (selectedTag === name) setSelectedTag(ALL);
+  };
+
+  const recategorise = async (entry: Entry, newTag: string) => {
+    // Strip every existing *known* category tag, keep hidden tags + free-form
+    // tags that aren't categories. Add the new one unless moving to untagged.
+    const filtered = (entry.tags ?? []).filter((raw) => {
+      const t = raw.trim();
+      if (!t) return false;
+      if (HIDDEN_CATEGORY_TAGS.has(t)) return true;
+      return !knownTags.includes(t);
+    });
+    const next = newTag === UNTAGGED ? filtered : [...filtered, newTag];
+    setBusyId(entry.id);
+    try {
+      await onUpdate?.(entry.id, { tags: next });
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -64,8 +225,23 @@ export default function TodoSomedayTab({
           boxShadow: "var(--lift-1)",
         }}
       >
-        <SomedayQuickAdd brainId={brainId} onAdded={onAdded} />
+        <SomedayQuickAdd
+          brainId={brainId}
+          onAdded={onAdded}
+          activeTag={selectedTag !== ALL && selectedTag !== UNTAGGED ? selectedTag : ""}
+        />
       </div>
+
+      <CategoryChips
+        all={allItems.length}
+        untagged={untaggedCount}
+        categories={categories}
+        selected={selectedTag}
+        onSelect={setSelectedTag}
+        onCreate={createCategory}
+        onRename={renameCategory}
+        onDelete={deleteCategory}
+      />
 
       {items.length === 0 ? (
         <div
@@ -87,7 +263,11 @@ export default function TodoSomedayTab({
               margin: "0 0 6px",
             }}
           >
-            Someday is empty.
+            {selectedTag === ALL
+              ? "Someday is empty."
+              : selectedTag === UNTAGGED
+                ? "Nothing untagged."
+                : `No items in “${selectedTag}”.`}
           </p>
           <p
             className="f-sans"
@@ -112,6 +292,8 @@ export default function TodoSomedayTab({
               last={idx === items.length - 1}
               busy={busyId === entry.id}
               scheduling={scheduleId === entry.id}
+              knownTags={knownTags}
+              onRecategorise={(t) => recategorise(entry, t)}
               onStartSchedule={() => setScheduleId(entry.id)}
               onCancelSchedule={() => setScheduleId(null)}
               onSchedule={async (dateStr) => {
@@ -198,11 +380,345 @@ export default function TodoSomedayTab({
   );
 }
 
+function CategoryChips({
+  all,
+  untagged,
+  categories,
+  selected,
+  onSelect,
+  onCreate,
+  onRename,
+  onDelete,
+}: {
+  all: number;
+  untagged: number;
+  categories: { tag: string; n: number }[];
+  selected: string;
+  onSelect: (tag: string) => void;
+  onCreate: (name: string) => void;
+  onRename: (oldName: string, newName: string) => void;
+  onDelete: (name: string) => void;
+}): JSX.Element {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+
+  const submitNew = () => {
+    const name = draft.trim();
+    if (!name) {
+      setAdding(false);
+      setDraft("");
+      return;
+    }
+    onCreate(name);
+    setDraft("");
+    setAdding(false);
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 6,
+        alignItems: "center",
+      }}
+    >
+      <Chip label={`All · ${all}`} active={selected === ALL} onClick={() => onSelect(ALL)} />
+      {untagged > 0 && (
+        <Chip
+          label={`Untagged · ${untagged}`}
+          active={selected === UNTAGGED}
+          onClick={() => onSelect(UNTAGGED)}
+        />
+      )}
+      {categories.map((c) => (
+        <ChipWithMenu
+          key={c.tag}
+          tag={c.tag}
+          count={c.n}
+          active={selected === c.tag}
+          menuOpen={menuFor === c.tag}
+          onSelect={() => onSelect(c.tag)}
+          onOpenMenu={() => setMenuFor(menuFor === c.tag ? null : c.tag)}
+          onCloseMenu={() => setMenuFor(null)}
+          onRename={(newName) => {
+            onRename(c.tag, newName);
+            setMenuFor(null);
+          }}
+          onDelete={() => {
+            onDelete(c.tag);
+            setMenuFor(null);
+          }}
+        />
+      ))}
+
+      {adding ? (
+        <input
+          autoFocus
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={submitNew}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              submitNew();
+            } else if (e.key === "Escape") {
+              setAdding(false);
+              setDraft("");
+            }
+          }}
+          placeholder="New category…"
+          className="f-sans"
+          style={{
+            height: 28,
+            padding: "0 10px",
+            fontSize: 12,
+            border: "1px dashed var(--ember)",
+            borderRadius: 999,
+            background: "var(--surface-low)",
+            color: "var(--ink)",
+            outline: 0,
+            minWidth: 120,
+          }}
+        />
+      ) : (
+        <Chip label="+ New" onClick={() => setAdding(true)} dashed />
+      )}
+    </div>
+  );
+}
+
+function Chip({
+  label,
+  active,
+  dashed,
+  onClick,
+}: {
+  label: string;
+  active?: boolean;
+  dashed?: boolean;
+  onClick: () => void;
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="press f-sans"
+      style={{
+        height: 28,
+        padding: "0 12px",
+        fontSize: 12,
+        fontWeight: 600,
+        border: dashed
+          ? "1px dashed var(--line)"
+          : active
+            ? "1px solid var(--ember)"
+            : "1px solid var(--line-soft)",
+        borderRadius: 999,
+        background: active ? "var(--ember)" : "var(--surface)",
+        color: active ? "var(--ember-ink)" : "var(--ink-soft)",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function ChipWithMenu({
+  tag,
+  count,
+  active,
+  menuOpen,
+  onSelect,
+  onOpenMenu,
+  onCloseMenu,
+  onRename,
+  onDelete,
+}: {
+  tag: string;
+  count: number;
+  active: boolean;
+  menuOpen: boolean;
+  onSelect: () => void;
+  onOpenMenu: () => void;
+  onCloseMenu: () => void;
+  onRename: (newName: string) => void;
+  onDelete: () => void;
+}): JSX.Element {
+  const [renaming, setRenaming] = useState(false);
+  const [draft, setDraft] = useState(tag);
+
+  return (
+    <div style={{ position: "relative", display: "inline-flex" }}>
+      <button
+        onClick={onSelect}
+        className="press f-sans"
+        style={{
+          height: 28,
+          padding: "0 8px 0 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          border: active ? "1px solid var(--ember)" : "1px solid var(--line-soft)",
+          borderRight: "none",
+          borderRadius: "999px 0 0 999px",
+          background: active ? "var(--ember)" : "var(--surface)",
+          color: active ? "var(--ember-ink)" : "var(--ink-soft)",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {tag} · {count}
+      </button>
+      <button
+        onClick={onOpenMenu}
+        aria-label={`Edit category ${tag}`}
+        className="press f-sans"
+        style={{
+          height: 28,
+          padding: "0 8px",
+          fontSize: 12,
+          border: active ? "1px solid var(--ember)" : "1px solid var(--line-soft)",
+          borderRadius: "0 999px 999px 0",
+          background: active ? "var(--ember)" : "var(--surface)",
+          color: active ? "var(--ember-ink)" : "var(--ink-faint)",
+          cursor: "pointer",
+        }}
+      >
+        ⋯
+      </button>
+      {menuOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: 32,
+            left: 0,
+            zIndex: 20,
+            minWidth: 200,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+            boxShadow: "var(--lift-2)",
+            padding: 6,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          {renaming ? (
+            <div style={{ display: "flex", gap: 4, padding: 4 }}>
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onRename(draft);
+                    setRenaming(false);
+                  } else if (e.key === "Escape") {
+                    setRenaming(false);
+                    setDraft(tag);
+                  }
+                }}
+                className="f-sans"
+                style={{
+                  flex: 1,
+                  height: 26,
+                  padding: "0 8px",
+                  fontSize: 12,
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 6,
+                  background: "var(--surface-low)",
+                  color: "var(--ink)",
+                  outline: 0,
+                }}
+              />
+              <button
+                onClick={() => {
+                  onRename(draft);
+                  setRenaming(false);
+                }}
+                className="press f-sans"
+                style={{
+                  height: 26,
+                  padding: "0 8px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: "none",
+                  borderRadius: 6,
+                  background: "var(--moss, #4caf50)",
+                  color: "#fff",
+                  cursor: "pointer",
+                }}
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <>
+              <MenuItem label="Rename" onClick={() => setRenaming(true)} />
+              <MenuItem
+                label="Delete category"
+                tone="danger"
+                onClick={() => {
+                  if (
+                    typeof window !== "undefined" &&
+                    !window.confirm(
+                      `Delete category “${tag}”? Items keep their other tags but lose this one.`,
+                    )
+                  ) {
+                    return;
+                  }
+                  onDelete();
+                }}
+              />
+              <MenuItem label="Close" onClick={onCloseMenu} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuItem({
+  label,
+  onClick,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  tone?: "danger";
+}): JSX.Element {
+  return (
+    <button
+      onClick={onClick}
+      className="press f-sans"
+      style={{
+        textAlign: "left",
+        padding: "6px 10px",
+        fontSize: 12,
+        background: "transparent",
+        border: "none",
+        borderRadius: 6,
+        color: tone === "danger" ? "var(--danger, #c44)" : "var(--ink)",
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 function SomedayRow({
   entry,
   last,
   busy,
   scheduling,
+  knownTags,
+  onRecategorise,
   onStartSchedule,
   onCancelSchedule,
   onSchedule,
@@ -213,6 +729,8 @@ function SomedayRow({
   last: boolean;
   busy: boolean;
   scheduling: boolean;
+  knownTags: string[];
+  onRecategorise: (newTag: string) => void;
   onStartSchedule: () => void;
   onCancelSchedule: () => void;
   onSchedule: (dateStr: string) => void;
@@ -225,6 +743,12 @@ function SomedayRow({
   const ageDays = entry.created_at
     ? Math.floor((now - new Date(entry.created_at).getTime()) / 86_400_000)
     : null;
+
+  // The row's *current* category — first known tag, ignoring hidden ones.
+  const currentTag = (entry.tags ?? [])
+    .map((t) => t.trim())
+    .find((t) => t && !HIDDEN_CATEGORY_TAGS.has(t) && knownTags.includes(t));
+
   return (
     <div
       style={{
@@ -273,14 +797,36 @@ function SomedayRow({
               {entry.content.length > 240 ? entry.content.slice(0, 237) + "…" : entry.content}
             </p>
           )}
-          {ageDays !== null && (
-            <p
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+            {ageDays !== null && (
+              <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)" }}>
+                {ageDays === 0 ? "Just now" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
+              </span>
+            )}
+            <select
+              value={currentTag ?? UNTAGGED}
+              disabled={busy}
+              onChange={(e) => onRecategorise(e.target.value)}
               className="f-sans"
-              style={{ margin: "6px 0 0", fontSize: 11, color: "var(--ink-ghost)" }}
+              style={{
+                height: 22,
+                padding: "0 6px",
+                fontSize: 11,
+                border: "1px solid var(--line-soft)",
+                borderRadius: 999,
+                background: "var(--surface-low)",
+                color: "var(--ink-soft)",
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
             >
-              {ageDays === 0 ? "Just now" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
-            </p>
-          )}
+              <option value={UNTAGGED}>Untagged</option>
+              {knownTags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -398,9 +944,11 @@ function ScheduleInline({
 function SomedayQuickAdd({
   brainId,
   onAdded,
+  activeTag,
 }: {
   brainId?: string;
   onAdded: () => void;
+  activeTag?: string;
 }): JSX.Element {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -419,6 +967,7 @@ function SomedayQuickAdd({
     if (!raw || !brainId || busy) return;
     setBusy(true);
     const title = raw.length > 60 ? raw.slice(0, 57) + "…" : raw;
+    const tags = activeTag ? [activeTag] : [];
     try {
       await authFetch("/api/capture", {
         method: "POST",
@@ -429,7 +978,7 @@ function SomedayQuickAdd({
           p_type: "someday",
           p_brain_id: brainId,
           p_metadata: {},
-          p_tags: [],
+          p_tags: tags,
         }),
       });
     } catch (err) {
@@ -471,7 +1020,11 @@ function SomedayQuickAdd({
             submit(e as React.FormEvent);
           }
         }}
-        placeholder="Something for someday — no date needed…"
+        placeholder={
+          activeTag
+            ? `Add to “${activeTag}” — no date needed…`
+            : "Something for someday — no date needed…"
+        }
         disabled={busy}
         className="f-sans"
         style={{
