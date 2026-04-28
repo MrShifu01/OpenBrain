@@ -45,18 +45,50 @@ webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUB, VAPID_PRIV);
 
 const adminHdrs = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` };
 
+// Diagnostic: log the SB host + a SHORT prefix of the service-role key so
+// we can spot a wrong-paste without leaking the value. A real service-role
+// JWT starts with "eyJ" (base64-encoded JWT header) and is ~200+ chars.
+const keyPrefix = SB_KEY.slice(0, 8);
+const sbHost = (() => {
+  try {
+    return new URL(SB_URL).host;
+  } catch {
+    return "(invalid URL)";
+  }
+})();
+console.log(`[test-push] sb host: ${sbHost} · key prefix: ${keyPrefix}… (len=${SB_KEY.length})`);
+
 // Find the user by email. We page through admin users until we hit a match
 // — the admin REST API doesn't expose an email filter, but pages of 50 are
 // cheap and the user count here is tiny.
+async function listUsersPage(page) {
+  // Single retry on 5xx — Supabase auth-admin occasionally returns transient
+  // "Database error finding users" 500s under load.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, {
+      headers: adminHdrs,
+    });
+    if (r.ok) return r.json();
+    const body = await r.text().catch(() => "");
+    if (r.status >= 500 && attempt === 0) {
+      console.log(`[test-push] HTTP ${r.status}, retrying once… body: ${body.slice(0, 200)}`);
+      await new Promise((res) => setTimeout(res, 1500));
+      continue;
+    }
+    fail(
+      `admin users HTTP ${r.status}: ${body.slice(0, 300)}\n` +
+        `  hint: if "Database error finding users" — check that SUPABASE_SERVICE_ROLE_KEY ` +
+        `in GitHub Secrets matches the one in Vercel exactly (NOT the anon key, NOT the ` +
+        `publishable key). Service-role JWTs are ~200+ chars and start with "eyJ".`,
+    );
+  }
+}
+
 console.log(`[test-push] looking up user by email: ${TARGET_EMAIL}`);
 let user = null;
 let page = 1;
 while (page < 50) {
-  const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, {
-    headers: adminHdrs,
-  });
-  if (!r.ok) fail(`admin users HTTP ${r.status}: ${await r.text().catch(() => "")}`);
-  const data = await r.json();
+  const data = await listUsersPage(page);
   const users = Array.isArray(data?.users) ? data.users : [];
   user = users.find((u) => (u.email || "").toLowerCase() === TARGET_EMAIL.toLowerCase());
   if (user) break;
