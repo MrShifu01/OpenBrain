@@ -844,19 +844,43 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
     webpush.setVapidDetails(subject, pub, priv);
 
     const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
-    const users: any[] = [];
-    let page = 1;
+
+    // Enumerate users without the paginated listUsers admin route — it 500s
+    // ("Database error finding users") on a bad row in auth.users for this
+    // project. Pull distinct user_ids from public.entries (every signed-up
+    // user has rows there) then single-fetch each via /admin/users/{id},
+    // which works fine.
+    const userIds = new Set<string>();
+    let from = 0;
+    const PAGE = 1000;
     while (true) {
-      const r = await fetch(`${SB_URL}/auth/v1/admin/users?page=${page}&per_page=50`, {
-        headers: adminHdrs,
-      });
-      if (!r.ok) break;
-      const data = await r.json();
-      const batch: any[] = data.users ?? [];
-      users.push(...batch);
-      if (batch.length < 50) break;
-      page++;
+      const r = await fetch(
+        `${SB_URL}/rest/v1/entries?select=user_id&order=user_id.asc&limit=${PAGE}&offset=${from}`,
+        { headers: adminHdrs },
+      );
+      if (!r.ok) {
+        console.error(`[cron/daily] entries enum HTTP ${r.status}`);
+        break;
+      }
+      const rows: Array<{ user_id: string }> = await r.json().catch(() => []);
+      for (const row of rows) if (row.user_id) userIds.add(row.user_id);
+      if (rows.length < PAGE) break;
+      from += PAGE;
     }
+
+    const users: any[] = [];
+    for (const id of userIds) {
+      const r = await fetch(
+        `${SB_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`,
+        { headers: adminHdrs },
+      );
+      if (!r.ok) {
+        console.error(`[cron/daily] admin get ${id} HTTP ${r.status}`);
+        continue;
+      }
+      users.push(await r.json());
+    }
+    console.log(`[cron/daily] enumerated ${users.length} users`);
 
     for (const user of users) {
       const meta = user.user_metadata ?? {};
