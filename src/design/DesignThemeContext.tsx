@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { getAdminFlags, isFeatureEnabled } from "../lib/featureFlags";
 
 export type DesignVariant =
   | "dusk"
@@ -49,9 +50,34 @@ const VARIANT_DEFAULT_MODE: Record<DesignVariant, DesignMode> = {
   zine: "light",
 };
 
+// Variants gated behind the `extraThemes` admin flag. If the flag is off but
+// the user has one of these stored (e.g. they enabled the flag, picked
+// `aurora`, then turned the flag off), we snap them back to bronze so the
+// UI doesn't render a theme they can no longer reach in Settings.
+const EXTRA_VARIANTS: DesignVariant[] = [
+  "aurora",
+  "atelier",
+  "blueprint",
+  "botanical",
+  "newsprint",
+  "zine",
+];
+
+function isExtraVariantAllowed(): boolean {
+  try {
+    return isFeatureEnabled("extraThemes", getAdminFlags());
+  } catch {
+    return false;
+  }
+}
+
 function loadVariant(): DesignVariant {
   const stored = localStorage.getItem(STORAGE_VARIANT);
-  if (stored && (VARIANTS as string[]).includes(stored)) return stored as DesignVariant;
+  if (stored && (VARIANTS as string[]).includes(stored)) {
+    const v = stored as DesignVariant;
+    if (EXTRA_VARIANTS.includes(v) && !isExtraVariantAllowed()) return "bronze";
+    return v;
+  }
   return "bronze";
 }
 
@@ -92,6 +118,19 @@ export function DesignThemeProvider({ children }: { children: ReactNode }) {
     // keep legacy key in sync so the old ThemeContext persistence still resolves
     localStorage.setItem(LEGACY_THEME_KEY, mode);
   }, [variant, mode]);
+
+  // Listen for admin flag changes — if the user disables `extraThemes` while
+  // sitting on one of the gated variants, snap them back to bronze so the
+  // app keeps a reachable theme. Same `storage` event AppearanceTab listens to.
+  useEffect(() => {
+    const handler = () => {
+      if (EXTRA_VARIANTS.includes(variant) && !isExtraVariantAllowed()) {
+        setVariantState("bronze");
+      }
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, [variant]);
 
   const setVariant = useCallback((v: DesignVariant) => setVariantState(v), []);
   const setMode = useCallback((m: DesignMode) => setModeState(m), []);

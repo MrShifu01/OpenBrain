@@ -28,6 +28,11 @@ export const FEATURE_FLAGS = {
     icon: "🧠",
     prodEnabled: import.meta.env.VITE_FEATURE_MULTI_BRAIN === "true",
   },
+  extraThemes: {
+    label: "Extra themes (Aurora, Atelier, Blueprint, Botanical, Newsprint, Zine)",
+    icon: "🎨",
+    prodEnabled: import.meta.env.VITE_FEATURE_EXTRA_THEMES === "true",
+  },
 } as const satisfies Record<string, { label: string; icon: string; prodEnabled: boolean }>;
 
 export type FeatureFlagKey = keyof typeof FEATURE_FLAGS;

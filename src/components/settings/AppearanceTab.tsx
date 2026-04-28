@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   useDesignTheme,
   VARIANT_LABEL,
@@ -5,6 +6,7 @@ import {
   type DesignVariant,
   type DesignMode,
 } from "../../design/DesignThemeContext";
+import { getAdminFlags, isFeatureEnabled } from "../../lib/featureFlags";
 
 const VARIANT_SWATCHES: Record<
   DesignVariant,
@@ -66,10 +68,8 @@ const VARIANT_SWATCHES: Record<
   },
 };
 
-const VARIANTS: DesignVariant[] = [
-  "dusk",
-  "paper",
-  "bronze",
+const CORE_VARIANTS: DesignVariant[] = ["dusk", "paper", "bronze"];
+const EXTRA_VARIANTS: DesignVariant[] = [
   "aurora",
   "atelier",
   "blueprint",
@@ -81,6 +81,18 @@ const MODES: DesignMode[] = ["light", "dark"];
 
 export default function AppearanceTab() {
   const { variant, mode, setVariant, setMode } = useDesignTheme();
+
+  // Watch the admin flag — when the user toggles it in AdminTab, the swatch
+  // grid here updates without a reload. AdminTab fires a synthetic 'storage'
+  // event after writing to localStorage so same-tab listeners react too.
+  const [adminFlags, setAdminFlags] = useState(getAdminFlags);
+  useEffect(() => {
+    const handler = () => setAdminFlags(getAdminFlags());
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+  const showExtra = isFeatureEnabled("extraThemes", adminFlags);
+  const VARIANTS = showExtra ? [...CORE_VARIANTS, ...EXTRA_VARIANTS] : CORE_VARIANTS;
 
   return (
     <div>
