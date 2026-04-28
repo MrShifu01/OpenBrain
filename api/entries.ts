@@ -12,6 +12,7 @@ import {
   auditPersonaForBrain,
 } from "./_lib/enrich.js";
 import { flagsOf } from "./_lib/enrichFlags.js";
+import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
 
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
@@ -45,6 +46,7 @@ export default withAuth(
     if (ctx.req.method === "POST" && action === "wipe-persona-extracted")
       return handleWipePersonaExtracted(ctx);
     if (ctx.req.method === "POST" && action === "audit-persona") return handleAuditPersona(ctx);
+    if (ctx.req.method === "GET" && action === "persona-prompt") return handlePersonaPrompt(ctx);
     if (ctx.req.method === "POST" && action === "enrich-clear-backfill")
       return handleClearBackfill(ctx);
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")
@@ -579,6 +581,21 @@ async function handleAuditPersona({ req, res, user }: HandlerContext): Promise<v
   await requireBrainAccess(user.id, brain_id);
   const result = await auditPersonaForBrain(user.id, brain_id);
   res.status(200).json(result);
+}
+
+// ── GET /api/entries?action=persona-prompt — admin only ──
+// Returns the live extractor context (name / pronouns / About You / confirmed
+// facts / rejected patterns) plus the fully-rendered prompt that would be
+// sent to Gemini for THIS user. Powers the bottom-of-Personal debug panel
+// so the admin can watch the prompt evolve as they reject/confirm facts.
+async function handlePersonaPrompt({ req, res, user }: HandlerContext): Promise<void> {
+  if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
+  const brain_id = req.query.brain_id as string | undefined;
+  if (!brain_id || typeof brain_id !== "string") throw new ApiError(400, "brain_id required");
+  await requireBrainAccess(user.id, brain_id);
+  const ctx = await loadExtractorContext(user.id, brain_id);
+  const prompt = buildPrompt(ctx);
+  res.status(200).json({ context: ctx, prompt });
 }
 
 function isAdminUser(user: { email?: string }): boolean {

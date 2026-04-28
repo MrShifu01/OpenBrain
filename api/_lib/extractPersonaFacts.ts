@@ -77,7 +77,7 @@ interface GeminiResponse {
 // rewrites it as "User is a Y" — which is exactly how a contact card for
 // "Ruan, shopfitter" produced "User is a shopfitter" in the wild.
 
-function buildPrompt(ctx: ExtractorContext): string {
+export function buildPrompt(ctx: ExtractorContext): string {
   const namePart = ctx.userName || ctx.fullName || "the user (no name set)";
   const aliasPart =
     ctx.userName && ctx.fullName && ctx.userName.toLowerCase() !== ctx.fullName.toLowerCase()

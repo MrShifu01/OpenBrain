@@ -18,16 +18,17 @@
 // pipelines that handle every other entry. No new endpoints.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type JSX, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import SettingsRow, { SettingsToggle } from "./SettingsRow";
 import { authFetch } from "../../lib/authFetch";
 import { useBrain } from "../../context/BrainContext";
 import { useBackgroundOps } from "../../hooks/useBackgroundOps";
+import { useAdminDevMode } from "../../hooks/useAdminDevMode";
+import { useAdminPrefs } from "../../lib/adminPrefs";
 import {
   IconBtn,
   Badge,
-  BucketHeader,
   SectionTitle,
   Field,
   Label,
@@ -122,6 +123,8 @@ function inputStyle(): React.CSSProperties {
 export default function ProfileTab() {
   const brainCtx = useBrain();
   const brainId = brainCtx?.activeBrain?.id;
+  const { isAdmin } = useAdminDevMode();
+  const adminPrefs = useAdminPrefs();
 
   const [core, setCore] = useState<ProfileFields>(EMPTY_CORE);
   const [coreLoaded, setCoreLoaded] = useState(false);
@@ -135,8 +138,26 @@ export default function ProfileTab() {
   const [showFading, setShowFading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showRejected, setShowRejected] = useState(false);
+  // Buckets default to collapsed once facts load. Users with 30+ identity
+  // facts shouldn't see a wall of cards on tab open — they should see the
+  // shape (which buckets exist, how many facts in each) and drill in only
+  // when they want detail.
   const [collapsedBuckets, setCollapsedBuckets] = useState<Set<string>>(new Set());
+  const [collapseInitialized, setCollapseInitialized] = useState(false);
   const [rejectingFact, setRejectingFact] = useState<PersonaFact | null>(null);
+
+  // Replaces window.confirm() with an in-app branded modal. Same shape as
+  // RejectDialog (portal, body-lock, escape, scrim click) — keeps every
+  // confirmation in the app feeling like one piece of software, not a
+  // surprise drop-back to the browser chrome.
+  type ConfirmRequest = {
+    title: string;
+    body: string | string[];
+    confirmLabel: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  };
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
 
   function toggleBucket(bucket: string) {
     setCollapsedBuckets((prev) => {
@@ -215,6 +236,23 @@ export default function ProfileTab() {
   useEffect(() => {
     reloadFacts(); /* eslint-disable-line react-hooks/exhaustive-deps */
   }, [brainId]);
+
+  // First time facts arrive, collapse every populated bucket — opt-in
+  // disclosure feels less overwhelming than a 30-card identity dump.
+  // Subsequent reloads (after wipes/audits) leave the user's open/closed
+  // choices intact via collapseInitialized.
+  useEffect(() => {
+    if (!factsLoaded || collapseInitialized) return;
+    const allBuckets = new Set<string>();
+    for (const f of facts) {
+      const b = f.metadata?.bucket;
+      if (b && f.metadata?.status !== "rejected" && f.metadata?.status !== "archived") {
+        allBuckets.add(String(b));
+      }
+    }
+    setCollapsedBuckets(allBuckets);
+    setCollapseInitialized(true);
+  }, [factsLoaded, collapseInitialized, facts]);
 
   // When any of the long-running persona ops transition from running → idle,
   // reload immediately. Without this the UI only reflects the wipe/scan/reset
@@ -397,67 +435,71 @@ export default function ProfileTab() {
 
   function runReset() {
     if (!brainId || resetting) return;
-    if (
-      !window.confirm(
-        "Undo the previous scan?\n\n" +
-          "This restores entries that were wrongly converted into persona cards back to their best-guessed original type (todos return to schedule, events to calendar, etc.).\n\n" +
-          "Manually-added facts and chat-tool facts are NOT touched.",
-      )
-    )
-      return;
-    ops.startTask({
-      kind: "persona-reset",
-      label: "Reverting previous persona scan",
-      resumeKey: brainId,
+    setConfirmRequest({
+      title: "Undo the previous scan?",
+      body: [
+        "This restores entries that were wrongly converted into persona cards back to their best-guessed original type — todos return to schedule, events to calendar, and so on.",
+        "Manually-added facts and chat-tool facts are not touched.",
+      ],
+      confirmLabel: "Undo scan",
+      onConfirm: () => {
+        ops.startTask({
+          kind: "persona-reset",
+          label: "Reverting previous persona scan",
+          resumeKey: brainId,
+        });
+      },
     });
   }
 
   function runAudit() {
     if (!brainId || auditing) return;
-    if (
-      !window.confirm(
-        "Audit your living memory?\n\n" +
-          "Walks every active fact and bulk-rejects ones that:\n" +
-          " · duplicate another fact\n" +
-          " · match a fact you marked as Not me\n" +
-          " · are already covered by your About You\n\n" +
-          "Pinned facts and ones you added manually are never touched. Anything rejected stays in the Not me section so you can restore it if the audit got it wrong.",
-      )
-    )
-      return;
-    ops.startTask({
-      kind: "persona-audit",
-      label: "Auditing living memory",
-      resumeKey: brainId,
+    setConfirmRequest({
+      title: "Audit your living memory?",
+      body: [
+        "Walks every active fact and bulk-rejects ones that duplicate another fact, match something you already marked as Not me, or are already covered by your About You.",
+        "Pinned facts and ones you added manually are never touched. Anything rejected stays in the Not me section so you can restore it if the audit got it wrong.",
+      ],
+      confirmLabel: "Run audit",
+      onConfirm: () => {
+        ops.startTask({
+          kind: "persona-audit",
+          label: "Auditing living memory",
+          resumeKey: brainId,
+        });
+      },
     });
   }
 
   function runWipe() {
     if (!brainId || wiping) return;
-    if (
-      !window.confirm(
-        "Wipe every auto-extracted fact?\n\n" +
-          "This deletes all the facts the scanner produced. Manually-added facts and facts you added via chat are kept.\n\n" +
-          "After wiping, click Run scan again to re-extract with the latest prompt.",
-      )
-    )
-      return;
-    // Optimistic clear — wipe deletes any active fact whose source is the
-    // scanner. Drop those locally NOW so the UI reflects the action; the
-    // useEffect above will reconcile against server truth when the op ends.
-    setFacts((prev) =>
-      prev.filter((f) => {
-        const m = f.metadata ?? {};
-        const src = String(m.source || "");
-        if (src === "manual" || src === "chat") return true;
-        if (m.skip_persona === true) return true;
-        return false;
-      }),
-    );
-    ops.startTask({
-      kind: "persona-wipe",
-      label: "Wiping auto-extracted persona facts",
-      resumeKey: brainId,
+    setConfirmRequest({
+      title: "Wipe every auto-extracted fact?",
+      body: [
+        "Deletes all the facts the scanner produced. Manually-added facts and facts you added via chat are kept.",
+        "After wiping, click Run scan again to re-extract with the latest prompt.",
+      ],
+      confirmLabel: "Wipe facts",
+      danger: true,
+      onConfirm: () => {
+        // Optimistic clear — wipe deletes any active fact whose source is the
+        // scanner. Drop those locally NOW so the UI reflects the action; the
+        // useEffect above will reconcile against server truth when the op ends.
+        setFacts((prev) =>
+          prev.filter((f) => {
+            const m = f.metadata ?? {};
+            const src = String(m.source || "");
+            if (src === "manual" || src === "chat") return true;
+            if (m.skip_persona === true) return true;
+            return false;
+          }),
+        );
+        ops.startTask({
+          kind: "persona-wipe",
+          label: "Wiping auto-extracted persona facts",
+          resumeKey: brainId,
+        });
+      },
     });
   }
 
@@ -474,7 +516,7 @@ export default function ProfileTab() {
       await authFetch("/api/entries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, changes: { metadata: newMeta } }),
+        body: JSON.stringify({ id, metadata: newMeta }),
       });
       await reloadFacts();
     } catch {
@@ -485,39 +527,42 @@ export default function ProfileTab() {
   async function retireFact(id: string) {
     const f = facts.find((x) => x.id === id);
     if (!f) return;
-    const reason = window.prompt(
-      `Retire "${f.title}"?\n\nWhy doesn't this apply anymore? (becomes part of your history)`,
-      "",
-    );
-    if (reason === null) return; // cancelled
     if (!brainId) return;
-    try {
-      // Server-side retire-with-history is in personaTools — call it via a
-      // tiny wrapper that hits /api/entries with the retire intent. For the
-      // settings UI we just patch metadata directly and the daily cron does
-      // the right thing; the chat tool path is the magic version.
-      const tags = Array.isArray(f.tags) ? f.tags : [];
-      const newTags = tags.includes("history") ? tags : [...tags, "history"];
-      await authFetch("/api/entries", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          changes: {
-            tags: newTags,
-            metadata: {
-              ...(f.metadata ?? {}),
-              status: "archived",
-              retired_at: new Date().toISOString(),
-              retired_reason: reason || null,
-            },
-          },
-        }),
-      });
-      await reloadFacts();
-    } catch (e: any) {
-      setFactsError(e?.message || "Could not retire");
-    }
+
+    setConfirmRequest({
+      title: "Retire to history?",
+      body: [
+        `"${f.title}"`,
+        'Moves this fact into History — archived but still searchable when chat asks specific questions like "where did I live" or "what was my ex\'s name". Just no longer in your active living memory.',
+      ],
+      confirmLabel: "Retire",
+      onConfirm: async () => {
+        try {
+          const tags = Array.isArray(f.tags) ? f.tags : [];
+          const newTags = tags.includes("history") ? tags : [...tags, "history"];
+          const newMeta = {
+            ...(f.metadata ?? {}),
+            status: "archived" as const,
+            retired_at: new Date().toISOString(),
+          };
+          // Optimistic — flip to archived locally so the row leaves Active
+          // immediately. reloadFacts reconciles after server returns.
+          setFacts((prev) =>
+            prev.map((x) => (x.id === id ? { ...x, tags: newTags, metadata: newMeta } : x)),
+          );
+          await authFetch("/api/entries", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, tags: newTags, metadata: newMeta }),
+          });
+          // Open the History section so the user sees where the fact went.
+          setShowHistory(true);
+          await reloadFacts();
+        } catch (e: any) {
+          setFactsError(e?.message || "Could not retire");
+        }
+      },
+    });
   }
 
   async function rejectFact(id: string, reason: string | null) {
@@ -543,10 +588,7 @@ export default function ProfileTab() {
       await authFetch("/api/entries", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id,
-          changes: { tags: newTags, metadata: newMeta },
-        }),
+        body: JSON.stringify({ id, tags: newTags, metadata: newMeta }),
       });
       await reloadFacts();
     } catch (e: any) {
@@ -564,14 +606,12 @@ export default function ProfileTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id,
-          changes: {
-            tags,
-            metadata: {
-              ...(f.metadata ?? {}),
-              status: "active",
-              rejected_at: undefined,
-              rejected_reason: undefined,
-            },
+          tags,
+          metadata: {
+            ...(f.metadata ?? {}),
+            status: "active",
+            rejected_at: undefined,
+            rejected_reason: undefined,
           },
         }),
       });
@@ -584,18 +624,24 @@ export default function ProfileTab() {
   async function deleteFactCompletely(id: string) {
     const f = facts.find((x) => x.id === id);
     if (!f) return;
-    if (!window.confirm(`Permanently delete "${f.title}"?\n\nThis removes it from history too.`))
-      return;
-    try {
-      await authFetch("/api/delete-entry", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      await reloadFacts();
-    } catch {
-      /* ignore */
-    }
+    setConfirmRequest({
+      title: "Permanently delete?",
+      body: [`"${f.title}"`, "This removes it from history too — it can't be restored."],
+      confirmLabel: "Delete forever",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await authFetch("/api/delete-entry", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+          await reloadFacts();
+        } catch {
+          /* ignore */
+        }
+      },
+    });
   }
 
   function handleAddKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -1057,8 +1103,9 @@ export default function ProfileTab() {
         </p>
       )}
 
-      {/* Active facts grouped by bucket */}
-      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 18 }}>
+      {/* Active facts grouped by bucket — every section uses CollapsibleSection
+          so the look + click target stays consistent. */}
+      <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 4 }}>
         {!factsLoaded && <Loading />}
 
         {factsLoaded &&
@@ -1067,54 +1114,24 @@ export default function ProfileTab() {
             if (!items.length) return null;
             const collapsed = collapsedBuckets.has(bucket);
             return (
-              <div key={bucket}>
-                <button
-                  type="button"
-                  onClick={() => toggleBucket(bucket)}
-                  aria-expanded={!collapsed}
-                  className="press"
-                  style={{
-                    display: "flex",
-                    alignItems: "baseline",
-                    gap: 8,
-                    width: "100%",
-                    padding: "4px 0",
-                    background: "transparent",
-                    border: 0,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      display: "inline-block",
-                      width: 12,
-                      fontSize: 11,
-                      color: "var(--ink-faint)",
-                      transform: collapsed ? "rotate(-90deg)" : "none",
-                      transition: "transform 160ms ease",
-                    }}
-                  >
-                    ▾
-                  </span>
-                  <BucketHeader label={BUCKET_LABELS[bucket]} count={items.length} />
-                </button>
-                {!collapsed && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
-                    {items.map((f) => (
-                      <FactRow
-                        key={f.id}
-                        fact={f}
-                        onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
-                        onRetire={() => retireFact(f.id)}
-                        onReject={() => setRejectingFact(f)}
-                        onDelete={() => deleteFactCompletely(f.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+              <CollapsibleSection
+                key={bucket}
+                label={BUCKET_LABELS[bucket]}
+                count={items.length}
+                collapsed={collapsed}
+                onToggle={() => toggleBucket(bucket)}
+              >
+                {items.map((f) => (
+                  <FactRow
+                    key={f.id}
+                    fact={f}
+                    onPin={() => patchFact(f.id, { pinned: !f.metadata?.pinned })}
+                    onRetire={() => retireFact(f.id)}
+                    onReject={() => setRejectingFact(f)}
+                    onDelete={() => deleteFactCompletely(f.id)}
+                  />
+                ))}
+              </CollapsibleSection>
             );
           })}
 
@@ -1137,30 +1154,29 @@ export default function ProfileTab() {
             </p>
           )}
 
-        {/* Fading */}
-        {grouped.fading.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowFading((v) => !v)}
-              className="f-sans"
-              style={{
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: "var(--ink-faint)",
-              }}
-            >
-              {showFading ? "▾" : "▸"} Fading ({grouped.fading.length}) — not in chat preamble until
-              reinforced
-            </button>
-            {showFading && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+        {/* Secondary sections — Fading / History / Not me. These always
+            render once facts have loaded so users know where rejected
+            facts went; empty states say so explicitly. */}
+        {factsLoaded && (
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 14,
+              borderTop: "1px solid var(--line-soft)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            {grouped.fading.length > 0 && (
+              <CollapsibleSection
+                label="Fading"
+                count={grouped.fading.length}
+                hint="not in chat preamble until reinforced"
+                collapsed={!showFading}
+                onToggle={() => setShowFading((v) => !v)}
+                emphasis="muted"
+              >
                 {grouped.fading.map((f) => (
                   <FactRow
                     key={f.id}
@@ -1173,35 +1189,35 @@ export default function ProfileTab() {
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
                 ))}
-              </div>
+              </CollapsibleSection>
             )}
-          </div>
-        )}
 
-        {/* History */}
-        {grouped.history.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowHistory((v) => !v)}
-              className="f-sans"
-              style={{
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: "var(--ink-faint)",
-              }}
+            {/* History — always-visible, mirrors Not me. Empty state tells
+                users where retired facts go. */}
+            <CollapsibleSection
+              label="History"
+              count={grouped.history.length}
+              hint="life events archived"
+              collapsed={!showHistory}
+              onToggle={() => setShowHistory((v) => !v)}
+              emphasis="muted"
             >
-              {showHistory ? "▾" : "▸"} History ({grouped.history.length}) — life events archived
-            </button>
-            {showHistory && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-                {grouped.history.map((f) => (
+              {grouped.history.length === 0 ? (
+                <p
+                  className="f-serif"
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontStyle: "italic",
+                    color: "var(--ink-faint)",
+                    padding: "4px 0",
+                  }}
+                >
+                  Nothing archived yet. When you retire a fact (or it ages out as a one-time event),
+                  it lands here — visible but no longer in your active living memory.
+                </p>
+              ) : (
+                grouped.history.map((f) => (
                   <FactRow
                     key={f.id}
                     fact={f}
@@ -1211,37 +1227,36 @@ export default function ProfileTab() {
                     onReject={() => {}}
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                ))
+              )}
+            </CollapsibleSection>
 
-        {/* Rejected — facts the user said are NOT defining their identity.
-            Stay here so the user can see what's been suppressed and undo. */}
-        {grouped.rejected.length > 0 && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowRejected((v) => !v)}
-              className="f-sans"
-              style={{
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-                color: "var(--ink-faint)",
-              }}
+            {/* Not me — always visible once facts are loaded so users
+                know this section exists, even when empty. */}
+            <CollapsibleSection
+              label="Not me"
+              count={grouped.rejected.length}
+              hint="won't be re-extracted"
+              collapsed={!showRejected}
+              onToggle={() => setShowRejected((v) => !v)}
+              emphasis="muted"
             >
-              {showRejected ? "▾" : "▸"} Not me ({grouped.rejected.length}) — won't be re-extracted
-            </button>
-            {showRejected && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
-                {grouped.rejected.map((f) => (
+              {grouped.rejected.length === 0 ? (
+                <p
+                  className="f-serif"
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontStyle: "italic",
+                    color: "var(--ink-faint)",
+                    padding: "4px 0",
+                  }}
+                >
+                  Nothing rejected yet. When you mark a fact as Not me, it lands here so future
+                  scans skip it — and you can restore it anytime.
+                </p>
+              ) : (
+                grouped.rejected.map((f) => (
                   <FactRow
                     key={f.id}
                     fact={f}
@@ -1252,18 +1267,41 @@ export default function ProfileTab() {
                     onUnreject={() => unrejectFact(f.id)}
                     onDelete={() => deleteFactCompletely(f.id)}
                   />
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </CollapsibleSection>
           </div>
         )}
       </div>
+
+      {/* Admin-only: live persona-extractor prompt + learnings, gated behind
+          a separate adminPref so it stays out of the way unless explicitly
+          turned on in the Admin tab. Pinned to the very bottom of Personal
+          so it never gets in the way of the actual settings UI. */}
+      {isAdmin && adminPrefs.showPersonaPromptDebug && brainId && (
+        <PersonaPromptDebug brainId={brainId} factsLength={facts.length} />
+      )}
 
       {rejectingFact && (
         <RejectDialog
           fact={rejectingFact}
           onCancel={() => setRejectingFact(null)}
           onConfirm={(reason) => rejectFact(rejectingFact.id, reason)}
+        />
+      )}
+
+      {confirmRequest && (
+        <ConfirmDialog
+          title={confirmRequest.title}
+          body={confirmRequest.body}
+          confirmLabel={confirmRequest.confirmLabel}
+          danger={confirmRequest.danger}
+          onCancel={() => setConfirmRequest(null)}
+          onConfirm={() => {
+            const req = confirmRequest;
+            setConfirmRequest(null);
+            req.onConfirm();
+          }}
         />
       )}
     </div>
@@ -1619,5 +1657,702 @@ function RejectDialog({
       </div>
     </div>,
     document.body,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ConfirmDialog — branded replacement for window.confirm(). Same portal +
+// body-lock pattern as RejectDialog so iOS Safari doesn't anchor the modal
+// below the fold and the user lands back on their original scroll position.
+// Accepts a single body string OR an array of paragraphs so multi-part
+// confirmations read cleanly without inline \n\n hacks.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ConfirmDialog({
+  title,
+  body,
+  confirmLabel,
+  danger,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  body: string | string[];
+  confirmLabel: string;
+  danger?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    return () => {
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter" && !submitting) handleConfirm();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [submitting]);
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    try {
+      await onConfirm();
+      onCancel();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const paragraphs = Array.isArray(body) ? body : [body];
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) onCancel();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "var(--scrim, rgba(0,0,0,0.45))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 200,
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "min(440px, 100%)",
+          background: "var(--surface-high)",
+          border: "1px solid var(--line)",
+          borderRadius: 14,
+          boxShadow: "var(--lift-3)",
+          padding: 24,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <h3
+          className="f-serif"
+          style={{ margin: 0, fontSize: 18, fontWeight: 500, color: "var(--ink)" }}
+        >
+          {title}
+        </h3>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {paragraphs.map((p, i) => (
+            <p
+              key={i}
+              className="f-serif"
+              style={{
+                margin: 0,
+                fontSize: 13,
+                fontStyle: "italic",
+                color: "var(--ink-soft)",
+                lineHeight: 1.55,
+              }}
+            >
+              {p}
+            </p>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="press f-sans"
+            style={{
+              height: 36,
+              padding: "0 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ink-soft)",
+              border: "1px solid var(--line-soft)",
+              cursor: submitting ? "wait" : "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={submitting}
+            autoFocus
+            className="press f-sans"
+            style={{
+              height: 36,
+              padding: "0 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              background: danger ? "var(--blood)" : "var(--ember)",
+              color: danger ? "var(--surface-high)" : "var(--ember-ink)",
+              border: 0,
+              cursor: submitting ? "wait" : "pointer",
+              opacity: submitting ? 0.6 : 1,
+            }}
+          >
+            {submitting ? "Working…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CollapsibleSection — single primitive used by every group in Living memory
+// (Identity / Family / Habits / Preferences / Notable events / Fading /
+// History / Not me). One look, one feel, one click target.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function CollapsibleSection({
+  label,
+  count,
+  hint,
+  collapsed,
+  onToggle,
+  children,
+  emphasis = "normal",
+}: {
+  label: string;
+  count: number;
+  hint?: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+  emphasis?: "normal" | "muted";
+}) {
+  const muted = emphasis === "muted";
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="press"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "8px 4px",
+          background: "transparent",
+          border: 0,
+          borderBottom: "1px solid transparent",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 140ms ease, border-color 140ms ease",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--surface-low)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "transparent";
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 14,
+            height: 14,
+            color: "var(--ink-faint)",
+            transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+            transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path
+              d="M1 1L5 5L9 1"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span
+          className="f-serif"
+          style={{
+            fontSize: muted ? 13 : 15,
+            fontWeight: 500,
+            color: muted ? "var(--ink-soft)" : "var(--ink)",
+            fontStyle: muted ? "italic" : "normal",
+          }}
+        >
+          {label}
+        </span>
+        <span
+          className="f-sans"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "var(--ink-faint)",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 999,
+            padding: "1px 8px",
+            minWidth: 22,
+            textAlign: "center",
+          }}
+        >
+          {count}
+        </span>
+        {hint && !collapsed && (
+          <span
+            className="f-sans"
+            style={{
+              marginLeft: "auto",
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              fontStyle: "italic",
+            }}
+          >
+            {hint}
+          </span>
+        )}
+      </button>
+      <div
+        style={{
+          overflow: "hidden",
+          maxHeight: collapsed ? 0 : 9999,
+          opacity: collapsed ? 0 : 1,
+          transition: "opacity 200ms ease",
+          marginTop: collapsed ? 0 : 8,
+        }}
+      >
+        {!collapsed && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 24 }}>
+            {children}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PersonaPromptDebug — live extractor prompt + learnings panel.
+//
+// Calls GET /api/entries?action=persona-prompt&brain_id=… (admin-only on the
+// server) and renders the fully-rendered prompt that would be sent to Gemini
+// for THIS user, alongside the structured context the prompt was built from
+// (name / About You / confirmed facts / rejected patterns). Auto-refreshes
+// when facts change so the admin can watch learnings update in real time.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface PersonaPromptPayload {
+  context: {
+    userName: string;
+    fullName: string;
+    pronouns: string;
+    coreContext: string;
+    confirmedFacts: string[];
+    rejectedFacts: Array<{ title: string; reason: string | null }>;
+  };
+  prompt: string;
+}
+
+function PersonaPromptDebug({
+  brainId,
+  factsLength,
+}: {
+  brainId: string;
+  factsLength: number;
+}): JSX.Element {
+  const [data, setData] = useState<PersonaPromptPayload | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [showRaw, setShowRaw] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
+
+  async function load() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const r = await authFetch(
+        `/api/entries?action=persona-prompt&brain_id=${encodeURIComponent(brainId)}`,
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const json = (await r.json()) as PersonaPromptPayload;
+      setData(json);
+    } catch (e: any) {
+      setErr(String(e?.message ?? e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Auto-load when expanded; auto-refresh whenever facts change so the
+  // panel always shows current learnings.
+  useEffect(() => {
+    if (!collapsed) load(); /* eslint-disable-line react-hooks/exhaustive-deps */
+  }, [collapsed, brainId, factsLength]);
+
+  return (
+    <div
+      style={{
+        marginTop: 32,
+        paddingTop: 18,
+        borderTop: "1px dashed var(--line)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+        className="press"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "8px 4px",
+          background: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: 14,
+            height: 14,
+            color: "var(--ember)",
+            transform: collapsed ? "rotate(-90deg)" : "rotate(0deg)",
+            transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
+          }}
+        >
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path
+              d="M1 1L5 5L9 1"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span
+          className="f-mono"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ember)",
+          }}
+        >
+          Admin · live persona prompt
+        </span>
+        <span
+          className="f-sans"
+          style={{ fontSize: 11, color: "var(--ink-faint)", fontStyle: "italic" }}
+        >
+          watch the extractor learn
+        </span>
+      </button>
+
+      {!collapsed && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 16,
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 12,
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          {loading && !data && (
+            <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}>
+              loading prompt…
+            </p>
+          )}
+          {err && (
+            <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
+              error: {err}
+            </p>
+          )}
+
+          {data && (
+            <>
+              <DebugBlock
+                label="Identity"
+                value={`${data.context.userName || "(no preferred name)"}${
+                  data.context.fullName && data.context.fullName !== data.context.userName
+                    ? `  ·  ${data.context.fullName}`
+                    : ""
+                }${data.context.pronouns ? `  ·  ${data.context.pronouns}` : ""}`}
+              />
+
+              <DebugBlock
+                label="Core profile (About You)"
+                value={data.context.coreContext || "(empty)"}
+                multiline
+              />
+
+              <DebugList
+                label={`Confirmed facts the model already knows (${data.context.confirmedFacts.length})`}
+                items={data.context.confirmedFacts}
+                emptyText="None yet — facts confirmed via chat or pinned will appear here."
+              />
+
+              <DebugRejectedList
+                label={`Rejected patterns the model now skips (${data.context.rejectedFacts.length})`}
+                items={data.context.rejectedFacts}
+                emptyText="Nothing rejected yet. Mark facts as Not me and they appear here — the next scan will skip anything similar."
+              />
+
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setShowRaw((v) => !v)}
+                  className="press f-sans"
+                  style={{
+                    height: 30,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    background: "transparent",
+                    color: showRaw ? "var(--ember)" : "var(--ink-soft)",
+                    border: `1px solid ${showRaw ? "var(--ember)" : "var(--line-soft)"}`,
+                    cursor: "pointer",
+                  }}
+                >
+                  {showRaw ? "Hide raw prompt" : "Show raw prompt"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => load()}
+                  disabled={loading}
+                  className="press f-sans"
+                  style={{
+                    height: 30,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 6,
+                    background: "transparent",
+                    color: "var(--ink-soft)",
+                    border: "1px solid var(--line-soft)",
+                    cursor: loading ? "wait" : "pointer",
+                  }}
+                >
+                  {loading ? "Refreshing…" : "Refresh"}
+                </button>
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
+                >
+                  {data.prompt.length.toLocaleString()} chars
+                </span>
+              </div>
+
+              {showRaw && (
+                <pre
+                  className="f-mono"
+                  style={{
+                    margin: 0,
+                    padding: 12,
+                    background: "var(--surface)",
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    color: "var(--ink-soft)",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    maxHeight: 480,
+                    overflowY: "auto",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {data.prompt}
+                </pre>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DebugBlock({
+  label,
+  value,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+}): JSX.Element {
+  return (
+    <div>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--ink-faint)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        className="f-mono"
+        style={{
+          fontSize: 12,
+          color: "var(--ink)",
+          whiteSpace: multiline ? "pre-wrap" : "normal",
+          wordBreak: "break-word",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function DebugList({
+  label,
+  items,
+  emptyText,
+}: {
+  label: string;
+  items: string[];
+  emptyText: string;
+}): JSX.Element {
+  return (
+    <div>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--ink-faint)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {items.length === 0 ? (
+        <div
+          className="f-serif"
+          style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          {emptyText}
+        </div>
+      ) : (
+        <ul
+          style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 2 }}
+        >
+          {items.map((it, i) => (
+            <li
+              key={i}
+              className="f-mono"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.5 }}
+            >
+              {it}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function DebugRejectedList({
+  label,
+  items,
+  emptyText,
+}: {
+  label: string;
+  items: Array<{ title: string; reason: string | null }>;
+  emptyText: string;
+}): JSX.Element {
+  return (
+    <div>
+      <div
+        className="f-sans"
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--ink-faint)",
+          marginBottom: 4,
+        }}
+      >
+        {label}
+      </div>
+      {items.length === 0 ? (
+        <div
+          className="f-serif"
+          style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+        >
+          {emptyText}
+        </div>
+      ) : (
+        <ul
+          style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 4 }}
+        >
+          {items.map((it, i) => (
+            <li
+              key={i}
+              className="f-mono"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.5 }}
+            >
+              {it.title}
+              {it.reason && (
+                <span style={{ color: "var(--ink-faint)", fontStyle: "italic" }}>
+                  {"  —  "}
+                  {it.reason}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

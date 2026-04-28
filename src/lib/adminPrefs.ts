@@ -26,6 +26,8 @@ export interface AdminPrefs {
   showGmailScanDebug: boolean;
   /** "Admin: …" extras inside the Enrichment settings tab. */
   showEnrichmentAdminExtras: boolean;
+  /** Live persona-extractor prompt + learnings panel at bottom of Personal. */
+  showPersonaPromptDebug: boolean;
 }
 
 export const ADMIN_PREF_DEFS: Array<{
@@ -58,6 +60,11 @@ export const ADMIN_PREF_DEFS: Array<{
     label: "Enrichment admin extras",
     hint: "Admin-only sections inside Settings → Enrichment.",
   },
+  {
+    key: "showPersonaPromptDebug",
+    label: "Persona prompt debug",
+    hint: "Live extractor prompt + rejected/confirmed learnings at bottom of Personal.",
+  },
 ];
 
 const DEFAULTS: AdminPrefs = {
@@ -66,6 +73,7 @@ const DEFAULTS: AdminPrefs = {
   showAIDiagnostics: true,
   showGmailScanDebug: true,
   showEnrichmentAdminExtras: true,
+  showPersonaPromptDebug: false,
 };
 
 export function getAdminPrefs(): AdminPrefs {
