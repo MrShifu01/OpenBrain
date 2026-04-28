@@ -93,7 +93,6 @@ export default function DesktopHeader({
     if (e && e !== email) setEmail(e);
   }, [email]);
 
-  const initial = email ? email[0]!.toUpperCase() : "·";
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
   return (
@@ -264,6 +263,12 @@ export default function DesktopHeader({
             marginLeft: 6,
             width: 36,
             height: 36,
+            // box-sizing keeps the 1px border inside the 36×36 box; without
+            // this the user-agent button defaults to content-box and the
+            // avatar renders 38×36 — slight oval, not a circle.
+            boxSizing: "border-box",
+            flexShrink: 0,
+            padding: 0,
             borderRadius: "50%",
             display: "inline-flex",
             alignItems: "center",
@@ -272,14 +277,22 @@ export default function DesktopHeader({
             color: "var(--ember)",
             border: "1px solid color-mix(in oklch, var(--ember) 28%, transparent)",
             cursor: "pointer",
-            fontFamily: "var(--f-sans)",
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: "0.02em",
-            lineHeight: 1,
           }}
         >
-          {initial}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="9" r="3.5" />
+            <path d="M5.5 19c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5" />
+          </svg>
         </button>
       </div>
     </header>
