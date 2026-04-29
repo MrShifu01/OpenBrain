@@ -2,6 +2,7 @@ import type { AppShellState } from "./hooks/useAppShell";
 import NotificationBell from "./components/NotificationBell";
 import type { AppNotification } from "./hooks/useNotifications";
 import type { Entry } from "./types";
+import { Button } from "./components/ui/button";
 
 interface Props {
   appShell: AppShellState;
@@ -84,11 +85,7 @@ export default function MemoryHeader({
             onAcceptMerge={onAcceptMerge ?? (() => {})}
           />
         )}
-        <button
-          className="design-btn-primary press"
-          onClick={() => appShell.setShowCapture(true)}
-          style={{ borderRadius: 6 }}
-        >
+        <Button onClick={() => appShell.setShowCapture(true)}>
           <svg
             width="14"
             height="14"
@@ -103,7 +100,7 @@ export default function MemoryHeader({
             <path d="M12 5v14M5 12h14" />
           </svg>
           Capture
-        </button>
+        </Button>
       </header>
 
       {/* Filter row — Grid/Timeline + type pills + sort */}
@@ -198,8 +195,10 @@ export default function MemoryHeader({
           if (importedCount === 0) return null;
           const active = appShell.gridFilters.importSource === "any";
           return (
-            <button
-              className="press"
+            <Button
+              size="sm"
+              variant={active ? "default" : "ghost"}
+              aria-pressed={active}
               onClick={() =>
                 appShell.setGridFilters({
                   ...appShell.gridFilters,
@@ -207,28 +206,10 @@ export default function MemoryHeader({
                   brainId: activeBrainId,
                 })
               }
-              aria-pressed={active}
-              style={{
-                height: 32,
-                minHeight: 32,
-                padding: "0 10px",
-                borderRadius: 6,
-                fontFamily: "var(--f-sans)",
-                fontSize: 13,
-                fontWeight: 500,
-                background: active ? "var(--ember-wash)" : "transparent",
-                color: active ? "var(--ember)" : "var(--ink-faint)",
-                border: active ? "1px solid var(--ember)" : "1px solid transparent",
-                cursor: "pointer",
-                transition: "all 180ms",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
             >
               From imports
               <span style={{ opacity: 0.7, fontSize: 12 }}>{importedCount.toLocaleString()}</span>
-            </button>
+            </Button>
           );
         })()}
 
@@ -242,8 +223,10 @@ export default function MemoryHeader({
           if (completedCount === 0) return null;
           const active = appShell.gridFilters.showCompleted === true;
           return (
-            <button
-              className="press"
+            <Button
+              size="sm"
+              variant={active ? "default" : "ghost"}
+              aria-pressed={active}
               onClick={() =>
                 appShell.setGridFilters({
                   ...appShell.gridFilters,
@@ -251,59 +234,29 @@ export default function MemoryHeader({
                   brainId: activeBrainId,
                 })
               }
-              aria-pressed={active}
-              style={{
-                height: 32,
-                minHeight: 32,
-                padding: "0 10px",
-                borderRadius: 6,
-                fontFamily: "var(--f-sans)",
-                fontSize: 13,
-                fontWeight: 500,
-                background: active ? "var(--ember-wash)" : "transparent",
-                color: active ? "var(--ember)" : "var(--ink-faint)",
-                border: active ? "1px solid var(--ember)" : "1px solid transparent",
-                cursor: "pointer",
-                transition: "all 180ms",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
             >
               Show completed
               <span style={{ opacity: 0.7, fontSize: 12 }}>{completedCount.toLocaleString()}</span>
-            </button>
+            </Button>
           );
         })()}
 
         {/* Select mode toggle */}
         {appShell.view === "memory" && (
-          <button
-            className="press"
-            onClick={appShell.toggleSelectMode}
+          <Button
+            size="sm"
+            variant={appShell.selectMode ? "default" : "ghost"}
             aria-pressed={appShell.selectMode}
-            style={{
-              height: 32,
-              minHeight: 32,
-              padding: "0 10px",
-              borderRadius: 6,
-              fontFamily: "var(--f-sans)",
-              fontSize: 13,
-              fontWeight: 500,
-              background: appShell.selectMode ? "var(--ember-wash)" : "transparent",
-              color: appShell.selectMode ? "var(--ember)" : "var(--ink-faint)",
-              border: appShell.selectMode ? "1px solid var(--ember)" : "1px solid transparent",
-              cursor: "pointer",
-              transition: "all 180ms",
-            }}
+            onClick={appShell.toggleSelectMode}
           >
             Select
-          </button>
+          </Button>
         )}
 
         {/* Sort cycle */}
-        <button
-          className="design-btn-ghost press"
+        <Button
+          size="sm"
+          variant="ghost"
           onClick={() => {
             const order: Array<"newest" | "oldest" | "pinned"> = ["newest", "oldest", "pinned"];
             const idx = order.indexOf(appShell.gridFilters.sort as any);
@@ -314,7 +267,6 @@ export default function MemoryHeader({
               brainId: activeBrainId,
             });
           }}
-          style={{ fontSize: 13, height: 32, minHeight: 32, padding: "0 10px" }}
         >
           <svg
             width="14"
@@ -334,7 +286,7 @@ export default function MemoryHeader({
             : appShell.gridFilters.sort === "pinned"
               ? "Pinned first"
               : "Recent first"}
-        </button>
+        </Button>
       </div>
     </>
   );

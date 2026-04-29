@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
+import { Button } from "./ui/button";
 
 // Cross-brain assignment is gated until shared/community brains lands. Flip
 // this back to true when that feature ships — the picker code below is left
@@ -37,6 +38,10 @@ export default function BulkActionBar({
   const [brainsOpen, setBrainsOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  // Two-tap inline delete: first tap arms the trash button (shows
+  // "Tap to confirm"), second tap executes. Auto-reverts after 2.5s.
+  // No OS dialog — design philosophy in CLAUDE.md.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const typeRef = useRef<HTMLDivElement>(null);
   const brainsRef = useRef<HTMLDivElement>(null);
 
@@ -48,6 +53,15 @@ export default function BulkActionBar({
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Auto-disarm the inline delete confirmation after 2.5s of no follow-up
+  // tap. Otherwise an armed trash button could sit there for minutes and
+  // surprise the user on their next tap.
+  useEffect(() => {
+    if (!confirmingDelete) return;
+    const t = setTimeout(() => setConfirmingDelete(false), 2500);
+    return () => clearTimeout(t);
+  }, [confirmingDelete]);
 
   const count = selectedIds.size;
   const hasAction = !!targetType || targetBrainIds.size > 0;
@@ -246,72 +260,62 @@ export default function BulkActionBar({
             {count} selected
           </span>
           {onSelectAll && (
-            <button
-              onClick={onSelectAll}
-              className="press-scale rounded-full px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
-              style={{
-                background: allSelected ? "var(--ember-wash)" : "var(--color-surface-container)",
-                color: allSelected ? "var(--ember)" : "var(--color-on-surface-variant)",
-                border: `1px solid ${allSelected ? "var(--ember)" : "var(--color-outline-variant)"}`,
-              }}
-            >
+            <Button size="sm" variant={allSelected ? "default" : "outline"} onClick={onSelectAll}>
               {allSelected ? "Deselect all" : "Select all"}
-            </button>
+            </Button>
           )}
           {/* Delete — most-common bulk action surfaced inline so it doesn't
               hide behind the More panel. Confirm before destructive op.
               On success, dismiss the pill — keeping it open after action is
               taken just creates a "what now?" moment for the user. */}
-          {onDelete && (
-            <button
-              onClick={async () => {
-                if (deleting) return;
-                if (!window.confirm(`Delete ${count} ${count === 1 ? "entry" : "entries"}?`))
-                  return;
-                setDeleting(true);
-                try {
-                  await onDelete(Array.from(selectedIds));
-                  onCancel();
-                } finally {
-                  setDeleting(false);
-                }
-              }}
-              disabled={deleting}
-              aria-label={`Delete ${count} selected`}
-              title="Delete selected"
-              className="press-scale flex h-11 w-11 items-center justify-center rounded-full transition-opacity hover:opacity-70"
-              style={{ color: "var(--color-error, var(--blood))", opacity: deleting ? 0.5 : 1 }}
-            >
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
+          {onDelete &&
+            (confirmingDelete ? (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={deleting}
+                aria-label={`Confirm delete ${count}`}
+                onClick={async () => {
+                  setDeleting(true);
+                  try {
+                    await onDelete(Array.from(selectedIds));
+                    onCancel();
+                  } finally {
+                    setDeleting(false);
+                    setConfirmingDelete(false);
+                  }
+                }}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
-                />
-              </svg>
-            </button>
-          )}
-          <button
-            onClick={() => setExpanded(true)}
-            aria-label="More actions"
-            title="Change type, add to brains…"
-            className="press-scale rounded-full px-3 py-2.5 text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-90"
-            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-          >
+                Tap to confirm
+              </Button>
+            ) : (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                disabled={deleting}
+                aria-label={`Delete ${count} selected`}
+                onClick={() => setConfirmingDelete(true)}
+                className="text-[var(--blood,#c44)]"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
+                  />
+                </svg>
+              </Button>
+            ))}
+          <Button size="sm" onClick={() => setExpanded(true)} aria-label="More actions">
             More
-          </button>
-          <button
-            onClick={onCancel}
-            aria-label="Cancel selection"
-            className="press-scale flex h-11 w-11 items-center justify-center rounded-full transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-on-surface-variant)" }}
-          >
+          </Button>
+          <Button size="icon-sm" variant="ghost" onClick={onCancel} aria-label="Cancel selection">
             <svg
               className="h-4 w-4"
               fill="none"
@@ -321,7 +325,7 @@ export default function BulkActionBar({
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -347,10 +351,10 @@ export default function BulkActionBar({
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <button
+          <Button
+            size="sm"
+            variant="ghost"
             onClick={() => setExpanded(false)}
-            className="press-scale flex items-center gap-1.5 rounded-lg px-1 py-2.5 text-sm font-semibold transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-on-surface)" }}
             aria-label="Back to selecting"
           >
             <svg
@@ -363,14 +367,10 @@ export default function BulkActionBar({
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
             {count} {count === 1 ? "entry" : "entries"} selected
-          </button>
-          <button
-            onClick={onCancel}
-            className="rounded-lg px-2.5 py-2.5 text-xs transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-on-surface-variant)" }}
-          >
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
 
         {/* Actions */}
@@ -542,30 +542,21 @@ export default function BulkActionBar({
         </div>
 
         {/* Apply */}
-        <button
-          onClick={apply}
-          disabled={!hasAction || !!progress || deleting}
-          className="w-full rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-        >
+        <Button onClick={apply} disabled={!hasAction || !!progress || deleting} className="w-full">
           {progress ?? `Apply to ${count} ${count === 1 ? "entry" : "entries"}`}
-        </button>
+        </Button>
 
         {/* Destructive actions */}
         {onDelete && (
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="destructive"
               onClick={bulkDelete}
               disabled={deleting || !!progress}
-              className="flex-1 rounded-xl py-2 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-              style={{
-                background: "color-mix(in oklch, var(--color-error) 12%, transparent)",
-                color: "var(--color-error)",
-                border: "1px solid color-mix(in oklch, var(--color-error) 30%, transparent)",
-              }}
+              className="flex-1"
             >
               {deleting ? "Deleting…" : `Delete ${count}`}
-            </button>
+            </Button>
           </div>
         )}
       </div>

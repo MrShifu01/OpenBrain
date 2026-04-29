@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import GmailScanReviewModal from "./settings/GmailScanReviewModal";
 import { useStagedCount } from "../hooks/useStagedCount";
+import { Button } from "./ui/button";
 
 interface Props {
   notifications: AppNotification[];
@@ -104,40 +105,12 @@ function MergeCard({
         </div>
       )}
       <div style={{ display: "flex", gap: 6 }}>
-        <button
-          onClick={onDismiss}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 32,
-            borderRadius: 7,
-            border: "1px solid var(--line)",
-            background: "transparent",
-            color: "var(--ink-soft)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
+        <Button variant="outline" size="sm" className="flex-1" onClick={onDismiss}>
           Keep separate
-        </button>
-        <button
-          onClick={onAccept}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 32,
-            borderRadius: 7,
-            border: "none",
-            background: "var(--ember)",
-            color: "var(--ember-ink)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+        </Button>
+        <Button size="sm" className="flex-1" onClick={onAccept}>
           Merge →
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -275,40 +248,12 @@ function GmailScanCard({
       </div>
       {hasItems && (
         <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-          <button
-            onClick={onDismiss}
-            className="press f-sans"
-            style={{
-              flex: 1,
-              height: 32,
-              borderRadius: 7,
-              border: "1px solid var(--line)",
-              background: "transparent",
-              color: "var(--ink-soft)",
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
+          <Button variant="outline" size="sm" className="flex-1" onClick={onDismiss}>
             Dismiss
-          </button>
-          <button
-            onClick={onOpenInbox}
-            className="press f-sans"
-            style={{
-              flex: 1,
-              height: 32,
-              borderRadius: 7,
-              border: "none",
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Button size="sm" className="flex-1" onClick={onOpenInbox}>
             Open inbox
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -365,40 +310,12 @@ function GmailReviewCard({
         </div>
       </div>
       <div style={{ display: "flex", gap: 6 }}>
-        <button
-          onClick={onDismiss}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 32,
-            borderRadius: 7,
-            border: "1px solid var(--line)",
-            background: "transparent",
-            color: "var(--ink-soft)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
+        <Button variant="outline" size="sm" className="flex-1" onClick={onDismiss}>
           Accept all
-        </button>
-        <button
-          onClick={onReview}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 32,
-            borderRadius: 7,
-            border: "none",
-            background: "var(--ember)",
-            color: "var(--ember-ink)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+        </Button>
+        <Button size="sm" className="flex-1" onClick={onReview}>
           Review {count} items
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -563,20 +480,9 @@ export default function NotificationBell({
               Notifications
             </span>
             {notifications.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="press f-sans"
-                style={{
-                  fontSize: 11,
-                  color: "var(--ink-faint)",
-                  background: "transparent",
-                  border: 0,
-                  cursor: "pointer",
-                  padding: 0,
-                }}
-              >
+              <Button variant="link" size="xs" onClick={handleClearAll} className="px-0">
                 Clear all
-              </button>
+              </Button>
             )}
           </div>
 
