@@ -47,7 +47,7 @@ function StatusDot({ on }: { on: boolean }) {
 
 const selectStyle: React.CSSProperties = {
   height: 32,
-  padding: "0 10px",
+  padding: "0 30px 0 12px",
   borderRadius: 8,
   fontSize: 13,
   background: "var(--surface)",
@@ -56,6 +56,13 @@ const selectStyle: React.CSSProperties = {
   cursor: "pointer",
   outline: "none",
   maxWidth: 200,
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  backgroundImage:
+    "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+  backgroundRepeat: "no-repeat",
+  backgroundPosition: "right 10px center",
 };
 
 const inputStyle: React.CSSProperties = {

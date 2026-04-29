@@ -1081,7 +1081,15 @@ export default function ProfileTab() {
           style={{
             ...inputStyle(),
             width: 130,
-            padding: "8px 10px",
+            padding: "8px 30px 8px 12px",
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            cursor: "pointer",
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 12px center",
           }}
         >
           {BUCKET_ORDER.map((b) => (

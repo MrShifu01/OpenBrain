@@ -131,13 +131,6 @@ export default function MoveToBrainModal({ entry, currentBrain, brains, onClose,
                       cursor: "pointer",
                     }}
                   >
-                    {b.is_personal ? (
-                      <span style={{ color: "var(--ember)", width: 14, textAlign: "center" }}>
-                        ★
-                      </span>
-                    ) : (
-                      <span style={{ width: 14 }} />
-                    )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div
                         style={{

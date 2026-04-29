@@ -148,21 +148,32 @@ export default function CaptureSheet({
     const handle = handleRef.current;
     if (!handle || !isOpen) return;
     let startY = 0;
+    let tracking = false;
     const onStart = (e: TouchEvent) => {
       startY = e.touches[0].clientY;
+      tracking = true;
     };
     const onMove = (e: TouchEvent) => {
+      if (!tracking) return;
       const dy = e.touches[0].clientY - startY;
       if (dy > 0) {
         e.preventDefault();
-        setDragY(dy);
+        // Rubber-band resistance past 200px so the throw feels weighty
+        // instead of running away to the bottom of the screen.
+        const eased = dy < 200 ? dy : 200 + (dy - 200) * 0.4;
+        setDragY(eased);
+      } else if (dy < -8) {
+        // Reverse swipe cancels the gesture cleanly.
+        tracking = false;
+        setDragY(0);
       }
     };
     const onEnd = () => {
+      tracking = false;
       setDragY((prev) => {
         if (prev > 80) {
           setVisible(false);
-          setTimeout(onClose, 280);
+          setTimeout(onClose, 360);
         }
         return 0;
       });
@@ -170,10 +181,12 @@ export default function CaptureSheet({
     handle.addEventListener("touchstart", onStart, { passive: true });
     handle.addEventListener("touchmove", onMove, { passive: false });
     handle.addEventListener("touchend", onEnd, { passive: true });
+    handle.addEventListener("touchcancel", onEnd, { passive: true });
     return () => {
       handle.removeEventListener("touchstart", onStart);
       handle.removeEventListener("touchmove", onMove);
       handle.removeEventListener("touchend", onEnd);
+      handle.removeEventListener("touchcancel", onEnd);
     };
   }, [isOpen, onClose]);
 
@@ -310,7 +323,10 @@ export default function CaptureSheet({
             border: "1px solid var(--line)",
             boxShadow: "var(--lift-3)",
             ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
-            transition: dragY > 0 ? "none" : "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)",
+            transition:
+              dragY > 0
+                ? "none"
+                : "--capture-y 0.36s cubic-bezier(0.22, 1, 0.36, 1), transform 0.36s cubic-bezier(0.22, 1, 0.36, 1)",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -321,29 +337,31 @@ export default function CaptureSheet({
           </div>
 
           {/* Top strip — drag handle (mobile only, centered) + per-capture
-              brain pill (right-aligned, only when multi-brain). Single low row
-              instead of two stacked banners. */}
+              brain pill (right-aligned, only when multi-brain). The whole
+              strip is the swipe-to-close grab region so users don't have
+              to hit the tiny pill. */}
           <div
+            ref={handleRef}
+            className="touch-none lg:touch-auto"
             style={{
               position: "relative",
-              minHeight: 22,
-              paddingTop: 8,
-              paddingBottom: 4,
+              minHeight: 36,
+              paddingTop: 10,
+              paddingBottom: 6,
             }}
           >
             <div
-              ref={handleRef}
-              className="touch-none lg:hidden"
+              className="lg:hidden"
               style={{
                 position: "absolute",
                 left: "50%",
                 top: 10,
                 transform: "translateX(-50%)",
-                width: 36,
-                height: 4,
-                borderRadius: 2,
+                width: 40,
+                height: 5,
+                borderRadius: 999,
                 background: "var(--line)",
-                cursor: "grab",
+                pointerEvents: "none",
               }}
               aria-hidden="true"
             />
@@ -510,11 +528,6 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
           maxWidth: 160,
         }}
       >
-        {target.is_personal && (
-          <span aria-hidden="true" style={{ color: "var(--ember)", fontSize: 9 }}>
-            ★
-          </span>
-        )}
         <span
           style={{
             overflow: "hidden",
@@ -583,11 +596,6 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
                   cursor: "pointer",
                 }}
               >
-                {b.is_personal ? (
-                  <span style={{ color: "var(--ember)", width: 12, textAlign: "center" }}>★</span>
-                ) : (
-                  <span style={{ width: 12 }} />
-                )}
                 <span
                   style={{
                     overflow: "hidden",

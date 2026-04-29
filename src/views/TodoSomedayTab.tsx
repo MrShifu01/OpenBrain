@@ -636,6 +636,14 @@ function ChipWithMenu({
 }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(tag);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      setConfirmingDelete(false);
+      setRenaming(false);
+    }
+  }, [menuOpen]);
 
   return (
     <div style={{ position: "relative", display: "inline-flex" }}>
@@ -743,23 +751,67 @@ function ChipWithMenu({
                 Save
               </button>
             </div>
+          ) : confirmingDelete ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 6 }}>
+              <p
+                className="f-sans"
+                style={{
+                  margin: 0,
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: "var(--ink)",
+                }}
+              >
+                Delete category <span style={{ fontWeight: 600 }}>“{tag}”</span>? Items keep their
+                other tags but lose this one.
+              </p>
+              <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="press f-sans"
+                  style={{
+                    height: 26,
+                    padding: "0 10px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: 999,
+                    background: "var(--surface)",
+                    color: "var(--ink-soft)",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setConfirmingDelete(false);
+                    onDelete();
+                  }}
+                  className="press f-sans"
+                  style={{
+                    height: 26,
+                    padding: "0 10px",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    border: "none",
+                    borderRadius: 999,
+                    background: "var(--danger, #c44)",
+                    color: "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               <MenuItem label="Rename" onClick={() => setRenaming(true)} />
               <MenuItem
                 label="Delete category"
                 tone="danger"
-                onClick={() => {
-                  if (
-                    typeof window !== "undefined" &&
-                    !window.confirm(
-                      `Delete category “${tag}”? Items keep their other tags but lose this one.`,
-                    )
-                  ) {
-                    return;
-                  }
-                  onDelete();
-                }}
+                onClick={() => setConfirmingDelete(true)}
               />
               <MenuItem label="Close" onClick={onCloseMenu} />
             </>
@@ -887,23 +939,32 @@ function SomedayRow({
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
             {ageDays !== null && (
               <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)" }}>
-                {ageDays === 0 ? "Just now" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
+                {ageDays === 0 ? "Today" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
               </span>
             )}
             <select
               value={currentTag ?? UNTAGGED}
               disabled={busy}
               onChange={(e) => onRecategorise(e.target.value)}
-              className="f-sans"
+              className="press f-sans"
               style={{
-                height: 22,
-                padding: "0 6px",
-                fontSize: 11,
+                appearance: "none",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                height: 28,
+                padding: "0 28px 0 12px",
+                fontSize: 12,
+                fontWeight: 600,
                 border: "1px solid var(--line-soft)",
                 borderRadius: 999,
-                background: "var(--surface-low)",
+                background: "var(--surface)",
                 color: "var(--ink-soft)",
                 cursor: busy ? "not-allowed" : "pointer",
+                backgroundImage:
+                  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 10px center",
+                outline: 0,
               }}
             >
               <option value={UNTAGGED}>Untagged</option>

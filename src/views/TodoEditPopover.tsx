@@ -207,13 +207,21 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             <select
               value={repeat}
               onChange={(e) => setRepeat(e.target.value as RepeatValue)}
-              className="flex-1 rounded-xl border px-3 py-1.5 text-sm outline-none"
+              className="flex-1 rounded-xl border text-sm outline-none"
               style={{
                 background: "var(--surface-low)",
                 borderColor: "var(--line-soft)",
                 color: "var(--ink)",
                 fontFamily: "var(--f-sans)",
                 cursor: "pointer",
+                appearance: "none",
+                WebkitAppearance: "none",
+                MozAppearance: "none",
+                padding: "6px 30px 6px 12px",
+                backgroundImage:
+                  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 12px center",
               }}
             >
               {REPEAT_OPTIONS.map((o) => (

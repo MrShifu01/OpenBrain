@@ -10,6 +10,9 @@
 > Route new actions through an existing handler using `?resource=` or `?action=` query params instead.
 > Current functions (12): calendar, capture, entries, feedback, gmail, llm, mcp, memory-api, search, transfer, user-data, v1
 
+> **DESIGN PHILOSOPHY — never use OS-native UI. Ever.**
+> No `window.confirm`, `window.alert`, `window.prompt`. No native browser/OS toast or notification dialogs. No native `<select>` chevron (kill it with `appearance:none` and add a custom SVG). No default browser date/file pickers visible — wrap or restyle. No raw `alert()`, `confirm()`, `prompt()` anywhere. Build inline custom UI using the project's design tokens (`--ember`, `--ink`, `--ink-soft`, `--surface`, `--line-soft`, `--moss`, `--danger`) and existing components (`Chip`, `SmallBtn`, inline panels like `ScheduleInline`). Pill-shaped (radius 999), 28px height, 12px font, 600 weight, `press` class for tap feedback. Match the look of what already ships in the file. **If you need a confirm, build an inline panel inside the existing menu/sheet — never reach for `window.confirm`.**
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

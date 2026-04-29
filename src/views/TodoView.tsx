@@ -19,53 +19,6 @@ import TodoEditPopover from "./TodoEditPopover";
 import TodoRowItem from "./TodoRowItem";
 import TodoSomedayTab from "./TodoSomedayTab";
 
-/* ─── Karma Bar ─── */
-function KarmaBar({ points, streak }: { points: number; streak: number }) {
-  const level = Math.floor(points / 100);
-  const progress = (points % 100) / 100;
-  return (
-    <div className="flex items-center gap-3">
-      {streak > 1 && (
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--ember)",
-            fontFamily: "var(--f-sans)",
-            fontWeight: 700,
-            whiteSpace: "nowrap",
-          }}
-        >
-          🔥 {streak}d
-        </span>
-      )}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-        <span style={{ fontSize: 10, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
-          Lv {level} · {points} pts
-        </span>
-        <div
-          style={{
-            width: 80,
-            height: 4,
-            borderRadius: 2,
-            background: "var(--surface-high)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${progress * 100}%`,
-              height: "100%",
-              background: "var(--ember)",
-              borderRadius: 2,
-              transition: "width 0.4s ease",
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ─── Week-view premium card primitives ─── */
 //
 // These match the calendar tab's design language: rounded-card hierarchy,
@@ -510,7 +463,7 @@ export default function TodoView({
   const [tab, setTab] = useState<Tab>("calendar");
   const [showCompleted, setShowCompleted] = useState(false);
   const [editState, setEditState] = useState<{ entry: Entry; rect: DOMRect } | null>(null);
-  const [karma, setKarma] = useState(getKarma());
+  const [, setKarma] = useState(getKarma());
   const weekQuickAddRef = useRef<HTMLDivElement>(null);
 
   function focusWeekQuickAdd() {
@@ -689,9 +642,9 @@ export default function TodoView({
   );
 
   const TABS: { id: Tab; label: string; count?: number }[] = [
-    { id: "today", label: "My Day" },
+    { id: "today", label: "Day" },
     { id: "list", label: "Week" },
-    { id: "calendar", label: "Calendar" },
+    { id: "calendar", label: "Month" },
     ...(somedayEnabled ? [{ id: "someday" as const, label: "Someday", count: somedayCount }] : []),
   ];
 
@@ -726,12 +679,8 @@ export default function TodoView({
             className="f-serif"
             style={{ fontSize: 13, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 2 }}
           >
-            {total > 0 ? `${total} active · ${completed.length} done` : "your focused task list"}
+            your focused task list
           </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <KarmaBar points={karma.points} streak={karma.streak} />
         </div>
       </header>
 
@@ -785,14 +734,6 @@ export default function TodoView({
               </button>
             );
           })}
-        </div>
-
-        {/* Mobile karma bar */}
-        <div className="mb-4 flex items-center justify-between lg:hidden">
-          <span style={{ fontSize: 12, color: "var(--ink-faint)", fontFamily: "var(--f-sans)" }}>
-            {todayTotal > 0 ? `${todayTotal} for today` : ""}
-          </span>
-          <KarmaBar points={karma.points} streak={karma.streak} />
         </div>
 
         {/* ── Calendar tab ── */}

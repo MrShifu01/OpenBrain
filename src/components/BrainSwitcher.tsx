@@ -90,11 +90,6 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
           minWidth: 0,
         }}
       >
-        {activeBrain.is_personal && (
-          <span aria-hidden="true" style={{ color: "var(--ember)", fontSize: 10 }}>
-            ★
-          </span>
-        )}
         <span
           style={{
             overflow: "hidden",
@@ -169,11 +164,6 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
                   if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent";
                 }}
               >
-                {b.is_personal ? (
-                  <span style={{ color: "var(--ember)", width: 14, textAlign: "center" }}>★</span>
-                ) : (
-                  <span style={{ width: 14 }} />
-                )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{

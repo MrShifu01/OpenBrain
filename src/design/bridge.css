@@ -243,8 +243,16 @@ html[class*="family-"] body {
 
 /* Capture sheet — bottom sheet on mobile, centered card on desktop.
    --capture-y is set inline by the component for enter / drag animation.
+   Registered as <length-percentage> so the browser can interpolate
+   between px (during drag) and 100% (open/closed states) — without
+   @property the close transition snaps instead of glides.
    On mobile the sheet sits above the bottom nav (68px + safe area) so
    footer buttons are never obscured. */
+@property --capture-y {
+  syntax: "<length-percentage>";
+  inherits: false;
+  initial-value: 100%;
+}
 .capture-sheet {
   position: fixed;
   z-index: 51;

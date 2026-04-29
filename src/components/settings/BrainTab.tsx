@@ -241,12 +241,6 @@ function MultiBrainSection({ brains, activeBrain, onChanged }: MultiBrainSection
                 background: isActive ? "var(--ember-wash)" : "transparent",
               }}
             >
-              {b.is_personal ? (
-                <span style={{ color: "var(--ember)", width: 16, textAlign: "center" }}>★</span>
-              ) : (
-                <span style={{ width: 16 }} />
-              )}
-
               {isEditing ? (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
                   <input

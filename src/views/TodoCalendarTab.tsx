@@ -29,8 +29,6 @@ interface CalEvent {
   entry?: Entry;
 }
 
-type ViewMode = "myday" | "week" | "calendar";
-
 interface Props {
   entries: Entry[];
   externalEvents: ExternalCalEvent[];
@@ -145,17 +143,6 @@ function buildMonthGrid(year: number, month: number): (Date | null)[][] {
   const rows: (Date | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   return rows;
-}
-
-function buildWeek(anchor: Date): Date[] {
-  const day = (anchor.getDay() + 6) % 7; // Mon = 0
-  const start = new Date(anchor);
-  start.setDate(anchor.getDate() - day);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    return d;
-  });
 }
 
 function formatDayHeader(d: Date): string {
@@ -297,60 +284,6 @@ function CalendarHeader({
   );
 }
 
-function SegmentedControl({
-  value,
-  onChange,
-}: {
-  value: ViewMode;
-  onChange: (v: ViewMode) => void;
-}) {
-  const options: Array<{ id: ViewMode; label: string }> = [
-    { id: "myday", label: "My Day" },
-    { id: "week", label: "Week" },
-    { id: "calendar", label: "Calendar" },
-  ];
-  return (
-    <div
-      role="tablist"
-      style={{
-        display: "inline-flex",
-        padding: 3,
-        background: "var(--surface-low)",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 10,
-        gap: 2,
-      }}
-    >
-      {options.map((opt) => {
-        const active = value === opt.id;
-        return (
-          <button
-            key={opt.id}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(opt.id)}
-            className="press f-sans"
-            style={{
-              border: 0,
-              padding: "7px 16px",
-              minHeight: 30,
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              cursor: "pointer",
-              background: active ? "var(--ember)" : "transparent",
-              color: active ? "var(--ember-ink)" : "var(--ink-faint)",
-              transition: "background 180ms, color 180ms",
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 // Two-row "Tetris" stacking — top-heavy. Reads cleaner in a narrow day cell
 // than a long horizontal row when there are 3+ events:
 //   1 → •
@@ -421,10 +354,10 @@ function DayCell({
     return (
       <div
         aria-hidden="true"
+        className="cal-day-empty"
         style={{
-          minHeight: 80,
-          borderRadius: 14,
-          background: "transparent",
+          minHeight: 78,
+          background: "var(--surface-low)",
         }}
       />
     );
@@ -436,29 +369,36 @@ function DayCell({
       data-today={isToday || undefined}
       data-selected={isSelected || undefined}
       style={{
-        minHeight: 80,
-        borderRadius: 14,
-        padding: 10,
+        minHeight: 78,
+        padding: "8px 6px 6px",
         background: isSelected ? "var(--ember-wash)" : "var(--surface)",
-        // 2px ember border for today; transparent 2px on others so layout
-        // doesn't shift between today and any other cell.
-        border: isToday ? "2px solid var(--ember)" : "2px solid transparent",
-        boxShadow: "var(--lift-1)",
-        textAlign: "left",
+        border: 0,
+        textAlign: "center",
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
+        alignItems: "center",
         gap: 4,
-        transition: "transform 180ms ease, box-shadow 180ms ease, background 180ms ease",
+        transition: "background 160ms ease",
+        font: "inherit",
+        color: "inherit",
       }}
     >
       <span
         className="f-sans"
         style={{
-          fontSize: 14,
-          fontWeight: 600,
-          color: isSelected ? "var(--ember)" : "var(--ink)",
+          width: 26,
+          height: 26,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 13,
+          fontWeight: isToday ? 700 : 500,
+          color: isToday ? "var(--ember-ink)" : isSelected ? "var(--ember)" : "var(--ink)",
+          background: isToday ? "var(--ember)" : "transparent",
+          borderRadius: 999,
           lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
         }}
       >
         {date.getDate()}
@@ -732,7 +672,18 @@ function EventEditor({
           <select
             value={repeat}
             onChange={(e) => setRepeat(e.target.value as RepeatMode)}
-            style={fieldStyle}
+            style={{
+              ...fieldStyle,
+              appearance: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              padding: "8px 30px 8px 10px",
+              cursor: "pointer",
+              backgroundImage:
+                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 10px center",
+            }}
           >
             <option value="none">None — one shot</option>
             <option value="weekly">Every week (same weekday)</option>
@@ -1107,7 +1058,6 @@ function MonthGrid({
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          gap: 8,
           marginBottom: 8,
         }}
       >
@@ -1130,10 +1080,15 @@ function MonthGrid({
         ))}
       </div>
       <div
+        className="cal-grid-frame"
         style={{
+          border: "1px solid var(--line-soft)",
+          borderRadius: 14,
+          overflow: "hidden",
+          background: "var(--line-soft)",
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-          gap: 8,
+          gap: 1,
         }}
       >
         {grid.flat().map((day, i) => {
@@ -1165,272 +1120,6 @@ function MonthGrid({
   );
 }
 
-function WeekStrip({
-  navDate,
-  todayKey,
-  eventMap,
-  onUpdate,
-  onDelete,
-}: {
-  navDate: Date;
-  todayKey: string;
-  eventMap: Record<string, CalEvent[]>;
-  onUpdate?: Props["onUpdate"];
-  onDelete?: Props["onDelete"];
-}) {
-  const days = useMemo(() => buildWeek(navDate), [navDate]);
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {days.map((d) => {
-        const key = toDateKey(d);
-        const events = eventMap[key] || [];
-        const isToday = key === todayKey;
-        const isPast = key < todayKey;
-        const dayLabel = d.toLocaleDateString("en-ZA", { weekday: "long" });
-        const dateLabel = d.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
-        return (
-          <div
-            key={key}
-            className="cal-week-card"
-            style={{
-              background: isToday
-                ? "color-mix(in oklch, var(--ember-wash) 70%, var(--surface))"
-                : "var(--surface)",
-              border: isToday
-                ? "1px solid color-mix(in oklch, var(--ember) 32%, var(--line-soft))"
-                : "1px solid var(--line-soft)",
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: "var(--lift-1)",
-              opacity: isPast && !isToday ? 0.55 : 1,
-              transition: "transform 180ms ease, box-shadow 180ms ease",
-              ...(isToday ? { borderLeft: "3px solid var(--ember)" } : {}),
-            }}
-          >
-            <div
-              className="f-sans"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: events.length > 0 ? 12 : 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: isToday ? "var(--ember)" : "var(--ink)",
-                }}
-              >
-                {dayLabel}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{dateLabel}</span>
-              {isToday && (
-                <span
-                  style={{
-                    background: "var(--ember)",
-                    color: "var(--ember-ink)",
-                    borderRadius: 999,
-                    padding: "3px 8px 2px",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    lineHeight: 1,
-                  }}
-                >
-                  Today
-                </span>
-              )}
-              {events.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: 11,
-                    color: "var(--ink-ghost)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {events.length}
-                </span>
-              )}
-            </div>
-            {events.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
-                ))}
-              </div>
-            ) : (
-              <p
-                className="f-serif"
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  fontStyle: "italic",
-                  color: "var(--ink-ghost)",
-                }}
-              >
-                Nothing scheduled.
-              </p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function MyDayList({
-  todayKey,
-  eventMap,
-  onUpdate,
-  onDelete,
-}: {
-  todayKey: string;
-  eventMap: Record<string, CalEvent[]>;
-  onUpdate?: Props["onUpdate"];
-  onDelete?: Props["onDelete"];
-}) {
-  // Today + next 13 days that have events. Today is always shown so the
-  // page never collapses to "nothing".
-  const buckets = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const out: { key: string; date: Date; events: CalEvent[] }[] = [];
-    for (let i = 0; i < 14; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const key = toDateKey(d);
-      const events = eventMap[key];
-      if (events && events.length > 0) out.push({ key, date: d, events });
-      else if (key === todayKey) out.push({ key, date: d, events: [] });
-    }
-    return out;
-  }, [eventMap, todayKey]);
-
-  if (buckets.length === 0) {
-    return (
-      <p
-        className="f-serif"
-        style={{
-          fontSize: 14,
-          fontStyle: "italic",
-          color: "var(--ink-ghost)",
-          padding: "32px 0",
-          textAlign: "center",
-          margin: 0,
-        }}
-      >
-        Nothing in the next two weeks. A clean run.
-      </p>
-    );
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {buckets.map(({ key, date, events }) => {
-        const isToday = key === todayKey;
-        const dayLabel = date.toLocaleDateString("en-ZA", { weekday: "long" });
-        const dateLabel = date.toLocaleDateString("en-ZA", { day: "numeric", month: "short" });
-        return (
-          <div
-            key={key}
-            className="cal-week-card"
-            style={{
-              background: isToday
-                ? "color-mix(in oklch, var(--ember-wash) 70%, var(--surface))"
-                : "var(--surface)",
-              border: isToday
-                ? "1px solid color-mix(in oklch, var(--ember) 32%, var(--line-soft))"
-                : "1px solid var(--line-soft)",
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: "var(--lift-1)",
-              transition: "transform 180ms ease, box-shadow 180ms ease",
-              ...(isToday ? { borderLeft: "3px solid var(--ember)" } : {}),
-            }}
-          >
-            <div
-              className="f-sans"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                marginBottom: events.length > 0 ? 12 : 8,
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  color: isToday ? "var(--ember)" : "var(--ink)",
-                }}
-              >
-                {dayLabel}
-              </span>
-              <span style={{ fontSize: 12, color: "var(--ink-faint)" }}>{dateLabel}</span>
-              {isToday && (
-                <span
-                  style={{
-                    background: "var(--ember)",
-                    color: "var(--ember-ink)",
-                    borderRadius: 999,
-                    padding: "3px 8px 2px",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: "0.12em",
-                    textTransform: "uppercase",
-                    lineHeight: 1,
-                  }}
-                >
-                  Today
-                </span>
-              )}
-              {events.length > 0 && (
-                <span
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: 11,
-                    color: "var(--ink-ghost)",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {events.length}
-                </span>
-              )}
-            </div>
-            {events.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {events.map((ev) => (
-                  <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
-                ))}
-              </div>
-            ) : (
-              <p
-                className="f-serif"
-                style={{
-                  margin: 0,
-                  fontSize: 13,
-                  fontStyle: "italic",
-                  color: "var(--ink-ghost)",
-                }}
-              >
-                {isToday ? "Free day." : "Nothing scheduled."}
-              </p>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function TodoCalendarTab({
@@ -1444,7 +1133,6 @@ export default function TodoCalendarTab({
   const [navDate, setNavDate] = useState(new Date());
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
-  const [view, setView] = useState<ViewMode>("calendar");
   const [sheetOpen, setSheetOpen] = useState(false);
   const isDesktop = useIsDesktop(1024);
   const quickAddRef = useRef<HTMLDivElement | null>(null);
@@ -1482,54 +1170,19 @@ export default function TodoCalendarTab({
 
   const selectedEvents = selectedKey ? eventMap[selectedKey] || [] : [];
 
-  // ── Header navigation behaviour adapts to view mode ──
-  const handlePrev = () => {
-    if (view === "calendar") setNavDate(new Date(year, month - 1, 1));
-    else if (view === "week") {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() - 7);
-      setNavDate(d);
-    } else {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() - 1);
-      setNavDate(d);
-    }
-  };
-  const handleNext = () => {
-    if (view === "calendar") setNavDate(new Date(year, month + 1, 1));
-    else if (view === "week") {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() + 7);
-      setNavDate(d);
-    } else {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() + 1);
-      setNavDate(d);
-    }
-  };
+  const handlePrev = () => setNavDate(new Date(year, month - 1, 1));
+  const handleNext = () => setNavDate(new Date(year, month + 1, 1));
   const handleToday = () => {
     const today = new Date();
     setNavDate(today);
     setSelectedKey(todayKey);
   };
 
-  const headerTitle = useMemo(() => {
-    if (view === "calendar") return `${MONTH_NAMES[month]} ${year}`;
-    if (view === "week") {
-      const days = buildWeek(navDate);
-      const start = days[0];
-      const end = days[6];
-      const sameMonth = start.getMonth() === end.getMonth();
-      return sameMonth
-        ? `${MONTH_NAMES[start.getMonth()]} ${start.getDate()}–${end.getDate()}, ${start.getFullYear()}`
-        : `${MONTH_NAMES[start.getMonth()]} ${start.getDate()} – ${MONTH_NAMES[end.getMonth()]} ${end.getDate()}`;
-    }
-    return navDate.toLocaleDateString("en-ZA", { weekday: "long", day: "numeric", month: "long" });
-  }, [view, month, year, navDate]);
+  const headerTitle = `${MONTH_NAMES[month]} ${year}`;
 
   const handleSelect = (key: string) => {
     setSelectedKey(key);
-    if (!isDesktop && view === "calendar") setSheetOpen(true);
+    if (!isDesktop) setSheetOpen(true);
   };
 
   const handleAddClick = () => {
@@ -1579,43 +1232,18 @@ export default function TodoCalendarTab({
         onToday={handleToday}
       />
 
-      <div style={{ display: "flex", justifyContent: "center" }}>
-        <SegmentedControl value={view} onChange={setView} />
-      </div>
-
       <div className="cal-body">
         <div className="cal-main">
-          {view === "calendar" && (
-            <MonthGrid
-              navDate={navDate}
-              selectedKey={selectedKey}
-              todayKey={todayKey}
-              eventMap={eventMap}
-              onSelect={handleSelect}
-            />
-          )}
-          {view === "week" && (
-            <WeekStrip
-              navDate={navDate}
-              todayKey={todayKey}
-              eventMap={eventMap}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          )}
-          {view === "myday" && (
-            <MyDayList
-              todayKey={todayKey}
-              eventMap={eventMap}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          )}
+          <MonthGrid
+            navDate={navDate}
+            selectedKey={selectedKey}
+            todayKey={todayKey}
+            eventMap={eventMap}
+            onSelect={handleSelect}
+          />
         </div>
 
-        {/* Desktop side panel — only for the month grid; week and my-day
-            views render their events inline. */}
-        {isDesktop && view === "calendar" && selectedKey && (
+        {isDesktop && selectedKey && (
           <SidePanel>
             <DayDetailContent
               date={parseISO(selectedKey + "T00:00:00")}
@@ -1628,8 +1256,7 @@ export default function TodoCalendarTab({
         )}
       </div>
 
-      {/* Mobile bottom sheet — same content, slide-up presentation. */}
-      {!isDesktop && view === "calendar" && (
+      {!isDesktop && (
         <BottomSheet open={sheetOpen && !!selectedKey} onClose={() => setSheetOpen(false)}>
           {selectedKey && (
             <DayDetailContent
@@ -1646,12 +1273,14 @@ export default function TodoCalendarTab({
 
       <style>{`
         .cal-day:hover {
-          transform: translateY(-1px);
-          box-shadow: var(--lift-2);
+          background: color-mix(in oklch, var(--surface) 88%, var(--ember) 12%);
+        }
+        .cal-day[data-selected]:hover {
+          background: var(--ember-wash);
         }
         .cal-day:focus-visible {
           outline: 2px solid var(--ember);
-          outline-offset: 2px;
+          outline-offset: -2px;
         }
         .cal-body {
           display: flex;

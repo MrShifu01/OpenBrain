@@ -166,13 +166,21 @@ function TierChanger() {
           className="f-sans"
           style={{
             height: 34,
-            padding: "0 10px",
+            padding: "0 32px 0 12px",
             borderRadius: 6,
             border: "1px solid var(--line-soft)",
             background: "var(--surface)",
             color: "var(--ink)",
             fontSize: 13,
             cursor: "pointer",
+            appearance: "none",
+            WebkitAppearance: "none",
+            MozAppearance: "none",
+            outline: "none",
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 12px center",
           }}
         >
           {TIER_OPTIONS.map((t) => (
