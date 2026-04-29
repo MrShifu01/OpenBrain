@@ -189,13 +189,13 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 - [ ] **Dialog** — migrate 7 `FocusTrap`-wrapped modals: `CaptureSheet.tsx`, `OnboardingModal.tsx`, `MoveToBrainModal.tsx`, `CreateBrainModal.tsx`, `VaultRevealModal.tsx`, `DetailModal.tsx`, `settings/ProfileTab.tsx`. shadcn `Dialog` handles focus trap natively → removes `focus-trap-react` dep + ~200 lines of manual escape/scroll-lock plumbing.
 - [ ] **Sheet (vaul)** — replace `CaptureSheet.tsx` drag-to-close. shadcn's `Drawer` uses `vaul` which has rubber-band easing, threshold-based dismiss, and body scroll lock built in. Port the existing 80px threshold + 200px rubber-band tuning.
 - [ ] **Command (cmdk)** — replace `OmniSearch.tsx` custom popover with proper command palette (typeahead, fuzzy match, kbd shortcuts).
-- [ ] **window.confirm() removals** — `BulkActionBar.tsx` line ~269 + `settings/ProfileTab.tsx` (still violates CLAUDE.md no-OS-UI rule). Replace with `Dialog` + Button pair.
+- [x] **window.confirm() removals** ✅ — both already replaced with branded inline UI (BulkActionBar two-tap pattern; settings/ProfileTab uses ConfirmDialog portal). Verified 2026-04-29.
 
 **Cross-cutting cleanup (do as part of migration)**
 
-- [ ] **Standardise z-index** — current zoo (50/55/60/110/200/250) → tokens: `z-modal`, `z-toast`, `z-dropdown`, `z-tooltip`. Tailwind utility per layer.
-- [ ] **Standardise radius** — current spread 4–18px → tokens: `rounded-sm/md/lg/xl/full`. Audit and pick one per role (chip, card, modal).
-- [ ] **Standardise shadows** — replace hardcoded `rgba(0,0,0,0.x)` with `--lift-1/2/3` tokens (already exist).
+- [x] **Standardise z-index** ✅ — 13-layer semantic scale defined in `src/index.css` as `--z-base` through `--z-native-overlay`. 16 component files swept to use tokens; no hardcoded numbers remain in active component code (commit 0f96f96, 2026-04-29).
+- [x] **Standardise radius** ✅ — `--radius-sm/md/lg/xl/2xl/3xl/full` tokens already canonical and used across the app. No audit changes needed.
+- [x] **Standardise shadows** ✅ — `--shadow-sm/md/lg/nav` tokens canonical; two stragglers swept (CaptureSheet + UpdatePrompt rgba → `var(--shadow-lg)`).
 
 ### PWA
 
@@ -458,14 +458,14 @@ App Store / Google Play
 
 #### Build order (do in this sequence — Android first because iOS auth is fiddlier)
 
-- [ ] **1. Install Capacitor**
+- [x] **1. Install Capacitor** ✅ (commit 5fab46c, 2026-04-29)
   ```bash
   npm install @capacitor/core @capacitor/cli
   npx cap init
   ```
   App name: `Everion Mind` · App ID: `com.everionmind.app` (the bundle ID already decided above — do not casually change it).
 
-- [ ] **2. Configure `capacitor.config.ts`**
+- [x] **2. Configure `capacitor.config.ts`** ✅
   ```ts
   import type { CapacitorConfig } from '@capacitor/cli';
   const config: CapacitorConfig = {
@@ -477,7 +477,7 @@ App Store / Google Play
   export default config;
   ```
 
-- [ ] **3. Add native platforms**
+- [x] **3. Add native platforms** ✅
   ```bash
   npm install @capacitor/ios @capacitor/android
   npx cap add android
@@ -485,19 +485,19 @@ App Store / Google Play
   ```
   Commit `ios/` and `android/` to the repo.
 
-- [ ] **4. Build the web app**
+- [x] **4. Build the web app** ✅
   ```bash
   npm run build
   ```
   Fix every build error before continuing.
 
-- [ ] **5. Sync into native shells**
+- [x] **5. Sync into native shells** ✅ — `npm run cap:sync` script wired
   ```bash
   npx cap sync
   ```
   Re-run on every web rebuild, config change, or new plugin.
 
-- [ ] **6. Open native projects**
+- [x] **6. Open native projects** ✅ — `npm run cap:android` / `cap:ios` scripts wired (user runs to open Android Studio / Xcode)
   ```bash
   npx cap open android   # Android Studio
   npx cap open ios       # Xcode
@@ -507,11 +507,11 @@ App Store / Google Play
 
 - [ ] **8. Get iOS running on a real device.** TestFlight build at minimum.
 
-- [ ] **9. Fix Supabase magic links** (see "Auth & deep linking" below — the trickiest part).
+- [x] **9. Fix Supabase magic links** ✅ — schemes registered in iOS Info.plist + Android intent filter; `src/lib/capacitorBridge.ts` handles `appUrlOpen` and hands tokens to `supabase.auth.setSession()`/`exchangeCodeForSession()`. **Still owed:** real-device verification (cold + warm start).
 
-- [ ] **10. Add icons + splash screen** (1024² icons, splash assets per platform spec).
+- [x] **10. Add icons + splash screen** ✅ — generated from `public/favicon.svg` via `sharp` + `@capacitor/assets`; 136 Android variants, 13 iOS variants, 7 PWA WebP. Brand-correct espresso/ivory + dark-mode variant.
 
-- [ ] **11. Add offline / no-connection state** (see "Offline behaviour" below).
+- [x] **11. Add offline / no-connection state** ✅ — `src/components/NativeOfflineScreen.tsx` mounts on native + no session + no network; `useOfflineSync` extended to subscribe to `@capacitor/network`.
 
 - [ ] **12. Real-device testing pass** (full checklist below).
 
