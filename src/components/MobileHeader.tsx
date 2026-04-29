@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
+import MobileMoreMenu from "./MobileMoreMenu";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
@@ -43,6 +44,7 @@ interface MobileHeaderProps {
   isOnline: boolean;
   pendingCount: number;
   onSearch?: () => void;
+  onNavigate?: (id: string) => void;
   children?: ReactNode;
   notifications?: AppNotification[];
   unreadCount?: number;
@@ -53,11 +55,12 @@ interface MobileHeaderProps {
 }
 
 export default function MobileHeader({
-  onToggleTheme,
-  isDark,
+  onToggleTheme: _onToggleTheme,
+  isDark: _isDark,
   isOnline: _isOnline,
   pendingCount: _pendingCount,
   onSearch,
+  onNavigate,
   children,
   notifications = [],
   unreadCount = 0,
@@ -69,78 +72,113 @@ export default function MobileHeader({
   const { adminFlags } = useAdminDevMode();
   const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
   const hidden = useHideOnScroll();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Publish the header's hide state as a CSS var so other sticky bars
   // (e.g. settings mobile tabs) can sit flush at the top when the header
   // slides up — and back below it when the header reappears. The value
   // includes the safe-area inset so notched phones get the right offset.
+  // With the active-brain card now sitting below the header bar, the
+  // total height grows when multibrain is on.
   useEffect(() => {
     const root = document.documentElement;
+    const baseHeight = showBrainSwitcher ? 116 : 56;
     root.style.setProperty(
       "--app-header-h",
-      hidden ? "0px" : "calc(56px + env(safe-area-inset-top, 0px))",
+      hidden ? "0px" : `calc(${baseHeight}px + env(safe-area-inset-top, 0px))`,
     );
     return () => {
       root.style.removeProperty("--app-header-h");
     };
-  }, [hidden]);
+  }, [hidden, showBrainSwitcher]);
 
   return (
-    <header
-      className="safe-top sticky top-0 z-30 flex items-center justify-between gap-2 px-4 py-3 lg:hidden"
+    <div
+      className="safe-top sticky top-0 z-30 lg:hidden"
       style={{
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
-        paddingTop: "max(14px, env(safe-area-inset-top))",
         transform: hidden ? "translateY(-100%)" : "translateY(0)",
         transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
         willChange: "transform",
       }}
     >
-      {/* Left: brand + brain */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-        <img
-          src="/logoNew.webp"
-          width={28}
-          height={28}
-          alt=""
-          aria-hidden="true"
-          decoding="async"
-          style={{ flexShrink: 0, objectFit: "contain", display: "block" }}
-        />
-        <span
-          className="f-serif"
-          style={{ fontSize: 17, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}
-        >
-          Everion
-        </span>
-        {showBrainSwitcher && <BrainSwitcher compact />}
-        {children}
-      </div>
-
-      {/* Right: notifications, search, theme */}
-      <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
-        {onDismissNotification && (
-          <NotificationBell
-            notifications={notifications}
-            unreadCount={unreadCount}
-            onDismiss={onDismissNotification}
-            onMarkRead={onMarkNotificationRead ?? (() => {})}
-            onDismissAll={onDismissAllNotifications ?? (() => {})}
-            onAcceptMerge={onAcceptMerge ?? (() => {})}
+      <header
+        className="flex items-center justify-between gap-2 px-4 py-3"
+        style={{
+          paddingTop: "max(14px, env(safe-area-inset-top))",
+        }}
+      >
+        {/* Left: brand */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
+          <img
+            src="/logoNew.webp"
+            width={28}
+            height={28}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            style={{ flexShrink: 0, objectFit: "contain", display: "block" }}
           />
-        )}
-        {onSearch && (
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 18,
+              fontWeight: 450,
+              letterSpacing: "-0.01em",
+              color: "var(--ink)",
+            }}
+          >
+            Everion
+          </span>
+          {children}
+        </div>
+
+        {/* Right: notifications, search, menu */}
+        <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          {onDismissNotification && (
+            <NotificationBell
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onDismiss={onDismissNotification}
+              onMarkRead={onMarkNotificationRead ?? (() => {})}
+              onDismissAll={onDismissAllNotifications ?? (() => {})}
+              onAcceptMerge={onAcceptMerge ?? (() => {})}
+            />
+          )}
+          {onSearch && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onSearch}
+              aria-label="Search"
+              style={{ color: "var(--ink-soft)" }}
+            >
+              <svg
+                width="18"
+                height="18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m20 20-3.5-3.5" />
+              </svg>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={onSearch}
-            aria-label="Search"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Open menu"
             style={{ color: "var(--ink-soft)" }}
           >
             <svg
-              width="18"
-              height="18"
+              width="20"
+              height="20"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
@@ -148,48 +186,29 @@ export default function MobileHeader({
               strokeLinejoin="round"
               viewBox="0 0 24 24"
             >
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m20 20-3.5-3.5" />
+              <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onToggleTheme}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          style={{ color: "var(--ink-soft)" }}
+        </div>
+      </header>
+
+      {showBrainSwitcher && (
+        <div
+          style={{
+            padding: "0 14px 12px",
+          }}
         >
-          {isDark ? (
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
-            </svg>
-          ) : (
-            <svg
-              width="18"
-              height="18"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" />
-            </svg>
-          )}
-        </Button>
-      </div>
-    </header>
+          <BrainSwitcher cardMode />
+        </div>
+      )}
+
+      <MobileMoreMenu
+        isOpen={menuOpen}
+        onNavigate={(id) => {
+          setMenuOpen(false);
+          if (id !== "close" && onNavigate) onNavigate(id);
+        }}
+      />
+    </div>
   );
 }

@@ -14,7 +14,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { parseISO, startOfDay, endOfDay } from "date-fns";
 import type { Entry } from "../types";
-import { type ExternalCalEvent, toDateKey, getPlacements } from "./todoUtils";
+import { type ExternalCalEvent, toDateKey, getPlacements, isDone } from "./todoUtils";
 import QuickAdd from "./TodoQuickAdd";
 import { Button } from "../components/ui/button";
 import {
@@ -97,10 +97,6 @@ function eventSourceColor(source: CalEvent["source"]): string {
   return "oklch(58% 0.13 248)";
 }
 
-function eventSourceKind(source: CalEvent["source"]): "internal" | "external" {
-  return source === "entry" ? "internal" : "external";
-}
-
 function entriesToCalEvents(entries: Entry[], range: { from: string; to: string }): CalEvent[] {
   // getPlacements does the type/done filter (persona, secret, completed) and
   // expands recurrence within the visible-month range. One call per entry,
@@ -161,8 +157,64 @@ function formatDayHeader(d: Date): string {
   });
 }
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" });
+// PrimePro-style helpers — short time + duration + status mapping. Kept
+// near formatTime so the date math lives together.
+function formatShortTime(d: Date): string {
+  // "9 am" / "12 pm" / "1:30 pm" — collapse :00 to bare hour to match
+  // the reference design.
+  const h12 = ((d.getHours() + 11) % 12) + 1;
+  const m = d.getMinutes();
+  const period = d.getHours() >= 12 ? "pm" : "am";
+  return m === 0 ? `${h12} ${period}` : `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+function formatDuration(start: Date, end: Date): string | null {
+  const ms = end.getTime() - start.getTime();
+  if (ms <= 0) return null;
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const hrs = mins / 60;
+  // 1 hr / 1.5 hrs / 2 hrs — drop trailing .0 for whole hours.
+  const rounded = Math.round(hrs * 2) / 2;
+  return rounded === Math.round(rounded)
+    ? `${rounded} hr${rounded === 1 ? "" : "s"}`
+    : `${rounded} hrs`;
+}
+
+function deriveEventStatus(event: CalEvent): { label: string; color: string } {
+  if (event.source !== "entry" || !event.entry) {
+    return {
+      label:
+        event.source === "google" ? "Google" : event.source === "microsoft" ? "Outlook" : "Event",
+      color: "oklch(54% 0.13 248)",
+    };
+  }
+  const entry = event.entry;
+  if (isDone(entry)) return { label: "Done", color: "var(--moss, oklch(56% 0.12 145))" };
+  const eventDay = startOfDay(event.start);
+  const today = startOfDay(new Date());
+  if (eventDay.getTime() < today.getTime()) {
+    return { label: "Overdue", color: "var(--danger, var(--blood, oklch(58% 0.18 25)))" };
+  }
+  if (eventDay.getTime() === today.getTime()) {
+    return { label: "Due today", color: "var(--ember)" };
+  }
+  return { label: "Scheduled", color: "var(--ink-soft)" };
+}
+
+function deriveSubtitle(event: CalEvent): string | null {
+  if (event.source !== "entry" || !event.entry) {
+    return event.source === "google"
+      ? "Google Calendar"
+      : event.source === "microsoft"
+        ? "Outlook Calendar"
+        : null;
+  }
+  const entry = event.entry;
+  const parts: string[] = [];
+  if (entry.type) parts.push(entry.type);
+  if (entry.tags && entry.tags.length > 0) parts.push(entry.tags.slice(0, 2).join(", "));
+  return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function useIsDesktop(breakpoint = 1024): boolean {
@@ -443,91 +495,160 @@ function EventCard({
     );
   }
 
-  const color = eventSourceColor(event.source);
-  const kind = eventSourceKind(event.source);
-  const time = event.allDay ? "All day" : `${formatTime(event.start)} – ${formatTime(event.end)}`;
-  const sourceLabel =
-    event.source === "entry" ? "Todo" : event.source === "google" ? "Google" : "Outlook";
+  const status = deriveEventStatus(event);
+  const timeLabel = event.allDay ? "All day" : formatShortTime(event.start);
+  const durationLabel = event.allDay ? null : formatDuration(event.start, event.end);
+  const subtitle = deriveSubtitle(event);
+  const initial = (event.entry?.type || event.source).charAt(0).toUpperCase();
 
-  const Tag = editable ? "button" : "div";
   return (
-    <Tag
-      onClick={editable ? () => setEditing(true) : undefined}
-      aria-label={editable ? `Edit ${event.title}` : undefined}
-      className={editable ? "press" : undefined}
+    <div
       style={{
-        width: "100%",
-        textAlign: "left",
-        background: "var(--surface-low)",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 12,
-        padding: 12,
         display: "flex",
-        gap: 10,
-        alignItems: "flex-start",
-        cursor: editable ? "pointer" : "default",
-        font: "inherit",
-        color: "inherit",
+        gap: 12,
+        alignItems: "stretch",
       }}
     >
-      <span
-        aria-hidden="true"
+      {/* Left time column — outside the card, PrimePro-style */}
+      <div
+        className="f-sans"
         style={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          background: color,
-          marginTop: 7,
+          width: 56,
           flexShrink: 0,
+          paddingTop: 14,
+          textAlign: "right",
+          color: "var(--ink-soft)",
         }}
-      />
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <p
+      >
+        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.1, color: "var(--ink)" }}>
+          {timeLabel}
+        </div>
+        {durationLabel && (
+          <div style={{ fontSize: 11, marginTop: 3, color: "var(--ink-ghost)" }}>
+            {durationLabel}
+          </div>
+        )}
+      </div>
+
+      {/* Card */}
+      <button
+        type="button"
+        onClick={editable ? () => setEditing(true) : undefined}
+        disabled={!editable}
+        aria-label={editable ? `Open ${event.title}` : event.title}
+        className={editable ? "press" : undefined}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          textAlign: "left",
+          background: "var(--surface)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 14,
+          padding: "12px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          cursor: editable ? "pointer" : "default",
+          font: "inherit",
+          color: "inherit",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span
+            className="f-sans"
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: status.color,
+            }}
+          >
+            {status.label}
+          </span>
+          {editable && (
+            <span
+              aria-hidden="true"
+              style={{
+                color: "var(--ink-ghost)",
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </span>
+          )}
+        </div>
+        <div
           className="f-sans"
           style={{
-            margin: 0,
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: 15,
+            fontWeight: 600,
             color: "var(--ink)",
-            lineHeight: 1.35,
+            lineHeight: 1.3,
             wordBreak: "break-word",
           }}
         >
           {event.title}
-        </p>
-        <div
-          className="f-sans"
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            marginTop: 4,
-            fontSize: 11,
-            color: "var(--ink-faint)",
-          }}
-        >
-          <span>{time}</span>
-          <span aria-hidden="true">·</span>
-          <span
+        </div>
+        {subtitle && (
+          <div
+            className="f-sans"
             style={{
-              padding: "1px 7px",
-              borderRadius: 999,
-              background:
-                kind === "internal"
-                  ? "var(--ember-wash)"
-                  : "color-mix(in oklch, oklch(58% 0.13 248) 14%, var(--surface-high))",
-              color: kind === "internal" ? "var(--ember)" : "oklch(54% 0.13 248)",
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginTop: 2,
+              paddingTop: 8,
+              borderTop: "1px solid var(--line-soft)",
+              fontSize: 12,
+              color: "var(--ink-soft)",
             }}
           >
-            {sourceLabel}
-          </span>
-        </div>
-      </div>
-    </Tag>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 999,
+                background: "var(--surface-high, var(--surface))",
+                border: "1px solid var(--line-soft)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 9,
+                fontWeight: 700,
+                color: "var(--ink-soft)",
+                flexShrink: 0,
+              }}
+            >
+              {initial}
+            </span>
+            <span
+              style={{
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {subtitle}
+            </span>
+          </div>
+        )}
+      </button>
+    </div>
   );
 }
 
@@ -1074,6 +1195,178 @@ function MonthGrid({
   );
 }
 
+// ── View-mode segmented control ──────────────────────────────────────────
+
+type ViewMode = "month" | "week" | "day";
+
+function ViewModeSegment({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (mode: ViewMode) => void;
+}) {
+  const tabs: { id: ViewMode; label: string }[] = [
+    { id: "day", label: "Day" },
+    { id: "week", label: "Week" },
+    { id: "month", label: "Month" },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="Calendar view"
+      style={{
+        display: "inline-flex",
+        padding: 3,
+        background: "var(--surface-low, var(--surface))",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 999,
+        gap: 2,
+      }}
+    >
+      {tabs.map((t) => {
+        const active = t.id === value;
+        return (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(t.id)}
+            className="press"
+            style={{
+              padding: "6px 14px",
+              borderRadius: 999,
+              border: 0,
+              fontFamily: "var(--f-sans)",
+              fontSize: 12,
+              fontWeight: 600,
+              letterSpacing: "0.01em",
+              cursor: "pointer",
+              background: active ? "var(--bg)" : "transparent",
+              color: active ? "var(--ink)" : "var(--ink-soft)",
+              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
+              transition: "background 150ms, color 150ms",
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Week strip — 7-day horizontal day picker ─────────────────────────────
+
+function startOfWeek(d: Date): Date {
+  // Monday-based; matches DAY_ABBRS order ["Mon"..."Sun"].
+  const out = new Date(d);
+  const dow = out.getDay(); // 0=Sun..6=Sat
+  const offset = dow === 0 ? -6 : 1 - dow;
+  out.setDate(out.getDate() + offset);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+function WeekStrip({
+  weekStart,
+  selectedKey,
+  todayKey,
+  eventMap,
+  onSelect,
+}: {
+  weekStart: Date;
+  selectedKey: string | null;
+  todayKey: string;
+  eventMap: Record<string, CalEvent[]>;
+  onSelect: (key: string) => void;
+}) {
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+        gap: 4,
+        padding: "10px 6px",
+        background: "var(--surface-low, var(--surface))",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 14,
+      }}
+    >
+      {days.map((d) => {
+        const key = toDateKey(d);
+        const isSelected = key === selectedKey;
+        const isToday = key === todayKey;
+        const dotCount = (eventMap[key] || []).length;
+        return (
+          <button
+            key={key}
+            onClick={() => onSelect(key)}
+            className="press"
+            aria-pressed={isSelected}
+            aria-label={d.toLocaleDateString("en-ZA", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "10px 0 8px",
+              border: 0,
+              borderRadius: 12,
+              background: isSelected ? "var(--ember-wash)" : "transparent",
+              color: isSelected ? "var(--ember)" : "var(--ink)",
+              cursor: "pointer",
+              fontFamily: "var(--f-sans)",
+              transition: "background 160ms",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                opacity: isSelected ? 0.8 : 0.55,
+              }}
+            >
+              {DAY_ABBRS[(d.getDay() + 6) % 7].charAt(0)}
+            </span>
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: isSelected || isToday ? 600 : 500,
+                lineHeight: 1,
+              }}
+            >
+              {d.getDate()}
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 4,
+                height: 4,
+                borderRadius: 999,
+                marginTop: 2,
+                background: dotCount > 0 ? "var(--ember)" : "transparent",
+                opacity: isSelected ? 1 : 0.7,
+              }}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function TodoCalendarTab({
@@ -1088,22 +1381,40 @@ export default function TodoCalendarTab({
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const isDesktop = useIsDesktop(1024);
   const quickAddRef = useRef<HTMLDivElement | null>(null);
 
   const year = navDate.getFullYear();
   const month = navDate.getMonth();
+  const weekStart = useMemo(() => startOfWeek(navDate), [navDate]);
 
-  // Recurrence is expanded within the visible month; navigating to a new
-  // month rebuilds calEvents. Wider buffer (±1 day) covers Sunday-of-previous
-  // and Saturday-of-next that appear at the grid edges.
+  // Recurrence is expanded within the visible window. Month view shows the
+  // grid (±1 day for spillover); Week/Day views widen to a few days around
+  // navDate so events outside the calendar month still render. Recomputing
+  // based on viewMode keeps recurrence expansion in lockstep with what's
+  // visible.
   const visibleRange = useMemo(() => {
-    const first = new Date(year, month, 1);
-    first.setDate(first.getDate() - 1);
-    const last = new Date(year, month + 1, 0);
-    last.setDate(last.getDate() + 1);
+    if (viewMode === "month") {
+      const first = new Date(year, month, 1);
+      first.setDate(first.getDate() - 1);
+      const last = new Date(year, month + 1, 0);
+      last.setDate(last.getDate() + 1);
+      return { from: toDateKey(first), to: toDateKey(last) };
+    }
+    if (viewMode === "week") {
+      const first = new Date(weekStart);
+      first.setDate(first.getDate() - 1);
+      const last = new Date(weekStart);
+      last.setDate(last.getDate() + 7);
+      return { from: toDateKey(first), to: toDateKey(last) };
+    }
+    const first = new Date(navDate);
+    first.setDate(first.getDate() - 2);
+    const last = new Date(navDate);
+    last.setDate(last.getDate() + 2);
     return { from: toDateKey(first), to: toDateKey(last) };
-  }, [year, month]);
+  }, [viewMode, year, month, weekStart, navDate]);
 
   // Build the event map once per inputs. entriesToCalEvents now expands
   // recurrence + filters persona/secret/done — no second addRecurring pass.
@@ -1124,15 +1435,63 @@ export default function TodoCalendarTab({
 
   const selectedEvents = selectedKey ? eventMap[selectedKey] || [] : [];
 
-  const handlePrev = () => setNavDate(new Date(year, month - 1, 1));
-  const handleNext = () => setNavDate(new Date(year, month + 1, 1));
+  const handlePrev = () => {
+    if (viewMode === "month") {
+      setNavDate(new Date(year, month - 1, 1));
+      return;
+    }
+    if (viewMode === "week") {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() - 7);
+      setNavDate(d);
+      return;
+    }
+    const d = new Date(navDate);
+    d.setDate(d.getDate() - 1);
+    setNavDate(d);
+    setSelectedKey(toDateKey(d));
+  };
+  const handleNext = () => {
+    if (viewMode === "month") {
+      setNavDate(new Date(year, month + 1, 1));
+      return;
+    }
+    if (viewMode === "week") {
+      const d = new Date(navDate);
+      d.setDate(d.getDate() + 7);
+      setNavDate(d);
+      return;
+    }
+    const d = new Date(navDate);
+    d.setDate(d.getDate() + 1);
+    setNavDate(d);
+    setSelectedKey(toDateKey(d));
+  };
   const handleToday = () => {
     const today = new Date();
     setNavDate(today);
     setSelectedKey(todayKey);
   };
 
-  const headerTitle = `${MONTH_NAMES[month]} ${year}`;
+  const headerTitle = (() => {
+    if (viewMode === "month") return `${MONTH_NAMES[month]} ${year}`;
+    if (viewMode === "week") {
+      const ws = weekStart;
+      const we = new Date(weekStart);
+      we.setDate(we.getDate() + 6);
+      const sameMonth = ws.getMonth() === we.getMonth();
+      const left = `${MONTH_NAMES[ws.getMonth()].slice(0, 3)} ${ws.getDate()}`;
+      const right = sameMonth
+        ? `${we.getDate()}`
+        : `${MONTH_NAMES[we.getMonth()].slice(0, 3)} ${we.getDate()}`;
+      return `${left} – ${right}`;
+    }
+    return navDate.toLocaleDateString("en-ZA", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+  })();
 
   const handleSelect = (key: string) => {
     setSelectedKey(key);
@@ -1179,6 +1538,25 @@ export default function TodoCalendarTab({
         </p>
       )}
 
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingBottom: 4,
+        }}
+      >
+        <ViewModeSegment
+          value={viewMode}
+          onChange={(m) => {
+            setViewMode(m);
+            // When switching into Day, lock selection to navDate so the
+            // header label and body agree without an extra click.
+            if (m === "day" && selectedKey) setNavDate(parseISO(selectedKey + "T00:00:00"));
+          }}
+        />
+      </div>
+
       <CalendarHeader
         title={headerTitle}
         onPrev={handlePrev}
@@ -1187,17 +1565,49 @@ export default function TodoCalendarTab({
       />
 
       <div className="cal-body">
-        <div className="cal-main">
-          <MonthGrid
-            navDate={navDate}
-            selectedKey={selectedKey}
-            todayKey={todayKey}
-            eventMap={eventMap}
-            onSelect={handleSelect}
-          />
+        <div className="cal-main" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {viewMode === "month" && (
+            <MonthGrid
+              navDate={navDate}
+              selectedKey={selectedKey}
+              todayKey={todayKey}
+              eventMap={eventMap}
+              onSelect={handleSelect}
+            />
+          )}
+          {viewMode === "week" && (
+            <>
+              <WeekStrip
+                weekStart={weekStart}
+                selectedKey={selectedKey}
+                todayKey={todayKey}
+                eventMap={eventMap}
+                onSelect={(key) => {
+                  setSelectedKey(key);
+                  setNavDate(parseISO(key + "T00:00:00"));
+                }}
+              />
+              {selectedKey && !isDesktop && (
+                <DayDetailContent
+                  date={parseISO(selectedKey + "T00:00:00")}
+                  events={selectedEvents}
+                  onUpdate={onUpdate}
+                  onDelete={onDelete}
+                />
+              )}
+            </>
+          )}
+          {viewMode === "day" && (
+            <DayDetailContent
+              date={navDate}
+              events={eventMap[toDateKey(navDate)] || []}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          )}
         </div>
 
-        {isDesktop && selectedKey && (
+        {isDesktop && selectedKey && viewMode !== "day" && (
           <SidePanel>
             <DayDetailContent
               date={parseISO(selectedKey + "T00:00:00")}

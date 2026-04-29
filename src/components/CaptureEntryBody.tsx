@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   IconMic,
   IconAttach,
@@ -53,6 +53,8 @@ interface Props {
   somedayActive?: boolean;
   statusInfo: EntryStatusInfo;
   handlers: EntryActionHandlers;
+  /** Inline "Capturing to {Brain} ⌄" chip rendered above the textarea. */
+  brainPill?: ReactNode;
 }
 
 export default function CaptureEntryBody({
@@ -70,6 +72,7 @@ export default function CaptureEntryBody({
   somedayActive = false,
   statusInfo,
   handlers,
+  brainPill,
 }: Props) {
   const imgRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -122,7 +125,7 @@ export default function CaptureEntryBody({
       {/* Textarea area */}
       <div
         style={{
-          padding: "22px 24px 10px",
+          padding: "16px 24px 10px",
           flex: 1,
           display: "flex",
           flexDirection: "column",
@@ -130,6 +133,18 @@ export default function CaptureEntryBody({
           position: "relative",
         }}
       >
+        {brainPill && (
+          <div
+            style={{
+              marginBottom: 10,
+              display: "flex",
+              alignItems: "center",
+              minWidth: 0,
+            }}
+          >
+            {brainPill}
+          </div>
+        )}
         <textarea
           // Auto-focus on mount so desktop users can type the moment the
           // capture sheet opens, no extra click required. Mobile keyboards

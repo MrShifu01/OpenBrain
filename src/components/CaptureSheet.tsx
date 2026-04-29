@@ -365,22 +365,6 @@ export default function CaptureSheet({
               }}
               aria-hidden="true"
             />
-            {showBrainPill && brainCtx.brains.length > 1 && !preview && activeTab === "entry" && (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  paddingRight: 12,
-                }}
-              >
-                <CaptureBrainPill
-                  brains={brainCtx.brains}
-                  activeBrain={brainCtx.activeBrain}
-                  captureBrain={captureBrain}
-                  onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
-                />
-              </div>
-            )}
           </div>
 
           {/* Body */}
@@ -433,6 +417,16 @@ export default function CaptureSheet({
               activeTab={activeTab}
               somedayEnabled={somedayEnabled}
               somedayActive={somedayActive}
+              brainPill={
+                showBrainPill && brainCtx.brains.length > 1 ? (
+                  <CaptureBrainPill
+                    brains={brainCtx.brains}
+                    activeBrain={brainCtx.activeBrain}
+                    captureBrain={captureBrain}
+                    onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                  />
+                ) : undefined
+              }
               statusInfo={{
                 status,
                 errorDetail,
@@ -504,7 +498,7 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
   const sorted = personal ? [personal, ...others] : others;
 
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -515,21 +509,25 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: 5,
-          height: 22,
-          padding: "0 7px",
-          background: captureBrain ? "var(--ember-wash)" : "transparent",
-          border: `1px solid ${captureBrain ? "var(--ember)" : "var(--line-soft)"}`,
-          borderRadius: 999,
+          gap: 4,
+          padding: "2px 6px",
+          margin: "0 -6px",
+          background: "transparent",
+          border: 0,
+          borderRadius: 6,
           color: "var(--ink-soft)",
-          fontSize: 11,
+          fontFamily: "var(--f-sans)",
+          fontSize: 12,
           fontWeight: 500,
           cursor: "pointer",
-          maxWidth: 160,
+          maxWidth: 240,
         }}
       >
+        <span style={{ opacity: 0.7 }}>Capturing to&nbsp;</span>
         <span
           style={{
+            color: captureBrain ? "var(--ember)" : "var(--ink)",
+            fontWeight: 600,
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
@@ -540,15 +538,15 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
         </span>
         <svg
           aria-hidden="true"
-          width="9"
-          height="9"
+          width="11"
+          height="11"
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
           viewBox="0 0 24 24"
-          style={{ flexShrink: 0, opacity: 0.55 }}
+          style={{ flexShrink: 0, opacity: 0.55, marginLeft: 1 }}
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
@@ -559,7 +557,7 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
           style={{
             position: "absolute",
             top: "calc(100% + 4px)",
-            right: 0,
+            left: 0,
             minWidth: 200,
             background: "var(--bg)",
             border: "1px solid var(--line-soft)",

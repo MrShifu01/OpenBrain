@@ -16,6 +16,9 @@ interface Props {
   dropUp?: boolean;
   /** Compact pill rendering for tight spots like CaptureSheet header. */
   compact?: boolean;
+  /** Full-width "active brain" card with avatar + label + chevron. Used
+   *  below the mobile header. */
+  cardMode?: boolean;
   /** Override what happens after picking a brain (e.g. CaptureSheet wants
    *  per-capture redirect, not global switch). When omitted, switches the
    *  app-wide active brain. */
@@ -24,7 +27,7 @@ interface Props {
   hideCreate?: boolean;
 }
 
-export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: Props) {
+export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideCreate }: Props) {
   const { activeBrain, brains, setActiveBrain, refresh } = useBrain();
   const [creating, setCreating] = useState(false);
 
@@ -50,54 +53,139 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
 
   const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
+  const initial = activeBrain.name.charAt(0).toUpperCase();
+
   return (
-    <div style={{ position: "relative", flexShrink: 0 }}>
+    <div style={{ position: "relative", flexShrink: 0, width: cardMode ? "100%" : undefined }}>
       <DropdownMenu>
         <DropdownMenuTrigger
           aria-label={`Active brain: ${activeBrain.name}. Click to switch.`}
           className="press"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: compact ? 28 : 32,
-            padding: compact ? "0 8px" : "0 10px",
-            background: "var(--surface)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 8,
-            color: "var(--ink)",
-            fontFamily: "var(--f-sans)",
-            fontSize: compact ? 12 : 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            maxWidth: compact ? 160 : 220,
-            minWidth: 0,
-          }}
+          style={
+            cardMode
+              ? {
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 14px",
+                  background: "var(--ink)",
+                  color: "var(--bg)",
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 14,
+                  fontFamily: "var(--f-sans)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }
+              : {
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: compact ? 28 : 32,
+                  padding: compact ? "0 8px" : "0 10px",
+                  background: "var(--surface)",
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 8,
+                  color: "var(--ink)",
+                  fontFamily: "var(--f-sans)",
+                  fontSize: compact ? 12 : 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  maxWidth: compact ? 160 : 220,
+                  minWidth: 0,
+                }
+          }
         >
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              minWidth: 0,
-            }}
-          >
-            {truncate(activeBrain.name, compact ? 16 : 22)}
-          </span>
-          <svg
-            aria-hidden="true"
-            width="10"
-            height="10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-            style={{ flexShrink: 0, opacity: 0.6 }}
-          >
-            {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
-          </svg>
+          {cardMode ? (
+            <>
+              <div
+                aria-hidden="true"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "color-mix(in oklch, var(--bg) 18%, var(--ink))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--bg)",
+                  flexShrink: 0,
+                }}
+              >
+                {initial}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  className="micro"
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    opacity: 0.55,
+                    lineHeight: 1,
+                  }}
+                >
+                  Active brain
+                </div>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    marginTop: 4,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {activeBrain.name}
+                </div>
+              </div>
+              <svg
+                aria-hidden="true"
+                width="14"
+                height="14"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                style={{ flexShrink: 0, opacity: 0.65 }}
+              >
+                {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
+              </svg>
+            </>
+          ) : (
+            <>
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  minWidth: 0,
+                }}
+              >
+                {truncate(activeBrain.name, compact ? 16 : 22)}
+              </span>
+              <svg
+                aria-hidden="true"
+                width="10"
+                height="10"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+                style={{ flexShrink: 0, opacity: 0.6 }}
+              >
+                {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
+              </svg>
+            </>
+          )}
         </DropdownMenuTrigger>
 
         <DropdownMenuContent

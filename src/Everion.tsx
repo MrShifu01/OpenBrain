@@ -337,6 +337,7 @@ function EverionContent({
                 new KeyboardEvent("keydown", { key: "/", metaKey: true, bubbles: true }),
               )
             }
+            onNavigate={appShell.setView}
             notifications={notifs.notifications}
             unreadCount={notifs.unreadCount}
             onDismissNotification={notifs.dismiss}
