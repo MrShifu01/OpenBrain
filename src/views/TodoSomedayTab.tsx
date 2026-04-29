@@ -1411,10 +1411,13 @@ function SomedayQuickAdd({
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Sync the picker default when the active filter changes (user clicks
-  // a different category chip).
-  useEffect(() => {
+  // a different category chip). Reset-on-prop-change pattern from the
+  // React docs — runs during render, no effect → no extra commit pass.
+  const [prevActiveTag, setPrevActiveTag] = useState(activeTag);
+  if (activeTag !== prevActiveTag) {
+    setPrevActiveTag(activeTag);
     setPickedTag(activeTag || "");
-  }, [activeTag]);
+  }
 
   function autoResize() {
     const el = ref.current;

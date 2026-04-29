@@ -76,7 +76,7 @@ export default function ExitIntentSlideIn() {
       }
     };
     document.addEventListener("click", onCtaInteraction, { capture: true });
-    return () => document.removeEventListener("click", onCtaInteraction, { capture: true } as any);
+    return () => document.removeEventListener("click", onCtaInteraction, { capture: true });
   }, []);
 
   // Trigger 1: cursor leaves toward top of viewport (toward browser chrome).
@@ -91,7 +91,6 @@ export default function ExitIntentSlideIn() {
     };
     document.addEventListener("mouseout", onMouseOut);
     return () => document.removeEventListener("mouseout", onMouseOut);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Trigger 2: scroll-back-from-pricing without converting.
@@ -115,7 +114,6 @@ export default function ExitIntentSlideIn() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function fire() {

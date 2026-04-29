@@ -12,7 +12,18 @@
     "e2e/**",
     "playwright.config.ts"
   ],
-  "ignoreDependencies": ["@fontsource-variable/geist", "tw-animate-css", "tailwindcss", "shadcn"],
+  "ignoreDependencies": [
+    "@fontsource-variable/geist",
+    "tw-animate-css",
+    "tailwindcss",
+    "shadcn",
+    "@capacitor/ios",
+    "@capacitor/preferences",
+    "@capacitor/assets",
+    "next-themes",
+    "vaul",
+    "chrome-launcher"
+  ],
   "entry": [
     "api/*.ts",
     "src/sw.js",

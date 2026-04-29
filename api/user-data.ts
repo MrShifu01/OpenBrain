@@ -380,6 +380,10 @@ const handleBrains = withAuth(
 // contradiction detection. Vault entries (type='secret') are blocked from
 // becoming Important Memories — that's the privacy contract.
 const IMPORTANT_MEMORY_TYPES = new Set(["fact", "preference", "decision", "obligation"]);
+// Slug shape produced by src/lib/importantMemory.ts generateMemoryKey().
+// Server enforces it so a malformed client can't write garbage keys that
+// the unique-active index won't catch in time.
+const MEMORY_KEY_RE = /^(fact|preference|decision|obligation):[a-z0-9_]{1,80}$/;
 const handleImportantMemories = withAuth(
   { methods: ["GET", "POST", "PATCH", "DELETE"], rateLimit: 60 },
   async ({ req, res, user }) => {
@@ -433,6 +437,10 @@ const handleImportantMemories = withAuth(
           .json({ error: "memory_type must be fact|preference|decision|obligation" });
       if (typeof body.memory_key !== "string" || !body.memory_key.trim())
         return void res.status(400).json({ error: "memory_key required" });
+      if (!MEMORY_KEY_RE.test(body.memory_key.trim()))
+        return void res
+          .status(400)
+          .json({ error: "memory_key must match <type>:<slug> with [a-z0-9_]" });
       if (typeof body.title !== "string" || !body.title.trim())
         return void res.status(400).json({ error: "title required" });
       if (typeof body.summary !== "string" || !body.summary.trim())
@@ -537,8 +545,14 @@ const handleImportantMemories = withAuth(
           return void res.status(400).json({ error: "Invalid memory_type" });
         patch.memory_type = body.memory_type;
       }
-      if (typeof body.memory_key === "string" && body.memory_key.trim())
-        patch.memory_key = body.memory_key.trim().slice(0, 200);
+      if (typeof body.memory_key === "string" && body.memory_key.trim()) {
+        const trimmed = body.memory_key.trim();
+        if (!MEMORY_KEY_RE.test(trimmed))
+          return void res
+            .status(400)
+            .json({ error: "memory_key must match <type>:<slug> with [a-z0-9_]" });
+        patch.memory_key = trimmed;
+      }
 
       if (!Object.keys(patch).length)
         return void res.status(400).json({ error: "Nothing to update" });

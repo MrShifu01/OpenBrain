@@ -59,12 +59,12 @@ const EntryCard = memo(function EntryCard({
   onToggleSelect?: (id: string) => void;
   concepts?: string[];
 }) {
-  const importance = (e as any).importance as number;
-  const isPinned = !!(e as any).pinned;
+  const importance = e.importance ?? 0;
+  const isPinned = !!e.pinned;
   const isCritical = importance === 2;
   const isVault = e.type === "secret";
   const emoji = resolveIcon(e.type, typeIcons);
-  const createdAt = (e as any).created_at || (e as any).createdAt;
+  const createdAt = e.created_at;
   const showAdminFlags = isAdminSync() && !isVault && getAdminPrefs().showEnrichmentChips;
 
   // Concepts source priority:
@@ -445,7 +445,7 @@ const EntryRow = memo(function EntryRow({
   onToggleSelect?: (id: string) => void;
   typeIcons?: Record<string, string>;
 }) {
-  const isPinned = !!(e as any).pinned;
+  const isPinned = !!e.pinned;
   const emoji = resolveIcon(e.type, typeIcons);
   const showAdminFlags =
     isAdminSync() && e.type !== "secret" && getAdminPrefs().showEnrichmentChips;
@@ -836,7 +836,7 @@ export function VirtualTimeline({
   const byDay = useMemo(() => {
     const m = new Map<string, Entry[]>();
     for (const e of sorted) {
-      const iso = (e as any).created_at || (e as any).createdAt;
+      const iso = e.created_at;
       if (!iso) continue;
       const key = String(iso).slice(0, 10);
       const arr = m.get(key);

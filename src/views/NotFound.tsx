@@ -1,4 +1,10 @@
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
+
 export default function NotFound() {
+  useDocumentMeta({
+    title: "Not found — Everion",
+    description: "The page you were looking for couldn't be found.",
+  });
   return (
     <div
       style={{

@@ -14,6 +14,7 @@ interface EntryRef {
   content?: string;
   type?: string;
   tags?: string[];
+  metadata?: { raw_content?: unknown; [key: string]: unknown };
 }
 
 /**
@@ -27,7 +28,7 @@ export function extractEntryConnections(entry: EntryRef, brainId: string): Promi
 
 async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Promise<void> {
   try {
-    const rawContent = (entry as any).metadata?.raw_content;
+    const rawContent = entry.metadata?.raw_content;
     const bodyText = rawContent
       ? String(rawContent)
           .replace(/[\r\n]+/g, " ")

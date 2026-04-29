@@ -98,7 +98,7 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
       <div className="divide-y" style={{ borderColor: "var(--color-outline-variant)" }}>
         {entries.map((entry) => {
           const tc = getTypeConfig(entry.type);
-          const deleted = (entry as any).deleted_at;
+          const deleted = entry.deleted_at;
           const age = deleted ? daysAgo(deleted) : null;
           return (
             <div key={entry.id} className="flex items-center gap-3 py-3">

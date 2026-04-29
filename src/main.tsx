@@ -1,7 +1,13 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { Analytics } from "@vercel/analytics/react";
+// Vercel telemetry — lazy-imported so it never lands in the first-paint
+// bundle for declined-cookie users (saves ~15 KB gzipped on cold load).
+const SpeedInsights = lazy(() =>
+  import("@vercel/speed-insights/react").then((m) => ({ default: m.SpeedInsights })),
+);
+const Analytics = lazy(() =>
+  import("@vercel/analytics/react").then((m) => ({ default: m.Analytics })),
+);
 import * as Sentry from "@sentry/react";
 import "./index.css";
 import App from "./App";
@@ -134,8 +140,12 @@ function Root() {
   return (
     <>
       <App />
-      {consent === "accepted" && <SpeedInsights />}
-      {consent === "accepted" && <Analytics />}
+      {consent === "accepted" && (
+        <Suspense fallback={null}>
+          <SpeedInsights />
+          <Analytics />
+        </Suspense>
+      )}
       {consent === null && <ConsentBanner onDecision={handleDecision} />}
       <UpdatePrompt />
     </>

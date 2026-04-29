@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "../lib/authFetch";
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
 import {
   IMPORTANT_MEMORY_TYPES,
   IMPORTANT_MEMORY_TYPE_LABEL,
@@ -25,6 +26,11 @@ const FILTERS: { id: Filter; label: string }[] = [
 ];
 
 export default function ImportantMemoriesView({ brainId }: ImportantMemoriesViewProps) {
+  useDocumentMeta({
+    title: "Important Memories — Everion",
+    description:
+      "User-curated durable facts Everion always trusts. Promote any entry to a memory and Everion will recall it reliably.",
+  });
   const [memories, setMemories] = useState<ImportantMemory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

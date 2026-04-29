@@ -2,12 +2,17 @@ import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { friendlyError } from "../lib/friendlyError";
 import { Button } from "../components/ui/button";
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
 
 interface Props {
   onDone: () => void;
 }
 
 export default function ResetPasswordView({ onDone }: Props) {
+  useDocumentMeta({
+    title: "Reset password — Everion",
+    description: "Choose a new password for your Everion account.",
+  });
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");

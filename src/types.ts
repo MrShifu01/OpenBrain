@@ -42,8 +42,11 @@ interface EnrichmentFlags {
   parsed?: boolean;
   embedded?: boolean;
   concepts_count?: number;
+  concepts_extracted?: boolean;
   has_related?: boolean;
   has_insight?: boolean;
+  backfilled_at?: string;
+  [key: string]: unknown;
 }
 
 interface EntryMetadata {
@@ -100,6 +103,7 @@ export interface Entry {
   pinned?: boolean;
   importance?: number;
   status?: "active" | "staged";
+  deleted_at?: string | null;
 }
 
 export interface TypeConfig {

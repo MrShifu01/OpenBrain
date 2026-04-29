@@ -1,4 +1,5 @@
 import { useState, useEffect, type JSX } from "react";
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
 
 // Public status page — no auth required. Polls /api/status every 30s and
 // renders a simple up/down per service. Lives at /status (route handled
@@ -16,6 +17,12 @@ interface Status {
 }
 
 export default function StatusPage(): JSX.Element {
+  useDocumentMeta({
+    title: "Status — Everion",
+    description:
+      "Live system status — see whether Everion's API, database, and AI services are up.",
+    canonical: "https://everionmind.com/status",
+  });
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
@@ -31,9 +38,9 @@ export default function StatusPage(): JSX.Element {
         setStatus(data);
         setError(null);
         setLastChecked(new Date());
-      } catch (err: any) {
+      } catch (err) {
         if (cancelled) return;
-        setError(err?.message ?? "Failed to reach status endpoint");
+        setError(err instanceof Error ? err.message : "Failed to reach status endpoint");
         setLastChecked(new Date());
       }
     }

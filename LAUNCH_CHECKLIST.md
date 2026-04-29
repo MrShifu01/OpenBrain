@@ -372,8 +372,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P1 — Maintainability
 
-- [ ] **59 `as any` casts in `src/`** 🟡
-      Concentrated in `src/lib/enrichEntry.ts` (10), `src/views/DetailModal.tsx` (9), `src/hooks/useEntryActions.ts` (6), `src/components/EntryList.tsx` (6). Most are runtime-added fields (`pinned`, `importance`, etc.) that should live on the `Entry` type. Widen `Entry` in `src/types.ts` or extract a `RichEntry = Entry & { ... }` and migrate. `tsconfig.json` already has `strict: true` — `noUncheckedIndexedAccess` and `noImplicitAny` would catch new ones.
+- [ ] **`as any` casts in `src/`** 🟡 — down to 19 (from 59 → 32 → 19 across multiple sessions)
+      Remaining clusters: `src/views/DetailModal.tsx` (still has several around enrichment), `src/lib/fileExtract.ts` (legitimate `mod.default ?? mod` ESM compat), `src/hooks/useVaultOps.ts` (encrypted-entry round-trip needs a typed plumbing layer). The runtime-added fields on `Entry` (`pinned`, `importance`, `embedding_status`, `embedded_at`, `deleted_at`) are now properly typed in `src/types.ts`. Drift the lint warning ratchet down each session as remaining clusters get addressed organically.
 
 - [ ] **Three god-components >1000 lines** 🟡
       `src/views/TodoCalendarTab.tsx` (1309), `src/views/VaultView.tsx` (1217), `src/components/EntryList.tsx` (986). Each handles fetching, filtering, display, and mutations in one file. Extract presentational sub-components (e.g., `EntryListFilters`, `VaultEntryCard`, `CalendarMonthGrid`) and move side effects into hooks. Don't refactor for its own sake — do it next time you touch one of these for a feature.

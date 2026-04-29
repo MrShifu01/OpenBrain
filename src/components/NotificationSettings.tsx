@@ -24,7 +24,10 @@ function detectTimezone(): string {
 }
 
 function isIOS(): boolean {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !(window as Window & { MSStream?: unknown }).MSStream
+  );
 }
 
 const DAYS_OF_WEEK = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];

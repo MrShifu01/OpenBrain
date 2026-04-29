@@ -259,7 +259,7 @@ export default function TodoRowItem({
         </div>
 
         {(() => {
-          const enr = (entry.metadata as any)?.enrichment ?? {};
+          const enr = entry.metadata?.enrichment ?? {};
           const pending =
             entry.type !== "secret" &&
             !(enr.parsed === true && enr.has_insight === true && enr.concepts_extracted === true);

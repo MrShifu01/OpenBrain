@@ -27,10 +27,9 @@ interface EnrichmentFlags {
 }
 
 export function flagsOf(entry: Entry): EnrichmentFlags {
-  const meta = (entry.metadata as any) ?? {};
+  const meta = entry.metadata ?? {};
   const enr = meta.enrichment ?? {};
-  const embeddingStatus =
-    ((entry as any).embedding_status as EnrichmentFlags["embedding_status"]) ?? null;
+  const embeddingStatus = entry.embedding_status ?? null;
   const conceptsCount = Array.isArray(meta.concepts) ? meta.concepts.length : 0;
   const isPersona = entry.type === "persona";
   return {
@@ -39,7 +38,7 @@ export function flagsOf(entry: Entry): EnrichmentFlags {
     concepts_extracted: enr.concepts_extracted === true,
     has_concepts: isPersona || conceptsCount > 0,
     concepts_count: conceptsCount,
-    embedded: embeddingStatus === "done" || !!(entry as any).embedded_at,
+    embedded: embeddingStatus === "done" || !!entry.embedded_at,
     embedding_status: embeddingStatus,
     backfilled: !!enr.backfilled_at,
   };

@@ -599,7 +599,9 @@ function FooterCol({
   // intercepts to drive SPA navigation without the browser leaving the page.
   // Tokens starting with "/" are treated as real URLs — used for static
   // marketing pages (/learn.html, /vs/*, /research/*) served outside the SPA.
+  // mailto: tokens passthrough to the native handler.
   const toHref = (to: string): string => {
+    if (to.startsWith("mailto:")) return to;
     if (to.startsWith("/")) return to;
     if (to.startsWith("landing#")) return `#${to.slice("landing#".length)}`;
     if (to === "privacy") return "/privacy";
@@ -613,7 +615,9 @@ function FooterCol({
       <Micro style={{ marginBottom: 14 }}>{title}</Micro>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {links.map(([label, to]) => {
-          const external = to.startsWith("/");
+          // mailto: + /static/ links go through the native handler; in-app
+          // tokens are intercepted for SPA nav.
+          const external = to.startsWith("/") || to.startsWith("mailto:");
           return (
             <a
               key={label}
@@ -1589,6 +1593,7 @@ export default function Landing({ onAuth }: LandingProps) {
           <FooterCol
             title="Support"
             links={[
+              ["Email support", "mailto:stander.christian@gmail.com"],
               ["Service status", "status"],
               ["Privacy policy", "privacy"],
               ["Terms of service", "terms"],

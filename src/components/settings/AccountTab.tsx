@@ -249,6 +249,16 @@ export default function AccountTab({ email, isAdmin }: Props) {
         </SettingsButton>
       </SettingsRow>
 
+      <SettingsRow label="Help" hint="email support — replies usually within a day.">
+        <a
+          className="design-chip f-sans"
+          href="mailto:stander.christian@gmail.com?subject=Everion%20Mind%20support"
+          style={{ textDecoration: "none" }}
+        >
+          Email support
+        </a>
+      </SettingsRow>
+
       <SettingsRow label="Sign out" last>
         <SettingsButton onClick={handleSignOut} disabled={signingOut}>
           {signingOut ? "Signing out…" : "Sign out"}
