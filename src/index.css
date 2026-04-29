@@ -793,75 +793,45 @@ select option:hover {
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ── Shadcn/Radix tokens — light mode (Neural Alabaster) ── */
+/* ── shadcn semantic tokens, aliased to Everion design tokens ──
+   Each shadcn-named token resolves to a project token (--ember,
+   --ink, --surface, …) defined per-family in src/design/family-*.css.
+   This means a shadcn primitive auto-skins to whichever theme family
+   the user has active — no per-family overrides needed.
+   chart/sidebar tokens kept as-is since the app doesn't use them yet. */
 :root {
-  --background: oklch(98.5% 0.009 85);
-  --foreground: oklch(18% 0.012 65);
-  --card: oklch(100% 0 0);
-  --card-foreground: oklch(18% 0.012 65);
-  --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(18% 0.012 65);
-  --primary: oklch(46% 0.09 75);
-  --primary-foreground: oklch(100% 0 0);
-  --secondary: oklch(93% 0.006 78);
-  --secondary-foreground: oklch(48% 0.02 75);
-  --muted: oklch(94% 0.01 80);
-  --muted-foreground: oklch(55% 0.01 70);
-  --accent: oklch(92% 0.03 80);
-  --accent-foreground: oklch(32% 0.07 72);
-  --destructive: oklch(50% 0.18 25);
-  --border: oklch(88% 0.008 78);
-  --input: oklch(88% 0.008 78);
-  --ring: oklch(46% 0.09 75);
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--ember);
+  --primary-foreground: var(--ember-ink);
+  --secondary: var(--surface-low);
+  --secondary-foreground: var(--ink-soft);
+  --muted: var(--surface-low);
+  --muted-foreground: var(--ink-faint);
+  --accent: var(--ember-wash);
+  --accent-foreground: var(--ember);
+  --destructive: var(--blood);
+  --border: var(--line-soft);
+  --input: var(--line-soft);
+  --ring: var(--ember);
   --radius: 0.75rem;
-  --chart-1: oklch(46% 0.09 75);
-  --chart-2: oklch(44% 0.1 145);
-  --chart-3: oklch(50% 0.18 25);
-  --chart-4: oklch(48% 0.02 75);
+  --chart-1: var(--ember);
+  --chart-2: var(--moss);
+  --chart-3: var(--blood);
+  --chart-4: var(--ink-soft);
   --chart-5: oklch(65% 0.13 240);
-  --sidebar: oklch(97% 0.01 85);
-  --sidebar-foreground: oklch(18% 0.012 65);
-  --sidebar-primary: oklch(46% 0.09 75);
-  --sidebar-primary-foreground: oklch(100% 0 0);
-  --sidebar-accent: oklch(92% 0.03 80);
-  --sidebar-accent-foreground: oklch(32% 0.07 72);
-  --sidebar-border: oklch(88% 0.008 78);
-  --sidebar-ring: oklch(46% 0.09 75);
-}
-
-/* ── Shadcn/Radix tokens — dark mode (Neural Obsidian) ── */
-.dark {
-  --background: oklch(24% 0.01 62);
-  --foreground: oklch(96% 0.007 80);
-  --card: oklch(28% 0.013 62);
-  --card-foreground: oklch(96% 0.007 80);
-  --popover: oklch(28% 0.013 62);
-  --popover-foreground: oklch(96% 0.007 80);
-  --primary: oklch(68% 0.09 75);
-  --primary-foreground: oklch(15% 0.005 65);
-  --secondary: oklch(32% 0.015 65);
-  --secondary-foreground: oklch(96% 0.007 80);
-  --muted: oklch(28% 0.013 62);
-  --muted-foreground: oklch(52% 0.012 70);
-  --accent: oklch(26% 0.04 72);
-  --accent-foreground: oklch(68% 0.09 75);
-  --destructive: oklch(62% 0.18 25);
-  --border: oklch(31% 0.012 65);
-  --input: oklch(31% 0.012 65);
-  --ring: oklch(68% 0.09 75);
-  --chart-1: oklch(68% 0.09 75);
-  --chart-2: oklch(62% 0.1 145);
-  --chart-3: oklch(62% 0.18 25);
-  --chart-4: oklch(58% 0.022 75);
-  --chart-5: oklch(65% 0.13 240);
-  --sidebar: oklch(21% 0.008 60);
-  --sidebar-foreground: oklch(96% 0.007 80);
-  --sidebar-primary: oklch(68% 0.09 75);
-  --sidebar-primary-foreground: oklch(15% 0.005 65);
-  --sidebar-accent: oklch(26% 0.04 72);
-  --sidebar-accent-foreground: oklch(68% 0.09 75);
-  --sidebar-border: oklch(31% 0.012 65);
-  --sidebar-ring: oklch(68% 0.09 75);
+  --sidebar: var(--surface-low);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ember);
+  --sidebar-primary-foreground: var(--ember-ink);
+  --sidebar-accent: var(--ember-wash);
+  --sidebar-accent-foreground: var(--ember);
+  --sidebar-border: var(--line-soft);
+  --sidebar-ring: var(--ember);
 }
 
 @layer base {
