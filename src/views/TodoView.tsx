@@ -749,32 +749,42 @@ export default function TodoView({
           className={`mb-4 flex items-center overflow-hidden rounded-xl border ${somedayEnabled ? "" : "lg:hidden"}`}
           style={{ borderColor: "var(--line-soft)" }}
         >
-          {TABS.map((t, i) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className="flex-1 py-2 text-sm font-medium transition-colors"
-              style={{
-                background: tab === t.id ? "var(--ember)" : "var(--surface)",
-                color: tab === t.id ? "var(--ember-ink)" : "var(--ink-soft)",
-                borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
-              }}
-            >
-              {t.label}
-              {typeof t.count === "number" && t.count > 0 && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    opacity: 0.7,
-                  }}
-                >
-                  {t.count}
-                </span>
-              )}
-            </button>
-          ))}
+          {TABS.map((t, i) => {
+            const active = tab === t.id;
+            // Soft "your pile is growing" nudge — only on Someday, only past
+            // 20. No number; the count is one tap away. Ember dot on the
+            // inactive tab, white dot on the active one (which has an ember
+            // background) so it stays visible either way.
+            const showDot = typeof t.count === "number" && t.count > 20;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="relative flex-1 py-2 text-sm font-medium transition-colors"
+                style={{
+                  background: active ? "var(--ember)" : "var(--surface)",
+                  color: active ? "var(--ember-ink)" : "var(--ink-soft)",
+                  borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
+                }}
+              >
+                {t.label}
+                {showDot && (
+                  <span
+                    aria-label={`${t.count} items`}
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      right: 8,
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      background: active ? "var(--ember-ink)" : "var(--ember)",
+                    }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Mobile karma bar */}
