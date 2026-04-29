@@ -160,6 +160,42 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 - [ ] **Customer support channel** ❌
       Where do users complain? Email link in app footer is the minimum. `support@` alias forwarded to your inbox.
 
+### Design system / UI consistency (shadcn migration)
+
+App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files with significant visual drift (5+ button padding variants, 4–18px border radii, hardcoded shadows, no z-index system). `components.json` is configured but `src/components/ui/` is empty. Migration to shadcn primitives (themed with existing design tokens) gives consistency, accessibility-by-default (Radix kbd nav + focus traps), and one-place restyle.
+
+**Phase 1 — Safe wins (low risk, high impact)** ❌
+
+- [ ] **Button** — replace 80+ hand-rolled `<button>` instances. Top files: `OnboardingModal.tsx`, `settings/ProfileTab.tsx`, `DetailModal.tsx`, `NotificationBell.tsx`, `BulkActionBar.tsx`. Standardise variants: primary (ember), secondary (ghost), destructive (danger), outline.
+- [ ] **Input + Textarea** — 25+ instances. Top files: `OnboardingModal.tsx`, `DetailModal.tsx`, `CaptureSheet.tsx`, `ChatComposer.tsx`. Two patterns to consolidate: serif (entry editing) and sans (settings/forms).
+- [ ] **Card** — 25+ container patterns. Top files: `NotificationBell.tsx`, `EntryListBits.tsx`, settings sections.
+- [ ] **Separator** — 40+ inline `<div height:1px>` divider instances.
+- [ ] **Badge** — 30+ tag/type/status pill instances. Top files: `EntryListBits.tsx`, `CaptureSheet.tsx`, `DetailModal.tsx`.
+- [ ] **Tabs** — 12+ segmented controls. Top files: `MemoryHeader.tsx`, `SettingsView.tsx`, `TodoView.tsx`, `CaptureSheet.tsx`. Adds keyboard arrow navigation for free.
+- [ ] **Switch** — 15+ toggle controls (theme, notification prefs, Someday gate, etc).
+- [ ] **Checkbox** — 8 instances (currently native, no focus ring). `BulkActionBar.tsx`, `EntryList.tsx`, new `SomedayBulkBar`.
+
+**Phase 2 — Stateful primitives (medium risk)** ❌
+
+- [ ] **DropdownMenu / Select / Popover** — 45+ custom dropdowns. Replaces manual escape/click-outside in `BrainSwitcher.tsx`, `OmniSearch.tsx`, recategorise picker, sort picker, model/tier/bucket pickers. Adds proper keyboard nav (arrows / Home / End / typeahead).
+- [ ] **Sonner (toast library)** — kills 6 toast files: `UpdatePrompt.tsx`, `BackgroundTaskToast.tsx`, `BackgroundOpsToast.tsx`, `UndoToast.tsx`, `NudgeBanner.tsx`, `ConsentBanner.tsx`. Single queue + stacking + dismiss for free.
+- [ ] **Tooltip** — currently <5 native `title` attrs. Add tooltips to icon buttons across header, bulk bar, settings.
+- [ ] **Accordion** — 8 `[expanded, setExpanded]` patterns in settings tabs + bulk bar. Adds smooth height animation + ARIA.
+- [ ] **Calendar + Popover** — replace 3 native `<input type="date">` instances in `TodoCalendarTab` + `ScheduleInline`.
+
+**Phase 3 — High-touch (high risk, requires care)** ❌
+
+- [ ] **Dialog** — migrate 7 `FocusTrap`-wrapped modals: `CaptureSheet.tsx`, `OnboardingModal.tsx`, `MoveToBrainModal.tsx`, `CreateBrainModal.tsx`, `VaultRevealModal.tsx`, `DetailModal.tsx`, `settings/ProfileTab.tsx`. shadcn `Dialog` handles focus trap natively → removes `focus-trap-react` dep + ~200 lines of manual escape/scroll-lock plumbing.
+- [ ] **Sheet (vaul)** — replace `CaptureSheet.tsx` drag-to-close. shadcn's `Drawer` uses `vaul` which has rubber-band easing, threshold-based dismiss, and body scroll lock built in. Port the existing 80px threshold + 200px rubber-band tuning.
+- [ ] **Command (cmdk)** — replace `OmniSearch.tsx` custom popover with proper command palette (typeahead, fuzzy match, kbd shortcuts).
+- [ ] **window.confirm() removals** — `BulkActionBar.tsx` line ~269 + `settings/ProfileTab.tsx` (still violates CLAUDE.md no-OS-UI rule). Replace with `Dialog` + Button pair.
+
+**Cross-cutting cleanup (do as part of migration)**
+
+- [ ] **Standardise z-index** — current zoo (50/55/60/110/200/250) → tokens: `z-modal`, `z-toast`, `z-dropdown`, `z-tooltip`. Tailwind utility per layer.
+- [ ] **Standardise radius** — current spread 4–18px → tokens: `rounded-sm/md/lg/xl/full`. Audit and pick one per role (chip, card, modal).
+- [ ] **Standardise shadows** — replace hardcoded `rgba(0,0,0,0.x)` with `--lift-1/2/3` tokens (already exist).
+
 ### PWA
 
 - [x] **Service worker update flow tested** ✅
