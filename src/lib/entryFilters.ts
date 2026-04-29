@@ -16,6 +16,12 @@ export interface EntryFilterState {
   // source matches. Used by the "From imports" toggle so users can sweep
   // through freshly-imported notes without a separate staging table.
   importSource?: "any" | string;
+  // When false / undefined (default), entries with metadata.status === "done"
+  // are hidden from the result — completed todos and someday items shouldn't
+  // clutter the Memory grid. Pinned done items always pass through (the user
+  // explicitly chose to keep them visible). Chat retrieval ignores this flag
+  // entirely and still finds done entries.
+  showCompleted?: boolean;
 }
 
 function startOfDay(d: Date): Date {
@@ -35,6 +41,17 @@ export function applyEntryFilters(entries: Entry[], filters: EntryFilterState): 
   // ── Type filter ──
   if (filters.type !== "all") {
     result = result.filter((e) => e.type === filters.type);
+  }
+
+  // ── Hide completed (default) ──
+  // metadata.status === "done" applies to todos + someday items the user
+  // has marked done. Pinned done entries pass through — the pin is an
+  // explicit "keep visible" gesture that overrides the auto-hide.
+  if (!filters.showCompleted) {
+    result = result.filter((e) => {
+      const status = (e.metadata as { status?: string } | undefined)?.status;
+      return status !== "done" || e.pinned;
+    });
   }
 
   // ── Import-source filter ──

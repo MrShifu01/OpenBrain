@@ -232,6 +232,50 @@ export default function MemoryHeader({
           );
         })()}
 
+        {/* Show completed toggle — only renders when there's something hidden.
+            Counts non-pinned done entries (pinned ones already pass through). */}
+        {(() => {
+          const completedCount = entries.filter((e) => {
+            const status = (e.metadata as { status?: string } | undefined)?.status;
+            return status === "done" && !e.pinned;
+          }).length;
+          if (completedCount === 0) return null;
+          const active = appShell.gridFilters.showCompleted === true;
+          return (
+            <button
+              className="press"
+              onClick={() =>
+                appShell.setGridFilters({
+                  ...appShell.gridFilters,
+                  showCompleted: !active,
+                  brainId: activeBrainId,
+                })
+              }
+              aria-pressed={active}
+              style={{
+                height: 32,
+                minHeight: 32,
+                padding: "0 10px",
+                borderRadius: 6,
+                fontFamily: "var(--f-sans)",
+                fontSize: 13,
+                fontWeight: 500,
+                background: active ? "var(--ember-wash)" : "transparent",
+                color: active ? "var(--ember)" : "var(--ink-faint)",
+                border: active ? "1px solid var(--ember)" : "1px solid transparent",
+                cursor: "pointer",
+                transition: "all 180ms",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Show completed
+              <span style={{ opacity: 0.7, fontSize: 12 }}>{completedCount.toLocaleString()}</span>
+            </button>
+          );
+        })()}
+
         {/* Select mode toggle */}
         {appShell.view === "memory" && (
           <button
