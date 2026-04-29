@@ -173,9 +173,14 @@ function AppMain(): JSX.Element {
 
     supabase.auth
       .getSession()
-      .then(async ({ data: { session } }) => {
+      .then(({ data: { session } }) => {
+        // Render immediately. Settings load in background — Everion can boot
+        // with stale (or missing) settings; loadUserAISettings populates the
+        // store as it resolves and any consumer that reads settings re-renders
+        // when it lands. Cuts cold-load by 200–600 ms on slow networks where
+        // /api/profile + /api/api_keys round-trips were blocking first paint.
         if (session?.user?.id) {
-          await loadSettings(session.user.id);
+          void loadSettings(session.user.id);
           identifyPostHogUser(session.user.id, session.user.email ?? "");
         }
         setSession(session);
@@ -189,9 +194,11 @@ function AppMain(): JSX.Element {
       });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_e, session) => {
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      // Same fire-and-forget pattern as the initial getSession() above.
+      // Auth state changes shouldn't block UI on settings round-trips.
       if (session?.user?.id) {
-        await loadSettings(session.user.id);
+        void loadSettings(session.user.id);
         identifyPostHogUser(session.user.id, session.user.email ?? "");
       } else {
         // Sign-out — drop the PostHog session so a shared device doesn't

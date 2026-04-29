@@ -102,7 +102,11 @@ export function useDataLayer({
         setLoadError(`HTTP ${status}${body ? `: ${body.slice(0, 200)}` : ""}`);
       },
     });
-    const phase2 = entryRepo.list({ brainId: activeBrainId, limit: 1000 });
+    // Phase 2 walks every page until the server says hasMore=false. Replaces
+    // the previous unbounded `limit: 1000` fetch — handles brains that have
+    // grown past 1000 entries and paginates cleanly under a 5000-entry cap
+    // (LIST_ALL_HARD_CAP in entryRepo). Same network shape, just cursor-paged.
+    const phase2 = entryRepo.listAll({ brainId: activeBrainId });
 
     try {
       const initial = await phase1;
