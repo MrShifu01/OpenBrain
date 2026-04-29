@@ -4,7 +4,7 @@ import type { Entry } from "../types";
 import { resolveIcon } from "../lib/typeIcons";
 import { isPendingEnrichment } from "../lib/enrichFlags";
 import { getAdminPrefs } from "../lib/adminPrefs";
-import { isCachedAdmin } from "../lib/userEmailCache";
+import { getCachedIsAdmin } from "../lib/userEmailCache";
 import { useSwipeActions } from "../hooks/useSwipeActions";
 import {
   IconPin,
@@ -13,12 +13,10 @@ import {
   EnrichFlagChips,
 } from "./EntryListBits";
 
-const ADMIN_EMAIL = (import.meta.env.VITE_ADMIN_EMAIL as string | undefined) ?? "";
-
 // Cheap sync admin check — used to gate the diagnostic flag chips on entry
-// cards. The async source of truth lives in useAdminDevMode; this just reads
-// the cached email SettingsView stashes in localStorage on auth load.
-const isAdminSync = (): boolean => isCachedAdmin(ADMIN_EMAIL);
+// cards. The async source of truth lives in useAdminDevMode; this reads the
+// is_admin boolean App.tsx stashes in localStorage on every auth state change.
+const isAdminSync = (): boolean => getCachedIsAdmin();
 
 function relTime(iso?: string) {
   if (!iso) return "";

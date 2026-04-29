@@ -13,6 +13,7 @@
  */
 
 const KEY = "everion_email";
+const ADMIN_KEY = "everion_is_admin";
 
 export function getCachedEmail(): string {
   try {
@@ -36,11 +37,28 @@ export function setCachedEmail(email: string | null | undefined): void {
 }
 
 /**
- * Compare the cached email against an expected admin email. Returns false
- * when adminEmail is empty (no admin configured) so admin features stay
- * locked off in environments without VITE_ADMIN_EMAIL set.
+ * Cache the is_admin flag derived from auth session app_metadata. Written
+ * once on auth load by the bootstrap path; read sync by render-time
+ * consumers (EntryList admin chip gate). Authoritative gate is server-side
+ * — this is purely UI hint visibility.
  */
-export function isCachedAdmin(adminEmail: string): boolean {
-  if (!adminEmail) return false;
-  return getCachedEmail() === adminEmail;
+export function getCachedIsAdmin(): boolean {
+  try {
+    return localStorage.getItem(ADMIN_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+export function setCachedIsAdmin(isAdmin: boolean): void {
+  try {
+    if (isAdmin) {
+      localStorage.setItem(ADMIN_KEY, "true");
+    } else {
+      localStorage.removeItem(ADMIN_KEY);
+    }
+  } catch {
+    // localStorage may throw in private mode or with disk-full — silent here
+    // because the cache is a perf optimisation, never a correctness gate.
+  }
 }

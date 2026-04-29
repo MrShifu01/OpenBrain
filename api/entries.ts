@@ -763,13 +763,12 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
   });
 }
 
-function isAdminUser(user: { email?: string }): boolean {
-  // Accept either ADMIN_EMAIL or VITE_ADMIN_EMAIL — the latter is what the
-  // frontend uses (Vite-prefixed envs leak into the bundle), so projects often
-  // only have that one set on Vercel.
-  const adminEmail = process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL;
-  if (!adminEmail) return false;
-  return !!user.email && user.email === adminEmail;
+function isAdminUser(user: { app_metadata?: Record<string, unknown> }): boolean {
+  // Multi-admin via auth.users.raw_app_meta_data.is_admin (set in Supabase
+  // dashboard / SQL). Replaces the older single-email env-var gate. The flag
+  // rides in the JWT — server reads it from the verified token, no extra
+  // DB hit needed. To grant admin: see Docs/Components/auth.md.
+  return user.app_metadata?.is_admin === true;
 }
 
 // ── GET /api/entries?action=enrich-debug — admin only ──

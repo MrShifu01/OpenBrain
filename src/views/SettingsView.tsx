@@ -22,8 +22,6 @@ import { getDecisionCount } from "../lib/learningEngine";
 
 type SectionId = "personal" | "account" | "brain" | "connections" | "privacy" | "admin";
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
-
 const BASE_SECTIONS: { id: SectionId; label: string }[] = [
   { id: "personal", label: "Personal" },
   { id: "account", label: "Account" },
@@ -314,15 +312,17 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
     });
   }
 
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       const e = user?.email || "";
       setEmail(e);
       setCachedEmail(e);
+      const meta = user?.app_metadata as { is_admin?: boolean } | undefined;
+      setIsAdmin(meta?.is_admin === true);
     });
   }, []);
 
-  const isAdmin = ADMIN_EMAIL ? Boolean(email && email === ADMIN_EMAIL) : Boolean(email);
   const SECTIONS = isAdmin
     ? [...BASE_SECTIONS, { id: "admin" as SectionId, label: "Admin" }]
     : BASE_SECTIONS;

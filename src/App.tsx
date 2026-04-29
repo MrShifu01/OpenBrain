@@ -3,6 +3,7 @@ import { supabase } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
+import { setCachedEmail, setCachedIsAdmin } from "./lib/userEmailCache";
 import Landing from "./views/Landing";
 import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
@@ -21,7 +22,6 @@ const ResetPasswordView = lazy(() => import("./views/ResetPasswordView"));
 const StatusPage = lazy(() => import("./views/StatusPage"));
 
 const PENDING_INVITE_KEY = "ob_pending_invite";
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
 
 function getHashTokens(): {
   access_token: string;
@@ -113,6 +113,16 @@ function AppMain(): JSX.Element {
         }, 2500);
       })
       .catch(() => setInviteMsg("Failed to accept invite. Please try again."));
+  }, [session]);
+
+  // Mirror auth state into localStorage so render-time consumers (EntryList
+  // admin chip gate, sidebar email) read sync. Authoritative gate is
+  // server-side; cache is purely for UI hint visibility.
+  useEffect(() => {
+    if (session === undefined) return;
+    const meta = session?.user?.app_metadata as { is_admin?: boolean } | undefined;
+    setCachedEmail(session?.user?.email);
+    setCachedIsAdmin(meta?.is_admin === true);
   }, [session]);
 
   useEffect(() => {
@@ -298,7 +308,8 @@ function AppMain(): JSX.Element {
     );
 
   const isAdminRoute = window.location.pathname === "/admin";
-  const isAdmin = ADMIN_EMAIL ? session.user?.email === ADMIN_EMAIL : false;
+  const isAdmin =
+    (session.user?.app_metadata as { is_admin?: boolean } | undefined)?.is_admin === true;
 
   if (isAdminRoute) {
     if (!isAdmin) {

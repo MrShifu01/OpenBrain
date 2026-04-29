@@ -2,16 +2,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { getAdminFlags, setAdminFlag as persistFlag } from "../lib/featureFlags";
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string | undefined;
-
 export function useAdminDevMode() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminFlags, setAdminFlagsState] = useState(getAdminFlags);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      const email = data.session?.user?.email;
-      setIsAdmin(!!ADMIN_EMAIL && email === ADMIN_EMAIL);
+      const meta = data.session?.user?.app_metadata as { is_admin?: boolean } | undefined;
+      setIsAdmin(meta?.is_admin === true);
     });
   }, []);
 
