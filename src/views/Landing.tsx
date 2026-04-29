@@ -597,7 +597,10 @@ function FooterCol({
 }) {
   // Map route token → real URL so anchors are crawlable; onClick still
   // intercepts to drive SPA navigation without the browser leaving the page.
+  // Tokens starting with "/" are treated as real URLs — used for static
+  // marketing pages (/learn.html, /vs/*, /research/*) served outside the SPA.
   const toHref = (to: string): string => {
+    if (to.startsWith("/")) return to;
     if (to.startsWith("landing#")) return `#${to.slice("landing#".length)}`;
     if (to === "privacy") return "/privacy";
     if (to === "terms") return "/terms";
@@ -609,26 +612,33 @@ function FooterCol({
     <div>
       <Micro style={{ marginBottom: 14 }}>{title}</Micro>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {links.map(([label, to]) => (
-          <a
-            key={label}
-            href={toHref(to)}
-            onClick={(e) => {
-              e.preventDefault();
-              go(to);
-            }}
-            className="f-sans press"
-            style={{
-              fontSize: 14,
-              color: "var(--ink-soft)",
-              cursor: "pointer",
-              background: "transparent",
-              textDecoration: "none",
-            }}
-          >
-            {label}
-          </a>
-        ))}
+        {links.map(([label, to]) => {
+          const external = to.startsWith("/");
+          return (
+            <a
+              key={label}
+              href={toHref(to)}
+              onClick={
+                external
+                  ? undefined
+                  : (e) => {
+                      e.preventDefault();
+                      go(to);
+                    }
+              }
+              className="f-sans press"
+              style={{
+                fontSize: 14,
+                color: "var(--ink-soft)",
+                cursor: "pointer",
+                background: "transparent",
+                textDecoration: "none",
+              }}
+            >
+              {label}
+            </a>
+          );
+        })}
       </div>
     </div>
   );
@@ -1558,6 +1568,17 @@ export default function Landing({ onAuth }: LandingProps) {
             links={[
               ["Sign in", "login"],
               ["Sign up", "signup"],
+            ]}
+            go={goto}
+          />
+          <FooterCol
+            title="Learn"
+            links={[
+              ["What is Everion?", "/learn.html"],
+              ["The Second Brain in 2026", "/research/second-brain-2026.html"],
+              ["vs Notion", "/vs/notion.html"],
+              ["vs Mem.ai", "/vs/mem.html"],
+              ["vs 1Password", "/vs/1password.html"],
             ]}
             go={goto}
           />

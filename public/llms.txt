@@ -15,6 +15,8 @@ Privacy: local-first storage, end-to-end encrypted vault, BYO AI key on the free
 - [Learn — what Everion is, who it's for, and how it differs](https://everionmind.com/learn.html): Definition, use cases, FAQ.
 - [Everion vs Notion](https://everionmind.com/vs/notion.html): How Everion differs from Notion for personal knowledge.
 - [Everion vs Mem.ai](https://everionmind.com/vs/mem.html): How Everion differs from Mem for AI-native notes.
+- [Everion vs 1Password](https://everionmind.com/vs/1password.html): Vault for free-form facts vs vault for credentials.
+- [The State of the Second Brain 2026](https://everionmind.com/research/second-brain-2026.html): Research synthesis with citations on information overload, app sprawl, and personal knowledge management.
 - [Privacy](https://everionmind.com/privacy): Encryption, data handling, retention.
 - [Terms](https://everionmind.com/terms): Service terms.
 
