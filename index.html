@@ -31,7 +31,7 @@
     <meta property="og:image" content="https://everionmind.com/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Everion — your personal memory and knowledge OS" />
+    <meta property="og:image:alt" content="Everion — your second memory, quietly kept" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Everion — your second memory, quietly kept." />
     <meta
@@ -40,7 +40,59 @@
     />
     <meta name="twitter:image" content="https://everionmind.com/og.png" />
     <link rel="manifest" href="/manifest.json" />
-    <title>Everion</title>
+    <title>Everion — your second memory, quietly kept.</title>
+
+    <!-- JSON-LD: Organization + WebSite + SoftwareApplication. Helps Google
+         classify what we are and unlocks rich-result eligibility (sitelinks,
+         pricing, app card). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://everionmind.com/#organization",
+            "name": "Everion",
+            "url": "https://everionmind.com",
+            "logo": "https://everionmind.com/icons/icon-512.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://everionmind.com/#website",
+            "url": "https://everionmind.com",
+            "name": "Everion",
+            "description": "One private place for the thoughts you'd lose and the facts you can't afford to.",
+            "publisher": { "@id": "https://everionmind.com/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Everion",
+            "description": "Personal second-brain and encrypted vault. Capture notes, links, IDs, gate codes, policy numbers — and ask the AI to recall anything.",
+            "applicationCategory": "ProductivityApplication",
+            "operatingSystem": "Web, iOS (PWA), Android (PWA)",
+            "url": "https://everionmind.com",
+            "publisher": { "@id": "https://everionmind.com/#organization" },
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Hobby",
+                "price": "0",
+                "priceCurrency": "USD",
+                "description": "Free forever. Unlimited entries, local-first, encrypted vault, BYO AI key."
+              },
+              {
+                "@type": "Offer",
+                "name": "Pro",
+                "price": "6",
+                "priceCurrency": "USD",
+                "description": "Hosted AI, sync across devices, shared brains. 14-day trial, no card required."
+              }
+            ]
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />

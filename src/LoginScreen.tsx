@@ -23,6 +23,7 @@ function RefreshCwIcon({ size = 24, style }: { size?: number; style?: React.CSSP
   );
 }
 import { useAuthFlow } from "./hooks/useAuthFlow";
+import { useDocumentMeta } from "./hooks/useDocumentMeta";
 import { EverionLogo } from "./components/ui/EverionLogo";
 import { Button } from "./components/ui/button";
 
@@ -123,6 +124,11 @@ export default function LoginScreen({
   const isInvited = useMemo(hasInvite, []);
   const startSignup = initialIntent === "signup" || isInvited;
   const [showPwd, setShowPwd] = useState(false);
+
+  useDocumentMeta({
+    title: startSignup ? "Create your account — Everion" : "Sign in — Everion",
+    noindex: true,
+  });
   const {
     email,
     setEmail,

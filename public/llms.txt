@@ -1,0 +1,66 @@
+# Everion
+
+> Your second brain — for the thoughts you'd lose and the facts you can't afford to. One private, encrypted place that holds half-formed ideas and the policy number, the gate code, the renewal date. Capture in one tap. Recall by asking.
+
+Everion is a personal second brain plus encrypted vault, built for people who keep losing important things — both the *thoughts* (notes, links, voice memos, half-thoughts, screenshots) and the *facts* their life runs on (gate codes, policy numbers, ID and bank details, "where's the spare key", "what does my spouse need to know if something happens to me").
+
+Capture is one input field. No folders. No templates. No tags required. Type, talk, paste, snap. The same atomic *entry* holds a poem fragment or a serial number.
+
+Recall is a chat. The AI reads your encrypted entries, cites sources, answers in plain language. "When does my driver's licence expire" works. "What did the customer push back on last quarter" works. "Where did I hide the spare key" works.
+
+Privacy: local-first storage, end-to-end encrypted vault, BYO AI key on the free tier (your prompts never touch our infrastructure). Nothing leaves your device until you say so.
+
+## What this is for
+
+- [Learn — what Everion is, who it's for, and how it differs](https://everionmind.com/learn.html): Definition, use cases, FAQ.
+- [Everion vs Notion](https://everionmind.com/vs/notion.html): How Everion differs from Notion for personal knowledge.
+- [Everion vs Mem.ai](https://everionmind.com/vs/mem.html): How Everion differs from Mem for AI-native notes.
+- [Privacy](https://everionmind.com/privacy): Encryption, data handling, retention.
+- [Terms](https://everionmind.com/terms): Service terms.
+
+## Plans
+
+- **Hobby** — Free forever. Unlimited entries, local-first, encrypted vault, one brain. **BYO AI key** (Anthropic, OpenAI, OpenRouter, Groq) — required for chat/recall on this tier. No upsell pressure.
+- **Starter** — Hosted AI included (Gemini Flash). 500 captures + 200 chats per month. Cross-device sync. Buys you out of key juggling without committing to Pro.
+- **Pro** — Premium AI (Claude Sonnet). 2,000 captures + 1,000 chats per month. Shared brain with one other person (household / next-of-kin angle). All features included.
+
+Live pricing: https://everionmind.com/#pricing
+
+## Who it's for
+
+- **Founders** — half-thoughts about product/customers/strategy + admin (registrations, supplier banking, contractor details) in one askable place.
+- **Knowledge workers** — meeting notes, decisions, research; plus the personal admin layer (insurance renewals, medical aid, "what's the alarm panel password").
+- **Developers** — code snippets, architecture sketches, debugging notes; plus the household-CTO layer (family accounts, serial numbers, warranties).
+- **Household keepers** — gate codes, medical info, "if something happens to me" notes for spouse / executor. The single searchable vault the family can find.
+
+## What makes it different
+
+- **Both halves in one place** — fleeting thoughts AND high-stakes facts in the same encrypted, askable home. No mode-switching between notes app, password manager, and AI chat.
+- **One opinionated capture surface** — no folders, no tags, no template. Type, talk, paste, snap. Works for a poem line or a policy number.
+- **Recall by asking** — RAG over your encrypted entries with citations. AI that knows your gate code, not the news.
+- **Vault-grade privacy** — local-first, end-to-end encrypted, BYO AI key option means your prompts can stay on your key.
+- **Shared brain with one other person** (Pro) — household / next-of-kin angle no other personal-memory tool ships.
+
+## What it isn't
+
+- Not a productivity app. No dashboards, streaks, or workflows.
+- Not a password manager. Doesn't store credentials. Stores the free-form facts (gate codes, account numbers, medical info, "what the doctor said") that *aren't* credentials.
+- Not a wiki. No setup, no system to maintain, no folders to design.
+- Not a general-purpose chatbot. The AI only knows your past entries. It doesn't know the news.
+- Not estate-planning software. Holds the *facts* your family would need, not the legal apparatus.
+
+## Glossary
+
+- **Brain** — A workspace / vault. One on free, multiple on Pro.
+- **Entry** — A single captured item (note, link, voice memo, file, photo, fact). Atomic unit.
+- **Vault** — Encrypted local store where high-stakes facts live.
+- **Concept** — Auto-extracted theme/topic. The connective tissue.
+- **The Shape** — Constellation view of your concepts.
+- **Capture** — One-tap input flow.
+- **Recall** — Asking your memory a question via chat.
+- **Shared brain** — A brain shared with one other person (Pro tier).
+
+## Contact
+
+- Website: https://everionmind.com
+- Support: hello@everionmind.com

@@ -1,4 +1,12 @@
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
+
 export default function PrivacyPolicy() {
+  useDocumentMeta({
+    title: "Privacy — Everion",
+    description:
+      "How Everion handles your data. End-to-end encrypted vault, AES-GCM 256-bit, BYO AI key, full export anytime. POPIA + GDPR compliant.",
+    canonical: "https://everionmind.com/privacy",
+  });
   return (
     <div
       style={{

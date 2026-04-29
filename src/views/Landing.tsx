@@ -1320,22 +1320,35 @@ export default function Landing({ onAuth }: LandingProps) {
                 color: "var(--ink)",
               }}
             >
-              Two tiers. Both honest.
+              Three tiers. All honest.
             </h2>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 16,
+                lineHeight: 1.5,
+                color: "var(--ink-soft)",
+                fontStyle: "italic",
+                maxWidth: 540,
+                margin: "20px auto 0",
+              }}
+            >
+              Start free, upgrade only when it earns it.
+            </p>
           </div>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
               gap: 20,
-              maxWidth: 780,
+              maxWidth: 1000,
               margin: "0 auto",
             }}
           >
             <PlanCard
               tier="Hobby"
               price="free"
-              body="The whole product. Forever. Bring your own AI key."
+              body="The whole product on your own AI key. Forever."
               bullets={[
                 "Unlimited entries",
                 "Local-first, works offline",
@@ -1347,19 +1360,34 @@ export default function Landing({ onAuth }: LandingProps) {
               onCta={() => goto("signup")}
             />
             <PlanCard
-              tier="Pro"
-              price="$6"
+              tier="Starter"
+              price="$4.99"
               suffix="/mo"
-              body="For the people who actually live here. Hosted AI, sync across devices, shared brains, priority support."
+              body="Hosted AI without the key juggling."
               bullets={[
                 "Everything in Hobby",
-                "Hosted AI (no key required)",
+                "Hosted AI included (Gemini Flash)",
+                "500 captures · 200 chats / month",
                 "Cross-device sync",
-                "Shared brains with one other person",
-                "Export anywhere, anytime",
               ]}
-              cta="Start 14-day trial"
-              ctaCaption="no card to start the trial"
+              cta="Start free"
+              ctaCaption="upgrade in-app whenever you're ready"
+              onCta={() => goto("signup")}
+            />
+            <PlanCard
+              tier="Pro"
+              price="$9.99"
+              suffix="/mo"
+              body="For the people who actually live here."
+              bullets={[
+                "Everything in Starter",
+                "Premium AI (Claude Sonnet)",
+                "2,000 captures · 1,000 chats / month",
+                "Shared brain with one other person",
+                "All features included",
+              ]}
+              cta="Start free"
+              ctaCaption="upgrade in-app whenever you're ready"
               onCta={() => goto("signup")}
               featured
             />

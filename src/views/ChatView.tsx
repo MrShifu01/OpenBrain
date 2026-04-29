@@ -116,6 +116,12 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
   const noMemory = entriesLoaded && entries.length === 0;
 
   if (!aiAvailable) {
+    const goSettings = (tab: "ai" | "billing") => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", tab);
+      window.history.replaceState({}, "", url.toString());
+      onNavigate?.("settings");
+    };
     return (
       <div
         style={{
@@ -126,35 +132,106 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
           justifyContent: "center",
           padding: "40px 24px",
           background: "var(--bg)",
-          textAlign: "center",
-          gap: 16,
         }}
       >
-        <p
-          className="f-serif"
+        <div
           style={{
-            fontSize: 22,
-            fontStyle: "italic",
-            color: "var(--ink-soft)",
-            lineHeight: 1.4,
-            margin: 0,
-            maxWidth: 400,
+            width: "100%",
+            maxWidth: 460,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 16,
+            padding: 28,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
           }}
         >
-          Chat needs an AI provider.
-        </p>
-        <p
-          className="f-sans"
-          style={{
-            fontSize: 14,
-            color: "var(--ink-ghost)",
-            margin: 0,
-            maxWidth: 360,
-            lineHeight: 1.6,
-          }}
-        >
-          Add your own API key in Settings → AI → BYOK, or upgrade to a Pro plan for managed access.
-        </p>
+          <div>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 22,
+                fontStyle: "italic",
+                color: "var(--ink)",
+                lineHeight: 1.3,
+                margin: 0,
+              }}
+            >
+              Chat needs an AI provider.
+            </p>
+            <p
+              className="f-sans"
+              style={{
+                fontSize: 13,
+                color: "var(--ink-soft)",
+                margin: "8px 0 0",
+                lineHeight: 1.55,
+              }}
+            >
+              Two ways to turn it on.
+            </p>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              padding: "16px 16px 18px",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 12,
+              background: "var(--bg)",
+            }}
+          >
+            <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+              Bring your own key — free
+            </div>
+            <div
+              className="f-sans"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.55, margin: 0 }}
+            >
+              Paste a Gemini, OpenAI, Anthropic, or Groq key. We never see it.
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => goSettings("ai")}
+              style={{ alignSelf: "flex-start", marginTop: 4 }}
+            >
+              Add an API key →
+            </Button>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 10,
+              padding: "16px 16px 18px",
+              border: "1px solid var(--ember-soft, var(--ember))",
+              borderRadius: 12,
+              background: "var(--bg)",
+            }}
+          >
+            <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+              Use ours — Starter $4.99/mo · Pro $9.99/mo
+            </div>
+            <div
+              className="f-sans"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.55, margin: 0 }}
+            >
+              Hosted Gemini Flash on Starter, Claude Sonnet on Pro. Cancel any time.
+            </div>
+            <Button
+              size="sm"
+              onClick={() => goSettings("billing")}
+              style={{ alignSelf: "flex-start", marginTop: 4 }}
+            >
+              See plans →
+            </Button>
+          </div>
+        </div>
       </div>
     );
   }

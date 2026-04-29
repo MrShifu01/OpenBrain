@@ -1,7 +1,79 @@
+# Default — humans and traditional crawlers
 User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /v1/
 Disallow: /admin
+Disallow: /login
 
-Sitemap: https://everion.smashburgerbar.co.za/sitemap.xml
+# AI search bots — explicitly allowed so we can be cited in AI answers
+# (ChatGPT, Claude, Perplexity, Gemini, Copilot, Brave AI)
+
+User-agent: GPTBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+
+# Common Crawl — disallowed (training-only crawler, no citation value)
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://everionmind.com/sitemap.xml

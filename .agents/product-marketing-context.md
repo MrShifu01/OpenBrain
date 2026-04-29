@@ -12,9 +12,12 @@
 
 **Product type:** SaaS web app (PWA-installable, mobile + desktop, offline-first). Single-user with optional shared brain on Pro for a partner / next-of-kin / household.
 
-**Business model:** Freemium SaaS.
-- **Hobby (free):** Unlimited entries, local-first, encrypted vault, one brain, BYO AI key.
-- **Pro ($6/mo, 14-day trial):** Hosted AI (no key needed), cross-device sync, shared brains with one other person, priority support, export anywhere.
+**Business model:** Freemium SaaS — three tiers reflecting actual product (V2.1 reconciled with `BillingTab.tsx`).
+- **Hobby (free):** Unlimited entries, local-first, encrypted vault, one brain. **BYO AI key** (Anthropic, OpenAI, OpenRouter, Groq) — required for chat/recall on this tier.
+- **Starter ($4.99/mo):** Hosted AI included (Gemini Flash), 500 captures + 200 chats per month, cross-device sync. Buys you out of key juggling without committing to Pro.
+- **Pro ($9.99/mo):** Premium AI (Claude Sonnet), 2,000 captures + 1,000 chats per month, shared brain with one other person, all features included.
+
+*No free trial currently — the marketing surface previously promised "14-day trial" but Stripe checkout has no `trial_period_days` configured; that promise is removed until the trial is wired up.*
 
 ## Target Audience
 **Target customers:** Anyone with a life that has paperwork. Three priority segments to *acquire* from, but the product serves a broader household audience once they're in.

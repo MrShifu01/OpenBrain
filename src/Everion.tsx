@@ -13,6 +13,7 @@ import { BrainContext } from "./context/BrainContext";
 import { ConceptGraphProvider, useConceptGraph } from "./context/ConceptGraphContext";
 import { UndoToast } from "./components/UndoToast";
 import { NudgeBanner } from "./components/NudgeBanner";
+import { UsageWarningBanner } from "./components/UsageWarningBanner";
 import { BackgroundTaskToast } from "./components/BackgroundTaskToast";
 import { BackgroundOpsToast } from "./components/BackgroundOpsToast";
 import { BackgroundOpsProvider } from "./hooks/useBackgroundOps";
@@ -367,6 +368,9 @@ function EverionContent({
                 localStorage.removeItem("openbrain_nudge");
               }}
             />
+          )}
+          {(appShell.view === "memory" || appShell.view === "chat") && (
+            <UsageWarningBanner onNavigate={appShell.setView} />
           )}
           {failedOps.length > 0 && (
             <div
