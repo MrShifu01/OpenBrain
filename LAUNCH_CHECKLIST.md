@@ -164,16 +164,17 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 
 App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files with significant visual drift (5+ button padding variants, 4–18px border radii, hardcoded shadows, no z-index system). `components.json` is configured but `src/components/ui/` is empty. Migration to shadcn primitives (themed with existing design tokens) gives consistency, accessibility-by-default (Radix kbd nav + focus traps), and one-place restyle.
 
-**Phase 1 — Safe wins (low risk, high impact)** ❌
+**Phase 1 — Safe wins (low risk, high impact)** 🟡
 
-- [ ] **Button** — replace 80+ hand-rolled `<button>` instances. Top files: `OnboardingModal.tsx`, `settings/ProfileTab.tsx`, `DetailModal.tsx`, `NotificationBell.tsx`, `BulkActionBar.tsx`. Standardise variants: primary (ember), secondary (ghost), destructive (danger), outline.
-- [ ] **Input + Textarea** — 25+ instances. Top files: `OnboardingModal.tsx`, `DetailModal.tsx`, `CaptureSheet.tsx`, `ChatComposer.tsx`. Two patterns to consolidate: serif (entry editing) and sans (settings/forms).
-- [ ] **Card** — 25+ container patterns. Top files: `NotificationBell.tsx`, `EntryListBits.tsx`, settings sections.
-- [ ] **Separator** — 40+ inline `<div height:1px>` divider instances.
-- [ ] **Badge** — 30+ tag/type/status pill instances. Top files: `EntryListBits.tsx`, `CaptureSheet.tsx`, `DetailModal.tsx`.
-- [ ] **Tabs** — 12+ segmented controls. Top files: `MemoryHeader.tsx`, `SettingsView.tsx`, `TodoView.tsx`, `CaptureSheet.tsx`. Adds keyboard arrow navigation for free.
-- [ ] **Switch** — 15+ toggle controls (theme, notification prefs, Someday gate, etc).
-- [ ] **Checkbox** — 8 instances (currently native, no focus ring). `BulkActionBar.tsx`, `EntryList.tsx`, new `SomedayBulkBar`.
+- [x] **Foundation** ✅ — shadcn primitives installed (Button, Input, Textarea, Card, Separator, Badge, Tabs, Switch, Checkbox, Label) at `src/components/ui/`. All semantic tokens (`--primary`, `--foreground`, `--background`, etc.) aliased to Everion tokens (`--ember`, `--ink`, `--bg`) so primitives auto-skin per `html.family-*` theme. `cn()` helper at `src/lib/utils.ts`. Button customised with `default`/`xs`/`sm`/`lg` sizes for mobile-friendly heights + `moss` variant + `destructive` routed to `--blood`.
+- [x] **Button** 🟡 — high-traffic surfaces migrated. ✅: TodoSomedayTab (ActionBtn, SmallBtn, all bulk-bar controls), NotificationBell (action button pairs), BulkActionBar (replaced `window.confirm` with two-tap inline pattern), MemoryHeader (Capture, From imports, Show completed, Select, Sort), TodoQuickAdd (Add), UpdatePrompt (Refresh + dismiss), TodoCalendarTab (Today + EventEditor trio), SettingsRow primitives (cascades to every settings tab via SettingsButton wrapper). ❌ remaining: DetailModal (10), CaptureEntryBody (9), ChatView, VaultView, Login/Landing/Status pages, OnboardingModal, GmailSetupModal, settings tab inline buttons not routed through SettingsButton.
+- [x] **Switch** ✅ — SettingsToggle now wraps shadcn Switch, cascading to every settings tab.
+- [ ] **Input + Textarea** ❌ — 25+ instances untouched. Top files: `OnboardingModal.tsx`, `DetailModal.tsx`, `CaptureSheet.tsx`, `ChatComposer.tsx`, `TodoQuickAdd.tsx` textarea. Two patterns to consolidate: serif (entry editing) and sans (settings/forms).
+- [ ] **Card** ❌ — 25+ container patterns. Top files: `NotificationBell.tsx`, `EntryListBits.tsx`, settings sections.
+- [ ] **Separator** ❌ — 40+ inline `<div height:1px>` divider instances.
+- [ ] **Badge** ❌ — 30+ tag/type/status pill instances. Top files: `EntryListBits.tsx`, `CaptureSheet.tsx`, `DetailModal.tsx`.
+- [ ] **Tabs** ❌ — 12+ segmented controls. Top files: `MemoryHeader.tsx` (Grid/List/Timeline), `SettingsView.tsx`, `TodoView.tsx` (Day/Week/Month/Someday), `CaptureSheet.tsx`. Adds keyboard arrow navigation for free.
+- [ ] **Checkbox** ❌ — 8 instances (currently native, no focus ring). `BulkActionBar.tsx`, `EntryList.tsx`, new `SomedayBulkBar` (already uses custom checkbox div but could swap to primitive).
 
 **Phase 2 — Stateful primitives (medium risk)** ❌
 
