@@ -425,3 +425,245 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
   - Auth users are backed up on the same schedule (different schema, same dashboard restore).
   - Storage objects need separate config — N/A here, you don't use Supabase Storage.
   - Vault crypto material — vault uses passphrase-derived keys the server can't read. Backups capture the encrypted blobs but a user who forgets their master password can't recover, backup or no backup. By design.
+
+---
+
+## Mobile app launch — Capacitor wrap (Apple App Store + Google Play)
+
+Separate launch track from the web product. Web launches first (PWA at everionmind.com); Capacitor wrap follows. Items below block native-app submission, not the web launch.
+
+**Decided 2026-04-29:**
+
+- Wrap technology: **Capacitor 6** (single TS source, native shell per store)
+- Stores: **Both** (Apple App Store + Google Play)
+- Apple primary category: **Utilities**, secondary: Productivity
+- Google Play primary category: **Productivity** (Play's Utilities is dominated by system tools — flashlights/cleaners — wrong neighborhood)
+- Bundle identifier (both): `com.everionmind.app`
+- Tagline: _"your second brain — kept quietly."_
+
+### M0 — Submission blockers (Apple/Google will reject without these)
+
+**Identity & legal**
+
+- [ ] **Trademark check on "Everion"** — USPTO + WIPO Madrid + ZA-CIPC. 5 minutes of due diligence saves a rejection. Confirm no conflicting class-9 software mark.
+- [ ] **Apple Developer Program enrollment** ($99/yr) — under personal name initially; transfer to entity later.
+- [ ] **Google Play Developer account** ($25 one-time).
+- [ ] **D-U-N-S number** (Apple needs it for org accounts; skip if enrolling as individual).
+
+**iOS — Privacy Manifest (`PrivacyInfo.xcprivacy`, required iOS 17+)**
+
+- [ ] Declare `NSPrivacyAccessedAPICategoryUserDefaults` (localStorage `everion_*` keys).
+- [ ] Declare `NSPrivacyAccessedAPICategoryFileTimestamp` (PWA cache).
+- [ ] `NSPrivacyTracking: false`.
+- [ ] List third-party SDKs that ship in the bundle (Capacitor plugins).
+
+**iOS — `Info.plist` usage strings (rejection if any UI triggers these without a string)**
+
+- [ ] `NSCameraUsageDescription` — "to capture photos for your entries."
+- [ ] `NSMicrophoneUsageDescription` — "to record voice memos."
+- [ ] `NSPhotoLibraryUsageDescription` — "to attach photos from your library."
+- [ ] `NSFaceIDUsageDescription` — "to unlock your encrypted vault." (only if biometric unlock wired)
+
+**Android — `AndroidManifest.xml` permissions**
+
+- [ ] `INTERNET`, `RECORD_AUDIO`, `CAMERA`, `READ_MEDIA_IMAGES` (Android 13+).
+- [ ] `POST_NOTIFICATIONS` (Android 13+) for push.
+- [ ] **Skip** `WRITE_EXTERNAL_STORAGE` — scoped storage on Android 11+ removes need; including it triggers extra Play review.
+
+**Stripe vs IAP — decision required (BLOCKER)**
+
+- [ ] Pick path before iOS submission:
+  - **Path A (fast):** ship iOS as free + BYOK only. "Use ours" upgrade opens external Safari sheet to web checkout. Apple now allows external link-out for reader/subscription apps post-Epic, but the link must NOT be styled as the primary CTA inside the app.
+  - **Path B (cleaner):** wire Apple In-App Purchase + RevenueCat → unify with Stripe. Apple takes 15% (Small Business Program, <$1M/yr) or 30%, but no review friction.
+- Don't ship Stripe-from-Capacitor on iOS without Path A or B. Apple rejects on first submission.
+- Google Play: Stripe accepted for now but Play Billing is preferred. Plan Play Billing for v2 of the wrap.
+
+### M1 — Listing copy (paste-ready, drafted 2026-04-29)
+
+**Apple App Store**
+
+- [ ] Title (29/30): `Everion: Second Brain & Vault`
+- [ ] Subtitle (29/30): `Notes, vault, AI you can ask.`
+- [ ] Keywords field (98/100 bytes): `journal,diary,memory,encrypted,private,voice,memo,capture,recall,offline,GPT,Gemini,Claude,ID,tasks`
+      No repeats from title/subtitle. No "password" — wrong intent (we're not 1Password). No "note(s)" — already in subtitle. No spaces.
+- [ ] Promotional text (137/170): `Quietly kept. The thoughts you'd lose and the facts you can't afford to — held in one private, encrypted home you can ask anything.`
+- [ ] Description: see "Apple description" block below — ~1,400 chars, conversion-only (Apple does NOT index the long description).
+
+**Google Play**
+
+- [ ] Title (29/30): `Everion: Second Brain & Vault`
+- [ ] Short description (78/80): `Encrypted notes & vault, AI you can ask. The thoughts and facts you can't lose.`
+- [ ] Full description (~3,200 chars, indexed at ~2.4% keyword density): see "Google Play full description" block below.
+- [ ] Tags (5): `note taking`, `journal`, `second brain`, `voice notes`, `encrypted notes`.
+
+#### Apple description block
+
+```
+One place for everything worth remembering.
+
+The fleeting stuff — half-thoughts, voice memos, links, screenshots, PDFs.
+And the high-stakes stuff — gate codes, policy numbers, ID and bank details, the things your family would need if you weren't there to answer.
+
+Capture is one tap. Recall is a chat. Ask in plain language and Everion reads your own past entries, cites them, and answers.
+
+— Capture in under five seconds. Type, talk, paste, snap.
+— Ask your memory anything. Cited answers, no general-internet trivia.
+— Encrypted vault for the facts you can't afford to lose. AES-GCM 256, derived from a passphrase only you know.
+— The Shape — a constellation view of the concepts running through your entries.
+— Bring your own AI key, or use ours. Both honest.
+— Local-first. Offline. Yours.
+
+Three tiers, all honest:
+— Hobby. Free forever. Unlimited entries, encrypted vault, your own AI key.
+— Starter. $4.99/mo. Hosted AI included. Cross-device sync.
+— Pro. $9.99/mo. Premium AI, larger limits, shared brain with one other person — for households who'd rather one of them remembered.
+
+Made for the person their family calls when nobody else can find the policy number.
+
+Privacy: everionmind.com/privacy
+Terms: everionmind.com/terms
+```
+
+#### Google Play full description
+
+```
+Everion is the calm, private place for everything you don't want to lose.
+
+The fleeting stuff: half-thoughts, voice memos, journal entries, links you mean to read, photos of receipts, screenshots of paperwork, the diary line you scribbled at midnight.
+
+And the high-stakes stuff: ID numbers, bank account details, gate codes, medical aid numbers, the alarm panel password, the spare key location, the "if something happens to me" notes for your spouse.
+
+Two halves of one second brain — encrypted, searchable, and askable.
+
+CAPTURE
+Type. Talk. Paste. Snap. Drop in a PDF. Voice memos transcribe automatically.
+No folders. No tags required. No template to fill.
+Capture takes under five seconds, every time.
+
+ASK
+Your memory becomes searchable by meaning, not just by keywords.
+"When does my driver's licence expire?"
+"What did the customer push back on last quarter?"
+"Where did I put the spare key?"
+Everion reads your own past entries and answers with citations. The AI never sees your vault unless you opt-in for a specific entry.
+
+THE VAULT
+End-to-end encrypted. AES-GCM 256-bit, derived from a passphrase only you know.
+Designed for the things you wouldn't write in a notes app: ID numbers, bank details, gate codes, policy numbers, "if I die" notes.
+Storing your bank details should not feel safer than storing them in a password manager. This is built so it doesn't.
+
+THE SHAPE
+A constellation view of every concept your entries touch.
+Three notes from three different weeks turn out to be about the same thing.
+You see what your thoughts are about.
+
+PRIVATE BY DESIGN
+Local-first. Offline-capable. End-to-end encrypted vault.
+Your encryption key never leaves your device. We can't read your vault and we can't sell what we can't read.
+GDPR + POPIA compliant. Full data export anytime — JSON or CSV.
+
+THREE TIERS, ALL HONEST
+Hobby — free forever. Unlimited entries, encrypted vault, one workspace. Bring your own AI key (Gemini, OpenAI, Anthropic, Groq).
+Starter — $4.99 a month. Hosted AI included. Cross-device sync. 500 captures and 200 chats per month.
+Pro — $9.99 a month. Premium AI. 2,000 captures and 1,000 chats. Shared brain with one other person — for households where someone else would need to find the gate code.
+
+WHO IT'S FOR
+Founders. Knowledge workers. Developers. Parents. Anyone who has ever been the person their family calls when they can't find the policy number.
+
+WHO IT ISN'T FOR
+Power users who want a fully-customizable knowledge graph. Teams who need a wiki. People who want streaks and dashboards and gamified productivity.
+
+Everion is quiet on purpose. It just remembers.
+
+Privacy: everionmind.com/privacy
+Terms: everionmind.com/terms
+```
+
+### M2 — Visual assets
+
+Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android export to `1080 × 1920` and `1080 × 2400`. Headline copy rendered IN the screenshot (Apple indexes screenshot captions since June 2025). 70% device frame, 30% caption band, brand colors (ember/ink/surface).
+
+**Tooling:** render the actual app in Playwright at canvas size, screenshot, composite caption band in Figma. Reuses real UI rather than mocking. Avoid third-party stock photography — breaks brand voice.
+
+**Screenshot frames (8 — Google max; Apple uses first 3-5 in search):**
+
+- [ ] **1. Hero** — caption: _"your second brain — kept quietly."_ Frame: memory grid with 6-8 mixed entries (note, voice memo, photo, PDF icon, link card, masked gate-code). Ember dot mark top-left.
+- [ ] **2. Capture** — caption: _"capture in one tap."_ Frame: FAB mid-press with light-trail; CaptureSheet rising with text/voice/paste/file icons.
+- [ ] **3. Voice** — caption: _"talk to it. it remembers."_ Frame: voice recording UI active, waveform mid-state, transcript appearing in real-time.
+- [ ] **4. Recall** — caption: _"ask anything. it cites."_ Frame: ChatView with one user message ("when does my licence expire?") and one AI answer with two citation chips. Italic `f-serif` tone.
+- [ ] **5. Vault** — caption: _"for the things you'd be stuck without."_ Frame: vault grid with 4 entries (passport renewal / alarm panel code / policy: car / "if I'm not around"), all masked with reveal button. Lock icon top-right.
+- [ ] **6. The Shape** — caption: _"see what your thoughts are about."_ Frame: constellation view, ember-on-ink, two highlighted nodes ("insurance", "household").
+- [ ] **7. Privacy** — caption: _"encrypted on your device. yours."_ Frame: phone with key icon → cloud with locked blob, arrow labeled "we never see this."
+- [ ] **8. Pricing** — caption: _"free forever. paid only when it earns it."_ Frame: three pricing cards (Hobby free, Starter $4.99, Pro $9.99 ember-bordered). Match Landing.tsx layout.
+
+**Apple-only optional (frames 9-10, lower ROI — most users never scroll past frame 3):**
+
+- [ ] 9. Multi-modal: paste a screenshot, drop a PDF — _"everything goes in the same place"_
+- [ ] 10. Cross-device: phone + laptop showing same memory grid — _"kept in sync, encrypted in transit"_
+
+**Other visual assets**
+
+- [ ] **App icons** — iOS 1024×1024 master (Capacitor handles the rest). Android 512×512 (Play Store) + adaptive icon (foreground 432×432 in 1024×1024 canvas). Use the new `logoNew` mark from `feat(brand)` commits.
+- [ ] **Google Play feature graphic** (1024×500 exact, required for featured placements) — brand frame, ember dot, tagline _"your second brain — kept quietly."_
+- [ ] **iOS preview video (optional, +20-40% conversion lift)** — 15-30s, autoplays muted in App Store. Demo: capture → ask → cited answer. Skip on Android (Google Play video doesn't autoplay; only ~6% tap play, low ROI).
+- [ ] **Capacitor splash screen** — solid `var(--bg)` with the ember dot animating in. Match `index.html`. 5-frame Lottie max 2KB or static PNG.
+
+### M3 — Native shell config
+
+- [ ] **Bundle ID locked** (both stores): `com.everionmind.app`.
+- [ ] **Service-worker registration gated** behind `!isNativePlatform()`:
+  ```ts
+  if (!(window as any).Capacitor?.isNativePlatform()) registerSW();
+  ```
+  Capacitor + service workers have a long history of pain — disable SW inside the native shell.
+- [ ] **Universal Links file** served at `https://everionmind.com/.well-known/apple-app-site-association` (iOS deep linking from email, share sheets).
+- [ ] **App Links file** served at `https://everionmind.com/.well-known/assetlinks.json` (Android equivalent).
+- [ ] **Demo account for Apple review** — `review@everionmind.com` with a fixed-password backdoor that skips magic-link auth and onboarding. Apple's reviewer will reject if they can't get past auth.
+
+### M4 — Store metadata forms
+
+**Apple App Store Connect**
+
+- [ ] **App Privacy nutrition labels** (must match `/privacy`):
+  - Data Linked to You: Email (account), Purchase history (Stripe), Diagnostic (Sentry, no PII)
+  - Data Not Linked to You: Usage analytics (PostHog, consent-gated)
+  - Data Not Collected: Vault contents, location, contacts, browsing history
+- [ ] **Age rating:** 4+ — pick "Infrequent/Mild — Mature Themes" if onboarding keeps the "if I die" copy.
+- [ ] **App Review Information:** demo account credentials, contact email, notes explaining magic-link → fixed-password review path.
+
+**Google Play Console**
+
+- [ ] **Data Safety form** (must match `/privacy`):
+  - Data collected: Email, in-app purchase history, app diagnostics, optional analytics (consent-gated)
+  - Data shared: None for advertising. Analytics processor: PostHog (consent-gated)
+  - Encryption in transit: Yes
+  - Data deletion: Self-service in app + full account scrub within 48h
+  - Independent security review: No (yet — flag honestly)
+- [ ] **Content rating questionnaire** — Everyone. No violence, no sexual content. Mark "encrypted personal data storage" where prompted.
+- [ ] **Target audience** — Adult (18+) given financial/identity data scope.
+
+### M5 — Pre-submission gate (run all before clicking Submit)
+
+- [ ] iOS Privacy Manifest written and validated (Xcode reports no warnings)
+- [ ] iOS `Info.plist` usage strings filled for every permission the app actually requests
+- [ ] Android `AndroidManifest.xml` permissions match runtime requests (no extras)
+- [ ] Bundle ID `com.everionmind.app` locked in App Store Connect + Play Console
+- [ ] Universal Links + App Links files served at `/.well-known/` and validated by Apple's `swcutil` / Google's Digital Asset Links tester
+- [ ] Stripe IAP path resolved (M0 Path A or B chosen and implemented)
+- [ ] Service-worker registration gated behind `!isNativePlatform()`
+- [ ] 8 screenshots generated at all required sizes (Apple 6.9", 6.5", 5.5"; Android phone, tablet)
+- [ ] Feature graphic 1024×500 generated
+- [ ] App icons 1024² generated for both stores
+- [ ] Privacy policy URL live and matches what's declared in store metadata
+- [ ] Trademark check on "Everion" complete (USPTO + WIPO + ZA-CIPC)
+- [ ] Demo `review@everionmind.com` account created with backdoor login
+- [ ] App Privacy nutrition labels (Apple) submitted and match `/privacy`
+- [ ] Data Safety form (Google) submitted and matches `/privacy`
+
+### M6 — Cannot assess without paid tools (deferred)
+
+- [ ] Search volume for "second brain" / "encrypted notes" / "AI journal" per store — needs Sensor Tower, AppTweak, or App Annie.
+- [ ] Exact ranking per keyword vs Mem.ai, Reflect, Saner.ai.
+- [ ] Conversion rate benchmarks for Utilities (Apple) / Productivity (Google) in target geos.
+- [ ] Custom Product Pages (Apple, up to 70) — paid ASO tooling helps decide which keyword variants to target.
+- [ ] Store Listing Experiments (Google, up to 3 variants, 7+ days each) — once installs are flowing, A/B test short description + screenshot 1.
