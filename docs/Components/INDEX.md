@@ -11,16 +11,13 @@ a one-line *why this is worth a writeup*.
 - ✅ [Enrichment pipeline](enrich.md) — `api/_lib/enrich.ts` + `enrichFlags.ts` + PICE chips
 - ✅ [Gmail sync flow](gmail.md) — `api/_lib/gmailScan.ts` + `api/gmail.ts` + staging inbox
 - ✅ [Workflows + cron](cron.md) — `.github/workflows/*.yml` + `handleCronDaily/Hourly`
+- ✅ [Auth + tier + rate](auth.md) — `withAuth`, `app_metadata.is_admin`, tier quotas, Upstash limiter
 
 ---
 
 ## Tier 1 — Cross-cutting hubs (do these first)
 
-### 1. Auth + tier gating + rate limits
-**Files:** `api/_lib/withAuth.ts` + `verifyAuth.ts` + `rateLimit.ts` + `usage.ts` + `resolveProviderForUser` + Stripe tier sync
-**Why:** Every API call goes through this stack. Tier limits, rate limits, RLS, BYOK provider resolution, and the user_usage 406 bug we know about all live here. Documenting it once means future endpoint authors don't reinvent the wheel.
-
-### 2. Memory / retrieval
+### 1. Memory / retrieval
 **Files:** `api/_lib/retrievalCore.ts` + `api/memory-api.ts` + `api/_lib/promptContext.ts` + `src/lib/conceptGraph.ts`
 **Why:** Hybrid vector + keyword retrieval feeding Chat, MCP, and search. Persona-fact injection, recency boosting, brain scoping. The thing that makes Everion's chat feel "smart" — and the place where retrieval bugs surface as "why didn't it find X?".
 
@@ -113,14 +110,13 @@ a one-line *why this is worth a writeup*.
 
 If we work through this systematically, the highest-leverage remaining path is:
 
-1. **Auth + tier + rate** (Tier 1.1) — every endpoint touches it
+1. **Memory / retrieval** (Tier 1.1) — the chat-feels-smart layer
 2. **Vault** (Tier 2.8) — security-critical, document while design intent is clear
 3. **Schedule engine** (Tier 2.9) — already has an inspector tool because of complexity
 4. **Persona pipeline** (Tier 2.10) — quietly powerful, easily mis-tuned
 
-Each takes ~30 min to write at `bell.md` density. Four more = a
-roughly-complete handbook that covers 80% of where bugs and feature
-decisions actually happen (Bell + Capture + Enrich + Gmail + Cron already done).
+Each takes ~30 min to write at `bell.md` density. Three more = a
+roughly-complete handbook (Bell + Capture + Enrich + Gmail + Cron + Auth done).
 
 ---
 
