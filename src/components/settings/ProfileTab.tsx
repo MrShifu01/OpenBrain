@@ -19,7 +19,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useMemo, useState, type JSX, type KeyboardEvent } from "react";
-import { createPortal } from "react-dom";
 import SettingsRow, { SettingsToggle } from "./SettingsRow";
 import { authFetch } from "../../lib/authFetch";
 import { useBrain } from "../../context/BrainContext";
@@ -36,6 +35,25 @@ import {
   SubHint,
   Loading,
 } from "./ProfileTab.bits";
+import { Button } from "../ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 interface ProfileFields {
   full_name: string;
@@ -781,26 +799,9 @@ export default function ProfileTab() {
       </div>
 
       <div style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center" }}>
-        <button
-          type="button"
-          onClick={saveCore}
-          disabled={coreSaving}
-          className="press f-sans"
-          style={{
-            height: 36,
-            padding: "0 18px",
-            fontSize: 13,
-            fontWeight: 600,
-            borderRadius: 8,
-            background: "var(--ember)",
-            color: "var(--ember-ink)",
-            border: 0,
-            cursor: coreSaving ? "not-allowed" : "pointer",
-            opacity: coreSaving ? 0.6 : 1,
-          }}
-        >
+        <Button type="button" onClick={saveCore} disabled={coreSaving} size="sm">
           {coreSaving ? "Saving…" : "Save core"}
-        </button>
+        </Button>
         {coreSaved && (
           <span
             className="f-serif"
@@ -862,26 +863,19 @@ export default function ProfileTab() {
               Reset to put them back into Schedule, Calendar, etc., then run the new scan below.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={runReset}
             disabled={resetting || !brainId}
-            className="press f-sans"
+            variant="outline"
+            size="sm"
             style={{
-              height: 34,
-              padding: "0 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: "transparent",
               color: "var(--blood)",
-              border: "1px solid color-mix(in oklch, var(--blood) 50%, var(--line-soft))",
-              cursor: resetting ? "wait" : "pointer",
-              opacity: resetting ? 0.6 : 1,
+              borderColor: "color-mix(in oklch, var(--blood) 50%, var(--line-soft))",
             }}
           >
             {resetting ? "Reverting…" : "Reset previous scan"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -923,26 +917,19 @@ export default function ProfileTab() {
               covered by your About You. Pinned and manually-added facts are never touched.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={runAudit}
             disabled={auditing || !brainId}
-            className="press f-sans"
+            variant="outline"
+            size="sm"
             style={{
-              height: 34,
-              padding: "0 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: "transparent",
               color: "var(--ember)",
-              border: "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
-              cursor: auditing ? "wait" : "pointer",
-              opacity: auditing ? 0.6 : 1,
+              borderColor: "color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
             }}
           >
             {auditing ? "Auditing…" : "Run audit"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -982,26 +969,16 @@ export default function ProfileTab() {
               chat-added facts stay. Use this before re-running the scan after a prompt update.
             </p>
           </div>
-          <button
+          <Button
             type="button"
             onClick={runWipe}
             disabled={wiping || !brainId}
-            className="press f-sans"
-            style={{
-              height: 34,
-              padding: "0 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--ink-faint)",
-              border: "1px solid var(--line-soft)",
-              cursor: wiping ? "wait" : "pointer",
-              opacity: wiping ? 0.6 : 1,
-            }}
+            variant="outline"
+            size="sm"
+            style={{ color: "var(--ink-faint)" }}
           >
             {wiping ? "Wiping…" : "Wipe extracted facts"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -1041,26 +1018,19 @@ export default function ProfileTab() {
             the toast — safe to switch tabs or close the app.
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={runBackfill}
           disabled={scanning || !brainId}
-          className="press f-sans"
+          variant="outline"
+          size="sm"
           style={{
-            height: 34,
-            padding: "0 14px",
-            fontSize: 12,
-            fontWeight: 600,
-            borderRadius: 8,
-            background: "transparent",
             color: "var(--ember)",
-            border: "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
-            cursor: scanning ? "wait" : "pointer",
-            opacity: scanning ? 0.6 : 1,
+            borderColor: "color-mix(in oklch, var(--ember) 40%, var(--line-soft))",
           }}
         >
           {scanning ? "Scanning…" : "Run scan"}
-        </button>
+        </Button>
       </div>
 
       {/* Manual add */}
@@ -1107,26 +1077,13 @@ export default function ProfileTab() {
           maxLength={200}
           style={{ ...inputStyle(), flex: 1 }}
         />
-        <button
+        <Button
           type="button"
           onClick={addFact}
           disabled={adding || !newFactText.trim() || !brainId}
-          className="press f-sans"
-          style={{
-            height: 38,
-            padding: "0 16px",
-            fontSize: 13,
-            fontWeight: 600,
-            borderRadius: 8,
-            background: "var(--ember)",
-            color: "var(--ember-ink)",
-            border: 0,
-            cursor: adding ? "not-allowed" : "pointer",
-            opacity: adding || !newFactText.trim() ? 0.5 : 1,
-          }}
         >
           {adding ? "…" : "Add"}
-        </button>
+        </Button>
       </div>
 
       {factsError && (
@@ -1501,24 +1458,6 @@ function RejectDialog({
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Body-lock on open. Without this, iOS Safari anchors the fixed-positioned
-  // modal to whatever scroll offset the user was at when they tapped — the
-  // dialog ends up far below the fold and you have to scroll to find it.
-  // Same trick CaptureSheet/DetailModal use: pin the body at -scrollY, then
-  // restore on unmount so the user lands exactly where they were.
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
   function pickChip(chip: string) {
     setReason(chip);
   }
@@ -1532,100 +1471,74 @@ function RejectDialog({
     }
   }
 
-  // Portal to document.body to escape any transformed ancestor — the
-  // settings tab is wrapped in animate-view-enter which applies a
-  // transform, and `position: fixed` becomes ancestor-relative (not
-  // viewport-relative) once any ancestor has a transform. Without the
-  // portal, the dialog ends up far down the page instead of centered.
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Mark fact as not me"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onCancel();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--scrim, rgba(0,0,0,0.4))",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 200,
-        padding: 20,
-      }}
-    >
-      <div
+  return (
+    <Dialog open onOpenChange={(o) => !o && onCancel()}>
+      <DialogContent
+        className="sm:max-w-md"
         style={{
-          width: "min(440px, 100%)",
           background: "var(--surface-high)",
-          border: "1px solid var(--line)",
-          borderRadius: 14,
+          borderColor: "var(--line)",
           boxShadow: "var(--lift-3)",
-          padding: 22,
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
         }}
       >
-        <div>
-          <h3
+        <DialogHeader>
+          <DialogTitle
             className="f-serif"
-            style={{ margin: 0, fontSize: 17, fontWeight: 500, color: "var(--ink)" }}
+            style={{ fontSize: 17, fontWeight: 500, color: "var(--ink)" }}
           >
             Not me?
-          </h3>
-          <p
-            className="f-serif"
-            style={{
-              margin: "6px 0 0",
-              fontSize: 13,
-              fontStyle: "italic",
-              color: "var(--ink-faint)",
-              lineHeight: 1.5,
-            }}
-          >
-            "{fact.title}"
-          </p>
-          <p
-            className="f-sans"
-            style={{
-              margin: "10px 0 0",
-              fontSize: 12,
-              color: "var(--ink-soft)",
-              lineHeight: 1.5,
-            }}
-          >
-            Pick a reason. Future scans will skip this fact <em>and others like it</em>. The reason
-            teaches the extractor your personal definition of "persona-worthy".
-          </p>
-        </div>
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div>
+              <p
+                className="f-serif"
+                style={{
+                  margin: 0,
+                  fontSize: 13,
+                  fontStyle: "italic",
+                  color: "var(--ink-faint)",
+                  lineHeight: 1.5,
+                }}
+              >
+                "{fact.title}"
+              </p>
+              <p
+                className="f-sans"
+                style={{
+                  margin: "10px 0 0",
+                  fontSize: 12,
+                  color: "var(--ink-soft)",
+                  lineHeight: 1.5,
+                }}
+              >
+                Pick a reason. Future scans will skip this fact <em>and others like it</em>. The
+                reason teaches the extractor your personal definition of "persona-worthy".
+              </p>
+            </div>
+          </DialogDescription>
+        </DialogHeader>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {REJECT_REASON_CHIPS.map((chip) => {
             const active = reason === chip;
             return (
-              <button
+              <Button
                 key={chip}
                 type="button"
                 onClick={() => pickChip(chip)}
-                className="press f-sans"
+                variant="outline"
+                size="xs"
+                className="rounded-full"
                 style={{
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: "6px 10px",
-                  borderRadius: 999,
                   background: active ? "var(--ember-wash)" : "transparent",
                   color: active ? "var(--ember)" : "var(--ink-soft)",
-                  border: active
-                    ? "1px solid color-mix(in oklch, var(--ember) 40%, var(--line-soft))"
-                    : "1px solid var(--line-soft)",
-                  cursor: "pointer",
+                  borderColor: active
+                    ? "color-mix(in oklch, var(--ember) 40%, var(--line-soft))"
+                    : "var(--line-soft)",
                 }}
               >
                 {chip}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -1651,55 +1564,16 @@ function RejectDialog({
           }}
         />
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-          }}
-        >
-          <button
-            type="button"
-            onClick={onCancel}
-            className="press f-sans"
-            style={{
-              height: 36,
-              padding: "0 14px",
-              fontSize: 13,
-              fontWeight: 500,
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--ink-soft)",
-              border: "1px solid var(--line-soft)",
-              cursor: "pointer",
-            }}
-          >
+        <DialogFooter>
+          <Button type="button" onClick={onCancel} variant="outline" size="sm">
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={confirm}
-            disabled={submitting}
-            className="press f-sans"
-            style={{
-              height: 36,
-              padding: "0 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              border: 0,
-              cursor: submitting ? "wait" : "pointer",
-              opacity: submitting ? 0.6 : 1,
-            }}
-          >
+          </Button>
+          <Button type="button" onClick={confirm} disabled={submitting} size="sm">
             {submitting ? "Saving…" : "Mark as not me"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1728,29 +1602,6 @@ function ConfirmDialog({
 }) {
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-      if (e.key === "Enter" && !submitting) handleConfirm();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    /* eslint-disable-next-line react-hooks/exhaustive-deps */
-  }, [submitting]);
-
   async function handleConfirm() {
     setSubmitting(true);
     try {
@@ -1763,108 +1614,67 @@ function ConfirmDialog({
 
   const paragraphs = Array.isArray(body) ? body : [body];
 
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !submitting) onCancel();
-      }}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--scrim, rgba(0,0,0,0.45))",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 200,
-        padding: 20,
-      }}
-    >
-      <div
+  return (
+    <AlertDialog open onOpenChange={(o) => !o && !submitting && onCancel()}>
+      <AlertDialogContent
+        className="sm:max-w-md"
         style={{
-          width: "min(440px, 100%)",
           background: "var(--surface-high)",
-          border: "1px solid var(--line)",
-          borderRadius: 14,
+          borderColor: "var(--line)",
           boxShadow: "var(--lift-3)",
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
         }}
       >
-        <h3
-          className="f-serif"
-          style={{ margin: 0, fontSize: 18, fontWeight: 500, color: "var(--ink)" }}
-        >
-          {title}
-        </h3>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {paragraphs.map((p, i) => (
-            <p
-              key={i}
-              className="f-serif"
-              style={{
-                margin: 0,
-                fontSize: 13,
-                fontStyle: "italic",
-                color: "var(--ink-soft)",
-                lineHeight: 1.55,
+        <AlertDialogHeader>
+          <AlertDialogTitle
+            className="f-serif"
+            style={{ fontSize: 18, fontWeight: 500, color: "var(--ink)" }}
+          >
+            {title}
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {paragraphs.map((p, i) => (
+                <p
+                  key={i}
+                  className="f-serif"
+                  style={{
+                    margin: 0,
+                    fontSize: 13,
+                    fontStyle: "italic",
+                    color: "var(--ink-soft)",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {p}
+                </p>
+              ))}
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button type="button" disabled={submitting} variant="outline" size="sm">
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirm();
               }}
+              disabled={submitting}
+              autoFocus
+              variant={danger ? "destructive" : "default"}
+              size="sm"
             >
-              {p}
-            </p>
-          ))}
-        </div>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submitting}
-            className="press f-sans"
-            style={{
-              height: 36,
-              padding: "0 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--ink-soft)",
-              border: "1px solid var(--line-soft)",
-              cursor: submitting ? "wait" : "pointer",
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={submitting}
-            autoFocus
-            className="press f-sans"
-            style={{
-              height: 36,
-              padding: "0 16px",
-              fontSize: 13,
-              fontWeight: 600,
-              borderRadius: 8,
-              background: danger ? "var(--blood)" : "var(--ember)",
-              color: danger ? "var(--surface-high)" : "var(--ember-ink)",
-              border: 0,
-              cursor: submitting ? "wait" : "pointer",
-              opacity: submitting ? 0.6 : 1,
-            }}
-          >
-            {submitting ? "Working…" : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+              {submitting ? "Working…" : confirmLabel}
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -2216,27 +2026,23 @@ function PersonaPromptDebug({
                   }}
                 >
                   <span>Distilled skip rules</span>
-                  <button
+                  <Button
                     type="button"
                     onClick={distill}
                     disabled={distilling}
-                    className="press f-sans"
+                    variant="outline"
+                    size="xs"
+                    className="rounded-full tracking-wider uppercase"
                     style={{
                       height: 22,
-                      padding: "0 8px",
                       fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      textTransform: "uppercase",
-                      borderRadius: 999,
                       background: "var(--ember-wash)",
                       color: "var(--ember)",
-                      border: "1px solid color-mix(in oklch, var(--ember) 30%, transparent)",
-                      cursor: distilling ? "wait" : "pointer",
+                      borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
                     }}
                   >
                     {distilling ? "Distilling…" : "Distill now"}
-                  </button>
+                  </Button>
                   {distillMsg && (
                     <span
                       style={{
@@ -2290,43 +2096,28 @@ function PersonaPromptDebug({
               />
 
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button
+                <Button
                   type="button"
                   onClick={() => setShowRaw((v) => !v)}
-                  className="press f-sans"
+                  variant="outline"
+                  size="sm"
                   style={{
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 6,
-                    background: "transparent",
                     color: showRaw ? "var(--ember)" : "var(--ink-soft)",
-                    border: `1px solid ${showRaw ? "var(--ember)" : "var(--line-soft)"}`,
-                    cursor: "pointer",
+                    borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
                   }}
                 >
                   {showRaw ? "Hide raw prompt" : "Show raw prompt"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => load()}
                   disabled={loading}
-                  className="press f-sans"
-                  style={{
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 6,
-                    background: "transparent",
-                    color: "var(--ink-soft)",
-                    border: "1px solid var(--line-soft)",
-                    cursor: loading ? "wait" : "pointer",
-                  }}
+                  variant="outline"
+                  size="sm"
+                  style={{ color: "var(--ink-soft)" }}
                 >
                   {loading ? "Refreshing…" : "Refresh"}
-                </button>
+                </Button>
                 <span
                   className="f-sans"
                   style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}

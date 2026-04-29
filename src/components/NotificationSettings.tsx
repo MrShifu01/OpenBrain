@@ -1,5 +1,6 @@
 import { useState, useEffect, type JSX } from "react";
 import { authFetch } from "../lib/authFetch";
+import { Button } from "./ui/button";
 
 const STATUS_FLASH_MS = 3000;
 const ERROR_FLASH_MS = 8000;
@@ -209,26 +210,18 @@ function TimezoneField({
           placeholder="e.g. Europe/London"
           style={{ ...fieldStyle, flex: 1, minWidth: 180 }}
         />
-        <button
+        <Button
           type="button"
           onClick={() => {
             onChange(detected);
             setEditing(false);
           }}
-          className="press"
-          style={{
-            ...fieldStyle,
-            padding: "0 14px",
-            color: "var(--ember)",
-            background: "transparent",
-            border: "1px solid var(--line-soft)",
-            cursor: "pointer",
-            fontSize: 12,
-            fontWeight: 600,
-          }}
+          variant="outline"
+          size="sm"
+          style={{ color: "var(--ember)" }}
         >
           Reset
-        </button>
+        </Button>
       </div>
     );
   }
@@ -661,26 +654,21 @@ export default function NotificationSettings(): JSX.Element {
                 {LEAD_OPTIONS.map((day) => {
                   const active = (prefs.expiry_lead_days || []).includes(day);
                   return (
-                    <button
+                    <Button
                       key={day}
                       onClick={() => toggleLeadDay(day)}
                       aria-pressed={active}
-                      className="press f-sans"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
                       style={{
-                        padding: "0 14px",
-                        height: 30,
-                        minHeight: 30,
-                        borderRadius: 999,
                         background: active ? "var(--ember-wash)" : "var(--surface)",
                         color: active ? "var(--ember)" : "var(--ink-soft)",
-                        border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: "pointer",
+                        borderColor: active ? "var(--ember)" : "var(--line-soft)",
                       }}
                     >
                       {day}d
-                    </button>
+                    </Button>
                   );
                 })}
               </div>

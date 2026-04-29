@@ -1,5 +1,13 @@
 import { useState } from "react";
 import type { Entry } from "../types";
+import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 const REPEAT_OPTIONS = [
   { value: "none", label: "Never" },
@@ -132,13 +140,16 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
           >
             Edit
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={onClose}
-            className="flex h-5 w-5 items-center justify-center rounded-full text-sm leading-none"
+            aria-label="Close"
+            className="h-5 w-5 rounded-full text-sm leading-none"
             style={{ color: "var(--ink-ghost)", background: "var(--surface-high)" }}
           >
             ×
-          </button>
+          </Button>
         </div>
         <div className="space-y-2.5 px-4 pb-4">
           <input
@@ -188,13 +199,16 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
               }}
             />
             {dueDate && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setDueDate("")}
+                aria-label="Clear date"
                 className="shrink-0 text-sm leading-none"
                 style={{ color: "var(--ink-ghost)" }}
               >
                 ✕
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -204,37 +218,31 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             >
               Repeat
             </span>
-            <select
-              value={repeat}
-              onChange={(e) => setRepeat(e.target.value as RepeatValue)}
-              className="flex-1 rounded-xl border text-sm outline-none"
-              style={{
-                background: "var(--surface-low)",
-                borderColor: "var(--line-soft)",
-                color: "var(--ink)",
-                fontFamily: "var(--f-sans)",
-                cursor: "pointer",
-                appearance: "none",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                padding: "6px 30px 6px 12px",
-                backgroundImage:
-                  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 12px center",
-              }}
-            >
-              {REPEAT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <Select value={repeat} onValueChange={(v) => setRepeat(v as RepeatValue)}>
+              <SelectTrigger
+                className="flex-1 rounded-xl text-sm"
+                style={{
+                  background: "var(--surface-low)",
+                  borderColor: "var(--line-soft)",
+                  color: "var(--ink)",
+                  fontFamily: "var(--f-sans)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REPEAT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <button
+          <Button
             onClick={save}
             disabled={saving || !title.trim()}
-            className="w-full rounded-xl py-2 text-sm font-semibold transition-opacity disabled:opacity-40"
+            className="w-full rounded-xl py-2 text-sm font-semibold"
             style={{
               background: "var(--ember)",
               color: "var(--ember-ink)",
@@ -242,21 +250,22 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             }}
           >
             {saving ? "Saving…" : "Save"}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="link"
+            size="xs"
             onClick={reenrich}
             disabled={reenriching || saving}
             title="Clear AI-derived tags/summary and let the AI re-parse this entry. Schedule and status are never touched."
-            className="w-full text-[11px] underline-offset-2 hover:underline disabled:opacity-40"
+            className="w-full text-[11px]"
             style={{
-              background: "transparent",
               color: "var(--ink-faint)",
               fontFamily: "var(--f-sans)",
               padding: "4px 0 0",
             }}
           >
             {reenriching ? "Re-enriching…" : "↻ Let AI re-derive tags & summary"}
-          </button>
+          </Button>
         </div>
       </div>
     </>

@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import FocusTrap from "focus-trap-react";
 import type { Entry } from "../types";
 import { decryptEntry, getCachedVaultKey, hasCachedVaultKey } from "../lib/crypto";
 import { verifyPin, getStoredPinHash, setupPin } from "../lib/pin";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 type Stage = "pin" | "setup-new" | "setup-confirm" | "busy" | "revealed" | "no-cache" | "error";
 
@@ -35,7 +36,6 @@ export default function VaultRevealModal({
   const [meta, setMeta] = useState<Record<string, unknown>>({});
   const [copied, setCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
   const shakeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -118,41 +118,26 @@ export default function VaultRevealModal({
   return (
     <>
       <style>{`@keyframes vs{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center"
-        style={{ background: "var(--color-scrim)" }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: () => inputRef.current ?? false,
-            escapeDeactivates: true,
-            onDeactivate: onClose,
-            allowOutsideClick: true,
-            // jsdom layout produces zero-dimension nodes that focus-trap
-            // discards as non-tabbable. The dialog itself is tabIndex=-1 so
-            // it can hold focus when no measurable child is available.
-            fallbackFocus: () => dialogRef.current!,
+      <Dialog open onOpenChange={(o) => !o && onClose()}>
+        <DialogContent
+          className={`max-w-[360px] rounded-[20px] px-5 py-6 ${shake ? "animate-[vs_0.38s_ease]" : ""}`}
+          style={{
+            background: "var(--color-surface-container-low)",
+            borderColor: "var(--color-outline-variant)",
+            maxHeight: "90vh",
+            overflowY: "auto",
           }}
         >
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            tabIndex={-1}
-            className={`box-border w-full max-w-[360px] rounded-[20px] border px-5 py-6 ${shake ? "animate-[vs_0.38s_ease]" : ""}`}
-            style={{
-              background: "var(--color-surface-container-low)",
-              borderColor: "var(--color-outline-variant)",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") onClose();
-            }}
-          >
+          <DialogTitle className="sr-only">
+            {stage === "revealed"
+              ? entry.title
+              : stage === "setup-new"
+                ? "Set a PIN"
+                : stage === "setup-confirm"
+                  ? "Confirm PIN"
+                  : "Secret"}
+          </DialogTitle>
+          <div>
             {/* Header */}
             <div className="mb-5 text-center">
               <div className="mb-2 text-[28px]">
@@ -225,12 +210,12 @@ export default function VaultRevealModal({
                   {pinError}
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <button onClick={onClose} style={btnSecStyle}>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>
                     Cancel
-                  </button>
-                  <button onClick={handleSubmit} style={btnPrimStyle}>
+                  </Button>
+                  <Button size="sm" className="flex-1" onClick={handleSubmit}>
                     {stage === "setup-new" ? "Next" : "Set PIN"}
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -272,12 +257,12 @@ export default function VaultRevealModal({
                   {pinError}
                 </p>
                 <div className="mt-4 flex gap-2">
-                  <button onClick={onClose} style={btnSecStyle}>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>
                     Cancel
-                  </button>
-                  <button onClick={handleSubmit} style={btnPrimStyle}>
+                  </Button>
+                  <Button size="sm" className="flex-1" onClick={handleSubmit}>
                     Reveal
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -340,12 +325,17 @@ export default function VaultRevealModal({
                   </div>
                 )}
                 <div className="mt-4 flex gap-2">
-                  <button onClick={() => copy(content)} style={btnSecStyle}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => copy(content)}
+                  >
                     {copied ? "Copied!" : "Copy"}
-                  </button>
-                  <button onClick={onClose} style={btnPrimStyle}>
+                  </Button>
+                  <Button size="sm" className="flex-1" onClick={onClose}>
                     Done
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -360,18 +350,19 @@ export default function VaultRevealModal({
                   Open the Vault tab and enter your passphrase first, then come back here.
                 </p>
                 <div className="flex gap-2">
-                  <button onClick={onClose} style={btnSecStyle}>
+                  <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1"
                     onClick={() => {
                       onClose();
                       onGoToVault();
                     }}
-                    style={btnPrimStyle}
                   >
                     Go to Vault
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -382,14 +373,14 @@ export default function VaultRevealModal({
                 <p className="mb-4 text-center text-sm" style={{ color: "var(--color-error)" }}>
                   Could not decrypt this entry. Your vault key may have changed.
                 </p>
-                <button onClick={onClose} style={{ ...btnPrimStyle, width: "100%" }}>
+                <Button onClick={onClose} className="w-full">
                   Close
-                </button>
+                </Button>
               </>
             )}
           </div>
-        </FocusTrap>
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -410,26 +401,3 @@ function pinInputStyle(hasError: boolean): React.CSSProperties {
     outline: "none",
   };
 }
-
-const btnSecStyle: React.CSSProperties = {
-  flex: 1,
-  cursor: "pointer",
-  borderRadius: 10,
-  border: "1px solid var(--color-outline-variant)",
-  background: "var(--color-surface-dim)",
-  color: "var(--color-on-surface-variant)",
-  padding: 11,
-  fontSize: 13,
-};
-
-const btnPrimStyle: React.CSSProperties = {
-  flex: 1,
-  cursor: "pointer",
-  borderRadius: 10,
-  border: "none",
-  padding: 11,
-  fontSize: 13,
-  fontWeight: 700,
-  background: "var(--color-primary)",
-  color: "var(--color-on-primary)",
-};

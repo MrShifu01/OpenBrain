@@ -1,4 +1,5 @@
 import type { BackgroundTask } from "../hooks/useBackgroundCapture";
+import { Button } from "./ui/button";
 
 interface Props {
   tasks: BackgroundTask[];
@@ -127,10 +128,12 @@ export function BackgroundTaskToast({ tasks, onDismiss, onDismissAll }: Props) {
 
             {/* Dismiss */}
             {!isActive && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => onDismiss(task.id)}
                 aria-label="Dismiss"
-                className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+                className="ml-auto h-6 w-6 shrink-0 rounded-full"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 <svg
@@ -142,7 +145,7 @@ export function BackgroundTaskToast({ tasks, onDismiss, onDismissAll }: Props) {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
         );
@@ -150,13 +153,15 @@ export function BackgroundTaskToast({ tasks, onDismiss, onDismissAll }: Props) {
 
       {/* Dismiss all finished */}
       {finished.length > 1 && (
-        <button
+        <Button
+          variant="link"
+          size="xs"
           onClick={onDismissAll}
-          className="self-end text-xs underline underline-offset-2 transition-colors hover:opacity-80"
+          className="self-end text-xs"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
           Dismiss all
-        </button>
+        </Button>
       )}
     </div>
   );

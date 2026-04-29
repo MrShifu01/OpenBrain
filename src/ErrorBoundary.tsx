@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import * as Sentry from "@sentry/react";
+import { Button } from "./components/ui/button";
 
 // Detect chunk-load / dynamic-import failures caused by a stale Service
 // Worker serving HTML that references chunk hashes from a previous build.
@@ -148,13 +149,14 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             >
               {this.state.error?.message || "Unknown error"}
             </p>
-            <button
+            <Button
+              size="lg"
               onClick={this.reset}
-              className="cursor-pointer rounded-xl border-none px-8 py-3 text-sm font-bold"
+              className="rounded-xl px-8 font-bold"
               style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
             >
               Try again
-            </button>
+            </Button>
           </div>
         </div>
       );

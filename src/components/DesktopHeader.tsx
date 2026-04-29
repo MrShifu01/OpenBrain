@@ -4,6 +4,7 @@ import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
+import { Button } from "./ui/button";
 
 interface DesktopHeaderProps {
   searchInput: string;
@@ -190,21 +191,15 @@ export default function DesktopHeader({
           }}
         />
         {searchInput ? (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => onSearchChange("")}
             aria-label="Clear search"
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "var(--ink-faint)",
-              padding: 0,
-              lineHeight: 1,
-              fontSize: 16,
-            }}
+            style={{ color: "var(--ink-faint)" }}
           >
             ×
-          </button>
+          </Button>
         ) : (
           <kbd
             aria-hidden="true"
@@ -241,48 +236,26 @@ export default function DesktopHeader({
           />
         )}
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={onToggleTheme}
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          className="press"
-          style={{
-            width: 36,
-            height: 36,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: 6,
-            color: "var(--ink-soft)",
-            background: "transparent",
-            border: 0,
-            cursor: "pointer",
-          }}
+          style={{ color: "var(--ink-soft)" }}
         >
           {isDark ? SUN_ICON : MOON_ICON}
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={() => onNavigate("settings")}
           aria-label={email ? `Account — ${email}` : "Account"}
           title={email || "Account"}
-          className="press"
+          className="ml-1.5 rounded-full"
           style={{
-            marginLeft: 6,
-            width: 36,
-            height: 36,
-            aspectRatio: "1 / 1",
-            boxSizing: "border-box",
-            flexShrink: 0,
-            padding: 0,
-            border: 0,
-            borderRadius: "50%",
-            lineHeight: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
             background: "var(--ember-wash)",
             color: "var(--ember)",
-            cursor: "pointer",
           }}
         >
           <svg
@@ -300,7 +273,7 @@ export default function DesktopHeader({
             <circle cx="12" cy="10" r="3.5" />
             <path d="M6 18.5c1-2.7 3.4-4.2 6-4.2s5 1.5 6 4.2" />
           </svg>
-        </button>
+        </Button>
       </div>
     </header>
   );

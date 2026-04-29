@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Button } from "./ui/button";
 
 const UNDO_TOAST_CREATE_MS = 3000;
 const UNDO_TOAST_MUTATE_MS = 5000;
@@ -60,17 +61,21 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
         </div>
         <span className="text-on-surface flex-1 text-sm font-medium">{label}</span>
         {action.type !== "create" && (
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={onUndo}
-            className="text-primary hover:text-primary-dim press-scale text-xs font-bold tracking-widest uppercase transition-colors"
+            className="text-primary hover:text-primary-dim press-scale text-xs font-bold tracking-widest uppercase"
           >
             Undo
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="text-on-surface-variant hover:text-on-surface ml-1 transition-colors"
+          className="text-on-surface-variant hover:text-on-surface ml-1"
         >
           <svg
             aria-hidden="true"
@@ -82,7 +87,7 @@ export function UndoToast({ action, onUndo, onDismiss }: UndoToastProps) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
-        </button>
+        </Button>
       </div>
       <div className="h-0.5 w-full" style={{ background: "var(--color-outline-variant)" }}>
         <div

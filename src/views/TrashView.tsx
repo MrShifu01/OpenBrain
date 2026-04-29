@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { entryRepo } from "../lib/entryRepo";
 import { getTypeConfig } from "../data/constants";
 import type { Entry } from "../types";
+import { Button } from "../components/ui/button";
 
 function daysAgo(isoDate: string): number {
   const ms = Date.now() - new Date(isoDate).getTime();
@@ -74,26 +75,12 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
         </p>
         {entries.length > 0 && (
           <div className="flex gap-2">
-            <button
-              onClick={restoreAll}
-              className="rounded-lg px-3 text-xs"
-              style={{
-                background: "var(--color-primary-container)",
-                color: "var(--color-primary)",
-              }}
-            >
+            <Button variant="outline" size="xs" onClick={restoreAll}>
               Restore all
-            </button>
-            <button
-              onClick={emptyTrash}
-              className="rounded-lg px-3 text-xs"
-              style={{
-                background: "color-mix(in oklch, var(--color-error) 15%, transparent)",
-                color: "var(--color-error)",
-              }}
-            >
+            </Button>
+            <Button variant="destructive" size="xs" onClick={emptyTrash}>
               Empty trash
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -125,28 +112,22 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
                   onClick={() => restore(entry)}
                   disabled={busy === entry.id}
-                  className="rounded-lg px-3 text-xs disabled:opacity-40"
-                  style={{
-                    background: "var(--color-primary-container)",
-                    color: "var(--color-primary)",
-                  }}
                 >
                   Restore
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="xs"
                   onClick={() => deletePermanently(entry)}
                   disabled={busy === entry.id}
-                  className="rounded-lg px-3 text-xs disabled:opacity-40"
-                  style={{
-                    background: "color-mix(in oklch, var(--color-error) 10%, transparent)",
-                    color: "var(--color-error)",
-                  }}
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           );

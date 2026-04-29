@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { friendlyError } from "../lib/friendlyError";
+import { Button } from "../components/ui/button";
 
 interface Props {
   onDone: () => void;
@@ -91,23 +92,9 @@ export default function ResetPasswordView({ onDone }: Props) {
             {error && (
               <p style={{ fontSize: 13, color: "var(--blood, #e05555)", margin: 0 }}>{error}</p>
             )}
-            <button
-              type="submit"
-              disabled={busy}
-              style={{
-                height: 44,
-                borderRadius: 10,
-                border: "none",
-                background: busy ? "var(--surface-high, #2a2a2a)" : "var(--ember, #e86c2c)",
-                color: busy ? "var(--ink-faint, #888)" : "#fff",
-                fontSize: 15,
-                fontWeight: 600,
-                cursor: busy ? "not-allowed" : "pointer",
-                transition: "background 180ms",
-              }}
-            >
+            <Button type="submit" disabled={busy} size="lg">
               {busy ? "Saving…" : "Set password"}
-            </button>
+            </Button>
           </form>
         )}
       </div>

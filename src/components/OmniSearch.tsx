@@ -1,6 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import type { Entry } from "../types";
 import { scoreEntry } from "../lib/searchIndex";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "./ui/command";
 
 interface ConceptLike {
   id?: string;
@@ -86,44 +95,12 @@ function TypeGlyph({ type }: { type?: string }) {
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
-const COMMANDS: { label: string; view: string; kbd: string[] }[] = [
-  { label: "Capture something", view: "capture", kbd: ["N"] },
-  { label: "Go to chat", view: "chat", kbd: ["J"] },
-  { label: "Go to graph", view: "graph", kbd: ["G"] },
-  { label: "Open schedule", view: "todos", kbd: ["T"] },
+const COMMANDS: { label: string; view: string; kbd: string }[] = [
+  { label: "Capture something", view: "capture", kbd: "N" },
+  { label: "Go to chat", view: "chat", kbd: "J" },
+  { label: "Go to graph", view: "graph", kbd: "G" },
+  { label: "Open schedule", view: "todos", kbd: "T" },
 ];
-
-function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      className="f-sans"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        minWidth: 18,
-        height: 18,
-        padding: "0 5px",
-        background: "var(--surface-low)",
-        border: "1px solid var(--line)",
-        borderRadius: 4,
-        fontSize: 11,
-        color: "var(--ink-faint)",
-        fontWeight: 500,
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
-function Micro({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div className="micro" style={style}>
-      {children}
-    </div>
-  );
-}
 
 export default function OmniSearch({
   entries,
@@ -133,12 +110,9 @@ export default function OmniSearch({
   showGraph = false,
 }: OmniSearchProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const isMobile =
     typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Entry[]>([]);
-  const [highlighted, setHighlighted] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -149,412 +123,163 @@ export default function OmniSearch({
         e.preventDefault();
         setOpen((o) => !o);
       }
-      if (e.key === "Escape") setOpen(false);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setResults([]);
-      setHighlighted(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [open]);
-
-  const runSearch = useCallback(
-    (q: string) => {
-      const trimmed = q.trim();
-      if (!trimmed) {
-        setResults([]);
-        return;
-      }
-      const scored = entries
+  // Compute results — cmdk does its own filtering via `value`, but scoreEntry
+  // is a real ranker (substring + tag + content boost) so keep it as the
+  // ordering source of truth and feed cmdk the prefiltered list.
+  const trimmed = query.trim();
+  const results = trimmed
+    ? entries
         .map((e) => ({ entry: e, score: scoreEntry(e, trimmed) }))
-        .filter(({ score }) => score > 0);
-      scored.sort((a, b) => b.score - a.score);
-      setResults(scored.slice(0, 8).map(({ entry }) => entry));
-      setHighlighted(0);
-    },
-    [entries],
-  );
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8)
+        .map(({ entry }) => entry)
+    : [];
 
-  useEffect(() => {
-    const t = setTimeout(() => runSearch(query), 120);
-    return () => clearTimeout(t);
-  }, [query, runSearch]);
+  const conceptResults = trimmed
+    ? concepts.filter((c) => c.label.toLowerCase().includes(trimmed.toLowerCase())).slice(0, 6)
+    : [];
 
-  const filteredCommands = COMMANDS.filter(
-    (c) => !query.trim() || c.label.toLowerCase().includes(query.toLowerCase()),
-  );
-  const filteredConcepts = concepts
-    .filter((c) => !query.trim() || c.label.toLowerCase().includes(query.toLowerCase()))
-    .slice(0, 6);
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    const total = results.length + filteredCommands.length;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlighted((h) => Math.min(h + 1, total - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlighted((h) => Math.max(h - 1, 0));
-    } else if (e.key === "Enter") {
-      if (highlighted < results.length) {
-        onSelect(results[highlighted]);
-        setOpen(false);
-      } else {
-        const cmd = filteredCommands[highlighted - results.length];
-        if (cmd) {
-          onNavigate(cmd.view);
-          setOpen(false);
-        }
-      }
-    }
-  }
-
-  if (!open) {
-    return null;
-  }
+  const commandResults = trimmed
+    ? COMMANDS.filter((c) => c.label.toLowerCase().includes(trimmed.toLowerCase()))
+    : COMMANDS;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-start justify-center"
-      style={{
-        background: "var(--scrim)",
-        paddingTop: "12vh",
-        paddingLeft: 16,
-        paddingRight: 16,
+    <CommandDialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) setQuery("");
       }}
-      onClick={(e) => e.target === e.currentTarget && setOpen(false)}
+      title="Search"
+      description="Search entries, concepts, and commands"
     >
-      <div
-        className="anim-scale-in-design"
-        style={{
-          width: 640,
-          maxWidth: "92vw",
-          background: "var(--surface-high)",
-          border: "1px solid var(--line)",
-          borderRadius: 18,
-          boxShadow: "var(--lift-3)",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {/* Search input */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "18px 20px",
-            borderBottom: "1px solid var(--line-soft)",
-          }}
-        >
-          <svg
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-            style={{ color: "var(--ink-faint)", flexShrink: 0 }}
-            aria-hidden="true"
-          >
-            <circle cx="11" cy="11" r="6.5" />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          {/* Honeypot inputs absorb Chrome's eager username/password autofill
-              before it reaches the real search field. Chrome routinely ignores
-              autoComplete="off" on text inputs; offering it a more
-              convincing-looking target stops it hijacking the search. */}
-          <input
-            type="text"
-            name="username"
-            autoComplete="username"
-            tabIndex={-1}
-            aria-hidden="true"
-            style={{ position: "absolute", left: -10000, width: 1, height: 1, opacity: 0 }}
-          />
-          <input
-            type="password"
-            name="password"
-            autoComplete="new-password"
-            tabIndex={-1}
-            aria-hidden="true"
-            style={{ position: "absolute", left: -10000, width: 1, height: 1, opacity: 0 }}
-          />
-          <input
-            ref={inputRef}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="search everything…"
-            // type=search + a unique non-credential name + autoComplete="off"
-            // disable Safari/Chrome's credential autofill, which was silently
-            // prefilling the user's email here. The honeypot inputs above
-            // catch Chrome's eager fills first. data-* attrs cover password
-            // managers (1Password, Bitwarden, LastPass) too.
-            type="search"
-            name="everion-omni-q"
-            autoComplete="off"
-            data-1p-ignore
-            data-lpignore="true"
-            data-form-type="other"
-            enterKeyHint="search"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            role="combobox"
-            aria-expanded={results.length > 0}
-            aria-haspopup="listbox"
-            aria-controls="omnisearch-listbox"
-            aria-autocomplete="list"
-            aria-activedescendant={
-              results.length > 0 ? `omnisearch-option-${highlighted}` : undefined
-            }
-            className="f-serif flex-1 border-none bg-transparent outline-none"
-            style={{
-              fontSize: 17,
-              fontStyle: query ? "normal" : "italic",
-              color: "var(--ink)",
-            }}
-          />
-          <Kbd>esc</Kbd>
-        </div>
+      <CommandInput value={query} onValueChange={setQuery} placeholder="search everything…" />
+      <CommandList>
+        <CommandEmpty>nothing here yet. try a looser word.</CommandEmpty>
 
-        <div aria-live="polite" aria-atomic="true" className="sr-only">
-          {query && results.length === 0
-            ? "No results found"
-            : results.length > 0
-              ? `${results.length} result${results.length === 1 ? "" : "s"} found`
-              : ""}
-        </div>
-
-        <div className="scrollbar-hide" style={{ maxHeight: 480, overflowY: "auto" }}>
-          {/* Entries section */}
-          {results.length > 0 && (
-            <>
-              <Micro style={{ padding: "14px 20px 6px" }}>entries</Micro>
-              <ul
-                id="omnisearch-listbox"
-                role="listbox"
-                style={{ margin: 0, padding: 0, listStyle: "none" }}
-              >
-                {results.map((entry, i) => {
-                  const active = i === highlighted;
-                  return (
-                    <li
-                      key={entry.id}
-                      id={`omnisearch-option-${i}`}
-                      role="option"
-                      aria-selected={active}
-                    >
-                      <button
-                        className="press"
-                        style={{
-                          display: "flex",
-                          width: "100%",
-                          padding: "10px 20px",
-                          gap: 14,
-                          textAlign: "left",
-                          alignItems: "center",
-                          minHeight: 48,
-                          background: active ? "var(--surface)" : "transparent",
-                          border: "none",
-                          cursor: "pointer",
-                          transition: "background 120ms",
-                        }}
-                        onClick={() => {
-                          onSelect(entry);
-                          setOpen(false);
-                        }}
-                        onMouseEnter={() => setHighlighted(i)}
-                      >
-                        <span
-                          style={{
-                            color: "var(--ink-faint)",
-                            flexShrink: 0,
-                            display: "inline-flex",
-                          }}
-                        >
-                          <TypeGlyph type={entry.type} />
-                        </span>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div
-                            className="f-serif truncate"
-                            style={{
-                              fontSize: 16,
-                              fontWeight: 450,
-                              color: "var(--ink)",
-                              letterSpacing: "-0.005em",
-                            }}
-                          >
-                            {entry.title}
-                          </div>
-                          {(entry.tags || []).length > 0 ? (
-                            <div
-                              className="f-serif truncate"
-                              style={{
-                                fontSize: 12,
-                                color: "var(--ink-faint)",
-                                fontStyle: "italic",
-                                marginTop: 2,
-                              }}
-                            >
-                              {(entry.tags || []).slice(0, 3).join(" · ")}
-                            </div>
-                          ) : entry.content ? (
-                            <div
-                              className="f-serif truncate"
-                              style={{
-                                fontSize: 12,
-                                color: "var(--ink-faint)",
-                                fontStyle: "italic",
-                                marginTop: 2,
-                              }}
-                            >
-                              {entry.content.slice(0, 80)}
-                            </div>
-                          ) : null}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
-          )}
-
-          {/* Concepts section — only when graph feature is enabled */}
-          {showGraph && filteredConcepts.length > 0 && (
-            <>
-              <Micro style={{ padding: "14px 20px 6px" }}>concepts</Micro>
-              {filteredConcepts.map((c) => (
-                <button
-                  key={c.id ?? c.label}
-                  onClick={() => {
-                    onNavigate("graph");
-                    setOpen(false);
-                  }}
-                  className="press"
-                  style={{
-                    display: "flex",
-                    width: "100%",
-                    padding: "10px 20px",
-                    gap: 14,
-                    textAlign: "left",
-                    alignItems: "center",
-                    minHeight: 40,
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "var(--ember)",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    className="f-serif"
-                    style={{
-                      fontSize: 15,
-                      fontStyle: "italic",
-                      color: "var(--ink)",
-                    }}
-                  >
-                    {c.label}
-                  </span>
-                  {(c.count != null || (c.source_entries && c.source_entries.length > 0)) && (
-                    <span
-                      className="f-sans"
-                      style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: 8 }}
-                    >
-                      {c.count ?? c.source_entries?.length ?? 0} entries
-                    </span>
-                  )}
-                </button>
-              ))}
-            </>
-          )}
-
-          {/* Commands section — desktop only (no keyboard on mobile) */}
-          {!isMobile && filteredCommands.length > 0 && (
-            <>
-              <Micro style={{ padding: "14px 20px 6px" }}>commands</Micro>
-              {filteredCommands.map((c, i) => {
-                const idx = results.length + i;
-                const active = idx === highlighted;
-                return (
-                  <button
-                    key={c.label}
-                    onClick={() => {
-                      onNavigate(c.view);
-                      setOpen(false);
-                    }}
-                    onMouseEnter={() => setHighlighted(idx)}
-                    className="press"
-                    style={{
-                      display: "flex",
-                      width: "100%",
-                      padding: "10px 20px",
-                      gap: 12,
-                      textAlign: "left",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      minHeight: 40,
-                      background: active ? "var(--surface)" : "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <span className="f-sans" style={{ fontSize: 14, color: "var(--ink)" }}>
-                      {c.label}
-                    </span>
-                    <span style={{ display: "inline-flex", gap: 2 }}>
-                      <Kbd>{MOD}</Kbd>
-                      {c.kbd.map((k) => (
-                        <Kbd key={k}>{k}</Kbd>
-                      ))}
-                    </span>
-                  </button>
-                );
-              })}
-            </>
-          )}
-
-          {/* Empty state */}
-          {query.trim() &&
-            results.length +
-              (showGraph ? filteredConcepts.length : 0) +
-              (isMobile ? 0 : filteredCommands.length) ===
-              0 && (
-              <div
-                className="f-serif"
-                style={{
-                  padding: 32,
-                  textAlign: "center",
-                  fontSize: 15,
-                  color: "var(--ink-faint)",
-                  fontStyle: "italic",
+        {results.length > 0 && (
+          <CommandGroup heading="entries">
+            {results.map((entry) => (
+              <CommandItem
+                key={entry.id}
+                value={`entry-${entry.id}-${entry.title}`}
+                onSelect={() => {
+                  onSelect(entry);
+                  setOpen(false);
                 }}
               >
-                nothing here yet. try a looser word.
-              </div>
-            )}
-        </div>
-      </div>
-    </div>
+                <span style={{ color: "var(--ink-faint)", display: "inline-flex" }}>
+                  <TypeGlyph type={entry.type} />
+                </span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div
+                    className="f-serif truncate"
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 450,
+                      color: "var(--ink)",
+                      letterSpacing: "-0.005em",
+                    }}
+                  >
+                    {entry.title}
+                  </div>
+                  {(entry.tags || []).length > 0 ? (
+                    <div
+                      className="f-serif truncate"
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-faint)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {(entry.tags || []).slice(0, 3).join(" · ")}
+                    </div>
+                  ) : entry.content ? (
+                    <div
+                      className="f-serif truncate"
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-faint)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {entry.content.slice(0, 80)}
+                    </div>
+                  ) : null}
+                </div>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {showGraph && conceptResults.length > 0 && (
+          <CommandGroup heading="concepts">
+            {conceptResults.map((c) => (
+              <CommandItem
+                key={c.id ?? c.label}
+                value={`concept-${c.id ?? c.label}`}
+                onSelect={() => {
+                  onNavigate("graph");
+                  setOpen(false);
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "var(--ember)",
+                    flexShrink: 0,
+                  }}
+                />
+                <span
+                  className="f-serif"
+                  style={{ fontSize: 13, fontStyle: "italic", color: "var(--ink)" }}
+                >
+                  {c.label}
+                </span>
+                {(c.count != null || (c.source_entries && c.source_entries.length > 0)) && (
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
+                  >
+                    {c.count ?? c.source_entries?.length ?? 0} entries
+                  </span>
+                )}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
+        {!isMobile && commandResults.length > 0 && (
+          <CommandGroup heading="commands">
+            {commandResults.map((c) => (
+              <CommandItem
+                key={c.label}
+                value={`command-${c.view}-${c.label}`}
+                onSelect={() => {
+                  onNavigate(c.view);
+                  setOpen(false);
+                }}
+              >
+                <span className="f-sans" style={{ fontSize: 13, color: "var(--ink)" }}>
+                  {c.label}
+                </span>
+                <CommandShortcut>
+                  {MOD} {c.kbd}
+                </CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+      </CommandList>
+    </CommandDialog>
   );
 }

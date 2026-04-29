@@ -13,6 +13,7 @@ import GmailScanReviewModal from "./GmailScanReviewModal";
 import { MOCK_REVIEW_ITEMS } from "../../data/mockGmailReviewItems";
 import { useEntries } from "../../context/EntriesContext";
 import { explainPlacements, toDateKey } from "../../views/todoUtils";
+import { Button } from "../ui/button";
 
 type TestStatus = "idle" | "running" | "pass" | "fail";
 
@@ -488,26 +489,20 @@ function AdminDisplaySection() {
                   {def.hint}
                 </div>
               </div>
-              <button
+              <Button
                 onClick={() => toggle(def.key, !on)}
                 aria-pressed={on}
-                className="press f-sans"
+                variant="outline"
+                size="xs"
+                className="rounded-full"
                 style={{
-                  height: 28,
-                  minWidth: 56,
-                  padding: "0 12px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  borderRadius: 999,
-                  border: `1px solid ${on ? "var(--ember)" : "var(--line-soft)"}`,
                   background: on ? "var(--ember-wash)" : "transparent",
                   color: on ? "var(--ember)" : "var(--ink-faint)",
-                  cursor: "pointer",
-                  flexShrink: 0,
+                  borderColor: on ? "var(--ember)" : "var(--line-soft)",
                 }}
               >
                 {on ? "On" : "Off"}
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -586,24 +581,18 @@ function FeatureFlagsSection() {
               </div>
 
               {!flag.prodEnabled && (
-                <button
+                <Button
                   onClick={() => toggle(key, !adminOn)}
-                  className="press f-sans"
+                  variant="outline"
+                  size="xs"
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 7,
-                    padding: "5px 12px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 600,
                     background: visibleToYou
                       ? "color-mix(in oklch, var(--ember) 12%, transparent)"
                       : "var(--surface)",
                     color: visibleToYou ? "var(--ember)" : "var(--ink-faint)",
-                    border: `1px solid ${visibleToYou ? "color-mix(in oklch, var(--ember) 30%, transparent)" : "var(--line-soft)"}`,
-                    cursor: "pointer",
-                    transition: "all 180ms",
+                    borderColor: visibleToYou
+                      ? "color-mix(in oklch, var(--ember) 30%, transparent)"
+                      : "var(--line-soft)",
                   }}
                 >
                   <span
@@ -616,7 +605,7 @@ function FeatureFlagsSection() {
                     }}
                   />
                   {visibleToYou ? "Visible to you" : "Hidden"}
-                </button>
+                </Button>
               )}
             </div>
           );
@@ -1175,26 +1164,9 @@ export default function AdminTab() {
       <FeatureFlagsSection />
 
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
-        <button
-          onClick={runAll}
-          disabled={running}
-          className="press f-sans"
-          style={{
-            height: 36,
-            padding: "0 20px",
-            fontSize: 13,
-            fontWeight: 600,
-            borderRadius: 8,
-            background: running ? "var(--surface-high)" : "var(--ember)",
-            color: running ? "var(--ink-faint)" : "var(--ember-ink)",
-            border: "none",
-            cursor: running ? "not-allowed" : "pointer",
-            opacity: running ? 0.6 : 1,
-            transition: "background 180ms",
-          }}
-        >
+        <Button onClick={runAll} disabled={running} size="sm">
           {running ? "Running…" : "Run all tests"}
-        </button>
+        </Button>
       </div>
 
       {sections.map(({ label, hint, btn, result, run }, i) => (

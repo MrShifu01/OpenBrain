@@ -4,6 +4,8 @@
  * own props — no shared state with the parent.
  */
 
+import { Button } from "../ui/button";
+
 export function IconBtn({
   children,
   label,
@@ -16,25 +18,17 @@ export function IconBtn({
   danger?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
       aria-label={label}
       title={label}
       onClick={onClick}
-      style={{
-        width: 30,
-        height: 30,
-        border: "1px solid var(--line-soft)",
-        borderRadius: 6,
-        background: "transparent",
-        color: danger ? "var(--blood)" : "var(--ink-faint)",
-        cursor: "pointer",
-        fontSize: 14,
-        lineHeight: 1,
-      }}
+      variant="outline"
+      size="icon-xs"
+      style={{ color: danger ? "var(--blood)" : "var(--ink-faint)" }}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 

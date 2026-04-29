@@ -4,6 +4,7 @@ import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import MemoryImportPanel from "./MemoryImportPanel";
 import { supabase } from "../lib/supabase";
+import { Button } from "./ui/button";
 
 interface OnboardingModalProps {
   onComplete: (
@@ -223,21 +224,15 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 />
               ))}
             </div>
-            <button
+            <Button
+              variant="link"
+              size="xs"
               onClick={skip}
-              className="f-sans press"
-              style={{
-                fontSize: 12,
-                color: "var(--ink-faint)",
-                background: "transparent",
-                border: 0,
-                padding: 0,
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
+              className="h-auto shrink-0 p-0"
+              style={{ color: "var(--ink-faint)" }}
             >
               Skip
-            </button>
+            </Button>
           </div>
 
           {step === "welcome" && (
@@ -247,13 +242,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
               </div>
               <h2 style={titleSerif}>welcome in.</h2>
               <p style={subtitleSerif}>let's get you a room.</p>
-              <button
-                onClick={() => setStep("name")}
-                className="design-btn-primary press"
-                style={{ width: "100%", height: 44, minHeight: 44 }}
-              >
+              <Button onClick={() => setStep("name")} size="lg" className="w-full">
                 begin
-              </button>
+              </Button>
             </div>
           )}
 
@@ -291,24 +282,19 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
-                <button
-                  onClick={() => setStep("welcome")}
-                  className="design-btn-ghost press"
-                  style={{ fontSize: 13 }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setStep("welcome")}>
                   back
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
                   onClick={() => {
                     if (userName.trim())
                       supabase.auth.updateUser({ data: { display_name: userName.trim() } });
                     setStep("capture");
                   }}
-                  className="design-btn-primary press"
-                  style={{ fontSize: 14 }}
                 >
                   {userName.trim() ? "next" : "skip"}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -347,20 +333,12 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
-                <button
-                  onClick={() => setStep("name")}
-                  className="design-btn-ghost press"
-                  style={{ fontSize: 13 }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setStep("name")}>
                   back
-                </button>
-                <button
-                  onClick={handleBulkCapture}
-                  disabled={!thoughts.trim()}
-                  className="design-btn-primary press"
-                >
+                </Button>
+                <Button onClick={handleBulkCapture} disabled={!thoughts.trim()}>
                   teach my brain
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -425,20 +403,12 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 }}
               />
               <div style={{ display: "flex", justifyContent: "space-between", marginTop: 32 }}>
-                <button
-                  onClick={() => setStep("capture")}
-                  className="design-btn-ghost press"
-                  style={{ fontSize: 13 }}
-                >
+                <Button variant="ghost" size="sm" onClick={() => setStep("capture")}>
                   back
-                </button>
-                <button
-                  onClick={handleQuery}
-                  disabled={!query.trim()}
-                  className="design-btn-primary press"
-                >
+                </Button>
+                <Button onClick={handleQuery} disabled={!query.trim()}>
                   ask my brain
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -494,13 +464,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                   >
                     {aiResponse}
                   </p>
-                  <button
-                    onClick={() => setStep("celebration")}
-                    className="design-btn-primary press"
-                    style={{ width: "100%", height: 44, minHeight: 44, marginTop: 32 }}
-                  >
+                  <Button onClick={() => setStep("celebration")} size="lg" className="mt-8 w-full">
                     continue
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -513,13 +479,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
               </div>
               <h2 style={titleSerif}>that's your brain working.</h2>
               <p style={subtitleSerif}>imagine what it can do with six months of data.</p>
-              <button
-                onClick={() => setStep("import")}
-                className="design-btn-primary press"
-                style={{ width: "100%", height: 44, minHeight: 44 }}
-              >
+              <Button onClick={() => setStep("import")} size="lg" className="w-full">
                 start exploring
-              </button>
+              </Button>
             </div>
           )}
 
@@ -534,13 +496,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 settings.
               </p>
               <MemoryImportPanel brainId={brainId} onImported={() => finish()} />
-              <button
-                onClick={finish}
-                className="design-btn-ghost press"
-                style={{ width: "100%", marginTop: 16, fontSize: 13 }}
-              >
+              <Button variant="ghost" size="sm" onClick={finish} className="mt-4 w-full">
                 i'll do this later
-              </button>
+              </Button>
             </div>
           )}
         </div>

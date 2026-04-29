@@ -12,6 +12,7 @@ import {
   EnrichingDot,
   EnrichFlagChips,
 } from "./EntryListBits";
+import { Button } from "./ui/button";
 
 // Cheap sync admin check — used to gate the diagnostic flag chips on entry
 // cards. The async source of truth lives in useAdminDevMode; this reads the
@@ -376,44 +377,30 @@ const EntryCard = memo(function EntryCard({
             }}
           >
             {onPin && (
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={(ev) => {
                   ev.stopPropagation();
                   onPin(e);
                 }}
                 aria-label={isPinned ? "Unpin" : "Pin"}
-                className="design-btn-ghost press"
-                style={{ fontSize: 12, height: 28, minHeight: 28, padding: "0 8px" }}
               >
                 {IconPin}
                 <span>{isPinned ? "Unpin" : "Pin"}</span>
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={(ev) => {
                   ev.stopPropagation();
                   onDelete(e);
                 }}
                 aria-label="Delete"
-                className="entry-card__delete press"
-                style={{
-                  marginLeft: "auto",
-                  fontSize: 12,
-                  height: 28,
-                  minHeight: 28,
-                  padding: "0 8px",
-                  borderRadius: 6,
-                  color: "var(--blood)",
-                  background: "transparent",
-                  border: 0,
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontFamily: "var(--f-sans)",
-                  fontWeight: 500,
-                }}
+                className="entry-card__delete ml-auto"
+                style={{ color: "var(--blood)" }}
               >
                 <svg
                   width="12"
@@ -429,7 +416,7 @@ const EntryCard = memo(function EntryCard({
                   <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
                 </svg>
                 Delete
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -642,13 +629,14 @@ const EntryRow = memo(function EntryRow({
         {(onPin || onDelete) && (
           <div className="flex flex-shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
             {onPin && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={(ev) => {
                   ev.stopPropagation();
                   onPin(e);
                 }}
                 aria-label={isPinned ? "Unpin" : "Pin"}
-                className="press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 <svg
@@ -664,16 +652,18 @@ const EntryRow = memo(function EntryRow({
                     d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
                   />
                 </svg>
-              </button>
+              </Button>
             )}
             {onDelete && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={(ev) => {
                   ev.stopPropagation();
                   onDelete(e);
                 }}
                 aria-label="Delete"
-                className="entry-card__delete press-scale rounded-lg p-1.5 transition-colors hover:bg-white/10"
+                className="entry-card__delete"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 <svg
@@ -689,7 +679,7 @@ const EntryRow = memo(function EntryRow({
                     d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
                   />
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
         )}

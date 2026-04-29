@@ -4,6 +4,7 @@ import { cn } from "../lib/cn";
 import { TOOL_LABELS, firstPhone, firstEmail, renderMarkdown } from "./chatUtils";
 import AdminDebugPanel from "./ChatDebugPanel";
 import { useAdminPrefs } from "../lib/adminPrefs";
+import { Button } from "../components/ui/button";
 
 const IconCopy = (
   <svg
@@ -319,40 +320,39 @@ export default function ChatMessageList({
                             <li key={s.id}>{s.title}</li>
                           ))}
                         </ul>
-                        <button
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={onOpenVault}
-                          className="press"
-                          style={{
-                            ...actionBtnStyle("var(--ink)"),
-                            alignSelf: "flex-start",
-                            borderColor: "var(--line)",
-                          }}
+                          className="self-start"
                         >
                           {IconLock} Open Vault
-                        </button>
+                        </Button>
                       </div>
                     );
                   })()}
 
                   <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap" }}>
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => onCopy(msg.content, i)}
-                      className="press"
                       aria-label="Copy response"
-                      style={actionBtnStyle(copiedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
+                      style={{ color: copiedIdx === i ? "var(--moss)" : "var(--ink-faint)" }}
                     >
                       {copiedIdx === i ? IconCheck : IconCopy}
                       {copiedIdx === i ? "copied" : "copy"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => onShare(msg.content, i)}
-                      className="press"
                       aria-label="Share response"
-                      style={actionBtnStyle(sharedIdx === i ? "var(--moss)" : "var(--ink-faint)")}
+                      style={{ color: sharedIdx === i ? "var(--moss)" : "var(--ink-faint)" }}
                     >
                       {sharedIdx === i ? IconCheck : IconShare}
                       {sharedIdx === i ? "shared" : "share"}
-                    </button>
+                    </Button>
                     {phone && (
                       <a
                         href={`tel:+${phone}`}
@@ -444,32 +444,12 @@ export default function ChatMessageList({
               {pendingAction.label}
             </p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button
-                onClick={onConfirm}
-                className="press"
-                style={{
-                  flex: 1,
-                  height: 36,
-                  minHeight: 36,
-                  background: "var(--blood)",
-                  color: "var(--ember-ink)",
-                  borderRadius: 8,
-                  border: 0,
-                  fontFamily: "var(--f-sans)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                }}
-              >
+              <Button variant="destructive" onClick={onConfirm} className="flex-1">
                 Confirm
-              </button>
-              <button
-                onClick={onCancel}
-                className="design-btn-secondary press"
-                style={{ flex: 1, height: 36, minHeight: 36 }}
-              >
+              </Button>
+              <Button variant="outline" onClick={onCancel} className="flex-1">
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}

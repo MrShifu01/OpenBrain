@@ -1,4 +1,5 @@
 import { IconArrowLeft } from "./captureIcons";
+import { Button } from "./ui/button";
 
 export interface SecretForm {
   title: string;
@@ -52,14 +53,9 @@ export default function CaptureSecretPanel({
             encrypted on your device. AI never reads this.
           </p>
         </div>
-        <button
-          className="design-btn-ghost press"
-          onClick={onBack}
-          style={{ width: 32, height: 32, minHeight: 32, padding: 0 }}
-          aria-label="Back to entry"
-        >
+        <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label="Back to entry">
           {IconArrowLeft}
-        </button>
+        </Button>
       </div>
 
       <div>
@@ -114,17 +110,16 @@ export default function CaptureSecretPanel({
           borderTop: "1px solid var(--line-soft)",
         }}
       >
-        <button onClick={onBack} className="design-btn-secondary press" style={{ flex: 1 }}>
+        <Button onClick={onBack} variant="outline" className="flex-1">
           Back
-        </button>
-        <button
+        </Button>
+        <Button
           disabled={!form.title.trim() || !form.content.trim() || saving}
           onClick={onSave}
-          className="design-btn-primary press"
-          style={{ flex: 2 }}
+          className="flex-[2]"
         >
           {saving ? "Saving…" : "Save to vault"}
-        </button>
+        </Button>
       </div>
     </div>
   );

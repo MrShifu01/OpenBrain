@@ -5,6 +5,7 @@ import { isDone } from "./todoUtils";
 import { recordCompletion } from "../lib/karma";
 import type { Entry } from "../types";
 import type { useEntries } from "../context/EntriesContext";
+import { Button } from "../components/ui/button";
 
 type Ctx = ReturnType<typeof useEntries>;
 
@@ -189,19 +190,21 @@ export default function TodoRowItem({
         }}
       >
         {/* Checkbox */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={(e) => {
             e.stopPropagation();
             toggleDone();
           }}
-          className="flex shrink-0 items-center justify-center rounded-full border-2 transition-all"
+          className="shrink-0 rounded-full border-2 transition-all"
           style={{
             width: 20,
             height: 20,
             minWidth: 20,
+            padding: 0,
             borderColor: done ? "var(--ember)" : "var(--line)",
             background: done ? "var(--ember)" : "transparent",
-            cursor: "pointer",
           }}
           aria-label={done ? "Mark incomplete" : "Mark done"}
         >
@@ -216,7 +219,7 @@ export default function TodoRowItem({
               />
             </svg>
           )}
-        </button>
+        </Button>
 
         {/* Priority dot */}
         {priority && (
@@ -300,35 +303,30 @@ export default function TodoRowItem({
             background: "var(--surface)",
           }}
         >
-          <button
+          <Button
+            size="xs"
             onClick={bumpDueDate}
             style={{
               background: "var(--ember)",
               color: "var(--ember-ink)",
               borderRadius: 8,
-              padding: "4px 12px",
-              fontSize: 12,
               fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
             }}
           >
             +1 day
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setSwipeState("idle")}
             style={{
               background: "var(--surface-high)",
               color: "var(--ink-soft)",
               borderRadius: 8,
-              padding: "4px 10px",
-              fontSize: 12,
-              border: "none",
-              cursor: "pointer",
             }}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
     </div>

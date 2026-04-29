@@ -13,6 +13,7 @@
 // instead of a full re-implementation.
 
 import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
+import { Button } from "../ui/button";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import type { ImportEntry, Parser } from "../../lib/imports/types";
@@ -369,21 +370,15 @@ export default function BulkImportPanel({
         >
           A previous {label} import was interrupted at {resume.importedCount} / {resume.totalCount}.
           Re-uploading the same archive resumes safely (duplicates dropped automatically).{" "}
-          <button
+          <Button
+            variant="link"
+            size="xs"
             onClick={handleClearResume}
-            style={{
-              background: "transparent",
-              border: 0,
-              color: "var(--ink-soft)",
-              textDecoration: "underline",
-              cursor: "pointer",
-              padding: 0,
-              fontFamily: "inherit",
-              fontSize: "inherit",
-            }}
+            className="h-auto px-0 text-inherit"
+            style={{ color: "var(--ink-soft)" }}
           >
             dismiss
-          </button>
+          </Button>
         </div>
       )}
     </div>

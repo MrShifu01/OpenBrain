@@ -1,6 +1,7 @@
 import { useGraph } from "../hooks/useGraph";
 import GraphCanvas from "../components/graph/GraphCanvas";
 import type { Entry } from "../types";
+import { Button } from "../components/ui/button";
 
 interface GraphViewProps {
   openEntry?: (e: Entry) => void;
@@ -194,11 +195,12 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                   </div>
                 )}
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setSelected(null)}
                 aria-label="Close"
-                className="design-btn-ghost press"
-                style={{ width: 32, height: 32, minHeight: 32, padding: 0, flexShrink: 0 }}
+                className="shrink-0"
               >
                 <svg
                   width="14"
@@ -213,7 +215,7 @@ export default function GraphView({ openEntry }: GraphViewProps) {
                 >
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
-              </button>
+              </Button>
             </div>
 
             {/* Rail body — scrollable */}
@@ -247,13 +249,13 @@ export default function GraphView({ openEntry }: GraphViewProps) {
             {/* Rail footer */}
             {openEntry && (
               <div style={{ padding: "16px 24px", borderTop: "1px solid var(--line-soft)" }}>
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => openEntry(selectedEntry)}
-                  className="design-btn-secondary press"
-                  style={{ width: "100%" }}
+                  className="w-full"
                 >
                   Open entry
-                </button>
+                </Button>
               </div>
             )}
           </aside>

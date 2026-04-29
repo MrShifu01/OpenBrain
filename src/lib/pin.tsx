@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getUserId } from "./aiSettings";
 import { authFetch } from "./authFetch";
+import { Button } from "../components/ui/button";
 
 type PinStep = "enter" | "create" | "confirm" | "migrate";
 
@@ -325,37 +326,31 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
           </p>
 
           <div className="mt-4 flex gap-2">
-            <button
+            <Button
+              variant="outline"
               onClick={onCancel}
               style={{
                 flex: 1,
-                cursor: "pointer",
                 borderRadius: 10,
-                border: "1px solid var(--color-outline-variant)",
+                borderColor: "var(--color-outline-variant)",
                 background: "var(--color-surface-dim)",
                 color: "var(--color-on-surface-variant)",
-                padding: 11,
-                fontSize: 13,
               }}
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={handleSubmit}
               style={{
                 flex: 1,
-                cursor: "pointer",
                 borderRadius: 10,
-                border: "none",
-                padding: 11,
-                fontSize: 13,
                 fontWeight: 700,
                 background: "var(--color-primary)",
                 color: "var(--color-on-primary)",
               }}
             >
               {btnLabel[step]}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

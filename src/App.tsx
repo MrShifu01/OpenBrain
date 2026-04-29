@@ -9,6 +9,7 @@ import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
+import { Button } from "./components/ui/button";
 import type { Session } from "@supabase/auth-js";
 
 // Heavy code paths a first-paint visitor almost never hits — keep them out
@@ -228,7 +229,7 @@ function AppMain(): JSX.Element {
                 outline: "none",
               }}
             />
-            <button
+            <Button
               onClick={() => {
                 if (earlyCaptureText.trim()) {
                   localStorage.setItem("ob_pending_capture", earlyCaptureText.trim());
@@ -240,23 +241,22 @@ function AppMain(): JSX.Element {
                 marginTop: 12,
                 height: 48,
                 borderRadius: 12,
-                border: "none",
                 background: "var(--color-primary)",
                 color: "var(--color-on-primary)",
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: "pointer",
                 fontFamily: "var(--f-sans)",
               }}
             >
               {earlyCaptureText.trim() ? "Save & continue" : "Cancel"}
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
+          <Button
+            size="icon-lg"
             onClick={() => setEarlyCapture(true)}
             aria-label="New entry"
-            className="press-scale fixed bottom-5 left-1/2 z-[60] flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full lg:hidden"
+            className="press-scale fixed bottom-5 left-1/2 z-[60] h-14 w-14 -translate-x-1/2 rounded-full lg:hidden"
             style={{
               background: "var(--color-primary)",
               color: "var(--color-on-primary)",
@@ -277,7 +277,7 @@ function AppMain(): JSX.Element {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-          </button>
+          </Button>
         )}
       </ThemeProvider>
     );

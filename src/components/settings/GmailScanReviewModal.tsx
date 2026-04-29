@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { authFetch } from "../../lib/authFetch";
+import { Button } from "../ui/button";
 
 export interface ScanResultItem {
   entryId: string;
@@ -207,23 +208,9 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
               ? `${rulesAdded} exclusion rule${rulesAdded !== 1 ? "s" : ""} added — future scans will be smarter.`
               : "No changes made — your preferences are unchanged."}
           </p>
-          <button
-            onClick={onClose}
-            className="press f-sans"
-            style={{
-              width: "100%",
-              height: 44,
-              borderRadius: 10,
-              border: "none",
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          <Button onClick={onClose} size="lg" className="w-full">
             Done
-          </button>
+          </Button>
         </div>
       </div>,
       document.body,
@@ -271,32 +258,19 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
             {index + 1} of {capped.length}
           </p>
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="icon-sm"
           onClick={onClose}
-          className="f-sans"
-          style={{
-            width: 32,
-            height: 32,
-            minWidth: 32,
-            minHeight: 32,
-            borderRadius: "50%",
-            border: "1px solid oklch(94% 0.01 55 / 0.18)",
-            background: "transparent",
-            color: "oklch(94% 0.01 55 / 0.55)",
-            fontSize: 13,
-            padding: 0,
-            lineHeight: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            flexShrink: 0,
-            aspectRatio: "1",
-          }}
           aria-label="Close"
+          className="rounded-full"
+          style={{
+            borderColor: "oklch(94% 0.01 55 / 0.18)",
+            color: "oklch(94% 0.01 55 / 0.55)",
+          }}
         >
           ✕
-        </button>
+        </Button>
       </div>
 
       {/* Progress bar */}
@@ -418,46 +392,29 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
           padding: "16px 16px 36px",
         }}
       >
-        <button
+        <Button
           onClick={() => triggerReject(index)}
           disabled={!!exiting}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 48,
-            borderRadius: 10,
-            border: "1px solid oklch(94% 0.01 55 / 0.18)",
-            background: "transparent",
-            color: "oklch(94% 0.01 55 / 0.65)",
-            fontSize: 14,
-            fontWeight: 500,
-            cursor: "pointer",
-            letterSpacing: "0.01em",
-          }}
+          variant="outline"
+          size="lg"
+          className="flex-1"
           aria-label="Discard"
+          style={{
+            borderColor: "oklch(94% 0.01 55 / 0.18)",
+            color: "oklch(94% 0.01 55 / 0.65)",
+          }}
         >
           ← Discard
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={() => triggerAccept(index)}
           disabled={!!exiting}
-          className="press f-sans"
-          style={{
-            flex: 1,
-            height: 48,
-            borderRadius: 10,
-            border: "none",
-            background: "var(--ember)",
-            color: "var(--ember-ink)",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            letterSpacing: "0.01em",
-          }}
+          size="lg"
+          className="flex-1"
           aria-label="Keep"
         >
           Keep →
-        </button>
+        </Button>
       </div>
     </div>,
     document.body,

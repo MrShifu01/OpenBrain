@@ -3,6 +3,7 @@ import { authFetch } from "../../lib/authFetch";
 import { entryRepo } from "../../lib/entryRepo";
 import type { Brain } from "../../types";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
+import { Button } from "../ui/button";
 
 const DELETE_BRAIN_CONFIRM_WINDOW_MS = 5000;
 
@@ -184,13 +185,9 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
                   </p>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4 }}>
-                  <button
-                    className="design-btn-primary press"
-                    style={{ width: "100%" }}
-                    onClick={handleExportThenDelete}
-                  >
+                  <Button className="w-full" onClick={handleExportThenDelete}>
                     Export then delete
-                  </button>
+                  </Button>
                   <SettingsButton danger onClick={handleDeleteOnly}>
                     Delete without export
                   </SettingsButton>

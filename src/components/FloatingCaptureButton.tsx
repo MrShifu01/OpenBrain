@@ -1,3 +1,5 @@
+import { Button } from "./ui/button";
+
 interface FloatingCaptureButtonProps {
   onClick: () => void;
 }
@@ -7,22 +9,20 @@ interface FloatingCaptureButtonProps {
 export default function FloatingCaptureButton({ onClick }: FloatingCaptureButtonProps) {
   const mod = /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘" : "Ctrl";
   return (
-    <button
+    <Button
       onClick={onClick}
       aria-label="Capture something"
       title="Capture (Ctrl+K)"
-      className="press fixed right-6 bottom-8 z-40 hidden items-center gap-2 lg:flex"
+      variant="outline"
+      size="lg"
+      className="fixed right-6 bottom-8 z-40 hidden rounded-[28px] lg:flex"
       style={{
-        height: 44,
-        minHeight: 44,
-        padding: "0 10px 0 18px",
-        borderRadius: 28,
         background: "var(--surface-high)",
-        border: "1px solid var(--line)",
+        borderColor: "var(--line)",
         color: "var(--ink-soft)",
         boxShadow: "var(--lift-2)",
-        fontFamily: "var(--f-sans)",
-        fontSize: 14,
+        paddingLeft: 18,
+        paddingRight: 10,
       }}
     >
       <svg
@@ -60,6 +60,6 @@ export default function FloatingCaptureButton({ onClick }: FloatingCaptureButton
       >
         {mod}K
       </span>
-    </button>
+    </Button>
   );
 }

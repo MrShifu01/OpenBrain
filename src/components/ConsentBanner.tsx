@@ -1,3 +1,5 @@
+import { Button } from "./ui/button";
+
 const CONSENT_KEY = "everion_analytics_consent";
 
 export function getConsentDecision(): "accepted" | "declined" | null {
@@ -53,23 +55,24 @@ export function ConsentBanner({ onDecision }: ConsentBannerProps) {
         </a>
       </p>
       <div className="flex shrink-0 gap-2">
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => decide("declined")}
-          className="rounded-lg px-4 py-2 text-sm font-medium"
           style={{
             background: "var(--color-surface-container)",
             color: "var(--color-on-surface-variant)",
           }}
         >
           Decline
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
           onClick={() => decide("accepted")}
-          className="rounded-lg px-4 py-2 text-sm font-medium"
           style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
         >
           Accept
-        </button>
+        </Button>
       </div>
     </div>
   );

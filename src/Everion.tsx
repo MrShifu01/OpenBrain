@@ -34,6 +34,9 @@ import OmniSearch from "./components/OmniSearch";
 import SettingsView from "./views/SettingsView";
 const GraphView = lazy(() => import("./views/GraphView"));
 import FloatingCaptureButton from "./components/FloatingCaptureButton";
+import { Button } from "./components/ui/button";
+import { TooltipProvider } from "./components/ui/tooltip";
+import { Toaster } from "./components/ui/sonner";
 import MemoryHeader from "./MemoryHeader";
 import CaptureWelcomeScreen from "./CaptureWelcomeScreen";
 import ErrorBoundary from "./ErrorBoundary";
@@ -364,12 +367,14 @@ function EverionContent({
               <span className="text-error flex-1 text-sm">
                 {failedOps.length} operation{failedOps.length > 1 ? "s" : ""} failed to sync
               </span>
-              <button
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => clearFailedOps()}
                 className="text-on-surface-variant hover:text-on-surface press-scale text-xs"
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           )}
 
@@ -494,13 +499,13 @@ function EverionContent({
                           A name, a thought, a link, a voice note. Everion organises and surfaces it
                           later when it matters.
                         </p>
-                        <button
+                        <Button
                           onClick={() => appShell.setShowCapture(true)}
-                          className="design-btn-primary press"
+                          className="press"
                           style={{ marginTop: 8 }}
                         >
                           Capture a thought
-                        </button>
+                        </Button>
                       </div>
                     ) : filtered.length > 0 ? (
                       <>
@@ -546,13 +551,14 @@ function EverionContent({
                         >
                           try a looser word. or a feeling.
                         </p>
-                        <button
+                        <Button
+                          variant="outline"
                           onClick={() => appShell.setShowCapture(true)}
-                          className="design-btn-secondary press"
+                          className="press"
                           style={{ marginTop: 8 }}
                         >
                           Capture something new
-                        </button>
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -739,12 +745,15 @@ function EverionContent({
               }}
             >
               <span className="text-on-surface flex-1 text-sm">{saveError}</span>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setSaveError(null)}
+                aria-label="Dismiss"
                 className="text-on-surface-variant hover:text-on-surface press-scale"
               >
                 ×
-              </button>
+              </Button>
             </div>
           )}
 
@@ -1005,10 +1014,11 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     return (
       <>
         <LoadingScreen />
-        <button
+        <Button
+          size="icon-lg"
           onClick={() => appShell.setShowCapture(true)}
           aria-label="New entry"
-          className="press-scale fixed bottom-5 left-1/2 z-[60] flex h-14 w-14 -translate-x-1/2 items-center justify-center rounded-full lg:hidden"
+          className="press-scale fixed bottom-5 left-1/2 z-[60] h-14 w-14 -translate-x-1/2 rounded-full lg:hidden"
           style={{
             background: "var(--color-primary)",
             color: "var(--color-on-primary)",
@@ -1029,7 +1039,7 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-        </button>
+        </Button>
       </>
     );
 
@@ -1038,37 +1048,40 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
       <BrainContext.Provider value={brainValue}>
         <ConceptGraphProvider activeBrainId={activeBrain?.id}>
           <BackgroundOpsProvider>
-            <EverionContent
-              appShell={appShell}
-              cryptoKey={dataLayer.cryptoKey}
-              handleVaultUnlock={dataLayer.handleVaultUnlock}
-              handleCreated={dataLayer.handleCreated}
-              handleCreatedBulk={dataLayer.handleCreatedBulk}
-              lastAction={dataLayer.lastAction}
-              setLastAction={dataLayer.setLastAction}
-              saveError={dataLayer.saveError}
-              setSaveError={dataLayer.setSaveError}
-              handleUndo={dataLayer.handleUndo}
-              commitPendingDelete={dataLayer.commitPendingDelete}
-              setEntries={dataLayer.setEntries}
-              isOnline={isOnline}
-              pendingCount={pendingCount}
-              failedOps={failedOps}
-              clearFailedOps={clearFailedOps}
-              canWrite={canWrite}
-              nudge={nudge}
-              setNudge={setNudge}
-              bgTasks={bgTasks}
-              bgProcessFiles={bgProcessFiles}
-              bgQueueDirectSave={bgQueueDirectSave}
-              bgDismissTask={bgDismissTask}
-              bgDismissAll={bgDismissAll}
-              filtered={filtered}
-              sortedTimeline={sortedTimeline}
-              availableEntryTypes={availableEntryTypes}
-              vaultEntries={dataLayer.vaultEntries}
-              loadError={dataLayer.loadError}
-            />
+            <TooltipProvider delayDuration={400}>
+              <Toaster position="bottom-center" />
+              <EverionContent
+                appShell={appShell}
+                cryptoKey={dataLayer.cryptoKey}
+                handleVaultUnlock={dataLayer.handleVaultUnlock}
+                handleCreated={dataLayer.handleCreated}
+                handleCreatedBulk={dataLayer.handleCreatedBulk}
+                lastAction={dataLayer.lastAction}
+                setLastAction={dataLayer.setLastAction}
+                saveError={dataLayer.saveError}
+                setSaveError={dataLayer.setSaveError}
+                handleUndo={dataLayer.handleUndo}
+                commitPendingDelete={dataLayer.commitPendingDelete}
+                setEntries={dataLayer.setEntries}
+                isOnline={isOnline}
+                pendingCount={pendingCount}
+                failedOps={failedOps}
+                clearFailedOps={clearFailedOps}
+                canWrite={canWrite}
+                nudge={nudge}
+                setNudge={setNudge}
+                bgTasks={bgTasks}
+                bgProcessFiles={bgProcessFiles}
+                bgQueueDirectSave={bgQueueDirectSave}
+                bgDismissTask={bgDismissTask}
+                bgDismissAll={bgDismissAll}
+                filtered={filtered}
+                sortedTimeline={sortedTimeline}
+                availableEntryTypes={availableEntryTypes}
+                vaultEntries={dataLayer.vaultEntries}
+                loadError={dataLayer.loadError}
+              />
+            </TooltipProvider>
           </BackgroundOpsProvider>
         </ConceptGraphProvider>
       </BrainContext.Provider>

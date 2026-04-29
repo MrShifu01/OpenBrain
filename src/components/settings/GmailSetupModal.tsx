@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "../ui/button";
 
 interface GmailPreferences {
   categories: string[];
@@ -257,28 +258,18 @@ export default function GmailSetupModal({
                   </span>
                 )}
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setCustomDraft(custom);
                   setCustomOpen(true);
                 }}
-                className="press f-sans"
-                style={{
-                  flexShrink: 0,
-                  height: 28,
-                  padding: "0 12px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  background: "var(--surface-high)",
-                  color: "var(--ink-soft)",
-                  border: "1px solid var(--line-soft)",
-                  cursor: "pointer",
-                }}
+                variant="outline"
+                size="xs"
+                className="shrink-0"
               >
                 Edit
-              </button>
+              </Button>
             </div>
           ) : (
             <div style={{ padding: "10px 0 8px" }}>
@@ -304,45 +295,26 @@ export default function GmailSetupModal({
                 }}
               />
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button
+                <Button
                   type="button"
                   onClick={() => setCustomOpen(false)}
-                  className="press f-sans"
-                  style={{
-                    flex: 1,
-                    height: 36,
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 500,
-                    background: "var(--surface)",
-                    color: "var(--ink-soft)",
-                    border: "1px solid var(--line-soft)",
-                    cursor: "pointer",
-                  }}
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => {
                     setCustom(customDraft);
                     setCustomOpen(false);
                   }}
-                  className="press f-sans"
-                  style={{
-                    flex: 2,
-                    height: 36,
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    background: "var(--ember)",
-                    color: "var(--ember-ink)",
-                    border: "none",
-                    cursor: "pointer",
-                  }}
+                  size="sm"
+                  className="flex-[2]"
                 >
                   Save
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -361,26 +333,21 @@ export default function GmailSetupModal({
               const label = d === 1 ? "1 day" : d === 7 ? "1 week" : "1 month";
               const active = lookbackDays === d;
               return (
-                <button
+                <Button
                   key={d}
                   type="button"
                   onClick={() => setLookbackDays(d)}
-                  className="press f-sans"
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                   style={{
-                    flex: 1,
-                    height: 34,
-                    borderRadius: 8,
-                    border: `1px solid ${active ? "var(--ember)" : "var(--line-soft)"}`,
+                    borderColor: active ? "var(--ember)" : "var(--line-soft)",
                     background: active ? "var(--ember-wash)" : "var(--surface)",
                     color: active ? "var(--ember)" : "var(--ink-soft)",
-                    fontSize: 13,
-                    fontWeight: active ? 600 : 400,
-                    cursor: "pointer",
-                    transition: "background 150ms, border-color 150ms, color 150ms",
                   }}
                 >
                   {label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -388,43 +355,12 @@ export default function GmailSetupModal({
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={onClose}
-            className="press f-sans"
-            style={{
-              flex: 1,
-              height: 40,
-              borderRadius: 10,
-              border: "1px solid var(--line-soft)",
-              background: "var(--surface)",
-              color: "var(--ink-soft)",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-          >
+          <Button onClick={onClose} variant="outline" className="flex-1">
             Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving}
-            className="press f-sans"
-            style={{
-              flex: 2,
-              height: 40,
-              borderRadius: 10,
-              border: "none",
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: saving ? "not-allowed" : "pointer",
-              opacity: saving ? 0.7 : 1,
-              transition: "background 180ms",
-            }}
-          >
+          </Button>
+          <Button onClick={handleSubmit} disabled={saving} className="flex-[2]">
             {saving ? "Saving…" : mode === "connect" ? "Connect Gmail" : "Save preferences"}
-          </button>
+          </Button>
         </div>
 
         {mode === "connect" && (

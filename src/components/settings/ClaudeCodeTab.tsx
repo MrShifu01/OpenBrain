@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
+import { Button } from "../ui/button";
 
 interface ApiKey {
   id: string;
@@ -207,34 +208,12 @@ export default function ClaudeCodeTab() {
                 color: "var(--ink)",
               }}
             />
-            <button
-              onClick={() => setShowKey((s) => !s)}
-              style={{
-                fontSize: 12,
-                padding: "4px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--line)",
-                background: "var(--surface)",
-                cursor: "pointer",
-                color: "var(--ink-soft)",
-              }}
-            >
+            <Button variant="outline" size="xs" onClick={() => setShowKey((s) => !s)}>
               {showKey ? "Hide" : "Show"}
-            </button>
-            <button
-              onClick={copyKey}
-              style={{
-                fontSize: 12,
-                padding: "4px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--line)",
-                background: "var(--surface)",
-                cursor: "pointer",
-                color: "var(--ink-soft)",
-              }}
-            >
+            </Button>
+            <Button variant="outline" size="xs" onClick={copyKey}>
               {copied ? "Copied!" : "Copy"}
-            </button>
+            </Button>
           </div>
           <div className="space-y-1">
             <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
@@ -250,7 +229,14 @@ export default function ClaudeCodeTab() {
               >
                 https://everion.smashburgerbar.co.za/v1/
               </code>
-              <button
+              <Button
+                size="xs"
+                variant="ghost"
+                className="shrink-0"
+                style={{
+                  background: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
+                }}
                 onClick={() => {
                   navigator.clipboard
                     .writeText("https://everion.smashburgerbar.co.za/v1/")
@@ -259,14 +245,9 @@ export default function ClaudeCodeTab() {
                       setTimeout(() => setCopiedSnippet(null), 2000);
                     });
                 }}
-                className="press-scale flex-shrink-0 rounded-lg px-3 py-2 text-xs font-semibold transition-all"
-                style={{
-                  background: "var(--color-primary-container)",
-                  color: "var(--color-on-primary-container)",
-                }}
               >
                 {copiedSnippet === "url" ? "Copied!" : "Copy"}
-              </button>
+              </Button>
             </div>
           </div>
           <div className="space-y-1">
@@ -291,7 +272,14 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorizatio
 
 When I share new facts worth remembering, save them without being asked:
 curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`}</pre>
-              <button
+              <Button
+                size="xs"
+                variant="ghost"
+                className="absolute top-2 right-2"
+                style={{
+                  background: "var(--color-primary-container)",
+                  color: "var(--color-on-primary-container)",
+                }}
                 onClick={() => {
                   const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer ${revealedKey.key}" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`;
                   navigator.clipboard.writeText(prompt).then(() => {
@@ -299,23 +287,20 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                     setTimeout(() => setCopiedSnippet(null), 2000);
                   });
                 }}
-                className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                style={{
-                  background: "var(--color-primary-container)",
-                  color: "var(--color-on-primary-container)",
-                }}
               >
                 {copiedSnippet === "claude-md" ? "✓" : "Copy"}
-              </button>
+              </Button>
             </div>
           </div>
-          <button
+          <Button
+            variant="link"
+            size="xs"
             onClick={() => setRevealedKey(null)}
-            className="text-xs underline"
+            className="px-0"
             style={{ color: "var(--color-on-surface-variant)" }}
           >
             Done
-          </button>
+          </Button>
         </div>
       )}
 
@@ -430,21 +415,23 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                       >
                         {curl}
                       </pre>
-                      <button
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        className="absolute top-2 right-2"
+                        style={{
+                          background: "var(--color-primary-container)",
+                          color: "var(--color-on-primary-container)",
+                        }}
                         onClick={() => {
                           navigator.clipboard.writeText(curl).then(() => {
                             setCopiedSnippet(id);
                             setTimeout(() => setCopiedSnippet(null), 2000);
                           });
                         }}
-                        className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                        style={{
-                          background: "var(--color-primary-container)",
-                          color: "var(--color-on-primary-container)",
-                        }}
                       >
                         {copiedSnippet === id ? "✓" : "Copy"}
-                      </button>
+                      </Button>
                     </div>
                     <p
                       className="pl-1 font-mono text-xs opacity-60"
@@ -488,7 +475,14 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorizatio
 
 When I share new facts worth remembering, save them without being asked:
 curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`}</pre>
-                <button
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="absolute top-2 right-2"
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                   onClick={() => {
                     const prompt = `Add the following block to my ~/.claude/CLAUDE.md file (create it if it doesn't exist):\n\n## Everion Memory\n\nMy personal memory system: https://everion.smashburgerbar.co.za\n\nBefore answering questions about my personal life, business, tasks, people, or stored information, search my memory:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/context -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"query": "<relevant topic>", "limit": 8}'\n\nWhen I share new facts worth remembering, save them without being asked:\ncurl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization: Bearer <your_key>" -H "Content-Type: application/json" -d '{"title": "<short title>", "content": "<detail>", "type": "note"}'`;
                     navigator.clipboard.writeText(prompt).then(() => {
@@ -496,14 +490,9 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                       setTimeout(() => setCopiedSnippet(null), 2000);
                     });
                   }}
-                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{
-                    background: "var(--color-primary-container)",
-                    color: "var(--color-on-primary-container)",
-                  }}
                 >
                   {copiedSnippet === "claude-md-guide" ? "✓" : "Copy"}
-                </button>
+                </Button>
               </div>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 Replace <code className="text-xs">&lt;your_key&gt;</code> with your actual{" "}
@@ -532,7 +521,14 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                     color: "var(--color-on-surface)",
                   }}
                 >{`claude mcp add --transport http everionmind https://everion.smashburgerbar.co.za/api/mcp \\\n  -H "Authorization: Bearer <your_key>"`}</pre>
-                <button
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="absolute top-2 right-2"
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                   onClick={() => {
                     navigator.clipboard
                       .writeText(
@@ -543,14 +539,9 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                         setTimeout(() => setCopiedSnippet(null), 2000);
                       });
                   }}
-                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{
-                    background: "var(--color-primary-container)",
-                    color: "var(--color-on-primary-container)",
-                  }}
                 >
                   {copiedSnippet === "mcp-install" ? "✓" : "Copy"}
-                </button>
+                </Button>
               </div>
               <p className="text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
                 Or add manually to{" "}
@@ -575,7 +566,14 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
     }
   }
 }`}</pre>
-                <button
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  className="absolute top-2 right-2"
+                  style={{
+                    background: "var(--color-primary-container)",
+                    color: "var(--color-on-primary-container)",
+                  }}
                   onClick={() => {
                     navigator.clipboard
                       .writeText(
@@ -586,14 +584,9 @@ curl -s -X POST https://everion.smashburgerbar.co.za/v1/ingest -H "Authorization
                         setTimeout(() => setCopiedSnippet(null), 2000);
                       });
                   }}
-                  className="press-scale absolute top-2 right-2 rounded-lg px-2 py-1 text-xs font-semibold transition-all"
-                  style={{
-                    background: "var(--color-primary-container)",
-                    color: "var(--color-on-primary-container)",
-                  }}
                 >
                   {copiedSnippet === "mcp-json" ? "✓" : "Copy"}
-                </button>
+                </Button>
               </div>
             </div>
           </details>

@@ -6,6 +6,7 @@ import { useBrain } from "../../context/BrainContext";
 import { isFeatureEnabled } from "../../lib/featureFlags";
 import { useAdminDevMode } from "../../hooks/useAdminDevMode";
 import CreateBrainModal from "../CreateBrainModal";
+import { Button } from "../ui/button";
 
 const CONCEPT_KEY = "everion:brain:concept_extraction";
 const EMBEDDINGS_KEY = "everion:brain:embeddings";
@@ -183,23 +184,9 @@ function MultiBrainSection({ brains, activeBrain, onChanged }: MultiBrainSection
             header.
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="press"
-          style={{
-            padding: "8px 14px",
-            background: "var(--ember)",
-            border: 0,
-            borderRadius: 8,
-            color: "var(--bg)",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
+        <Button type="button" onClick={() => setCreating(true)} size="sm">
           + New brain
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -276,39 +263,23 @@ function MultiBrainSection({ brains, activeBrain, onChanged }: MultiBrainSection
                     }}
                   />
                   <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setEditingId(null)}
                       disabled={savingId === b.id}
-                      style={{
-                        padding: "5px 10px",
-                        background: "transparent",
-                        border: "1px solid var(--line-soft)",
-                        borderRadius: 6,
-                        color: "var(--ink)",
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
+                      variant="outline"
+                      size="xs"
                     >
                       Cancel
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
                       onClick={() => saveEdit(b)}
                       disabled={!editName.trim() || savingId === b.id}
-                      style={{
-                        padding: "5px 10px",
-                        background: editName.trim() ? "var(--ember)" : "var(--surface)",
-                        border: 0,
-                        borderRadius: 6,
-                        color: editName.trim() ? "var(--bg)" : "var(--ink-faint)",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: editName.trim() ? "pointer" : "not-allowed",
-                      }}
+                      size="xs"
                     >
                       {savingId === b.id ? "Saving…" : "Save"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
@@ -343,43 +314,32 @@ function MultiBrainSection({ brains, activeBrain, onChanged }: MultiBrainSection
                     )}
                   </div>
 
-                  <button
+                  <Button
                     type="button"
                     onClick={() => beginEdit(b)}
                     aria-label="Rename"
-                    className="press"
-                    style={{
-                      padding: "5px 10px",
-                      background: "transparent",
-                      border: "1px solid var(--line-soft)",
-                      borderRadius: 6,
-                      color: "var(--ink-soft)",
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
+                    variant="outline"
+                    size="xs"
                   >
                     Edit
-                  </button>
+                  </Button>
 
                   {!b.is_personal && (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => (isConfirmingDelete ? deleteBrain(b) : setConfirmDelId(b.id))}
                       onBlur={() => isConfirmingDelete && setConfirmDelId(null)}
                       disabled={savingId === b.id}
-                      className="press"
+                      variant="outline"
+                      size="xs"
                       style={{
-                        padding: "5px 10px",
                         background: isConfirmingDelete ? "var(--blood-wash)" : "transparent",
-                        border: `1px solid ${isConfirmingDelete ? "var(--blood)" : "var(--line-soft)"}`,
-                        borderRadius: 6,
+                        borderColor: isConfirmingDelete ? "var(--blood)" : "var(--line-soft)",
                         color: "var(--blood)",
-                        fontSize: 12,
-                        cursor: "pointer",
                       }}
                     >
                       {savingId === b.id ? "Deleting…" : isConfirmingDelete ? "Confirm?" : "Delete"}
-                    </button>
+                    </Button>
                   )}
                 </>
               )}

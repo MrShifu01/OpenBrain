@@ -11,6 +11,7 @@ import {
 } from "./chatUtils";
 import ChatComposer from "./ChatComposer";
 import ChatMessageList from "./ChatMessageList";
+import { Button } from "../components/ui/button";
 
 interface ChatViewProps {
   brainId: string | undefined;
@@ -323,13 +324,9 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
             </span>
           </div>
           {messages.length > 0 && (
-            <button
-              onClick={clearHistory}
-              className="design-btn-ghost press"
-              style={{ fontSize: 13, height: 32, minHeight: 32, padding: "0 12px" }}
-            >
+            <Button variant="ghost" size="sm" onClick={clearHistory}>
               clear
-            </button>
+            </Button>
           )}
         </div>
       </header>
@@ -377,13 +374,9 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
                 >
                   Capture a few thoughts first — chat draws on your own memories, not the open web.
                 </p>
-                <button
-                  onClick={() => onNavigate?.("capture")}
-                  className="design-btn-primary press"
-                  style={{ marginTop: 4 }}
-                >
+                <Button onClick={() => onNavigate?.("capture")} className="mt-1">
                   Capture a thought
-                </button>
+                </Button>
               </div>
             ) : (
               <>

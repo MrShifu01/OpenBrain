@@ -1,6 +1,7 @@
 import React from "react";
 import { extractPhone, toWaUrl } from "../lib/phone";
 import type { Entry } from "../types";
+import { Button } from "./ui/button";
 
 interface EntryQuickActionsProps {
   entry: Entry;
@@ -64,18 +65,9 @@ export function EntryQuickActions({
     }
     if (isSupplier && onReorder) {
       actions.push(
-        <button
-          key="reorder"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-          onClick={() => onReorder(entry)}
-        >
+        <Button key="reorder" variant="outline" size="sm" onClick={() => onReorder(entry)}>
           🔁 Reorder
-        </button>,
+        </Button>,
       );
     }
   }
@@ -83,27 +75,22 @@ export function EntryQuickActions({
   if (entry.type === "reminder") {
     if (entry.metadata?.status !== "done") {
       actions.push(
-        <button
+        <Button
           key="done"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+          size="sm"
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "done" }, importance: 0 })
           }
         >
           ✅ Mark Done
-        </button>,
+        </Button>,
       );
     }
     actions.push(
-      <button
+      <Button
         key="snooze1w"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
+        variant="outline"
+        size="sm"
         onClick={() => {
           const d = new Date(entry.metadata?.due_date || Date.now());
           d.setDate(d.getDate() + 7);
@@ -113,17 +100,13 @@ export function EntryQuickActions({
         }}
       >
         ⏰ +1 week
-      </button>,
+      </Button>,
     );
     actions.push(
-      <button
+      <Button
         key="snooze1m"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
+        variant="outline"
+        size="sm"
         onClick={() => {
           const d = new Date(entry.metadata?.due_date || Date.now());
           d.setMonth(d.getMonth() + 1);
@@ -133,55 +116,46 @@ export function EntryQuickActions({
         }}
       >
         ⏰ +1 month
-      </button>,
+      </Button>,
     );
   }
 
   if (entry.type === "idea") {
     if (entry.metadata?.status !== "in_progress") {
       actions.push(
-        <button
+        <Button
           key="start"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all"
-          style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+          size="sm"
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "in_progress" } })
           }
         >
           🚀 Start this
-        </button>,
+        </Button>,
       );
     }
     if (entry.metadata?.status !== "archived") {
       actions.push(
-        <button
+        <Button
           key="archive"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
+          variant="outline"
+          size="sm"
           onClick={() =>
             onUpdate?.(entry.id, { metadata: { ...entry.metadata, status: "archived" } })
           }
         >
           📦 Archive
-        </button>,
+        </Button>,
       );
     }
   }
 
   if (entry.type === "document" && onReorder) {
     actions.push(
-      <button
+      <Button
         key="renewal"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
+        variant="outline"
+        size="sm"
         onClick={() => onReorder({ ...entry, _renewalMode: true })}
       >
         <svg
@@ -198,20 +172,16 @@ export function EntryQuickActions({
           />
         </svg>{" "}
         Set renewal reminder
-      </button>,
+      </Button>,
     );
   }
 
   if (isSecret && secretRevealed) {
     actions.push(
-      <button
+      <Button
         key="copy-secret"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
+        variant="outline"
+        size="sm"
         onClick={() => {
           navigator.clipboard.writeText(entry.content || "").then(() => {
             onShareMsg("Copied to clipboard");
@@ -220,38 +190,20 @@ export function EntryQuickActions({
         }}
       >
         📋 Copy
-      </button>,
+      </Button>,
     );
     actions.push(
-      <button
-        key="hide-secret"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => onRevealSecret(false)}
-      >
+      <Button key="hide-secret" variant="outline" size="sm" onClick={() => onRevealSecret(false)}>
         👁 Hide
-      </button>,
+      </Button>,
     );
   }
 
   if (!isSecret) {
     actions.push(
-      <button
-        key="share"
-        className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-        style={{
-          background: "var(--color-surface-container)",
-          border: "1px solid var(--color-outline-variant)",
-          color: "var(--color-on-surface-variant)",
-        }}
-        onClick={() => handleShare(entry)}
-      >
+      <Button key="share" variant="outline" size="sm" onClick={() => handleShare(entry)}>
         📤 Share
-      </button>,
+      </Button>,
     );
   }
 

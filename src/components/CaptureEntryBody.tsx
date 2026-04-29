@@ -8,6 +8,7 @@ import {
   IconCamera,
   VoiceWaveform,
 } from "./captureIcons";
+import { Button } from "./ui/button";
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
 
@@ -182,23 +183,16 @@ export default function CaptureEntryBody({
                 >
                   {f.name}
                 </span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => handlers.onRemoveFile(f.name)}
                   aria-label={`Remove ${f.name}`}
-                  style={{
-                    marginLeft: 2,
-                    padding: 0,
-                    minHeight: 16,
-                    background: "transparent",
-                    color: "var(--ink-faint)",
-                    border: 0,
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
+                  className="ml-0.5"
+                  style={{ color: "var(--ink-faint)" }}
                 >
                   {IconX}
-                </button>
+                </Button>
               </span>
             ))}
           </div>
@@ -273,40 +267,24 @@ export default function CaptureEntryBody({
                 {errorDetail ?? "The file is empty or in an unrecognised format."}
               </p>
               <div style={{ display: "flex", gap: 6 }}>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                   onClick={handlers.onRetryFile}
-                  className="press f-sans"
-                  style={{
-                    flex: 1,
-                    height: 30,
-                    borderRadius: 7,
-                    fontSize: 12,
-                    fontWeight: 600,
-                    border: "1px solid var(--blood)",
-                    background: "transparent",
-                    color: "var(--blood)",
-                    cursor: "pointer",
-                  }}
+                  style={{ color: "var(--blood)", borderColor: "var(--blood)" }}
                 >
                   Retry
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
                   onClick={handlers.onManualFill}
-                  className="press f-sans"
-                  style={{
-                    flex: 1,
-                    height: 30,
-                    borderRadius: 7,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    border: "1px solid var(--line)",
-                    background: "transparent",
-                    color: "var(--ink-soft)",
-                    cursor: "pointer",
-                  }}
+                  style={{ color: "var(--ink-soft)" }}
                 >
                   Fill in manually
-                </button>
+                </Button>
               </div>
             </div>
           ) : errorDetail ? (
@@ -338,60 +316,44 @@ export default function CaptureEntryBody({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handlers.onStartVoice}
             disabled={(loading || extracting) && !listening}
             aria-label={listening ? "Stop recording" : "Voice note"}
-            className="design-btn-ghost press"
-            style={{
-              width: 40,
-              height: 40,
-              minHeight: 40,
-              padding: 0,
-              color: listening ? "var(--ember)" : "var(--ink-faint)",
-            }}
+            style={{ color: listening ? "var(--ember)" : "var(--ink-faint)" }}
           >
             <IconMic on={listening} />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => cameraRef.current?.click()}
             disabled={loading || extracting}
             aria-label="Take photo"
-            className="design-btn-ghost press lg:hidden"
-            style={{
-              width: 40,
-              height: 40,
-              minHeight: 40,
-              padding: 0,
-              color: "var(--ink-faint)",
-            }}
+            className="lg:hidden"
+            style={{ color: "var(--ink-faint)" }}
           >
             {IconCamera}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => docRef.current?.click()}
             disabled={loading || extracting}
             aria-label="Attach files"
-            className="design-btn-ghost press"
-            style={{
-              width: 40,
-              height: 40,
-              minHeight: 40,
-              padding: 0,
-              color: "var(--ink-faint)",
-            }}
+            style={{ color: "var(--ink-faint)" }}
           >
             {IconAttach}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={handlers.onToggleVault}
-            className="design-btn-ghost press"
             aria-label="Save to vault"
             aria-pressed={(activeTab as string) === "secret"}
             style={{
-              width: 40,
-              height: 40,
-              minHeight: 40,
               padding: 0,
               color:
                 (activeTab as string) === "secret"
@@ -403,18 +365,15 @@ export default function CaptureEntryBody({
             title={cryptoKey ? "Save to vault" : "Unlock vault first"}
           >
             {IconVault}
-          </button>
+          </Button>
           {somedayEnabled && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handlers.onToggleSomeday}
-              className="design-btn-ghost press"
               aria-label="Save to someday list"
               aria-pressed={somedayActive}
               style={{
-                width: 40,
-                height: 40,
-                minHeight: 40,
-                padding: 0,
                 fontSize: 18,
                 fontWeight: 600,
                 color: somedayActive ? "var(--ember)" : "var(--ink-faint)",
@@ -424,7 +383,7 @@ export default function CaptureEntryBody({
               }
             >
               ∞
-            </button>
+            </Button>
           )}
         </div>
 
@@ -438,12 +397,7 @@ export default function CaptureEntryBody({
           >
             {MOD}⏎ to save
           </span>
-          <button
-            onClick={handlers.onSave}
-            disabled={!canSave || loading || extracting}
-            className="design-btn-primary press"
-            style={{ height: 40, minHeight: 40, borderRadius: 8 }}
-          >
+          <Button onClick={handlers.onSave} disabled={!canSave || loading || extracting}>
             {IconSend}
             {loading
               ? "Saving…"
@@ -452,7 +406,7 @@ export default function CaptureEntryBody({
                 : somedayActive
                   ? "Save to Someday"
                   : "Capture"}
-          </button>
+          </Button>
         </div>
       </div>
     </>

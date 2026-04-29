@@ -2,6 +2,7 @@ import { useState } from "react";
 import { getTypeConfig } from "../data/constants";
 import { useVaultOps } from "../hooks/useVaultOps";
 import type { Entry } from "../types";
+import { Button } from "../components/ui/button";
 
 /* ─── States: loading → setup → show-recovery → locked | recovery | unlocked ─── */
 
@@ -332,17 +333,14 @@ export default function VaultView({
           </p>
         )}
 
-        <button
+        <Button
           onClick={handleSetup}
           disabled={busy || passphrase.length < 8}
-          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-          style={{
-            background: "var(--color-primary)",
-            color: "var(--color-on-primary)",
-          }}
+          size="lg"
+          className="w-full max-w-sm"
         >
           {busy ? "Setting up..." : "Create Vault"}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -385,19 +383,17 @@ export default function VaultView({
           </p>
         </div>
 
-        <button
+        <Button
+          variant="outline"
+          size="lg"
           onClick={() => {
             navigator.clipboard.writeText(generatedRecoveryKey);
             setRecoveryCopied(true);
           }}
-          className="w-full max-w-sm rounded-xl border py-2.5 text-sm font-semibold transition-colors hover:bg-white/5"
-          style={{
-            color: "var(--color-on-surface-variant)",
-            borderColor: "var(--color-outline-variant)",
-          }}
+          className="w-full max-w-sm"
         >
           {recoveryCopied ? "Copied!" : "📋 Copy recovery key"}
-        </button>
+        </Button>
 
         <div
           className="w-full max-w-sm rounded-2xl border p-3"
@@ -412,16 +408,9 @@ export default function VaultView({
           </p>
         </div>
 
-        <button
-          onClick={dismissRecoveryKey}
-          className="w-full max-w-sm rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90"
-          style={{
-            background: "var(--color-primary)",
-            color: "var(--color-on-primary)",
-          }}
-        >
+        <Button onClick={dismissRecoveryKey} size="lg" className="w-full max-w-sm">
           I've saved my recovery key
-        </button>
+        </Button>
       </div>
     );
   }
@@ -585,31 +574,24 @@ export default function VaultView({
               </p>
             )}
 
-            <button
+            <Button
               onClick={handleUnlock}
               disabled={busy || !passphrase.trim()}
-              className="design-btn-primary press"
-              style={{ width: "100%", height: 44, minHeight: 44, marginTop: 16 }}
+              size="lg"
+              className="mt-4 w-full"
             >
               {busy ? "unlocking…" : "Unlock"}
-            </button>
+            </Button>
 
-            <button
+            <Button
+              variant="link"
+              size="sm"
               onClick={goToRecovery}
-              className="press"
-              style={{
-                background: "transparent",
-                border: 0,
-                color: "var(--ink-faint)",
-                fontSize: 13,
-                fontStyle: "italic",
-                fontFamily: "var(--f-serif)",
-                marginTop: 18,
-                cursor: "pointer",
-              }}
+              className="mt-3 italic"
+              style={{ color: "var(--ink-faint)", fontFamily: "var(--f-serif)" }}
             >
               forgot your passphrase? use recovery key.
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -714,31 +696,24 @@ export default function VaultView({
             </p>
           )}
 
-          <button
+          <Button
             onClick={handleRecoveryUnlock}
             disabled={busy || !recoveryInput.trim()}
-            className="design-btn-primary press"
-            style={{ width: "100%", height: 44, minHeight: 44, marginTop: 16 }}
+            size="lg"
+            className="mt-4 w-full"
           >
             {busy ? "recovering…" : "Unlock with recovery key"}
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="link"
+            size="sm"
             onClick={backToPassphrase}
-            className="press"
-            style={{
-              background: "transparent",
-              border: 0,
-              color: "var(--ink-faint)",
-              fontSize: 13,
-              fontStyle: "italic",
-              fontFamily: "var(--f-serif)",
-              marginTop: 18,
-              cursor: "pointer",
-            }}
+            className="mt-3 italic"
+            style={{ color: "var(--ink-faint)", fontFamily: "var(--f-serif)" }}
           >
             back to passphrase
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -804,61 +779,44 @@ export default function VaultView({
               }}
             >
               {(["grid", "list"] as const).map((m) => (
-                <button
+                <Button
                   key={m}
                   type="button"
                   role="tab"
                   aria-selected={viewMode === m}
                   onClick={() => setViewMode(m)}
-                  className="press"
+                  variant="ghost"
+                  size="xs"
+                  className="capitalize"
                   style={{
-                    height: 28,
-                    minHeight: 28,
-                    padding: "0 10px",
-                    fontSize: 12,
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    fontFamily: "var(--f-sans)",
                     color: viewMode === m ? "var(--ink)" : "var(--ink-faint)",
                     background: viewMode === m ? "var(--surface)" : "transparent",
-                    textTransform: "capitalize",
                   }}
                 >
                   {m}
-                </button>
+                </Button>
               ))}
             </div>
-            <button
-              onClick={startAddSecret}
-              className="design-btn-primary press"
-              style={{ height: 36, minHeight: 36, fontSize: 13 }}
-            >
+            <Button onClick={startAddSecret} size="sm">
               + Add secret
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setBulkMode((b) => !b);
                 setSelectedIds(new Set());
               }}
-              className="design-btn-secondary press"
               style={{
-                height: 36,
-                minHeight: 36,
-                fontSize: 13,
                 color: bulkMode ? "var(--ember)" : undefined,
                 borderColor: bulkMode ? "var(--ember)" : undefined,
               }}
             >
               {bulkMode ? "Cancel" : "Select"}
-            </button>
-            <button
-              onClick={lockVault}
-              className="design-btn-secondary press"
-              style={{ height: 36, minHeight: 36, fontSize: 13 }}
-            >
+            </Button>
+            <Button variant="outline" size="sm" onClick={lockVault}>
               Lock
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -927,18 +885,17 @@ export default function VaultView({
             Passwords, PINs, recovery codes, anything you don't want in plaintext. Encrypted
             client-side with your master passphrase.
           </p>
-          <button
+          <Button
             type="button"
             onClick={() =>
               window.dispatchEvent(
                 new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
               )
             }
-            className="design-btn-primary press"
-            style={{ marginTop: 4 }}
+            className="mt-1"
           >
             Add a secret
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
@@ -974,16 +931,17 @@ export default function VaultView({
                     <span className="text-on-surface truncate text-sm font-medium">{e.title}</span>
                   </div>
                   {!bulkMode && (
-                    <button
+                    <Button
+                      variant="outline"
+                      size="xs"
                       onClick={() => toggleReveal(e.id)}
-                      className="shrink-0 rounded-xl border px-3 py-1 text-xs font-medium transition-colors hover:bg-white/5"
                       style={{
                         color: "var(--color-primary)",
                         borderColor: "var(--color-primary-container)",
                       }}
                     >
                       {revealed ? "Hide" : "Reveal"}
-                    </button>
+                    </Button>
                   )}
                 </div>
 
@@ -1002,26 +960,16 @@ export default function VaultView({
                       className="flex items-center gap-2 border-t pt-1"
                       style={{ borderColor: "var(--color-outline-variant)" }}
                     >
-                      <button
+                      <Button
+                        variant="outline"
+                        size="xs"
                         onClick={() => copyToClipboard(e.content || "", "Content copied")}
-                        className="rounded-xl border px-3 py-1 text-xs transition-colors hover:bg-white/5"
-                        style={{
-                          color: "var(--color-on-surface-variant)",
-                          borderColor: "var(--color-outline-variant)",
-                        }}
                       >
                         📋 Copy content
-                      </button>
-                      <button
-                        onClick={() => onSelect(e)}
-                        className="rounded-xl border px-3 py-1 text-xs transition-colors hover:bg-white/5"
-                        style={{
-                          color: "var(--color-on-surface-variant)",
-                          borderColor: "var(--color-outline-variant)",
-                        }}
-                      >
+                      </Button>
+                      <Button variant="outline" size="xs" onClick={() => onSelect(e)}>
                         Edit
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -1061,17 +1009,9 @@ export default function VaultView({
         >
           <span className="text-on-surface text-sm">{selectedIds.size} selected</span>
           <div className="flex gap-2">
-            <button
-              onClick={bulkDelete}
-              className="rounded-lg px-4 text-xs font-semibold"
-              style={{
-                background: "color-mix(in oklch, var(--color-error) 20%, transparent)",
-                color: "var(--color-error)",
-                minHeight: 44,
-              }}
-            >
+            <Button variant="destructive" size="sm" onClick={bulkDelete}>
               Delete
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -1100,13 +1040,15 @@ export default function VaultView({
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-on-surface text-base font-bold">➕ Add Secret</h3>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => !addBusy && setShowAddSecret(false)}
-                  className="text-lg leading-none"
+                  aria-label="Close"
                   style={{ color: "var(--color-on-surface-variant)" }}
                 >
                   ✕
-                </button>
+                </Button>
               </div>
               <p className="mt-1 text-[11px]" style={{ color: "var(--color-on-surface-variant)" }}>
                 Encrypted on this device. AI never sees this entry.
@@ -1194,13 +1136,14 @@ export default function VaultView({
                   >
                     Extra fields
                   </label>
-                  <button
+                  <Button
+                    variant="link"
+                    size="xs"
                     onClick={() => setAddMetaRows((p) => [...p, { key: "", value: "" }])}
-                    className="text-[11px] font-medium"
-                    style={{ color: "var(--color-primary)" }}
+                    className="px-0"
                   >
                     + Add field
-                  </button>
+                  </Button>
                 </div>
                 {addMetaRows.map((row, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -1228,13 +1171,15 @@ export default function VaultView({
                       className="text-on-surface placeholder:text-on-surface-variant min-w-0 flex-1 rounded-xl border bg-transparent px-2.5 py-2 text-xs outline-none"
                       style={{ borderColor: "var(--color-outline-variant)" }}
                     />
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => setAddMetaRows((p) => p.filter((_, idx) => idx !== i))}
-                      className="shrink-0 text-sm"
+                      aria-label="Remove field"
                       style={{ color: "var(--color-error)" }}
                     >
                       ✕
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -1254,27 +1199,22 @@ export default function VaultView({
                 paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
               }}
             >
-              <button
+              <Button
+                variant="outline"
+                size="lg"
                 onClick={() => !addBusy && setShowAddSecret(false)}
-                className="flex-1 rounded-xl border py-2.5 text-sm font-medium transition-colors hover:bg-white/5"
-                style={{
-                  color: "var(--color-on-surface-variant)",
-                  borderColor: "var(--color-outline-variant)",
-                }}
+                className="flex-1"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                size="lg"
                 onClick={handleAddSecret}
                 disabled={addBusy || !addTitle.trim() || !addContent.trim()}
-                className="flex-1 rounded-xl py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
-                style={{
-                  background: "var(--color-primary)",
-                  color: "var(--color-on-primary)",
-                }}
+                className="flex-1"
               >
                 {addBusy ? "Encrypting..." : "🔒 Save secret"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

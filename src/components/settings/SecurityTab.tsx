@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getStoredPinHash, verifyPin, setupPin, clearStoredPin } from "../../lib/pin";
 import SettingsRow from "./SettingsRow";
+import { Button } from "../ui/button";
 
 type Mode =
   | "idle"
@@ -120,30 +121,36 @@ export default function SecurityTab() {
         }
       >
         {!hasPin && mode === "idle" && (
-          <button
+          <Button
+            size="sm"
             onClick={() => {
               setMode("create-new");
               setError("");
             }}
-            style={primBtn}
           >
             Set PIN
-          </button>
+          </Button>
         )}
         {hasPin && mode === "idle" && (
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setMode("change-verify");
                 setError("");
               }}
-              style={secBtn}
             >
               Change
-            </button>
-            <button onClick={handleRemove} style={dangerBtn}>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRemove}
+              style={{ color: "var(--blood)", borderColor: "var(--blood)" }}
+            >
               Remove
-            </button>
+            </Button>
           </div>
         )}
       </SettingsRow>
@@ -195,12 +202,12 @@ export default function SecurityTab() {
             </p>
           )}
           <div className="flex gap-2">
-            <button onClick={() => reset()} style={secBtn}>
+            <Button variant="outline" size="sm" onClick={() => reset()}>
               Cancel
-            </button>
-            <button onClick={handleSubmit} style={primBtn}>
+            </Button>
+            <Button size="sm" onClick={handleSubmit}>
               {btnLabels[mode]}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -219,32 +226,3 @@ export default function SecurityTab() {
     </div>
   );
 }
-
-const primBtn: React.CSSProperties = {
-  cursor: "pointer",
-  borderRadius: 8,
-  border: "none",
-  padding: "7px 16px",
-  fontSize: 13,
-  fontWeight: 700,
-  background: "var(--ember)",
-  color: "var(--ember-ink)",
-};
-const secBtn: React.CSSProperties = {
-  cursor: "pointer",
-  borderRadius: 8,
-  border: "1px solid var(--line-soft)",
-  padding: "7px 16px",
-  fontSize: 13,
-  background: "var(--surface)",
-  color: "var(--ink-soft)",
-};
-const dangerBtn: React.CSSProperties = {
-  cursor: "pointer",
-  borderRadius: 8,
-  border: "1px solid var(--blood)",
-  padding: "7px 16px",
-  fontSize: 13,
-  background: "transparent",
-  color: "var(--blood)",
-};

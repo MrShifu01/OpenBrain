@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState } from "react";
-import FocusTrap from "focus-trap-react";
+import { useState } from "react";
 import { authFetch } from "../lib/authFetch";
 import type { Brain } from "../types";
+import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 interface Props {
   onClose: () => void;
@@ -13,16 +21,6 @@ export default function CreateBrainModal({ onClose, onCreated }: Props) {
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -51,69 +49,38 @@ export default function CreateBrainModal({ onClose, onCreated }: Props) {
   }
 
   return (
-    <FocusTrap
-      focusTrapOptions={{
-        initialFocus: false,
-        escapeDeactivates: true,
-        clickOutsideDeactivates: true,
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="create-brain-title"
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.5)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 100,
-          padding: 16,
-        }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onClose();
-        }}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        className="sm:max-w-md"
+        style={{ background: "var(--bg)", borderColor: "var(--line-soft)" }}
       >
-        <form
-          onSubmit={submit}
-          style={{
-            background: "var(--bg)",
-            borderRadius: 12,
-            padding: 24,
-            width: "100%",
-            maxWidth: 420,
-            border: "1px solid var(--line-soft)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }}
-        >
-          <h2
-            id="create-brain-title"
-            className="f-serif"
-            style={{
-              fontSize: 22,
-              fontWeight: 450,
-              letterSpacing: "-0.01em",
-              color: "var(--ink)",
-              marginBottom: 4,
-            }}
-          >
-            New brain
-          </h2>
-          <p style={{ fontSize: 13, color: "var(--ink-faint)", marginBottom: 18 }}>
-            A blank space for whatever you want — work, family, a hobby. Switch between brains from
-            the header.
-          </p>
+        <form onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle
+              className="f-serif"
+              style={{
+                fontSize: 22,
+                fontWeight: 450,
+                letterSpacing: "-0.01em",
+                color: "var(--ink)",
+              }}
+            >
+              New brain
+            </DialogTitle>
+            <DialogDescription style={{ fontSize: 13, color: "var(--ink-faint)" }}>
+              A blank space for whatever you want — work, family, a hobby. Switch between brains
+              from the header.
+            </DialogDescription>
+          </DialogHeader>
 
-          <label style={{ display: "block", marginBottom: 14 }}>
+          <label style={{ display: "block", marginTop: 14 }}>
             <span
               style={{ display: "block", fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}
             >
               Name
             </span>
             <input
-              ref={inputRef}
+              autoFocus
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -132,7 +99,7 @@ export default function CreateBrainModal({ onClose, onCreated }: Props) {
             />
           </label>
 
-          <label style={{ display: "block", marginBottom: 18 }}>
+          <label style={{ display: "block", marginTop: 14 }}>
             <span
               style={{ display: "block", fontSize: 12, color: "var(--ink-soft)", marginBottom: 6 }}
             >
@@ -159,57 +126,21 @@ export default function CreateBrainModal({ onClose, onCreated }: Props) {
           </label>
 
           {error && (
-            <div
-              role="alert"
-              style={{
-                fontSize: 12,
-                color: "var(--blood)",
-                marginBottom: 12,
-              }}
-            >
+            <div role="alert" style={{ fontSize: 12, color: "var(--blood)", marginTop: 12 }}>
               {error}
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="press"
-              style={{
-                padding: "8px 14px",
-                background: "transparent",
-                border: "1px solid var(--line-soft)",
-                borderRadius: 8,
-                color: "var(--ink)",
-                fontSize: 13,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
-            >
+          <DialogFooter>
+            <Button type="button" onClick={onClose} disabled={saving} variant="outline" size="sm">
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim() || saving}
-              className="press"
-              style={{
-                padding: "8px 14px",
-                background: name.trim() && !saving ? "var(--ember)" : "var(--surface)",
-                border: 0,
-                borderRadius: 8,
-                color: name.trim() && !saving ? "var(--bg)" : "var(--ink-faint)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: name.trim() && !saving ? "pointer" : "not-allowed",
-              }}
-            >
+            </Button>
+            <Button type="submit" disabled={!name.trim() || saving} size="sm">
               {saving ? "Creating…" : "Create"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </FocusTrap>
+      </DialogContent>
+    </Dialog>
   );
 }

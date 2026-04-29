@@ -9,6 +9,20 @@ import { BrainContext } from "../context/BrainContext";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import MoveToBrainModal from "../components/MoveToBrainModal";
+import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "../components/ui/accordion";
 
 // ── Metadata highlights ───────────────────────────────────────────────────────
 
@@ -141,21 +155,10 @@ export default function DetailModal({
   const [editType, setEditType] = useState<string>(entry.type);
   const [editTags] = useState((entry.tags || []).join(", "));
   const [secretRevealed, setSecretRevealed] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [aiMsg, setAiMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [ignoringEmail, setIgnoringEmail] = useState(false);
   const [ignoreMsg, setIgnoreMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!typeOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeOpen]);
 
   async function suggestType() {
     setAiTyping(true);
@@ -274,7 +277,6 @@ No explanation, no punctuation, just one word.`,
     a.click();
     URL.revokeObjectURL(url);
   }
-  const [showFullContent, setShowFullContent] = useState(false);
   const [showFullText, setShowFullText] = useState(false);
   const CONTENT_PREVIEW_LIMIT = 300;
   // Freeze "now" at mount so the relative-time display doesn't recompute
@@ -473,17 +475,12 @@ No explanation, no punctuation, just one word.`,
 
             {/* Pin */}
             {canWrite && onUpdate && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 aria-label={isPinned ? "Unpin" : "Pin"}
-                className="design-btn-ghost press"
                 onClick={() => onUpdate(entry.id, { pinned: !isPinned })}
-                style={{
-                  width: 32,
-                  height: 32,
-                  minHeight: 32,
-                  padding: 0,
-                  color: isPinned ? "var(--ember)" : "var(--ink-faint)",
-                }}
+                style={{ color: isPinned ? "var(--ember)" : "var(--ink-faint)" }}
               >
                 <svg
                   width="16"
@@ -498,20 +495,15 @@ No explanation, no punctuation, just one word.`,
                 >
                   <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
                 </svg>
-              </button>
+              </Button>
             )}
 
             {/* Vault / lock */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               aria-label={isSecret ? "Vault entry" : "Move to vault"}
-              className="design-btn-ghost press"
-              style={{
-                width: 32,
-                height: 32,
-                minHeight: 32,
-                padding: 0,
-                color: isSecret ? "var(--ember)" : "var(--ink-faint)",
-              }}
+              style={{ color: isSecret ? "var(--ember)" : "var(--ink-faint)" }}
               onClick={() => {
                 if (canWrite && onUpdate)
                   onUpdate(entry.id, { type: isSecret ? "note" : "secret" });
@@ -531,22 +523,17 @@ No explanation, no punctuation, just one word.`,
                 <rect x="4" y="10" width="16" height="10" rx="2" />
                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
-            </button>
+            </Button>
 
             {/* Move to brain (multi-brain phase 1) */}
             {canWrite && showMoveBrain && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 aria-label="Move to brain"
                 title="Move to brain"
-                className="design-btn-ghost press"
                 onClick={() => setMovingBrain(true)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  minHeight: 32,
-                  padding: 0,
-                  color: "var(--ink-faint)",
-                }}
+                style={{ color: "var(--ink-faint)" }}
               >
                 <svg
                   width="16"
@@ -563,22 +550,17 @@ No explanation, no punctuation, just one word.`,
                   <path d="m13 6 6 6-6 6" />
                   <rect x="20" y="4" width="2" height="16" rx="1" />
                 </svg>
-              </button>
+              </Button>
             )}
 
             {/* More / edit */}
             {canWrite && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 aria-label="Edit"
-                className="design-btn-ghost press"
                 onClick={() => setEditing(true)}
-                style={{
-                  width: 32,
-                  height: 32,
-                  minHeight: 32,
-                  padding: 0,
-                  color: "var(--ink-faint)",
-                }}
+                style={{ color: "var(--ink-faint)" }}
               >
                 <svg
                   width="16"
@@ -595,20 +577,15 @@ No explanation, no punctuation, just one word.`,
                   <circle cx="12" cy="12" r="1" />
                   <circle cx="18" cy="12" r="1" />
                 </svg>
-              </button>
+              </Button>
             )}
 
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               aria-label="Close"
-              className="design-btn-ghost press"
               onClick={editing ? () => setEditing(false) : onClose}
-              style={{
-                width: 32,
-                height: 32,
-                minHeight: 32,
-                padding: 0,
-                color: "var(--ink-faint)",
-              }}
+              style={{ color: "var(--ink-faint)" }}
             >
               <svg
                 width="14"
@@ -623,7 +600,7 @@ No explanation, no punctuation, just one word.`,
               >
                 <path d="M6 6l12 12M18 6L6 18" />
               </svg>
-            </button>
+            </Button>
           </div>
 
           {/* Title band (non-editing) */}
@@ -692,7 +669,7 @@ No explanation, no punctuation, just one word.`,
                     }}
                   />
                 </div>
-                <div ref={typeRef} className="relative">
+                <div>
                   <div className="mb-1.5 flex items-center justify-between">
                     <label
                       className="block text-[10px] font-semibold tracking-widest uppercase"
@@ -711,70 +688,40 @@ No explanation, no punctuation, just one word.`,
                           {aiMsg.text}
                         </span>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        size="xs"
+                        variant="ghost"
                         onClick={suggestType}
                         disabled={aiTyping}
-                        className="rounded-lg px-2 py-0.5 text-[10px] font-semibold transition-all disabled:opacity-50"
                         style={{
                           background: "var(--color-primary-container)",
                           color: "var(--color-primary)",
                         }}
                       >
                         {aiTyping ? "Thinking…" : "✦ AI pick"}
-                      </button>
+                      </Button>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setTypeOpen((p) => !p)}
-                    className="flex min-h-[44px] w-full items-center justify-between rounded-xl px-4 py-3 text-sm transition-all"
-                    style={{
-                      background: "var(--color-surface-container)",
-                      border: `1px solid ${typeOpen ? "var(--color-primary)" : "var(--color-outline-variant)"}`,
-                      color: "var(--color-on-surface)",
-                    }}
-                  >
-                    <span>{editType.charAt(0).toUpperCase() + editType.slice(1)}</span>
-                    <svg
-                      className={`h-4 w-4 flex-shrink-0 transition-transform ${typeOpen ? "rotate-180" : ""}`}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {typeOpen && (
-                    <div
-                      className="absolute top-full right-0 left-0 z-20 mt-1 overflow-y-auto rounded-xl border shadow-lg"
+                  <Select value={editType} onValueChange={setEditType}>
+                    <SelectTrigger
+                      className="min-h-[44px] w-full rounded-xl px-4 py-3 text-sm"
                       style={{
-                        background: "var(--color-surface-container-high)",
+                        background: "var(--color-surface-container)",
                         borderColor: "var(--color-outline-variant)",
-                        maxHeight: "200px",
+                        color: "var(--color-on-surface)",
                       }}
                     >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
                       {CANONICAL_TYPES.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => {
-                            setEditType(t);
-                            setTypeOpen(false);
-                          }}
-                          className="w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/10"
-                          style={{
-                            color: "var(--color-on-surface)",
-                            background:
-                              editType === t ? "var(--color-primary-container)" : undefined,
-                          }}
-                        >
+                        <SelectItem key={t} value={t}>
                           {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </button>
+                        </SelectItem>
                       ))}
-                    </div>
-                  )}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label
@@ -803,26 +750,17 @@ No explanation, no punctuation, just one word.`,
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
-                  <button
-                    className="text-on-surface-variant hover:text-on-surface press-scale flex-1 rounded-xl py-3 text-sm font-semibold transition-all"
-                    style={{ border: "1px solid var(--color-outline-variant)" }}
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="flex-1"
                     onClick={() => setEditing(false)}
                   >
                     Cancel
-                  </button>
-                  <button
-                    className="press-scale flex-[2] rounded-xl py-3 text-sm font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40"
-                    style={{
-                      background:
-                        saving || !editTitle.trim()
-                          ? "var(--color-surface-container-highest)"
-                          : "var(--color-primary)",
-                      color:
-                        saving || !editTitle.trim()
-                          ? "var(--color-on-surface-variant)"
-                          : "var(--color-on-primary)",
-                      fontFamily: "var(--f-sans)",
-                    }}
+                  </Button>
+                  <Button
+                    size="lg"
+                    className="flex-[2]"
                     onClick={() =>
                       handleSave({ editTitle, editContent, editType, editTags }).then(() =>
                         setEditing(false),
@@ -831,7 +769,7 @@ No explanation, no punctuation, just one word.`,
                     disabled={saving || !editTitle.trim()}
                   >
                     {saving ? "Saving..." : "Save changes"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -888,12 +826,7 @@ No explanation, no punctuation, just one word.`,
                         : "unlock your vault to view this secret."}
                     </p>
                     {vaultUnlocked && (
-                      <button
-                        className="design-btn-primary press"
-                        onClick={() => setSecretRevealed(true)}
-                      >
-                        Reveal content
-                      </button>
+                      <Button onClick={() => setSecretRevealed(true)}>Reveal content</Button>
                     )}
                   </div>
                 ) : (
@@ -914,22 +847,14 @@ No explanation, no punctuation, just one word.`,
                         : editContent}
                     </p>
                     {(editContent || "").length > CONTENT_PREVIEW_LIMIT && (
-                      <button
+                      <Button
+                        variant="link"
+                        size="xs"
+                        className="self-start px-0"
                         onClick={() => setShowFullText((s) => !s)}
-                        className="f-sans press"
-                        style={{
-                          alignSelf: "flex-start",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "var(--ember)",
-                          background: "transparent",
-                          border: 0,
-                          padding: 0,
-                          cursor: "pointer",
-                        }}
                       >
                         {showFullText ? "show less" : "show more"}
-                      </button>
+                      </Button>
                     )}
 
                     {/* Key metadata highlights */}
@@ -1152,37 +1077,30 @@ No explanation, no punctuation, just one word.`,
                 typeof entry.metadata?.raw_content === "string" ||
                 typeof entry.metadata?.attachment_text === "string") && (
                 <div className="pt-1">
-                  <button
-                    onClick={() => setShowFullContent((s) => !s)}
-                    className="flex w-full items-center justify-between py-1"
-                  >
-                    <span
-                      className="text-[10px] font-semibold tracking-widest uppercase"
-                      style={{ color: "var(--color-on-surface-variant)" }}
-                    >
-                      Full Content
-                    </span>
-                    <span
-                      className="text-[10px]"
-                      style={{ color: "var(--color-on-surface-variant)" }}
-                    >
-                      {showFullContent ? "▲" : "▼"}
-                    </span>
-                  </button>
-                  {showFullContent && (
-                    <div
-                      className="mt-2 rounded-xl p-3"
-                      style={{ background: "var(--color-surface-container)" }}
-                    >
-                      <p className="text-on-surface/80 text-xs leading-relaxed whitespace-pre-wrap">
-                        {String(
-                          entry.metadata.full_text ??
-                            entry.metadata.raw_content ??
-                            entry.metadata.attachment_text,
-                        )}
-                      </p>
-                    </div>
-                  )}
+                  <Accordion type="single" collapsible>
+                    <AccordionItem value="full-content" className="border-b-0">
+                      <AccordionTrigger
+                        className="py-1 text-[10px] font-semibold tracking-widest uppercase hover:no-underline"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        Full Content
+                      </AccordionTrigger>
+                      <AccordionContent className="pb-0">
+                        <div
+                          className="mt-2 rounded-xl p-3"
+                          style={{ background: "var(--color-surface-container)" }}
+                        >
+                          <p className="text-on-surface/80 text-xs leading-relaxed whitespace-pre-wrap">
+                            {String(
+                              entry.metadata.full_text ??
+                                entry.metadata.raw_content ??
+                                entry.metadata.attachment_text,
+                            )}
+                          </p>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               )}
 
@@ -1215,25 +1133,11 @@ No explanation, no punctuation, just one word.`,
               }}
             >
               {isContact && (
-                <button
-                  className="press f-sans"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={saveToContacts}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "0 12px",
-                    height: 30,
-                    minHeight: 30,
-                    borderRadius: 6,
-                    background: "transparent",
-                    color: "var(--ink-soft)",
-                    border: "1px solid transparent",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    transition: "all 180ms",
-                  }}
+                  style={{ color: "var(--ink-soft)" }}
                 >
                   <svg
                     width="12"
@@ -1251,33 +1155,20 @@ No explanation, no punctuation, just one word.`,
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                   save to contacts
-                </button>
+                </Button>
               )}
               {!isContact && isGmailEntry && (
-                <button
-                  className="press f-sans"
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={handleIgnoreEmail}
                   disabled={ignoringEmail || ignoreMsg?.ok === true}
                   style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "0 12px",
-                    height: 30,
-                    minHeight: 30,
-                    borderRadius: 6,
-                    background: "transparent",
                     color: ignoreMsg?.ok
                       ? "var(--moss)"
                       : ignoreMsg
                         ? "var(--blood)"
                         : "var(--ink-soft)",
-                    border: "1px solid transparent",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: ignoringEmail || ignoreMsg?.ok ? "default" : "pointer",
-                    transition: "all 180ms",
-                    opacity: ignoringEmail ? 0.6 : 1,
                   }}
                 >
                   {ignoringEmail
@@ -1285,28 +1176,18 @@ No explanation, no punctuation, just one word.`,
                     : ignoreMsg
                       ? ignoreMsg.text
                       : "Ignore future emails like this"}
-                </button>
+                </Button>
               )}
               {!isContact && !isGmailEntry && <span />}
               {canWrite && onDelete && (
-                <button
-                  className="press f-sans"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "0 12px",
-                    height: 30,
-                    minHeight: 30,
-                    borderRadius: 6,
-                    background: confirmingDelete ? "var(--blood-wash)" : "transparent",
-                    color: "var(--blood)",
-                    border: `1px solid ${confirmingDelete ? "var(--blood)" : "transparent"}`,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    transition: "all 180ms",
-                  }}
+                <Button
+                  variant={confirmingDelete ? "destructive" : "ghost"}
+                  size="sm"
+                  style={
+                    confirmingDelete
+                      ? undefined
+                      : { color: "var(--blood)", background: "transparent" }
+                  }
                   onClick={async () => {
                     if (!confirmingDelete) {
                       setConfirmingDelete(true);
@@ -1333,7 +1214,7 @@ No explanation, no punctuation, just one word.`,
                     <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
                   </svg>
                   {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
-                </button>
+                </Button>
               )}
             </div>
           )}

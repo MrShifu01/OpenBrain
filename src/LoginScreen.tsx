@@ -24,6 +24,7 @@ function RefreshCwIcon({ size = 24, style }: { size?: number; style?: React.CSSP
 }
 import { useAuthFlow } from "./hooks/useAuthFlow";
 import { EverionLogo } from "./components/ui/EverionLogo";
+import { Button } from "./components/ui/button";
 
 function hasInvite(): boolean {
   try {
@@ -274,28 +275,12 @@ export default function LoginScreen({
                       : "sign in to continue."}
                   </p>
                   {/* ── Google (primary) ── */}
-                  <button
+                  <Button
                     onClick={handleGoogleSignIn}
                     disabled={loading}
-                    className="login-primary-btn"
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 10,
-                      border: "1px solid var(--line)",
-                      background: "var(--surface)",
-                      color: "var(--ink)",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      cursor: loading ? "default" : "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 10,
-                      transition: "background 150ms",
-                      fontFamily: "'Inter', system-ui, sans-serif",
-                      opacity: loading ? 0.6 : 1,
-                    }}
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
                   >
                     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                       <path
@@ -316,59 +301,19 @@ export default function LoginScreen({
                       />
                     </svg>
                     {loading ? "Redirecting…" : "Continue with Google"}
-                  </button>
+                  </Button>
                   {/* ── divider ── */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
                     <span style={{ fontSize: 12, color: "var(--ink-ghost)" }}>or</span>
                     <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
                   </div>
-                  <button
-                    onClick={switchToMagicLink}
-                    className="login-primary-btn"
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 10,
-                      border: "none",
-                      background: "var(--ember)",
-                      color: "var(--ember-ink)",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      transition: "background 150ms",
-                      fontFamily: "'Inter', system-ui, sans-serif",
-                    }}
-                  >
+                  <Button onClick={switchToMagicLink} size="lg" className="w-full">
                     Magic link
-                  </button>
-                  <button
-                    onClick={switchToPassword}
-                    className="login-primary-btn"
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 10,
-                      border: "1px solid var(--color-outline-variant)",
-                      background: "transparent",
-                      color: "var(--color-on-surface)",
-                      fontSize: 15,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      transition: "background 150ms",
-                      fontFamily: "'Inter', system-ui, sans-serif",
-                    }}
-                  >
+                  </Button>
+                  <Button onClick={switchToPassword} variant="outline" size="lg" className="w-full">
                     Use password
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -495,45 +440,20 @@ export default function LoginScreen({
                       </p>
                     )}
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button
+                      <Button
                         type="button"
                         onClick={backFromPassword}
-                        style={{
-                          flex: 1,
-                          height: 44,
-                          borderRadius: 8,
-                          border: "1px solid var(--color-outline-variant)",
-                          background: "transparent",
-                          color: "var(--color-on-surface-variant)",
-                          fontSize: 14,
-                          cursor: "pointer",
-                          fontFamily: "'Inter', system-ui, sans-serif",
-                          transition: "color 150ms",
-                        }}
+                        variant="outline"
+                        size="lg"
+                        className="flex-1"
                       >
                         Back
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="submit"
                         disabled={isPasswordDisabled}
-                        style={{
-                          flex: 2,
-                          height: 44,
-                          borderRadius: 8,
-                          border: "none",
-                          background: isPasswordDisabled
-                            ? "var(--color-surface-container-highest)"
-                            : "var(--color-primary)",
-                          color: isPasswordDisabled
-                            ? "var(--color-on-surface-variant)"
-                            : "var(--color-on-primary)",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          cursor: isPasswordDisabled ? "default" : "pointer",
-                          fontFamily: "'Inter', system-ui, sans-serif",
-                          transition: "background 150ms",
-                          opacity: isPasswordDisabled ? 0.6 : 1,
-                        }}
+                        size="lg"
+                        className="flex-[2]"
                       >
                         {loading
                           ? isSigningUp
@@ -542,7 +462,7 @@ export default function LoginScreen({
                           : isSigningUp
                             ? "Create account"
                             : "Sign in"}
-                      </button>
+                      </Button>
                     </div>
                     {isSigningUp && (
                       <p
@@ -553,21 +473,16 @@ export default function LoginScreen({
                         }}
                       >
                         Already have an account?{" "}
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
+                          size="xs"
                           onClick={() => switchSignInMode(false)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "var(--color-primary)",
-                            cursor: "pointer",
-                            fontSize: "inherit",
-                            fontWeight: 600,
-                            padding: 0,
-                          }}
+                          className="h-auto p-0 text-inherit"
+                          style={{ color: "var(--color-primary)" }}
                         >
                           Sign in
-                        </button>
+                        </Button>
                       </p>
                     )}
                     {!isSigningUp && (
@@ -579,21 +494,16 @@ export default function LoginScreen({
                         }}
                       >
                         Don't have an account?{" "}
-                        <button
+                        <Button
                           type="button"
+                          variant="link"
+                          size="xs"
                           onClick={() => switchSignInMode(true)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "var(--color-primary)",
-                            cursor: "pointer",
-                            fontSize: "inherit",
-                            fontWeight: 600,
-                            padding: 0,
-                          }}
+                          className="h-auto p-0 text-inherit"
+                          style={{ color: "var(--color-primary)" }}
                         >
                           Create account
-                        </button>
+                        </Button>
                       </p>
                     )}
                   </form>
@@ -639,24 +549,9 @@ export default function LoginScreen({
                     </strong>{" "}
                     If you don't see it, check your spam folder.
                   </p>
-                  <button
-                    onClick={goBackFromSuccess}
-                    style={{
-                      width: "100%",
-                      height: 48,
-                      borderRadius: 8,
-                      border: "none",
-                      background: "var(--color-primary)",
-                      color: "var(--color-on-primary)",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "'Inter', system-ui, sans-serif",
-                      transition: "background 150ms",
-                    }}
-                  >
+                  <Button onClick={goBackFromSuccess} size="lg" className="w-full">
                     Back to sign in
-                  </button>
+                  </Button>
                 </div>
               )}
 
@@ -739,48 +634,18 @@ export default function LoginScreen({
                       </p>
                     )}
                     <div style={{ display: "flex", gap: 8 }}>
-                      <button
+                      <Button
                         type="button"
                         onClick={backFromMagicLink}
-                        style={{
-                          flex: 1,
-                          height: 44,
-                          borderRadius: 8,
-                          border: "1px solid var(--color-outline-variant)",
-                          background: "transparent",
-                          color: "var(--color-on-surface-variant)",
-                          fontSize: 14,
-                          cursor: "pointer",
-                          fontFamily: "'Inter', system-ui, sans-serif",
-                          transition: "color 150ms",
-                        }}
+                        variant="outline"
+                        size="lg"
+                        className="flex-1"
                       >
                         Back
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isDisabled}
-                        style={{
-                          flex: 2,
-                          height: 44,
-                          borderRadius: 8,
-                          border: "none",
-                          background: isDisabled
-                            ? "var(--color-surface-container-highest)"
-                            : "var(--color-primary)",
-                          color: isDisabled
-                            ? "var(--color-on-surface-variant)"
-                            : "var(--color-on-primary)",
-                          fontSize: 14,
-                          fontWeight: 600,
-                          cursor: isDisabled ? "default" : "pointer",
-                          fontFamily: "'Inter', system-ui, sans-serif",
-                          transition: "background 150ms",
-                          opacity: isDisabled ? 0.6 : 1,
-                        }}
-                      >
+                      </Button>
+                      <Button type="submit" disabled={isDisabled} size="lg" className="flex-[2]">
                         {loading ? "Sending…" : "Send access code"}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 </>
@@ -879,61 +744,24 @@ export default function LoginScreen({
                         {error}
                       </p>
                     )}
-                    <button
-                      type="submit"
-                      disabled={isOtpDisabled}
-                      style={{
-                        width: "100%",
-                        height: 48,
-                        borderRadius: 8,
-                        border: "none",
-                        background: isOtpDisabled
-                          ? "var(--color-surface-container-highest)"
-                          : "var(--color-primary)",
-                        color: isOtpDisabled
-                          ? "var(--color-on-surface-variant)"
-                          : "var(--color-on-primary)",
-                        fontSize: 14,
-                        fontWeight: 600,
-                        cursor: isOtpDisabled ? "default" : "pointer",
-                        fontFamily: "'Inter', system-ui, sans-serif",
-                        transition: "background 150ms",
-                        opacity: isOtpDisabled ? 0.6 : 1,
-                      }}
-                    >
+                    <Button type="submit" disabled={isOtpDisabled} size="lg" className="w-full">
                       {verifying ? "Signing in…" : "Sign in"}
-                    </button>
+                    </Button>
                   </form>
                   <div
                     style={{ display: "flex", justifyContent: "center", gap: 16, marginTop: 16 }}
                   >
-                    <button
-                      onClick={handleResend}
-                      disabled={loading}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--color-primary)",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        padding: "10px 12px",
-                      }}
-                    >
+                    <Button variant="link" size="sm" onClick={handleResend} disabled={loading}>
                       {loading ? "Sending…" : "Resend code"}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="link"
+                      size="sm"
                       onClick={goBackFromOtp}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--color-on-surface-variant)",
-                        fontSize: 13,
-                        cursor: "pointer",
-                        padding: "10px 12px",
-                      }}
+                      style={{ color: "var(--color-on-surface-variant)" }}
                     >
                       Use different email
-                    </button>
+                    </Button>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16 }}>
                     <RefreshCwIcon

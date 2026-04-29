@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NavIcon } from "./icons/NavIcons";
+import { Button } from "./ui/button";
 
 interface NavView {
   id: string;
@@ -152,32 +153,10 @@ export default function DesktopSidebar({
       {children && <div style={{ marginBottom: 12, padding: "0 2px" }}>{children}</div>}
 
       {/* Capture CTA — pill with plume, ember reserved for this primary */}
-      <button
-        onClick={onCapture}
-        className="press"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          padding: "0 14px",
-          height: 40,
-          minHeight: 40,
-          marginBottom: 18,
-          borderRadius: 8,
-          background: "var(--ember)",
-          color: "var(--ember-ink)",
-          fontFamily: "var(--f-sans)",
-          fontWeight: 500,
-          fontSize: 14,
-          border: "none",
-          cursor: "pointer",
-          letterSpacing: "-0.005em",
-        }}
-      >
+      <Button onClick={onCapture} className="mb-[18px] w-full">
         {PLUME_ICON}
         Capture
-      </button>
+      </Button>
 
       {/* Navigation */}
       <nav

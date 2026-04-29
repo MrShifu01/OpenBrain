@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { cn } from "../lib/cn";
 import { NavIcon } from "./icons/NavIcons";
+import { Button } from "./ui/button";
 
 interface MobileMoreMenuProps {
   isOpen: boolean;
@@ -47,10 +48,11 @@ function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
           <span className="text-base font-semibold" style={{ color: "var(--color-on-surface)" }}>
             Menu
           </span>
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => onNavigate("close")}
             aria-label="Close menu"
-            className="press-scale flex h-9 w-9 items-center justify-center rounded-xl transition-colors"
             style={{ color: "var(--color-on-surface-variant)" }}
           >
             <svg
@@ -63,7 +65,7 @@ function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         {/* Nav items */}

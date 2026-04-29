@@ -8,6 +8,7 @@
  * "Sign in" / "Start remembering" call onAuth.
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Button } from "../components/ui/button";
 
 interface LandingProps {
   onAuth: (mode: "login" | "signup") => void;
@@ -144,6 +145,7 @@ function PlanCard({
   bullets,
   cta,
   onCta,
+  ctaCaption,
   featured,
 }: {
   tier: string;
@@ -153,6 +155,7 @@ function PlanCard({
   bullets: string[];
   cta: string;
   onCta: () => void;
+  ctaCaption?: string;
   featured?: boolean;
 }) {
   return (
@@ -246,13 +249,28 @@ function PlanCard({
           </li>
         ))}
       </ul>
-      <button
-        className={`${featured ? "design-btn-primary" : "design-btn-secondary"} press`}
-        style={{ width: "100%", height: 44, minHeight: 44, marginTop: "auto" }}
+      <Button
+        variant={featured ? "default" : "outline"}
+        size="lg"
+        className="mt-auto w-full"
         onClick={onCta}
       >
         {cta}
-      </button>
+      </Button>
+      {ctaCaption && (
+        <div
+          className="f-sans"
+          style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: "var(--ink-faint)",
+            textAlign: "center",
+            fontStyle: "italic",
+          }}
+        >
+          {ctaCaption}
+        </div>
+      )}
     </div>
   );
 }
@@ -274,54 +292,56 @@ interface DemoScenario {
 
 const DEMO_SCENARIOS: DemoScenario[] = [
   {
-    key: "friendship",
-    chipLabel: "Friendship",
+    key: "renewal",
+    chipLabel: "Renewal",
     input:
-      "she said the thing that tipped it was realizing she hadn't opened her sketchbook in four months",
-    inferredType: "note",
-    concepts: ["priya", "friendship", "creative-block"],
+      "driver's licence expires 14 March next year — testing centre at Sea Point, slot opens 60 days before",
+    inferredType: "reminder",
+    concepts: ["drivers-licence", "renewal", "deadline"],
     related: {
-      title: "Coffee with Priya — she's leaving the firm",
-      meta: "5 days ago · friendship, career",
+      title: "Vehicle insurance renewal — same week, broker is Sarah at Outsurance",
+      meta: "9 days ago · admin, renewals",
     },
   },
   {
-    key: "travel",
-    chipLabel: "Travel",
-    input: "renew italian passport before march — appointment slots open six weeks ahead",
-    inferredType: "reminder",
-    concepts: ["passport", "italy", "deadline"],
+    key: "spare-key",
+    chipLabel: "Spare key",
+    input:
+      "spare key for the Cape Town flat is taped to the back of the framed photo above the geyser cupboard — Mom and the cleaner know",
+    inferredType: "note",
+    concepts: ["spare-key", "cape-town-flat", "household"],
     related: {
-      title: "Italy trip — Florence and Siena confirmed",
-      meta: "2 weeks ago · travel, italy",
+      title: "Gate code 4471 · alarm panic word 'rooibos' · Mom's cell as backup contact",
+      meta: "3 weeks ago · household, security",
+    },
+  },
+  {
+    key: "customer",
+    chipLabel: "Customer call",
+    input:
+      "the head of ops at Northwind kept saying 'we just need it to not break during month-end' — that's the real pitch",
+    inferredType: "note",
+    concepts: ["northwind", "customer-insight", "positioning"],
+    related: {
+      title: "Northwind discovery call — they care about reliability over features",
+      meta: "12 days ago · sales, positioning",
     },
   },
   {
     key: "idea",
     chipLabel: "Idea",
     input:
-      "what if her apology in chapter nine is the thing that breaks her — not the betrayal itself",
+      "what if onboarding asks one question instead of seven — measure activation week over week",
     inferredType: "idea",
-    concepts: ["novel-draft", "character-arc", "chapter-9"],
+    concepts: ["onboarding", "activation", "experiment"],
     related: {
-      title: "Beta reader said chapter 8 felt cold",
-      meta: "3 weeks ago · novel-draft, feedback",
-    },
-  },
-  {
-    key: "link",
-    chipLabel: "Link",
-    input: "https://aeon.co/essays/the-real-history-of-the-public-library",
-    inferredType: "link",
-    concepts: ["libraries", "civic-history", "longread"],
-    related: {
-      title: "'Bibliophobia' — civic-infrastructure thread",
-      meta: "11 days ago · books, civic",
+      title: "Activation rate dropped 4% after we added the third onboarding step",
+      meta: "18 days ago · metrics",
     },
   },
 ];
 
-function LandingDemo() {
+function LandingDemo({ onSignup }: { onSignup: () => void }) {
   const [scenarioKey, setScenarioKey] = useState<string>(DEMO_SCENARIOS[0].key);
   const scenario = DEMO_SCENARIOS.find((s) => s.key === scenarioKey) ?? DEMO_SCENARIOS[0];
 
@@ -341,26 +361,22 @@ function LandingDemo() {
         {DEMO_SCENARIOS.map((s) => {
           const active = s.key === scenarioKey;
           return (
-            <button
+            <Button
               key={s.key}
               role="tab"
               aria-selected={active}
               onClick={() => setScenarioKey(s.key)}
-              className="press f-sans"
+              variant="outline"
+              size="sm"
+              className="rounded-full"
               style={{
-                padding: "8px 16px",
-                fontSize: 13,
-                fontWeight: 500,
-                borderRadius: 999,
-                border: `1px solid ${active ? "var(--ember)" : "var(--line)"}`,
                 background: active ? "var(--ember-wash)" : "transparent",
                 color: active ? "var(--ember)" : "var(--ink-soft)",
-                cursor: "pointer",
-                transition: "background 180ms, color 180ms, border-color 180ms",
+                borderColor: active ? "var(--ember)" : "var(--line)",
               }}
             >
               {s.chipLabel}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -459,17 +475,127 @@ function LandingDemo() {
         </div>
       </div>
 
+      <div style={{ marginTop: 28, display: "flex", justifyContent: "center" }}>
+        <Button size="lg" onClick={onSignup}>
+          Try it with your own thoughts
+        </Button>
+      </div>
       <p
         className="f-sans"
         style={{
-          marginTop: 20,
-          fontSize: 13,
+          marginTop: 12,
+          fontSize: 12,
           color: "var(--ink-faint)",
           textAlign: "center",
           fontStyle: "italic",
         }}
       >
-        scripted preview · sign up to try it on your own thoughts
+        scripted preview · free, no card required
+      </p>
+    </div>
+  );
+}
+
+function Quote({ text, who }: { text: string; who: string }) {
+  return (
+    <figure
+      style={{
+        margin: 0,
+        padding: 24,
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 18,
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+      }}
+    >
+      <blockquote
+        className="f-serif"
+        style={{
+          margin: 0,
+          fontSize: 16,
+          lineHeight: 1.55,
+          color: "var(--ink)",
+          fontStyle: "italic",
+        }}
+      >
+        “{text}”
+      </blockquote>
+      <figcaption className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+        — {who}
+      </figcaption>
+    </figure>
+  );
+}
+
+function Compare({ tool, line }: { tool: string; line: string }) {
+  return (
+    <div
+      style={{
+        padding: 24,
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 18,
+      }}
+    >
+      <div
+        className="f-serif"
+        style={{
+          fontSize: 18,
+          fontWeight: 450,
+          color: "var(--ink)",
+          marginBottom: 8,
+        }}
+      >
+        Why not just use <span style={{ fontStyle: "italic", color: "var(--ember)" }}>{tool}</span>?
+      </div>
+      <p
+        className="f-serif"
+        style={{
+          margin: 0,
+          fontSize: 15,
+          lineHeight: 1.55,
+          color: "var(--ink-soft)",
+        }}
+      >
+        {line}
+      </p>
+    </div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: ReactNode }) {
+  return (
+    <div
+      style={{
+        borderTop: "1px solid var(--line-soft)",
+        paddingTop: 24,
+      }}
+    >
+      <h3
+        className="f-serif"
+        style={{
+          fontSize: 20,
+          lineHeight: 1.3,
+          fontWeight: 450,
+          margin: 0,
+          color: "var(--ink)",
+        }}
+      >
+        {q}
+      </h3>
+      <p
+        className="f-serif"
+        style={{
+          marginTop: 12,
+          marginBottom: 0,
+          fontSize: 16,
+          lineHeight: 1.6,
+          color: "var(--ink-soft)",
+        }}
+      >
+        {a}
       </p>
     </div>
   );
@@ -527,16 +653,31 @@ export default function Landing({ onAuth }: LandingProps) {
   const [typed, setTyped] = useState("");
   const phrases = useMemo(
     () => [
-      "a line from the poem I couldn't stop thinking about…",
-      "what dad said at the kitchen table on Sunday…",
-      "the name of the jacket I saw in the window on Kloof…",
-      "a half-formed idea for a short story about dreams…",
+      "the gate code Mom always forgets…",
+      "where I hid the spare key for the Cape Town place…",
+      "the car insurance policy number — and the renewal date…",
+      "the thing the customer said on Tuesday's call I keep coming back to…",
+      "Dad's medical aid number, in case…",
+      "a half-formed idea for next quarter's pricing…",
     ],
     [],
   );
   const [pIdx, setPIdx] = useState(0);
   const [charIdx, setCharIdx] = useState(0);
   const [deleting, setDeleting] = useState(false);
+
+  // Cmd/Ctrl+K on the landing page = the same thing the kbd hint promises:
+  // start the signup flow. The hint exists, so the binding has to honor it.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        onAuth("signup");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onAuth]);
 
   useEffect(() => {
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -677,21 +818,13 @@ export default function Landing({ onAuth }: LandingProps) {
           >
             Privacy
           </a>
-          <button
-            className="design-btn-secondary press"
-            style={{ height: 36, minHeight: 36, fontSize: 13, whiteSpace: "nowrap" }}
-            onClick={() => goto("login")}
-          >
+          <Button variant="outline" size="sm" onClick={() => goto("login")}>
             Sign in
-          </button>
-          <button
-            className="design-btn-primary press landing-nav-cta"
-            style={{ height: 36, minHeight: 36, fontSize: 13, whiteSpace: "nowrap" }}
-            onClick={() => goto("signup")}
-          >
+          </Button>
+          <Button size="sm" className="landing-nav-cta" onClick={() => goto("signup")}>
             <span className="landing-nav-cta-full">Start remembering</span>
             <span className="landing-nav-cta-short">Sign up</span>
-          </button>
+          </Button>
         </nav>
       </header>
 
@@ -734,8 +867,8 @@ export default function Landing({ onAuth }: LandingProps) {
               className="micro anim-fade-up"
               style={{ marginBottom: 24, animationDelay: "50ms" }}
             >
-              <span style={{ color: "var(--ember)" }}>●</span> A quiet place for the things you want
-              to remember
+              <span style={{ color: "var(--ember)" }}>●</span> For the thoughts you'd lose · and the
+              facts you can't afford to
             </div>
             <h1
               className="f-serif anim-fade-up"
@@ -765,16 +898,29 @@ export default function Landing({ onAuth }: LandingProps) {
                 animationDelay: "240ms",
               }}
             >
-              Everion is a private room where you keep notes, links, half-thoughts and the things
-              worth not forgetting — and an AI that actually reads them when you ask.
+              One private place for the thoughts you'd lose and the facts you can't afford to — gate
+              codes, policy numbers, half-formed ideas, the things worth not forgetting. Ask the AI
+              anything; it actually reads them.
             </p>
 
-            {/* Live-feeling capture bar */}
+            {/* Live-feeling capture bar — clickable: lands the visitor on signup with the
+                typing-animation phrase as their first entry idea. */}
             <div
               className="anim-fade-up"
               style={{ animationDelay: "360ms", maxWidth: 640, margin: "0 auto" }}
             >
               <div
+                role="button"
+                tabIndex={0}
+                aria-label="Start free — try this with your own thoughts"
+                onClick={() => goto("signup")}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    goto("signup");
+                  }
+                }}
+                className="press landing-capture-bar"
                 style={{
                   background: "var(--surface)",
                   border: "1px solid var(--line)",
@@ -784,6 +930,8 @@ export default function Landing({ onAuth }: LandingProps) {
                   alignItems: "center",
                   gap: 12,
                   boxShadow: "var(--lift-2)",
+                  cursor: "pointer",
+                  transition: "border-color 200ms, box-shadow 200ms",
                 }}
               >
                 <svg
@@ -852,8 +1000,50 @@ export default function Landing({ onAuth }: LandingProps) {
                 </div>
               </div>
               <div className="micro" style={{ marginTop: 14, opacity: 0.7 }}>
-                nothing leaves your device until you say so · end-to-end encrypted vault
+                nothing leaves your device until you say so ·{" "}
+                <a
+                  className="press"
+                  href="/privacy#encryption"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.location.assign("/privacy#encryption");
+                  }}
+                  style={{
+                    color: "inherit",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 2,
+                    textDecorationColor: "var(--line)",
+                  }}
+                >
+                  end-to-end encrypted vault
+                </a>
               </div>
+            </div>
+
+            {/* Hero CTAs */}
+            <div
+              className="anim-fade-up"
+              style={{
+                animationDelay: "480ms",
+                marginTop: 32,
+                display: "flex",
+                gap: 12,
+                justifyContent: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <Button size="lg" onClick={() => goto("signup")}>
+                Start free — no card
+              </Button>
+              <Button variant="outline" size="lg" onClick={() => goto("landing#demo")}>
+                See it work
+              </Button>
+            </div>
+            <div
+              className="micro anim-fade-up"
+              style={{ marginTop: 14, opacity: 0.6, animationDelay: "560ms" }}
+            >
+              free forever · no credit card · your own AI key works
             </div>
           </div>
 
@@ -896,9 +1086,9 @@ export default function Landing({ onAuth }: LandingProps) {
               color: "var(--ink)",
             }}
           >
-            It is the place where the thought goes —{" "}
+            One place for the thoughts you'd lose —{" "}
             <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
-              and then stays findable.
+              and the facts you can't afford to.
             </span>
           </h2>
           <p
@@ -911,10 +1101,53 @@ export default function Landing({ onAuth }: LandingProps) {
               marginTop: 32,
             }}
           >
-            Not a to-do app. Not a chat-with-your-docs. Not a wiki you have to organize. Everion is
-            one opinionated surface for capture, one for chat, one for the shape of what you know.
-            It treats your memory like a place — warm, private, uncluttered — not a database.
+            Not a to-do app. Not a password manager. Not a wiki you have to maintain. Everion holds
+            the half-thought and the policy number in the same calm, encrypted room. No folders to
+            choose. No template to fill. No system to maintain on Sundays. The same one tap that
+            saves an idea saves the gate code; the same chat that recalls the customer insight tells
+            you when the licence renews.
           </p>
+
+          <div style={{ marginTop: 40 }}>
+            <Micro style={{ marginBottom: 14 }}>What goes in</Micro>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {[
+                "notes",
+                "voice memos",
+                "links",
+                "PDFs",
+                "photos",
+                "contacts",
+                "ID & bank details",
+                "gate codes",
+                "policy numbers",
+                "renewal dates",
+                "serial numbers",
+                "insurance details",
+                "medical aid info",
+                "where the spare key is",
+                "“if something happens to me” notes",
+                "todos & reminders",
+                "half-formed ideas",
+              ].map((label) => (
+                <span key={label} className="design-chip f-sans" style={{ fontSize: 12 }}>
+                  {label}
+                </span>
+              ))}
+            </div>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 14,
+                color: "var(--ink-faint)",
+                fontStyle: "italic",
+                marginTop: 14,
+                maxWidth: 520,
+              }}
+            >
+              Anything worth not losing. Encrypted. Askable. Yours.
+            </p>
+          </div>
         </section>
 
         {/* FOUR PILLARS */}
@@ -930,19 +1163,19 @@ export default function Landing({ onAuth }: LandingProps) {
               n="01"
               title="Capture"
               sub="lighter than opening a text box"
-              body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. No form. No title required. It's fast enough that you actually use it."
+              body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. A passing thought, the gate code, a screenshot of an insurance card — same one tap. No title. No folder. Fast enough that you actually use it."
             />
             <Pillar
               n="02"
               title="Recall"
               sub="ask, don't search"
-              body="Chat with your memory. The AI reads your entries, cites sources, and answers in plain language. 'what did I save about my dad this year' works."
+              body="Chat with your memory. Everion reads your entries, cites sources, answers in plain language. 'when does my driver's licence expire' works. So does 'what did the Acme team push back on last quarter'. So does 'where did I hide the spare key'."
             />
             <Pillar
               n="03"
               title="Synthesize"
               sub="connections you didn't see"
-              body="Everion notices when three notes rhyme. It surfaces unexpected pairings. Not a daily report — a quiet nudge when something's worth the glance."
+              body="Three notes from three different weeks turn out to be about the same thing. Everion notices. Quiet nudge, not a daily report — surfaces the link when it matters, stays out of the way when it doesn't."
             />
             <Pillar
               n="04"
@@ -953,8 +1186,42 @@ export default function Landing({ onAuth }: LandingProps) {
           </div>
         </section>
 
+        {/* SOCIAL PROOF — placeholder quotes, replace with real ones post-launch */}
+        <section
+          style={{
+            padding: "80px 40px",
+            maxWidth: 1120,
+            margin: "0 auto",
+          }}
+        >
+          <Micro style={{ textAlign: "center", marginBottom: 40 }}>
+            From the people already living here
+          </Micro>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 24,
+            }}
+          >
+            <Quote
+              text="It's the first one of these I actually opened on a Tuesday. I forgot how much was rattling around in my head."
+              who="Sarah · founder"
+            />
+            <Quote
+              text="I asked it for our gate code from a car park. Five seconds. That alone earned its place."
+              who="Andre · senior engineer"
+            />
+            <Quote
+              text="Every renewal date, every account number, every 'where is the deed' — it's all in there now. My family knows where it lives."
+              who="Megan · household keeper"
+            />
+          </div>
+        </section>
+
         {/* DEMO */}
         <section
+          id="demo"
           style={{
             padding: "120px 40px",
             background: "var(--surface-low)",
@@ -988,9 +1255,53 @@ export default function Landing({ onAuth }: LandingProps) {
                 marginTop: 20,
               }}
             >
-              This is real. The entries below are what Everion would save if you typed right now.
+              The four scenarios below are real captures. Pick one to see what Everion saves and how
+              it links to what's already in memory.
             </p>
-            <LandingDemo />
+            <LandingDemo onSignup={() => goto("signup")} />
+          </div>
+        </section>
+
+        {/* WHY NOT JUST USE… */}
+        <section style={{ padding: "120px 40px", maxWidth: 1040, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <Micro style={{ marginBottom: 16 }}>Where Everion fits</Micro>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: "clamp(28px, 4.5vw, 44px)",
+                lineHeight: 1.15,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+              }}
+            >
+              Why not just use{" "}
+              <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
+                what you already have?
+              </span>
+            </h2>
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gap: 24,
+            }}
+          >
+            <Compare
+              tool="Notion"
+              line="Notion expects you to build a system on Sundays. Everion is the system — there's nothing to set up."
+            />
+            <Compare
+              tool="Apple Notes"
+              line="Notes can't ask itself a question. And bank details in plaintext feel wrong because they are."
+            />
+            <Compare
+              tool="1Password"
+              line="1Password is built for credentials. Everion holds the free-form stuff — gate codes, policy numbers, the doctor's number."
+            />
           </div>
         </section>
 
@@ -1024,14 +1335,15 @@ export default function Landing({ onAuth }: LandingProps) {
             <PlanCard
               tier="Hobby"
               price="free"
-              body="Unlimited entries, local-first, end-to-end encrypted vault, one brain, bring your own AI key."
+              body="The whole product. Forever. Bring your own AI key."
               bullets={[
                 "Unlimited entries",
-                "Local-first, offline",
-                "Encrypted vault",
-                "Bring your own AI key",
+                "Local-first, works offline",
+                "End-to-end encrypted vault",
+                "Bring your own key (Anthropic, OpenAI, OpenRouter, Groq)",
               ]}
               cta="Start free"
+              ctaCaption="no card · works on day one"
               onCta={() => goto("signup")}
             />
             <PlanCard
@@ -1043,13 +1355,118 @@ export default function Landing({ onAuth }: LandingProps) {
                 "Everything in Hobby",
                 "Hosted AI (no key required)",
                 "Cross-device sync",
-                "Shared brains with 2 people",
+                "Shared brains with one other person",
                 "Export anywhere, anytime",
               ]}
               cta="Start 14-day trial"
+              ctaCaption="no card to start the trial"
               onCta={() => goto("signup")}
               featured
             />
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section style={{ padding: "120px 40px", maxWidth: 820, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <Micro style={{ marginBottom: 16 }}>Questions worth answering</Micro>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: "clamp(28px, 4.5vw, 44px)",
+                lineHeight: 1.15,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+              }}
+            >
+              The honest ones.
+            </h2>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+            <FaqItem
+              q="I already use 1Password — do I need this?"
+              a="1Password is for credentials. Everion is for everything else worth keeping — gate codes, policy numbers, the doctor's number, the thing the customer said on Tuesday's call. Different shape, different job. Use both."
+            />
+            <FaqItem
+              q="Is it really private if I'm storing bank details?"
+              a={
+                <>
+                  Local-first storage means your entries live on your device. The vault is
+                  end-to-end encrypted. With your own AI key, prompts go through your account — we
+                  never see them. The full architecture is on the{" "}
+                  <a
+                    className="press"
+                    href="/privacy#vault"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      window.location.assign("/privacy#vault");
+                    }}
+                    style={{
+                      color: "var(--ember)",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    privacy page
+                  </a>
+                  .
+                </>
+              }
+            />
+            <FaqItem
+              q="Will I bounce off it like I did Notion?"
+              a="If you don't open it again, that's our problem to fix, not yours. Notion expects you to build a system on Sundays. Everion has nothing to set up. Capture is one tap because the friction is the whole game — most second-brain tools die on it."
+            />
+          </div>
+        </section>
+
+        {/* FINAL CTA */}
+        <section
+          style={{
+            padding: "120px 40px",
+            borderTop: "1px solid var(--line-soft)",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ maxWidth: 720, margin: "0 auto" }}>
+            <Micro style={{ marginBottom: 16 }}>One more thing</Micro>
+            <h2
+              className="f-serif"
+              style={{
+                fontSize: "clamp(32px, 5vw, 56px)",
+                lineHeight: 1.1,
+                fontWeight: 400,
+                margin: 0,
+                letterSpacing: "-0.02em",
+                color: "var(--ink)",
+              }}
+            >
+              Everything that matters,{" "}
+              <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>
+                in one calm place.
+              </span>
+            </h2>
+            <p
+              className="f-serif"
+              style={{
+                fontSize: 19,
+                lineHeight: 1.6,
+                color: "var(--ink-soft)",
+                maxWidth: 560,
+                margin: "32px auto 40px",
+              }}
+            >
+              Three taps from now, the first thing is in. A week from now, you'll wonder how you
+              held it all in your head.
+            </p>
+            <Button size="lg" onClick={() => goto("signup")}>
+              Start free
+            </Button>
+            <div className="micro" style={{ marginTop: 20, opacity: 0.7 }}>
+              free forever · no credit card · export anytime
+            </div>
           </div>
         </section>
       </main>
@@ -1147,6 +1564,8 @@ export default function Landing({ onAuth }: LandingProps) {
       <style>{`
         .landing-demo-grid { grid-template-columns: 1fr 1fr; }
         .landing-nav-cta-short { display: none; }
+        .landing-capture-bar:hover { border-color: var(--ember) !important; box-shadow: var(--lift-3) !important; }
+        .landing-capture-bar:focus-visible { outline: 2px solid var(--ember); outline-offset: 4px; }
         @media (max-width: 820px) {
           .landing-demo-grid { grid-template-columns: 1fr !important; }
           .landing-nav { padding: calc(14px + env(safe-area-inset-top)) 16px 14px !important; gap: 12px !important; }

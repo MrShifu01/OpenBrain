@@ -3,6 +3,7 @@
 // startTask call surfaces here regardless of which tab launched it.
 
 import { useBackgroundOps } from "../hooks/useBackgroundOps";
+import { Button } from "./ui/button";
 
 function Spinner() {
   return (
@@ -114,28 +115,31 @@ export function BackgroundOpsToast() {
             </div>
 
             {isDone && task.action && (
-              <button
+              <Button
+                size="xs"
                 onClick={() => {
                   window.dispatchEvent(
                     new CustomEvent(task.action!.event, { detail: task.action!.detail }),
                   );
                   dismissTask(task.id);
                 }}
-                className="press-scale ml-auto shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+                className="press-scale ml-auto shrink-0 rounded-lg"
                 style={{
                   background: "var(--color-primary)",
                   color: "var(--color-on-primary)",
                 }}
               >
                 {task.action.label}
-              </button>
+              </Button>
             )}
 
             {!isActive && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => dismissTask(task.id)}
                 aria-label="Dismiss"
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-white/10"
+                className="h-6 w-6 shrink-0 rounded-full"
                 style={{ color: "var(--color-on-surface-variant)" }}
               >
                 <svg
@@ -147,20 +151,22 @@ export function BackgroundOpsToast() {
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
-              </button>
+              </Button>
             )}
           </div>
         );
       })}
 
       {finished.length > 1 && (
-        <button
+        <Button
+          variant="link"
+          size="xs"
           onClick={dismissAll}
-          className="self-end text-xs underline underline-offset-2 transition-colors hover:opacity-80"
+          className="self-end text-xs"
           style={{ color: "var(--color-on-surface-variant)" }}
         >
           Dismiss all
-        </button>
+        </Button>
       )}
     </div>
   );

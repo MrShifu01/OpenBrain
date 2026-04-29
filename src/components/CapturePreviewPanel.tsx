@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { CANONICAL_TYPES } from "../types";
 import { IconArrowLeft } from "./captureIcons";
+import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 export interface PreviewState {
   title: string;
@@ -26,23 +28,11 @@ export default function CapturePreviewPanel({
   errorDetail,
 }: Props) {
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const typeRef = useRef<HTMLDivElement>(null);
-  const [typeOpen, setTypeOpen] = useState(false);
 
   // Focus title on mount
   useEffect(() => {
     requestAnimationFrame(() => titleInputRef.current?.focus());
   }, []);
-
-  // Close type dropdown on outside click
-  useEffect(() => {
-    if (!typeOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [typeOpen]);
 
   return (
     <div
@@ -61,14 +51,9 @@ export default function CapturePreviewPanel({
         >
           before saving
         </h2>
-        <button
-          className="design-btn-ghost press"
-          onClick={onBack}
-          aria-label="Back"
-          style={{ width: 32, height: 32, minHeight: 32, padding: 0 }}
-        >
+        <Button variant="ghost" size="icon-sm" onClick={onBack} aria-label="Back">
           {IconArrowLeft}
-        </button>
+        </Button>
       </div>
 
       {errorDetail && (
@@ -101,83 +86,25 @@ export default function CapturePreviewPanel({
         />
       </div>
 
-      <div ref={typeRef} style={{ position: "relative" }}>
+      <div>
         <div className="micro" style={{ marginBottom: 6 }}>
           Type
         </div>
-        <button
-          type="button"
-          onClick={() => setTypeOpen((p) => !p)}
-          className="design-input f-sans"
-          style={{
-            textAlign: "left",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-          }}
+        <Select
+          value={preview.type}
+          onValueChange={(v) => onPreviewChange({ ...preview, type: v })}
         >
-          <span>{preview.type.charAt(0).toUpperCase() + preview.type.slice(1)}</span>
-          <svg
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-            style={{
-              flexShrink: 0,
-              transform: typeOpen ? "rotate(180deg)" : "none",
-              transition: "transform 180ms",
-            }}
-          >
-            <path d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        {typeOpen && (
-          <div
-            style={{
-              position: "absolute",
-              left: 0,
-              right: 0,
-              bottom: "100%",
-              zIndex: 20,
-              marginBottom: 4,
-              background: "var(--surface-high)",
-              border: "1px solid var(--line)",
-              borderRadius: 8,
-              boxShadow: "var(--lift-2)",
-              overflow: "hidden",
-            }}
-          >
+          <SelectTrigger className="design-input f-sans w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
             {CANONICAL_TYPES.filter((t) => t !== "secret").map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  onPreviewChange({ ...preview, type: t });
-                  setTypeOpen(false);
-                }}
-                className="f-sans press"
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 14px",
-                  minHeight: 36,
-                  fontSize: 14,
-                  color: "var(--ink)",
-                  background: preview.type === t ? "var(--ember-wash)" : "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
+              <SelectItem key={t} value={t}>
                 {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
+              </SelectItem>
             ))}
-          </div>
-        )}
+          </SelectContent>
+        </Select>
       </div>
 
       <div>
@@ -204,17 +131,16 @@ export default function CapturePreviewPanel({
           borderTop: "1px solid var(--line-soft)",
         }}
       >
-        <button className="design-btn-secondary press" onClick={onBack} style={{ flex: 1 }}>
+        <Button variant="outline" onClick={onBack} className="flex-1">
           Back
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={onConfirm}
           disabled={!preview.title.trim() || loading}
-          className="design-btn-primary press"
-          style={{ flex: 2 }}
+          className="flex-[2]"
         >
           {loading ? "Saving…" : preview.type === "secret" ? "Save to vault" : "Save"}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
+import { Button } from "./ui/button";
 
 // Auto-hide on scroll-down, slide back in on scroll-up. Mirrors the
 // pattern shipping in Mail / Twitter / Instagram — gives users back the
@@ -135,22 +136,12 @@ export default function MobileHeader({
           />
         )}
         {onSearch && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onSearch}
             aria-label="Search"
-            className="press"
-            style={{
-              width: 36,
-              height: 36,
-              minHeight: 36,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 6,
-              color: "var(--ink-soft)",
-              background: "transparent",
-              border: 0,
-            }}
+            style={{ color: "var(--ink-soft)" }}
           >
             <svg
               width="18"
@@ -165,24 +156,14 @@ export default function MobileHeader({
               <circle cx="11" cy="11" r="6.5" />
               <path d="m20 20-3.5-3.5" />
             </svg>
-          </button>
+          </Button>
         )}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={onToggleTheme}
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          className="press"
-          style={{
-            width: 36,
-            height: 36,
-            minHeight: 36,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            borderRadius: 6,
-            color: "var(--ink-soft)",
-            background: "transparent",
-            border: 0,
-          }}
+          style={{ color: "var(--ink-soft)" }}
         >
           {isDark ? (
             <svg
@@ -212,7 +193,7 @@ export default function MobileHeader({
               <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10z" />
             </svg>
           )}
-        </button>
+        </Button>
       </div>
     </header>
   );

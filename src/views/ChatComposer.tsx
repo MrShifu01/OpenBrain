@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { Button } from "../components/ui/button";
 
 const IconSend = (
   <svg
@@ -124,44 +125,29 @@ export default function ChatComposer({
             </span>
           )}
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-sm"
           onClick={onStartVoice}
           disabled={voiceLoading}
-          className="design-btn-ghost press"
           aria-label={listening ? "Stop recording" : "Voice note"}
-          style={{
-            width: 36,
-            height: 36,
-            minHeight: 36,
-            padding: 0,
-            color: listening ? "var(--ember)" : "var(--ink-faint)",
-          }}
+          style={{ color: listening ? "var(--ember)" : "var(--ink-faint)" }}
         >
           <IconMic on={listening} />
-        </button>
-        <button
+        </Button>
+        <Button
+          size="icon-sm"
           onClick={onSend}
           aria-label="Send message"
-          className="press"
+          disabled={!input.trim() || loading || noMemory}
           style={{
-            width: 36,
-            height: 36,
-            minHeight: 36,
-            borderRadius: 8,
             background: input.trim() && !noMemory ? "var(--ember)" : "var(--surface-high)",
             color: input.trim() && !noMemory ? "var(--ember-ink)" : "var(--ink-faint)",
-            border: 0,
-            cursor: !input.trim() || loading ? "not-allowed" : noMemory ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "background 180ms",
-            opacity: noMemory ? 0.45 : 1,
           }}
         >
           {IconSend}
-        </button>
+        </Button>
       </div>
       <div
         className="f-sans"

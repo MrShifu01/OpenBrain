@@ -9,6 +9,7 @@ import { useEntries } from "../../context/EntriesContext";
 import { useBrain } from "../../context/BrainContext";
 import { useBackgroundOps } from "../../hooks/useBackgroundOps";
 import { useAdminPrefs } from "../../lib/adminPrefs";
+import { Button } from "../ui/button";
 
 interface GmailIntegration {
   id: string;
@@ -432,27 +433,17 @@ export function DisconnectButton({
   disabled?: boolean;
 }) {
   return (
-    <button
+    <Button
       type="button"
       onClick={onClick}
       disabled={!!disabled}
-      className="press f-sans"
-      style={{
-        marginLeft: "auto",
-        height: 32,
-        padding: "0 10px",
-        fontSize: 12,
-        fontWeight: 500,
-        borderRadius: 8,
-        background: "transparent",
-        color: "var(--blood)",
-        border: "1px solid transparent",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-      }}
+      variant="ghost"
+      size="sm"
+      className="ml-auto"
+      style={{ color: "var(--blood)" }}
     >
       {disabled ? "Disconnecting…" : "Disconnect"}
-    </button>
+    </Button>
   );
 }
 
@@ -666,63 +657,43 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
               />
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <button
+                <Button
                   type="button"
                   onClick={distill}
                   disabled={distilling}
-                  className="press f-sans"
+                  variant="outline"
+                  size="sm"
                   style={{
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 6,
                     background: "var(--ember-wash)",
                     color: "var(--ember)",
-                    border: "1px solid color-mix(in oklch, var(--ember) 30%, transparent)",
-                    cursor: distilling ? "wait" : "pointer",
+                    borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
                   }}
                 >
                   {distilling ? "Distilling…" : "Distill now"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => load()}
                   disabled={loading}
-                  className="press f-sans"
-                  style={{
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 6,
-                    background: "transparent",
-                    color: "var(--ink-soft)",
-                    border: "1px solid var(--line-soft)",
-                    cursor: loading ? "wait" : "pointer",
-                  }}
+                  variant="outline"
+                  size="sm"
+                  style={{ color: "var(--ink-soft)" }}
                 >
                   {loading ? "Refreshing…" : "Refresh"}
-                </button>
+                </Button>
                 {data.prompt && (
-                  <button
+                  <Button
                     type="button"
                     onClick={() => setShowRaw((v) => !v)}
-                    className="press f-sans"
+                    variant="outline"
+                    size="sm"
                     style={{
-                      height: 30,
-                      padding: "0 12px",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      borderRadius: 6,
-                      background: "transparent",
                       color: showRaw ? "var(--ember)" : "var(--ink-soft)",
-                      border: `1px solid ${showRaw ? "var(--ember)" : "var(--line-soft)"}`,
-                      cursor: "pointer",
+                      borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
                     }}
                   >
                     {showRaw ? "Hide raw prompt" : "Show raw prompt"}
-                  </button>
+                  </Button>
                 )}
                 {data.prompt && (
                   <span

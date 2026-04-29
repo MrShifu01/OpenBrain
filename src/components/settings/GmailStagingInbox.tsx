@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { authFetch } from "../../lib/authFetch";
 import type { Entry } from "../../types";
+import { Button } from "../ui/button";
 
 interface Props {
   onClose: () => void;
@@ -307,23 +308,9 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
               ? "No staged Gmail entries are waiting."
               : "Accepted entries are now in your brain."}
           </p>
-          <button
-            onClick={onClose}
-            className="press f-sans"
-            style={{
-              width: "100%",
-              height: 44,
-              borderRadius: 10,
-              border: "none",
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              fontSize: 15,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          <Button onClick={onClose} size="lg" className="w-full">
             Done
-          </button>
+          </Button>
         </div>
       </div>,
       document.body,
@@ -543,40 +530,17 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
         {/* Buttons */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button
+          <Button
             onClick={() => triggerReject(index)}
-            className="press f-sans"
-            style={{
-              flex: 1,
-              height: 40,
-              borderRadius: 10,
-              border: "1.5px solid var(--line-soft)",
-              background: "transparent",
-              color: "var(--ink-faint)",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
+            variant="outline"
+            className="flex-1"
+            style={{ color: "var(--ink-faint)" }}
           >
             Reject
-          </button>
-          <button
-            onClick={() => triggerAccept(index)}
-            className="press f-sans"
-            style={{
-              flex: 1,
-              height: 40,
-              borderRadius: 10,
-              border: "none",
-              background: "var(--ember)",
-              color: "var(--ember-ink)",
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Button onClick={() => triggerAccept(index)} className="flex-1">
             Accept
-          </button>
+          </Button>
         </div>
 
         {/* Swipe hint */}

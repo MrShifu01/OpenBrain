@@ -3,6 +3,8 @@
 // alive instead of escalating to the full-screen "Something went wrong"
 // view in src/ErrorBoundary.tsx.
 
+import { Button } from "./ui/button";
+
 interface ViewErrorProps {
   view: string;
   error: Error;
@@ -57,9 +59,9 @@ export default function ViewError({ view, error, onReset }: ViewErrorProps) {
         >
           {error.message || "Unknown error"}
         </p>
-        <button type="button" onClick={onReset} className="design-btn-primary press">
+        <Button type="button" onClick={onReset} className="press">
           Try again
-        </button>
+        </Button>
       </div>
     </div>
   );

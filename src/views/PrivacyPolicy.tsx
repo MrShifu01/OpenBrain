@@ -90,45 +90,176 @@ export default function PrivacyPolicy() {
             lineHeight: 1.5,
             color: "var(--ink-soft)",
             fontStyle: "italic",
-            margin: "24px 0 56px",
+            margin: "24px 0 40px",
           }}
         >
-          Everion is as private as a notebook in your drawer. Here's what that means, exactly.
+          Everion is as private as a notebook in your drawer — including the high-stakes stuff (IDs,
+          bank details, gate codes, "if I die" notes). Here's what that means, exactly.
         </p>
 
-        <Section title="What we store">
+        {/* Quick scan / table of contents */}
+        <nav
+          aria-label="On this page"
+          style={{
+            margin: "0 0 56px",
+            padding: 20,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 14,
+          }}
+        >
+          <div className="micro" style={{ marginBottom: 12 }}>
+            On this page
+          </div>
+          <ul
+            style={{
+              listStyle: "none",
+              padding: 0,
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+              fontSize: 14,
+            }}
+          >
+            {[
+              ["What we store", "what-we-store"],
+              ["The vault — for high-stakes facts", "vault"],
+              ["End-to-end encryption", "encryption"],
+              ["AI processing — exactly what is sent where", "ai"],
+              ["Where your data lives", "where"],
+              ["What you can take with you (export)", "export"],
+              ["Retention & deletion", "retention"],
+              ["Your rights", "rights"],
+              ["Cookies & local storage", "cookies"],
+            ].map(([label, anchor]) => (
+              <li key={anchor}>
+                <a
+                  href={`#${anchor}`}
+                  style={{
+                    color: "var(--ink-soft)",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 2,
+                    textDecorationColor: "var(--line)",
+                  }}
+                >
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <Section title="What we store" id="what-we-store">
           Of your content: your entries, your concepts, and the sync metadata they need. That's it —
           we don't analyze, mine, or sell what you wrote. We do not store your device ID or your IP
           address beyond 24 hours.
         </Section>
 
-        <Section title="End-to-end encryption">
-          Vault entries are encrypted on your device with a key derived from your passphrase. We
-          never see the key. If you forget it, we can't help you recover the vault — that's the
-          point.
+        <Section title="The vault — for high-stakes facts" id="vault">
+          The vault is the part of Everion designed to hold the things you wouldn't write in a
+          regular notes app: ID numbers, bank account details, gate codes, computer serial numbers,
+          driver's licence info, policy numbers, "if something happens to me" notes, where the spare
+          key is.
+          <br />
+          <br />
+          Vault entries are encrypted on your device with a passphrase only you know.{" "}
+          <strong>
+            We never see the passphrase, and we cannot decrypt vault entries on our side.
+          </strong>{" "}
+          When you set up the vault, we generate a one-time recovery key and show it to you to write
+          down. We store an encrypted blob of your vault key on our server — encrypted with that
+          recovery key — so the only way it ever becomes useful is if <em>you</em> bring the
+          recovery key back. Lose both the passphrase and the recovery key, and the vault is
+          unrecoverable. Storing your bank details should not feel safer than storing them in
+          1Password; this is built so it doesn't.
+          <br />
+          <br />
+          Vault content is also kept out of the AI pipeline by default — embeddings and chat context
+          use your normal entries, not vault entries, unless you explicitly opt-in for a specific
+          vault entry.
         </Section>
 
-        <Section title="AI processing">
-          We use Google Gemini to embed your entries (so search can find them) and enrich them with
-          summaries and tags. When you chat with your memory, the entries relevant to your question
-          are sent to the AI provider of your choice — bring your own key for OpenAI, Anthropic, or
-          Groq, or use the bundled Gemini. Providers don't train on your data, under our agreements.
+        <Section title="End-to-end encryption" id="encryption">
+          <strong>Algorithm:</strong> AES-GCM 256-bit, with keys derived from your passphrase via
+          PBKDF2 (310,000 iterations, SHA-256, browser-native WebCrypto). Encryption and decryption
+          happen inside your browser — the unencrypted plaintext of a vault entry never touches our
+          servers.
+          <br />
+          <br />
+          <strong>What we can see vs. can't:</strong> we can see that <em>you</em> have an entry
+          (its row exists, its size, when it was created); we cannot see what's inside a vault
+          entry. Regular (non-vault) entries are stored in our database in a form we can read — this
+          is what enables search and AI chat. If something has to be vault-grade private, put it in
+          the vault.
+          <br />
+          <br />
+          <strong>Keys never leave your device unencrypted.</strong> The only key material that
+          touches our server is the recovery blob (your vault key encrypted with your one-time
+          recovery key). Without your recovery key, the blob is opaque to us. We get a lot of
+          "please reset my vault" emails — and unless you still have your recovery key, we can't.
         </Section>
 
-        <Section title="Where your data lives">
+        <Section title="AI processing — exactly what is sent where" id="ai">
+          <strong>Embeddings (search):</strong> when you create a regular entry, its text is sent to
+          Google Gemini to produce an embedding vector. The embedding stays in our database; the
+          text round-trip is one call, no training. Vault entries are not embedded by default.
+          <br />
+          <br />
+          <strong>Chat (recall):</strong> when you ask your memory a question, the entries that
+          match your question are sent — along with your question — to whichever AI provider you've
+          configured. With your own API key, the request goes through your provider account, not
+          ours. With the hosted Gemini option (Pro), the request goes through ours.
+          <br />
+          <br />
+          <strong>What providers see:</strong> the entries relevant to your specific question, plus
+          your question. Not your full memory, not your account, not metadata they don't need. Under
+          our agreements with OpenAI, Anthropic, Groq, and Google, none of them train on your data.
+          <br />
+          <br />
+          <strong>What providers don't see:</strong> vault content, your encryption keys, your
+          unrelated entries.
+        </Section>
+
+        <Section title="Where your data lives" id="where">
           Database and auth: Supabase, EU West (Ireland). Hosting: Vercel global edge network.
           Transactional email: Resend. Error monitoring: Sentry (no PII). Product analytics:
           PostHog, only after you accept the consent banner — and never your entry contents. No ad
           networks. No session replay.
         </Section>
 
-        <Section title="Retention">
-          We keep your data while your account exists so the app can do its job. When you delete
-          your account, every row we have of you is scrubbed within 48 hours, including embeddings,
-          push subscriptions, and integration tokens.
+        <Section title="What you can take with you (export)" id="export">
+          Your data is yours. From <em>Settings → Data</em> you can export:
+          <ul style={{ margin: "12px 0 12px 20px", padding: 0 }}>
+            <li>
+              your entries as <strong>JSON</strong> or <strong>CSV</strong>
+            </li>
+            <li>
+              your contacts as <strong>vCard</strong>
+            </li>
+            <li>
+              your full account dump (every row we hold of you) as a single <strong>JSON</strong>{" "}
+              file — the GDPR / POPIA right-of-access export
+            </li>
+          </ul>
+          Vault entries are included in the full export as their original AES-GCM ciphertext. Our
+          server cannot decrypt them — only your in-app vault, with your passphrase, can. Today the
+          path back in is the app itself; a separate offline decryption tool is on the roadmap so
+          your encrypted vault remains readable even if we vanish.
+          <br />
+          <br />
+          We make this easy on purpose: the moment a privacy-first product can hold your data
+          hostage, the privacy claim is empty.
         </Section>
 
-        <Section title="Your rights">
+        <Section title="Retention & deletion" id="retention">
+          We keep your data while your account exists so the app can do its job. When you delete
+          your account, every row we have of you is scrubbed within 48 hours, including embeddings,
+          push subscriptions, and integration tokens. Vault entries — being encrypted — were already
+          unreadable to us; we delete the ciphertext too.
+        </Section>
+
+        <Section title="Your rights" id="rights">
           Export, delete, transfer. All self-service, no email required. POPIA (South Africa) and
           GDPR (EU) requests — including right of access, rectification, and erasure — can go to{" "}
           <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
@@ -137,7 +268,7 @@ export default function PrivacyPolicy() {
           .
         </Section>
 
-        <Section title="Cookies & local storage">
+        <Section title="Cookies & local storage" id="cookies">
           Everion stores session tokens and preferences in browser local storage. Analytics fire
           only after consent. No advertising cookies, no cross-site tracking.
         </Section>
@@ -147,7 +278,7 @@ export default function PrivacyPolicy() {
           className="f-serif"
           style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}
         >
-          last touched 27 April 2026. write to{" "}
+          last touched 29 April 2026. write to{" "}
           <a href="mailto:stander.christian@gmail.com" style={{ color: "var(--ember)" }}>
             stander.christian@gmail.com
           </a>{" "}
@@ -158,9 +289,17 @@ export default function PrivacyPolicy() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  id,
+  children,
+}: {
+  title: string;
+  id?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section style={{ marginBottom: 40 }}>
+    <section id={id} style={{ marginBottom: 40, scrollMarginTop: 24 }}>
       <h2
         className="f-serif"
         style={{

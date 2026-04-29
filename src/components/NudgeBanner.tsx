@@ -1,3 +1,5 @@
+import { Button } from "./ui/button";
+
 interface NudgeBannerProps {
   nudge: string;
   onDismiss: () => void;
@@ -20,10 +22,12 @@ export function NudgeBanner({ nudge, onDismiss }: NudgeBannerProps) {
         💡
       </div>
       <p className="text-on-surface-variant flex-1 text-sm leading-relaxed">{nudge}</p>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="text-on-surface-variant/50 hover:text-on-surface press-scale mt-0.5 flex-shrink-0 transition-colors"
+        className="text-on-surface-variant/50 hover:text-on-surface press-scale mt-0.5 flex-shrink-0"
       >
         <svg
           aria-hidden="true"
@@ -35,7 +39,7 @@ export function NudgeBanner({ nudge, onDismiss }: NudgeBannerProps) {
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
-      </button>
+      </Button>
     </div>
   );
 }
