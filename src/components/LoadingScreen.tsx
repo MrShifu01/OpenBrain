@@ -61,22 +61,17 @@ export default function LoadingScreen(): JSX.Element {
               alignItems: "center",
               justifyContent: "center",
               border: "1px solid color-mix(in oklch, var(--color-primary) 20%, transparent)",
-              color: "var(--color-primary)",
             }}
           >
-            <svg
-              width={72 * 0.42}
-              height={72 * 0.42}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+            <img
+              src="/logoNew.webp"
+              width={72 * 0.62}
+              height={72 * 0.62}
+              alt=""
               aria-hidden="true"
-            >
-              <path d="M8.5 3a3.5 3.5 0 0 0-3.5 3.5c-1.5.5-2.5 2-2.5 3.5 0 1 .5 2 1.5 2.5-.5.8-.5 2 0 3 .3.6.8 1 1.5 1.3-.2.9.1 2 .8 2.7.8.7 2 1 3 .5.3 1 1.3 2 2.7 2A2.5 2.5 0 0 0 14.5 20V4.5A1.5 1.5 0 0 0 13 3M15.5 3A3.5 3.5 0 0 1 19 6.5c1.5.5 2.5 2 2.5 3.5 0 1-.5 2-1.5 2.5.5.8.5 2 0 3-.3.6-.8 1-1.5 1.3.2.9-.1 2-.8 2.7-.8.7-2 1-3 .5-.3 1-1.3 2-2.7 2A2.5 2.5 0 0 1 9.5 20V4.5A1.5 1.5 0 0 1 11 3" />
-            </svg>
+              decoding="async"
+              style={{ objectFit: "contain", display: "block" }}
+            />
           </div>
         </div>
 

@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-  <!-- Warm espresso charcoal background -->
+  <!-- Espresso charcoal ground — squircle corners -->
   <rect width="48" height="48" rx="10" fill="#2D2926"/>
-  <!-- E letterform — ivory mist, bold editorial -->
-  <!-- Vertical stem -->
-  <rect x="12" y="12" width="4" height="24" rx="1.5" fill="#E5E0D8"/>
-  <!-- Top bar -->
-  <rect x="12" y="12" width="22" height="4" rx="1.5" fill="#E5E0D8"/>
-  <!-- Middle bar (shorter — classic E proportion) -->
-  <rect x="12" y="22" width="16" height="4" rx="1.5" fill="#E5E0D8"/>
-  <!-- Bottom bar -->
-  <rect x="12" y="32" width="22" height="4" rx="1.5" fill="#E5E0D8"/>
-  <!-- Bronze accent dot — single warm accent -->
-  <circle cx="38" cy="38" r="3.5" fill="#A68B67"/>
+  <!-- Three-node graph in warm bronze -->
+  <g fill="#D4A56F" stroke="#D4A56F" stroke-linecap="round">
+    <!-- connectors -->
+    <line x1="19" y1="16" x2="16" y2="33" stroke-width="2.2"/>
+    <line x1="19" y1="16" x2="36" y2="25" stroke-width="2.2"/>
+    <line x1="16" y1="33" x2="36" y2="25" stroke-width="2.2"/>
+    <!-- nodes -->
+    <circle cx="19" cy="16" r="7"/>
+    <circle cx="16" cy="33" r="6"/>
+    <circle cx="36" cy="25" r="3.5"/>
+  </g>
 </svg>

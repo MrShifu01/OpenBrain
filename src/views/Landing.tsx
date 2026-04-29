@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "../components/ui/button";
+import ExitIntentSlideIn from "../components/ExitIntentSlideIn";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface LandingProps {
@@ -1560,6 +1561,8 @@ export default function Landing({ onAuth }: LandingProps) {
           .landing-nav-cta-short { display: inline; }
         }
       `}</style>
+
+      <ExitIntentSlideIn />
     </div>
   );
 }
