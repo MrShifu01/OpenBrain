@@ -103,6 +103,31 @@ export default function TodoSomedayTab({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [scheduleId, setScheduleId] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string>(ALL);
+  // Bulk-select mode — same UX as Memory view's Select toggle.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Optimistic entries — instant-render before server confirms. Matched
+  // by id (server returns final id; we replace optimistic by content).
+  const [optimisticEntries, setOptimisticEntries] = useState<Entry[]>([]);
+
+  const toggleSelectMode = () => {
+    setSelectMode((m) => {
+      if (m) setSelectedIds(new Set());
+      return !m;
+    });
+  };
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+    setSelectMode(false);
+  };
 
   // User-defined category list. Optimistic flow:
   //   1. Render from localStorage cache immediately (no flicker).
@@ -141,15 +166,37 @@ export default function TodoSomedayTab({
     if (brainId) pushBrainCategories(brainId, cleaned);
   };
 
-  const allItems = useMemo(
-    () =>
-      entries
-        .filter((e) => e.type === "someday" && !isDone(e))
-        .sort(
-          (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
-        ),
-    [entries],
-  );
+  // Merge real entries with optimistic-render entries. Optimistic IDs
+  // start with "tmp-" so they can never collide with server UUIDs. Once
+  // the next refetch lands an entry with matching content, we drop the
+  // optimistic twin via the effect below.
+  const allItems = useMemo(() => {
+    const real = entries.filter((e) => e.type === "someday" && !isDone(e));
+    const realKeys = new Set(real.map((e) => `${e.title}::${e.content || ""}`));
+    const stillPending = optimisticEntries.filter(
+      (e) => !realKeys.has(`${e.title}::${e.content || ""}`),
+    );
+    return [...stillPending, ...real].sort(
+      (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime(),
+    );
+  }, [entries, optimisticEntries]);
+
+  // Prune optimistic entries that now exist in the real list — keeps state
+  // tight and avoids stale ghosts.
+  useEffect(() => {
+    if (optimisticEntries.length === 0) return;
+    const realKeys = new Set(
+      entries.filter((e) => e.type === "someday").map((e) => `${e.title}::${e.content || ""}`),
+    );
+    const surviving = optimisticEntries.filter(
+      (e) => !realKeys.has(`${e.title}::${e.content || ""}`),
+    );
+    if (surviving.length !== optimisticEntries.length) setOptimisticEntries(surviving);
+  }, [entries, optimisticEntries]);
+
+  const addOptimistic = (entry: Entry) => {
+    setOptimisticEntries((prev) => [entry, ...prev]);
+  };
 
   // Category list: union of (a) tags currently in use across someday items
   // and (b) user-declared categories — so a freshly-created empty bucket
@@ -283,6 +330,106 @@ export default function TodoSomedayTab({
     if (selectedTag === name) setSelectedTag(ALL);
   };
 
+  // ── Bulk-action handlers ───────────────────────────────────────────────
+  // All hit /api/entries?action=bulk-patch where possible (one round-trip
+  // for tags/status/pinned) and fall back to per-entry updates only where
+  // the field isn't whitelisted (type changes during scheduling).
+
+  const bulkDone = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    try {
+      const r = await authFetch("/api/entries?action=bulk-patch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, patch: { status: "done" } }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      // Mirror to local state so cards disappear immediately.
+      for (const id of ids) {
+        const entry = allItems.find((e) => e.id === id);
+        if (entry) {
+          await onUpdate?.(id, {
+            metadata: { ...(entry.metadata || {}), status: "done" },
+          });
+        }
+      }
+    } catch (err) {
+      console.error("[someday-bulk-done]", err);
+    }
+    clearSelection();
+  };
+
+  const bulkDrop = async () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    await Promise.all(ids.map((id) => onDelete?.(id)));
+    clearSelection();
+  };
+
+  const bulkSchedule = async (dateStr: string) => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    // type=todo isn't in the bulk-patch whitelist; per-entry it is.
+    await Promise.all(
+      ids.map(async (id) => {
+        const entry = allItems.find((e) => e.id === id);
+        if (!entry) return;
+        await onUpdate?.(id, {
+          type: "todo",
+          metadata: {
+            ...(entry.metadata || {}),
+            scheduled_for: dateStr,
+            due_date: dateStr,
+            status: "todo",
+          },
+        });
+      }),
+    );
+    clearSelection();
+  };
+
+  const bulkAssignCategory = async (newTag: string) => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    // Group by next-tag-set so each group is one bulk PATCH (matches the
+    // delete-category pattern).
+    const groups = new Map<string, { tags: string[]; ids: string[] }>();
+    for (const id of ids) {
+      const entry = allItems.find((e) => e.id === id);
+      if (!entry) continue;
+      const filtered = (entry.tags ?? []).filter((raw) => {
+        const t = raw.trim();
+        if (!t) return false;
+        if (HIDDEN_CATEGORY_TAGS.has(t)) return true;
+        return !knownTags.includes(t);
+      });
+      const next = newTag === UNTAGGED ? filtered : [...filtered, newTag];
+      const key = JSON.stringify(next);
+      const group = groups.get(key);
+      if (group) group.ids.push(id);
+      else groups.set(key, { tags: next, ids: [id] });
+    }
+    await Promise.all(
+      Array.from(groups.values()).map(async (group) => {
+        try {
+          const r = await authFetch("/api/entries?action=bulk-patch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: group.ids, patch: { tags: group.tags } }),
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          for (const id of group.ids) {
+            await onUpdate?.(id, { tags: group.tags });
+          }
+        } catch (err) {
+          console.error("[someday-bulk-cat]", err);
+        }
+      }),
+    );
+    clearSelection();
+  };
+
   const recategorise = async (entry: Entry, newTag: string) => {
     // Strip every existing *known* category tag, keep hidden tags + free-form
     // tags that aren't categories. Add the new one unless moving to untagged.
@@ -315,6 +462,8 @@ export default function TodoSomedayTab({
         <SomedayQuickAdd
           brainId={brainId}
           onAdded={onAdded}
+          onOptimistic={addOptimistic}
+          knownTags={knownTags}
           activeTag={selectedTag !== ALL && selectedTag !== UNTAGGED ? selectedTag : ""}
         />
       </div>
@@ -324,6 +473,9 @@ export default function TodoSomedayTab({
         untagged={untaggedCount}
         categories={categories}
         selected={selectedTag}
+        selectMode={selectMode}
+        canSelect={allItems.length > 0}
+        onToggleSelectMode={toggleSelectMode}
         onSelect={setSelectedTag}
         onCreate={createCategory}
         onRename={renameCategory}
@@ -380,6 +532,9 @@ export default function TodoSomedayTab({
               busy={busyId === entry.id}
               scheduling={scheduleId === entry.id}
               knownTags={knownTags}
+              selectMode={selectMode}
+              selected={selectedIds.has(entry.id)}
+              onToggleSelect={() => toggleSelected(entry.id)}
               onRecategorise={(t) => recategorise(entry, t)}
               onStartSchedule={() => setScheduleId(entry.id)}
               onCancelSchedule={() => setScheduleId(null)}
@@ -463,6 +618,30 @@ export default function TodoSomedayTab({
           ))}
         </div>
       )}
+
+      {selectMode && selectedIds.size > 0 && (
+        <SomedayBulkBar
+          count={selectedIds.size}
+          allVisibleCount={items.length}
+          allSelected={items.every((e) => selectedIds.has(e.id))}
+          knownTags={knownTags}
+          onSelectAllVisible={() => {
+            const next = new Set(selectedIds);
+            items.forEach((e) => next.add(e.id));
+            setSelectedIds(next);
+          }}
+          onClearVisible={() => {
+            const next = new Set(selectedIds);
+            items.forEach((e) => next.delete(e.id));
+            setSelectedIds(next);
+          }}
+          onDone={bulkDone}
+          onSchedule={bulkSchedule}
+          onDrop={bulkDrop}
+          onAssignCategory={bulkAssignCategory}
+          onCancel={clearSelection}
+        />
+      )}
     </div>
   );
 }
@@ -472,6 +651,9 @@ function CategoryChips({
   untagged,
   categories,
   selected,
+  selectMode,
+  canSelect,
+  onToggleSelectMode,
   onSelect,
   onCreate,
   onRename,
@@ -481,6 +663,9 @@ function CategoryChips({
   untagged: number;
   categories: { tag: string; n: number }[];
   selected: string;
+  selectMode: boolean;
+  canSelect: boolean;
+  onToggleSelectMode: () => void;
   onSelect: (tag: string) => void;
   onCreate: (name: string) => void;
   onRename: (oldName: string, newName: string) => void;
@@ -558,19 +743,46 @@ function CategoryChips({
           placeholder="New category…"
           className="f-sans"
           style={{
-            height: 28,
-            padding: "0 10px",
-            fontSize: 12,
+            height: 32,
+            padding: "0 12px",
+            fontSize: 13,
+            fontWeight: 500,
             border: "1px dashed var(--ember)",
-            borderRadius: 999,
+            borderRadius: 8,
             background: "var(--surface-low)",
             color: "var(--ink)",
             outline: 0,
-            minWidth: 120,
+            minWidth: 140,
           }}
         />
       ) : (
         <Chip label="+ New" onClick={() => setAdding(true)} dashed />
+      )}
+
+      {canSelect && (
+        <>
+          <span style={{ flex: 1 }} />
+          <button
+            className="press f-sans"
+            onClick={onToggleSelectMode}
+            aria-pressed={selectMode}
+            style={{
+              height: 32,
+              minHeight: 32,
+              padding: "0 12px",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              background: selectMode ? "var(--ember-wash)" : "transparent",
+              color: selectMode ? "var(--ember)" : "var(--ink-faint)",
+              border: selectMode ? "1px solid var(--ember)" : "1px solid transparent",
+              cursor: "pointer",
+              transition: "all 180ms",
+            }}
+          >
+            {selectMode ? "Done" : "Select"}
+          </button>
+        </>
       )}
     </div>
   );
@@ -591,21 +803,23 @@ function Chip({
     <button
       onClick={onClick}
       className="press f-sans"
+      aria-pressed={active}
       style={{
-        height: 28,
+        height: 32,
         padding: "0 12px",
-        fontSize: 12,
-        fontWeight: 600,
+        fontSize: 13,
+        fontWeight: 500,
         border: dashed
           ? "1px dashed var(--line)"
           : active
             ? "1px solid var(--ember)"
-            : "1px solid var(--line-soft)",
-        borderRadius: 999,
-        background: active ? "var(--ember)" : "var(--surface)",
-        color: active ? "var(--ember-ink)" : "var(--ink-soft)",
+            : "1px solid transparent",
+        borderRadius: 8,
+        background: active ? "var(--ember-wash)" : "transparent",
+        color: active ? "var(--ember)" : "var(--ink-faint)",
         cursor: "pointer",
         whiteSpace: "nowrap",
+        transition: "all 180ms",
       }}
     >
       {label}
@@ -650,18 +864,20 @@ function ChipWithMenu({
       <button
         onClick={onSelect}
         className="press f-sans"
+        aria-pressed={active}
         style={{
-          height: 28,
+          height: 32,
           padding: "0 8px 0 12px",
-          fontSize: 12,
-          fontWeight: 600,
-          border: active ? "1px solid var(--ember)" : "1px solid var(--line-soft)",
+          fontSize: 13,
+          fontWeight: 500,
+          border: active ? "1px solid var(--ember)" : "1px solid transparent",
           borderRight: "none",
-          borderRadius: "999px 0 0 999px",
-          background: active ? "var(--ember)" : "var(--surface)",
-          color: active ? "var(--ember-ink)" : "var(--ink-soft)",
+          borderRadius: "8px 0 0 8px",
+          background: active ? "var(--ember-wash)" : "transparent",
+          color: active ? "var(--ember)" : "var(--ink-faint)",
           cursor: "pointer",
           whiteSpace: "nowrap",
+          transition: "all 180ms",
         }}
       >
         {tag} · {count}
@@ -671,14 +887,15 @@ function ChipWithMenu({
         aria-label={`Edit category ${tag}`}
         className="press f-sans"
         style={{
-          height: 28,
+          height: 32,
           padding: "0 8px",
-          fontSize: 12,
-          border: active ? "1px solid var(--ember)" : "1px solid var(--line-soft)",
-          borderRadius: "0 999px 999px 0",
-          background: active ? "var(--ember)" : "var(--surface)",
-          color: active ? "var(--ember-ink)" : "var(--ink-faint)",
+          fontSize: 13,
+          border: active ? "1px solid var(--ember)" : "1px solid transparent",
+          borderRadius: "0 8px 8px 0",
+          background: active ? "var(--ember-wash)" : "transparent",
+          color: active ? "var(--ember)" : "var(--ink-faint)",
           cursor: "pointer",
+          transition: "all 180ms",
         }}
       >
         ⋯
@@ -857,6 +1074,9 @@ function SomedayRow({
   busy,
   scheduling,
   knownTags,
+  selectMode,
+  selected,
+  onToggleSelect,
   onRecategorise,
   onStartSchedule,
   onCancelSchedule,
@@ -869,6 +1089,9 @@ function SomedayRow({
   busy: boolean;
   scheduling: boolean;
   knownTags: string[];
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: () => void;
   onRecategorise: (newTag: string) => void;
   onStartSchedule: () => void;
   onCancelSchedule: () => void;
@@ -890,25 +1113,60 @@ function SomedayRow({
 
   return (
     <div
+      onClick={selectMode ? onToggleSelect : undefined}
       style={{
-        padding: "14px 16px",
+        padding: "18px 18px 16px",
         borderBottom: last ? "none" : "1px solid var(--line-soft)",
         opacity: busy ? 0.5 : 1,
-        transition: "opacity 200ms",
+        transition: "opacity 200ms, background 160ms",
+        cursor: selectMode ? "pointer" : "default",
+        background: selected ? "var(--ember-wash)" : "transparent",
       }}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: 999,
-            background: "var(--ember)",
-            flexShrink: 0,
-            marginTop: 8,
-          }}
-        />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+        {selectMode ? (
+          <span
+            aria-hidden="true"
+            style={{
+              width: 18,
+              height: 18,
+              borderRadius: 6,
+              border: selected ? "2px solid var(--ember)" : "2px solid var(--line)",
+              background: selected ? "var(--ember)" : "transparent",
+              flexShrink: 0,
+              marginTop: 4,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 160ms",
+            }}
+          >
+            {selected && (
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 12 12"
+                fill="none"
+                stroke="white"
+                strokeWidth="2.2"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+              </svg>
+            )}
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: "var(--ember)",
+              flexShrink: 0,
+              marginTop: 9,
+            }}
+          />
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             className="f-serif"
@@ -926,17 +1184,24 @@ function SomedayRow({
             <p
               className="f-sans"
               style={{
-                margin: "4px 0 0",
+                margin: "6px 0 0",
                 fontSize: 12,
                 color: "var(--ink-faint)",
-                lineHeight: 1.45,
+                lineHeight: 1.5,
                 wordBreak: "break-word",
               }}
             >
               {entry.content.length > 240 ? entry.content.slice(0, 237) + "…" : entry.content}
             </p>
           )}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 12,
+            }}
+          >
             {ageDays !== null && (
               <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)" }}>
                 {ageDays === 0 ? "Today" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
@@ -944,8 +1209,9 @@ function SomedayRow({
             )}
             <select
               value={currentTag ?? UNTAGGED}
-              disabled={busy}
+              disabled={busy || selectMode}
               onChange={(e) => onRecategorise(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
               className="press f-sans"
               style={{
                 appearance: "none",
@@ -978,19 +1244,71 @@ function SomedayRow({
         </div>
       </div>
 
-      {scheduling ? (
-        <ScheduleInline onConfirm={onSchedule} onCancel={onCancelSchedule} />
-      ) : (
-        <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-          <SmallBtn label="Done" onClick={onDone} disabled={busy} tone="moss" />
-          <SmallBtn label="Schedule" onClick={onStartSchedule} disabled={busy} tone="ember" />
-          <SmallBtn label="Drop" onClick={onDrop} disabled={busy} tone="ghost" />
-        </div>
-      )}
+      {!selectMode &&
+        (scheduling ? (
+          <div style={{ marginTop: 14 }}>
+            <ScheduleInline onConfirm={onSchedule} onCancel={onCancelSchedule} />
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <ActionBtn label="Done" onClick={onDone} disabled={busy} tone="moss" />
+            <ActionBtn label="Schedule" onClick={onStartSchedule} disabled={busy} tone="ember" />
+            <ActionBtn label="Drop" onClick={onDrop} disabled={busy} tone="ghost" />
+          </div>
+        ))}
     </div>
   );
 }
 
+// Full-width action button for the Done / Schedule / Drop trio. Each
+// instance flexes to 1 so the three buttons split the row evenly with
+// breathing room between them.
+function ActionBtn({
+  label,
+  onClick,
+  disabled,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone: "ember" | "moss" | "ghost";
+}): JSX.Element {
+  const palettes = {
+    ember: { bg: "var(--ember)", fg: "var(--ember-ink)" },
+    moss: { bg: "var(--moss, #4caf50)", fg: "#fff" },
+    ghost: { bg: "transparent", fg: "var(--ink-faint)" },
+  } as const;
+  const p = palettes[tone];
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className="press f-sans"
+      style={{
+        flex: 1,
+        background: p.bg,
+        color: p.fg,
+        border: tone === "ghost" ? "1px solid var(--line-soft)" : "none",
+        borderRadius: 10,
+        padding: "10px 14px",
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+// Compact button — kept for ScheduleInline picker (Today / Tomorrow /
+// Next Mon / Set / Cancel) where a content-sized look reads better
+// than uniform-width.
 function SmallBtn({
   label,
   onClick,
@@ -1092,15 +1410,28 @@ function ScheduleInline({
 function SomedayQuickAdd({
   brainId,
   onAdded,
+  onOptimistic,
+  knownTags,
   activeTag,
 }: {
   brainId?: string;
   onAdded: () => void;
+  onOptimistic: (entry: Entry) => void;
+  knownTags: string[];
   activeTag?: string;
 }): JSX.Element {
   const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
+  // Category picked at add-time. Defaults to the active filter so the
+  // "Add to <category>" path is single-tap when filtered, but can be
+  // overridden per-add via the inline picker.
+  const [pickedTag, setPickedTag] = useState<string>(activeTag || "");
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Sync the picker default when the active filter changes (user clicks
+  // a different category chip).
+  useEffect(() => {
+    setPickedTag(activeTag || "");
+  }, [activeTag]);
 
   function autoResize() {
     const el = ref.current;
@@ -1109,35 +1440,50 @@ function SomedayQuickAdd({
     el.style.height = el.scrollHeight + "px";
   }
 
-  async function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     const raw = text.trim();
-    if (!raw || !brainId || busy) return;
-    setBusy(true);
+    if (!raw || !brainId) return;
     const title = raw.length > 60 ? raw.slice(0, 57) + "…" : raw;
-    const tags = activeTag ? [activeTag] : [];
-    try {
-      await authFetch("/api/capture", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          p_title: title,
-          p_content: raw,
-          p_type: "someday",
-          p_brain_id: brainId,
-          p_metadata: {},
-          p_tags: tags,
-        }),
-      });
-    } catch (err) {
-      console.error("[someday-quick-add]", err);
-    } finally {
-      setText("");
-      setBusy(false);
-      onAdded();
-      const el = ref.current;
-      if (el) el.style.height = "auto";
-    }
+    const tags = pickedTag ? [pickedTag] : [];
+
+    // Optimistic insert — show the entry instantly. Server confirmation
+    // comes in via onAdded refetch and replaces this twin (matched by
+    // title+content in the parent's merge logic). No parser involved
+    // for someday, so the lag was purely network — kill it.
+    const optimistic: Entry = {
+      id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      content: raw,
+      type: "someday",
+      tags,
+      metadata: {},
+      created_at: new Date().toISOString(),
+      brain_id: brainId,
+    } as Entry;
+    onOptimistic(optimistic);
+
+    // Reset input visuals immediately.
+    setText("");
+    const el = ref.current;
+    if (el) el.style.height = "auto";
+
+    // Fire-and-forget the persist; parent's onAdded triggers refetch
+    // when the server replies.
+    authFetch("/api/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        p_title: title,
+        p_content: raw,
+        p_type: "someday",
+        p_brain_id: brainId,
+        p_metadata: {},
+        p_tags: tags,
+      }),
+    })
+      .then(() => onAdded())
+      .catch((err) => console.error("[someday-quick-add]", err));
   }
 
   return (
@@ -1145,6 +1491,7 @@ function SomedayQuickAdd({
       onSubmit={submit}
       style={{
         display: "flex",
+        flexWrap: "wrap",
         alignItems: "center",
         gap: 10,
         background: "var(--surface-low)",
@@ -1153,59 +1500,374 @@ function SomedayQuickAdd({
         padding: "8px 12px",
       }}
     >
-      <span style={{ fontSize: 18, color: "var(--ember)", flexShrink: 0 }}>∞</span>
-      <textarea
-        ref={ref}
-        value={text}
-        rows={1}
-        onChange={(e) => {
-          setText(e.target.value);
-          autoResize();
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            submit(e as React.FormEvent);
-          }
-        }}
-        placeholder={
-          activeTag
-            ? `Add to “${activeTag}” — no date needed…`
-            : "Something for someday — no date needed…"
-        }
-        disabled={busy}
-        className="f-sans"
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 200 }}>
+        <span style={{ fontSize: 18, color: "var(--ember)", flexShrink: 0 }}>∞</span>
+        <textarea
+          ref={ref}
+          value={text}
+          rows={1}
+          onChange={(e) => {
+            setText(e.target.value);
+            autoResize();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              submit(e as React.FormEvent);
+            }
+          }}
+          placeholder="Something for someday — no date needed…"
+          className="f-sans"
+          style={{
+            flex: 1,
+            background: "transparent",
+            border: 0,
+            outline: 0,
+            resize: "none",
+            fontSize: 14,
+            lineHeight: 1.5,
+            color: "var(--ink)",
+            padding: 0,
+            minWidth: 0,
+          }}
+        />
+      </div>
+      <select
+        value={pickedTag}
+        onChange={(e) => setPickedTag(e.target.value)}
+        className="press f-sans"
+        aria-label="Category"
         style={{
-          flex: 1,
-          background: "transparent",
-          border: 0,
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          height: 30,
+          padding: "0 28px 0 12px",
+          fontSize: 12,
+          fontWeight: 600,
+          border: "1px solid var(--line-soft)",
+          borderRadius: 999,
+          background: "var(--surface)",
+          color: pickedTag ? "var(--ink)" : "var(--ink-faint)",
+          cursor: "pointer",
+          backgroundImage:
+            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
+          backgroundRepeat: "no-repeat",
+          backgroundPosition: "right 10px center",
           outline: 0,
-          resize: "none",
-          fontSize: 14,
-          lineHeight: 1.5,
-          color: "var(--ink)",
-          padding: 0,
+          flexShrink: 0,
         }}
-      />
+      >
+        <option value="">No category</option>
+        {knownTags.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
-        disabled={busy || !text.trim()}
+        disabled={!text.trim()}
         className="press f-sans"
         style={{
           flexShrink: 0,
-          padding: "6px 14px",
+          padding: "8px 16px",
           borderRadius: 8,
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: 600,
           background: "var(--ember)",
           color: "var(--ember-ink)",
           border: "none",
-          cursor: busy || !text.trim() ? "not-allowed" : "pointer",
-          opacity: busy || !text.trim() ? 0.4 : 1,
+          cursor: !text.trim() ? "not-allowed" : "pointer",
+          opacity: !text.trim() ? 0.4 : 1,
         }}
       >
-        {busy ? "…" : "Add"}
+        Add
       </button>
     </form>
+  );
+}
+
+// ── Bulk action bar ───────────────────────────────────────────────────────
+// Floats above the bottom nav while in select mode. Three primary actions
+// (Done / Schedule / Drop) plus a category assigner. Schedule + Drop both
+// have inline confirm states (no OS dialogs, per design philosophy). The
+// pill collapses to a low-profile chip until the user expands it via the
+// "More" affordance — keeps UI light while the user is still picking
+// items, and only inflates when they're ready to act.
+
+function SomedayBulkBar({
+  count,
+  allVisibleCount,
+  allSelected,
+  knownTags,
+  onSelectAllVisible,
+  onClearVisible,
+  onDone,
+  onSchedule,
+  onDrop,
+  onAssignCategory,
+  onCancel,
+}: {
+  count: number;
+  allVisibleCount: number;
+  allSelected: boolean;
+  knownTags: string[];
+  onSelectAllVisible: () => void;
+  onClearVisible: () => void;
+  onDone: () => Promise<void>;
+  onSchedule: (dateStr: string) => Promise<void>;
+  onDrop: () => Promise<void>;
+  onAssignCategory: (tag: string) => Promise<void>;
+  onCancel: () => void;
+}): JSX.Element {
+  const [phase, setPhase] = useState<"idle" | "scheduling" | "categorising" | "confirmDrop">(
+    "idle",
+  );
+  const [busy, setBusy] = useState(false);
+
+  const wrap = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        left: "50%",
+        transform: "translateX(-50%)",
+        bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
+        zIndex: 55,
+        width: "min(96vw, 520px)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          padding: 12,
+          borderRadius: 16,
+          background: "var(--surface-high)",
+          border: "1px solid var(--line)",
+          boxShadow: "var(--lift-3)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            {count} selected
+          </span>
+          <span style={{ flex: 1 }} />
+          <button
+            className="press f-sans"
+            onClick={allSelected ? onClearVisible : onSelectAllVisible}
+            style={{
+              height: 28,
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              border: "1px solid var(--line-soft)",
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ink-soft)",
+              cursor: "pointer",
+            }}
+          >
+            {allSelected ? "Clear" : `Select all ${allVisibleCount}`}
+          </button>
+          <button
+            className="press f-sans"
+            onClick={onCancel}
+            aria-label="Cancel selection"
+            style={{
+              height: 28,
+              padding: "0 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              border: 0,
+              borderRadius: 8,
+              background: "transparent",
+              color: "var(--ink-faint)",
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+
+        {phase === "idle" && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <ActionBtn
+              label={`Done · ${count}`}
+              tone="moss"
+              disabled={busy}
+              onClick={() => wrap(onDone)}
+            />
+            <ActionBtn
+              label="Schedule"
+              tone="ember"
+              disabled={busy}
+              onClick={() => setPhase("scheduling")}
+            />
+            <ActionBtn
+              label="Move"
+              tone="ghost"
+              disabled={busy}
+              onClick={() => setPhase("categorising")}
+            />
+            <ActionBtn
+              label="Drop"
+              tone="ghost"
+              disabled={busy}
+              onClick={() => setPhase("confirmDrop")}
+            />
+          </div>
+        )}
+
+        {phase === "scheduling" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p className="f-sans" style={{ margin: 0, fontSize: 12, color: "var(--ink-soft)" }}>
+              Schedule {count} {count === 1 ? "item" : "items"} for…
+            </p>
+            <ScheduleInline
+              onConfirm={async (d) => {
+                await wrap(() => onSchedule(d));
+                setPhase("idle");
+              }}
+              onCancel={() => setPhase("idle")}
+            />
+          </div>
+        )}
+
+        {phase === "categorising" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p className="f-sans" style={{ margin: 0, fontSize: 12, color: "var(--ink-soft)" }}>
+              Move {count} {count === 1 ? "item" : "items"} to…
+            </p>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <button
+                className="press f-sans"
+                onClick={async () => {
+                  await wrap(() => onAssignCategory(UNTAGGED));
+                  setPhase("idle");
+                }}
+                disabled={busy}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 999,
+                  background: "var(--surface)",
+                  color: "var(--ink-soft)",
+                  cursor: "pointer",
+                }}
+              >
+                Untagged
+              </button>
+              {knownTags.map((t) => (
+                <button
+                  key={t}
+                  className="press f-sans"
+                  onClick={async () => {
+                    await wrap(() => onAssignCategory(t));
+                    setPhase("idle");
+                  }}
+                  disabled={busy}
+                  style={{
+                    height: 30,
+                    padding: "0 12px",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    border: "1px solid var(--line-soft)",
+                    borderRadius: 999,
+                    background: "var(--surface)",
+                    color: "var(--ink)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+              <button
+                className="press f-sans"
+                onClick={() => setPhase("idle")}
+                style={{
+                  height: 30,
+                  padding: "0 12px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  border: 0,
+                  borderRadius: 999,
+                  background: "transparent",
+                  color: "var(--ink-faint)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === "confirmDrop" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p
+              className="f-sans"
+              style={{ margin: 0, fontSize: 12, color: "var(--ink)", lineHeight: 1.45 }}
+            >
+              Drop {count} {count === 1 ? "item" : "items"}? This deletes them.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                className="press f-sans"
+                onClick={() => setPhase("idle")}
+                style={{
+                  height: 32,
+                  padding: "0 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 999,
+                  background: "var(--surface)",
+                  color: "var(--ink-soft)",
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="press f-sans"
+                onClick={async () => {
+                  await wrap(onDrop);
+                  setPhase("idle");
+                }}
+                disabled={busy}
+                style={{
+                  height: 32,
+                  padding: "0 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: 0,
+                  borderRadius: 999,
+                  background: "var(--danger, #c44)",
+                  color: "#fff",
+                  cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.6 : 1,
+                }}
+              >
+                {busy ? "Dropping…" : "Drop"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
