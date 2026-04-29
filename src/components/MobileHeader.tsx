@@ -1,9 +1,40 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
+
+// Auto-hide on scroll-down, slide back in on scroll-up. Mirrors the
+// pattern shipping in Mail / Twitter / Instagram — gives users back the
+// vertical real estate while scrolling without losing access to search
+// / bell / brain switcher (a flick up brings the header right back).
+//
+// Threshold of 60px means the first short scroll never triggers a hide,
+// only a meaningful intent to read deeper. Tiny dy gates (>4 / <-4) kill
+// jitter from rubber-band on iOS.
+function useHideOnScroll(threshold = 60): boolean {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    let lastY = window.scrollY;
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const dy = y - lastY;
+        if (y > threshold && dy > 4) setHidden(true);
+        else if (dy < -4 || y < threshold) setHidden(false);
+        lastY = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return hidden;
+}
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -36,6 +67,22 @@ export default function MobileHeader({
 }: MobileHeaderProps) {
   const { adminFlags } = useAdminDevMode();
   const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
+  const hidden = useHideOnScroll();
+
+  // Publish the header's hide state as a CSS var so other sticky bars
+  // (e.g. settings mobile tabs) can sit flush at the top when the header
+  // slides up — and back below it when the header reappears. The value
+  // includes the safe-area inset so notched phones get the right offset.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(
+      "--app-header-h",
+      hidden ? "0px" : "calc(56px + env(safe-area-inset-top, 0px))",
+    );
+    return () => {
+      root.style.removeProperty("--app-header-h");
+    };
+  }, [hidden]);
 
   return (
     <header
@@ -44,6 +91,9 @@ export default function MobileHeader({
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
         paddingTop: "max(14px, env(safe-area-inset-top))",
+        transform: hidden ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "transform",
       }}
     >
       {/* Left: brand + brain */}

@@ -397,6 +397,14 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           borderBottom: "1px solid var(--line-soft)",
           background: "var(--surface-low)",
           gap: 4,
+          // Sticky on mobile so users deep in a section can always reach
+          // another section without scrolling back. Top tracks the global
+          // mobile header — when the header auto-hides, the tabs slide
+          // up flush with the viewport top.
+          position: "sticky",
+          top: "var(--app-header-h, calc(56px + env(safe-area-inset-top, 0px)))",
+          zIndex: 20,
+          transition: "top 220ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
         {SECTIONS.map(({ id, label }) => {
