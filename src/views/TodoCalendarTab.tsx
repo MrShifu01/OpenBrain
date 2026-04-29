@@ -1195,178 +1195,6 @@ function MonthGrid({
   );
 }
 
-// ── View-mode segmented control ──────────────────────────────────────────
-
-type ViewMode = "month" | "week" | "day";
-
-function ViewModeSegment({
-  value,
-  onChange,
-}: {
-  value: ViewMode;
-  onChange: (mode: ViewMode) => void;
-}) {
-  const tabs: { id: ViewMode; label: string }[] = [
-    { id: "day", label: "Day" },
-    { id: "week", label: "Week" },
-    { id: "month", label: "Month" },
-  ];
-  return (
-    <div
-      role="tablist"
-      aria-label="Calendar view"
-      style={{
-        display: "inline-flex",
-        padding: 3,
-        background: "var(--surface-low, var(--surface))",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 999,
-        gap: 2,
-      }}
-    >
-      {tabs.map((t) => {
-        const active = t.id === value;
-        return (
-          <button
-            key={t.id}
-            role="tab"
-            aria-selected={active}
-            onClick={() => onChange(t.id)}
-            className="press"
-            style={{
-              padding: "6px 14px",
-              borderRadius: 999,
-              border: 0,
-              fontFamily: "var(--f-sans)",
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: "0.01em",
-              cursor: "pointer",
-              background: active ? "var(--bg)" : "transparent",
-              color: active ? "var(--ink)" : "var(--ink-soft)",
-              boxShadow: active ? "0 1px 2px rgba(0,0,0,0.08)" : "none",
-              transition: "background 150ms, color 150ms",
-            }}
-          >
-            {t.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Week strip — 7-day horizontal day picker ─────────────────────────────
-
-function startOfWeek(d: Date): Date {
-  // Monday-based; matches DAY_ABBRS order ["Mon"..."Sun"].
-  const out = new Date(d);
-  const dow = out.getDay(); // 0=Sun..6=Sat
-  const offset = dow === 0 ? -6 : 1 - dow;
-  out.setDate(out.getDate() + offset);
-  out.setHours(0, 0, 0, 0);
-  return out;
-}
-
-function WeekStrip({
-  weekStart,
-  selectedKey,
-  todayKey,
-  eventMap,
-  onSelect,
-}: {
-  weekStart: Date;
-  selectedKey: string | null;
-  todayKey: string;
-  eventMap: Record<string, CalEvent[]>;
-  onSelect: (key: string) => void;
-}) {
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
-        gap: 4,
-        padding: "10px 6px",
-        background: "var(--surface-low, var(--surface))",
-        border: "1px solid var(--line-soft)",
-        borderRadius: 14,
-      }}
-    >
-      {days.map((d) => {
-        const key = toDateKey(d);
-        const isSelected = key === selectedKey;
-        const isToday = key === todayKey;
-        const dotCount = (eventMap[key] || []).length;
-        return (
-          <button
-            key={key}
-            onClick={() => onSelect(key)}
-            className="press"
-            aria-pressed={isSelected}
-            aria-label={d.toLocaleDateString("en-ZA", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              padding: "10px 0 8px",
-              border: 0,
-              borderRadius: 12,
-              background: isSelected ? "var(--ember-wash)" : "transparent",
-              color: isSelected ? "var(--ember)" : "var(--ink)",
-              cursor: "pointer",
-              fontFamily: "var(--f-sans)",
-              transition: "background 160ms",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                opacity: isSelected ? 0.8 : 0.55,
-              }}
-            >
-              {DAY_ABBRS[(d.getDay() + 6) % 7].charAt(0)}
-            </span>
-            <span
-              style={{
-                fontSize: 16,
-                fontWeight: isSelected || isToday ? 600 : 500,
-                lineHeight: 1,
-              }}
-            >
-              {d.getDate()}
-            </span>
-            <span
-              aria-hidden="true"
-              style={{
-                width: 4,
-                height: 4,
-                borderRadius: 999,
-                marginTop: 2,
-                background: dotCount > 0 ? "var(--ember)" : "transparent",
-                opacity: isSelected ? 1 : 0.7,
-              }}
-            />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────
 
 export default function TodoCalendarTab({
@@ -1381,40 +1209,22 @@ export default function TodoCalendarTab({
   const todayKey = toDateKey(new Date());
   const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const isDesktop = useIsDesktop(1024);
   const quickAddRef = useRef<HTMLDivElement | null>(null);
 
   const year = navDate.getFullYear();
   const month = navDate.getMonth();
-  const weekStart = useMemo(() => startOfWeek(navDate), [navDate]);
 
-  // Recurrence is expanded within the visible window. Month view shows the
-  // grid (±1 day for spillover); Week/Day views widen to a few days around
-  // navDate so events outside the calendar month still render. Recomputing
-  // based on viewMode keeps recurrence expansion in lockstep with what's
-  // visible.
+  // Recurrence is expanded within the visible month; navigating to a new
+  // month rebuilds calEvents. Wider buffer (±1 day) covers Sunday-of-previous
+  // and Saturday-of-next that appear at the grid edges.
   const visibleRange = useMemo(() => {
-    if (viewMode === "month") {
-      const first = new Date(year, month, 1);
-      first.setDate(first.getDate() - 1);
-      const last = new Date(year, month + 1, 0);
-      last.setDate(last.getDate() + 1);
-      return { from: toDateKey(first), to: toDateKey(last) };
-    }
-    if (viewMode === "week") {
-      const first = new Date(weekStart);
-      first.setDate(first.getDate() - 1);
-      const last = new Date(weekStart);
-      last.setDate(last.getDate() + 7);
-      return { from: toDateKey(first), to: toDateKey(last) };
-    }
-    const first = new Date(navDate);
-    first.setDate(first.getDate() - 2);
-    const last = new Date(navDate);
-    last.setDate(last.getDate() + 2);
+    const first = new Date(year, month, 1);
+    first.setDate(first.getDate() - 1);
+    const last = new Date(year, month + 1, 0);
+    last.setDate(last.getDate() + 1);
     return { from: toDateKey(first), to: toDateKey(last) };
-  }, [viewMode, year, month, weekStart, navDate]);
+  }, [year, month]);
 
   // Build the event map once per inputs. entriesToCalEvents now expands
   // recurrence + filters persona/secret/done — no second addRecurring pass.
@@ -1435,63 +1245,15 @@ export default function TodoCalendarTab({
 
   const selectedEvents = selectedKey ? eventMap[selectedKey] || [] : [];
 
-  const handlePrev = () => {
-    if (viewMode === "month") {
-      setNavDate(new Date(year, month - 1, 1));
-      return;
-    }
-    if (viewMode === "week") {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() - 7);
-      setNavDate(d);
-      return;
-    }
-    const d = new Date(navDate);
-    d.setDate(d.getDate() - 1);
-    setNavDate(d);
-    setSelectedKey(toDateKey(d));
-  };
-  const handleNext = () => {
-    if (viewMode === "month") {
-      setNavDate(new Date(year, month + 1, 1));
-      return;
-    }
-    if (viewMode === "week") {
-      const d = new Date(navDate);
-      d.setDate(d.getDate() + 7);
-      setNavDate(d);
-      return;
-    }
-    const d = new Date(navDate);
-    d.setDate(d.getDate() + 1);
-    setNavDate(d);
-    setSelectedKey(toDateKey(d));
-  };
+  const handlePrev = () => setNavDate(new Date(year, month - 1, 1));
+  const handleNext = () => setNavDate(new Date(year, month + 1, 1));
   const handleToday = () => {
     const today = new Date();
     setNavDate(today);
     setSelectedKey(todayKey);
   };
 
-  const headerTitle = (() => {
-    if (viewMode === "month") return `${MONTH_NAMES[month]} ${year}`;
-    if (viewMode === "week") {
-      const ws = weekStart;
-      const we = new Date(weekStart);
-      we.setDate(we.getDate() + 6);
-      const sameMonth = ws.getMonth() === we.getMonth();
-      const left = `${MONTH_NAMES[ws.getMonth()].slice(0, 3)} ${ws.getDate()}`;
-      const right = sameMonth
-        ? `${we.getDate()}`
-        : `${MONTH_NAMES[we.getMonth()].slice(0, 3)} ${we.getDate()}`;
-      return `${left} – ${right}`;
-    }
-    return navDate.toLocaleDateString("en-ZA", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    });
-  })();
+  const headerTitle = `${MONTH_NAMES[month]} ${year}`;
 
   const handleSelect = (key: string) => {
     setSelectedKey(key);
@@ -1538,25 +1300,6 @@ export default function TodoCalendarTab({
         </p>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          paddingBottom: 4,
-        }}
-      >
-        <ViewModeSegment
-          value={viewMode}
-          onChange={(m) => {
-            setViewMode(m);
-            // When switching into Day, lock selection to navDate so the
-            // header label and body agree without an extra click.
-            if (m === "day" && selectedKey) setNavDate(parseISO(selectedKey + "T00:00:00"));
-          }}
-        />
-      </div>
-
       <CalendarHeader
         title={headerTitle}
         onPrev={handlePrev}
@@ -1565,49 +1308,17 @@ export default function TodoCalendarTab({
       />
 
       <div className="cal-body">
-        <div className="cal-main" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {viewMode === "month" && (
-            <MonthGrid
-              navDate={navDate}
-              selectedKey={selectedKey}
-              todayKey={todayKey}
-              eventMap={eventMap}
-              onSelect={handleSelect}
-            />
-          )}
-          {viewMode === "week" && (
-            <>
-              <WeekStrip
-                weekStart={weekStart}
-                selectedKey={selectedKey}
-                todayKey={todayKey}
-                eventMap={eventMap}
-                onSelect={(key) => {
-                  setSelectedKey(key);
-                  setNavDate(parseISO(key + "T00:00:00"));
-                }}
-              />
-              {selectedKey && !isDesktop && (
-                <DayDetailContent
-                  date={parseISO(selectedKey + "T00:00:00")}
-                  events={selectedEvents}
-                  onUpdate={onUpdate}
-                  onDelete={onDelete}
-                />
-              )}
-            </>
-          )}
-          {viewMode === "day" && (
-            <DayDetailContent
-              date={navDate}
-              events={eventMap[toDateKey(navDate)] || []}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          )}
+        <div className="cal-main">
+          <MonthGrid
+            navDate={navDate}
+            selectedKey={selectedKey}
+            todayKey={todayKey}
+            eventMap={eventMap}
+            onSelect={handleSelect}
+          />
         </div>
 
-        {isDesktop && selectedKey && viewMode !== "day" && (
+        {isDesktop && selectedKey && (
           <SidePanel>
             <DayDetailContent
               date={parseISO(selectedKey + "T00:00:00")}
