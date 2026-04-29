@@ -129,8 +129,8 @@ export default function DesktopSidebar({
       >
         <img
           src="/logoNew.webp"
-          width={22}
-          height={22}
+          width={30}
+          height={30}
           alt=""
           aria-hidden="true"
           decoding="async"

@@ -10,7 +10,7 @@ interface EverionLogoProps {
   className?: string;
 }
 
-export function EverionLogo({ size = 24, className }: EverionLogoProps) {
+export function EverionLogo({ size = 32, className }: EverionLogoProps) {
   return (
     <img
       src="/logoNew.webp"

@@ -101,8 +101,8 @@ export default function MobileHeader({
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
         <img
           src="/logoNew.webp"
-          width={20}
-          height={20}
+          width={28}
+          height={28}
           alt=""
           aria-hidden="true"
           decoding="async"

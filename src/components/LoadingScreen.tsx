@@ -20,14 +20,14 @@ export default function LoadingScreen(): JSX.Element {
         }}
       >
         {/* Orbital brain orb */}
-        <div style={{ position: "relative", width: 72, height: 72 }}>
+        <div style={{ position: "relative", width: 104, height: 104 }}>
           <div
             style={{
               position: "absolute",
-              inset: -8,
+              inset: -10,
               background:
                 "radial-gradient(circle, color-mix(in oklch, var(--color-primary) 22%, transparent), color-mix(in oklch, var(--color-tertiary) 18%, transparent), transparent 70%)",
-              filter: "blur(14px)",
+              filter: "blur(16px)",
               borderRadius: "50%",
               animation: "hero-glow 3s ease-in-out infinite",
             }}
@@ -44,7 +44,7 @@ export default function LoadingScreen(): JSX.Element {
           <div
             style={{
               position: "absolute",
-              inset: -10,
+              inset: -12,
               borderRadius: "50%",
               border: "1px dashed color-mix(in oklch, var(--color-tertiary) 20%, transparent)",
               animation: "orbital-spin 18s linear infinite",
@@ -54,8 +54,8 @@ export default function LoadingScreen(): JSX.Element {
             className="glass-panel"
             style={{
               position: "relative",
-              width: 72,
-              height: 72,
+              width: 104,
+              height: 104,
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
@@ -65,8 +65,8 @@ export default function LoadingScreen(): JSX.Element {
           >
             <img
               src="/logoNew.webp"
-              width={72 * 0.62}
-              height={72 * 0.62}
+              width={104 * 0.78}
+              height={104 * 0.78}
               alt=""
               aria-hidden="true"
               decoding="async"
