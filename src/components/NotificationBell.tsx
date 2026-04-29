@@ -476,40 +476,53 @@ export default function NotificationBell({
 
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
-      <button
-        onClick={handleOpen}
-        aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
-        className="press"
-        style={{
-          width: 36,
-          height: 36,
-          minHeight: 36,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 6,
-          color: "var(--ink-soft)",
-          background: "transparent",
-          border: 0,
-          position: "relative",
-        }}
-      >
-        <BellIcon />
-        {unreadCount > 0 && (
-          <span
+      {(() => {
+        // The dot lights up when there's something for the user to act on —
+        // either an unread notification OR Gmail items waiting in the staging
+        // inbox. Previously the bell only watched notifications, so a scan
+        // that staged 5 emails without writing a notif row left the bell
+        // empty even though the inbox chip showed (5).
+        const hasSignal = unreadCount > 0 || stagedCount > 0;
+        const ariaLabelParts: string[] = ["Notifications"];
+        if (unreadCount > 0) ariaLabelParts.push(`${unreadCount} unread`);
+        if (stagedCount > 0) ariaLabelParts.push(`${stagedCount} in inbox`);
+        return (
+          <button
+            onClick={handleOpen}
+            aria-label={ariaLabelParts.join(" · ")}
+            className="press"
             style={{
-              position: "absolute",
-              top: 5,
-              right: 5,
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "var(--ember)",
-              border: "1.5px solid var(--bg)",
+              width: 36,
+              height: 36,
+              minHeight: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 6,
+              color: "var(--ink-soft)",
+              background: "transparent",
+              border: 0,
+              position: "relative",
             }}
-          />
-        )}
-      </button>
+          >
+            <BellIcon />
+            {hasSignal && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: 5,
+                  right: 5,
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "var(--ember)",
+                  border: "1.5px solid var(--bg)",
+                }}
+              />
+            )}
+          </button>
+        );
+      })()}
 
       {open && (
         <div

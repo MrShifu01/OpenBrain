@@ -37,6 +37,11 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
   const startX = useRef(0);
   const dragging = useRef(false);
+  // Track the live drag delta in a ref alongside React state. onPointerUp
+  // can't trust the state value — the last setDragX from pointermove may
+  // not have flushed before the user lifts their finger, so a fast swipe
+  // would read 0 from state and never trip the threshold.
+  const dragXRef = useRef(0);
 
   useEffect(() => {
     authFetch("/api/entries?staged=true")
@@ -70,14 +75,27 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
   function triggerAccept(idx: number) {
     const entry = entries[idx];
-    authFetch("/api/entries", {
+    // Optimistic UI: animate the card off-screen and advance immediately.
+    // The PATCH runs in the background; we dispatch staged-changed *after*
+    // it resolves so useStagedCount's refetch sees the new server state.
+    // Dispatching before the PATCH lands caused the badge to stay at the
+    // pre-accept count because /api/entries?staged=true still returned the
+    // entry that was technically still status='staged' on the DB.
+    void authFetch("/api/entries", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id, status: "active" }),
-    }).catch(() => {});
+    })
+      .then(() => {
+        window.dispatchEvent(new CustomEvent("everion:staged-changed"));
+      })
+      .catch((err) => {
+        console.error("[gmail-inbox] accept failed:", err);
+        // Tell the shell anyway so it refetches and shows the truth — the
+        // entry stays staged, the badge stays accurate.
+        window.dispatchEvent(new CustomEvent("everion:staged-changed"));
+      });
     recordDecision(entry, "accept", null);
-    // Tell the app shell its inbox chip just shrank by one.
-    window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
     setExiting("right");
     setDragX(700);
@@ -86,13 +104,19 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
   function triggerReject(idx: number, reason?: string | null) {
     const entry = entries[idx];
-    authFetch("/api/entries", {
+    void authFetch("/api/entries", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: entry.id }),
-    }).catch(() => {});
+    })
+      .then(() => {
+        window.dispatchEvent(new CustomEvent("everion:staged-changed"));
+      })
+      .catch((err) => {
+        console.error("[gmail-inbox] reject failed:", err);
+        window.dispatchEvent(new CustomEvent("everion:staged-changed"));
+      });
     recordDecision(entry, "reject", reason ?? null);
-    window.dispatchEvent(new CustomEvent("everion:staged-changed"));
     setTransitioning(true);
     setExiting("left");
     setDragX(-700);
@@ -157,23 +181,32 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
     if (exiting || done) return;
     startX.current = e.clientX;
     dragging.current = true;
+    dragXRef.current = 0;
     setTransitioning(false);
     e.currentTarget.setPointerCapture(e.pointerId);
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (!dragging.current || exiting) return;
-    setDragX(e.clientX - startX.current);
+    const dx = e.clientX - startX.current;
+    dragXRef.current = dx;
+    setDragX(dx);
   }
 
   function onPointerUp() {
     if (!dragging.current) return;
     dragging.current = false;
-    const dx = dragX;
+    // Read from the ref, not state — the last setDragX from pointermove may
+    // not have flushed yet, so the closure-captured `dragX` could still be
+    // the previous frame's value (often 0 on a quick swipe).
+    const dx = dragXRef.current;
     setTransitioning(true);
     if (dx > SWIPE_THRESHOLD) triggerAccept(index);
     else if (dx < -SWIPE_THRESHOLD) triggerReject(index);
-    else setDragX(0);
+    else {
+      dragXRef.current = 0;
+      setDragX(0);
+    }
   }
 
   const keepOpacity = Math.min(Math.max(dragX / 100, 0), 1);
