@@ -16,9 +16,15 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const fetchingRef = useRef(false);
+  // Suppresses focus / visibility refetches while a clear-all DELETE is
+  // mid-flight. Without this, a tab-focus event between the optimistic
+  // setNotifications([]) and the server PATCH lands a GET that returns the
+  // still-undismissed rows — the cleared list flashes back for ~300ms.
+  const dismissingAllRef = useRef(false);
 
   const fetch_ = useCallback(async () => {
     if (fetchingRef.current) return;
+    if (dismissingAllRef.current) return;
     fetchingRef.current = true;
     setLoading(true);
     try {
@@ -65,8 +71,13 @@ export function useNotifications() {
   }, []);
 
   const dismissAll = useCallback(async () => {
+    dismissingAllRef.current = true;
     setNotifications([]);
-    await authFetch("/api/notifications", { method: "DELETE" });
+    try {
+      await authFetch("/api/notifications", { method: "DELETE" });
+    } finally {
+      dismissingAllRef.current = false;
+    }
   }, []);
 
   // Accept a merge suggestion: patch target entry then dismiss notification

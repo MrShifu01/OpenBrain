@@ -474,6 +474,13 @@ export default function NotificationBell({
     onDismiss(n.id);
   }
 
+  // Clear all + close — user explicitly asked to clear, no reason to leave
+  // the panel open showing "All caught up." they then have to close manually.
+  function handleClearAll() {
+    onDismissAll();
+    setOpen(false);
+  }
+
   return (
     <div ref={panelRef} style={{ position: "relative" }}>
       {(() => {
@@ -557,7 +564,7 @@ export default function NotificationBell({
             </span>
             {notifications.length > 0 && (
               <button
-                onClick={onDismissAll}
+                onClick={handleClearAll}
                 className="press f-sans"
                 style={{
                   fontSize: 11,

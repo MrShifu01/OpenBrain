@@ -58,7 +58,6 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   }, [onCountChange]);
 
   const current = entries[index];
-  const next = entries[index + 1];
 
   function advance(idx: number) {
     setExiting(null);
@@ -209,10 +208,6 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
     }
   }
 
-  const keepOpacity = Math.min(Math.max(dragX / 100, 0), 1);
-  const skipOpacity = Math.min(Math.max(-dragX / 100, 0), 1);
-  const backScale = 0.94 + Math.min(Math.abs(dragX) / 800, 0.06);
-  const backY = 10 - Math.min(Math.abs(dragX) / 50, 10);
   const cardTransition = transitioning
     ? exiting
       ? "transform 300ms ease-in"
@@ -337,75 +332,9 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
 
   return createPortal(
     <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      {/* Back card */}
-      {next && (
-        <div
-          style={{
-            position: "absolute",
-            width: "calc(100% - 48px)",
-            maxWidth: 360,
-            background: "var(--bg)",
-            borderRadius: 16,
-            border: "1px solid var(--line-soft)",
-            transform: `scale(${backScale}) translateY(${backY}px)`,
-            transition: transitioning ? "transform 300ms ease" : "none",
-            padding: "24px 20px 20px",
-            boxSizing: "border-box",
-            pointerEvents: "none",
-          }}
-        >
-          <div style={{ height: 80 }} />
-        </div>
-      )}
-
-      {/* Action labels */}
-      <div
-        style={{
-          position: "absolute",
-          top: "calc(50% - 80px)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "calc(100% - 48px)",
-          maxWidth: 360,
-          display: "flex",
-          justifyContent: "space-between",
-          pointerEvents: "none",
-          zIndex: 10000,
-        }}
-      >
-        <div
-          style={{
-            opacity: skipOpacity,
-            background: "var(--blood)",
-            color: "#fff",
-            borderRadius: 8,
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 700,
-            fontFamily: "var(--f-sans)",
-            border: "2px solid var(--blood)",
-          }}
-        >
-          REJECT
-        </div>
-        <div
-          style={{
-            opacity: keepOpacity,
-            background: "var(--moss)",
-            color: "#fff",
-            borderRadius: 8,
-            padding: "6px 14px",
-            fontSize: 13,
-            fontWeight: 700,
-            fontFamily: "var(--f-sans)",
-            border: "2px solid var(--moss)",
-          }}
-        >
-          ACCEPT
-        </div>
-      </div>
-
-      {/* Main card */}
+      {/* Main card — stack-of-cards visual removed; floating REJECT/ACCEPT
+          pills removed too. Direction is conveyed by the card's own tilt +
+          translate, plus the helper hint at the bottom of the panel. */}
       <div
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
