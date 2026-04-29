@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Everion vs Mem.ai: AI-native notes compared</title>
+    <meta
+      name="description"
+      content="Detailed comparison: Everion vs Mem.ai for AI-native note-taking. Privacy posture, BYO AI key, encrypted vault for high-stakes facts, capture friction, recall, and pricing."
+    />
+    <link rel="canonical" href="https://everionmind.com/vs/mem.html" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta property="og:title" content="Everion vs Mem.ai: AI-native notes compared" />
+    <meta property="og:description" content="Privacy, BYO AI key, encrypted vault, capture, recall, pricing — the honest comparison." />
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://everionmind.com/vs/mem.html" />
+    <meta property="og:image" content="https://everionmind.com/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            "headline": "Everion vs Mem.ai: AI-native notes compared",
+            "description": "An honest comparison of Everion and Mem.ai for AI-native note-taking — privacy, BYO key, vault, and price.",
+            "url": "https://everionmind.com/vs/mem.html",
+            "datePublished": "2026-04-29",
+            "dateModified": "2026-04-29",
+            "author": { "@type": "Organization", "name": "Everion" },
+            "publisher": { "@type": "Organization", "name": "Everion", "logo": "https://everionmind.com/icons/icon-512.png" },
+            "image": "https://everionmind.com/og.png",
+            "inLanguage": "en"
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How is Everion different from Mem.ai?",
+                "acceptedAnswer": { "@type": "Answer", "text": "Mem is an AI-native notes app — cloud-first, focused on fleeting thoughts and quick capture. Everion covers the same ground for notes but adds an end-to-end encrypted vault for high-stakes facts (bank details, gate codes, IDs, 'if I die' notes), local-first storage, and a BYO AI key option that keeps prompts off our servers. Mem doesn't have a vault layer." }
+              },
+              {
+                "@type": "Question",
+                "name": "Is Mem.ai end-to-end encrypted?",
+                "acceptedAnswer": { "@type": "Answer", "text": "No. Mem encrypts data at rest and in transit but is not end-to-end encrypted. Content is processed on Mem's servers for AI features. Everion is local-first with an end-to-end encrypted vault and a BYO AI key option that bypasses our infrastructure entirely on the free tier." }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Mem.ai let me bring my own AI key?",
+                "acceptedAnswer": { "@type": "Answer", "text": "No. Mem uses its own AI infrastructure and you pay for AI as part of the subscription. Everion's free Hobby tier is BYO AI key — you supply an Anthropic, OpenAI, OpenRouter, or Groq key and pay your provider directly. Your prompts never touch Everion." }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; background: #0e0e0e; color: #f0ede6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; line-height: 1.6; }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 56px 24px 96px; }
+      header.brand { display: flex; align-items: center; gap: 10px; margin-bottom: 48px; }
+      header.brand img { width: 28px; height: 28px; object-fit: contain; }
+      header.brand a { color: #f0ede6; text-decoration: none; font-family: Georgia, "Times New Roman", serif; font-size: 22px; letter-spacing: -0.01em; }
+      h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(32px, 5vw, 44px); line-height: 1.15; letter-spacing: -0.02em; font-weight: 450; margin: 0 0 16px; }
+      .lede { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 18px; color: #b8b3a8; margin: 0 0 8px; }
+      .meta { font-size: 12px; color: #888178; margin: 0 0 40px; }
+      h2 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(22px, 3.2vw, 28px); letter-spacing: -0.01em; font-weight: 450; margin: 56px 0 12px; }
+      h3 { font-family: Georgia, "Times New Roman", serif; font-size: 18px; font-weight: 500; margin: 32px 0 8px; color: #e5e0d8; }
+      p, ul, ol { font-size: 16px; color: #d4cfc4; }
+      ul, ol { padding-left: 22px; } li { margin: 6px 0; }
+      table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 14px; }
+      th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #2a2724; vertical-align: top; }
+      th { font-weight: 600; color: #f0ede6; background: #1a1816; }
+      td { color: #c5c0b5; }
+      em { color: #d4a56f; font-style: italic; }
+      strong { color: #f0ede6; }
+      a { color: #d4a56f; }
+      a:hover { text-decoration: underline; }
+      .cta { display: inline-block; margin-top: 32px; padding: 14px 24px; background: #d4a56f; color: #0e0e0e; text-decoration: none; border-radius: 8px; font-weight: 600; }
+      footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid #2a2724; font-size: 13px; color: #888178; }
+      footer a { margin-right: 16px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="brand">
+        <img src="/logoNew.webp" alt="" aria-hidden="true" />
+        <a href="/">Everion</a>
+      </header>
+
+      <p class="lede">Both are AI-native. They diverge on privacy and on what they're built to hold.</p>
+      <h1>Everion vs Mem.ai</h1>
+      <p class="meta">Last updated: 2026-04-29 · 5 min read</p>
+
+      <p>
+        <strong>Short answer:</strong> Mem is a cloud-first AI-native notes app focused on fleeting thoughts. Everion covers the same fleeting-thoughts ground but is local-first, has an end-to-end encrypted vault for high-stakes facts (gate codes, policy numbers, IDs, "if I die" notes), and offers a BYO AI key option on the free tier so prompts never touch our servers.
+      </p>
+
+      <h2>At a glance</h2>
+      <table>
+        <thead>
+          <tr><th>&nbsp;</th><th>Everion</th><th>Mem.ai</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Storage model</strong></td><td>Local-first PWA. Entries on device, encrypted, sync optional.</td><td>Cloud-first. Entries on Mem's servers.</td></tr>
+          <tr><td><strong>Encryption</strong></td><td>End-to-end encrypted vault for high-stakes content.</td><td>At rest and in transit. Not end-to-end.</td></tr>
+          <tr><td><strong>BYO AI key</strong></td><td>Yes (Hobby tier). Anthropic, OpenAI, OpenRouter, Groq.</td><td>No. Mem uses its own AI infrastructure.</td></tr>
+          <tr><td><strong>Vault layer for IDs / bank details</strong></td><td>Yes — designed for it.</td><td>No.</td></tr>
+          <tr><td><strong>Capture</strong></td><td>One field. Text, voice, paste, file, photo.</td><td>One field. Text, voice, paste.</td></tr>
+          <tr><td><strong>Recall</strong></td><td>Chat with citations.</td><td>Chat with citations.</td></tr>
+          <tr><td><strong>Offline</strong></td><td>Yes. Capture works without network.</td><td>Limited.</td></tr>
+          <tr><td><strong>Shared brain</strong></td><td>One other person on Pro.</td><td>Team plans (different shape).</td></tr>
+          <tr><td><strong>Free tier AI</strong></td><td>BYO key — pay your provider directly.</td><td>Limited free AI; paid tier required for full use.</td></tr>
+        </tbody>
+      </table>
+
+      <h2>Where Mem wins</h2>
+      <ul>
+        <li><strong>Mature product surface.</strong> Mem has been shipping AI-native notes longer and the surface is polished.</li>
+        <li><strong>Pure cloud experience.</strong> If you don't care about local-first or BYO key, the cloud-first model is simpler.</li>
+        <li><strong>Team plans.</strong> Mem has team workspaces; Everion's sharing is one-to-one only.</li>
+      </ul>
+
+      <h2>Where Everion wins</h2>
+      <ul>
+        <li><strong>Privacy posture.</strong> Local-first storage, end-to-end encrypted vault, BYO AI key. Storing a bank detail or an ID number in Everion does not require trusting a cloud company with the plaintext.</li>
+        <li><strong>The vault layer.</strong> Mem holds notes; Everion holds notes <em>and</em> the high-stakes facts your life runs on (gate codes, policy numbers, medical info, "if I die" notes for your spouse).</li>
+        <li><strong>BYO AI key.</strong> Free tier is genuinely usable forever. Your usage shows up on your provider bill, no upsell pressure.</li>
+        <li><strong>Offline-first.</strong> Capture works on a flight or in a basement.</li>
+        <li><strong>Shared brain with one other person.</strong> The household / next-of-kin angle — Mem's team plans are shaped for work, not for the spouse who needs the policy number.</li>
+        <li><strong>Honest pricing.</strong> Free tier is unlimited entries. Paid tiers are flat monthly with no AI usage gotchas — you know what you're paying.</li>
+      </ul>
+
+      <h2>If your priority is...</h2>
+      <ul>
+        <li><strong>Capture-and-recall for fleeting thoughts only:</strong> either tool works. Mem is more mature; Everion is more private.</li>
+        <li><strong>Storing high-stakes facts (IDs, gate codes, bank details):</strong> Everion. Mem isn't built for this; the privacy posture is wrong.</li>
+        <li><strong>Bringing your own AI key to keep prompts private:</strong> Everion. Mem doesn't offer this.</li>
+        <li><strong>Working offline:</strong> Everion. Local-first PWA with proper offline capture.</li>
+        <li><strong>Sharing with a spouse or partner so they can find the policy number:</strong> Everion's shared brain on Pro.</li>
+      </ul>
+
+      <h2>Pricing comparison</h2>
+      <p>
+        Both have free tiers. <strong>Everion's free Hobby tier</strong> is unlimited entries with BYO AI key — you supply your own provider key and pay them directly. <strong>Mem's free tier</strong> is limited and paid tiers include AI in the price.
+      </p>
+      <p>
+        See <a href="/#pricing">live Everion pricing</a> and <a href="https://get.mem.ai/pricing" rel="nofollow noopener">Mem pricing</a> for current numbers.
+      </p>
+
+      <h2>FAQ</h2>
+
+      <h3>How is Everion different from Mem.ai?</h3>
+      <p>
+        Mem is an AI-native notes app — cloud-first, focused on fleeting thoughts and quick capture. Everion covers the same ground for notes but adds an end-to-end encrypted vault for high-stakes facts (bank details, gate codes, IDs, "if I die" notes), local-first storage, and a BYO AI key option that keeps prompts off our servers. Mem doesn't have a vault layer.
+      </p>
+
+      <h3>Is Mem.ai end-to-end encrypted?</h3>
+      <p>
+        No. Mem encrypts data at rest and in transit but is not end-to-end encrypted. Content is processed on Mem's servers for AI features. Everion is local-first with an end-to-end encrypted vault and a BYO AI key option that bypasses our infrastructure entirely on the free tier.
+      </p>
+
+      <h3>Does Mem.ai let me bring my own AI key?</h3>
+      <p>
+        No. Mem uses its own AI infrastructure and you pay for AI as part of the subscription. Everion's free Hobby tier is BYO AI key — you supply an Anthropic, OpenAI, OpenRouter, or Groq key and pay your provider directly. Your prompts never touch Everion.
+      </p>
+
+      <h3>Can I store passwords in Mem or Everion?</h3>
+      <p>
+        Use a dedicated password manager (1Password, Bitwarden, Proton Pass) for credentials. Both Mem and Everion are for free-form notes and facts, not for usernames and passwords.
+      </p>
+
+      <h3>Can I migrate from Mem to Everion?</h3>
+      <p>
+        Export from Mem (Markdown) and import into Everion. Most users start fresh and let the corpus build over time — Everion's value is in capturing what comes up day-to-day, not in importing a back catalogue.
+      </p>
+
+      <a class="cta" href="/">Try Everion free</a>
+
+      <footer>
+        <a href="/">Home</a>
+        <a href="/learn.html">What is Everion?</a>
+        <a href="/vs/notion.html">vs Notion</a>
+        <a href="/privacy">Privacy</a>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -93,6 +93,91 @@
         ]
       }
     </script>
+
+    <!-- FAQPage schema. Lets AI systems extract Q&A passages directly into
+         answer summaries (Google AI Overviews, ChatGPT, Perplexity, Claude).
+         Same questions appear in /learn.html for reinforcement. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Everion?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Everion is a personal second brain and encrypted vault. It holds fleeting thoughts (notes, links, voice memos, half-thoughts, screenshots) and high-stakes facts (gate codes, policy numbers, ID and bank details, medical info) in one private place. Capture is one tap. Recall is a chat — ask the AI anything and it reads your entries, cites sources, answers in plain language. Local-first, end-to-end encrypted."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is a second brain?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A second brain is a private, searchable place outside your head where you keep the things worth remembering — notes, ideas, links, voice memos, half-formed thoughts, and high-stakes facts like gate codes, policy numbers, or where the spare key is hidden. The point is to stop trying to remember everything yourself."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from Notion or Obsidian?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Notion and Obsidian are blank canvases — folders, templates, tags, databases. Everion has nothing to set up. One input field, no folders, no templates. The same atomic entry holds a half-thought or a serial number. Retrieval is by asking, not by hunting through a hierarchy."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from Mem.ai or Reflect?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Mem and Reflect are AI-native notes apps. Everion covers the same ground for fleeting thoughts but adds a vault layer for high-stakes facts (bank details, gate codes, IDs) with end-to-end encryption — territory those tools don't cover. Everion is also local-first; Mem and Reflect are cloud-first."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from 1Password or Bitwarden?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "1Password and Bitwarden are built for credentials — usernames, passwords, 2FA codes. Everion is for the free-form facts that aren't credentials: gate codes, medical aid numbers, account details, the doctor's contact, 'if I die' notes for your spouse."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my data private with bank details and IDs in Everion?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Storage is local-first — entries live on your device, encrypted. The vault layer uses end-to-end encryption for high-stakes content. On the free Hobby tier you bring your own AI key (Anthropic, OpenAI, OpenRouter, or Groq), so prompts go directly to your provider with no Everion server in the path."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does BYO AI key mean?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Bring Your Own key. On the free Hobby tier, you supply an API key from Anthropic, OpenAI, OpenRouter, or Groq, and Everion calls those providers directly using your key. Your usage shows up on your provider bill, your prompts never touch our infrastructure."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I share my brain with my spouse or partner?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes — on the Pro tier, you can share one brain with one other person. The household / next-of-kin angle: the policy number, the gate code, the alarm panel password, the 'if something happens to me' notes are findable by your spouse without you having to be there to answer."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Everion work offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Everion is a local-first PWA — entries are stored on your device and capture works without a network connection. Sync resumes when you're back online. AI recall requires a network call to your chosen model."
+            }
+          }
+        ]
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
