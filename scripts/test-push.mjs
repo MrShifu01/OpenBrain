@@ -129,6 +129,38 @@ if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) {
 
 console.log(`[test-push] sending to endpoint: ${sub.endpoint.slice(0, 80)}…`);
 
+// Mirror the push into the in-app notifications table so the bell lights
+// up too — keeps "I see the toast on my phone but the app shows nothing"
+// from happening. Best-effort: a failed insert doesn't fail the workflow,
+// since the actual diagnostic is whether the push fired.
+async function insertNotificationRow() {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/notifications`, {
+      method: "POST",
+      headers: {
+        ...adminHdrs,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: user.id,
+        type: "test_push",
+        title: TITLE,
+        body: BODY,
+        data: { source: "test-push" },
+      }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      console.error(`[test-push] notif insert HTTP ${r.status}: ${t.slice(0, 200)}`);
+    } else {
+      console.log(`[test-push] notif row inserted for ${user.id}`);
+    }
+  } catch (err) {
+    console.error(`[test-push] notif insert error: ${err?.message ?? err}`);
+  }
+}
+
 try {
   const result = await webpush.sendNotification(
     { endpoint: sub.endpoint, keys: sub.keys },
@@ -136,6 +168,7 @@ try {
   );
   console.log(`[test-push] OK · status=${result.statusCode}`);
   if (result.headers) console.log(`[test-push] headers:`, result.headers);
+  await insertNotificationRow();
   process.exit(0);
 } catch (err) {
   console.error(`[test-push] webpush error · status=${err.statusCode} · ${err.message}`);

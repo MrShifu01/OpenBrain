@@ -1080,6 +1080,38 @@ function localWeekday(tz: string, d: Date = new Date()): string {
   }
 }
 
+// Mirror a cron-driven push into the in-app notifications table so the
+// header bell lights up alongside the device push. Best-effort — a
+// failed insert is logged but does not affect the cron's primary work.
+// Called from handleCronDaily (admin summary) and handleCronHourly
+// (daily prompt + weekly nudge).
+async function insertCronNotification(
+  userId: string,
+  type: string,
+  title: string,
+  body: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/notifications`, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY!,
+        Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ user_id: userId, type, title, body, data }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      console.error(`[notif:${type}] insert HTTP ${r.status}: ${t.slice(0, 200)}`);
+    }
+  } catch (err: any) {
+    console.error(`[notif:${type}] insert error:`, err?.message ?? err);
+  }
+}
+
 // Enumerate every signed-up user. Avoids the broken paginated listUsers
 // admin endpoint by pulling distinct user_ids from public.entries, then
 // single-fetching each via /admin/users/{id}.
@@ -1184,14 +1216,21 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
       );
       if (lh === targetHour && hoursSince >= 23) {
         try {
+          const dailyTitle = "Everion";
+          const dailyBody = "What's worth remembering from today?";
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
             JSON.stringify({
-              title: "Everion",
-              body: "What's worth remembering from today?",
+              title: dailyTitle,
+              body: dailyBody,
               url: "/capture",
             }),
           );
+          // Mirror to in-app bell — best-effort, doesn't fail the push.
+          await insertCronNotification(user.id, "daily_prompt", dailyTitle, dailyBody, {
+            url: "/capture",
+            source: "cron-hourly",
+          });
           await patchUserPrefs(user.id, meta, { daily_last_sent_at: now.toISOString() });
           dailyR.sent++;
         } catch (err: any) {
@@ -1227,14 +1266,21 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
         daysSince >= 6
       ) {
         try {
+          const nudgeTitle = "Everion · nudge";
+          const nudgeBody = "Something in your memory rhymes with this week.";
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: sub.keys },
             JSON.stringify({
-              title: "Everion · nudge",
-              body: "Something in your memory rhymes with this week.",
+              title: nudgeTitle,
+              body: nudgeBody,
               url: "/",
             }),
           );
+          // Mirror to in-app bell.
+          await insertCronNotification(user.id, "weekly_nudge", nudgeTitle, nudgeBody, {
+            url: "/",
+            source: "cron-hourly",
+          });
           await patchUserPrefs(user.id, meta, { nudge_last_sent_at: now.toISOString() });
           nudgeR.sent++;
         } catch (err: any) {
@@ -1297,15 +1343,17 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
     });
   }
 
-  // ── Admin summary push ──
-  // One extra notification only to the admin so they can see at a glance
-  // that the cron actually ran + what it touched. Reuses the same VAPID
-  // session set up above; silently no-ops if VAPID isn't configured or the
-  // admin has no saved subscription.
+  // ── Admin summary push + in-app notification ──
+  // One push to the admin's device so they see the cron ran without opening
+  // the app, plus a row inserted into the notifications table so the bell
+  // also lights up next time they open Everion. Both are gated by the
+  // admin_summary_enabled toggle in Settings → Admin → Daily roundup.
+  // Either side can fail independently — the push needs VAPID + a saved
+  // subscription, the notification row only needs Supabase reachability.
   const adminEmail = (process.env.ADMIN_EMAIL || process.env.VITE_ADMIN_EMAIL || "")
     .trim()
     .toLowerCase();
-  if (subject && pub && priv && adminEmail) {
+  if (adminEmail) {
     try {
       const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
       const localPart = adminEmail.split("@")[0] || adminEmail;
@@ -1319,24 +1367,47 @@ async function handleCronDaily(req: ApiRequest, res: ApiResponse): Promise<void>
         const admin = list.find((u) => (u.email || "").toLowerCase() === adminEmail);
         const adminSub = admin?.user_metadata?.push_subscription;
         const summaryOn = admin?.user_metadata?.notification_prefs?.admin_summary_enabled === true;
+        const summaryBody =
+          `gmail ${gmailResults.created}/${gmailResults.users}u · ` +
+          `enrich ${enrichResults.processed}/${enrichResults.brains}b · ` +
+          `decay ${personaDecay.decayed}d ${personaDecay.archived}a`;
+        const summaryTitle = "Everion · daily cron ✓";
+
+        // Push notification — needs VAPID + a registered subscription.
         if (
           summaryOn &&
+          subject &&
+          pub &&
+          priv &&
           adminSub?.endpoint &&
           adminSub?.keys?.p256dh &&
           adminSub?.keys?.auth
         ) {
-          const body =
-            `gmail ${gmailResults.created}/${gmailResults.users}u · ` +
-            `enrich ${enrichResults.processed}/${enrichResults.brains}b · ` +
-            `decay ${personaDecay.decayed}d ${personaDecay.archived}a`;
-          await webpush.sendNotification(
-            { endpoint: adminSub.endpoint, keys: adminSub.keys },
-            JSON.stringify({ title: "Everion · daily cron ✓", body, url: "/" }),
-          );
+          await webpush
+            .sendNotification(
+              { endpoint: adminSub.endpoint, keys: adminSub.keys },
+              JSON.stringify({ title: summaryTitle, body: summaryBody, url: "/" }),
+            )
+            .catch((err: any) =>
+              console.error("[cron/daily] admin summary push failed:", err?.message),
+            );
+        }
+
+        // In-app notification row — fires regardless of VAPID config so the
+        // bell lights up even when push isn't reachable (e.g. user on a
+        // platform without web-push support, or subscription expired).
+        if (summaryOn && admin?.id) {
+          await insertCronNotification(admin.id, "cron_summary", summaryTitle, summaryBody, {
+            gmail: gmailResults,
+            enrich: enrichResults,
+            persona_decay: personaDecay,
+            persona_weekly: personaWeekly,
+            source: "cron-daily",
+          });
         }
       }
     } catch (err: any) {
-      console.error("[cron/daily] admin summary push failed:", err?.message);
+      console.error("[cron/daily] admin summary failed:", err?.message);
     }
   }
 
