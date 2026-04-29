@@ -12,6 +12,9 @@ remaining item realistically needs.
 | `f7736aa` | feat(capacitor): wrap web app for iOS + Android (Batch A — scaffold)                              |
 | `0f96f96` | feat(design-tokens): `--z-*` layer tokens + audit hardcoded shadows (Batch B)                     |
 | `92ff14d` | perf: parallel cold-load + cursor pagination + og.png compression (Batch I/K)                     |
+| `e90685a` | docs(launch): mark completed Batch A/B/I/K + add session progress doc                             |
+| `d4dd274` | refactor(toasts): migrate UndoToast + UpdatePrompt to Sonner (Batch H)                            |
+| `5ece78b` | test(e2e): important-memories spec + lint ratchet (Batch I/J)                                     |
 
 Tests: 450/450 passing across all commits. Typecheck + lint clean.
 
@@ -22,8 +25,12 @@ Tests: 450/450 passing across all commits. Typecheck + lint clean.
 - ✅ #12 Offline UI + `@capacitor/network`
 - ✅ #13 App icon + splash (Android × 136, iOS × 13, PWA WebP × 7)
 - ✅ #14 Standardise z-index / radius / shadow tokens
+- ✅ #21 Dialog migration **partial** — verified 4 of 7 modals already on shadcn Dialog; 3 remaining (CaptureSheet, DetailModal, ProfileTab) need per-session migration with real-device QA. `window.confirm()` removals already complete.
+- ✅ #22 Sonner migration **partial** — UndoToast deleted + replaced with sonner action toast; UpdatePrompt rewritten as no-render component. ConsentBanner/NudgeBanner intentionally not migrated (legal consent / inline banner). BackgroundTaskToast/BackgroundOpsToast deferred (complex progress state machines).
+- ✅ #23 ESLint ratchet — `npm run lint --max-warnings 297` locks the floor; per-cast cleanup of 32 `as any` in `src/` is multi-session work.
 - ✅ #25 Cursor pagination on `entryRepo.list` (+ `listPage`, `listAll`)
 - ✅ #26 Parallelise sequential `/api/*` cold-load (settings fire-and-forget)
+- ✅ #27 e2e spec — `important-memories.spec.ts` (full happy path: create / filter / retire / API cleanup)
 - ✅ #28 Bonus: og.png compressed (39%), bundle audit doc, Lighthouse prep doc
 
 Plus from earlier in the session:
@@ -34,6 +41,12 @@ Plus from earlier in the session:
 
 Confirmed already done (checklist was stale):
 - ✅ `window.confirm()` removals (BulkActionBar + ProfileTab — already replaced)
+
+## Final scorecard
+
+**12 of 19 numbered items shipped + 3 of 4 bonuses.**
+
+The remaining 7 are all UI-layer batch refactors (shadcn primitives + god-component splits). They share a common shape: each touches 25–95 inline UI patterns across many files. Sweeping them in one session without a real-device visual QA pass is what produces the regressions the test suite can't catch (focus drift, padding, keyboard nav, tap-target shifts).
 
 ## Remaining — needs dedicated session each
 
