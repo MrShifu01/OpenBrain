@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { Button } from "../ui/button";
+import { Switch } from "../ui/switch";
 
 interface SettingsRowProps {
   label: string;
@@ -123,7 +125,9 @@ export function SettingsText({ children }: { children: ReactNode }) {
   );
 }
 
-/** Tight secondary button sized for Settings rows (32px, 13px font). */
+/** Tight secondary button sized for Settings rows. Thin wrapper around the
+ *  shared Button primitive so every SettingsRow control matches every
+ *  other button in the app. */
 export function SettingsButton({
   onClick,
   disabled,
@@ -138,32 +142,20 @@ export function SettingsButton({
   type?: "button" | "submit";
 }) {
   return (
-    <button
+    <Button
       type={type}
+      size="sm"
+      variant={danger ? "destructive" : "outline"}
       onClick={onClick}
       disabled={disabled}
-      className="press f-sans"
-      style={{
-        height: 32,
-        minHeight: 32,
-        padding: "0 14px",
-        fontSize: 13,
-        fontWeight: 500,
-        borderRadius: 8,
-        background: danger ? "var(--blood-wash)" : "var(--surface)",
-        color: danger ? "var(--blood)" : "var(--ink)",
-        border: `1px solid ${danger ? "var(--blood)" : "var(--line)"}`,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-        transition: "background 180ms, border-color 180ms",
-      }}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
-/** Lightweight toggle switch — rounded pill with ember fill + dark handle when on. */
+/** Lightweight toggle switch — wraps shadcn Switch so every settings
+ *  toggle uses the same primitive. */
 export function SettingsToggle({
   value,
   onChange,
@@ -173,41 +165,5 @@ export function SettingsToggle({
   onChange: (next: boolean) => void;
   ariaLabel?: string;
 }) {
-  const width = 40;
-  const height = 22;
-  const knob = 18;
-  return (
-    <button
-      onClick={() => onChange(!value)}
-      role="switch"
-      aria-checked={value}
-      aria-label={ariaLabel}
-      className="press"
-      style={{
-        width,
-        height,
-        minHeight: height,
-        borderRadius: 999,
-        background: value ? "var(--ember)" : "var(--surface-high)",
-        border: `1px solid ${value ? "var(--ember)" : "var(--line)"}`,
-        position: "relative",
-        transition: "background 200ms, border-color 200ms",
-        padding: 0,
-        cursor: "pointer",
-      }}
-    >
-      <span
-        style={{
-          position: "absolute",
-          top: 1,
-          left: value ? width - knob - 3 : 1,
-          width: knob,
-          height: knob,
-          borderRadius: "50%",
-          background: value ? "var(--ember-ink)" : "var(--ink-faint)",
-          transition: "left 200ms cubic-bezier(.16,1,.3,1)",
-        }}
-      />
-    </button>
-  );
+  return <Switch checked={value} onCheckedChange={onChange} aria-label={ariaLabel} />;
 }
