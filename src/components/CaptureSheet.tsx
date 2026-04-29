@@ -320,36 +320,49 @@ export default function CaptureSheet({
             {loading ? "Processing your entry…" : (status ?? "")}
           </div>
 
-          {showBrainPill && brainCtx.brains.length > 1 && !preview && activeTab === "entry" && (
-            <CaptureBrainPill
-              brains={brainCtx.brains}
-              activeBrain={brainCtx.activeBrain}
-              captureBrain={captureBrain}
-              onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
-            />
-          )}
-
-          {/* Drag handle (mobile) */}
+          {/* Top strip — drag handle (mobile only, centered) + per-capture
+              brain pill (right-aligned, only when multi-brain). Single low row
+              instead of two stacked banners. */}
           <div
-            ref={handleRef}
-            className="touch-none lg:hidden"
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              paddingTop: 10,
-              paddingBottom: 6,
-              cursor: "grab",
+              position: "relative",
+              minHeight: 22,
+              paddingTop: 8,
+              paddingBottom: 4,
             }}
           >
             <div
+              ref={handleRef}
+              className="touch-none lg:hidden"
               style={{
+                position: "absolute",
+                left: "50%",
+                top: 10,
+                transform: "translateX(-50%)",
                 width: 36,
                 height: 4,
                 borderRadius: 2,
                 background: "var(--line)",
+                cursor: "grab",
               }}
+              aria-hidden="true"
             />
+            {showBrainPill && brainCtx.brains.length > 1 && !preview && activeTab === "entry" && (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  paddingRight: 12,
+                }}
+              >
+                <CaptureBrainPill
+                  brains={brainCtx.brains}
+                  activeBrain={brainCtx.activeBrain}
+                  captureBrain={captureBrain}
+                  onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                />
+              </div>
+            )}
           </div>
 
           {/* Body */}
@@ -473,133 +486,122 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
   const sorted = personal ? [personal, ...others] : others;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "10px 16px 0",
-        fontSize: 11,
-        color: "var(--ink-faint)",
-      }}
-    >
-      <span>Capture into</span>
-      <div ref={ref} style={{ position: "relative" }}>
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          className="press"
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Capture into ${target.name} — change brain`}
+        className="press"
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 5,
+          height: 22,
+          padding: "0 7px",
+          background: captureBrain ? "var(--ember-wash)" : "transparent",
+          border: `1px solid ${captureBrain ? "var(--ember)" : "var(--line-soft)"}`,
+          borderRadius: 999,
+          color: "var(--ink-soft)",
+          fontSize: 11,
+          fontWeight: 500,
+          cursor: "pointer",
+          maxWidth: 160,
+        }}
+      >
+        {target.is_personal && (
+          <span aria-hidden="true" style={{ color: "var(--ember)", fontSize: 9 }}>
+            ★
+          </span>
+        )}
+        <span
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            height: 26,
-            padding: "0 8px",
-            background: captureBrain ? "var(--ember-wash)" : "var(--surface)",
-            border: `1px solid ${captureBrain ? "var(--ember)" : "var(--line-soft)"}`,
-            borderRadius: 6,
-            color: "var(--ink)",
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: "pointer",
-            maxWidth: 180,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
           }}
         >
-          {target.is_personal && (
-            <span aria-hidden="true" style={{ color: "var(--ember)", fontSize: 10 }}>
-              ★
-            </span>
-          )}
-          <span
-            style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              minWidth: 0,
-            }}
-          >
-            {target.name}
-          </span>
-          <svg
-            aria-hidden="true"
-            width="10"
-            height="10"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-            style={{ flexShrink: 0, opacity: 0.6 }}
-          >
-            <path d="m6 9 6 6 6-6" />
-          </svg>
-        </button>
-        {open && (
-          <div
-            role="listbox"
-            style={{
-              position: "absolute",
-              top: "calc(100% + 4px)",
-              left: 0,
-              minWidth: 200,
-              background: "var(--bg)",
-              border: "1px solid var(--line-soft)",
-              borderRadius: 8,
-              boxShadow: "0 10px 32px rgba(0,0,0,0.18)",
-              padding: 4,
-              zIndex: 60,
-            }}
-          >
-            {sorted.map((b) => {
-              const selected = b.id === target.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  onClick={() => {
-                    onPick(b);
-                    setOpen(false);
-                  }}
+          {target.name}
+        </span>
+        <svg
+          aria-hidden="true"
+          width="9"
+          height="9"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          viewBox="0 0 24 24"
+          style={{ flexShrink: 0, opacity: 0.55 }}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            right: 0,
+            minWidth: 200,
+            background: "var(--bg)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            boxShadow: "0 10px 32px rgba(0,0,0,0.18)",
+            padding: 4,
+            zIndex: 60,
+          }}
+        >
+          {sorted.map((b) => {
+            const selected = b.id === target.id;
+            return (
+              <button
+                key={b.id}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => {
+                  onPick(b);
+                  setOpen(false);
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  padding: "6px 8px",
+                  background: selected ? "var(--ember-wash)" : "transparent",
+                  border: 0,
+                  borderRadius: 4,
+                  color: "var(--ink)",
+                  fontSize: 12,
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+              >
+                {b.is_personal ? (
+                  <span style={{ color: "var(--ember)", width: 12, textAlign: "center" }}>★</span>
+                ) : (
+                  <span style={{ width: 12 }} />
+                )}
+                <span
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    width: "100%",
-                    padding: "6px 8px",
-                    background: selected ? "var(--ember-wash)" : "transparent",
-                    border: 0,
-                    borderRadius: 4,
-                    color: "var(--ink)",
-                    fontSize: 12,
-                    textAlign: "left",
-                    cursor: "pointer",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {b.is_personal ? (
-                    <span style={{ color: "var(--ember)", width: 12, textAlign: "center" }}>★</span>
-                  ) : (
-                    <span style={{ width: 12 }} />
-                  )}
-                  <span
-                    style={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {b.name}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                  {b.name}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
