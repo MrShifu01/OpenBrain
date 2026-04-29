@@ -99,7 +99,7 @@ export default function VaultRevealModal({
       return;
     }
     try {
-      const dec = await decryptEntry(entry as any, key);
+      const dec = await decryptEntry(entry, key);
       setContent((dec.content as string) || "");
       setMeta((dec.metadata as Record<string, unknown>) || {});
       setStage("revealed");

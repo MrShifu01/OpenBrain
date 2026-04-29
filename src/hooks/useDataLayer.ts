@@ -166,9 +166,7 @@ export function useDataLayer({
       const vaultIds = vaultEntryIdsRef.current;
       setEntries((prev) => {
         Promise.all(
-          prev.map((e) =>
-            e.type === "secret" && !vaultIds.has(e.id) ? decryptEntry(e as any, key!) : e,
-          ),
+          prev.map((e) => (e.type === "secret" && !vaultIds.has(e.id) ? decryptEntry(e, key!) : e)),
         ).then((decrypted) => setEntries(decrypted as Entry[]));
         return prev;
       });

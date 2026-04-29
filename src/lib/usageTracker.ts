@@ -165,14 +165,23 @@ export function trackEmbeddingIfPresent(response: Response): void {
   }
 }
 
+interface TokenUsageBody {
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+  };
+}
+
 export function extractTokenUsage(body: unknown): { inputTokens: number; outputTokens: number } {
   if (!body || typeof body !== "object") return { inputTokens: 0, outputTokens: 0 };
-  const b = body as any;
-  if (b.usage?.input_tokens != null) {
-    return { inputTokens: b.usage.input_tokens, outputTokens: b.usage.output_tokens ?? 0 };
+  const usage = (body as TokenUsageBody).usage;
+  if (usage?.input_tokens != null) {
+    return { inputTokens: usage.input_tokens, outputTokens: usage.output_tokens ?? 0 };
   }
-  if (b.usage?.prompt_tokens != null) {
-    return { inputTokens: b.usage.prompt_tokens, outputTokens: b.usage.completion_tokens ?? 0 };
+  if (usage?.prompt_tokens != null) {
+    return { inputTokens: usage.prompt_tokens, outputTokens: usage.completion_tokens ?? 0 };
   }
   return { inputTokens: 0, outputTokens: 0 };
 }

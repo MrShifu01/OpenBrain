@@ -158,13 +158,19 @@ export default function BulkImportPanel({
           (current, total, detail) => updateProgress({ phase: "parsing", current, total, detail }),
           ac.signal,
         );
-      } catch (e: any) {
-        if (e?.name === "AbortError") {
+      } catch (e) {
+        if (e instanceof Error && e.name === "AbortError") {
           setProgress((p) => (p ? { ...p, phase: "cancelled" } : p));
         } else {
           console.error(`[import:${source}:parse]`, e);
           setProgress((p) =>
-            p ? { ...p, phase: "error", detail: e?.message || "Could not read the archive" } : p,
+            p
+              ? {
+                  ...p,
+                  phase: "error",
+                  detail: e instanceof Error ? e.message : "Could not read the archive",
+                }
+              : p,
           );
         }
         return;
@@ -211,8 +217,8 @@ export default function BulkImportPanel({
           imported += data.imported ?? 0;
           skipped += data.skipped ?? 0;
           failed += data.failed ?? 0;
-        } catch (e: any) {
-          if (e?.name === "AbortError") {
+        } catch (e) {
+          if (e instanceof Error && e.name === "AbortError") {
             setProgress((p) => (p ? { ...p, phase: "cancelled" } : p));
             saveResume(brainId, source, {
               source,
@@ -268,8 +274,8 @@ export default function BulkImportPanel({
           const data = await res.json();
           processed = data.processed ?? 0;
           remaining = data.remaining ?? 0;
-        } catch (e: any) {
-          if (e?.name === "AbortError") {
+        } catch (e) {
+          if (e instanceof Error && e.name === "AbortError") {
             setProgress((p) => (p ? { ...p, phase: "cancelled" } : p));
             return;
           }

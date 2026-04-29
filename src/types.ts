@@ -104,6 +104,11 @@ export interface Entry {
   importance?: number;
   status?: "active" | "staged";
   deleted_at?: string | null;
+  // Open-ended escape hatch — Supabase rows occasionally carry transient
+  // server-side fields (e.g. from joins, RLS-augmented columns) that we
+  // forward without explicit modelling. Stay conservative when adding fields
+  // here — most should be promoted to first-class properties above.
+  [key: string]: unknown;
 }
 
 export interface TypeConfig {

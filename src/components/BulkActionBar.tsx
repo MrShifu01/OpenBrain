@@ -94,7 +94,7 @@ export default function BulkActionBar({
         const errData = await res.json().catch(() => ({}));
         console.error("[bulkSuggestType]", res.status, errData);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("[bulkSuggestType]", err);
     }
     setAiTyping(false);

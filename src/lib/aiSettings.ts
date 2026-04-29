@@ -210,6 +210,7 @@ export async function updateProviderSettings(fields: {
   anthropic_key?: string | null;
   openai_key?: string | null;
   gemini_key?: string | null;
+  groq_key?: string | null;
   anthropic_model?: string;
   openai_model?: string;
   gemini_byok_model?: string;
@@ -222,7 +223,7 @@ export async function updateProviderSettings(fields: {
   if (fields.gemini_byok_model !== undefined)
     _taskModels["gemini_byok_model"] = fields.gemini_byok_model;
   if (fields.plan !== undefined) _plan = fields.plan;
-  return persistKeyToDb(fields as any);
+  return persistKeyToDb(fields as Record<string, string | boolean | null>);
 }
 
 // ── Embedding settings ──

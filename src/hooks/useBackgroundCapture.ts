@@ -75,8 +75,8 @@ function parseAIEntries(
       return { entries: [entry], parseError: "" };
     }
     parseError = "Unexpected JSON shape";
-  } catch (e: any) {
-    parseError = e?.message || String(e);
+  } catch (e) {
+    parseError = e instanceof Error ? e.message : String(e);
   }
 
   // Salvage complete objects from a truncated array response
@@ -132,10 +132,10 @@ export function useBackgroundCapture() {
           let rawText = "";
           try {
             rawText = await extractTextFromFile(file);
-          } catch (e: any) {
+          } catch (e) {
             updateTask(taskId, {
               status: "error",
-              error: `Extract failed: ${e?.message || String(e)}`,
+              error: `Extract failed: ${e instanceof Error ? e.message : String(e)}`,
             });
             continue;
           }
@@ -183,8 +183,8 @@ export function useBackgroundCapture() {
                 }
               }
             }
-          } catch (e: any) {
-            classifyWarning = `AI call failed: ${e?.message || String(e)}`;
+          } catch (e) {
+            classifyWarning = `AI call failed: ${e instanceof Error ? e.message : String(e)}`;
           }
 
           if (entries.length === 0 && classifyWarning) {
@@ -264,8 +264,11 @@ export function useBackgroundCapture() {
             warning: classifyWarning || undefined,
           });
           setTimeout(() => dismissTask(taskId), 8000);
-        } catch (e: any) {
-          updateTask(taskId, { status: "error", error: e?.message || String(e) });
+        } catch (e) {
+          updateTask(taskId, {
+            status: "error",
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     },
@@ -318,8 +321,8 @@ export function useBackgroundCapture() {
             });
             if (res.ok || (res.status >= 400 && res.status < 500)) break;
             saveErr = `HTTP ${res.status}`;
-          } catch (e: any) {
-            saveErr = e?.message || "Network error";
+          } catch (e) {
+            saveErr = e instanceof Error ? e.message : "Network error";
           }
         }
         if (res?.ok) {
@@ -343,8 +346,11 @@ export function useBackgroundCapture() {
         } else {
           updateTask(taskId, { status: "error", error: saveErr });
         }
-      } catch (e: any) {
-        updateTask(taskId, { status: "error", error: e?.message || "Save failed" });
+      } catch (e) {
+        updateTask(taskId, {
+          status: "error",
+          error: e instanceof Error ? e.message : "Save failed",
+        });
       }
     },
     [updateTask, dismissTask],

@@ -157,7 +157,7 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
       Resend is configured. Verify rendering across Gmail, Outlook, Apple Mail. Use Mailtrap or send to real accounts.
 - [ ] **Email sender domain SPF/DKIM/DMARC** 🟡
       `noreply@everion.smashburgerbar.co.za` — copy the records from <https://resend.com/domains> into the DNS provider for `smashburgerbar.co.za`. Step-by-step (including DMARC soak-then-tighten cadence) in `docs/launch-runbook-alerts-and-dns.md`. ~10 min.
-- [ ] **Customer support channel** ❌
+- [x] **Customer support channel** ✅ — mailto:stander.christian@gmail.com surfaced in Landing footer + Settings → Account → Help row. Forward `support@everion.smashburgerbar.co.za` if/when a custom inbox is wanted.
       Where do users complain? Email link in app footer is the minimum. `support@` alias forwarded to your inbox.
 
 ### Design system / UI consistency (shadcn migration)
@@ -229,7 +229,7 @@ Phase 1 (solo multi-brain plumbing) shipped behind flag `multiBrain`. Spec: `doc
 
 ### Other backlog
 
-- [ ] **More e2e specs** — calendar persona-facts, search round-trip. Add as real regressions ship per skill Rule 7. **Updates:** `404.spec.ts` and `search.spec.ts` (3 sub-tests) shipped 2026-04-27. `vault.spec.ts` smoke layer shipped earlier. `important-memories.spec.ts` shipped 2026-04-29 (full happy path: create → filter chips → retire → API cleanup, gated behind the importantMemories admin flag). Calendar persona-facts + delete cascade still owed.
+- [ ] **More e2e specs** — calendar persona-facts still owed. **Updates:** `404.spec.ts` and `search.spec.ts` (3 sub-tests) shipped 2026-04-27. `vault.spec.ts` smoke layer shipped earlier. `important-memories.spec.ts` shipped 2026-04-29 (full happy path: create → filter chips → retire → API cleanup). `delete-cascade.spec.ts` and `schedule.spec.ts` shipped 2026-04-29 (capture → delete → undo → API cleanup; Schedule Day/Week/Month tab routing).
 - [x] **Public status page** ✅ — `/status` lives at `https://everion.smashburgerbar.co.za/status`. Polls `/api/status` every 30s, shows API/DB/AI provider up/down. Public, no auth, edge-cached 15s + SWR 60s. Renders ahead of the auth gate so it works even when Supabase auth itself is down. Built 2026-04-28.
 - [x] **Sentry source maps** ✅ — `@sentry/vite-plugin` wired in `vite.config.js`, conditional on `SENTRY_AUTH_TOKEN` + `VITE_SENTRY_DSN`. Maps deleted post-upload so they're not publicly fetchable.
 - [ ] **PostHog cohorts + funnels** — set up after a week of real data. Don't pre-cook.
@@ -372,14 +372,13 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P1 — Maintainability
 
-- [ ] **`as any` casts in `src/`** 🟡 — down to 19 (from 59 → 32 → 19 across multiple sessions)
-      Remaining clusters: `src/views/DetailModal.tsx` (still has several around enrichment), `src/lib/fileExtract.ts` (legitimate `mod.default ?? mod` ESM compat), `src/hooks/useVaultOps.ts` (encrypted-entry round-trip needs a typed plumbing layer). The runtime-added fields on `Entry` (`pinned`, `importance`, `embedding_status`, `embedded_at`, `deleted_at`) are now properly typed in `src/types.ts`. Drift the lint warning ratchet down each session as remaining clusters get addressed organically.
+- [ ] **`as any` casts in `src/`** 🟡 — down to **6** (from 59 → 32 → 19 → 6 across multiple sessions)
+      Remaining: 3 in `src/lib/fileExtract.ts` (legitimate `mod.default ?? mod` ESM compat — keep), 1 in `src/hooks/useEntryRealtime.ts` (Supabase channel typing quirk, has eslint-disable comment), 1 in `src/lib/enrichEntry.ts` comment, 1 in `src/views/TodoCalendarTab.tsx` comment. All structural casts have been promoted to first-class fields on `Entry` in `src/types.ts` (open-ended `[key: string]: unknown` index signature added). Lint ratchet down to **227** warnings (from 297). 49 `catch (e: any)` patterns mostly converted to `e instanceof Error ? e.message : String(e)` narrowing.
 
 - [ ] **Three god-components >1000 lines** 🟡
       `src/views/TodoCalendarTab.tsx` (1309), `src/views/VaultView.tsx` (1217), `src/components/EntryList.tsx` (986). Each handles fetching, filtering, display, and mutations in one file. Extract presentational sub-components (e.g., `EntryListFilters`, `VaultEntryCard`, `CalendarMonthGrid`) and move side effects into hooks. Don't refactor for its own sake — do it next time you touch one of these for a feature.
 
-- [ ] **e2e for vault unlock + delete cascade** ❌
-      Vault is the most security-sensitive surface in the app (master-password-derived AES-GCM, opt-in encrypted secrets). Zero e2e coverage today. Add `e2e/specs/vault.spec.ts`: set master password → save secret → re-lock → unlock with wrong password (rejected) → unlock with right password → reveal → delete.
+- [x] **e2e for vault unlock + delete cascade** ✅ — `vault.spec.ts` covers vault flow; `delete-cascade.spec.ts` (2026-04-29) covers entry → delete → undo → permanent-delete API backstop.
 
 ### P1 — Compliance follow-ups
 

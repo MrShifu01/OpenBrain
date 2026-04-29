@@ -75,11 +75,11 @@ const EntryCard = memo(function EntryCard({
   //      periodically. Used as a fallback for older entries whose metadata
   //      predates the concepts-in-metadata convention.
   const conceptLabels: string[] = (() => {
-    const meta = (e.metadata as any)?.concepts;
+    const meta = e.metadata?.concepts as unknown;
     if (Array.isArray(meta) && meta.length) {
       const labels = meta
-        .map((c: any) => (typeof c === "string" ? c : c?.label))
-        .filter((l: any): l is string => typeof l === "string" && l.length > 0);
+        .map((c) => (typeof c === "string" ? c : (c as { label?: string })?.label))
+        .filter((l): l is string => typeof l === "string" && l.length > 0);
       if (labels.length) return labels;
     }
     return concepts ?? [];

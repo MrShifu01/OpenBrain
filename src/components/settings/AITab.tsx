@@ -87,8 +87,8 @@ export default function AITab({ activeBrain, isAdmin }: Props) {
         return;
       }
       setDebug(await r.json());
-    } catch (e: any) {
-      setDebugError(String(e?.message ?? e));
+    } catch (e) {
+      setDebugError(e instanceof Error ? e.message : String(e));
     } finally {
       setDebugLoading(false);
     }

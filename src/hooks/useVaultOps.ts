@@ -74,9 +74,7 @@ export function useVaultOps({
   }, []);
 
   // Legacy: secrets still in the entries table (before migration)
-  const legacySecrets = entries.filter(
-    (e: Entry) => e.type === "secret" || (e as any).encrypted === true,
-  );
+  const legacySecrets = entries.filter((e: Entry) => e.type === "secret" || e.encrypted === true);
 
   // Combined — vault_entries takes precedence; legacy fills gap
   const secrets = [
@@ -111,8 +109,8 @@ export function useVaultOps({
       setDecryptedSecrets([]);
       return;
     }
-    Promise.all(secrets.map((e) => decryptEntry(e as any, cryptoKey)))
-      .then((result: any[]) => setDecryptedSecrets(result))
+    Promise.all(secrets.map((e) => decryptEntry(e, cryptoKey)))
+      .then((result) => setDecryptedSecrets(result as Entry[]))
       .catch(() => setDecryptedSecrets(secrets));
   }, [status, cryptoKey, secrets.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,7 +245,7 @@ export function useVaultOps({
         tags: tagList,
         metadata,
       };
-      const encrypted = await encryptEntry(plain as any, cryptoKey);
+      const encrypted = await encryptEntry(plain, cryptoKey);
       const res = await authFetch("/api/vault-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -270,8 +268,8 @@ export function useVaultOps({
         content: plain.content,
         type: "secret",
         tags: tagList,
-        metadata: metadata as any,
-      } as Entry;
+        metadata,
+      };
       setDecryptedSecrets((prev) => [newEntry, ...prev]);
       onEntryCreated?.(newEntry);
       resetAddForm();

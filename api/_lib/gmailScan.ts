@@ -619,7 +619,7 @@ export interface GmailLearnings {
   recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
 }
 
-export function emptyLearnings(): GmailLearnings {
+function emptyLearnings(): GmailLearnings {
   return {
     acceptedSummary: null,
     rejectedSummary: null,
@@ -1483,7 +1483,7 @@ function blockEmbedText(block: ThreadBlock): string {
     .join("\n");
 }
 
-export async function clusterThreadBlocks(
+async function clusterThreadBlocks(
   blocks: ThreadBlock[],
   geminiKey: string,
 ): Promise<ThreadCluster[]> {
@@ -1558,7 +1558,7 @@ export async function clusterThreadBlocks(
 // staging inbox: accept rolls the cluster into a kept summary, reject
 // drops it and feeds the rejection signal into gmail_decisions for the
 // classifier to learn from on the next scan.
-export async function persistClusters(
+async function persistClusters(
   integration: any,
   brainId: string | null,
   clusters: ThreadCluster[],

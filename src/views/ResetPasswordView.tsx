@@ -12,6 +12,7 @@ export default function ResetPasswordView({ onDone }: Props) {
   useDocumentMeta({
     title: "Reset password — Everion",
     description: "Choose a new password for your Everion account.",
+    noindex: true,
   });
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");

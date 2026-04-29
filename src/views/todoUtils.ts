@@ -146,14 +146,6 @@ export function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function fmtTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-ZA", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-}
-
 export function isDone(entry: Entry): boolean {
   return (entry.metadata as { status?: string } | undefined)?.status === "done";
 }

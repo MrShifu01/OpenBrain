@@ -106,8 +106,8 @@ export function useVoiceRecorder({
             const errBody = await transcribeRes.text().catch(() => "");
             onError(`[transcribe] HTTP ${transcribeRes.status} — ${errBody}`);
           }
-        } catch (e: any) {
-          onError(`[transcribe] ${e?.message || String(e)}`);
+        } catch (e) {
+          onError(`[transcribe] ${e instanceof Error ? e.message : String(e)}`);
         }
         onLoading(false);
         onStatus(null);
@@ -115,11 +115,14 @@ export function useVoiceRecorder({
 
       recorder.start(VOICE_RECORDER_CHUNK_MS);
       setListening(true);
-    } catch (e: any) {
-      if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+    } catch (e) {
+      if (
+        e instanceof Error &&
+        (e.name === "NotAllowedError" || e.name === "PermissionDeniedError")
+      ) {
         onError("[voice] Microphone permission denied");
       } else {
-        onError(`[voice] ${e?.message || String(e)}`);
+        onError(`[voice] ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }, [stopRecording, onTranscript, onStatus, onError, onLoading]);

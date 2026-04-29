@@ -485,8 +485,8 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const json = (await r.json()) as GmailPromptPayload;
       setData(json);
-    } catch (e: any) {
-      setErr(String(e?.message ?? e));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -510,8 +510,8 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
       const rejects = json.reject_count ?? 0;
       setDistillMsg(`Distilled ${accepts} accepts + ${rejects} rejects.`);
       await load();
-    } catch (e: any) {
-      setDistillMsg(`Failed: ${String(e?.message ?? e)}`);
+    } catch (e) {
+      setDistillMsg(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDistilling(false);
     }

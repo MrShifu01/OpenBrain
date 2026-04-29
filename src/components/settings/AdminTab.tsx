@@ -655,11 +655,11 @@ function PushTestSection() {
           .filter(Boolean)
           .join("\n"),
       });
-    } catch (e: any) {
+    } catch (e) {
       setResult({
         status: "fail",
         latencyMs: Date.now() - t0,
-        detail: String(e?.message ?? e),
+        detail: String(e instanceof Error ? e.message : String(e)),
       });
     } finally {
       setSending(false);
@@ -770,9 +770,9 @@ function DailySummarySection() {
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       setMsg(next ? "On — fires after each cron run." : "Off — no roundup notification.");
-    } catch (e: any) {
+    } catch (e) {
       setEnabled(prev);
-      setMsg(`Error: ${e?.message ?? e}`);
+      setMsg(`Error: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSaving(false);
     }
@@ -860,11 +860,11 @@ export default function AdminTab() {
         ].join("\n"),
       });
       return !expired;
-    } catch (e: any) {
+    } catch (e) {
       setAuthResult({
         status: "fail",
         latencyMs: Date.now() - t0,
-        detail: String(e?.message ?? e),
+        detail: String(e instanceof Error ? e.message : String(e)),
       });
       return false;
     }
@@ -910,8 +910,12 @@ export default function AdminTab() {
         detail: `HTTP ${res.status}\n\nAI replied: "${aiText}"\n\nFull response:\n${JSON.stringify(parsed, null, 2)}`,
       });
       return true;
-    } catch (e: any) {
-      setLlmResult({ status: "fail", latencyMs: Date.now() - t0, detail: String(e?.message ?? e) });
+    } catch (e) {
+      setLlmResult({
+        status: "fail",
+        latencyMs: Date.now() - t0,
+        detail: String(e instanceof Error ? e.message : String(e)),
+      });
       return false;
     }
   }
@@ -947,11 +951,11 @@ export default function AdminTab() {
         detail: `HTTP ${res.status}\n\nResponse:\n${text}`,
       });
       return true;
-    } catch (e: any) {
+    } catch (e) {
       setCaptureResult({
         status: "fail",
         latencyMs: Date.now() - t0,
-        detail: String(e?.message ?? e),
+        detail: String(e instanceof Error ? e.message : String(e)),
       });
       return false;
     }
@@ -999,8 +1003,8 @@ export default function AdminTab() {
         const jsonMatch = stripped.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
         const jsonResult = JSON.parse(jsonMatch ? jsonMatch[1] : stripped);
         entries = Array.isArray(jsonResult) ? jsonResult : [jsonResult];
-      } catch (e: any) {
-        parseError = `JSON parse failed: ${e?.message ?? e}`;
+      } catch (e) {
+        parseError = `JSON parse failed: ${e instanceof Error ? e.message : String(e)}`;
       }
 
       const tokensUsed = parsed?.usage?.total_tokens ?? "unknown";
@@ -1039,11 +1043,11 @@ export default function AdminTab() {
         ].join("\n"),
       });
       return true;
-    } catch (e: any) {
+    } catch (e) {
       setSplitResult({
         status: "fail",
         latencyMs: Date.now() - t0,
-        detail: String(e?.message ?? e),
+        detail: String(e instanceof Error ? e.message : String(e)),
       });
       return false;
     }

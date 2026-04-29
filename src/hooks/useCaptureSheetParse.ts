@@ -226,8 +226,8 @@ export function useCaptureSheetParse({
           setErrorDetail(msg);
           setStatus("error");
         }
-      } catch (e: any) {
-        const msg = `[capture] ${e?.message || String(e)}`;
+      } catch (e) {
+        const msg = `[capture] ${e instanceof Error ? e.message : String(e)}`;
         console.error(msg);
         setErrorDetail(msg);
         setStatus("error");
@@ -404,8 +404,8 @@ export function useCaptureSheetParse({
             const jsonMatch = stripped.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
             parsedRaw = JSON.parse(jsonMatch ? jsonMatch[1] : stripped);
           }
-        } catch (err: any) {
-          parseError = err?.message || String(err);
+        } catch (err) {
+          parseError = err instanceof Error ? err.message : String(err);
           console.error("[useCaptureSheetParse] parse error:", parseError);
         }
 
@@ -518,8 +518,8 @@ export function useCaptureSheetParse({
           metadata: {},
           _raw: input,
         });
-      } catch (e: any) {
-        const msg = `[ai] ${e?.message || String(e)}`;
+      } catch (e) {
+        const msg = `[ai] ${e instanceof Error ? e.message : String(e)}`;
         console.error(msg);
         setErrorDetail(msg);
         setStatus("error");
@@ -615,10 +615,10 @@ export function useCaptureSheetParse({
         setFileParseError(file.name);
         setErrorDetail("No text could be extracted from this image.");
       }
-    } catch (e: any) {
+    } catch (e) {
       failedFileRef.current = { file, isImage: true };
       setFileParseError(file.name);
-      setErrorDetail(e?.message || "Extraction failed.");
+      setErrorDetail(e instanceof Error ? e.message : "Extraction failed.");
     }
     setExtracting(false);
     setStatus(null);
@@ -703,8 +703,8 @@ export function useCaptureSheetParse({
           setStatus(null);
           onClose();
         }, 700);
-      } catch (e: any) {
-        const msg = `[vcf] ${e?.message || String(e)}`;
+      } catch (e) {
+        const msg = `[vcf] ${e instanceof Error ? e.message : String(e)}`;
         console.error(msg);
         setErrorDetail(msg);
         setStatus("error");
@@ -740,11 +740,11 @@ export function useCaptureSheetParse({
             setFileParseError(file.name);
             setErrorDetail("No content could be read from this file.");
           }
-        } catch (e: any) {
+        } catch (e) {
           console.error(`[fileExtract:${file.name}]`, e);
           failedFileRef.current = { file, isImage: false };
           setFileParseError(file.name);
-          setErrorDetail(e?.message || "Could not read file.");
+          setErrorDetail(e instanceof Error ? e.message : "Could not read file.");
         }
         setExtracting(false);
         setStatus(null);

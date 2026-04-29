@@ -84,8 +84,8 @@ export default function DataTab({ brainId, activeBrain }: Props) {
         `everion-export-${date}.json`,
         "application/json",
       );
-    } catch (e: any) {
-      setExportError(e.message || "Export failed");
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed");
     } finally {
       setExporting(false);
     }
@@ -114,8 +114,8 @@ export default function DataTab({ brainId, activeBrain }: Props) {
       ];
       const date = new Date().toISOString().slice(0, 10);
       downloadFile(rows.join("\n"), `everion-export-${date}.csv`, "text/csv");
-    } catch (e: any) {
-      setExportError(e.message || "Export failed");
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed");
     } finally {
       setExporting(false);
     }
@@ -172,8 +172,8 @@ export default function DataTab({ brainId, activeBrain }: Props) {
       });
       const date = new Date().toISOString().slice(0, 10);
       downloadFile(vcards.join("\r\n"), `everion-contacts-${date}.vcf`, "text/vcard");
-    } catch (e: any) {
-      setExportError(e.message || "Export failed");
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed");
     } finally {
       setExporting(false);
     }

@@ -115,7 +115,9 @@ function ProviderCard({
     setMsg(null);
     const payload: Record<string, string | null> = { [modelField]: draftModel };
     if (showInput && draftKey.trim()) payload[keyField] = draftKey.trim();
-    const { error } = await updateProviderSettings(payload as any);
+    const { error } = await updateProviderSettings(
+      payload as Parameters<typeof updateProviderSettings>[0],
+    );
     setSaving(false);
     if (error) {
       setMsg(`Error: ${error}`);
@@ -129,7 +131,9 @@ function ProviderCard({
   async function remove() {
     setSaving(true);
     setMsg(null);
-    const { error } = await updateProviderSettings({ [keyField]: null } as any);
+    const { error } = await updateProviderSettings({ [keyField]: null } as Parameters<
+      typeof updateProviderSettings
+    >[0]);
     setSaving(false);
     if (error) {
       setMsg(`Error: ${error}`);
@@ -257,7 +261,7 @@ export default function ProvidersTab(_props?: { activeBrain?: any }) {
     if (!groqDraft.trim()) return;
     setGroqSaving(true);
     setGroqMsg(null);
-    const { error } = await updateProviderSettings({ groq_key: groqDraft.trim() } as any);
+    const { error } = await updateProviderSettings({ groq_key: groqDraft.trim() });
     setGroqSaving(false);
     if (error) {
       setGroqMsg(`Error: ${error}`);

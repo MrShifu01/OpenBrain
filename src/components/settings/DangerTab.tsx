@@ -72,8 +72,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
     setBrainError(null);
     try {
       await deleteBrain(activeBrain.id);
-    } catch (e: any) {
-      setBrainError(e.message || "Failed to delete brain");
+    } catch (e) {
+      setBrainError(e instanceof Error ? e.message : "Failed to delete brain");
       setDeletingBrain(false);
       setConfirmDeleteBrain(false);
     }
@@ -110,8 +110,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
       await exportAllData();
       setModalStep("deleting");
       await deleteAccount();
-    } catch (e: any) {
-      setAccountError(e.message || "Failed");
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : "Failed");
       setModalStep("ask-export");
     }
   };
@@ -121,8 +121,8 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
     setAccountError(null);
     try {
       await deleteAccount();
-    } catch (e: any) {
-      setAccountError(e.message || "Failed to delete account");
+    } catch (e) {
+      setAccountError(e instanceof Error ? e.message : "Failed to delete account");
       setModalStep("ask-export");
     }
   };

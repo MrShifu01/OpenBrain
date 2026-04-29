@@ -444,9 +444,9 @@ export default function NotificationSettings(): JSX.Element {
         return;
       }
       flash("Notifications enabled");
-    } catch (err: any) {
+    } catch (err) {
       console.error("[Push] subscribe error:", err);
-      flash("Failed to enable — " + (err.message || "unknown error"));
+      flash("Failed to enable — " + (err instanceof Error ? err.message : "unknown error"));
     } finally {
       setBusy(null);
     }

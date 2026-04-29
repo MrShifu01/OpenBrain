@@ -259,7 +259,7 @@ export default function MemoryHeader({
           variant="ghost"
           onClick={() => {
             const order: Array<"newest" | "oldest" | "pinned"> = ["newest", "oldest", "pinned"];
-            const idx = order.indexOf(appShell.gridFilters.sort as any);
+            const idx = order.indexOf(appShell.gridFilters.sort);
             const next = order[(idx + 1) % order.length];
             appShell.setGridFilters({
               ...appShell.gridFilters,
