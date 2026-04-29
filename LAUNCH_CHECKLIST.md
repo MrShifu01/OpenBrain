@@ -245,7 +245,8 @@ Eight GitHub Actions secrets to add (Settings → Secrets and variables → Acti
 
 ### 🔗 Visibility (small but high-leverage)
 
-- [ ] **Pin `/status` link** in landing-page footer + login screen "having trouble?" link + support email signature. Page exists at `https://everion.smashburgerbar.co.za/status` — currently nobody can find it during an outage.
+- [x] **Pin `/status` link** in landing-page footer + login screen "having trouble?" link ✅ (support email signature still owed when sender domain is configured)
+      `src/views/Landing.tsx` Support footer column gains "Service status" → `/status`. `src/LoginScreen.tsx` privacy/terms row gains "Having trouble?" → `/status`. Shipped 2026-04-29.
 
 ### 🗓️ One-time then quarterly
 
@@ -275,20 +276,20 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P0 — Stability-critical (do before opening public signups)
 
-- [ ] **AI provider calls have no retry / backoff** 🟡
-      Embedding paths fixed 2026-04-28 (`api/_lib/generateEmbedding.ts` + `api/_lib/enrich.ts` — both wrap fetch in 4-attempt exponential backoff for 429/503 only). `api/_lib/aiProvider.ts` and `api/llm.ts` Groq transcription **still** silently return `""` on transient failure. Same backoff pattern needs applying there.
+- [x] **AI provider calls have no retry / backoff** ✅
+      Embedding paths shipped 2026-04-28. `api/_lib/aiProvider.ts` already had `fetchWithRetry` (100ms → 400ms → 1.6s, 5xx + 429 + network) for all three adapters (Anthropic / OpenAI / Gemini). `api/llm.ts` Groq transcription wired with the same pattern 2026-04-29 (400ms → 1.2s → 3s).
 
-- [ ] **Inner ErrorBoundaries missing on risky views** ❌
-      Only one ErrorBoundary in `src/main.tsx` + one in `src/App.tsx` — both wrap the whole tree. A render error in `ChatView`, `VaultView`, or `CaptureWelcomeScreen` crashes the entire app. Wrap each in its own `<ErrorBoundary fallback={<ViewError />}>` so one bad render doesn't blow away the user's session.
+- [x] **Inner ErrorBoundaries on risky views** ✅
+      `src/Everion.tsx` wraps `ChatView`, `VaultView`, `CaptureWelcomeScreen`, `GraphView`, `TodoView` each in their own `<ErrorBoundary name="..." fallback={ViewError}>`. A render error in one view shows a localized fallback instead of blowing away the shell.
 
 - [ ] **Idempotency only on capture + Stripe webhook** 🟡
-      `api/_lib/idempotency.ts` is used by `/api/capture`; `stripeIdempotency.ts` for `/api/v1` Stripe webhook. Several other write paths can double-execute on client retry: vault setup, memory save (`/api/memory-api?action=save`), API key revocation. Add `reserveIdempotency()` to each, keyed on a client-supplied request id.
+      `api/_lib/idempotency.ts` is used by `/api/capture`; `stripeIdempotency.ts` for `/api/v1` Stripe webhook. Several other write paths could double-execute on client retry: vault setup, API key revocation. Memory-save (`/api/memory-api?action=save`) is **not** a real endpoint (memory-api is read-only — `retrieve` + `upcoming` only). Add `reserveIdempotency()` to vault-setup + key-revocation when those become real concerns.
 
-- [ ] **Health check returns booleans, doesn't 5xx on degraded deps** ❌
-      `handleHealth` in `api/user-data.ts` tests Supabase + Gemini and returns `{ db: true, gemini: false, ... }` with HTTP 200 even when half the stack is broken. External monitors (UptimeRobot, etc.) only see 200 → no alert. Make any failed dep return 503 with the failed-deps array, AND add an Upstash ping (currently untested).
+- [x] **Health check 5xx on degraded deps** ✅
+      `handleHealth` in `api/user-data.ts:493` tests db + Gemini + Groq + Upstash, builds a `failures[]` array, returns **503** when any required dep is down (200 only when fully green). External monitors now see real outages.
 
-- [ ] **PII redaction missing in `api/_lib/logger.ts`** ❌
-      `createLogger().extra` field is logged verbatim. If a caller passes `{ email, token, password, apiKey }` (intentionally or by accident), it lands in stdout and Sentry. Add a redactor that masks any key matching `/(password|token|key|secret|apikey|email|jwt|cookie)/i` before output.
+- [x] **PII redaction in `api/_lib/logger.ts`** ✅
+      `redact()` runs both base context and per-call extras through a regex matcher (`/(password|passwd|secret|token|apikey|api_key|key|jwt|cookie|session|email|authorization|bearer)/i`) with a 4-deep recursion cap. Substring match → no typo can slip through.
 
 ### P0 — Security defense-in-depth
 
@@ -303,14 +304,14 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P1 — UX & accessibility
 
-- [ ] **Modals don't trap focus (WCAG AA violation)** ❌
-      `CaptureSheet.tsx`, `OnboardingModal.tsx`, `VaultRevealModal.tsx`, `DetailModal.tsx` — none install a focus trap. Tab key escapes into the page underneath. Install `focus-trap-react` (≈4 KB) and wrap each `role="dialog"` body. Restore focus to the triggering element on close.
+- [x] **Modals trap focus** ✅
+      `focus-trap-react` is installed and wraps `CaptureSheet`, `OnboardingModal`, `VaultRevealModal`, `DetailModal`, `CreateBrainModal`, `MoveToBrainModal`. Tab key stays inside the dialog; outside-click and Escape paths owned by each modal.
 
-- [ ] **No skip-to-main-content link** ❌
-      Keyboard users have to Tab through the entire sidebar (5 nav buttons + settings + theme) before reaching the entries grid. Add `<a href="#main-content" className="sr-only focus:not-sr-only">Skip to main content</a>` at the top of the layout, and `id="main-content"` on the entries wrapper.
+- [x] **Skip-to-main-content link** ✅
+      `src/Everion.tsx:267` ships `<a href="#main-content" className="sr-only focus:not-sr-only">` with the counterpart `id="main-content"` on the view wrapper at line 388.
 
-- [ ] **Empty-state CTAs missing on Vault, Calendar, Chat** 🟡
-      Memory empty-state polished 2026-04-27. Vault and Calendar render blank or near-blank when empty. Chat shows a no-memory toast but no actionable step. Each should surface a "next action" tied to the view ("Add your first secret", "Add a todo or sync your calendar", "Capture something to chat about").
+- [x] **Empty-state CTAs on Vault + Chat** ✅ (Calendar N/A — month grid IS the visualization)
+      `VaultView` empty state has icon + heading + helper + "Add a secret" CTA. `ChatView` no-memory state has heading + helper + "Capture a thought" CTA wired to `onNavigate("capture")`. Calendar's grid renders even with zero events; no separate empty-state surface to add a CTA to.
 
 - [ ] **Settings sidebar density** 🟡
       14 \*Tab.tsx files (Account, Profile, Brain, Data, Appearance, AI, Providers, Security, Calendar Sync, Gmail Sync, Claude Code, Billing, Danger, Admin). For a non-technical first-time user this is decision fatigue. Either collapse to 5–6 logical groups with sub-sections, or hide the technical tabs (Providers, Claude Code, Admin) behind a "Developer" toggle.
@@ -329,8 +330,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [ ] **`public/og.png` is 41 KB uncompressed** 🟡
       Compress to WebP (target <15 KB) and ship both `og.png` and `og.webp`, or accept the 41 KB if shares are infrequent. Cosmetic but cheap.
 
-- [ ] **No `loading="lazy"` on user-uploaded image content** 🟡
-      Audit `EntryCard` / `EntryRow` (or whichever renders `<img>` for user media). Add `loading="lazy"` + `decoding="async"` on any non-critical image so off-screen cards don't decode synchronously on first paint.
+- [x] **No `loading="lazy"` on user-uploaded image content** ✅ (N/A)
+      Audited `src/`: there are no `<img>` or `<Image>` tags rendering user content. Image extraction goes through Gemini multimodal at capture time and returns extracted text — the binary is never displayed back. Nothing to lazy-load.
 
 ### P1 — Maintainability
 
@@ -362,7 +363,7 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 ### Operations & bus factor (added 2026-04-28)
 
 - [x] **Staging Supabase project** ✅ — `everion-staging` (`rsnrvebcjbstfxhkfsjq`, eu-west-1, free tier, $0/mo). Schema mirrors production via `supabase/migrations/*.sql`. URL + anon key in `.env.example`. Workflow: apply new migrations to staging FIRST, verify, THEN apply to production. Drift check reminder saved to Christian's Everion memory for 2026-05-28.
-- [ ] **Pin `/status` link somewhere user-visible** ❌ — landing page footer + login screen "having trouble?" link + support email signature. Page exists; users have no way to find it during an incident.
+- [x] **Pin `/status` link somewhere user-visible** ✅ — landing footer + login "Having trouble?" wired 2026-04-29. Support email signature still owed once sender domain is configured.
 - [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
 - [ ] **Test Supabase backup restore** ❌ — depends on the Pro-upgrade above. **Currently on Free tier (no automated backups exist).** Once Pro is on, backups run daily automatically with 7-day retention; this item becomes a one-time dry-run + a quarterly habit. A backup you've never restored is a hope, not a backup.
 

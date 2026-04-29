@@ -970,6 +970,10 @@ export default function LoginScreen({
                 <a href="/terms" style={{ color: "inherit", textDecoration: "underline" }}>
                   Terms of Service
                 </a>
+                {" · "}
+                <a href="/status" style={{ color: "inherit", textDecoration: "underline" }}>
+                  Having trouble?
+                </a>
               </p>
             </div>
           </div>

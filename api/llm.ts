@@ -746,18 +746,39 @@ async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void
     offset += part.byteLength;
   }
 
-  let whisperRes: Response;
-  try {
-    whisperRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": `multipart/form-data; boundary=${boundary}`,
-      },
-      body: bodyBytes,
-    });
-  } catch (err: any) {
-    console.error("[transcribe] network error:", err.message);
+  // Retry transient failures (5xx + 429 + network) with exponential backoff
+  // — same pattern as api/_lib/aiProvider.ts. Without this a single Groq
+  // 503 dropped voice notes silently; the user re-recorded thinking they
+  // misheard the toast.
+  const TRANSCRIBE_DELAYS = [400, 1200, 3000];
+  let whisperRes: Response | null = null;
+  let lastNetworkErr: unknown = null;
+  for (let attempt = 0; attempt <= TRANSCRIBE_DELAYS.length; attempt++) {
+    try {
+      whisperRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        body: bodyBytes,
+      });
+      const transient = whisperRes.status >= 500 || whisperRes.status === 429;
+      if (!transient || attempt === TRANSCRIBE_DELAYS.length) break;
+      console.warn(
+        `[transcribe] HTTP ${whisperRes.status} on attempt ${attempt + 1}/${TRANSCRIBE_DELAYS.length + 1} — retrying in ${TRANSCRIBE_DELAYS[attempt]}ms`,
+      );
+    } catch (err: any) {
+      lastNetworkErr = err;
+      if (attempt === TRANSCRIBE_DELAYS.length) break;
+      console.warn(
+        `[transcribe] network error on attempt ${attempt + 1}/${TRANSCRIBE_DELAYS.length + 1} — retrying in ${TRANSCRIBE_DELAYS[attempt]}ms: ${err?.message ?? err}`,
+      );
+    }
+    await new Promise((r) => setTimeout(r, TRANSCRIBE_DELAYS[attempt]));
+  }
+  if (!whisperRes) {
+    console.error("[transcribe] network error after retries:", (lastNetworkErr as any)?.message);
     res.status(502).json({ error: "Failed to reach transcription service" });
     return;
   }

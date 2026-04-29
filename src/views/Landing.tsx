@@ -490,6 +490,7 @@ function FooterCol({
     if (to.startsWith("landing#")) return `#${to.slice("landing#".length)}`;
     if (to === "privacy") return "/privacy";
     if (to === "terms") return "/terms";
+    if (to === "status") return "/status";
     if (to === "login" || to === "signup") return "/login";
     return "#";
   };
@@ -573,6 +574,7 @@ export default function Landing({ onAuth }: LandingProps) {
     else if (to === "signup") onAuth("signup");
     else if (to === "privacy") window.location.assign("/privacy");
     else if (to === "terms") window.location.assign("/terms");
+    else if (to === "status") window.location.assign("/status");
     else if (to === "memory") onAuth("login");
     else if (to.startsWith("landing#")) {
       const id = to.slice("landing#".length);
@@ -1117,6 +1119,7 @@ export default function Landing({ onAuth }: LandingProps) {
           <FooterCol
             title="Support"
             links={[
+              ["Service status", "status"],
               ["Privacy policy", "privacy"],
               ["Terms of service", "terms"],
             ]}
