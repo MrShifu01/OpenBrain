@@ -1,4 +1,5 @@
 import { useDocumentMeta } from "../hooks/useDocumentMeta";
+import { Separator } from "../components/ui/separator";
 
 export default function PrivacyPolicy() {
   useDocumentMeta({
@@ -281,7 +282,7 @@ export default function PrivacyPolicy() {
           only after consent. No advertising cookies, no cross-site tracking.
         </Section>
 
-        <div style={{ height: 1, background: "var(--line-soft)", margin: "48px 0 20px" }} />
+        <Separator className="my-12" />
         <div
           className="f-serif"
           style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-faint)" }}

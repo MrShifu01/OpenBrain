@@ -13,6 +13,7 @@ import {
   EnrichFlagChips,
 } from "./EntryListBits";
 import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 // Cheap sync admin check — used to gate the diagnostic flag chips on entry
 // cards. The async source of truth lives in useAdminDevMode; this reads the
@@ -897,10 +898,7 @@ export function VirtualTimeline({
             >
               {dayLabel(day)}
             </h3>
-            <div
-              aria-hidden="true"
-              style={{ flex: 1, height: 1, background: "var(--line-soft)" }}
-            />
+            <Separator className="flex-1" />
             <div
               className="f-sans"
               style={{ fontSize: 12, color: "var(--ink-faint)", flexShrink: 0 }}

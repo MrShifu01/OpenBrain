@@ -26,6 +26,7 @@ import { useAuthFlow } from "./hooks/useAuthFlow";
 import { useDocumentMeta } from "./hooks/useDocumentMeta";
 import { EverionLogo } from "./components/ui/EverionLogo";
 import { Button } from "./components/ui/button";
+import { Separator } from "./components/ui/separator";
 
 function EyeIcon({ open, size = 18 }: { open: boolean; size?: number }) {
   return (
@@ -425,11 +426,11 @@ export default function LoginScreen({
                     </svg>
                     {loading ? "Redirecting…" : "Continue with Google"}
                   </Button>
-                  {/* ── divider ── */}
+                  {/* ── divider with "or" label ── */}
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
+                    <Separator className="flex-1" />
                     <span style={{ fontSize: 12, color: "var(--ink-ghost)" }}>or</span>
-                    <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
+                    <Separator className="flex-1" />
                   </div>
                   <Button
                     onClick={switchToMagicLink}
