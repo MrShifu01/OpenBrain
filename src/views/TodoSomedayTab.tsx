@@ -526,10 +526,9 @@ export default function TodoSomedayTab({
       ) : (
         <div
           style={{
-            background: "var(--surface)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 16,
-            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
           }}
         >
           {items.map((entry, idx) => (
@@ -1085,30 +1084,47 @@ function SomedayRow({
     .map((t) => t.trim())
     .find((t) => t && !HIDDEN_CATEGORY_TAGS.has(t) && knownTags.includes(t));
 
+  // Status chip text — category if tagged, "Someday" otherwise. Mirrors
+  // PrimePro pattern from Day/Week/Month: every entry gets a colored
+  // uppercase chip up top so the same visual grammar runs across tabs.
+  const statusLabel = currentTag ?? "Someday";
+  const ageLabel =
+    ageDays === null
+      ? null
+      : ageDays === 0
+        ? "Today"
+        : ageDays === 1
+          ? "Yesterday"
+          : `${ageDays} days ago`;
+
   return (
     <div
       onClick={selectMode ? onToggleSelect : undefined}
       style={{
-        padding: "18px 18px 16px",
-        borderBottom: last ? "none" : "1px solid var(--line-soft)",
+        background: selected ? "var(--ember-wash)" : "var(--surface)",
+        border: selected ? "1px solid var(--ember)" : "1px solid var(--line-soft)",
+        borderRadius: 14,
+        padding: "14px 16px 12px",
         opacity: busy ? 0.5 : 1,
-        transition: "opacity 200ms, background 160ms",
+        transition: "opacity 200ms, background 160ms, border-color 160ms",
         cursor: selectMode ? "pointer" : "default",
-        background: selected ? "var(--ember-wash)" : "transparent",
+        // Last-item bottom margin handled by the parent flex gap; keep
+        // for legacy callers that might still rely on `last`.
+        marginBottom: last ? 0 : 0,
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        {selectMode ? (
+        {selectMode && (
           <span
             aria-hidden="true"
             style={{
-              width: 18,
-              height: 18,
+              width: 20,
+              height: 20,
               borderRadius: 6,
               border: selected ? "2px solid var(--ember)" : "2px solid var(--line)",
               background: selected ? "var(--ember)" : "transparent",
               flexShrink: 0,
-              marginTop: 4,
+              marginTop: 2,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
@@ -1117,8 +1133,8 @@ function SomedayRow({
           >
             {selected && (
               <svg
-                width="12"
-                height="12"
+                width="13"
+                height="13"
                 viewBox="0 0 12 12"
                 fill="none"
                 stroke="white"
@@ -1128,27 +1144,29 @@ function SomedayRow({
               </svg>
             )}
           </span>
-        ) : (
-          <span
-            aria-hidden="true"
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              background: "var(--ember)",
-              flexShrink: 0,
-              marginTop: 9,
-            }}
-          />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            className="f-serif"
+          <span
+            className="f-sans"
             style={{
-              margin: 0,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.12em",
+              textTransform: "uppercase",
+              color: "var(--ember)",
+              lineHeight: 1,
+            }}
+          >
+            {statusLabel}
+          </span>
+          <p
+            className="f-sans"
+            style={{
+              margin: "8px 0 0",
               fontSize: 15,
+              fontWeight: 600,
               color: "var(--ink)",
-              lineHeight: 1.45,
+              lineHeight: 1.35,
               wordBreak: "break-word",
             }}
           >
@@ -1156,12 +1174,13 @@ function SomedayRow({
           </p>
           {entry.content && entry.content !== entry.title && (
             <p
-              className="f-sans"
+              className="f-serif"
               style={{
                 margin: "6px 0 0",
-                fontSize: 12,
-                color: "var(--ink-faint)",
-                lineHeight: 1.5,
+                fontSize: 13,
+                fontStyle: "italic",
+                color: "var(--ink-soft)",
+                lineHeight: 1.55,
                 wordBreak: "break-word",
               }}
             >
@@ -1174,13 +1193,36 @@ function SomedayRow({
               alignItems: "center",
               gap: 10,
               marginTop: 12,
+              paddingTop: 10,
+              borderTop: "1px solid var(--line-soft)",
             }}
           >
-            {ageDays !== null && (
-              <span className="f-sans" style={{ fontSize: 11, color: "var(--ink-ghost)" }}>
-                {ageDays === 0 ? "Today" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
+            <span
+              aria-hidden="true"
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 999,
+                background: "var(--surface-high, var(--ember-wash))",
+                border: "1px solid var(--line-soft)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontFamily: "var(--f-serif)",
+                fontSize: 11,
+                fontWeight: 500,
+                color: "var(--ember)",
+                flexShrink: 0,
+              }}
+            >
+              {(entry.title || "?").charAt(0).toUpperCase()}
+            </span>
+            {ageLabel && (
+              <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-soft)" }}>
+                {ageLabel}
               </span>
             )}
+            <span style={{ marginLeft: "auto" }} />
             <Select
               value={currentTag ?? UNTAGGED}
               onValueChange={onRecategorise}
@@ -1190,16 +1232,17 @@ function SomedayRow({
                 onClick={(e) => e.stopPropagation()}
                 className="press f-sans"
                 style={{
-                  height: 28,
-                  fontSize: 12,
+                  height: 26,
+                  fontSize: 11,
                   fontWeight: 600,
                   border: "1px solid var(--line-soft)",
                   borderRadius: 999,
-                  background: "var(--surface)",
+                  background: "var(--bg)",
                   color: "var(--ink-soft)",
+                  padding: "0 10px",
                 }}
               >
-                <SelectValue />
+                <SelectValue placeholder="Untagged" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={UNTAGGED}>Untagged</SelectItem>
@@ -1216,11 +1259,11 @@ function SomedayRow({
 
       {!selectMode &&
         (scheduling ? (
-          <div style={{ marginTop: 14 }}>
+          <div style={{ marginTop: 12 }}>
             <ScheduleInline onConfirm={onSchedule} onCancel={onCancelSchedule} />
           </div>
         ) : (
-          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
             <ActionBtn label="Done" onClick={onDone} disabled={busy} tone="moss" />
             <ActionBtn label="Schedule" onClick={onStartSchedule} disabled={busy} tone="ember" />
             <ActionBtn label="Drop" onClick={onDrop} disabled={busy} tone="ghost" />

@@ -1381,3 +1381,196 @@ export default function TodoCalendarTab({
     </div>
   );
 }
+
+// ── Reusable agenda + week-strip exports ─────────────────────────────────
+//
+// Surfaces the same PrimePro-styled day agenda used by the Month tab's
+// drawer to other parts of the schedule (Day tab, Week tab) without
+// duplicating event-conversion logic. Callers pass raw `entries` +
+// `externalEvents`; we filter to the single day inside the wrapper so
+// each tab body stays a thin compositor.
+
+export function DayAgenda({
+  date,
+  entries,
+  externalEvents,
+  onUpdate,
+  onDelete,
+  showHeader = true,
+}: {
+  date: Date;
+  entries: Entry[];
+  externalEvents: ExternalCalEvent[];
+  onUpdate?: Props["onUpdate"];
+  onDelete?: Props["onDelete"];
+  /** Hide the "X events" label + date header — callers like the Day tab
+   *  render their own page header so this would duplicate it. */
+  showHeader?: boolean;
+}) {
+  const dateKey = toDateKey(date);
+  const events = useMemo(() => {
+    const range = { from: dateKey, to: dateKey };
+    const fromEntries = entriesToCalEvents(entries, range);
+    const fromExternal = externalToCalEvents(externalEvents).filter(
+      (ev) => toDateKey(ev.start) === dateKey,
+    );
+    return [...fromEntries, ...fromExternal].sort((a, b) => a.start.getTime() - b.start.getTime());
+  }, [dateKey, entries, externalEvents]);
+
+  if (!showHeader) {
+    if (events.length === 0) {
+      return (
+        <p
+          className="f-serif"
+          style={{
+            margin: 0,
+            fontSize: 14,
+            fontStyle: "italic",
+            color: "var(--ink-ghost)",
+            padding: "12px 0",
+          }}
+        >
+          Nothing scheduled.
+        </p>
+      );
+    }
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {events.map((ev) => (
+          <EventCard key={ev.id} event={ev} onUpdate={onUpdate} onDelete={onDelete} />
+        ))}
+      </div>
+    );
+  }
+  return <DayDetailContent date={date} events={events} onUpdate={onUpdate} onDelete={onDelete} />;
+}
+
+// 7-day horizontal day picker. Monday-first; ember wash on selected day.
+// Shared by the Week tab. Single-letter day labels match the screenshot.
+
+export function startOfWeek(d: Date): Date {
+  const out = new Date(d);
+  const dow = out.getDay(); // 0=Sun..6=Sat
+  const offset = dow === 0 ? -6 : 1 - dow;
+  out.setDate(out.getDate() + offset);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+export function WeekStrip({
+  weekStart,
+  selectedDate,
+  entries,
+  externalEvents,
+  onSelect,
+}: {
+  weekStart: Date;
+  selectedDate: Date;
+  entries: Entry[];
+  externalEvents: ExternalCalEvent[];
+  onSelect: (date: Date) => void;
+}) {
+  const todayKey = toDateKey(new Date());
+  const selectedKey = toDateKey(selectedDate);
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  // Lightweight "has anything?" map for the activity dot; uses a wide-enough
+  // range covering this week so recurrence expansion is correct.
+  const eventMap = useMemo(() => {
+    const last = new Date(weekStart);
+    last.setDate(last.getDate() + 6);
+    const range = { from: toDateKey(weekStart), to: toDateKey(last) };
+    const fromEntries = entriesToCalEvents(entries, range);
+    const fromExternal = externalToCalEvents(externalEvents);
+    const map: Record<string, number> = {};
+    for (const ev of [...fromEntries, ...fromExternal]) {
+      const key = toDateKey(ev.start);
+      map[key] = (map[key] || 0) + 1;
+    }
+    return map;
+  }, [weekStart, entries, externalEvents]);
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+        gap: 4,
+        padding: "10px 6px",
+        background: "var(--surface)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 14,
+      }}
+    >
+      {days.map((d) => {
+        const key = toDateKey(d);
+        const isSelected = key === selectedKey;
+        const isToday = key === todayKey;
+        const dotCount = eventMap[key] || 0;
+        return (
+          <button
+            key={key}
+            onClick={() => onSelect(d)}
+            className="press"
+            aria-pressed={isSelected}
+            aria-label={d.toLocaleDateString("en-ZA", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 4,
+              padding: "10px 0 8px",
+              border: 0,
+              borderRadius: 12,
+              background: isSelected ? "var(--ember-wash)" : "transparent",
+              color: isSelected ? "var(--ember)" : "var(--ink)",
+              cursor: "pointer",
+              fontFamily: "var(--f-sans)",
+              transition: "background 160ms",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                opacity: isSelected ? 0.8 : 0.55,
+              }}
+            >
+              {DAY_ABBRS[(d.getDay() + 6) % 7].charAt(0)}
+            </span>
+            <span
+              style={{
+                fontSize: 16,
+                fontWeight: isSelected || isToday ? 600 : 500,
+                lineHeight: 1,
+              }}
+            >
+              {d.getDate()}
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                width: 4,
+                height: 4,
+                borderRadius: 999,
+                marginTop: 2,
+                background: dotCount > 0 ? "var(--ember)" : "transparent",
+                opacity: isSelected ? 1 : 0.7,
+              }}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
