@@ -239,15 +239,46 @@ export default function TodoSomedayTab({
   const deleteCategory = async (name: string) => {
     // Strip the tag from every someday entry that has it. Items themselves
     // are kept — they just become untagged (or keep other tags).
+    //
+    // Per-entry tag arrays differ, so we group by next-tag-set and fire one
+    // bulk PATCH per group. In practice almost every affected row ends up
+    // with the same `tags` after the strip (only rows with extra unique
+    // tags differ), so this collapses to ~1-3 round-trips for any
+    // realistic pile size — vs the old per-entry loop that 429'd at 30
+    // affected rows.
     const affected = allItems.filter((e) => (e.tags ?? []).some((t) => t.trim() === name));
+    const groups = new Map<string, { tags: string[]; ids: string[] }>();
     for (const entry of affected) {
       const next = (entry.tags ?? []).filter((t) => t.trim() !== name);
-      try {
-        await onUpdate?.(entry.id, { tags: next });
-      } catch (err) {
-        console.error("[someday-delete-cat]", err);
-      }
+      const key = JSON.stringify(next);
+      const group = groups.get(key);
+      if (group) group.ids.push(entry.id);
+      else groups.set(key, { tags: next, ids: [entry.id] });
     }
+    // Optimistic UI: caller (Everion) already wired onUpdate to update
+    // local state per-entry. We bypass it for the bulk path and POST
+    // straight to the server — but we still mirror the local-state
+    // update so the chip count drops immediately. The next entries
+    // refetch picks up the canonical state.
+    await Promise.all(
+      Array.from(groups.values()).map(async (group) => {
+        try {
+          const r = await authFetch("/api/entries?action=bulk-patch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: group.ids, patch: { tags: group.tags } }),
+          });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          // Mirror to local state so the UI reflects the change without a
+          // full refetch.
+          for (const id of group.ids) {
+            await onUpdate?.(id, { tags: group.tags });
+          }
+        } catch (err) {
+          console.error("[someday-delete-cat:bulk]", err);
+        }
+      }),
+    );
     persistUserCategories(userCategories.filter((t) => t !== name));
     if (selectedTag === name) setSelectedTag(ALL);
   };

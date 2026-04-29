@@ -27,8 +27,15 @@ const ENTRY_FIELDS =
 
 function rateLimitForEntries(req: ApiRequest): number {
   const resource = req.query.resource as string | undefined;
+  const action = req.query.action as string | undefined;
   if (resource === "audit") return 10;
   if (req.method === "GET" && !resource) return 60;
+  if (action === "bulk-patch") return 30; // each call covers up to 200 ids
+  // PATCH covers per-click "mark done", recategorise, pin/unpin. A user
+  // clearing today's todos can fire 20-40 quick PATCHes; the old 30/min
+  // cap turned a normal interaction into a 429. Bulk operations should
+  // use ?action=bulk-patch (one request per N rows).
+  if (req.method === "PATCH") return 120;
   return 30;
 }
 
@@ -66,6 +73,7 @@ export default withAuth(
     if (ctx.req.method === "POST" && action === "enrich-retry-failed")
       return handleRetryFailed(ctx);
     if (ctx.req.method === "POST" && action === "empty-trash") return handleEmptyTrash(ctx);
+    if (ctx.req.method === "POST" && action === "bulk-patch") return handleBulkPatch(ctx);
     if (ctx.req.method === "POST" && action === "merge_into") return handleMergeInto(ctx);
     if (ctx.req.method === "POST" && action === "move") return handleMoveEntry(ctx);
     if (ctx.req.method === "GET") return handleGet(ctx);
@@ -334,6 +342,111 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   if (response.ok && (titleChanged || contentChanged)) {
     enrichInline(id, user.id).catch(() => {});
   }
+}
+
+// ── POST /api/entries?action=bulk-patch ──
+// One request, N rows. Covers cheap field updates (tags, status, pinned)
+// without firing N separate PATCHes that hit the per-IP rate limit. Title
+// or content changes are intentionally NOT allowed here — those re-trigger
+// enrichment and shouldn't be batched silently.
+async function handleBulkPatch({ req, res, user, req_id }: HandlerContext): Promise<void> {
+  const { ids, patch } = req.body ?? {};
+  if (!Array.isArray(ids) || ids.length === 0) {
+    throw new ApiError(400, "ids: non-empty array required");
+  }
+  if (ids.length > 200) {
+    throw new ApiError(400, "ids: max 200 per request");
+  }
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cleanIds = ids.filter((id: any) => typeof id === "string" && uuidRe.test(id));
+  if (cleanIds.length === 0) {
+    throw new ApiError(400, "ids: must be UUIDs");
+  }
+  if (!patch || typeof patch !== "object") {
+    throw new ApiError(400, "patch: object required");
+  }
+
+  // Whitelist what the bulk path can change. tags + status + pinned cover
+  // the real use cases (delete category, mark many done, bulk pin).
+  const allowed: Record<string, unknown> = {};
+  if (Array.isArray(patch.tags)) {
+    allowed.tags = (patch.tags as unknown[])
+      .filter((t) => typeof t === "string")
+      .slice(0, 50);
+  }
+  if (typeof patch.pinned === "boolean") {
+    allowed.pinned = patch.pinned;
+  }
+  // status is per-entry metadata.status — applied via metadata merge below.
+  let metadataStatus: string | null = null;
+  if (typeof patch.status === "string") {
+    metadataStatus = patch.status.slice(0, 50);
+  }
+  if (Object.keys(allowed).length === 0 && metadataStatus === null) {
+    throw new ApiError(400, "patch: nothing to update (allowed: tags, pinned, status)");
+  }
+
+  const idList = cleanIds.map((id) => encodeURIComponent(id)).join(",");
+
+  // metadata.status needs a per-row read-modify-write because PostgREST
+  // doesn't expose a JSONB merge operator over a column update. Fetch the
+  // current rows, merge, PATCH. Still one round-trip out + one back per
+  // batch — drastically cheaper than N sequential network round-trips
+  // through the API layer.
+  let updated = 0;
+  if (metadataStatus !== null) {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&select=id,metadata`,
+      { headers: sbHeadersNoContent() },
+    );
+    if (!r.ok) throw new ApiError(502, "Database error");
+    const rows: Array<{ id: string; metadata: Record<string, any> | null }> = await r.json();
+    // Apply tags + pinned in the same body if present.
+    await Promise.all(
+      rows.map(async (row) => {
+        const nextMeta = { ...(row.metadata ?? {}), status: metadataStatus };
+        const body: Record<string, unknown> = { ...allowed, metadata: nextMeta };
+        const pr = await fetch(
+          `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(row.id)}&user_id=eq.${encodeURIComponent(user.id)}`,
+          {
+            method: "PATCH",
+            headers: sbHeaders({ Prefer: "return=minimal" }),
+            body: JSON.stringify(body),
+          },
+        );
+        if (pr.ok) updated++;
+      }),
+    );
+  } else {
+    // Pure tags / pinned bulk update — one PATCH covers everything.
+    const r = await fetch(
+      `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null`,
+      {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=representation" }),
+        body: JSON.stringify(allowed),
+      },
+    );
+    if (!r.ok) throw new ApiError(502, "Database error");
+    const rows: any[] = await r.json().catch(() => []);
+    updated = rows.length;
+  }
+
+  // One audit log row per bulk action, not per affected entry — these are
+  // the same logical operation from the user's POV.
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entry_bulk_patch",
+      resource_id: cleanIds[0], // first id as a representative anchor
+      request_id: req_id,
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({ ok: true, updated, requested: cleanIds.length });
 }
 
 // ── concept-graph cleanup helper ─────────────────────────────────────────────
