@@ -16,6 +16,7 @@ import { parseISO, startOfDay, endOfDay } from "date-fns";
 import type { Entry } from "../types";
 import { type ExternalCalEvent, toDateKey, getPlacements } from "./todoUtils";
 import QuickAdd from "./TodoQuickAdd";
+import { Button } from "../components/ui/button";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -262,22 +263,14 @@ function CalendarHeader({
         >
           {title}
         </h2>
-        <button
+        <Button
+          size="xs"
+          variant="ghost"
           onClick={onToday}
-          className="press f-sans"
-          style={{
-            background: "var(--ember-wash)",
-            color: "var(--ember)",
-            border: 0,
-            borderRadius: 999,
-            padding: "5px 12px",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className="rounded-full bg-[var(--ember-wash)] text-[var(--ember)]"
         >
           Today
-        </button>
+        </Button>
       </div>
       <ChevronButton direction="right" onClick={onNext} ariaLabel="Next" />
     </div>
@@ -693,61 +686,25 @@ function EventEditor({
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
         {onDelete ? (
-          <button
+          <Button
+            size="sm"
+            variant="outline"
             onClick={onDelete}
             disabled={saving}
-            className="press f-sans"
-            style={{
-              padding: "8px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--blood)",
-              background: "transparent",
-              border: "1px solid color-mix(in oklch, var(--blood) 35%, transparent)",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
+            className="border-[color-mix(in_oklch,var(--blood)_35%,transparent)] text-[var(--blood)]"
           >
             Delete
-          </button>
+          </Button>
         ) : (
           <span />
         )}
         <div style={{ display: "flex", gap: 8 }}>
-          <button
-            onClick={onCancel}
-            disabled={saving}
-            className="press f-sans"
-            style={{
-              padding: "8px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--ink-soft)",
-              background: "transparent",
-              border: "1px solid var(--line)",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
-          >
+          <Button size="sm" variant="outline" onClick={onCancel} disabled={saving}>
             Cancel
-          </button>
-          <button
-            onClick={submit}
-            disabled={saving}
-            className="press f-sans"
-            style={{
-              padding: "8px 14px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: "var(--ember-ink)",
-              background: "var(--ember)",
-              border: "none",
-              borderRadius: 8,
-              cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Button size="sm" onClick={submit} disabled={saving}>
             {saving ? "Saving…" : "Save"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

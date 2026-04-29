@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { parseTask } from "../lib/nlpParser";
 import { authFetch } from "../lib/authFetch";
 import { enqueue } from "../lib/offlineQueue";
+import { Button } from "../components/ui/button";
 
 function CheckCircleIcon({
   className,
@@ -239,18 +240,9 @@ export default function TodoQuickAdd({ brainId, onAdded }: Props) {
             </div>
           )}
       </div>
-      <button
-        type="submit"
-        disabled={busy || !title.trim()}
-        className="shrink-0 rounded-lg px-3 py-1 text-xs font-semibold transition-opacity disabled:opacity-40"
-        style={{
-          background: "var(--ember)",
-          color: "var(--ember-ink)",
-          fontFamily: "var(--f-sans)",
-        }}
-      >
+      <Button type="submit" size="sm" disabled={busy || !title.trim()} className="shrink-0">
         {busy ? "…" : "Add"}
-      </button>
+      </Button>
     </form>
   );
 }

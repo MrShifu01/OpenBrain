@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { registerSW } from "virtual:pwa-register";
+import { Button } from "./ui/button";
 
 // Surfaces a "new version" toast when a fresh service worker finishes
 // installing. Without this, users on an old SW can keep using stale chunks
@@ -65,29 +66,12 @@ export default function UpdatePrompt() {
         }}
       >
         <span style={{ whiteSpace: "nowrap" }}>New version available.</span>
-        <button
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleRefresh}
           disabled={refreshing}
-          className="press"
-          style={{
-            padding: "6px 14px",
-            minWidth: 92,
-            height: 32,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 6,
-            borderRadius: 8,
-            border: "1px solid color-mix(in oklch, var(--ember, #c97a3c) 40%, transparent)",
-            background: "var(--ember-wash, rgba(201, 122, 60, 0.12))",
-            color: "var(--ember, #c97a3c)",
-            cursor: refreshing ? "default" : "pointer",
-            fontFamily: "inherit",
-            fontSize: 13,
-            fontWeight: 600,
-            opacity: refreshing ? 0.7 : 1,
-            transition: "opacity 160ms ease",
-          }}
+          className="min-w-[92px] border-[color-mix(in_oklch,var(--ember)_40%,transparent)] bg-[var(--ember-wash)] text-[var(--ember)]"
         >
           {refreshing ? (
             <>
@@ -116,29 +100,16 @@ export default function UpdatePrompt() {
           ) : (
             "Refresh"
           )}
-        </button>
-        <button
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost"
           onClick={() => setNeedRefresh(false)}
           disabled={refreshing}
           aria-label="Dismiss"
-          style={{
-            background: "transparent",
-            border: 0,
-            color: "var(--ink-faint, #999)",
-            cursor: refreshing ? "default" : "pointer",
-            padding: 0,
-            width: 24,
-            height: 24,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 18,
-            lineHeight: 1,
-            opacity: refreshing ? 0.4 : 1,
-          }}
         >
           ×
-        </button>
+        </Button>
       </div>
     </>
   );
