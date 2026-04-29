@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogTitle } from "../ui/dialog";
 
 interface GmailPreferences {
   categories: string[];
@@ -117,39 +118,21 @@ export default function GmailSetupModal({
   const highCats = CATEGORIES.filter((c) => c.priority === "high");
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.45)", paddingTop: 110, paddingBottom: 80 }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={mode === "connect" ? "Connect Gmail" : "Edit Gmail preferences"}
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[calc(100dvh-128px)] !max-w-[480px] flex-col overflow-hidden !rounded-[20px]"
         style={{
-          width: "calc(100% - 32px)",
-          maxWidth: 480,
-          maxHeight: "calc(100dvh - 128px)",
-          display: "flex",
-          flexDirection: "column",
           background: "var(--bg)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: 20,
+          borderColor: "var(--line-soft)",
           padding: "20px 20px 16px",
-          boxSizing: "border-box",
-          overflow: "hidden",
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
         }}
       >
         {/* Header */}
         <div style={{ marginBottom: 12, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <GmailIcon />
-            <h3
+            <DialogTitle
               className="f-serif"
               style={{
                 margin: 0,
@@ -160,7 +143,7 @@ export default function GmailSetupModal({
               }}
             >
               {mode === "connect" ? "Connect Gmail" : "Email preferences"}
-            </h3>
+            </DialogTitle>
           </div>
         </div>
 
@@ -378,8 +361,8 @@ export default function GmailSetupModal({
             email content — only extracted summaries.
           </p>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

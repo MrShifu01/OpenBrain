@@ -17,6 +17,13 @@ import type { Entry } from "../types";
 import { type ExternalCalEvent, toDateKey, getPlacements } from "./todoUtils";
 import QuickAdd from "./TodoQuickAdd";
 import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -662,26 +669,16 @@ function EventEditor({
           >
             Repeat
           </span>
-          <select
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value as RepeatMode)}
-            style={{
-              ...fieldStyle,
-              appearance: "none",
-              WebkitAppearance: "none",
-              MozAppearance: "none",
-              padding: "8px 30px 8px 10px",
-              cursor: "pointer",
-              backgroundImage:
-                "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right 10px center",
-            }}
-          >
-            <option value="none">None — one shot</option>
-            <option value="weekly">Every week (same weekday)</option>
-            <option value="monthly">Every month (same day-of-month)</option>
-          </select>
+          <Select value={repeat} onValueChange={(v) => setRepeat(v as RepeatMode)}>
+            <SelectTrigger style={fieldStyle}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None — one shot</SelectItem>
+              <SelectItem value="weekly">Every week (same weekday)</SelectItem>
+              <SelectItem value="monthly">Every month (same day-of-month)</SelectItem>
+            </SelectContent>
+          </Select>
         </label>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 4 }}>

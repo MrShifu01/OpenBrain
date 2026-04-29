@@ -3,6 +3,8 @@ import { getTypeConfig } from "../data/constants";
 import { useVaultOps } from "../hooks/useVaultOps";
 import type { Entry } from "../types";
 import { Button } from "../components/ui/button";
+import { Checkbox } from "../components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 /* ─── States: loading → setup → show-recovery → locked | recovery | unlocked ─── */
 
@@ -766,37 +768,19 @@ export default function VaultView({
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {/* Grid / List toggle — same visual idiom as the memory grid. */}
-            <div
-              role="tablist"
-              aria-label="View mode"
-              style={{
-                display: "inline-flex",
-                gap: 2,
-                padding: 2,
-                borderRadius: 8,
-                background: "var(--surface-low)",
-                border: "1px solid var(--line-soft)",
-              }}
-            >
-              {(["grid", "list"] as const).map((m) => (
-                <Button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={viewMode === m}
-                  onClick={() => setViewMode(m)}
-                  variant="ghost"
-                  size="xs"
-                  className="capitalize"
-                  style={{
-                    color: viewMode === m ? "var(--ink)" : "var(--ink-faint)",
-                    background: viewMode === m ? "var(--surface)" : "transparent",
-                  }}
-                >
-                  {m}
-                </Button>
-              ))}
-            </div>
+            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "grid" | "list")}>
+              <TabsList
+                aria-label="View mode"
+                className="border border-[var(--line-soft)] bg-[var(--surface-low)]"
+              >
+                <TabsTrigger value="grid" className="capitalize">
+                  grid
+                </TabsTrigger>
+                <TabsTrigger value="list" className="capitalize">
+                  list
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
             <Button onClick={startAddSecret} size="sm">
               + Add secret
             </Button>
@@ -913,18 +897,17 @@ export default function VaultView({
                 <div className="flex items-center justify-between p-3">
                   <div className="flex min-w-0 items-center gap-2">
                     {bulkMode && (
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedIds.has(e.id)}
-                        onChange={(ev) =>
+                        onCheckedChange={(checked) =>
                           setSelectedIds((prev) => {
                             const next = new Set(prev);
-                            if (ev.target.checked) next.add(e.id);
+                            if (checked) next.add(e.id);
                             else next.delete(e.id);
                             return next;
                           })
                         }
-                        style={{ minHeight: 44, minWidth: 44 }}
+                        aria-label={`Select ${e.title}`}
                       />
                     )}
                     <span className="text-base">{getTypeConfig(e.type).i}</span>

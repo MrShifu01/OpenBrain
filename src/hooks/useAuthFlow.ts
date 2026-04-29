@@ -179,7 +179,7 @@ export function useAuthFlow() {
     setError(null);
   };
 
-  const MIN_PASSWORD_LENGTH = 6;
+  const MIN_PASSWORD_LENGTH = 10;
   const isDisabled = loading || !email;
   const isOtpDisabled = verifying || otpCode.length < 6 || otpCode.length > 8;
   const isPasswordDisabled = loading || !email || password.length < MIN_PASSWORD_LENGTH;

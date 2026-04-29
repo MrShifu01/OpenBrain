@@ -1,8 +1,6 @@
 import { useMemo, useRef, useEffect, useCallback, useState, lazy, Suspense } from "react";
 import { useTheme } from "./ThemeContext";
 import { authFetch } from "./lib/authFetch";
-import { callAI } from "./lib/ai";
-import { getEmbedHeaders } from "./lib/aiSettings";
 import { registerTypeIcon } from "./lib/typeIcons";
 import { useBrain as useBrainHook } from "./hooks/useBrain";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -37,6 +35,7 @@ import FloatingCaptureButton from "./components/FloatingCaptureButton";
 import { Button } from "./components/ui/button";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 import MemoryHeader from "./MemoryHeader";
 import CaptureWelcomeScreen from "./CaptureWelcomeScreen";
 import ErrorBoundary from "./ErrorBoundary";
@@ -180,6 +179,19 @@ function EverionContent({
     useEntries();
   const notifs = useNotifications();
   const [selectedVaultEntry, setSelectedVaultEntry] = useState<Entry | null>(null);
+
+  // Save errors are transient — surface via sonner instead of inline banner.
+  useEffect(() => {
+    if (!saveError) return;
+    const id = toast.error(saveError, {
+      duration: 6000,
+      onDismiss: () => setSaveError(null),
+      onAutoClose: () => setSaveError(null),
+    });
+    return () => {
+      toast.dismiss(id);
+    };
+  }, [saveError, setSaveError]);
 
   const handleEntrySelect = useCallback(
     (entry: Entry) => {
@@ -471,7 +483,7 @@ function EverionContent({
                             margin: 0,
                           }}
                         >
-                          Nothing yet. That's fine.
+                          Your brain is empty.
                         </h2>
                         <p
                           className="f-serif"
@@ -480,11 +492,11 @@ function EverionContent({
                             fontStyle: "italic",
                             color: "var(--ink-soft)",
                             margin: 0,
-                            maxWidth: 360,
+                            maxWidth: 380,
                             lineHeight: 1.5,
                           }}
                         >
-                          Remember something.
+                          Capture your first thing — or import what you've already written down.
                         </p>
                         <p
                           className="f-sans"
@@ -492,20 +504,124 @@ function EverionContent({
                             fontSize: 13,
                             color: "var(--ink-faint)",
                             margin: 0,
-                            maxWidth: 380,
+                            maxWidth: 420,
                             lineHeight: 1.55,
                           }}
                         >
-                          A name, a thought, a link, a voice note. Everion organises and surfaces it
-                          later when it matters.
+                          A note, a link, a gate code, a policy number, a half-formed idea. Anything
+                          worth not losing.
                         </p>
-                        <Button
-                          onClick={() => appShell.setShowCapture(true)}
-                          className="press"
-                          style={{ marginTop: 8 }}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            justifyContent: "center",
+                            marginTop: 4,
+                          }}
                         >
-                          Capture a thought
-                        </Button>
+                          <Button onClick={() => appShell.openCapture()} className="press">
+                            + Capture a thought
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => appShell.setView("settings")}
+                            className="press"
+                          >
+                            Import from somewhere…
+                          </Button>
+                        </div>
+
+                        <div style={{ marginTop: 24, width: "100%", maxWidth: 480 }}>
+                          <div
+                            className="micro"
+                            style={{ marginBottom: 10, color: "var(--ink-faint)" }}
+                          >
+                            try one of these to see how it works
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              justifyContent: "center",
+                            }}
+                          >
+                            {[
+                              "the gate code Mom always forgets",
+                              "when does my driver's licence expire",
+                              "the customer call insight from Tuesday",
+                              "where I hid the spare key",
+                            ].map((example) => (
+                              <button
+                                key={example}
+                                type="button"
+                                onClick={() => appShell.openCapture(example)}
+                                className="design-chip f-sans press"
+                                style={{ fontSize: 12, cursor: "pointer" }}
+                              >
+                                {example}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {ff("vault") && (
+                          <button
+                            type="button"
+                            onClick={() => appShell.setView("vault")}
+                            className="press"
+                            style={{
+                              marginTop: 28,
+                              padding: "14px 18px",
+                              background: "var(--surface)",
+                              border: "1px solid var(--ember)",
+                              borderRadius: 14,
+                              cursor: "pointer",
+                              textAlign: "left",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 4,
+                              maxWidth: 420,
+                            }}
+                          >
+                            <div
+                              className="f-serif"
+                              style={{
+                                fontSize: 14,
+                                fontWeight: 450,
+                                color: "var(--ink)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <span
+                                aria-hidden="true"
+                                style={{
+                                  width: 5,
+                                  height: 5,
+                                  borderRadius: "50%",
+                                  background: "var(--ember)",
+                                }}
+                              />
+                              Set up your vault
+                            </div>
+                            <div
+                              className="f-serif"
+                              style={{
+                                fontSize: 12,
+                                color: "var(--ink-soft)",
+                                fontStyle: "italic",
+                                lineHeight: 1.45,
+                              }}
+                            >
+                              For the high-stakes stuff — IDs, bank details, "if I die" notes.
+                              End-to-end encrypted, server can't read it.
+                            </div>
+                          </button>
+                        )}
                       </div>
                     ) : filtered.length > 0 ? (
                       <>
@@ -736,101 +852,15 @@ function EverionContent({
           />
           <BackgroundOpsToast />
 
-          {saveError && (
-            <div
-              className="fixed top-4 right-4 z-[100] flex max-w-sm items-center gap-3 rounded-2xl border px-4 py-3"
-              style={{
-                background: "var(--color-surface-container-high)",
-                borderColor: "color-mix(in oklch, var(--color-error) 20%, transparent)",
-              }}
-            >
-              <span className="text-on-surface flex-1 text-sm">{saveError}</span>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setSaveError(null)}
-                aria-label="Dismiss"
-                className="text-on-surface-variant hover:text-on-surface press-scale"
-              >
-                ×
-              </Button>
-            </div>
-          )}
-
           {appShell.showOnboarding && (
             <OnboardingModal
-              onComplete={(_selected, answeredItems, skippedQs) => {
-                if (answeredItems?.length) {
-                  try {
-                    const key = "openbrain_answered_qs";
-                    const ex = new Set(JSON.parse(localStorage.getItem(key) || "[]"));
-                    answeredItems.forEach((i: any) => ex.add(i.q));
-                    localStorage.setItem(key, JSON.stringify([...ex]));
-                  } catch (err) {
-                    console.error("[OpenBrain]", err);
-                  }
-                  answeredItems.forEach((item: any) => {
-                    (async () => {
-                      const { PROMPTS } = await import("./config/prompts");
-                      return callAI({
-                        max_tokens: 800,
-                        system: PROMPTS.QA_PARSE,
-                        brainId: activeBrain?.id,
-                        json: true,
-                        messages: [
-                          { role: "user", content: `Question: ${item.q}\nAnswer: ${item.a}` },
-                        ],
-                      });
-                    })()
-                      .then((r: any) => r.json())
-                      .then((data: any) => {
-                        let parsed: any = {};
-                        try {
-                          parsed = JSON.parse(
-                            (data.content?.[0]?.text || "{}").replace(/```json|```/g, "").trim(),
-                          );
-                        } catch (err) {
-                          console.error("[OpenBrain]", err);
-                        }
-                        if (parsed.title && activeBrain?.id) {
-                          authFetch("/api/capture", {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              ...(getEmbedHeaders() || {}),
-                            },
-                            body: JSON.stringify({
-                              p_title: parsed.title,
-                              p_content: parsed.content || item.a,
-                              p_type: parsed.type || "note",
-                              p_metadata: parsed.metadata || {},
-                              p_tags: parsed.tags || [],
-                              p_brain_id: activeBrain.id,
-                            }),
-                          }).catch((err: Error) =>
-                            console.error("[onboarding] capture failed", err),
-                          );
-                        }
-                      })
-                      .catch((err: Error) => console.error("[onboarding] AI parse failed", err));
-                  });
-                }
-                if (skippedQs?.length) {
-                  try {
-                    const ex = JSON.parse(
-                      localStorage.getItem("openbrain_onboarding_skipped") || "[]",
-                    );
-                    const merged = [...ex];
-                    skippedQs.forEach((q: any) => {
-                      if (!merged.find((e: any) => e.q === q.q)) merged.push(q);
-                    });
-                    localStorage.setItem("openbrain_onboarding_skipped", JSON.stringify(merged));
-                  } catch (err) {
-                    console.error("[OpenBrain]", err);
-                  }
-                }
+              onComplete={(opts) => {
                 appShell.setShowOnboarding(false);
-                appShell.setView("memory");
+                if (opts?.nextAction === "vault") {
+                  appShell.setView("vault");
+                } else {
+                  appShell.setView("memory");
+                }
               }}
               brainId={activeBrain?.id}
             />

@@ -9,6 +9,7 @@
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "../components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface LandingProps {
   onAuth: (mode: "login" | "signup") => void;
@@ -348,38 +349,20 @@ function LandingDemo({ onSignup }: { onSignup: () => void }) {
   return (
     <div style={{ marginTop: 48, maxWidth: 1000 }}>
       {/* Scenario picker */}
-      <div
-        role="tablist"
-        aria-label="Demo scenario"
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
-          marginBottom: 20,
-        }}
-      >
-        {DEMO_SCENARIOS.map((s) => {
-          const active = s.key === scenarioKey;
-          return (
-            <Button
+      <Tabs value={scenarioKey} onValueChange={setScenarioKey} className="mb-5">
+        <TabsList variant="line" aria-label="Demo scenario" className="flex-wrap gap-2">
+          {DEMO_SCENARIOS.map((s) => (
+            <TabsTrigger
               key={s.key}
-              role="tab"
-              aria-selected={active}
-              onClick={() => setScenarioKey(s.key)}
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              style={{
-                background: active ? "var(--ember-wash)" : "transparent",
-                color: active ? "var(--ember)" : "var(--ink-soft)",
-                borderColor: active ? "var(--ember)" : "var(--line)",
-              }}
+              value={s.key}
+              className="rounded-full border data-active:border-[var(--ember)] data-active:bg-[var(--ember-wash)] data-active:text-[var(--ember)]"
+              style={{ borderColor: "var(--line)" }}
             >
               {s.chipLabel}
-            </Button>
-          );
-        })}
-      </div>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <div
         className="landing-demo-grid"

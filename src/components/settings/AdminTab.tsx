@@ -14,6 +14,8 @@ import { MOCK_REVIEW_ITEMS } from "../../data/mockGmailReviewItems";
 import { useEntries } from "../../context/EntriesContext";
 import { explainPlacements, toDateKey } from "../../views/todoUtils";
 import { Button } from "../ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Switch } from "../ui/switch";
 
 type TestStatus = "idle" | "running" | "pass" | "fail";
 
@@ -161,35 +163,28 @@ function TierChanger() {
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value as TierOption)}
-          className="f-sans"
-          style={{
-            height: 34,
-            padding: "0 32px 0 12px",
-            borderRadius: 6,
-            border: "1px solid var(--line-soft)",
-            background: "var(--surface)",
-            color: "var(--ink)",
-            fontSize: 13,
-            cursor: "pointer",
-            appearance: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "none",
-            outline: "none",
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 12px center",
-          }}
-        >
-          {TIER_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </option>
-          ))}
-        </select>
+        <Select value={selected} onValueChange={(v) => setSelected(v as TierOption)}>
+          <SelectTrigger
+            className="f-sans"
+            style={{
+              height: 34,
+              borderRadius: 6,
+              border: "1px solid var(--line-soft)",
+              background: "var(--surface)",
+              color: "var(--ink)",
+              fontSize: 13,
+            }}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIER_OPTIONS.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t.charAt(0).toUpperCase() + t.slice(1)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <SettingsButton onClick={save} disabled={saving || selected === current}>
           {saving ? "Saving…" : "Apply"}
         </SettingsButton>
@@ -685,37 +680,11 @@ function PushTestSection() {
             (bypasses Vercel cron entirely).
           </div>
         </div>
-        <button
-          onClick={() => setEnabled((v) => !v)}
-          role="switch"
-          aria-checked={enabled}
+        <Switch
+          checked={enabled}
+          onCheckedChange={setEnabled}
           aria-label="Push diagnostics toggle"
-          className="press"
-          style={{
-            width: 40,
-            height: 22,
-            borderRadius: 999,
-            background: enabled ? "var(--ember)" : "var(--surface-high)",
-            border: `1px solid ${enabled ? "var(--ember)" : "var(--line)"}`,
-            position: "relative",
-            padding: 0,
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              position: "absolute",
-              top: 1,
-              left: enabled ? 19 : 1,
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: enabled ? "var(--ember-ink)" : "var(--ink-faint)",
-              transition: "left 200ms cubic-bezier(.16,1,.3,1)",
-            }}
-          />
-        </button>
+        />
       </div>
 
       {enabled && (
@@ -824,39 +793,12 @@ function DailySummarySection() {
             brains enriched, persona decay).
           </div>
         </div>
-        <button
-          onClick={() => !saving && enabled !== null && toggle(!on)}
-          role="switch"
-          aria-checked={on}
-          aria-label="Daily roundup toggle"
+        <Switch
+          checked={on}
           disabled={enabled === null || saving}
-          className="press"
-          style={{
-            width: 40,
-            height: 22,
-            borderRadius: 999,
-            background: on ? "var(--ember)" : "var(--surface-high)",
-            border: `1px solid ${on ? "var(--ember)" : "var(--line)"}`,
-            position: "relative",
-            padding: 0,
-            cursor: enabled === null || saving ? "wait" : "pointer",
-            flexShrink: 0,
-            opacity: enabled === null ? 0.5 : 1,
-          }}
-        >
-          <span
-            style={{
-              position: "absolute",
-              top: 1,
-              left: on ? 19 : 1,
-              width: 18,
-              height: 18,
-              borderRadius: "50%",
-              background: on ? "var(--ember-ink)" : "var(--ink-faint)",
-              transition: "left 200ms cubic-bezier(.16,1,.3,1)",
-            }}
-          />
-        </button>
+          onCheckedChange={(next) => !saving && enabled !== null && toggle(next)}
+          aria-label="Daily roundup toggle"
+        />
       </div>
       {msg && (
         <div

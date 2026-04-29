@@ -1,7 +1,6 @@
 import { memo } from "react";
-import { cn } from "../lib/cn";
 import { NavIcon } from "./icons/NavIcons";
-import { Button } from "./ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 
 interface MobileMoreMenuProps {
   isOpen: boolean;
@@ -17,58 +16,27 @@ const SIDEBAR_ITEMS = [
 
 function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
   return (
-    <div className={cn("fixed inset-0 z-40 lg:hidden", !isOpen && "pointer-events-none")}>
-      {/* Backdrop */}
-      <div
-        data-testid="sidebar-backdrop"
-        className={cn(
-          "absolute inset-0 bg-black/40 transition-opacity duration-300",
-          isOpen ? "opacity-100" : "opacity-0",
-        )}
-        onClick={() => onNavigate("close")}
-      />
-
-      {/* Sliding sidebar panel */}
-      <aside
-        className={cn(
-          "absolute top-0 right-0 flex h-full w-72 transform flex-col transition-transform duration-300 ease-in-out",
-          isOpen ? "translate-x-0" : "translate-x-full",
-        )}
+    <Sheet open={isOpen} onOpenChange={(o) => !o && onNavigate("close")}>
+      <SheetContent
+        side="right"
+        className="w-72 border-l p-0 lg:hidden"
         style={{
           background: "var(--color-surface)",
-          borderLeft: "1px solid var(--color-outline-variant)",
-          boxShadow: "var(--shadow-lg)",
+          borderColor: "var(--color-outline-variant)",
         }}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between border-b px-5 py-5"
+        <SheetHeader
+          className="border-b px-5 py-5"
           style={{ borderColor: "var(--color-outline-variant)" }}
         >
-          <span className="text-base font-semibold" style={{ color: "var(--color-on-surface)" }}>
-            Menu
-          </span>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onNavigate("close")}
-            aria-label="Close menu"
-            style={{ color: "var(--color-on-surface-variant)" }}
+          <SheetTitle
+            className="text-base font-semibold"
+            style={{ color: "var(--color-on-surface)" }}
           >
-            <svg
-              aria-hidden="true"
-              className="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </Button>
-        </div>
+            Menu
+          </SheetTitle>
+        </SheetHeader>
 
-        {/* Nav items */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4" aria-label="More navigation">
           {SIDEBAR_ITEMS.map((item) => (
             <button
@@ -84,8 +52,8 @@ function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
             </button>
           ))}
         </nav>
-      </aside>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

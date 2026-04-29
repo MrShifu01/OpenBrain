@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "../components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
 import type { Entry } from "../types";
 import { isDone } from "./todoUtils";
 
@@ -1174,39 +1181,35 @@ function SomedayRow({
                 {ageDays === 0 ? "Today" : ageDays === 1 ? "Yesterday" : `${ageDays} days ago`}
               </span>
             )}
-            <select
+            <Select
               value={currentTag ?? UNTAGGED}
+              onValueChange={onRecategorise}
               disabled={busy || selectMode}
-              onChange={(e) => onRecategorise(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              className="press f-sans"
-              style={{
-                appearance: "none",
-                WebkitAppearance: "none",
-                MozAppearance: "none",
-                height: 28,
-                padding: "0 28px 0 12px",
-                fontSize: 12,
-                fontWeight: 600,
-                border: "1px solid var(--line-soft)",
-                borderRadius: 999,
-                background: "var(--surface)",
-                color: "var(--ink-soft)",
-                cursor: busy ? "not-allowed" : "pointer",
-                backgroundImage:
-                  "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 10px center",
-                outline: 0,
-              }}
             >
-              <option value={UNTAGGED}>Untagged</option>
-              {knownTags.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                onClick={(e) => e.stopPropagation()}
+                className="press f-sans"
+                style={{
+                  height: 28,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 999,
+                  background: "var(--surface)",
+                  color: "var(--ink-soft)",
+                }}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={UNTAGGED}>Untagged</SelectItem>
+                {knownTags.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>
@@ -1469,39 +1472,35 @@ function SomedayQuickAdd({
           }}
         />
       </div>
-      <select
-        value={pickedTag}
-        onChange={(e) => setPickedTag(e.target.value)}
-        className="press f-sans"
-        aria-label="Category"
-        style={{
-          appearance: "none",
-          WebkitAppearance: "none",
-          MozAppearance: "none",
-          height: 30,
-          padding: "0 28px 0 12px",
-          fontSize: 12,
-          fontWeight: 600,
-          border: "1px solid var(--line-soft)",
-          borderRadius: 999,
-          background: "var(--surface)",
-          color: pickedTag ? "var(--ink)" : "var(--ink-faint)",
-          cursor: "pointer",
-          backgroundImage:
-            "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "right 10px center",
-          outline: 0,
-          flexShrink: 0,
-        }}
+      <Select
+        value={pickedTag || "__none__"}
+        onValueChange={(v) => setPickedTag(v === "__none__" ? "" : v)}
       >
-        <option value="">No category</option>
-        {knownTags.map((t) => (
-          <option key={t} value={t}>
-            {t}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger
+          aria-label="Category"
+          className="press f-sans"
+          style={{
+            height: 30,
+            fontSize: 12,
+            fontWeight: 600,
+            border: "1px solid var(--line-soft)",
+            borderRadius: 999,
+            background: "var(--surface)",
+            color: pickedTag ? "var(--ink)" : "var(--ink-faint)",
+            flexShrink: 0,
+          }}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__none__">No category</SelectItem>
+          {knownTags.map((t) => (
+            <SelectItem key={t} value={t}>
+              {t}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button type="submit" size="sm" disabled={!text.trim()}>
         Add
       </Button>

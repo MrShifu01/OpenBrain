@@ -20,9 +20,9 @@ vi.mock("../../src/lib/supabase", () => ({
   },
 }));
 
-/** Click "Magic link" to reveal the email + OTP form */
+/** Click "Email me a code" to reveal the email + OTP form */
 async function showMagicLinkForm() {
-  await userEvent.click(screen.getByText("Magic link"));
+  await userEvent.click(screen.getByText("Email me a code"));
 }
 
 describe("LoginScreen — layout", () => {
@@ -57,8 +57,8 @@ describe("LoginScreen — error handling", () => {
     await showMagicLinkForm();
 
     // Enter email and submit
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "new@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "new@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       // Raw Supabase error must NOT be shown
@@ -78,8 +78,8 @@ describe("LoginScreen — error handling", () => {
     render(<LoginScreen />);
 
     await showMagicLinkForm();
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       expect(screen.queryByText("Email rate limit exceeded")).not.toBeInTheDocument();
@@ -97,8 +97,8 @@ describe("LoginScreen — error handling", () => {
     render(<LoginScreen />);
 
     await showMagicLinkForm();
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       expect(screen.getByText("Some bespoke server message")).toBeInTheDocument();
@@ -112,8 +112,8 @@ describe("LoginScreen — error handling", () => {
     render(<LoginScreen />);
 
     await showMagicLinkForm();
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       expect(screen.getByText(/check your email/i)).toBeInTheDocument();
@@ -139,8 +139,8 @@ describe("LoginScreen — emailRedirectTo", () => {
     render(<LoginScreen />);
 
     await showMagicLinkForm();
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       expect(mockSignInWithOtp).toHaveBeenCalledWith({
@@ -157,8 +157,8 @@ describe("LoginScreen — emailRedirectTo", () => {
     render(<LoginScreen />);
 
     await showMagicLinkForm();
-    await userEvent.type(screen.getByPlaceholderText("neural@email.com"), "user@example.com");
-    await userEvent.click(screen.getByText("Send access code"));
+    await userEvent.type(screen.getByPlaceholderText("you@email.com"), "user@example.com");
+    await userEvent.click(screen.getByText("Send my code"));
 
     await waitFor(() => {
       expect(mockSignInWithOtp).toHaveBeenCalledWith({

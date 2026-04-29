@@ -1,8 +1,15 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 // Cross-brain assignment is gated until shared/community brains lands. Flip
 // this back to true when that feature ships — the picker code below is left
@@ -34,25 +41,12 @@ export default function BulkActionBar({
   const [targetBrainIds, setTargetBrainIds] = useState<Set<string>>(new Set());
   const [progress, setProgress] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [typeOpen, setTypeOpen] = useState(false);
-  const [brainsOpen, setBrainsOpen] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [expanded, setExpanded] = useState(false);
   // Two-tap inline delete: first tap arms the trash button (shows
   // "Tap to confirm"), second tap executes. Auto-reverts after 2.5s.
   // No OS dialog — design philosophy in CLAUDE.md.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const typeRef = useRef<HTMLDivElement>(null);
-  const brainsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false);
-      if (brainsRef.current && !brainsRef.current.contains(e.target as Node)) setBrainsOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
 
   // Auto-disarm the inline delete confirmation after 2.5s of no follow-up
   // tap. Otherwise an armed trash button could sit there for minutes and
@@ -173,11 +167,7 @@ export default function BulkActionBar({
 
   const selectedBrainNames = brains.filter((b) => targetBrainIds.has(b.id)).map((b) => b.name);
 
-  const dropdownStyle: React.CSSProperties = {
-    background: "var(--color-surface-container-high)",
-    borderColor: "var(--color-outline-variant)",
-    maxHeight: "180px",
-  };
+  const dropdownContentClass = "max-h-[180px]";
 
   // Collapsed pill — low-profile chip so selecting more items isn't blocked.
   // Position: sit ~12px above the BottomNav (56px + safe-area-inset-bottom).
@@ -375,8 +365,8 @@ export default function BulkActionBar({
 
         {/* Actions */}
         <div className="flex gap-2">
-          {/* Type picker — custom upward dropdown */}
-          <div ref={typeRef} className="relative flex flex-1 flex-col gap-1">
+          {/* Type picker — opens upward */}
+          <div className="relative flex flex-1 flex-col gap-1">
             <div className="flex items-center justify-between">
               <label
                 className="text-[11px] font-semibold tracking-wide uppercase"
@@ -397,88 +387,8 @@ export default function BulkActionBar({
                 {aiTyping ? "…" : "✦ AI"}
               </button>
             </div>
-            <button
-              id="bulk-type-trigger"
-              aria-expanded={typeOpen}
-              aria-haspopup="true"
-              aria-controls="bulk-type-panel"
-              onClick={() => {
-                setTypeOpen((p) => !p);
-                setBrainsOpen(false);
-              }}
-              className="flex w-full items-center justify-between rounded-xl border bg-transparent px-2.5 py-1.5 text-left text-xs outline-none"
-              style={{
-                borderColor: "var(--color-outline-variant)",
-                color: "var(--color-on-surface)",
-              }}
-            >
-              <span className="truncate">
-                {targetType ? targetType.charAt(0).toUpperCase() + targetType.slice(1) : "— keep —"}
-              </span>
-              <svg
-                className={`h-3 w-3 flex-shrink-0 transition-transform ${typeOpen ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {typeOpen && (
-              <div
-                id="bulk-type-panel"
-                className="absolute right-0 bottom-full left-0 z-10 mb-1 overflow-y-auto rounded-xl border shadow-lg"
-                style={dropdownStyle}
-              >
-                <button
-                  onClick={() => {
-                    setTargetType("");
-                    setTypeOpen(false);
-                  }}
-                  className="w-full px-3 py-2 text-left text-xs transition-colors hover:bg-white/10"
-                  style={{ color: "var(--color-on-surface-variant)" }}
-                >
-                  — keep —
-                </button>
-                {CANONICAL_TYPES.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      setTargetType(t);
-                      setTypeOpen(false);
-                    }}
-                    className="w-full px-3 py-2 text-left text-xs transition-colors hover:bg-white/10"
-                    style={{
-                      color: "var(--color-on-surface)",
-                      background: targetType === t ? "var(--color-primary-container)" : undefined,
-                    }}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Brain multi-picker — hidden until shared brains ships. */}
-          {SHARED_BRAINS_ENABLED && (
-            <div ref={brainsRef} className="relative flex flex-1 flex-col gap-1">
-              <label
-                className="text-[11px] font-semibold tracking-wide uppercase"
-                style={{ color: "var(--color-on-surface-variant)" }}
-              >
-                Add to brains
-              </label>
-              <button
-                id="bulk-brains-trigger"
-                aria-expanded={brainsOpen}
-                aria-haspopup="true"
-                aria-controls="bulk-brains-panel"
-                onClick={() => {
-                  setBrainsOpen((p) => !p);
-                  setTypeOpen(false);
-                }}
+            <DropdownMenu>
+              <DropdownMenuTrigger
                 className="flex w-full items-center justify-between rounded-xl border bg-transparent px-2.5 py-1.5 text-left text-xs outline-none"
                 style={{
                   borderColor: "var(--color-outline-variant)",
@@ -486,10 +396,12 @@ export default function BulkActionBar({
                 }}
               >
                 <span className="truncate">
-                  {targetBrainIds.size === 0 ? "— none —" : selectedBrainNames.join(", ")}
+                  {targetType
+                    ? targetType.charAt(0).toUpperCase() + targetType.slice(1)
+                    : "— keep —"}
                 </span>
                 <svg
-                  className={`h-3 w-3 flex-shrink-0 transition-transform ${brainsOpen ? "rotate-180" : ""}`}
+                  className="h-3 w-3 flex-shrink-0"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -497,46 +409,67 @@ export default function BulkActionBar({
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
-              </button>
-              {brainsOpen && (
-                <div
-                  id="bulk-brains-panel"
-                  className="absolute right-0 bottom-full left-0 z-10 mb-1 overflow-y-auto rounded-xl border shadow-lg"
-                  style={dropdownStyle}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className={dropdownContentClass}>
+                <DropdownMenuItem onSelect={() => setTargetType("")}>— keep —</DropdownMenuItem>
+                {CANONICAL_TYPES.map((t) => (
+                  <DropdownMenuItem
+                    key={t}
+                    onSelect={() => setTargetType(t)}
+                    style={{
+                      background: targetType === t ? "var(--color-primary-container)" : undefined,
+                    }}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Brain multi-picker — hidden until shared brains ships. */}
+          {SHARED_BRAINS_ENABLED && (
+            <div className="relative flex flex-1 flex-col gap-1">
+              <label
+                className="text-[11px] font-semibold tracking-wide uppercase"
+                style={{ color: "var(--color-on-surface-variant)" }}
+              >
+                Add to brains
+              </label>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="flex w-full items-center justify-between rounded-xl border bg-transparent px-2.5 py-1.5 text-left text-xs outline-none"
+                  style={{
+                    borderColor: "var(--color-outline-variant)",
+                    color: "var(--color-on-surface)",
+                  }}
                 >
+                  <span className="truncate">
+                    {targetBrainIds.size === 0 ? "— none —" : selectedBrainNames.join(", ")}
+                  </span>
+                  <svg
+                    className="h-3 w-3 flex-shrink-0"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className={dropdownContentClass}>
                   {brains.map((b) => (
-                    <button
+                    <DropdownMenuCheckboxItem
                       key={b.id}
-                      onClick={() => toggleBrain(b.id)}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-white/10"
-                      style={{ color: "var(--color-on-surface)" }}
+                      checked={targetBrainIds.has(b.id)}
+                      onCheckedChange={() => toggleBrain(b.id)}
+                      onSelect={(e) => e.preventDefault()}
                     >
-                      <div
-                        className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded"
-                        style={{
-                          border: `2px solid ${targetBrainIds.has(b.id) ? "var(--color-primary)" : "var(--color-outline-variant)"}`,
-                          background: targetBrainIds.has(b.id)
-                            ? "var(--color-primary)"
-                            : "transparent",
-                        }}
-                      >
-                        {targetBrainIds.has(b.id) && (
-                          <svg
-                            className="h-2.5 w-2.5"
-                            viewBox="0 0 12 12"
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="2"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="truncate">{b.name}</span>
-                    </button>
+                      {b.name}
+                    </DropdownMenuCheckboxItem>
                   ))}
-                </div>
-              )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>

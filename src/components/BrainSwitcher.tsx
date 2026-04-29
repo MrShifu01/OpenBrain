@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useBrain } from "../context/BrainContext";
 import { authFetch } from "../lib/authFetch";
 import CreateBrainModal from "./CreateBrainModal";
 import type { Brain } from "../types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface Props {
   /** Optional — when true the dropdown opens upward (used in mobile menus). */
@@ -19,25 +26,7 @@ interface Props {
 
 export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: Props) {
   const { activeBrain, brains, setActiveBrain, refresh } = useBrain();
-  const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [open]);
 
   if (!activeBrain) return null;
 
@@ -46,14 +35,12 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
   const sorted = personal ? [personal, ...others] : others;
 
   async function pick(brain: Brain) {
-    setOpen(false);
     if (brain.id === activeBrain?.id) return;
     if (onPick) {
       onPick(brain);
       return;
     }
     setActiveBrain(brain);
-    // Persist cross-device. Best-effort; localStorage already updated by setActiveBrain.
     authFetch("/api/brains?action=set-active", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -64,104 +51,69 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
   const truncate = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
   return (
-    <div ref={ref} style={{ position: "relative", flexShrink: 0 }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`Active brain: ${activeBrain.name}. Click to switch.`}
-        className="press"
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          height: compact ? 28 : 32,
-          padding: compact ? "0 8px" : "0 10px",
-          background: "var(--surface)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: 8,
-          color: "var(--ink)",
-          fontFamily: "var(--f-sans)",
-          fontSize: compact ? 12 : 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          maxWidth: compact ? 160 : 220,
-          minWidth: 0,
-        }}
-      >
-        <span
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          aria-label={`Active brain: ${activeBrain.name}. Click to switch.`}
+          className="press"
           style={{
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            height: compact ? 28 : 32,
+            padding: compact ? "0 8px" : "0 10px",
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            color: "var(--ink)",
+            fontFamily: "var(--f-sans)",
+            fontSize: compact ? 12 : 13,
+            fontWeight: 500,
+            cursor: "pointer",
+            maxWidth: compact ? 160 : 220,
             minWidth: 0,
           }}
         >
-          {truncate(activeBrain.name, compact ? 16 : 22)}
-        </span>
-        <svg
-          aria-hidden="true"
-          width="10"
-          height="10"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          viewBox="0 0 24 24"
-          style={{ flexShrink: 0, opacity: 0.6 }}
-        >
-          {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
-        </svg>
-      </button>
+          <span
+            style={{
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
+            }}
+          >
+            {truncate(activeBrain.name, compact ? 16 : 22)}
+          </span>
+          <svg
+            aria-hidden="true"
+            width="10"
+            height="10"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            viewBox="0 0 24 24"
+            style={{ flexShrink: 0, opacity: 0.6 }}
+          >
+            {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
+          </svg>
+        </DropdownMenuTrigger>
 
-      {open && (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            ...(dropUp ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }),
-            left: 0,
-            minWidth: 240,
-            maxWidth: 320,
-            background: "var(--bg)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 10,
-            boxShadow: "0 10px 32px rgba(0,0,0,0.18)",
-            padding: 4,
-            zIndex: 60,
-          }}
+        <DropdownMenuContent
+          side={dropUp ? "top" : "bottom"}
+          align="start"
+          className="max-w-[320px] min-w-[240px]"
         >
           {sorted.map((b) => {
             const isActive = b.id === activeBrain.id;
             return (
-              <button
+              <DropdownMenuItem
                 key={b.id}
-                role="option"
-                aria-selected={isActive}
-                onClick={() => pick(b)}
+                onSelect={() => pick(b)}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  width: "100%",
-                  padding: "8px 10px",
-                  background: isActive ? "var(--ember-wash)" : "transparent",
-                  border: 0,
-                  borderRadius: 6,
+                  background: isActive ? "var(--ember-wash)" : undefined,
                   color: "var(--ink)",
-                  fontFamily: "var(--f-sans)",
-                  fontSize: 13,
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive)
-                    (e.currentTarget as HTMLElement).style.background = "var(--surface)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent";
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -195,48 +147,24 @@ export default function BrainSwitcher({ dropUp, compact, onPick, hideCreate }: P
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 )}
-              </button>
+              </DropdownMenuItem>
             );
           })}
 
           {!hideCreate && (
             <>
-              <div style={{ height: 1, background: "var(--line-soft)", margin: "4px 0" }} />
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setCreating(true);
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  width: "100%",
-                  padding: "8px 10px",
-                  background: "transparent",
-                  border: 0,
-                  borderRadius: 6,
-                  color: "var(--ember)",
-                  fontFamily: "var(--f-sans)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLElement).style.background = "var(--ember-wash)")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLElement).style.background = "transparent")
-                }
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setCreating(true)}
+                style={{ color: "var(--ember)", fontWeight: 500 }}
               >
                 <span style={{ width: 14, textAlign: "center" }}>+</span>
                 <span>New brain</span>
-              </button>
+              </DropdownMenuItem>
             </>
           )}
-        </div>
-      )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       {creating && (
         <CreateBrainModal

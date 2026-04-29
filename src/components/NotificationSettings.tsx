@@ -1,6 +1,7 @@
 import { useState, useEffect, type JSX } from "react";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "./ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const STATUS_FLASH_MS = 3000;
 const ERROR_FLASH_MS = 8000;
@@ -81,9 +82,9 @@ const fieldStyle: React.CSSProperties = {
   transition: "border-color 160ms ease, box-shadow 160ms ease, background 160ms ease",
 };
 
-// Stripped-native <select> with our chevron baked in via background-image.
-// Looks identical across Chrome, Safari, Firefox, iOS — and on mobile the
-// OS still shows its native picker when tapped, which is what users want.
+// Custom-styled select via shadcn (Radix). Matches the rest of the app's
+// design tokens — same height, border, focus ring, fonts. No native OS
+// picker on any platform; same custom dropdown everywhere.
 function StyledSelect({
   value,
   onChange,
@@ -98,28 +99,19 @@ function StyledSelect({
   ariaLabel?: string;
 }): JSX.Element {
   return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="press"
-      style={{
-        ...fieldStyle,
-        width: width ?? "auto",
-        appearance: "none",
-        WebkitAppearance: "none",
-        MozAppearance: "none",
-        paddingRight: 32,
-        cursor: "pointer",
-        backgroundImage:
-          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'><path d='M1 1L5 5L9 1' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>\")",
-        backgroundRepeat: "no-repeat",
-        backgroundPosition: "right 12px center",
-        backgroundSize: "10px 6px",
-      }}
-    >
-      {children}
-    </select>
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger
+        aria-label={ariaLabel}
+        className="press"
+        style={{
+          ...fieldStyle,
+          width: width ?? "auto",
+        }}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
   );
 }
 
@@ -150,9 +142,9 @@ function HourSelect({
   return (
     <StyledSelect value={hourOnly} onChange={onChange} width={140} ariaLabel={ariaLabel}>
       {HOURS.map((h) => (
-        <option key={h.value} value={h.value}>
+        <SelectItem key={h.value} value={h.value}>
           {h.label}
-        </option>
+        </SelectItem>
       ))}
     </StyledSelect>
   );
@@ -170,9 +162,9 @@ function DaySelect({
   return (
     <StyledSelect value={value} onChange={onChange} width={140} ariaLabel={ariaLabel}>
       {DAYS_OF_WEEK.map((d) => (
-        <option key={d} value={d}>
+        <SelectItem key={d} value={d}>
           {d.charAt(0).toUpperCase() + d.slice(1)}
-        </option>
+        </SelectItem>
       ))}
     </StyledSelect>
   );

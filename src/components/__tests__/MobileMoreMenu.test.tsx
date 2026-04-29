@@ -2,31 +2,19 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import MobileMoreMenu from "../MobileMoreMenu";
 
+// MobileMoreMenu is now a Radix Sheet — content portals to document.body and
+// only renders when open. Visibility is governed by Radix' open state, not
+// translate-* classes.
+
 describe("MobileMoreMenu", () => {
-  it("renders a sidebar panel (always mounted)", () => {
-    const { container } = render(<MobileMoreMenu isOpen={false} onNavigate={vi.fn()} />);
-    expect(container.firstChild).not.toBeNull();
-  });
-
-  it("sidebar panel is translated off-screen when closed", () => {
+  it("does not render content when closed", () => {
     render(<MobileMoreMenu isOpen={false} onNavigate={vi.fn()} />);
-    const panel = screen.getByRole("complementary");
-    expect(panel.className).toContain("translate-x-full");
+    expect(screen.queryByText("Vault")).toBeNull();
   });
 
-  it("sidebar panel is visible when open", () => {
-    render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
-    const panel = screen.getByRole("complementary");
-    expect(panel.className).toContain("translate-x-0");
-  });
-
-  it("renders Vault item", () => {
+  it("renders content when open", () => {
     render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
     expect(screen.getByText("Vault")).toBeInTheDocument();
-  });
-
-  it("renders Settings item", () => {
-    render(<MobileMoreMenu isOpen={true} onNavigate={vi.fn()} />);
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
@@ -44,11 +32,12 @@ describe("MobileMoreMenu", () => {
     expect(onNavigate).toHaveBeenCalledWith("settings");
   });
 
-  it("calls onNavigate with 'close' when backdrop is clicked", () => {
+  it("calls onNavigate with 'close' when sheet is dismissed", () => {
     const onNavigate = vi.fn();
     render(<MobileMoreMenu isOpen={true} onNavigate={onNavigate} />);
-    const backdrop = document.querySelector("[data-testid='sidebar-backdrop']");
-    if (backdrop) fireEvent.click(backdrop);
+    // Pressing Escape triggers Radix' onOpenChange(false), which our wrapper
+    // forwards as onNavigate("close").
+    fireEvent.keyDown(document.body, { key: "Escape" });
     expect(onNavigate).toHaveBeenCalledWith("close");
   });
 });

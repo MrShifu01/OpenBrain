@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { getUserId } from "./aiSettings";
 import { authFetch } from "./authFetch";
 import { Button } from "../components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../components/ui/dialog";
 
 type PinStep = "enter" | "create" | "confirm" | "migrate";
 
@@ -190,33 +191,6 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
     }
   };
 
-  // Focus trap: keep Tab within the dialog
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") {
-      onCancel();
-      return;
-    }
-    if (e.key !== "Tab") return;
-    const dialog = e.currentTarget;
-    const focusable = Array.from(
-      dialog.querySelectorAll<HTMLElement>('button, input, [tabindex]:not([tabindex="-1"])'),
-    ).filter((el) => !el.hasAttribute("disabled"));
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey) {
-      if (document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      }
-    } else {
-      if (document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-  };
-
   const titles: Record<PinStep, string> = {
     enter: "Sensitive Info",
     create: "Set Security PIN",
@@ -239,21 +213,10 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
   return (
     <>
       <style>{`@keyframes pinShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}`}</style>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center"
-        style={{ background: "var(--color-scrim)" }}
-        onClick={(e) => {
-          if (e.target === e.currentTarget) onCancel();
-        }}
-      >
-        {/* Dialog */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pin-dialog-title"
-          onKeyDown={handleKeyDown}
-          className={`box-border w-full max-w-[300px] rounded-[20px] border px-5 py-6 ${shake ? "animate-[pinShake_0.38s_ease]" : ""}`}
+      <Dialog open onOpenChange={(o) => !o && onCancel()}>
+        <DialogContent
+          showCloseButton={false}
+          className={`max-w-[300px] rounded-[20px] px-5 py-6 ${shake ? "animate-[pinShake_0.38s_ease]" : ""}`}
           style={{
             background: "var(--color-surface-container-low)",
             borderColor: "var(--color-outline-variant)",
@@ -263,22 +226,20 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
             <div className="mb-2 text-[30px]" aria-hidden="true">
               🔒
             </div>
-            <h3
-              id="pin-dialog-title"
+            <DialogTitle
               className="m-0 text-[17px] font-bold"
               style={{ color: "var(--color-on-surface)" }}
             >
               {titles[step]}
-            </h3>
-            <p className="mt-1.5 mb-0 text-xs" style={{ color: "var(--color-on-surface-variant)" }}>
+            </DialogTitle>
+            <DialogDescription
+              className="mt-1.5 mb-0 text-xs"
+              style={{ color: "var(--color-on-surface-variant)" }}
+            >
               {subs[step]}
-            </p>
+            </DialogDescription>
           </div>
 
-          {/* Visually hidden label for PIN input */}
-          <label htmlFor="pin-input" className="sr-only">
-            {subs[step]}
-          </label>
           <input
             ref={inputRef}
             id="pin-input"
@@ -295,6 +256,7 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSubmit();
             }}
+            aria-label={subs[step]}
             placeholder="• • • •"
             style={{
               width: "100%",
@@ -312,7 +274,6 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
             }}
           />
 
-          {/* Always-rendered alert container — aria-live announces errors as they appear */}
           <p
             role="alert"
             aria-live="polite"
@@ -352,8 +313,8 @@ export function PinGate({ onSuccess, onCancel, isSetup = false }: PinGateProps) 
               {btnLabel[step]}
             </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

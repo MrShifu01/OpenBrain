@@ -54,6 +54,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "../ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 interface ProfileFields {
   full_name: string;
@@ -1045,29 +1046,21 @@ export default function ProfileTab() {
           gap: 8,
         }}
       >
-        <select
+        <Select
           value={newFactBucket}
-          onChange={(e) => setNewFactBucket(e.target.value as (typeof BUCKET_ORDER)[number])}
-          style={{
-            ...inputStyle(),
-            width: 130,
-            padding: "8px 30px 8px 12px",
-            appearance: "none",
-            WebkitAppearance: "none",
-            MozAppearance: "none",
-            cursor: "pointer",
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='none' stroke='%23999' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M1 1l4 4 4-4'/></svg>\")",
-            backgroundRepeat: "no-repeat",
-            backgroundPosition: "right 12px center",
-          }}
+          onValueChange={(v) => setNewFactBucket(v as (typeof BUCKET_ORDER)[number])}
         >
-          {BUCKET_ORDER.map((b) => (
-            <option key={b} value={b}>
-              {BUCKET_LABELS[b]}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger style={{ ...inputStyle(), width: 130 }}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {BUCKET_ORDER.map((b) => (
+              <SelectItem key={b} value={b}>
+                {BUCKET_LABELS[b]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <input
           type="text"
           value={newFactText}

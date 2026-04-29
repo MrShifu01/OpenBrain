@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getTypeIcons } from "../lib/typeIcons";
+import { supabase } from "../lib/supabase";
 import type { Entry, Brain } from "../types";
 import type { EntryFilterState } from "../lib/entryFilters";
 
@@ -55,9 +56,22 @@ export function useAppShell({
   // Modals
   const [showCapture, setShowCapture] = useState(!!initialShowCapture);
   const [captureInitialText, setCaptureInitialText] = useState("");
-  const [showOnboarding, setShowOnboarding] = useState(
-    () => !localStorage.getItem("openbrain_onboarded"),
-  );
+  // Onboarding gate. localStorage is the fast path (avoids modal flash on
+  // returning visitors); a follow-up DB check covers cross-device users whose
+  // local store doesn't yet know they're onboarded. Old key
+  // `openbrain_onboarded` is honored for back-compat — when seen, we migrate
+  // it forward to the new key.
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    const newKey = localStorage.getItem("everion_onboarded");
+    if (newKey) return false;
+    const oldKey = localStorage.getItem("openbrain_onboarded");
+    if (oldKey) {
+      localStorage.setItem("everion_onboarded", "1");
+      localStorage.removeItem("openbrain_onboarded");
+      return false;
+    }
+    return true;
+  });
   const [showBrainTip, setShowBrainTip] = useState<Brain | null>(null);
   const [showCreateBrain, setShowCreateBrain] = useState(false);
 
@@ -97,6 +111,37 @@ export function useAppShell({
     window.addEventListener("openbrain:restart-onboarding", h);
     return () => window.removeEventListener("openbrain:restart-onboarding", h);
   }, []);
+
+  // Cross-device onboarding sync. If localStorage thinks we still need
+  // onboarding, double-check with user_profiles.onboarded_at — a user signed
+  // in on a new device shouldn't be re-onboarded just because their local
+  // store is empty. One-shot: only fires while we believe onboarding is
+  // pending.
+  useEffect(() => {
+    if (!showOnboarding) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (cancelled || !userData?.user) return;
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("onboarded_at")
+        .eq("id", userData.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.onboarded_at) {
+        try {
+          localStorage.setItem("everion_onboarded", "1");
+        } catch {
+          /* ignore */
+        }
+        setShowOnboarding(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showOnboarding]);
 
   // Cmd+K is handled by OmniSearch — do not open CaptureSheet here.
 

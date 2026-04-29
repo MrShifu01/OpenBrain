@@ -10,6 +10,7 @@ import {
   getGroqKey,
 } from "../../lib/aiSettings";
 import { SettingsButton } from "./SettingsRow";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 
 const ANTHROPIC_MODELS = [
   { id: "claude-opus-4-7", label: "Claude Opus 4.7" },
@@ -167,17 +168,18 @@ function ProviderCard({
         <span className="f-sans" style={{ fontSize: 12, color: "var(--ink-ghost)", minWidth: 42 }}>
           Model
         </span>
-        <select
-          value={draftModel}
-          onChange={(e) => setDraftModel(e.target.value)}
-          style={selectStyle}
-        >
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <Select value={draftModel} onValueChange={setDraftModel}>
+          <SelectTrigger style={selectStyle}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {models.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {!showInput && modelChanged && (
           <SettingsButton onClick={save} disabled={saving}>
             {saving ? "Saving…" : "Save model"}

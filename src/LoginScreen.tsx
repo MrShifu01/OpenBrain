@@ -1,4 +1,4 @@
-import { type JSX, useMemo } from "react";
+import { type JSX, useMemo, useState } from "react";
 
 function RefreshCwIcon({ size = 24, style }: { size?: number; style?: React.CSSProperties }) {
   return (
@@ -26,6 +26,83 @@ import { useAuthFlow } from "./hooks/useAuthFlow";
 import { EverionLogo } from "./components/ui/EverionLogo";
 import { Button } from "./components/ui/button";
 
+function EyeIcon({ open, size = 18 }: { open: boolean; size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {open ? (
+        <>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      ) : (
+        <>
+          <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 4.06-5.06" />
+          <path d="M9.9 4.24A11 11 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" />
+          <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+function PasswordStrength({ password }: { password: string }) {
+  const score = useMemo(() => {
+    if (!password) return 0;
+    let s = 0;
+    if (password.length >= 10) s++;
+    if (password.length >= 14) s++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^a-zA-Z0-9]/.test(password)) s++;
+    return s;
+  }, [password]);
+
+  if (!password) return null;
+  const label = score < 2 ? "weak" : score < 4 ? "ok" : "strong";
+  const color =
+    score < 2 ? "var(--blood, #c44)" : score < 4 ? "var(--ember, #c97a3c)" : "var(--moss, #6b8e3c)";
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}
+    >
+      <div
+        style={{
+          flex: 1,
+          height: 3,
+          background: "var(--line-soft)",
+          borderRadius: 2,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: `${(score / 5) * 100}%`,
+            height: "100%",
+            background: color,
+            transition: "width 200ms, background 200ms",
+          }}
+        />
+      </div>
+      <span style={{ fontSize: 11, color, minWidth: 38, textAlign: "right" }}>{label}</span>
+    </div>
+  );
+}
+
 function hasInvite(): boolean {
   try {
     const fromUrl = new URLSearchParams(window.location.search).get("invite");
@@ -45,6 +122,7 @@ export default function LoginScreen({
 }: LoginScreenProps = {}): JSX.Element {
   const isInvited = useMemo(hasInvite, []);
   const startSignup = initialIntent === "signup" || isInvited;
+  const [showPwd, setShowPwd] = useState(false);
   const {
     email,
     setEmail,
@@ -165,9 +243,35 @@ export default function LoginScreen({
                   margin: 0,
                 }}
               >
-                A quiet place for the things you want to remember. Notes, links, half-thoughts — and
-                an AI that actually reads them when you ask.
+                One private place for the thoughts you'd lose and the facts you can't afford to —
+                notes, links, gate codes, policy numbers, the things worth not forgetting.
               </p>
+              <figure
+                style={{
+                  margin: "28px 0 0",
+                  paddingTop: 20,
+                  borderTop: "1px solid var(--line-soft)",
+                }}
+              >
+                <blockquote
+                  className="f-serif"
+                  style={{
+                    margin: 0,
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: "var(--ink-soft)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  “It's where my life lives now.”
+                </blockquote>
+                <figcaption
+                  className="f-sans"
+                  style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 6 }}
+                >
+                  — Sarah, founder
+                </figcaption>
+              </figure>
             </div>
 
             <div
@@ -178,7 +282,7 @@ export default function LoginScreen({
                 color: "var(--ink-ghost)",
               }}
             >
-              private · offline-first · end-to-end encrypted vault
+              private · offline-first · end-to-end encrypted vault · your data is yours
             </div>
           </div>
 
@@ -194,6 +298,19 @@ export default function LoginScreen({
             }}
           >
             <div style={{ width: "100%", maxWidth: 360 }}>
+              <a
+                href="/"
+                className="press"
+                style={{
+                  display: "inline-block",
+                  fontSize: 12,
+                  color: "var(--ink-faint)",
+                  marginBottom: 18,
+                  textDecoration: "none",
+                }}
+              >
+                ← back to everion
+              </a>
               {/* ── Invite banner ── */}
               {isInvited && (
                 <div
@@ -209,10 +326,10 @@ export default function LoginScreen({
                   }}
                 >
                   <strong style={{ color: "var(--color-primary)" }}>
-                    You're invited to a brain.
+                    Someone shared a brain with you.
                   </strong>
                   <br />
-                  Create your Everion account below — you'll be added automatically.
+                  Create your Everion account below — you'll be added the moment you sign in.
                 </div>
               )}
 
@@ -240,7 +357,7 @@ export default function LoginScreen({
                     fontWeight: 500,
                   }}
                 >
-                  Your second brain — capture everything, find anything.
+                  For the thoughts you'd lose · and the facts you can't afford to.
                 </p>
               </div>
 
@@ -274,11 +391,10 @@ export default function LoginScreen({
                       ? "create your account to start remembering."
                       : "sign in to continue."}
                   </p>
-                  {/* ── Google (primary) ── */}
+                  {/* ── Google — primary, fastest path ── */}
                   <Button
                     onClick={handleGoogleSignIn}
                     disabled={loading}
-                    variant="outline"
                     size="lg"
                     className="w-full"
                   >
@@ -308,8 +424,13 @@ export default function LoginScreen({
                     <span style={{ fontSize: 12, color: "var(--ink-ghost)" }}>or</span>
                     <div style={{ flex: 1, height: 1, background: "var(--line-soft)" }} />
                   </div>
-                  <Button onClick={switchToMagicLink} size="lg" className="w-full">
-                    Magic link
+                  <Button
+                    onClick={switchToMagicLink}
+                    variant="outline"
+                    size="lg"
+                    className="w-full"
+                  >
+                    Email me a code
                   </Button>
                   <Button onClick={switchToPassword} variant="outline" size="lg" className="w-full">
                     Use password
@@ -365,9 +486,11 @@ export default function LoginScreen({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="neural@email.com"
+                        placeholder="you@email.com"
                         required
                         autoFocus
+                        autoComplete="email"
+                        inputMode="email"
                         style={{
                           width: "100%",
                           borderRadius: 8,
@@ -400,36 +523,66 @@ export default function LoginScreen({
                           marginBottom: 6,
                         }}
                       >
-                        Password {!isSigningUp && "(min. 6 characters)"}
+                        Password{" "}
+                        <span style={{ opacity: 0.7, fontWeight: 400 }}>
+                          ({isSigningUp ? "min." : "min."} {MIN_PASSWORD_LENGTH} characters
+                          {isSigningUp ? " · use a passphrase" : ""})
+                        </span>
                       </label>
-                      <input
-                        id="password-input"
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
-                        required
-                        minLength={MIN_PASSWORD_LENGTH}
-                        style={{
-                          width: "100%",
-                          borderRadius: 8,
-                          border: "1px solid var(--color-outline-variant)",
-                          background: "var(--color-surface-container)",
-                          color: "var(--color-on-surface)",
-                          fontSize: 15,
-                          padding: "11px 14px",
-                          outline: "none",
-                          boxSizing: "border-box",
-                          fontFamily: "'Inter', system-ui, sans-serif",
-                          transition: "border-color 150ms",
-                        }}
-                        onFocus={(e) => {
-                          e.currentTarget.style.borderColor = "var(--color-primary)";
-                        }}
-                        onBlur={(e) => {
-                          e.currentTarget.style.borderColor = "var(--color-outline-variant)";
-                        }}
-                      />
+                      <div style={{ position: "relative" }}>
+                        <input
+                          id="password-input"
+                          type={showPwd ? "text" : "password"}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••••"
+                          required
+                          minLength={MIN_PASSWORD_LENGTH}
+                          autoComplete={isSigningUp ? "new-password" : "current-password"}
+                          style={{
+                            width: "100%",
+                            borderRadius: 8,
+                            border: "1px solid var(--color-outline-variant)",
+                            background: "var(--color-surface-container)",
+                            color: "var(--color-on-surface)",
+                            fontSize: 15,
+                            padding: "11px 44px 11px 14px",
+                            outline: "none",
+                            boxSizing: "border-box",
+                            fontFamily: "'Inter', system-ui, sans-serif",
+                            transition: "border-color 150ms",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = "var(--color-primary)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor = "var(--color-outline-variant)";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPwd((v) => !v)}
+                          aria-label={showPwd ? "Hide password" : "Show password"}
+                          aria-pressed={showPwd}
+                          className="press"
+                          style={{
+                            position: "absolute",
+                            top: "50%",
+                            right: 8,
+                            transform: "translateY(-50%)",
+                            background: "transparent",
+                            border: "none",
+                            padding: 8,
+                            cursor: "pointer",
+                            color: "var(--color-on-surface-variant)",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <EyeIcon open={showPwd} />
+                        </button>
+                      </div>
+                      {isSigningUp && <PasswordStrength password={password} />}
                     </div>
                     {error && (
                       <p
@@ -533,29 +686,50 @@ export default function LoginScreen({
                       margin: "0 0 12px",
                     }}
                   >
-                    We've sent a confirmation link to{" "}
-                    <strong style={{ color: "var(--color-on-surface)" }}>{email}</strong>.
+                    Confirmation link sent to{" "}
+                    <strong style={{ color: "var(--color-on-surface)" }}>{email}</strong> — should
+                    arrive in under a minute. Click it and you're in.
                   </p>
                   <p
                     style={{
-                      fontSize: 13,
+                      fontSize: 12,
                       color: "var(--color-on-surface-variant)",
                       lineHeight: 1.6,
-                      margin: "0 0 24px",
+                      margin: "0 0 20px",
+                      opacity: 0.85,
                     }}
                   >
-                    <strong style={{ color: "var(--color-on-surface)" }}>
-                      You must click that link before you can sign in.
-                    </strong>{" "}
-                    If you don't see it, check your spam folder.
+                    Nothing in the inbox? Check spam, or{" "}
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="xs"
+                      onClick={handleResend}
+                      disabled={loading}
+                      className="h-auto p-0 text-inherit"
+                      style={{ color: "var(--color-primary)" }}
+                    >
+                      {loading ? "sending…" : "resend the link"}
+                    </Button>
+                    .
                   </p>
-                  <Button onClick={goBackFromSuccess} size="lg" className="w-full">
-                    Back to sign in
-                  </Button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button
+                      onClick={goBackFromSuccess}
+                      variant="outline"
+                      size="lg"
+                      className="flex-1"
+                    >
+                      Use a different email
+                    </Button>
+                    <Button onClick={() => switchSignInMode(false)} size="lg" className="flex-1">
+                      I clicked it, sign in
+                    </Button>
+                  </div>
                 </div>
               )}
 
-              {/* ── Email form (magic link) ── */}
+              {/* ── Email form (magic link / OTP) ── */}
               {showForm && !sent && !usePassword && (
                 <>
                   <h2
@@ -568,7 +742,7 @@ export default function LoginScreen({
                       color: "var(--color-on-surface)",
                     }}
                   >
-                    Sign in
+                    {startSignup ? "Create your account" : "Sign in"}
                   </h2>
                   <p
                     style={{
@@ -577,7 +751,9 @@ export default function LoginScreen({
                       margin: "0 0 20px",
                     }}
                   >
-                    Enter your email and we'll send an access code.
+                    {startSignup
+                      ? "Enter your email and we'll send a 6-digit code to get you in."
+                      : "Enter your email and we'll send an access code."}
                   </p>
                   <form
                     onSubmit={handleSend}
@@ -601,9 +777,11 @@ export default function LoginScreen({
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="neural@email.com"
+                        placeholder="you@email.com"
                         required
                         autoFocus
+                        autoComplete="email"
+                        inputMode="email"
                         style={{
                           width: "100%",
                           borderRadius: 8,
@@ -644,7 +822,7 @@ export default function LoginScreen({
                         Back
                       </Button>
                       <Button type="submit" disabled={isDisabled} size="lg" className="flex-[2]">
-                        {loading ? "Sending…" : "Send access code"}
+                        {loading ? "Sending…" : "Send my code"}
                       </Button>
                     </div>
                   </form>
