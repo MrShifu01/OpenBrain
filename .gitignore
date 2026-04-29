@@ -72,3 +72,16 @@ playwright-report/
 # Lighthouse audit reports — large HTML, regenerated on demand
 .lighthouse/
 docs/everion-mind-for-notebooklm.md
+
+# Capacitor build artifacts (commit project scaffolding, ignore generated/local)
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/

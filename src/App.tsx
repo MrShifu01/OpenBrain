@@ -9,7 +9,9 @@ import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
+import NativeOfflineScreen from "./components/NativeOfflineScreen";
 import { Button } from "./components/ui/button";
+import { isNative } from "./lib/capacitorBridge";
 import type { Session } from "@supabase/auth-js";
 
 // Heavy code paths a first-paint visitor almost never hits — keep them out
@@ -61,6 +63,22 @@ function AppMain(): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+  // Native wrap only — track connectivity so the app can show a calm offline
+  // gate when there's no session and no internet (login can't proceed).
+  const [nativeOffline, setNativeOffline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") return false;
+    return isNative() && !navigator.onLine;
+  });
+  useEffect(() => {
+    if (!isNative()) return;
+    const sync = () => setNativeOffline(!navigator.onLine);
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
   const [earlyCapture, setEarlyCapture] = useState(false);
   const [earlyCaptureText, setEarlyCaptureText] = useState("");
   const [showLogin, setShowLogin] = useState(() => {
@@ -279,6 +297,12 @@ function AppMain(): JSX.Element {
             </svg>
           </Button>
         )}
+      </ThemeProvider>
+    );
+  if (!session && nativeOffline)
+    return (
+      <ThemeProvider>
+        <NativeOfflineScreen onRetry={() => setNativeOffline(!navigator.onLine)} />
       </ThemeProvider>
     );
   if (!session)

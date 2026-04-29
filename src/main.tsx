@@ -1,4 +1,4 @@
-import { StrictMode, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
@@ -14,6 +14,7 @@ import NotFound from "./views/NotFound";
 import { ConsentBanner, getConsentDecision } from "./components/ConsentBanner";
 import UpdatePrompt from "./components/UpdatePrompt";
 import { initPostHog } from "./lib/posthog";
+import { initCapacitorBridge, hideSplashScreen, isNative } from "./lib/capacitorBridge";
 
 // Paint the correct design family class on <html> before React mounts so the
 // first frame uses the right theme tokens.
@@ -52,11 +53,16 @@ if (getConsentDecision() === "accepted") {
 
 // When a new service worker takes control (after skipWaiting), reload so the
 // fresh chunks are served instead of the stale cached ones.
-if ("serviceWorker" in navigator) {
+// Native wrap doesn't use a SW (Capacitor serves bundled assets), so skip there.
+if ("serviceWorker" in navigator && !isNative()) {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     window.location.reload();
   });
 }
+
+// Capacitor wrap — register deep-link + native network listeners as early
+// as possible so a cold-start magic-link callback isn't dropped.
+void initCapacitorBridge();
 
 // Catch dynamic-import failures that happen outside React (e.g. an early
 // lazy() route chunk fails before any boundary mounts). Without this, the
@@ -102,6 +108,12 @@ const pathname = window.location.pathname;
 
 function Root() {
   const [consent, setConsent] = useState(() => getConsentDecision());
+
+  // Hide the native splash screen once the first render has committed.
+  // No-op on web; on iOS/Android this fades out the launch image.
+  useEffect(() => {
+    void hideSplashScreen();
+  }, []);
 
   function handleDecision(decision: "accepted" | "declined") {
     if (decision === "accepted") {

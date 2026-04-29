@@ -16,6 +16,13 @@ export default defineConfig([
     ".smashOS/**",
     ".worktrees/**",
     "graphify-out/**",
+    // Capacitor native shells — generated/native code, not part of the React app
+    "ios/**",
+    "android/**",
+    // Generated PWA icons output dir
+    "icons/**",
+    // Capacitor source assets (binary)
+    "assets/**",
   ]),
   {
     files: ["**/*.{ts,tsx}"],

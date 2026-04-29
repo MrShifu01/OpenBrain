@@ -224,9 +224,34 @@ export function useOfflineSync({ onEntryIdUpdate }: UseOfflineSyncOptions = {}) 
     const handleOffline = () => setIsOnline(false);
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+
+    // Inside the Capacitor wrap navigator.onLine is unreliable — subscribe to
+    // the native Network plugin too. Lazy-imported so the web bundle never
+    // pulls Capacitor in.
+    let nativeUnsub: (() => void) | undefined;
+    void (async () => {
+      try {
+        const { isNative } = await import("../lib/capacitorBridge");
+        if (!isNative()) return;
+        const { Network } = await import("@capacitor/network");
+        const initial = await Network.getStatus();
+        setIsOnline(initial.connected);
+        const handle = await Network.addListener("networkStatusChange", (status) => {
+          setIsOnline(status.connected);
+          if (status.connected) drain();
+        });
+        nativeUnsub = () => {
+          void handle.remove();
+        };
+      } catch {
+        /* not running natively or plugin missing — web fallback handles it */
+      }
+    })();
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      nativeUnsub?.();
     };
   }, [drain]);
 
