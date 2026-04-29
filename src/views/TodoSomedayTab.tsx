@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
+import { Button } from "../components/ui/button";
 import type { Entry } from "../types";
 import { isDone } from "./todoUtils";
 
@@ -947,26 +948,16 @@ function ChipWithMenu({
                   outline: 0,
                 }}
               />
-              <button
+              <Button
+                size="sm"
+                variant="moss"
                 onClick={() => {
                   onRename(draft);
                   setRenaming(false);
                 }}
-                className="press f-sans"
-                style={{
-                  height: 26,
-                  padding: "0 8px",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: "none",
-                  borderRadius: 6,
-                  background: "var(--moss, #4caf50)",
-                  color: "#fff",
-                  cursor: "pointer",
-                }}
               >
                 Save
-              </button>
+              </Button>
             </div>
           ) : confirmingDelete ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 6 }}>
@@ -983,43 +974,19 @@ function ChipWithMenu({
                 other tags but lose this one.
               </p>
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setConfirmingDelete(false)}
-                  className="press f-sans"
-                  style={{
-                    height: 26,
-                    padding: "0 10px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: "1px solid var(--line-soft)",
-                    borderRadius: 999,
-                    background: "var(--surface)",
-                    color: "var(--ink-soft)",
-                    cursor: "pointer",
-                  }}
-                >
+                <Button size="sm" variant="outline" onClick={() => setConfirmingDelete(false)}>
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
                   onClick={() => {
                     setConfirmingDelete(false);
                     onDelete();
                   }}
-                  className="press f-sans"
-                  style={{
-                    height: 26,
-                    padding: "0 10px",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: "none",
-                    borderRadius: 999,
-                    background: "var(--danger, #c44)",
-                    color: "#fff",
-                    cursor: "pointer",
-                  }}
                 >
                   Delete
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -1263,6 +1230,12 @@ function SomedayRow({
 // Full-width action button for the Done / Schedule / Drop trio. Each
 // instance flexes to 1 so the three buttons split the row evenly with
 // breathing room between them.
+// Thin wrappers around the shared <Button> primitive. They preserve the
+// tone-based call-site API (so existing JSX doesn't change), but every
+// pixel of the rendered button now comes from src/components/ui/button.tsx.
+// Migrating other files = the same pattern: map your local tone semantics
+// to one of the Button variants.
+
 function ActionBtn({
   label,
   onClick,
@@ -1274,41 +1247,25 @@ function ActionBtn({
   disabled?: boolean;
   tone: "ember" | "moss" | "ghost";
 }): JSX.Element {
-  const palettes = {
-    ember: { bg: "var(--ember)", fg: "var(--ember-ink)" },
-    moss: { bg: "var(--moss, #4caf50)", fg: "#fff" },
-    ghost: { bg: "transparent", fg: "var(--ink-faint)" },
-  } as const;
-  const p = palettes[tone];
+  const variant = tone === "ember" ? "default" : tone === "moss" ? "moss" : "outline";
   return (
-    <button
+    <Button
+      variant={variant}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
       disabled={disabled}
-      className="press f-sans"
-      style={{
-        flex: 1,
-        background: p.bg,
-        color: p.fg,
-        border: tone === "ghost" ? "1px solid var(--line-soft)" : "none",
-        borderRadius: 10,
-        padding: "10px 14px",
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-      }}
+      className="flex-1"
     >
       {label}
-    </button>
+    </Button>
   );
 }
 
-// Compact button — kept for ScheduleInline picker (Today / Tomorrow /
-// Next Mon / Set / Cancel) where a content-sized look reads better
-// than uniform-width.
+// Compact button for ScheduleInline picker (Today / Tomorrow / Next Mon /
+// Set / Cancel) where a content-sized look reads better than the uniform-
+// width ActionBtn.
 function SmallBtn({
   label,
   onClick,
@@ -1320,31 +1277,11 @@ function SmallBtn({
   disabled?: boolean;
   tone: "ember" | "moss" | "ghost";
 }): JSX.Element {
-  const palettes = {
-    ember: { bg: "var(--ember)", fg: "var(--ember-ink)" },
-    moss: { bg: "var(--moss, #4caf50)", fg: "#fff" },
-    ghost: { bg: "transparent", fg: "var(--ink-faint)" },
-  } as const;
-  const p = palettes[tone];
+  const variant = tone === "ember" ? "default" : tone === "moss" ? "moss" : "ghost";
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className="press f-sans"
-      style={{
-        background: p.bg,
-        color: p.fg,
-        border: tone === "ghost" ? "1px solid var(--line-soft)" : "none",
-        borderRadius: 8,
-        padding: "5px 12px",
-        fontSize: 12,
-        fontWeight: 600,
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.5 : 1,
-      }}
-    >
+    <Button variant={variant} size="sm" onClick={onClick} disabled={disabled}>
       {label}
-    </button>
+    </Button>
   );
 }
 
@@ -1565,25 +1502,9 @@ function SomedayQuickAdd({
           </option>
         ))}
       </select>
-      <button
-        type="submit"
-        disabled={!text.trim()}
-        className="press f-sans"
-        style={{
-          flexShrink: 0,
-          padding: "8px 16px",
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 600,
-          background: "var(--ember)",
-          color: "var(--ember-ink)",
-          border: "none",
-          cursor: !text.trim() ? "not-allowed" : "pointer",
-          opacity: !text.trim() ? 0.4 : 1,
-        }}
-      >
+      <Button type="submit" size="sm" disabled={!text.trim()}>
         Add
-      </button>
+      </Button>
     </form>
   );
 }
@@ -1663,41 +1584,16 @@ function SomedayBulkBar({
             {count} selected
           </span>
           <span style={{ flex: 1 }} />
-          <button
-            className="press f-sans"
+          <Button
+            size="xs"
+            variant="outline"
             onClick={allSelected ? onClearVisible : onSelectAllVisible}
-            style={{
-              height: 28,
-              padding: "0 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              border: "1px solid var(--line-soft)",
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--ink-soft)",
-              cursor: "pointer",
-            }}
           >
             {allSelected ? "Clear" : `Select all ${allVisibleCount}`}
-          </button>
-          <button
-            className="press f-sans"
-            onClick={onCancel}
-            aria-label="Cancel selection"
-            style={{
-              height: 28,
-              padding: "0 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              border: 0,
-              borderRadius: 8,
-              background: "transparent",
-              color: "var(--ink-faint)",
-              cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Button size="xs" variant="ghost" onClick={onCancel} aria-label="Cancel selection">
             Cancel
-          </button>
+          </Button>
         </div>
 
         {phase === "idle" && (
@@ -1750,68 +1646,34 @@ function SomedayBulkBar({
               Move {count} {count === 1 ? "item" : "items"} to…
             </p>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <button
-                className="press f-sans"
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
                 onClick={async () => {
                   await wrap(() => onAssignCategory(UNTAGGED));
                   setPhase("idle");
                 }}
-                disabled={busy}
-                style={{
-                  height: 30,
-                  padding: "0 12px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  border: "1px solid var(--line-soft)",
-                  borderRadius: 999,
-                  background: "var(--surface)",
-                  color: "var(--ink-soft)",
-                  cursor: "pointer",
-                }}
               >
                 Untagged
-              </button>
+              </Button>
               {knownTags.map((t) => (
-                <button
+                <Button
                   key={t}
-                  className="press f-sans"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
                   onClick={async () => {
                     await wrap(() => onAssignCategory(t));
                     setPhase("idle");
                   }}
-                  disabled={busy}
-                  style={{
-                    height: 30,
-                    padding: "0 12px",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    border: "1px solid var(--line-soft)",
-                    borderRadius: 999,
-                    background: "var(--surface)",
-                    color: "var(--ink)",
-                    cursor: "pointer",
-                  }}
                 >
                   {t}
-                </button>
+                </Button>
               ))}
-              <button
-                className="press f-sans"
-                onClick={() => setPhase("idle")}
-                style={{
-                  height: 30,
-                  padding: "0 12px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  border: 0,
-                  borderRadius: 999,
-                  background: "transparent",
-                  color: "var(--ink-faint)",
-                  cursor: "pointer",
-                }}
-              >
+              <Button size="sm" variant="ghost" onClick={() => setPhase("idle")}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -1825,45 +1687,20 @@ function SomedayBulkBar({
               Drop {count} {count === 1 ? "item" : "items"}? This deletes them.
             </p>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                className="press f-sans"
-                onClick={() => setPhase("idle")}
-                style={{
-                  height: 32,
-                  padding: "0 14px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: "1px solid var(--line-soft)",
-                  borderRadius: 999,
-                  background: "var(--surface)",
-                  color: "var(--ink-soft)",
-                  cursor: "pointer",
-                }}
-              >
+              <Button size="sm" variant="outline" onClick={() => setPhase("idle")}>
                 Cancel
-              </button>
-              <button
-                className="press f-sans"
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={busy}
                 onClick={async () => {
                   await wrap(onDrop);
                   setPhase("idle");
                 }}
-                disabled={busy}
-                style={{
-                  height: 32,
-                  padding: "0 14px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  border: 0,
-                  borderRadius: 999,
-                  background: "var(--danger, #c44)",
-                  color: "#fff",
-                  cursor: busy ? "not-allowed" : "pointer",
-                  opacity: busy ? 0.6 : 1,
-                }}
               >
                 {busy ? "Dropping…" : "Drop"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
