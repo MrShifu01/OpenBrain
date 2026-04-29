@@ -50,6 +50,8 @@ interface DebugPayload {
       parsed: boolean;
       has_insight: boolean;
       concepts_extracted: boolean;
+      has_concepts?: boolean;
+      concepts_count?: number;
       backfilled: boolean;
       embedded: boolean;
       embedding_status: string | null;
@@ -375,6 +377,8 @@ function FlagPills({
     parsed: boolean;
     has_insight: boolean;
     concepts_extracted: boolean;
+    has_concepts?: boolean;
+    concepts_count?: number;
     backfilled?: boolean;
     embedded?: boolean;
     embedding_status?: string | null;
@@ -417,12 +421,25 @@ function FlagPills({
       : flags.embedded
         ? "embedded"
         : "embedding pending";
+  // Honest concepts state: green only when concepts actually exist; amber
+  // when the step ran but produced zero (was stamped extracted=true but no
+  // concepts array landed); red when the step hasn't been attempted yet.
+  const conceptState: "on" | "off" | "warn" = flags.has_concepts
+    ? "on"
+    : flags.concepts_extracted
+      ? "warn"
+      : "off";
+  const conceptTitle = flags.has_concepts
+    ? `concepts (${flags.concepts_count ?? 0})`
+    : flags.concepts_extracted
+      ? "concepts attempted — LLM returned 0"
+      : "concepts pending";
 
   return (
     <span style={{ display: "inline-flex", gap: 3, flexShrink: 0 }}>
       {pill("P", flags.parsed ? "on" : "off", "parsed")}
       {pill("I", flags.has_insight ? "on" : "off", "insight")}
-      {pill("C", flags.concepts_extracted ? "on" : "off", "concepts")}
+      {pill("C", conceptState, conceptTitle)}
       {pill("E", embedState, embedTitle)}
       {flags.backfilled && pill("B", "on", "backfilled — not really enriched")}
     </span>

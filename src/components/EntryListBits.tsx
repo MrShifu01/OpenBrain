@@ -98,11 +98,24 @@ export function EnrichFlagChips({ entry }: { entry: Entry }) {
     : flags.embedded
       ? "embedded"
       : "embedding pending";
+  // Honest concepts state: green only when concepts were actually produced.
+  // Attempted-but-empty (LLM ran, returned 0 concepts) renders amber so the
+  // diagnostic doesn't lie about what's stored on the entry.
+  const conceptState: "on" | "off" | "warn" = flags.has_concepts
+    ? "on"
+    : flags.concepts_extracted
+      ? "warn"
+      : "off";
+  const conceptTitle = flags.has_concepts
+    ? `concepts (${flags.concepts_count})`
+    : flags.concepts_extracted
+      ? "concepts attempted — LLM returned 0"
+      : "concepts pending";
   return (
     <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }} aria-hidden="true">
       {chip("P", flags.parsed ? "on" : "off", "parsed")}
       {chip("I", flags.has_insight ? "on" : "off", "insight")}
-      {chip("C", flags.concepts_extracted ? "on" : "off", "concepts")}
+      {chip("C", conceptState, conceptTitle)}
       {chip("E", embedState, embedTitle)}
       {flags.backfilled && chip("B", "on", "backfilled — not really enriched")}
     </span>

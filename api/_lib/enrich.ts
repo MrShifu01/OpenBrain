@@ -654,29 +654,41 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
   const flags = flagsOf(entry);
   let changed = false;
   let workingMeta = entry.metadata ?? {};
+  // Track per-run failures so a thrown step still leaves a breadcrumb on the
+  // entry (last_error + attempts). Without this a transient 429 looks like
+  // "nothing ever happened" — the diagnostic UI can't distinguish "haven't
+  // tried" from "tried and crashed silently."
+  const stepErrors: string[] = [];
+  const runStep = async (
+    name: string,
+    fn: () => Promise<Record<string, any> | null>,
+  ): Promise<void> => {
+    try {
+      const next = await fn();
+      if (next) {
+        workingMeta = next;
+        changed = true;
+      }
+    } catch (err: any) {
+      const msg = String(err?.message ?? err).slice(0, 200);
+      stepErrors.push(`${name}: ${msg}`);
+      console.error(`[enrich:${name}]`, entryId, msg);
+    }
+  };
 
-  const llmCfg = await resolveProviderForUser(userId);
+  const llmCfg = await resolveProviderForUser(userId).catch((err: any) => {
+    stepErrors.push(`provider: ${String(err?.message ?? err).slice(0, 200)}`);
+    return null;
+  });
   if (llmCfg) {
     if (!flags.parsed) {
-      const next = await stepParse({ ...entry, metadata: workingMeta }, llmCfg);
-      if (next) {
-        workingMeta = next;
-        changed = true;
-      }
+      await runStep("parse", () => stepParse({ ...entry, metadata: workingMeta }, llmCfg));
     }
     if (!flags.has_insight) {
-      const next = await stepInsight({ ...entry, metadata: workingMeta }, llmCfg);
-      if (next) {
-        workingMeta = next;
-        changed = true;
-      }
+      await runStep("insight", () => stepInsight({ ...entry, metadata: workingMeta }, llmCfg));
     }
     if (!flags.concepts_extracted) {
-      const next = await stepConcepts({ ...entry, metadata: workingMeta }, llmCfg);
-      if (next) {
-        workingMeta = next;
-        changed = true;
-      }
+      await runStep("concepts", () => stepConcepts({ ...entry, metadata: workingMeta }, llmCfg));
     }
   }
 
@@ -684,26 +696,60 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
   // as new type='persona' rows linked back via metadata.derived_from. The
   // source entry's type/tags are NEVER touched; only its metadata is stamped
   // with persona_extracted=true so the step doesn't re-run.
-  const brainId = await fetchBrainIdForEntry(entry.id);
-  const stamped = await stepPersonaExtract(
-    { ...entry, metadata: workingMeta },
-    userId,
-    brainId,
-    null,
-  ).catch(() => null);
-  if (stamped) {
-    workingMeta = stamped;
+  const brainId = await fetchBrainIdForEntry(entry.id).catch((err: any) => {
+    stepErrors.push(`fetch-brain: ${String(err?.message ?? err).slice(0, 200)}`);
+    return null as string | null;
+  });
+  if (brainId) {
+    await runStep("persona", () =>
+      stepPersonaExtract({ ...entry, metadata: workingMeta }, userId, brainId, null),
+    );
+  }
+
+  // Stamp per-run breadcrumbs even if no step succeeded — without this an
+  // entry that 429'd on every step would look like "nothing ever happened"
+  // in the diagnostic UI. attempts is a running counter; last_error is the
+  // joined messages from this run's failures (capped to keep metadata small).
+  if (stepErrors.length > 0) {
+    const prevEnr = (workingMeta as any).enrichment ?? {};
+    workingMeta = {
+      ...workingMeta,
+      enrichment: {
+        ...prevEnr,
+        attempts: ((prevEnr.attempts as number | undefined) ?? 0) + 1,
+        last_attempt_at: new Date().toISOString(),
+        last_error: stepErrors.join(" · ").slice(0, 500),
+      },
+    };
     changed = true;
+  } else if (changed) {
+    // Successful run — clear any previous error so the entry isn't tagged
+    // with stale failure context after recovering.
+    const prevEnr = (workingMeta as any).enrichment ?? {};
+    if (prevEnr.last_error) {
+      workingMeta = {
+        ...workingMeta,
+        enrichment: {
+          ...prevEnr,
+          last_error: null,
+          last_attempt_at: new Date().toISOString(),
+        },
+      };
+    }
   }
 
   if (changed) await patchMetadata(entry.id, userId, workingMeta, null);
 
   // Embedding is independent of the LLM provider.
   if (!flags.embedded && flags.embedding_status !== "failed") {
-    const embedCfg = await resolveEmbedProviderForUser(userId);
+    const embedCfg = await resolveEmbedProviderForUser(userId).catch(() => null);
     if (embedCfg) {
-      await stepEmbed({ ...entry, metadata: workingMeta }, embedCfg);
-      changed = true;
+      try {
+        await stepEmbed({ ...entry, metadata: workingMeta }, embedCfg);
+        changed = true;
+      } catch (err: any) {
+        console.error(`[enrich:embed]`, entryId, String(err?.message ?? err).slice(0, 200));
+      }
     }
   }
 
@@ -719,7 +765,8 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
 export async function enrichBrain(
   userId: string,
   brainId: string,
-  batchSize = 5,
+  batchSize = 50,
+  timeBudgetMs = 240_000,
 ): Promise<{ processed: number; remaining: number }> {
   const r = await fetch(
     `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=200`,
@@ -739,16 +786,29 @@ export async function enrichBrain(
     return !f.parsed || !f.has_insight || !f.concepts_extracted || !f.embedded;
   });
 
+  // Time-budget guard: each enrichInline can do up to ~4 LLM calls and an
+  // embed, so a 50-entry batch can chew through real wallclock. Bail out
+  // before the function-level timeout (Vercel max 300s on this path) so the
+  // cron's other steps — Gmail scan, persona decay, admin push — still run.
+  const deadline = Date.now() + timeBudgetMs;
   const batch = pending.slice(0, batchSize);
   let processed = 0;
+  let stoppedEarly = false;
   for (const entry of batch) {
+    if (Date.now() > deadline) {
+      stoppedEarly = true;
+      break;
+    }
     const changed = await enrichInline(entry.id, userId).catch((err: any) => {
       console.error("[enrich:brain] entry failed:", entry.id, err?.message ?? err);
       return false;
     });
     if (changed) processed++;
   }
-  return { processed, remaining: pending.length - batch.length };
+  const remaining = stoppedEarly
+    ? pending.length - processed
+    : pending.length - batch.length;
+  return { processed, remaining };
 }
 
 // ── Public: backfillPersonaForBrain ─────────────────────────────────────────
@@ -1377,11 +1437,22 @@ export async function enrichAllBrains(): Promise<{ brains: number; processed: nu
   if (!r.ok) return { brains: 0, processed: 0 };
   const brains: { id: string; owner_id: string }[] = await r.json();
   let totalProcessed = 0;
+  // Daily catch-up needs to keep up with users who capture 10–30/day on a
+  // free-tier Gemini key. The previous batchSize=3 left them permanently
+  // behind. Share a 240s wallclock budget across all brains so a single
+  // chatty brain can't starve the others.
+  const PER_RUN_BUDGET_MS = 240_000;
+  const startedAt = Date.now();
   for (const brain of brains) {
-    const { processed } = await enrichBrain(brain.owner_id, brain.id, 3).catch(() => ({
-      processed: 0,
-      remaining: 0,
-    }));
+    const remainingBudget = Math.max(0, PER_RUN_BUDGET_MS - (Date.now() - startedAt));
+    if (remainingBudget < 5_000) break; // not enough left to make progress
+    const perBrainBudget = Math.min(remainingBudget, 60_000);
+    const { processed } = await enrichBrain(brain.owner_id, brain.id, 50, perBrainBudget).catch(
+      () => ({
+        processed: 0,
+        remaining: 0,
+      }),
+    );
     totalProcessed += processed;
   }
   return { brains: brains.length, processed: totalProcessed };

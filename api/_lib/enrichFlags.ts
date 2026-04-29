@@ -20,7 +20,15 @@
 interface EnrichmentFlags {
   parsed: boolean;
   has_insight: boolean;
+  /** True once the concepts step has been attempted (gates pipeline re-runs).
+   *  ⚠ This does NOT mean concepts were actually produced — see has_concepts. */
   concepts_extracted: boolean;
+  /** True only when the entry has at least one concept stored. Use this for
+   *  user-facing "is this enriched?" UI; an entry can have concepts_extracted
+   *  but zero concepts when the LLM returned an empty array. */
+  has_concepts: boolean;
+  /** Count of concepts actually stored on the entry. */
+  concepts_count: number;
   embedded: boolean;
   /** "done" | "pending" | "failed" | null — surfaces the embedding state for the UI. */
   embedding_status: "done" | "pending" | "failed" | null;
@@ -39,6 +47,7 @@ export function flagsOf(entry: EntryShape): EnrichmentFlags {
   const meta = entry.metadata ?? {};
   const enr = meta.enrichment ?? {};
   const embeddingStatus = (entry.embedding_status as EnrichmentFlags["embedding_status"]) ?? null;
+  const conceptsCount = Array.isArray(meta.concepts) ? meta.concepts.length : 0;
   // Persona entries are tiny single-sentence facts. Parse / insight /
   // concepts don't apply — the extractor IS the enrichment for them.
   // Treat the LLM flags as permanently satisfied so the chips render
@@ -49,6 +58,8 @@ export function flagsOf(entry: EntryShape): EnrichmentFlags {
     parsed: isPersona || enr.parsed === true,
     has_insight: isPersona || enr.has_insight === true,
     concepts_extracted: isPersona || enr.concepts_extracted === true,
+    has_concepts: isPersona || conceptsCount > 0,
+    concepts_count: conceptsCount,
     embedded: embeddingStatus === "done" || !!entry.embedded_at,
     embedding_status: embeddingStatus,
     backfilled: !!enr.backfilled_at,

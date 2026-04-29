@@ -834,13 +834,21 @@ async function handleEnrichDebug({ req, res, user }: HandlerContext): Promise<vo
     if (diff !== 0) return diff;
     return String(b.created_at).localeCompare(String(a.created_at));
   });
-  const recent = ranked.slice(0, 12).map((e) => ({
-    id: e.id,
-    title: e.title,
-    type: e.type,
-    created_at: e.created_at,
-    flags: flagsOf(e),
-  }));
+  const recent = ranked.slice(0, 12).map((e) => {
+    const enr = ((e.metadata as any) ?? {}).enrichment ?? {};
+    return {
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      created_at: e.created_at,
+      flags: flagsOf(e),
+      // Surface the per-run breadcrumbs the pipeline now stamps so admins can
+      // tell "transient 429" from "never attempted" without having to query SQL.
+      last_error: typeof enr.last_error === "string" ? enr.last_error : null,
+      attempts: typeof enr.attempts === "number" ? enr.attempts : 0,
+      last_attempt_at: typeof enr.last_attempt_at === "string" ? enr.last_attempt_at : null,
+    };
+  });
 
   res.status(200).json({
     providers: {
