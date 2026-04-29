@@ -11,7 +11,6 @@ import { inferWorkspace } from "./lib/workspaceInfer";
 import { EntriesContext } from "./context/EntriesContext";
 import { BrainContext } from "./context/BrainContext";
 import { ConceptGraphProvider, useConceptGraph } from "./context/ConceptGraphContext";
-import { UndoToast } from "./components/UndoToast";
 import { NudgeBanner } from "./components/NudgeBanner";
 import { UsageWarningBanner } from "./components/UsageWarningBanner";
 import { BackgroundTaskToast } from "./components/BackgroundTaskToast";
@@ -195,6 +194,36 @@ function EverionContent({
       toast.dismiss(id);
     };
   }, [saveError, setSaveError]);
+
+  // Soft-delete undo — replaces the bespoke <UndoToast/> component with a
+  // Sonner action toast. lastAction.type === "delete" means an entry has
+  // been removed from the in-memory list but the DB row hasn't been hard-
+  // deleted yet (commitPendingDelete fires when the toast auto-closes).
+  // 5-second window matches the previous UNDO_TOAST_MUTATE_MS duration.
+  useEffect(() => {
+    if (!lastAction || lastAction.type !== "delete") return;
+    const id = toast("Entry deleted", {
+      duration: 5000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          handleUndo();
+          setLastAction(null);
+        },
+      },
+      onAutoClose: () => {
+        commitPendingDelete();
+        setLastAction(null);
+      },
+      onDismiss: () => {
+        commitPendingDelete();
+        setLastAction(null);
+      },
+    });
+    return () => {
+      toast.dismiss(id);
+    };
+  }, [lastAction, handleUndo, commitPendingDelete, setLastAction]);
 
   const handleEntrySelect = useCallback(
     (entry: Entry) => {
@@ -852,17 +881,6 @@ function EverionContent({
               />
             )}
           </Suspense>
-
-          {lastAction && lastAction.type === "delete" && (
-            <UndoToast
-              action={lastAction}
-              onUndo={handleUndo}
-              onDismiss={() => {
-                if (lastAction.type === "delete") commitPendingDelete();
-                setLastAction(null);
-              }}
-            />
-          )}
 
           <BackgroundTaskToast
             tasks={bgTasks}

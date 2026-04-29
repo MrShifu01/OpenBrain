@@ -179,14 +179,14 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 **Phase 2 — Stateful primitives (medium risk)** ❌
 
 - [ ] **DropdownMenu / Select / Popover** — 45+ custom dropdowns. Replaces manual escape/click-outside in `BrainSwitcher.tsx`, `OmniSearch.tsx`, recategorise picker, sort picker, model/tier/bucket pickers. Adds proper keyboard nav (arrows / Home / End / typeahead).
-- [ ] **Sonner (toast library)** — kills 6 toast files: `UpdatePrompt.tsx`, `BackgroundTaskToast.tsx`, `BackgroundOpsToast.tsx`, `UndoToast.tsx`, `NudgeBanner.tsx`, `ConsentBanner.tsx`. Single queue + stacking + dismiss for free.
+- [x] **Sonner (toast library)** 🟡 — Toaster mounted in Everion.tsx; partial migration shipped. ✅ `UndoToast.tsx` (deleted, replaced with sonner action toast in Everion.tsx); `UpdatePrompt.tsx` (rewritten to fire sonner from a no-render component). ❌ remaining: `BackgroundTaskToast.tsx` + `BackgroundOpsToast.tsx` (complex running/done/error progress state — needs careful `toast.loading()` → `toast.success()` update flow per task ID, deferred). ⚠ NOT toast targets: `ConsentBanner.tsx` (legal GDPR consent dialog with external links; stays); `NudgeBanner.tsx` (inline persistent banner, not transient; stays).
 - [ ] **Tooltip** — currently <5 native `title` attrs. Add tooltips to icon buttons across header, bulk bar, settings.
 - [ ] **Accordion** — 8 `[expanded, setExpanded]` patterns in settings tabs + bulk bar. Adds smooth height animation + ARIA.
 - [ ] **Calendar + Popover** — replace 3 native `<input type="date">` instances in `TodoCalendarTab` + `ScheduleInline`.
 
 **Phase 3 — High-touch (high risk, requires care)** ❌
 
-- [ ] **Dialog** — migrate 7 `FocusTrap`-wrapped modals: `CaptureSheet.tsx`, `OnboardingModal.tsx`, `MoveToBrainModal.tsx`, `CreateBrainModal.tsx`, `VaultRevealModal.tsx`, `DetailModal.tsx`, `settings/ProfileTab.tsx`. shadcn `Dialog` handles focus trap natively → removes `focus-trap-react` dep + ~200 lines of manual escape/scroll-lock plumbing.
+- [ ] **Dialog** — 4 of 7 modals already migrated (`OnboardingModal`, `MoveToBrainModal`, `CreateBrainModal`, `VaultRevealModal`). 3 still use `focus-trap-react`: `CaptureSheet.tsx`, `views/DetailModal.tsx`, `components/settings/ProfileTab.tsx`. Each is a critical user path with custom escape / scroll-lock / return-focus behaviour — migrate one per session with real-device QA, not in a sweep. Removing `focus-trap-react` only happens once all three move.
 - [ ] **Sheet (vaul)** — replace `CaptureSheet.tsx` drag-to-close. shadcn's `Drawer` uses `vaul` which has rubber-band easing, threshold-based dismiss, and body scroll lock built in. Port the existing 80px threshold + 200px rubber-band tuning.
 - [ ] **Command (cmdk)** — replace `OmniSearch.tsx` custom popover with proper command palette (typeahead, fuzzy match, kbd shortcuts).
 - [x] **window.confirm() removals** ✅ — both already replaced with branded inline UI (BulkActionBar two-tap pattern; settings/ProfileTab uses ConfirmDialog portal). Verified 2026-04-29.
