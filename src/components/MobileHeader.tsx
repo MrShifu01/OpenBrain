@@ -99,20 +99,15 @@ export default function MobileHeader({
     >
       {/* Left: brand + brain */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-        <svg
-          width={16}
-          height={16}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="var(--ink)"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <img
+          src="/logoNew.webp"
+          width={20}
+          height={20}
+          alt=""
           aria-hidden="true"
-          style={{ flexShrink: 0 }}
-        >
-          <path d="M8.5 3a3.5 3.5 0 0 0-3.5 3.5c-1.5.5-2.5 2-2.5 3.5 0 1 .5 2 1.5 2.5-.5.8-.5 2 0 3 .3.6.8 1 1.5 1.3-.2.9.1 2 .8 2.7.8.7 2 1 3 .5.3 1 1.3 2 2.7 2A2.5 2.5 0 0 0 14.5 20V4.5A1.5 1.5 0 0 0 13 3M15.5 3A3.5 3.5 0 0 1 19 6.5c1.5.5 2.5 2 2.5 3.5 0 1-.5 2-1.5 2.5.5.8.5 2 0 3-.3.6-.8 1-1.5 1.3.2.9-.1 2-.8 2.7-.8.7-2 1-3 .5-.3 1-1.3 2-2.7 2A2.5 2.5 0 0 1 9.5 20V4.5A1.5 1.5 0 0 1 11 3" />
-        </svg>
+          decoding="async"
+          style={{ flexShrink: 0, objectFit: "contain", display: "block" }}
+        />
         <span
           className="f-serif"
           style={{ fontSize: 17, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}

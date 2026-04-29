@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "../components/ui/button";
 import ExitIntentSlideIn from "../components/ExitIntentSlideIn";
+import { useDocumentMeta } from "../hooks/useDocumentMeta";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface LandingProps {
@@ -634,6 +635,12 @@ function FooterCol({
 }
 
 export default function Landing({ onAuth }: LandingProps) {
+  useDocumentMeta({
+    title: "Everion — your second memory, quietly kept.",
+    description:
+      "One private place for the thoughts you'd lose and the facts you can't afford to — gate codes, policy numbers, half-formed ideas, and everything in between. Capture in one tap, recall by asking. Local-first, end-to-end encrypted.",
+    canonical: "https://everionmind.com/",
+  });
   const [typed, setTyped] = useState("");
   const phrases = useMemo(
     () => [
@@ -737,6 +744,15 @@ export default function Landing({ onAuth }: LandingProps) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img
+            src="/logoNew.webp"
+            width={26}
+            height={26}
+            alt=""
+            aria-hidden="true"
+            decoding="async"
+            style={{ flexShrink: 0, objectFit: "contain", display: "block" }}
+          />
           <span
             className="f-serif"
             style={{
