@@ -1003,7 +1003,7 @@ function BottomSheet({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 60,
+        zIndex: "var(--z-fullscreen)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
@@ -1094,7 +1094,7 @@ function FloatingActionButton({ onClick }: { onClick: () => void }) {
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 40,
+        zIndex: "var(--z-dropdown)",
       }}
     >
       <svg

@@ -913,7 +913,7 @@ function ChipWithMenu({
             position: "absolute",
             top: 32,
             left: 0,
-            zIndex: 20,
+            zIndex: "var(--z-sticky)",
             minWidth: 200,
             background: "var(--surface)",
             border: "1px solid var(--line-soft)",
@@ -1605,7 +1605,7 @@ function SomedayBulkBar({
         left: "50%",
         transform: "translateX(-50%)",
         bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
-        zIndex: 55,
+        zIndex: "var(--z-fab)",
         width: "min(96vw, 520px)",
       }}
     >

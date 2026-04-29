@@ -184,7 +184,7 @@ export default function BulkActionBar({
           className="fixed left-1/2 -translate-x-1/2"
           style={{
             bottom: "calc(68px + env(safe-area-inset-bottom))",
-            zIndex: 55,
+            zIndex: "var(--z-fab)",
             width: "auto",
             maxWidth: "92vw",
           }}
@@ -230,7 +230,7 @@ export default function BulkActionBar({
         className="fixed left-1/2 -translate-x-1/2"
         style={{
           bottom: "calc(68px + env(safe-area-inset-bottom))",
-          zIndex: 55,
+          zIndex: "var(--z-fab)",
           width: "auto",
           maxWidth: "92vw",
         }}
@@ -327,7 +327,7 @@ export default function BulkActionBar({
       style={{
         // Match the collapsed pill's clearance from BottomNav.
         bottom: "calc(68px + env(safe-area-inset-bottom))",
-        zIndex: 55,
+        zIndex: "var(--z-fab)",
         width: "min(92vw, 480px)",
       }}
     >

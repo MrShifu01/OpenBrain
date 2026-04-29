@@ -115,6 +115,23 @@
   --shadow-lg: 0 12px 32px oklch(5% 0.01 60 / 0.5), 0 4px 8px oklch(5% 0.01 60 / 0.3);
   --shadow-nav: 0 20px 40px oklch(5% 0.01 60 / 0.45), 0 0 24px oklch(58% 0.022 75 / 0.15);
 
+  /* Z-index — semantic stacking layers. Use these tokens; never hardcode.
+     Values are spaced by ~10 so a one-off "between X and Y" insert is rare
+     and obvious when it happens. */
+  --z-base: 0; /* default content */
+  --z-raised: 10; /* in-flow popovers, sticky non-nav */
+  --z-sticky: 20; /* sticky page headers, landing nav */
+  --z-dropdown: 40; /* in-page dropdowns (calendar drawer backdrop) */
+  --z-nav: 50; /* bottom nav, persistent chrome */
+  --z-fab: 55; /* FAB, bulk action bar */
+  --z-fullscreen: 60; /* full-screen takeovers (CaptureSheet, GraphView fullscreen) */
+  --z-modal-backdrop: 70; /* modal backdrops */
+  --z-slide-in: 80; /* slide-in panels (exit-intent) */
+  --z-loading: 100; /* loading overlays */
+  --z-toast: 200; /* toasts and ephemeral notifications */
+  --z-update-prompt: 250; /* SW update prompt — sits above toasts */
+  --z-native-overlay: 9999; /* native-wrap full-page screens */
+
   /* Motion */
   --dur-fast: 160ms;
   --dur-med: 240ms;

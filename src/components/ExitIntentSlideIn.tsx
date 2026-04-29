@@ -171,7 +171,7 @@ export default function ExitIntentSlideIn() {
         bottom: 24,
         right: 24,
         width: "min(360px, calc(100vw - 32px))",
-        zIndex: 80,
+        zIndex: "var(--z-slide-in)",
         background: "var(--surface)",
         border: "1px solid var(--line)",
         borderRadius: 16,

@@ -148,7 +148,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 9999,
+          zIndex: "var(--z-native-overlay)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -222,7 +222,7 @@ export default function GmailScanReviewModal({ items, onClose }: Props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9999,
+        zIndex: "var(--z-native-overlay)",
         display: "flex",
         flexDirection: "column",
         background: "oklch(14% 0.012 55 / 0.92)",

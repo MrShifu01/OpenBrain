@@ -212,7 +212,7 @@ function AppMain(): JSX.Element {
             style={{
               position: "fixed",
               inset: 0,
-              zIndex: 70,
+              zIndex: "var(--z-modal-backdrop)",
               background: "var(--color-background, #0e0e0e)",
               display: "flex",
               flexDirection: "column",
@@ -360,7 +360,7 @@ function AppMain(): JSX.Element {
                 top: 0,
                 left: 0,
                 right: 0,
-                zIndex: 9999,
+                zIndex: "var(--z-native-overlay)",
                 background: "var(--color-surface)",
                 borderBottom: "1px solid var(--color-primary-container)",
                 color: "var(--color-primary)",

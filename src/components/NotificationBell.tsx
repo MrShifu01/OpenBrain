@@ -463,7 +463,7 @@ export default function NotificationBell({
             border: "1px solid var(--line-soft)",
             borderRadius: 14,
             boxShadow: "var(--lift-3)",
-            zIndex: 200,
+            zIndex: "var(--z-toast)",
           }}
         >
           {/* Header */}

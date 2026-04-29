@@ -275,7 +275,7 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
             border: "1px solid var(--line)",
             borderRadius: 10,
             padding: "10px 20px",
-            zIndex: 200,
+            zIndex: "var(--z-toast)",
             fontSize: 14,
             fontStyle: "italic",
             color: "var(--ink-soft)",

@@ -35,7 +35,7 @@ export default function NativeOfflineScreen({ onRetry }: NativeOfflineScreenProp
         justifyContent: "center",
         padding: "max(env(safe-area-inset-top), 24px) 24px max(env(safe-area-inset-bottom), 24px)",
         background: "var(--bg, #FAF6EF)",
-        zIndex: 9999,
+        zIndex: "var(--z-native-overlay)",
       }}
       role="alert"
       aria-live="polite"

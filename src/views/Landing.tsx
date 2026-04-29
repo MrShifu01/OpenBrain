@@ -741,7 +741,7 @@ export default function Landing({ onAuth }: LandingProps) {
         style={{
           position: "sticky",
           top: 0,
-          zIndex: 20,
+          zIndex: "var(--z-sticky)",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",

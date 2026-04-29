@@ -403,7 +403,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           // up flush with the viewport top.
           position: "sticky",
           top: "var(--app-header-h, calc(56px + env(safe-area-inset-top, 0px)))",
-          zIndex: 20,
+          zIndex: "var(--z-sticky)",
           transition: "top 220ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >

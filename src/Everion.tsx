@@ -289,7 +289,7 @@ function EverionContent({
           position: "fixed",
           top: 8,
           left: 8,
-          zIndex: 9999,
+          zIndex: "var(--z-native-overlay)",
           padding: "8px 14px",
           background: "var(--ember-wash)",
           color: "var(--ember)",

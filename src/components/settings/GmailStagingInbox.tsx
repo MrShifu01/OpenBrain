@@ -234,7 +234,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   const overlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
-    zIndex: 9999,
+    zIndex: "var(--z-native-overlay)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -347,7 +347,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
           transform: `translateX(${dragX}px) rotate(${dragX * 0.04}deg)`,
           transition: cardTransition,
           boxShadow: "0 8px 32px oklch(0% 0 0 / 0.18)",
-          zIndex: 10001,
+          zIndex: "calc(var(--z-native-overlay) + 2)",
         }}
       >
         {/* Counter + enrichment status */}

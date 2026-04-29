@@ -562,9 +562,9 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
             background: "var(--bg)",
             border: "1px solid var(--line-soft)",
             borderRadius: 8,
-            boxShadow: "0 10px 32px rgba(0,0,0,0.18)",
+            boxShadow: "var(--shadow-lg)",
             padding: 4,
-            zIndex: 60,
+            zIndex: "var(--z-fullscreen)",
           }}
         >
           {sorted.map((b) => {
