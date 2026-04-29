@@ -8,28 +8,25 @@ a one-line *why this is worth a writeup*.
 **Done:**
 - ✅ [Notification Bell](bell.md) — `src/components/NotificationBell.tsx`
 - ✅ [Capture pipeline](capture.md) — `CaptureSheet.tsx` + `useCaptureSheetParse.ts` + `api/capture.ts`
+- ✅ [Enrichment pipeline](enrich.md) — `api/_lib/enrich.ts` + `enrichFlags.ts` + PICE chips
 
 ---
 
 ## Tier 1 — Cross-cutting hubs (do these first)
 
-### 1. Enrichment pipeline
-**Files:** `api/_lib/enrich.ts` + `api/_lib/enrichFlags.ts` + `src/lib/enrichFlags.ts` + `src/components/EntryListBits.tsx` + `src/components/settings/AITab.tsx` + cron paths
-**Why:** Five-step pipeline (parse → insight → concepts → embed → persona) with two providers (Gemini + Anthropic), three triggers (capture-time inline / daily cron / Run-now in Settings), per-step error breadcrumbs, time-budget guard, and the four-letter PICE diagnostic UI. Just refactored — fresh in memory and the bug surface is dense.
-
-### 2. Gmail sync flow
+### 1. Gmail sync flow
 **Files:** `api/_lib/gmailScan.ts` (2088 lines!) + `api/gmail.ts` + `src/components/settings/GmailSyncTab.tsx` + `GmailStagingInbox.tsx` + `GmailSetupModal.tsx` + `GmailScanReviewModal.tsx`
 **Why:** OAuth → cron-pulled inbox → categorize → cluster ~95% similar emails → stage → user review (swipe / cluster review) → accept-reject signals → distillation feeds the next scan's prompt. Staged-count bug, swipe-stale-state bug, category-prefs bug, and the daily-cron failure-to-fire all happened in this one flow this week alone.
 
-### 3. Workflows / cron pipelines (full sweep)
+### 2. Workflows / cron pipelines (full sweep)
 **Files:** `.github/workflows/*.yml` (8 files: ci, cron-daily, cron-hourly, db-backup, e2e, lighthouse, test-push, weekly-roll-up) + the `/api/cron/*` handlers in `api/user-data.ts`
 **Why:** All scheduled work runs from GitHub Actions (replacing Vercel Hobby cron). Each workflow has its own auth, retry, and failure model. The cron-daily 04:00 UTC schedule has only ever fired once manually — worth documenting what the schedules actually trigger, what the failure modes look like, and how to verify they ran.
 
-### 4. Auth + tier gating + rate limits
+### 3. Auth + tier gating + rate limits
 **Files:** `api/_lib/withAuth.ts` + `verifyAuth.ts` + `rateLimit.ts` + `usage.ts` + `resolveProviderForUser` + Stripe tier sync
 **Why:** Every API call goes through this stack. Tier limits, rate limits, RLS, BYOK provider resolution, and the user_usage 406 bug we know about all live here. Documenting it once means future endpoint authors don't reinvent the wheel.
 
-### 5. Memory / retrieval
+### 4. Memory / retrieval
 **Files:** `api/_lib/retrievalCore.ts` + `api/memory-api.ts` + `api/_lib/promptContext.ts` + `src/lib/conceptGraph.ts`
 **Why:** Hybrid vector + keyword retrieval feeding Chat, MCP, and search. Persona-fact injection, recency boosting, brain scoping. The thing that makes Everion's chat feel "smart" — and the place where retrieval bugs surface as "why didn't it find X?".
 
@@ -122,17 +119,16 @@ a one-line *why this is worth a writeup*.
 
 If we work through this systematically, the highest-leverage remaining path is:
 
-1. **Enrichment pipeline** (Tier 1.1) — fresh refactor context
-2. **Gmail sync flow** (Tier 1.2) — most active bug surface
-3. **Workflows + cron** (Tier 1.3) — silent failure mode, worth pinning down
-4. **Auth + tier + rate** (Tier 1.4) — every endpoint touches it
-5. **Vault** (Tier 2.8) — security-critical, document while design intent is clear
-6. **Schedule engine** (Tier 2.9) — already has an inspector tool because of complexity
-7. **Persona pipeline** (Tier 2.10) — quietly powerful, easily mis-tuned
+1. **Gmail sync flow** (Tier 1.1) — most active bug surface
+2. **Workflows + cron** (Tier 1.2) — silent failure mode, worth pinning down
+3. **Auth + tier + rate** (Tier 1.3) — every endpoint touches it
+4. **Vault** (Tier 2.8) — security-critical, document while design intent is clear
+5. **Schedule engine** (Tier 2.9) — already has an inspector tool because of complexity
+6. **Persona pipeline** (Tier 2.10) — quietly powerful, easily mis-tuned
 
-Each takes ~30 min to write at `bell.md` density. Seven more = a
+Each takes ~30 min to write at `bell.md` density. Six more = a
 roughly-complete handbook that covers 80% of where bugs and feature
-decisions actually happen (Bell + Capture already done).
+decisions actually happen (Bell + Capture + Enrich already done).
 
 ---
 
