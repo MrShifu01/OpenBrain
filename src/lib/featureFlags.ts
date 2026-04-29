@@ -18,6 +18,11 @@ export const FEATURE_FLAGS = {
     prodEnabled: import.meta.env.VITE_FEATURE_TIMELINE === "true",
   },
   vault: { label: "Vault", icon: "🔐", prodEnabled: import.meta.env.VITE_FEATURE_VAULT === "true" },
+  importantMemories: {
+    label: "Important Memories",
+    icon: "★",
+    prodEnabled: import.meta.env.VITE_FEATURE_IMPORTANT_MEMORIES === "true",
+  },
   someday: {
     label: "Someday list",
     icon: "∞",

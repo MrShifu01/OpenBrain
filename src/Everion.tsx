@@ -75,6 +75,7 @@ function lazyRetry(fn: () => Promise<any>) {
 const TodoView = lazyRetry(() => import("./views/TodoView"));
 const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
+const ImportantMemoriesView = lazyRetry(() => import("./views/ImportantMemoriesView"));
 const ChatView = lazyRetry(() => import("./views/ChatView"));
 const VaultRevealModal = lazyRetry(() => import("./components/VaultRevealModal"));
 function Loader() {
@@ -90,6 +91,7 @@ const NAV_VIEWS = [
   { id: "chat", l: "Chat", ic: "💬" },
   { id: "graph", l: "Graph", ic: "✦" },
   { id: "todos", l: "Schedule", ic: "✓" },
+  { id: "memories", l: "Important", ic: "★" },
   { id: "vault", l: "Vault", ic: "🔐" },
 ];
 
@@ -723,6 +725,18 @@ function EverionContent({
                     activeBrainId={activeBrain?.id}
                     somedayEnabled={ff("someday")}
                   />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+            {appShell.view === "memories" && ff("importantMemories") && (
+              <ErrorBoundary
+                name="ImportantMemoriesView"
+                fallback={(error, reset) => (
+                  <ViewError view="Important" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <ImportantMemoriesView brainId={activeBrain?.id} />
                 </Suspense>
               </ErrorBoundary>
             )}

@@ -648,18 +648,18 @@ export default function Landing({ onAuth }: LandingProps) {
   useDocumentMeta({
     title: "Everion — your second memory, quietly kept.",
     description:
-      "One private place for the thoughts you'd lose and the facts you can't afford to — gate codes, policy numbers, half-formed ideas, and everything in between. Capture in one tap, recall by asking. Local-first, end-to-end encrypted.",
+      "One private place for everything worth remembering — meeting notes, decisions, half-formed ideas, the customer insight from last quarter. Capture in one tap, recall by asking. Encrypted vault for the few real secrets — passwords, cards, recovery codes.",
     canonical: "https://everionmind.com/",
   });
   const [typed, setTyped] = useState("");
   const phrases = useMemo(
     () => [
-      "the gate code Mom always forgets…",
-      "where I hid the spare key for the Cape Town place…",
-      "the car insurance policy number — and the renewal date…",
       "the thing the customer said on Tuesday's call I keep coming back to…",
-      "Dad's medical aid number, in case…",
+      "where that book recommendation went — the one about systems thinking…",
+      "the architecture sketch for the auth refactor I drew last March…",
+      "what we decided in the pricing call before everyone forgot…",
       "a half-formed idea for next quarter's pricing…",
+      "the recovery code for the wallet — locked away in the vault…",
     ],
     [],
   );
@@ -908,9 +908,9 @@ export default function Landing({ onAuth }: LandingProps) {
                 animationDelay: "240ms",
               }}
             >
-              One private place for the thoughts you'd lose and the facts you can't afford to — gate
-              codes, policy numbers, half-formed ideas, the things worth not forgetting. Ask the AI
-              anything; it actually reads them.
+              One private place for everything worth remembering — meeting notes, decisions,
+              half-formed ideas, the customer insight from last quarter. Ask the AI anything; it
+              actually reads them. Encrypted vault for the few real secrets.
             </p>
 
             {/* Live-feeling capture bar — clickable: lands the visitor on signup with the
@@ -1112,10 +1112,11 @@ export default function Landing({ onAuth }: LandingProps) {
             }}
           >
             Not a to-do app. Not a password manager. Not a wiki you have to maintain. Everion holds
-            the half-thought and the policy number in the same calm, encrypted room. No folders to
-            choose. No template to fill. No system to maintain on Sundays. The same one tap that
-            saves an idea saves the gate code; the same chat that recalls the customer insight tells
-            you when the licence renews.
+            the half-thought and the customer insight in the same calm room — and locks the few real
+            secrets in an encrypted vault on your device. No folders to choose. No template to fill.
+            No system to maintain on Sundays. The same one tap that saves an idea saves a meeting
+            note; the same chat that recalls the decision tells you what Acme pushed back on last
+            quarter.
           </p>
 
           <div style={{ marginTop: 40 }}>
@@ -1127,18 +1128,18 @@ export default function Landing({ onAuth }: LandingProps) {
                 "links",
                 "PDFs",
                 "photos",
-                "contacts",
-                "ID & bank details",
-                "gate codes",
-                "policy numbers",
+                "meeting notes",
+                "decisions",
+                "customer insights",
+                "code snippets",
+                "research",
                 "renewal dates",
-                "serial numbers",
-                "insurance details",
-                "medical aid info",
-                "where the spare key is",
-                "“if something happens to me” notes",
                 "todos & reminders",
                 "half-formed ideas",
+                "passwords (vault)",
+                "credit cards (vault)",
+                "recovery codes (vault)",
+                "PINs (vault)",
               ].map((label) => (
                 <span key={label} className="design-chip f-sans" style={{ fontSize: 12 }}>
                   {label}
@@ -1173,13 +1174,13 @@ export default function Landing({ onAuth }: LandingProps) {
               n="01"
               title="Capture"
               sub="lighter than opening a text box"
-              body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. A passing thought, the gate code, a screenshot of an insurance card — same one tap. No title. No folder. Fast enough that you actually use it."
+              body="Tap once on desktop, thumb once on mobile. Text, voice, paste, file, photo. A passing thought, a meeting note, a screenshot — same one tap. No title. No folder. Fast enough that you actually use it."
             />
             <Pillar
               n="02"
               title="Recall"
               sub="ask, don't search"
-              body="Chat with your memory. Everion reads your entries, cites sources, answers in plain language. 'when does my driver's licence expire' works. So does 'what did the Acme team push back on last quarter'. So does 'where did I hide the spare key'."
+              body="Chat with your memory. Everion reads your entries, cites sources, answers in plain language. 'what did the Acme team push back on last quarter' works. So does 'how did I solve that auth bug last March'. So does 'what was that book recommendation about systems thinking'."
             />
             <Pillar
               n="03"
@@ -1219,12 +1220,12 @@ export default function Landing({ onAuth }: LandingProps) {
               who="Sarah · founder"
             />
             <Quote
-              text="I asked it for our gate code from a car park. Five seconds. That alone earned its place."
+              text="I asked it what we decided in the pricing call from October. Five seconds. That alone earned its place."
               who="Andre · senior engineer"
             />
             <Quote
-              text="Every renewal date, every account number, every 'where is the deed' — it's all in there now. My family knows where it lives."
-              who="Megan · household keeper"
+              text="My recovery codes and card numbers live in the vault now. Everything else — meeting notes, decisions, half-thoughts — lives next to them in plain entries. One app, finally."
+              who="Megan · operator"
             />
           </div>
         </section>
@@ -1306,11 +1307,11 @@ export default function Landing({ onAuth }: LandingProps) {
             />
             <Compare
               tool="Apple Notes"
-              line="Notes can't ask itself a question. And bank details in plaintext feel wrong because they are."
+              line="Notes can't ask itself a question. And the few real secrets in plaintext feel wrong because they are."
             />
             <Compare
               tool="1Password"
-              line="1Password is built for credentials. Everion holds the free-form stuff — gate codes, policy numbers, the doctor's number."
+              line="1Password is for credentials. Everion is for everything else worth keeping — meeting notes, decisions, customer insights, half-thoughts — with a small encrypted vault for the few real secrets."
             />
           </div>
         </section>
@@ -1425,15 +1426,18 @@ export default function Landing({ onAuth }: LandingProps) {
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <FaqItem
               q="I already use 1Password — do I need this?"
-              a="1Password is for credentials. Everion is for everything else worth keeping — gate codes, policy numbers, the doctor's number, the thing the customer said on Tuesday's call. Different shape, different job. Use both."
+              a="1Password is for credentials. Everion is for everything else worth keeping — meeting notes, decisions, customer insights, half-thoughts. The vault is for the few real secrets you'd lock anyway: passwords if you don't have a manager, recovery codes, card numbers, PINs. Different shape, different job. Use both."
             />
             <FaqItem
-              q="Is it really private if I'm storing bank details?"
+              q="Is the encryption real?"
               a={
                 <>
-                  Local-first storage means your entries live on your device. The vault is
-                  end-to-end encrypted. With your own AI key, prompts go through your account — we
-                  never see them. The full architecture is on the{" "}
+                  Yes. Vault entries are end-to-end encrypted with AES-GCM 256, key derived from
+                  your passphrase via PBKDF2 (310k iterations). Your passphrase never leaves the
+                  browser; the server can't decrypt vault content. Regular entries (notes, links,
+                  voice memos) are stored in our DB so search and AI work — that's the trade. With
+                  your own AI key, prompts go through your account — we never see them. Full
+                  architecture on the{" "}
                   <a
                     className="press"
                     href="/privacy#vault"

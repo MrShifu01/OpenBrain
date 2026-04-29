@@ -249,8 +249,9 @@ export default function LoginScreen({
                   margin: 0,
                 }}
               >
-                One private place for the thoughts you'd lose and the facts you can't afford to —
-                notes, links, gate codes, policy numbers, the things worth not forgetting.
+                One private place for everything worth remembering — meeting notes, decisions,
+                customer insights, half-formed ideas. With a small encrypted vault for the few real
+                secrets.
               </p>
               <figure
                 style={{

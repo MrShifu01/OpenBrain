@@ -1,123 +1,117 @@
 # Product Marketing Context
 
-*Last updated: 2026-04-29*
-*Status: V2 — repositioned. Now spans both fleeting thoughts AND high-stakes life facts (vault). Customer-language and proof sections still [PLACEHOLDER] — fill post-launch.*
+*Last updated: 2026-04-30*
+*Status: V3 — vault narrowed to true secrets (passwords, credit cards, recovery codes, PINs); admin facts (licence expiry, policy numbers, gate codes) live as regular entries that can be promoted to Important Memories. Customer-language and proof sections still [PLACEHOLDER] — fill post-launch.*
 
 ## Product Overview
-**One-liner:** Your second brain — for the thoughts you'd lose and the facts you can't afford to.
+**One-liner:** Your second brain — what you wrote down, what Everion remembers, and the secrets you keep locked away.
 
-**What it does:** Everion is one private place for everything worth remembering. The fleeting stuff (notes, links, voice memos, half-thoughts, PDFs, screenshots) AND the high-stakes stuff (gate codes, policy numbers, ID and bank details, where the spare key is hidden, when the licence renews, what your spouse needs to know if something happens to you). Capture is one tap. Recall is a chat — ask the AI anything and it reads your entries, cites sources, answers in plain language. The encrypted vault holds the things that would hurt to lose.
+**What it does:** Everion is one private place for everything worth remembering. Capture anything in under five seconds — text, voice, paste, photo, PDF. Ask Everion anything in plain language and it reads your past entries, cites them, and answers. Mark a fact as an **Important Memory** and Everion will always trust it. Lock real secrets — passwords, credit cards, recovery codes, PINs — in the **encrypted Vault**, where the server can't read them.
 
-**Product category:** Personal second brain + private vault. Sits between note-taking apps (Apple Notes, Notion), password managers (1Password, Bitwarden), and AI memory tools (Mem.ai, Reflect). Owns a gap none of them fully cover: *one calm place for both your fleeting thoughts and your life-critical facts, with AI you can ask.*
+**Product category:** Personal second brain. Sits next to note-taking apps (Apple Notes, Notion), AI memory tools (Mem.ai, Reflect), and password managers (1Password, Bitwarden). Owns a quiet gap: *one calm place to capture, ask, and keep — with a vault for the few things that have to stay locked.*
 
 **Product type:** SaaS web app (PWA-installable, mobile + desktop, offline-first). Single-user with optional shared brain on Pro for a partner / next-of-kin / household.
 
-**Business model:** Freemium SaaS — three tiers reflecting actual product (V2.1 reconciled with `BillingTab.tsx`).
-- **Hobby (free):** Unlimited entries, local-first, encrypted vault, one brain. **BYO AI key** (Anthropic, OpenAI, OpenRouter, Groq) — required for chat/recall on this tier.
+**Business model:** Freemium SaaS — three tiers reflecting actual product (V3 reconciled with `BillingTab.tsx`).
+- **Hobby (free):** Unlimited entries, local-first, encrypted vault for passwords/cards/PINs, Important Memories, one brain. **BYO AI key** (Anthropic, OpenAI, OpenRouter, Groq) — required for chat/recall on this tier.
 - **Starter ($4.99/mo):** Hosted AI included (Gemini Flash), 500 captures + 200 chats per month, cross-device sync. Buys you out of key juggling without committing to Pro.
 - **Pro ($9.99/mo):** Premium AI (Claude Sonnet), 2,000 captures + 1,000 chats per month, shared brain with one other person, all features included.
 
 *No free trial currently — the marketing surface previously promised "14-day trial" but Stripe checkout has no `trial_period_days` configured; that promise is removed until the trial is wired up.*
 
 ## Target Audience
-**Target customers:** Anyone with a life that has paperwork. Three priority segments to *acquire* from, but the product serves a broader household audience once they're in.
+**Target customers:** Anyone with a life worth remembering. Three priority segments to *acquire* from.
 
-1. **Founders** (solo, indie, early-stage) — high context-switching, lots of half-formed thoughts about product/customers/strategy + lots of admin (registrations, tax numbers, supplier details, contractor banking) that lives in fragmented places.
-2. **Knowledge workers** (PMs, consultants, strategists, analysts) — meeting notes, research, decisions; PLUS the personal admin layer (insurance renewals, medical aid numbers, gate codes, "what's the password for the alarm panel").
-3. **Developers** — code snippets, architecture sketches, debugging notes; PLUS the household-CTO role they often play (managing the family's accounts, devices, serial numbers, warranties).
+1. **Founders** (solo, indie, early-stage) — high context-switching, lots of half-formed thoughts about product/customers/strategy + lots of decisions and customer insights that go missing.
+2. **Knowledge workers** (PMs, consultants, strategists, analysts) — meeting notes, research, decisions; want recall by meaning, not folder.
+3. **Developers** — code snippets, architecture sketches, debugging notes, configs.
 
-Underneath these three: **anyone who has ever been the person their family calls when they can't find the policy number.** Skew technical and privacy-aware, but the long tail expands beyond that as the vault story matures.
+Skew technical and privacy-aware. The vault is for true secrets (passwords, cards, PINs); regular admin facts (licence expiry, policy numbers, the gate code) live as normal entries you can promote to Important Memories.
 
-**Decision-maker:** The end-user themselves. B2C/prosumer. Shared-brain feature opens a household / next-of-kin angle but the buyer is one person.
+**Decision-maker:** The end-user themselves. B2C/prosumer. Shared-brain feature opens a household angle but the buyer is one person.
 
-**Primary use case:** "I need one place for everything that matters — both the thoughts I keep losing and the facts my life runs on." A frictionless capture-and-recall layer that doubles as the vault for the things you'd be stuck without.
+**Primary use case:** "I need one place for everything I keep losing — and a vault for the few things that have to stay locked." A frictionless capture-and-recall layer with a small encrypted vault for true secrets.
 
 **Jobs to be done:**
-- **Capture** anything worth keeping in <5 seconds — a thought, a serial number, a gate code, a screenshot of an insurance card — without choosing a folder or filling a form.
-- **Recall** by asking in plain language — "when does my driver's licence expire", "what was the policy number for the car", "what did the customer push back on last quarter", "where did I hide the spare key".
-- **Hold the high-stakes stuff** — bank details, ID numbers, account numbers, gate codes, medical info, "if something happens to me" notes — encrypted, somewhere I'll actually find them again.
+- **Capture** anything worth keeping in <5 seconds — a thought, a link, a voice memo, a PDF, a photo — without choosing a folder or filling a form.
+- **Recall** by asking in plain language — "what did the customer push back on last quarter", "what was that book recommendation", "when does my licence expire" (if I've kept the entry).
+- **Keep** the facts Everion should always trust — Important Memories the user has explicitly approved.
+- **Lock** the few things that must stay secret — passwords, credit cards, recovery codes, PINs — in the encrypted Vault the server can't read.
 - **Surface connections** I'd never spot manually — three notes from three different weeks turn out to be about the same thing.
 
 **Use cases / scenarios:**
-- *Founder:* customer-call insight + supplier banking + tax registration numbers, all askable.
-- *Knowledge worker:* meeting decisions + insurance renewals + the alarm panel code.
-- *Developer:* architecture decisions + the home Wi-Fi config + every device serial number for warranty claims.
-- *Household keeper:* gate codes, medical aid numbers, where deeds and IDs live, "if I die" notes for spouse / executor.
-- *Travel:* passport renewal dates, frequent-flyer numbers, "the apartment in Lisbon — door code and host's WhatsApp."
-- *Estate / legacy:* a single place a spouse or executor can search if you're not around to answer the question.
-- *Personal admin:* policy numbers, account numbers, doctor's contact, vet's contact, the plumber who actually showed up.
+- *Founder:* customer-call insights, decisions, half-thoughts → ask "what did Acme say about pricing?"
+- *Knowledge worker:* meeting notes, research, decisions → ask "what did we decide about the 2024 review?"
+- *Developer:* architecture sketches, debugging notes, configs → ask "how did I solve that auth bug last March?"
+- *Personal admin:* keep important dates (licence expiry, insurance renewal) as regular entries; promote them to Important Memories so Everion answers reliably when asked.
+- *Vault:* the password for the alarm panel, credit card numbers, recovery seed phrase, the gate code if you want it locked. Encrypted on your device with a passphrase only you know.
 
 ## Personas
-Mostly B2C single-user, but the vault + shared-brain features open a real household angle.
+Mostly B2C single-user, with a household angle on Pro via shared brain.
 
 | Persona | Cares about | Challenge | Value we promise |
 |---------|-------------|-----------|------------------|
-| **Primary keeper** (the buyer) | One calm place for everything; never being the person who can't find the thing | Important info scattered across Notes, password manager, paper folders, head, spouse's head | "It's all here. Ask it anything. It's encrypted." |
-| **Spouse / household partner** (Pro shared brain) | Knowing they could find the policy number / gate code / "where things are" if needed | "If something happens, I won't know where anything is" | Shared access to the things that matter, without sharing the diary |
-| **Future executor / next-of-kin** (downstream beneficiary) | Being able to wind things up without forensic work | "I have no idea what accounts they had" | A single searchable vault the keeper has been maintaining all along |
+| **Primary keeper** (the buyer) | One calm place for thoughts and facts; recall by meaning; small encrypted vault for true secrets | Notes scattered across apps; can't find what they wrote down | "Capture once. Ask it anything. The few real secrets are encrypted." |
+| **Spouse / household partner** (Pro shared brain) | Sharing context and knowledge with one other person | "If something happens, I won't know what they were working on" | Shared access to a chosen brain — without sharing the diary |
 
 ## Problems & Pain Points
-**Core problem:** The things worth remembering — both the *thoughts* you'd lose and the *facts* you can't afford to — live in fifteen different places. Notes app, password manager, email folder, paper file, browser bookmarks, photos, your head, your spouse's head. When you need the policy number / the gate code / the customer insight / the half-formed idea, you can't find it. And if something happens to you, no one else can either.
+**Core problem:** The things worth remembering live in fifteen different places. Notes app, browser bookmarks, photos, paper, your head. When you need the customer insight, the half-formed idea, or that book recommendation from three months ago, you can't find it. Search is keyword-only and stateless. Conventional notes apps capture fine but recall poorly. AI chatbots are smart but stateless across sessions. And the few real secrets — passwords, recovery codes, card numbers — sit in yet another tool.
 
 **Why alternatives fall short:**
-- **Notion / Obsidian / Roam:** Demand setup, organization, a system. The blank canvas IS the work. Most people quit during onboarding. Not built for high-stakes encrypted facts.
-- **Apple Notes / Google Keep:** Capture is fine. Recall is keyword search. No meaning, no AI. Storing a bank account number in plain Notes feels wrong, because it is.
-- **1Password / Bitwarden:** Great for passwords. Built for credentials, not for "the gate code Mom always forgets" or "Dad's medical aid number." Wrong UI for free-form facts and zero help with notes/thoughts.
+- **Notion / Obsidian / Roam:** Demand setup, organization, a system. The blank canvas IS the work. Most people quit during onboarding.
+- **Apple Notes / Google Keep:** Capture is fine. Recall is keyword search. No meaning, no AI.
+- **1Password / Bitwarden:** Great for credentials, but only credentials. Wrong shape for free-form notes and zero help with thoughts.
 - **ChatGPT / Claude:** Conversational but stateless. No memory of *your* life. Can't be the place you store anything.
-- **Mem.ai / Reflect / similar:** Closer to one half (the notes), but cloud-first with weak privacy posture and no vault story.
-- **Spreadsheets / paper folders / "my brain":** The status quo. Works until it doesn't — and the cost of "doesn't" is real (missed renewals, lost thousands, family scrambling).
+- **Mem.ai / Reflect / similar:** Closer to one half (notes + AI), but cloud-first with weak privacy posture and no encrypted vault for true secrets.
 
 **What it costs:**
 - Time wasted hunting for things you know you wrote down somewhere.
-- Money lost to missed renewals, expired warranties, forgotten policies.
-- Mental load of being the household's memory because no tool is good enough.
-- Real risk: if something happens to the keeper, the household scrambles.
+- Decisions and customer insights that decay because nobody finds them again.
+- Mental load of being your own filing system across five apps.
 
-**Emotional tension:** Quiet anxiety that important things are slipping. Frustration that you've tried five tools and none stuck. Distrust that anything cloud-based with bank details is actually private. A guilt-tinged sense that you should have a "system" for this stuff and don't.
+**Emotional tension:** Quiet anxiety that important things are slipping. Frustration that you've tried five tools and none stuck. A guilt-tinged sense that you should have a "system" for this stuff and don't.
 
 ## Competitive Landscape
 **Direct (same solution, same problem):**
-- *Mem.ai* — AI-native notes. Falls short on vault/encryption posture and on holding the high-stakes facts.
-- *Reflect* — daily-notes + backlinks + AI. Falls short on capture friction, mobile, and vault.
-- *Saner.ai, Heyday, Rewind* — varied AI memory tools. Cloud-first, weak privacy posture, no vault.
+- *Mem.ai* — AI-native notes. Cloud-first; weak privacy posture; no encrypted vault for true secrets.
+- *Reflect* — daily-notes + backlinks + AI. Falls short on capture friction and mobile.
+- *Saner.ai, Heyday, Rewind* — varied AI memory tools. Cloud-first, weak privacy posture.
 
 **Secondary (different solution, same problem):**
-- *Notion / Obsidian / Roam / Logseq* — DIY second brains. The system IS the work; high abandonment. Not built for encrypted high-stakes data.
-- *Apple Notes / Google Keep / Bear* — fast capture, weak recall, no AI, no vault-grade encryption.
-- *1Password / Bitwarden / Proton Pass* — vault for credentials. Wrong shape for free-form notes, gate codes, "if I die" info, and they don't help you think.
+- *Notion / Obsidian / Roam / Logseq* — DIY second brains. The system IS the work; high abandonment.
+- *Apple Notes / Google Keep / Bear* — fast capture, weak recall, no AI.
+- *1Password / Bitwarden / Proton Pass* — vault for credentials only. Don't help you think or remember.
 - *ChatGPT / Claude* — magical recall but stateless across sessions; nowhere to actually store the thing.
-- *Estate-planning tools (Trustworthy, Everplans):* solve the legacy/vault angle but heavy, formal, and not for daily capture.
 
 **Indirect (different approach to same need):**
-- A spreadsheet of important info — falls down on retrieval, mobile capture, and security.
-- The folder of important documents — exists, never updated, never findable in a hurry.
-- "My partner / parent / spouse remembers" — single point of failure.
+- A spreadsheet — falls down on retrieval, mobile capture.
+- The folder of important documents — exists, never findable in a hurry.
 
 ## Differentiation
 **Key differentiators:**
-- **Both halves in one place** — fleeting thoughts AND high-stakes facts in the same encrypted, askable home. No tool currently does both well.
-- **One opinionated capture surface** — no folders, no tags required, no template. Type / talk / paste / snap. Works whether it's a poem line or a policy number.
-- **Recall by asking** — RAG over your encrypted entries with citations. "When does my driver's licence expire" works. "What did the customer push back on" works.
-- **Vault-grade privacy** — local-first, end-to-end encrypted, "nothing leaves your device until you say so." Designed so storing a bank detail feels as safe as storing a thought.
-- **BYO AI key on free tier** — uniquely honest free plan; run the whole product on your own Anthropic / OpenAI / OpenRouter / Groq key with no upsell pressure.
-- **Shared brain for one other person** (Pro) — the household / next-of-kin angle no other personal-memory tool ships.
-- **The Shape** — constellation view of your concepts. Distinctive, brand-defining, competitors don't have it.
+- **Capture, ask, keep, lock — in one app.** Capture as raw entries; ask Everion across them; mark the few facts Everion should always trust as Important Memories; keep true secrets locked in the encrypted Vault. One product, four jobs.
+- **One opinionated capture surface** — no folders, no tags required, no template. Type / talk / paste / snap.
+- **Recall by asking** — RAG over your past entries with citations. "What did Acme push back on" works.
+- **Important Memories** — user-approved durable facts Everion always trusts. Not AI-inferred; you decide what's authoritative.
+- **Encrypted Vault for true secrets** — passwords, credit cards, recovery codes, PINs. Local-first, end-to-end encrypted with a passphrase only you know. The server can't read it.
+- **BYO AI key on free tier** — uniquely honest free plan; run the whole product on your own key with no upsell pressure.
+- **The Shape** — constellation view of your concepts. Brand-defining, competitors don't have it.
 
-**How we do it differently:** The same atomic "entry" holds a half-thought, a PDF, a gate code, or a serial number. One capture pattern, one recall pattern, one privacy guarantee. No mode-switching between "my notes app" and "my vault" and "my AI."
+**How we do it differently:** Notes and AI memory in one tool, with a small encrypted vault next to it for the few things that have to stay locked. Most second-brain apps either skip the vault or skip the AI; password managers do neither.
 
-**Why that's better:** You only have to remember one place. The thing you wrote down two years ago is findable by meaning, not by where you filed it. The encrypted vault means the gate code and the bank detail are as safe as the password manager would have stored them — and your spouse can find them without you.
+**Why that's better:** You only need one place for everything except your active credentials. The thing you wrote down two years ago is findable by meaning. The few real secrets are encrypted on your device, not in a "private notes" lie.
 
-**Why customers choose us:** [HYPOTHESIS — no real user quotes yet] One private place that holds the half-thought *and* the policy number. Quiet, opinionated, honest pricing, no productivity-software guilt. The aesthetic alone is positioning.
+**Why customers choose us:** [HYPOTHESIS — no real user quotes yet] A quiet, literary memory app with honest pricing, real encryption for the secrets that matter, and AI you control. No productivity-software guilt.
 
 ## Objections
 | Objection | Response |
 |-----------|----------|
-| "I already use Notion / Apple Notes — why switch?" | Don't have to give them up. Everion is the place for the things that don't fit your work tools — the half-thoughts AND the high-stakes facts (gate codes, policy numbers, "if I die" notes) that don't belong in a wiki or a notes app. The capture-and-vault layer underneath everything else. |
-| "I already use 1Password — isn't this redundant?" | 1Password is built for passwords. Everion is for the free-form stuff — gate codes, medical aid numbers, account details, the thing the doctor said, the supplier's banking. Not credentials. Use both. |
-| "Is my data really private with bank details and IDs in there?" | Local-first storage, end-to-end encrypted vault, BYO AI key option means your prompts can stay on your key. **[NEEDS: explicit crypto + audit story written up; storing bank details raises the privacy bar to existential — current copy must be backed by real architecture]** |
-| "Another AI thing — what's it actually good at?" | One job: reading your own past entries and answering questions about them with citations. Not a general-purpose chatbot. Knows your gate code, not the news. |
-| "Why $6/mo when free tools exist?" | Pro buys hosted AI (no key juggling), cross-device sync, and shared brains with one other person — useful for households who want the keeper-and-partner setup. Free tier is genuinely usable forever. |
-| "Will this still be here in 2 years?" | Bootstrapped, founder-funded. **Internal note:** ~2 months savings runway as of 2026-04-29 and no public data-portability commitment yet. **Strategic gap is now bigger** — storing bank details and "if I die" info raises the trust bar much higher than for casual notes. Building real export (Markdown + JSON, every entry, every plan) becomes near-mandatory before pushing the vault story. |
+| "I already use Notion / Apple Notes — why switch?" | Don't have to give them up. Everion is the place for the things that *fall through* your work tools — half-thoughts, voice memos, decisions, customer insights — and lets you ask across them. Plus a small encrypted vault for credentials. |
+| "I already use 1Password — isn't this redundant?" | 1Password is for credentials. Everion's vault holds whatever you choose to lock — passwords if you don't have a manager, but more usefully: recovery codes, card numbers, PINs, anything you want kept off the server. The bigger product is the notes + AI, not the vault. |
+| "Is the encryption real?" | Vault entries are end-to-end encrypted on your device with AES-GCM 256, key derived via PBKDF2 (310k iterations). Your passphrase never leaves the browser. We can't decrypt vault content even if forced. Regular entries (notes, links, voice memos) are stored in our DB to enable search and AI — that's the trade. |
+| "Another AI thing — what's it actually good at?" | One job: reading your past entries and answering questions about them with citations. Not a general-purpose chatbot. |
+| "Why $4.99 / $9.99 when free tools exist?" | Paid tiers buy hosted AI (no key juggling), cross-device sync, larger limits, and shared brain on Pro. Free tier with BYO key is genuinely usable forever. |
+| "Will this still be here in 2 years?" | Bootstrapped, founder-funded. ~2 months savings runway as of 2026-04-29. Full data export (JSON + CSV) is shipped — your data is yours regardless. |
 
 **Anti-persona:**
 - Power-users who want a fully-customizable knowledge graph (Obsidian/Logseq diehards).
@@ -128,68 +122,66 @@ Mostly B2C single-user, but the vault + shared-brain features open a real househ
 
 ## Switching Dynamics
 **Push:**
-- "I missed a renewal because I couldn't find the policy number."
 - "My notes are everywhere and I can't find anything."
-- "If something happened to me, my family wouldn't know where anything is."
-- Repeated experience of losing a thought *or* a fact you cared about.
+- "I keep losing decisions and customer insights."
+- "I want to ask my notes a question, not search through them."
+- Frustration with stateless AI chats — nothing carries between sessions.
 
 **Pull:**
 - Capture in <5 seconds.
 - Ask in plain English.
-- Encrypted vault for the high-stakes stuff.
+- Important Memories — facts Everion always trusts.
+- Encrypted vault for the few real secrets.
 - Beautiful, calm aesthetic that doesn't feel like work.
 - Privacy posture they can believe.
-- Shared brain — the spouse can find the policy number too.
 
 **Habit:**
-- Years of muscle memory in Apple Notes / WhatsApp-to-self / Notion / 1Password.
-- The notebook on the desk, the folder of policies, the spreadsheet of accounts.
-- "Just remembering" or "asking my partner."
+- Years of muscle memory in Apple Notes / WhatsApp-to-self / Notion.
+- The notebook on the desk, the spreadsheet of accounts.
+- "Just remembering" or "searching ChatGPT history."
 
 **Anxiety:**
-- "Is the AI looking at my private bank details?"
+- "Is the AI reading my private notes?"
 - "Is the encryption real?"
 - "What if I lose access — is my data trapped?"
-- "Do I have to migrate everything from 1Password / Notes?"
 - "Will I bounce off it like I did Notion?"
 
 ## Customer Language
 **How they describe the problem** [PLACEHOLDER — capture verbatim post-launch]:
-- *Likely phrases:* "I have notes everywhere", "I keep losing the policy number", "My partner asks me where the gate code is and I can't remember", "If I die my family is in trouble", "I write everything down but can't find anything"
+- *Likely phrases:* "I have notes everywhere", "I want to ask my notes", "I keep losing decisions", "I write everything down but can't find anything"
 
 **How they describe Everion** [PLACEHOLDER]:
-- *Likely phrases:* "It's where my life lives now", "I just put it all in there", "I asked it about my insurance and it told me"
+- *Likely phrases:* "It's where my thinking lives", "I just put it all in there", "I asked it and it told me"
 
 **Words to use:**
-- *room, place, vault, kept, second brain, second memory*
-- *the thoughts you'd lose · the facts you can't afford to*
+- *room, place, kept, second brain, second memory*
 - *capture, recall, hold, ask*
 - *private, encrypted, local-first, yours*
 - *honest, opinionated, calm*
-- *the gate code, the policy number, the renewal date* (concrete examples beat abstractions)
-- *brain* (as workspace unit), *vault* (as the encrypted layer)
+- *brain* (as workspace unit), *vault* (the encrypted layer for true secrets), *Important Memory* (user-approved durable fact)
 
 **Words to avoid:**
 - *productivity, organize, system, workflow, tasks, dashboard*
 - *knowledge management* (jargon)
 - *AI assistant, chatbot* (commodity)
 - *note-taking app* (undersells)
-- *password manager* (sets wrong frame — we're not credentials)
+- *password manager* (sets wrong frame — vault is for whatever you choose, not just credentials)
 - *estate planning tool* (sets wrong frame — we're not legal)
 - aggressive growth/hustle language
 
 **Glossary:**
 | Term | Meaning |
 |------|---------|
-| Brain | A workspace / vault. One on free, multiple on Pro. Notebook scope. |
-| Entry | A single captured item — note, link, voice memo, file, photo, fact. Atomic unit. |
-| Vault | Encrypted local store. Where the high-stakes stuff lives. "Nothing leaves your device until you say so." |
+| Brain | A workspace. One on free, multiple on Pro. Notebook scope. |
+| Entry | A single captured item — note, link, voice memo, file, photo. Atomic unit. |
+| Important Memory | A user-approved durable fact Everion will always trust. |
+| Vault | Encrypted local store for true secrets — passwords, credit cards, recovery codes, PINs. AES-GCM 256, key derived from your passphrase via PBKDF2-310k. The server can't read it. |
 | Concept | An auto-extracted theme/topic from an entry. The connective tissue. |
 | The Shape | Constellation view of your concepts. Brand pillar. |
 | Capture | The one-tap input flow. |
 | Recall | Asking your memory a question via chat. |
 | Synthesize | Surfaced connections between entries. |
-| Shared brain | A brain shared with one other person on Pro. Household / next-of-kin angle. |
+| Shared brain | A brain shared with one other person on Pro. |
 
 ## Brand Voice
 **Tone:** Quiet, literary, considered. Confident without being loud. Warm without being twee. The literary register works for high-stakes/emotional material (estate planning, "if I die" info) better than a utility tone — keep it.
@@ -223,9 +215,10 @@ Mostly B2C single-user, but the vault + shared-brain features open a real househ
 
 **Current metrics:** [PLACEHOLDER — instrument signups, time-to-first-capture, time-to-first-vault-entry, D7 retention, free→Pro rate before launch]
 
-## Strategic notes (V2 repositioning)
-- **Vault story raises the trust bar.** Storing bank details and ID numbers means privacy/encryption claims must be exact and defensible. The objection table flags this.
-- **Export commitment becomes near-mandatory.** "Will this still be here in 2 years" is now louder, not quieter. Ship Markdown + JSON export ASAP.
-- **Two acquisition angles to test:** (a) "the calm second brain for thinkers" — current voice; (b) "one private place for everything that matters" — vault-led. Likely the second resonates with a broader audience but the first matches existing brand. Test both.
-- **Shared brain feature opens estate / household angle.** Don't oversell yet — it's one feature, not a workflow — but the framing exists.
-- **Anti-persona expanded.** Estate-planning tool buyers and absolute privacy purists are not the target.
+## Strategic notes (V3 — vault narrowed)
+- **Vault scope narrowed to true secrets.** Passwords, credit cards, recovery codes, PINs — not "anything sensitive". Admin facts (licence expiry, gate codes, policy numbers) live as regular entries, promotable to Important Memories. Cleaner story, easier to defend cryptographically, less competitive overlap with notes apps.
+- **Important Memories is the new third pillar.** Capture / recall / **keep** / lock. User-curated only in v0 (no AI inference, no contradiction detection — those are post-launch). Full plan in `LAUNCH_CHECKLIST.md` post-launch section.
+- **Encryption claims must stay exact.** AES-GCM 256, PBKDF2 310k iterations, key derived from passphrase, server can't decrypt. Don't inflate; don't hedge.
+- **Acquisition angle: capture-and-recall first, vault as feature.** V2's "vault for everything that matters" tested too broad — narrowed to "second brain with a small encrypted vault for the few real secrets." Less ambitious framing, more defensible.
+- **Shared brain stays as Pro feature.** Don't lead with estate-planning angle; mention as use-case footnote at most.
+- **Anti-persona unchanged.** Estate-planning workflow buyers, knowledge-graph diehards, privacy purists with no cloud tolerance.

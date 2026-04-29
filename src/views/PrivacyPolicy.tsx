@@ -4,7 +4,7 @@ export default function PrivacyPolicy() {
   useDocumentMeta({
     title: "Privacy — Everion",
     description:
-      "How Everion handles your data. End-to-end encrypted vault, AES-GCM 256-bit, BYO AI key, full export anytime. POPIA + GDPR compliant.",
+      "How Everion handles your data. End-to-end encrypted vault for true secrets (AES-GCM 256, PBKDF2 310k), BYO AI key, full export anytime. POPIA + GDPR compliant.",
     canonical: "https://everionmind.com/privacy",
   });
   return (
@@ -101,8 +101,9 @@ export default function PrivacyPolicy() {
             margin: "24px 0 40px",
           }}
         >
-          Everion is as private as a notebook in your drawer — including the high-stakes stuff (IDs,
-          bank details, gate codes, "if I die" notes). Here's what that means, exactly.
+          Everion is as private as a notebook in your drawer — with an encrypted vault for the few
+          real secrets (passwords, credit cards, recovery codes, PINs). Here's what that means,
+          exactly.
         </p>
 
         {/* Quick scan / table of contents */}
@@ -132,7 +133,7 @@ export default function PrivacyPolicy() {
           >
             {[
               ["What we store", "what-we-store"],
-              ["The vault — for high-stakes facts", "vault"],
+              ["The vault — for true secrets", "vault"],
               ["End-to-end encryption", "encryption"],
               ["AI processing — exactly what is sent where", "ai"],
               ["Where your data lives", "where"],
@@ -164,11 +165,11 @@ export default function PrivacyPolicy() {
           address beyond 24 hours.
         </Section>
 
-        <Section title="The vault — for high-stakes facts" id="vault">
-          The vault is the part of Everion designed to hold the things you wouldn't write in a
-          regular notes app: ID numbers, bank account details, gate codes, computer serial numbers,
-          driver's licence info, policy numbers, "if something happens to me" notes, where the spare
-          key is.
+        <Section title="The vault — for true secrets" id="vault">
+          The vault is the part of Everion designed to hold things that have to stay locked:
+          passwords, credit card numbers, recovery codes, PINs, seed phrases — anything you'd
+          otherwise put in a password manager. It's a small, narrow tool by design. Everything else
+          worth remembering lives as a regular entry.
           <br />
           <br />
           Vault entries are encrypted on your device with a passphrase only you know.{" "}
@@ -179,13 +180,12 @@ export default function PrivacyPolicy() {
           down. We store an encrypted blob of your vault key on our server — encrypted with that
           recovery key — so the only way it ever becomes useful is if <em>you</em> bring the
           recovery key back. Lose both the passphrase and the recovery key, and the vault is
-          unrecoverable. Storing your bank details should not feel safer than storing them in
-          1Password; this is built so it doesn't.
+          unrecoverable. Storing a credit card or recovery code here should not feel safer than
+          storing them in 1Password; this is built so it doesn't.
           <br />
           <br />
-          Vault content is also kept out of the AI pipeline by default — embeddings and chat context
-          use your normal entries, not vault entries, unless you explicitly opt-in for a specific
-          vault entry.
+          Vault content is also kept out of the AI pipeline — embeddings and chat context use your
+          regular entries only, never vault entries.
         </Section>
 
         <Section title="End-to-end encryption" id="encryption">
@@ -211,7 +211,7 @@ export default function PrivacyPolicy() {
         <Section title="AI processing — exactly what is sent where" id="ai">
           <strong>Embeddings (search):</strong> when you create a regular entry, its text is sent to
           Google Gemini to produce an embedding vector. The embedding stays in our database; the
-          text round-trip is one call, no training. Vault entries are not embedded by default.
+          text round-trip is one call, no training. Vault entries are never embedded.
           <br />
           <br />
           <strong>Chat (recall):</strong> when you ask your memory a question, the entries that

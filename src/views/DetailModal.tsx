@@ -7,6 +7,12 @@ import { CANONICAL_TYPES } from "../types";
 import type { Entry, Brain } from "../types";
 import { BrainContext } from "../context/BrainContext";
 import { isFeatureEnabled } from "../lib/featureFlags";
+import {
+  IMPORTANT_MEMORY_TYPES,
+  IMPORTANT_MEMORY_TYPE_LABEL,
+  generateMemoryKey,
+  type ImportantMemoryType,
+} from "../lib/importantMemory";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import MoveToBrainModal from "../components/MoveToBrainModal";
 import { Button } from "../components/ui/button";
@@ -159,6 +165,58 @@ export default function DetailModal({
   const [aiMsg, setAiMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [ignoringEmail, setIgnoringEmail] = useState(false);
   const [ignoreMsg, setIgnoreMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  // "Keep this" — promote a non-vault entry to an Important Memory.
+  // Vault entries are blocked from this action client-side AND server-side.
+  const importantMemoriesEnabled = isFeatureEnabled("importantMemories", adminFlags);
+  const [keeping, setKeeping] = useState(false);
+  const [keepType, setKeepType] = useState<ImportantMemoryType>("fact");
+  const [keepTitle, setKeepTitle] = useState(entry.title);
+  const [keepSummary, setKeepSummary] = useState((entry.content ?? "").trim().slice(0, 500));
+  const [keepBusy, setKeepBusy] = useState(false);
+  const [keepMsg, setKeepMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  async function handleKeepSave() {
+    const brainId = entry.brain_id ?? activeBrain?.id;
+    if (!brainId) {
+      setKeepMsg({ text: "No active brain", ok: false });
+      return;
+    }
+    if (!keepTitle.trim() || !keepSummary.trim()) {
+      setKeepMsg({ text: "Title and summary required", ok: false });
+      return;
+    }
+    setKeepBusy(true);
+    setKeepMsg(null);
+    try {
+      const memory_key = generateMemoryKey(keepType, keepTitle);
+      const res = await authFetch("/api/important-memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brain_id: brainId,
+          memory_key,
+          title: keepTitle.trim(),
+          summary: keepSummary.trim(),
+          memory_type: keepType,
+          source_entry_ids: [entry.id],
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        setKeepMsg({ text: detail.error ?? "Failed", ok: false });
+      } else {
+        setKeepMsg({ text: "Kept ✓", ok: true });
+        setTimeout(() => {
+          setKeeping(false);
+          setKeepMsg(null);
+        }, 1200);
+      }
+    } catch (e: any) {
+      setKeepMsg({ text: e?.message ?? "Failed", ok: false });
+    }
+    setKeepBusy(false);
+  }
 
   async function suggestType() {
     setAiTyping(true);
@@ -1120,104 +1178,238 @@ No explanation, no punctuation, just one word.`,
           </div>
           {/* end scrollable body */}
 
-          {/* Minimal bottom strip — Delete + Save to Contacts */}
-          {!editing && (isContact || (canWrite && onDelete) || isGmailEntry) && (
+          {/* Inline "Keep this" panel — slides in above the bottom strip */}
+          {!editing && keeping && (
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
                 flexShrink: 0,
-                padding: "12px 24px",
+                padding: "16px 24px",
                 borderTop: "1px solid var(--line-soft)",
+                background: "var(--surface)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
               }}
             >
-              {isContact && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={saveToContacts}
-                  style={{ color: "var(--ink-soft)" }}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  save to contacts
-                </Button>
-              )}
-              {!isContact && isGmailEntry && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleIgnoreEmail}
-                  disabled={ignoringEmail || ignoreMsg?.ok === true}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {IMPORTANT_MEMORY_TYPES.map((t) => {
+                  const active = keepType === t;
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setKeepType(t)}
+                      className="press"
+                      style={{
+                        height: 28,
+                        padding: "0 12px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        border: "1px solid",
+                        borderColor: active ? "var(--ember)" : "var(--line-soft)",
+                        background: active ? "var(--ember-wash)" : "var(--surface)",
+                        color: active ? "var(--ember)" : "var(--ink-soft)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {IMPORTANT_MEMORY_TYPE_LABEL[t]}
+                    </button>
+                  );
+                })}
+              </div>
+              <input
+                value={keepTitle}
+                onChange={(e) => setKeepTitle(e.target.value)}
+                maxLength={200}
+                placeholder="Title"
+                className="f-serif"
+                style={{
+                  height: 36,
+                  padding: "0 12px",
+                  borderRadius: 10,
+                  border: "1px solid var(--line-soft)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                  fontSize: 15,
+                  outline: "none",
+                }}
+              />
+              <textarea
+                value={keepSummary}
+                onChange={(e) => setKeepSummary(e.target.value)}
+                maxLength={1000}
+                rows={2}
+                placeholder="Summary — the fact Everion should trust"
+                className="f-serif"
+                style={{
+                  padding: 10,
+                  borderRadius: 10,
+                  border: "1px solid var(--line-soft)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                  fontSize: 14,
+                  lineHeight: 1.5,
+                  resize: "vertical",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+              {keepMsg && (
+                <p
                   style={{
-                    color: ignoreMsg?.ok
-                      ? "var(--moss)"
-                      : ignoreMsg
-                        ? "var(--blood)"
-                        : "var(--ink-soft)",
+                    margin: 0,
+                    fontSize: 12,
+                    color: keepMsg.ok ? "var(--moss)" : "var(--danger)",
                   }}
                 >
-                  {ignoringEmail
-                    ? "Adding rule…"
-                    : ignoreMsg
-                      ? ignoreMsg.text
-                      : "Ignore future emails like this"}
-                </Button>
+                  {keepMsg.text}
+                </p>
               )}
-              {!isContact && !isGmailEntry && <span />}
-              {canWrite && onDelete && (
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                 <Button
-                  variant={confirmingDelete ? "destructive" : "ghost"}
+                  variant="ghost"
                   size="sm"
-                  style={
-                    confirmingDelete
-                      ? undefined
-                      : { color: "var(--blood)", background: "transparent" }
-                  }
-                  onClick={async () => {
-                    if (!confirmingDelete) {
-                      setConfirmingDelete(true);
-                      confirmTimerRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
-                    } else {
-                      setDeleting(true);
-                      await onDelete(entry.id);
-                      setDeleting(false);
-                    }
+                  onClick={() => {
+                    setKeeping(false);
+                    setKeepMsg(null);
                   }}
-                  disabled={deleting}
                 >
-                  <svg
-                    width="12"
-                    height="12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
-                  </svg>
-                  {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
+                  Cancel
                 </Button>
-              )}
+                <Button size="sm" onClick={handleKeepSave} disabled={keepBusy}>
+                  {keepBusy ? "Saving…" : "Keep"}
+                </Button>
+              </div>
             </div>
           )}
+
+          {/* Minimal bottom strip — Keep this + Delete + Save to Contacts */}
+          {!editing &&
+            (isContact ||
+              (canWrite && onDelete) ||
+              isGmailEntry ||
+              (canWrite && importantMemoriesEnabled && !isSecret)) && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexShrink: 0,
+                  padding: "12px 24px",
+                  borderTop: "1px solid var(--line-soft)",
+                }}
+              >
+                {isContact && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={saveToContacts}
+                    style={{ color: "var(--ink-soft)" }}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    save to contacts
+                  </Button>
+                )}
+                {!isContact && isGmailEntry && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleIgnoreEmail}
+                    disabled={ignoringEmail || ignoreMsg?.ok === true}
+                    style={{
+                      color: ignoreMsg?.ok
+                        ? "var(--moss)"
+                        : ignoreMsg
+                          ? "var(--blood)"
+                          : "var(--ink-soft)",
+                    }}
+                  >
+                    {ignoringEmail
+                      ? "Adding rule…"
+                      : ignoreMsg
+                        ? ignoreMsg.text
+                        : "Ignore future emails like this"}
+                  </Button>
+                )}
+                {!isContact &&
+                !isGmailEntry &&
+                canWrite &&
+                importantMemoriesEnabled &&
+                !isSecret ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setKeepTitle(entry.title);
+                      setKeepSummary((entry.content ?? "").trim().slice(0, 500));
+                      setKeepType("fact");
+                      setKeepMsg(null);
+                      setKeeping(true);
+                    }}
+                    style={{ color: "var(--ember)" }}
+                    disabled={keeping}
+                  >
+                    ★ Keep this
+                  </Button>
+                ) : !isContact && !isGmailEntry ? (
+                  <span />
+                ) : null}
+                {canWrite && onDelete && (
+                  <Button
+                    variant={confirmingDelete ? "destructive" : "ghost"}
+                    size="sm"
+                    style={
+                      confirmingDelete
+                        ? undefined
+                        : { color: "var(--blood)", background: "transparent" }
+                    }
+                    onClick={async () => {
+                      if (!confirmingDelete) {
+                        setConfirmingDelete(true);
+                        confirmTimerRef.current = setTimeout(
+                          () => setConfirmingDelete(false),
+                          3000,
+                        );
+                      } else {
+                        setDeleting(true);
+                        await onDelete(entry.id);
+                        setDeleting(false);
+                      }
+                    }}
+                    disabled={deleting}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+                    </svg>
+                    {deleting ? "deleting…" : confirmingDelete ? "confirm delete?" : "delete"}
+                  </Button>
+                )}
+              </div>
+            )}
         </div>
       </FocusTrap>
       {movingBrain && activeBrain && (

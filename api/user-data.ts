@@ -45,6 +45,7 @@ const MAX_CHARS = 8000;
 //   /api/notification-prefs → /api/user-data?resource=prefs
 //   /api/push-subscribe     → /api/user-data?resource=push
 //   /api/brains             → /api/user-data?resource=brains
+//   /api/important-memories → /api/user-data?resource=important_memories
 //   /api/cron/daily         → /api/user-data?resource=cron-daily
 //   /api/notifications      → /api/user-data?resource=notifications
 //   /api/stripe-checkout    → /api/user-data?resource=stripe-checkout
@@ -83,6 +84,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "prefs") return handleNotificationPrefs(req, res);
   if (resource === "push") return handlePushSubscribe(req, res);
   if (resource === "brains") return handleBrains(req, res);
+  if (resource === "important_memories") return handleImportantMemories(req, res);
   if (resource === "cron-daily") return handleCronDaily(req, res);
   if (resource === "cron-hourly") return handleCronHourly(req, res);
   if (resource === "trigger-test-push") return handleTriggerTestPush(req, res);
@@ -209,8 +211,7 @@ const handleBrains = withAuth(
       if (typeof name !== "string" || !name.trim())
         return void res.status(400).json({ error: "name required" });
       const trimmedName = name.trim().slice(0, 60);
-      const trimmedDesc =
-        typeof description === "string" ? description.trim().slice(0, 280) : null;
+      const trimmedDesc = typeof description === "string" ? description.trim().slice(0, 280) : null;
 
       const r = await fetch(`${SB_URL}/rest/v1/brains`, {
         method: "POST",
@@ -224,7 +225,9 @@ const handleBrains = withAuth(
       });
       if (!r.ok) {
         const detail = await r.text().catch(() => String(r.status));
-        return void res.status(502).json({ error: `Failed to create brain: ${detail.slice(0, 200)}` });
+        return void res
+          .status(502)
+          .json({ error: `Failed to create brain: ${detail.slice(0, 200)}` });
       }
       const [row]: any[] = await r.json();
       return void res.status(201).json(row);
@@ -261,8 +264,7 @@ const handleBrains = withAuth(
         description?: unknown;
       };
       const { id, metadata } = body;
-      if (!id || typeof id !== "string")
-        return void res.status(400).json({ error: "id required" });
+      if (!id || typeof id !== "string") return void res.status(400).json({ error: "id required" });
 
       // Branch A: metadata-only patch (existing behavior, shallow-merged).
       if (metadata !== undefined) {
@@ -370,6 +372,208 @@ const handleBrains = withAuth(
     }
     if (activeBrainId) res.setHeader("X-Active-Brain-Id", activeBrainId);
     return void res.status(200).json(ownedData);
+  },
+);
+
+// ── /api/important-memories (rewritten to /api/user-data?resource=important_memories) ──
+// User-curated durable facts. v0 = user-curated only — no AI inference, no
+// contradiction detection. Vault entries (type='secret') are blocked from
+// becoming Important Memories — that's the privacy contract.
+const IMPORTANT_MEMORY_TYPES = new Set(["fact", "preference", "decision", "obligation"]);
+const handleImportantMemories = withAuth(
+  { methods: ["GET", "POST", "PATCH", "DELETE"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    const action = req.query.action as string | undefined;
+
+    // Verify the brain belongs to the user. All actions require this.
+    const requireOwnedBrain = async (brainId: string): Promise<boolean> => {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id`,
+        { headers: hdrs() },
+      );
+      const rows: any[] = r.ok ? await r.json() : [];
+      return rows.length > 0;
+    };
+
+    // ── GET: list memories for a brain (active by default; ?status=retired) ──
+    if (req.method === "GET") {
+      const brainId = req.query.brain_id as string | undefined;
+      if (!brainId) return void res.status(400).json({ error: "brain_id required" });
+      if (!(await requireOwnedBrain(brainId)))
+        return void res.status(403).json({ error: "Forbidden" });
+
+      const status = (req.query.status as string | undefined) ?? "active";
+      if (status !== "active" && status !== "retired" && status !== "all")
+        return void res.status(400).json({ error: "status must be active|retired|all" });
+
+      const statusFilter = status === "all" ? "" : `&status=eq.${status}`;
+      const r = await fetch(
+        `${SB_URL}/rest/v1/important_memories?brain_id=eq.${encodeURIComponent(brainId)}${statusFilter}&order=created_at.desc`,
+        { headers: hdrs() },
+      );
+      if (!r.ok) return void res.status(502).json({ error: "Failed to fetch memories" });
+      return void res.status(200).json(await r.json());
+    }
+
+    // ── POST: create an important memory ──
+    if (req.method === "POST") {
+      const body = (req.body ?? {}) as {
+        brain_id?: unknown;
+        memory_type?: unknown;
+        memory_key?: unknown;
+        title?: unknown;
+        summary?: unknown;
+        source_entry_ids?: unknown;
+      };
+      if (typeof body.brain_id !== "string" || !body.brain_id)
+        return void res.status(400).json({ error: "brain_id required" });
+      if (typeof body.memory_type !== "string" || !IMPORTANT_MEMORY_TYPES.has(body.memory_type))
+        return void res
+          .status(400)
+          .json({ error: "memory_type must be fact|preference|decision|obligation" });
+      if (typeof body.memory_key !== "string" || !body.memory_key.trim())
+        return void res.status(400).json({ error: "memory_key required" });
+      if (typeof body.title !== "string" || !body.title.trim())
+        return void res.status(400).json({ error: "title required" });
+      if (typeof body.summary !== "string" || !body.summary.trim())
+        return void res.status(400).json({ error: "summary required" });
+
+      if (!(await requireOwnedBrain(body.brain_id)))
+        return void res.status(403).json({ error: "Forbidden" });
+
+      const sourceIds = Array.isArray(body.source_entry_ids)
+        ? body.source_entry_ids.filter((v) => typeof v === "string").slice(0, 20)
+        : [];
+
+      // Vault guard: if any source entry is type='secret', refuse — vault
+      // entries cannot be promoted to Important Memories. Server-side check
+      // because client cannot be trusted to honour the privacy contract.
+      if (sourceIds.length) {
+        const idsParam = sourceIds.map((id) => encodeURIComponent(id)).join(",");
+        const r = await fetch(
+          `${SB_URL}/rest/v1/entries?id=in.(${idsParam})&user_id=eq.${encodeURIComponent(user.id)}&select=id,type`,
+          { headers: hdrs() },
+        );
+        const rows: any[] = r.ok ? await r.json() : [];
+        if (rows.some((row) => row.type === "secret"))
+          return void res
+            .status(403)
+            .json({ error: "Vault entries cannot become Important Memories" });
+        if (rows.length !== sourceIds.length)
+          return void res.status(400).json({ error: "One or more source entries not found" });
+      }
+
+      const insert = await fetch(`${SB_URL}/rest/v1/important_memories`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=representation" }),
+        body: JSON.stringify({
+          brain_id: body.brain_id,
+          user_id: user.id,
+          memory_key: (body.memory_key as string).trim().slice(0, 200),
+          title: (body.title as string).trim().slice(0, 200),
+          summary: (body.summary as string).trim().slice(0, 1000),
+          memory_type: body.memory_type,
+          source_entry_ids: sourceIds,
+          created_by: "user",
+        }),
+      });
+      if (insert.status === 409) {
+        return void res
+          .status(409)
+          .json({ error: "An active memory already exists with this key — edit instead" });
+      }
+      if (!insert.ok) {
+        const detail = await insert.text().catch(() => String(insert.status));
+        return void res
+          .status(502)
+          .json({ error: `Failed to create memory: ${detail.slice(0, 200)}` });
+      }
+      const [row]: any[] = await insert.json();
+      return void res.status(201).json(row);
+    }
+
+    // ── PATCH: edit title/summary/type, OR retire/restore via ?action= ──
+    if (req.method === "PATCH") {
+      const id = req.query.id as string | undefined;
+      if (!id) return void res.status(400).json({ error: "id required" });
+
+      if (action === "retire" || action === "restore") {
+        const patch: Record<string, unknown> =
+          action === "retire"
+            ? { status: "retired", retired_at: new Date().toISOString() }
+            : { status: "active", retired_at: null };
+        const upd = await fetch(
+          `${SB_URL}/rest/v1/important_memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
+          {
+            method: "PATCH",
+            headers: hdrs({ Prefer: "return=representation" }),
+            body: JSON.stringify(patch),
+          },
+        );
+        if (upd.status === 409 && action === "restore") {
+          return void res
+            .status(409)
+            .json({ error: "Cannot restore — another active memory uses this key" });
+        }
+        if (!upd.ok) return void res.status(502).json({ error: "Failed to update memory" });
+        const rows: any[] = await upd.json();
+        if (!rows.length) return void res.status(403).json({ error: "Forbidden" });
+        return void res.status(200).json(rows[0]);
+      }
+
+      const body = (req.body ?? {}) as {
+        title?: unknown;
+        summary?: unknown;
+        memory_type?: unknown;
+        memory_key?: unknown;
+      };
+      const patch: Record<string, unknown> = {};
+      if (typeof body.title === "string" && body.title.trim())
+        patch.title = body.title.trim().slice(0, 200);
+      if (typeof body.summary === "string" && body.summary.trim())
+        patch.summary = body.summary.trim().slice(0, 1000);
+      if (typeof body.memory_type === "string") {
+        if (!IMPORTANT_MEMORY_TYPES.has(body.memory_type))
+          return void res.status(400).json({ error: "Invalid memory_type" });
+        patch.memory_type = body.memory_type;
+      }
+      if (typeof body.memory_key === "string" && body.memory_key.trim())
+        patch.memory_key = body.memory_key.trim().slice(0, 200);
+
+      if (!Object.keys(patch).length)
+        return void res.status(400).json({ error: "Nothing to update" });
+
+      const upd = await fetch(
+        `${SB_URL}/rest/v1/important_memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=representation" }),
+          body: JSON.stringify(patch),
+        },
+      );
+      if (upd.status === 409)
+        return void res
+          .status(409)
+          .json({ error: "Memory key conflicts with an existing active memory" });
+      if (!upd.ok) return void res.status(502).json({ error: "Failed to update memory" });
+      const rows: any[] = await upd.json();
+      if (!rows.length) return void res.status(403).json({ error: "Forbidden" });
+      return void res.status(200).json(rows[0]);
+    }
+
+    // ── DELETE: hard delete (retire is the soft path; this is rare/admin) ──
+    if (req.method === "DELETE") {
+      const id = req.query.id as string | undefined;
+      if (!id) return void res.status(400).json({ error: "id required" });
+      const del = await fetch(
+        `${SB_URL}/rest/v1/important_memories?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
+        { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
+      );
+      if (!del.ok) return void res.status(502).json({ error: "Failed to delete memory" });
+      return void res.status(200).json({ ok: true });
+    }
+
+    return void res.status(405).json({ error: "Method not allowed" });
   },
 );
 
@@ -1150,7 +1354,11 @@ async function enumerateUsers(tag: string): Promise<any[]> {
   return users;
 }
 
-async function patchUserPrefs(userId: string, meta: any, patch: Record<string, any>): Promise<void> {
+async function patchUserPrefs(
+  userId: string,
+  meta: any,
+  patch: Record<string, any>,
+): Promise<void> {
   const adminHdrs = { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` };
   const prefs = meta.notification_prefs ?? {};
   await fetch(`${SB_URL}/auth/v1/admin/users/${userId}`, {
