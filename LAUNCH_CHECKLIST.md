@@ -441,6 +441,195 @@ Separate launch track from the web product. Web launches first (PWA at everionmi
 - Bundle identifier (both): `com.everionmind.app`
 - Tagline: _"your second brain — kept quietly."_
 
+### Implementation playbook — Capacitor wrap
+
+The smallest serious implementation that gets Everion into the App Store and Google Play without fragmenting the codebase. Wrap the existing PWA — do not rebuild in React Native, do not fork product logic, do not create mobile-only tables. Same backend, same data model, same React app.
+
+**Why Capacitor:** Everion is already React + PWA + Supabase + web-first + Vercel. Capacitor keeps that architecture and adds native iOS/Android containers around it.
+
+```
+Everion Web/PWA
+        ↓
+Capacitor iOS App
+Capacitor Android App
+        ↓
+App Store / Google Play
+```
+
+#### Build order (do in this sequence — Android first because iOS auth is fiddlier)
+
+- [ ] **1. Install Capacitor**
+  ```bash
+  npm install @capacitor/core @capacitor/cli
+  npx cap init
+  ```
+  App name: `Everion Mind` · App ID: `com.everionmind.app` (the bundle ID already decided above — do not casually change it).
+
+- [ ] **2. Configure `capacitor.config.ts`**
+  ```ts
+  import type { CapacitorConfig } from '@capacitor/cli';
+  const config: CapacitorConfig = {
+    appId: 'com.everionmind.app',
+    appName: 'Everion Mind',
+    webDir: 'dist', // confirm against actual `npm run build` output
+    server: { androidScheme: 'https' },
+  };
+  export default config;
+  ```
+
+- [ ] **3. Add native platforms**
+  ```bash
+  npm install @capacitor/ios @capacitor/android
+  npx cap add android
+  npx cap add ios
+  ```
+  Commit `ios/` and `android/` to the repo.
+
+- [ ] **4. Build the web app**
+  ```bash
+  npm run build
+  ```
+  Fix every build error before continuing.
+
+- [ ] **5. Sync into native shells**
+  ```bash
+  npx cap sync
+  ```
+  Re-run on every web rebuild, config change, or new plugin.
+
+- [ ] **6. Open native projects**
+  ```bash
+  npx cap open android   # Android Studio
+  npx cap open ios       # Xcode
+  ```
+
+- [ ] **7. Get Android running on a real device first.** Easier path. Resolve build, signing, and basic launch issues here before adding iOS complexity.
+
+- [ ] **8. Get iOS running on a real device.** TestFlight build at minimum.
+
+- [ ] **9. Fix Supabase magic links** (see "Auth & deep linking" below — the trickiest part).
+
+- [ ] **10. Add icons + splash screen** (1024² icons, splash assets per platform spec).
+
+- [ ] **11. Add offline / no-connection state** (see "Offline behaviour" below).
+
+- [ ] **12. Real-device testing pass** (full checklist below).
+
+- [ ] **13. Prepare store assets** (covered by M2/M3/M4 below).
+
+- [ ] **14. Submit to internal testing** (TestFlight + Play Internal Testing).
+
+- [ ] **15. Submit to production** App Store + Play Store review.
+
+#### App-feel requirements (don't ship a "website in a box")
+
+- [ ] **App icon + splash screen** — not generic Capacitor defaults.
+- [ ] **Safe-area handling** — top/bottom inset paddings respect notch and home indicator on iOS, gesture nav on Android.
+- [ ] **No browser-looking UI** — no visible URL bar, no back button that looks like a browser back, no pull-to-refresh that feels like Safari.
+- [ ] **Offline / no-internet screen** — calm copy, no infinite spinner.
+- [ ] **Mobile-friendly loading states** — skeletons not spinners where possible.
+- [ ] **Mobile-friendly auth flow** — magic links, no clipboard token gymnastics.
+- [ ] **Deep-link / magic-link redirects** — see auth section.
+- [ ] **File / photo upload support** — if `entries` accept images on web, they must on mobile too.
+
+#### Auth & deep linking — Supabase magic links
+
+The hardest part. Mobile auth must reach the app, not bounce to a browser.
+
+- [ ] **Add mobile redirect URL schemes**
+  - `everion://auth/callback`
+  - `com.everionmind.app://auth/callback`
+- [ ] **Configure Supabase** — add both schemes to Auth → Redirect URLs.
+- [ ] **iOS** — register URL scheme in `Info.plist` (`CFBundleURLTypes`). Add Associated Domains entitlement if also using universal links.
+- [ ] **Android** — add intent filter to `AndroidManifest.xml` for the scheme on the launcher activity.
+- [ ] **Verify the flow end-to-end on a real device**:
+  - User requests magic link
+  - User taps link in email
+  - Link opens Everion mobile app (not a browser)
+  - Session is completed inside the app
+  - User lands logged-in
+- [ ] **Cold-start case** — opening from link with the app killed must work.
+- [ ] **Warm-start case** — opening from link with the app already running must work.
+- [ ] **No leftover browser tab** — magic-link redirect must not strand the user in Safari/Chrome.
+
+#### Native plugins (V1 — keep minimal)
+
+Only add what's needed before launch. Each plugin is a maintenance liability.
+
+- [ ] `@capacitor/splash-screen` — splash control
+- [ ] `@capacitor/app` — back button, app state, URL handling
+- [ ] `@capacitor/browser` — in-app browser for external links
+- [ ] `@capacitor/network` — offline detection
+- [ ] `@capacitor/preferences` — small key-value storage if Supabase session needs it
+- [ ] `@capacitor/filesystem` — only if file upload requires it
+- [ ] `@capacitor/camera` — only if entry capture from camera ships in V1
+
+Defer push notifications until after first store approval — adds review surface and permission complexity.
+
+#### Session storage & secure handling
+
+- [ ] **Sessions persist across app restart** — Supabase session in localStorage works inside Capacitor's WebView; verify on cold launch.
+- [ ] **Logout clears session fully** — no stale tokens.
+- [ ] **Expired sessions refresh correctly** — no infinite-loop on the auth screen.
+- [ ] **No tokens leaked to logs** — audit `console.log` calls in production builds.
+- [ ] **Magic-link login leaves no broken browser tabs** — see auth section.
+- [ ] **Consider `@capacitor/preferences` (or a stronger secure-storage plugin)** for the Supabase session if WebView storage proves unreliable across iOS/Android updates.
+
+#### Offline behaviour
+
+- [ ] **Detect no network** via `@capacitor/network`.
+- [ ] **Show calm offline UI** with copy: _"Everion cannot connect right now. Your connection may be offline. Please try again in a moment."_
+- [ ] **Avoid infinite loading screens** — fail fast, recover when network returns.
+- [ ] **Preserve unsaved capture text** if connection drops mid-write (offline queue should already handle this on web).
+
+#### Real-device test pass (do not rely on simulators)
+
+Run on at least one real iPhone and one real Android phone:
+
+- [ ] Sign up
+- [ ] Magic-link login (cold + warm start)
+- [ ] Logout
+- [ ] App restart (session persists)
+- [ ] Capture entry (text, voice, photo if shipping)
+- [ ] Ask Everion (chat / RAG)
+- [ ] View entries
+- [ ] Switch brain (if multi-brain shipping in V1)
+- [ ] File / photo upload
+- [ ] Offline state (airplane mode → show offline UI → recover on reconnect)
+- [ ] Slow internet (network-throttled — the app must not freeze)
+- [ ] Expired session (simulate by clearing token — should refresh or re-prompt)
+- [ ] Deep-link auth callback (cold + warm)
+- [ ] Keyboard behaviour (no input clipping, no layout jump)
+- [ ] Safe-area layout (notch, home indicator, gesture nav)
+- [ ] Dark / light mode (if web supports system theme)
+
+#### What NOT to do (pre-launch)
+
+- ❌ Do not rebuild Everion in React Native.
+- ❌ Do not create separate native UI screens.
+- ❌ Do not add mobile-only Supabase tables or schemas.
+- ❌ Do not fork product logic between web and mobile.
+- ❌ Do not add complex native sync layers.
+- ❌ Do not add push notifications before first store approval.
+- ❌ Do not add plugins speculatively.
+- ❌ Do not rewrite auth — fix the redirect surface, leave the rest.
+
+#### Acceptance criteria
+
+The wrap is done when:
+
+- [ ] Everion runs as an Android app on a real device.
+- [ ] Everion runs as an iOS app on a real device.
+- [ ] Supabase auth works on both.
+- [ ] Magic links open the app correctly (cold + warm).
+- [ ] Sessions persist across app restart.
+- [ ] App has proper icon and splash screen (not Capacitor defaults).
+- [ ] App handles safe areas correctly.
+- [ ] App has an offline / no-connection state.
+- [ ] Core features work on real devices: sign up · login · capture · ask · view entries · use brain context · file/photo upload (if shipping) · logout.
+- [ ] App does not feel like a lazy browser window.
+- [ ] App is ready for TestFlight + Play Internal Testing submission.
+
 ### M0 — Submission blockers (Apple/Google will reject without these)
 
 **Identity & legal**
@@ -667,3 +856,34 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 - [ ] Conversion rate benchmarks for Utilities (Apple) / Productivity (Google) in target geos.
 - [ ] Custom Product Pages (Apple, up to 70) — paid ASO tooling helps decide which keyword variants to target.
 - [ ] Store Listing Experiments (Google, up to 3 variants, 7+ days each) — once installs are flowing, A/B test short description + screenshot 1.
+
+---
+
+## Post-launch — deferred from V0 (build only after public launch ships)
+
+### Important Memories — beyond v0 (user-curated)
+
+V0 ships user-curated only: a flat table, four types (`fact` / `preference` / `decision` / `obligation`), promote-from-entry via "Keep this," manual retire/restore. Everything below is intentionally **not** in V0 — pulled out so the launch could ship.
+
+- [ ] **v0b — Retrieval injection.** Inject active Important Memories into the chat system prompt as a "trusted facts" preamble (separate from RAG hits). Bound length (~1 KB cap), oldest-first eviction. Evaluate quality lift on a held-out set of factual questions before enabling broadly. Source: `src/lib/systemPromptBuilder.ts`.
+- [ ] **v1 — AI suggestions ("Promote to memory?").** Periodic background pass over recent entries; flag candidates that look like durable facts (named entities + factual statements + low ambiguity). User confirms each one. Cost-gated by tier. **Do not auto-create** — confirmation is the v1 contract. Triggered from the same enrichment pipeline that already runs (`enrich.ts`).
+- [ ] **v1 — Contradiction detection.** When a new memory's slug clashes with an existing active key (caught today by `important_memories_active_key_uidx`), surface a side-by-side comparison and let the user choose: keep both (rename), retire old + create new, or cancel. Today the API returns 409; the UI just shows an error.
+- [ ] **v1 — Source-entry sync.** When a source entry is deleted, scrub its UUID from `source_entry_ids` (today's entry-delete path doesn't touch important_memories). Either trigger-based or a nightly sweep. The GIN index on `source_entry_ids` already exists.
+- [ ] **v1 — Memory provenance UI.** "Why does Everion know this?" — link from a memory back to its source entries, show which chats cited it, allow inline edit-and-retire.
+- [ ] **v1 — Memory export.** Include important_memories rows in `/api/transfer` JSON export. Today the table is excluded (only entries + concepts export).
+- [ ] **v2 — Multi-language extraction.** Today the slug generator strips diacritics aggressively (NFKD + ASCII-only). Fine for English/Romance; revisit for CJK/Arabic-first users.
+- [ ] **v2 — Soft-merge of similar memories.** Embedding-based similarity to suggest "this looks like X — merge?" instead of waiting for an exact-key clash.
+
+### Vault — beyond V3 narrow scope
+
+V3 narrowed the vault to true secrets (passwords, credit cards, recovery codes, PINs). The broader "vault for everything sensitive" framing is deferred.
+
+- [ ] **Vault export — offline decryption tool.** Promise made on `/privacy` ("a separate offline decryption tool is on the roadmap"). Standalone HTML page that takes the encrypted blob + passphrase + recovery key and decrypts client-side. Required before any "your vault is yours regardless" claim is fully honest.
+- [ ] **Vault entry templates.** Pre-shaped fields for Password / Card / Recovery Code / PIN / Seed Phrase — today vault entries are free-form, which makes them harder to parse for autofill later.
+- [ ] **Browser extension autofill for vault credentials.** Only worth it post-launch once usage tells us if vault holds enough credentials to bother. If users mostly stay on 1Password, skip.
+
+### Marketing copy — deferred V3 polish
+
+- [ ] **Replace [PLACEHOLDER] proof-points** in `.agents/product-marketing-context.md` (Customers, Testimonials, Customer Language) with verbatim quotes from beta users post-launch.
+- [ ] **Test the two acquisition angles** — capture-and-recall hero vs. Important-Memories hero — once enough traffic to power 7-day comparisons.
+- [ ] **Decide on shared-brain marketing weight.** V3 demoted it to a Pro-tier mention; revisit if Pro conversion data says household angle is doing the work.
