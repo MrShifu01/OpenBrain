@@ -69,8 +69,8 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                   alignItems: "center",
                   gap: 12,
                   padding: "10px 14px",
-                  background: "var(--ink)",
-                  color: "var(--bg)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
                   border: "1px solid var(--line-soft)",
                   borderRadius: 14,
                   fontFamily: "var(--f-sans)",
@@ -104,13 +104,14 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                   width: 36,
                   height: 36,
                   borderRadius: "50%",
-                  background: "color-mix(in oklch, var(--bg) 18%, var(--ink))",
+                  background: "var(--ember-wash)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "var(--bg)",
+                  fontFamily: "var(--f-serif)",
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: "var(--ember)",
                   flexShrink: 0,
                 }}
               >
@@ -122,9 +123,9 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                   style={{
                     fontSize: 9,
                     fontWeight: 700,
-                    letterSpacing: "0.12em",
+                    letterSpacing: "0.14em",
                     textTransform: "uppercase",
-                    opacity: 0.55,
+                    color: "var(--ink-faint)",
                     lineHeight: 1,
                   }}
                 >
@@ -135,6 +136,7 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                     fontSize: 14,
                     fontWeight: 600,
                     marginTop: 4,
+                    color: "var(--ink)",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
@@ -153,7 +155,7 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 viewBox="0 0 24 24"
-                style={{ flexShrink: 0, opacity: 0.65 }}
+                style={{ flexShrink: 0, color: "var(--ink-soft)", opacity: 0.7 }}
               >
                 {dropUp ? <path d="m6 15 6-6 6 6" /> : <path d="m6 9 6 6 6-6" />}
               </svg>
