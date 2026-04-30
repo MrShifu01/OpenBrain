@@ -4,8 +4,6 @@
    Activated by html.family-zine.
 */
 
-@import url("https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Archivo+Black&family=Caveat:wght@500;700&family=Permanent+Marker&family=Bowlby+One+SC&display=swap");
-
 html.family-zine {
   --f-display: "Archivo Black", "Impact", sans-serif;
   --f-serif: "Courier Prime", "Courier New", monospace;

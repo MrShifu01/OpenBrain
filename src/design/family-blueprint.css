@@ -4,8 +4,6 @@
    Activated by html.family-blueprint.
 */
 
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&family=Cormorant+Infant:ital,wght@0,400;0,500;1,400&display=swap");
-
 html.family-blueprint {
   --f-serif: "Cormorant Infant", "Times New Roman", serif;
   --f-sans: "IBM Plex Sans", system-ui, sans-serif;

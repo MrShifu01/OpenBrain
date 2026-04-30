@@ -8,7 +8,6 @@ const SpeedInsights = lazy(() =>
 const Analytics = lazy(() =>
   import("@vercel/analytics/react").then((m) => ({ default: m.Analytics })),
 );
-import * as Sentry from "@sentry/react";
 import "./index.css";
 import App from "./App";
 import { ThemeProvider } from "./ThemeContext";
@@ -34,14 +33,15 @@ applyInitialDesignTheme();
 // when we tried it. JS injection is allowed, so do it from here.
 (function loadFontsAsync() {
   const href =
-    "https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..600&family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..500&family=Inter+Tight:wght@400;450;500;600&family=Geist+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap";
+    "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter+Tight:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap";
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = href;
   document.head.appendChild(link);
 })();
 
-function initSentry() {
+async function initSentry() {
+  const Sentry = await import("@sentry/react");
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
     enabled: !!import.meta.env.VITE_SENTRY_DSN,
@@ -51,7 +51,7 @@ function initSentry() {
 
 // Init immediately if user already consented in a previous session
 if (getConsentDecision() === "accepted") {
-  initSentry();
+  void initSentry();
   // Fire-and-forget — posthog-js is lazy-imported so this returns quickly
   // and the actual SDK loads in a separate chunk after the app is up.
   void initPostHog();
@@ -123,7 +123,7 @@ function Root() {
 
   function handleDecision(decision: "accepted" | "declined") {
     if (decision === "accepted") {
-      initSentry();
+      void initSentry();
       void initPostHog();
     }
     setConsent(decision);

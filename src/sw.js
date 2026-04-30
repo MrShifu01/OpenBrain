@@ -1,6 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute, NavigationRoute } from "workbox-routing";
-import { NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
+import { CacheFirst, StaleWhileRevalidate } from "workbox-strategies";
 
 // New SW waits until the user taps "Update" in the toast, which posts
 // { type: 'SKIP_WAITING' }. Then skipWaiting + clients.claim triggers
@@ -16,10 +16,11 @@ cleanupOutdatedCaches();
 // Injected by vite-plugin-pwa at build time
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Fallback: if a lazy-loaded chunk 404s (stale hash), fetch from network
+// Hashed Vite assets are immutable. Serve cached chunks instantly when present;
+// stale-bundle recovery in main.tsx handles rotated hashes that no longer exist.
 registerRoute(
-  ({ request }) => request.destination === "script",
-  new NetworkFirst({ cacheName: "js-chunks" }),
+  ({ request, url }) => request.destination === "script" && url.pathname.startsWith("/assets/"),
+  new CacheFirst({ cacheName: "js-chunks" }),
 );
 
 // SPA navigation: serve cached index.html instantly, revalidate in background

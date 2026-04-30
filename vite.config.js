@@ -28,6 +28,11 @@ export default defineConfig({
     },
   },
   build: {
+    modulePreload: {
+      resolveDependencies(_filename, deps) {
+        return deps.filter((dep) => !dep.includes("sentry-"));
+      },
+    },
     // Sentry needs source maps to symbolicate stack traces. We emit them
     // and let the plugin upload + delete after upload so they don't ship
     // to the public bundle.
@@ -99,6 +104,17 @@ export default defineConfig({
           "**/AdminTab-*.{js,mjs}",
           "**/GraphView-*.{js,mjs}",
           "**/sentry-*.{js,mjs}",
+          "**/LoginScreen-*.{js,mjs}",
+          "**/StatusPage-*.{js,mjs}",
+          "**/ResetPasswordView-*.{js,mjs}",
+          "**/BearImportPanel-*.{js,mjs}",
+          "**/EvernoteImportPanel-*.{js,mjs}",
+          "**/GoogleKeepImportPanel-*.{js,mjs}",
+          "**/NotionImportPanel-*.{js,mjs}",
+          "**/ObsidianImportPanel-*.{js,mjs}",
+          "**/ReadwiseImportPanel-*.{js,mjs}",
+          "**/VaultRevealModal-*.{js,mjs}",
+          "**/ChatView-*.{js,mjs}",
         ],
         // Vite-pwa's default cap is 2 MB — pdf.worker is 2.2 MB raw, which
         // would warn even after we ignore it. Dropping the limit slightly

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "eml": "node EverionMindLaunch/server.mjs",
     "build": "vite build",
     "lint": "eslint . --max-warnings 73",
     "preview": "vite preview",

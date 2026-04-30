@@ -4,8 +4,6 @@
    Activated by html.family-atelier.
 */
 
-@import url("https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Familjen+Grotesk:wght@400;500;600;700&display=swap");
-
 html.family-atelier {
   --f-serif: "DM Serif Display", "Bodoni Moda", Georgia, serif;
   --f-sans: "Familjen Grotesk", system-ui, -apple-system, sans-serif;

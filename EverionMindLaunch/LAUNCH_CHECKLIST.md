@@ -66,6 +66,10 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
       Verified 2026-04-27. `SUPABASE_SERVICE_ROLE_KEY` is referenced only under `api/_lib/` and `api/*.ts` (server-only), never imported in `src/`. Browser SDK uses anon key per `src/lib/supabase.ts`.
 - [x] **Rate limiting on key endpoints** ✅
       Audited and tightened 2026-04-27 (commit `c6ec035`). Every endpoint now has a cap. Notable: `/api/notification-prefs` 30/min, `/api/push-subscribe` 20/min, gmail outer baseline 60/min + OAuth 30/min. Capture/LLM/v1/search were already covered. **Caveat:** see "Rate-limit fail-open audit" finding below.
+- [ ] **OAuth callback/state hardening** ❌
+      Gmail and Calendar OAuth currently use plain base64 JSON state and start OAuth with Supabase bearer tokens in URL query strings. Replace with authenticated start endpoints that do not put bearer tokens in URLs, issue one-time signed/HMAC or server-stored nonce state with expiry, and verify before linking accounts. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 OAuth state/token finding.
+- [ ] **Encrypt Calendar OAuth tokens** ❌
+      Gmail already has app-layer token crypto; Calendar access/refresh tokens are still stored plaintext. Generalize the Gmail token crypto helper, encrypt Calendar provider tokens on write/refresh, and migrate existing Calendar integration rows. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 Calendar token finding.
 
 ### Compliance / Legal
 
@@ -139,7 +143,9 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 ### Quality
 
 - [ ] **Lighthouse pass** ❌
-      Run on production. Aim ≥90 Performance, ≥95 Accessibility, ≥95 Best Practices, ≥95 SEO. Fix anything red. Mobile + desktop both.
+      Run on production. Aim ≥90 Performance, ≥95 Accessibility, ≥95 Best Practices, ≥95 SEO. Fix anything red. Mobile + desktop both. 2026-04-30 local production preview baseline from Codex performance audits: mobile Performance 74, desktop Performance 96, mobile FCP 4.1s, LCP 4.5s. Trace: `EverionMindLaunch/Audits/archive/codex-performance-2026-04-30.md` and `EverionMindLaunch/Audits/archive/perf-first-paint-2026-04-30.md`.
+- [ ] **E2E suite back to green** ❌
+      `npm run test:e2e` failed 9/17 in the 2026-04-30 Codex audit. OmniSearch `cmdk` composition was fixed in `src/components/ui/command.tsx`; rerun Playwright and burn down remaining dialog/capture/delete/onboarding/schedule/search failures plus local `429` timezone-sync warnings. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 E2E finding.
 - [ ] **Real-device QA pass** ❌
       Critical at scale. Test on real iPhone Safari, real Android Chrome, Windows Chrome + Firefox, Mac Safari + Chrome. PWA install flow alone has ~6 paths across these.
 - [ ] **Onboarding tested by 3 strangers** ❌
@@ -207,9 +213,15 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 ### Performance
 
 - [ ] **Bundle size review** 🟡
-      Run `npm run build`, check `dist/assets/`. Vite's `manualChunks` already splits supabase, sentry, pdfjs, mammoth, jszip. Watch the main chunk: if >500 KB gzipped, lazy-load more views.
+      Run `npm run build`, check `dist/assets/`. Vite's `manualChunks` already splits supabase, sentry, pdfjs, mammoth, jszip. Watch the main chunk: if >500 KB gzipped, lazy-load more views. 2026-04-30 direct fixes: Sentry moved behind dynamic imports, PWA precache tightened, hashed JS cache changed to CacheFirst, launch font preload cut to Fraunces/Inter Tight/JetBrains Mono, duplicate manifest link removed, design-family remote `@import`s removed. Remaining: split public landing from authenticated Supabase boot, run a visualizer for the `lib-*`/`module-*` chunks, and defer non-critical signed-in data prefetches. Trace: `EverionMindLaunch/Audits/archive/codex-performance-2026-04-30.md`.
 - [ ] **Cold-start mitigation** 🟡
-      First-paint matters most for new users. Test from a fresh browser, slow 3G throttle. If white screen >3s, add a server-rendered skeleton or static splash.
+      First-paint matters most for new users. Test from a fresh browser, slow 3G throttle. Inline app shell exists; 2026-04-30 fixes removed Sentry from first-load graph, reduced font payload, reduced Workbox install pressure, and made cached hashed JS instant while online. Remaining: mobile Lighthouse must prove FCP <1.8s and LCP <2.5s. Trace: `EverionMindLaunch/Audits/archive/perf-first-paint-2026-04-30.md`.
+- [ ] **Supabase migration replay hygiene** 🟡
+      Duplicate numeric migration prefixes exist (`004_*`, `058_*`). Before relying on clean-environment replay, decide whether to rename with unique monotonic versions or document tool behavior that makes this safe. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 duplicate migration finding.
+- [ ] **Browser private-cache hardening** 🟡
+      Entries, chat history, concept graphs, learning summaries, offline ops, and session vault keys touch local/session storage. Add a privacy mode plus TTL/encryption/clear-cache strategy for sensitive caches. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 plaintext browser storage finding.
+- [ ] **ESLint warning burn-down** 🟡
+      Current warning budget is too close to the ceiling. Reduce warnings below 20, then lower `--max-warnings` so new hook/stale-closure warnings cannot hide. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 lint warning finding.
 
 ---
 

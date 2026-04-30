@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import * as Sentry from "@sentry/react";
 import { Button } from "./components/ui/button";
+
+const CONSENT_KEY = "everion_analytics_consent";
 
 // Detect chunk-load / dynamic-import failures caused by a stale Service
 // Worker serving HTML that references chunk hashes from a previous build.
@@ -35,6 +36,19 @@ async function hardRecoverFromStaleBundle(): Promise<void> {
   const url = new URL(window.location.href);
   url.searchParams.set("_sw", Date.now().toString(36));
   window.location.replace(url.toString());
+}
+
+async function captureError(error: Error, tag: string, info: ErrorInfo): Promise<void> {
+  try {
+    if (localStorage.getItem(CONSENT_KEY) !== "accepted") return;
+    const Sentry = await import("@sentry/react");
+    Sentry.captureException(error, {
+      tags: { boundary: tag, staleBundle: isStaleBundleError(error) },
+      extra: { componentStack: info.componentStack },
+    });
+  } catch {
+    // Error reporting must never make the fallback UI fail.
+  }
 }
 
 interface ErrorBoundaryProps {
@@ -72,10 +86,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
   componentDidCatch(error: Error, info: ErrorInfo) {
     const tag = this.props.name ?? "root";
     console.error(`OpenBrain error [${tag}]:`, error, info.componentStack);
-    Sentry.captureException(error, {
-      tags: { boundary: tag, staleBundle: isStaleBundleError(error) },
-      extra: { componentStack: info.componentStack },
-    });
+    void captureError(error, tag, info);
     // Auto-recover stale-bundle errors once per page load. The flag is on
     // sessionStorage so we don't loop if the recovery itself somehow fails.
     if (isStaleBundleError(error)) {

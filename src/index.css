@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
-/* Google Fonts (Lora, DM Sans, Newsreader, Source Serif 4, Fraunces, Inter Tight, Geist Mono, JetBrains Mono) are loaded via <link rel="stylesheet"> in index.html so discovery happens during HTML parse rather than after CSSOM — drops first-paint blocking. */
+/* Launch fonts (Fraunces, Inter Tight, JetBrains Mono) are loaded from index.html so discovery happens during HTML parse rather than after CSSOM. */
 
 @import "./design/tokens.css";
 @import "./design/family-dusk.css";

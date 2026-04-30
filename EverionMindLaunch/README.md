@@ -12,6 +12,8 @@ EverionMindLaunch/
 ├── RESEARCH.md             ← competitor matrix + market principles + capture-design research
 ├── BRAINSTORM.md           ← priority-scored idea park (with parking lot for wild swings)
 ├── IMPORTS_SPEC.md         ← architecture for mass + continuous imports (Gmail / Drive / Notion / Obsidian / FS)
+├── Audits/                 ← adversarial reviews and quality reports
+│   └── codex-2026-04-30.md ← latest full-codebase Codex audit
 ├── architecture/           ← reference docs for cross-cutting components
 │   ├── INDEX.md
 │   ├── auth.md             ← withAuth, tier quotas, Upstash limiter
@@ -36,10 +38,16 @@ node EverionMindLaunch/server.mjs
 
 Open <http://localhost:5174>. Custom port: `PORT=8080 node EverionMindLaunch/server.mjs`.
 
-The dashboard has a **top tab bar** for every doc. Two render modes:
+The dashboard has a grouped **Document Library**:
+
+- **Launch Control** — checklist, roadmap, strategy, research, brainstorm, imports spec.
+- **Audits** — adversarial reviews and quality reports.
+- **Architecture** — implementation reference docs for cross-cutting systems.
+
+Use the document search field to jump straight to a file by title, folder, or path. Two render modes:
 
 - **Checklist tab** — scorecard tiles (Done / Partial / Missing / Open), animated progress bar, status filter chips, category filter chips (auto-derived sub-categories: Infrastructure, Security, Mobile, Marketing, App Store Submission, Performance, Code Quality, Stability, Owner Tasks, Post-Launch, ...), search across titles/descriptions, sticky sidebar nav grouped by category.
-- **Doc tabs** (Roadmap / Strategy / Research / Brainstorm / Imports / Architecture sub-docs) — branded markdown render with TOC sidebar (H2 + H3 anchors), tables, code blocks, blockquotes. Any `[ ]` line in any doc is also toggleable — clicking writes back to the source `.md`.
+- **Doc pages** (Roadmap / Strategy / Research / Brainstorm / Imports / Audits / Architecture sub-docs) — branded markdown render with TOC sidebar (H2 + H3 anchors), tables, code blocks, blockquotes. Any `[ ]` line in any doc is also toggleable — clicking writes back to the source `.md`.
 
 ## Bidirectional live sync
 
@@ -65,6 +73,7 @@ The dashboard reads these directly. Status pills + filter chips + scorecard refl
 - **`RESEARCH.md`** is the **market evidence.** Competitor matrix, what users praise + complain about, MVP principles, capture-design patterns.
 - **`BRAINSTORM.md`** is the **idea park.** Priority-scored ideas (Usefulness + Wow + Unique − Scope Creep). Killed ideas stay (with reason) so we don't re-propose them.
 - **`IMPORTS_SPEC.md`** is a **feature spec.** Mass + continuous import architecture (Gmail, Drive, Notion, Obsidian, local FS). Slot: Month 6–12.
+- **`Audits/*.md`** are **review records.** Full adversarial audits, quality findings, verification runs, and recommended fix order. New audit reports belong here, newest first in the dashboard registry.
 - **`architecture/*.md`** are **reference docs.** How existing systems work — auth, capture pipeline, cron, enrichment, Gmail sync, notification bell. These are stable; new ones get added when a complex component lands.
 
 ## Why a tiny custom server instead of Vite or Express?
