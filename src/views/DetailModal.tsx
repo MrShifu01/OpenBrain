@@ -212,8 +212,8 @@ export default function DetailModal({
           setKeepMsg(null);
         }, 1200);
       }
-    } catch (e: any) {
-      setKeepMsg({ text: e?.message ?? "Failed", ok: false });
+    } catch (e) {
+      setKeepMsg({ text: e instanceof Error ? e.message : "Failed", ok: false });
     }
     setKeepBusy(false);
   }

@@ -252,8 +252,8 @@ export default function ProfileTab() {
       const personaOnly = rows.filter((r: any) => r?.type === "persona");
       setFacts(personaOnly);
       setFactsError(null);
-    } catch (e: any) {
-      setFactsError(e?.message || "Could not load facts");
+    } catch (e) {
+      setFactsError(e instanceof Error ? e.message : "Could not load facts");
     } finally {
       setFactsLoaded(true);
     }
@@ -398,8 +398,8 @@ export default function ProfileTab() {
       if (!r?.ok) throw new Error("save_failed");
       setCoreSaved(true);
       setTimeout(() => setCoreSaved(false), 1800);
-    } catch (e: any) {
-      setCoreError(e?.message || "Could not save");
+    } catch (e) {
+      setCoreError(e instanceof Error ? e.message : "Could not save");
     } finally {
       setCoreSaving(false);
     }
@@ -436,8 +436,8 @@ export default function ProfileTab() {
       if (!r?.ok) throw new Error("add_failed");
       setNewFactText("");
       await reloadFacts();
-    } catch (e: any) {
-      setFactsError(e?.message || "Could not add fact");
+    } catch (e) {
+      setFactsError(e instanceof Error ? e.message : "Could not add fact");
     } finally {
       setAdding(false);
     }
@@ -584,8 +584,8 @@ export default function ProfileTab() {
           // Open the History section so the user sees where the fact went.
           setShowHistory(true);
           await reloadFacts();
-        } catch (e: any) {
-          setFactsError(e?.message || "Could not retire");
+        } catch (e) {
+          setFactsError(e instanceof Error ? e.message : "Could not retire");
         }
       },
     });
@@ -626,8 +626,8 @@ export default function ProfileTab() {
       if (rejectedCount > 0 && rejectedCount % 20 === 0) {
         authFetch("/api/entries?action=distill-rejected", { method: "POST" }).catch(() => {});
       }
-    } catch (e: any) {
-      setFactsError(e?.message || "Could not mark as not-me");
+    } catch (e) {
+      setFactsError(e instanceof Error ? e.message : "Could not mark as not-me");
     }
   }
 
@@ -662,8 +662,8 @@ export default function ProfileTab() {
       // Trigger a re-distill so the rejected_summary doesn't keep teaching
       // the model to skip something the user just said WAS them after all.
       authFetch("/api/entries?action=distill-rejected", { method: "POST" }).catch(() => {});
-    } catch (e: any) {
-      setFactsError(e?.message || "Could not restore");
+    } catch (e) {
+      setFactsError(e instanceof Error ? e.message : "Could not restore");
     }
   }
 
@@ -1854,8 +1854,8 @@ function PersonaPromptDebug({
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const json = (await r.json()) as PersonaPromptPayload;
       setData(json);
-    } catch (e: any) {
-      setErr(String(e?.message ?? e));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -1883,8 +1883,8 @@ function PersonaPromptDebug({
           : `${json.count} rejections — too few to distill yet.`,
       );
       await load();
-    } catch (e: any) {
-      setDistillMsg(`Failed: ${String(e?.message ?? e)}`);
+    } catch (e) {
+      setDistillMsg(`Failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setDistilling(false);
     }

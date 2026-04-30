@@ -97,8 +97,8 @@ export default function ImportantMemoriesView({ brainId }: ImportantMemoriesView
     let memory_key: string;
     try {
       memory_key = generateMemoryKey(input.memory_type, input.title);
-    } catch (e: any) {
-      return { ok: false, error: e?.message ?? "Invalid title" };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "Invalid title" };
     }
     const res = await authFetch("/api/important-memories", {
       method: "POST",

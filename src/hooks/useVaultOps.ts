@@ -274,8 +274,8 @@ export function useVaultOps({
       onEntryCreated?.(newEntry);
       resetAddForm();
       setShowAddSecret(false);
-    } catch (e: any) {
-      setAddError(e.message || "Failed to save secret");
+    } catch (e) {
+      setAddError(e instanceof Error ? e.message : "Failed to save secret");
     }
     setAddBusy(false);
   }, [addTitle, addContent, addTags, addMetaRows, cryptoKey, brainId, onEntryCreated]);

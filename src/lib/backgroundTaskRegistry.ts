@@ -44,13 +44,13 @@ async function retryFetch(
 ): Promise<Response> {
   try {
     return await authFetch(url, init);
-  } catch (err: any) {
+  } catch (err) {
     if (retries > 0) {
       await new Promise((res) => setTimeout(res, delayMs));
       return retryFetch(url, init, retries - 1, delayMs * 2);
     }
     // Re-throw with a clearer message so the toast doesn't say cryptic "Load failed".
-    const original = err?.message ?? "network error";
+    const original = err instanceof Error ? err.message : "network error";
     throw new Error(`Network blip (${original}). Try again — already-saved progress is kept.`, {
       cause: err,
     });

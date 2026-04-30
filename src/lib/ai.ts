@@ -69,9 +69,9 @@ export async function callAI({
         json,
       }),
     });
-  } catch (err: any) {
+  } catch (err) {
     clearTimeout(timer);
-    if (err?.name === "AbortError") {
+    if (err instanceof Error && err.name === "AbortError") {
       return new Response(
         JSON.stringify({ error: "Request timed out. Check your connection or try again." }),
         { status: 504, headers: { "Content-Type": "application/json" } },

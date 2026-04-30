@@ -147,10 +147,10 @@ export function BackgroundOpsProvider({ children }: { children: ReactNode }) {
           finishedAt: Date.now(),
           progress: undefined,
         });
-      } catch (err: any) {
+      } catch (err) {
         updateTask(task.id, {
           status: "error",
-          error: err?.message || "Failed",
+          error: err instanceof Error ? err.message : "Failed",
           finishedAt: Date.now(),
           progress: undefined,
         });
