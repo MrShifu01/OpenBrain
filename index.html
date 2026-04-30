@@ -212,18 +212,25 @@
       naturally. Goal: something on screen at ~500ms instead of white
       until 4-5s on a cold cell connection. No external assets — must
       not introduce another network request to fix a network problem.
+
+      Markup mirrors src/components/LoadingScreen.tsx 1:1 (orbital orb,
+      pulsing ring, dashed orbital ring, glass panel + logo, gradient
+      brand title, sweep bar). Project utility classes are applied so once
+      index.css arrives the styling matches LoadingScreen exactly. The
+      inline declarations + keyframe copies below cover the brief pre-CSS
+      window so the visual stays identical the whole way through.
     -->
     <style>
       html,
       body {
         margin: 0;
-        background: #0e0e0e;
-        color: #f0ede6;
+        background: var(--bg, var(--color-background, #0e0e0e));
+        color: var(--ink, #f0ede6);
         min-height: 100%;
       }
       #root {
         min-height: 100dvh;
-        background: #0e0e0e;
+        background: var(--bg, var(--color-background, #0e0e0e));
       }
       .app-shell-boot {
         position: fixed;
@@ -235,46 +242,139 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        gap: 24px;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-        background: #0e0e0e;
+        background: var(--bg, var(--color-background, #0e0e0e));
+        z-index: 100;
+      }
+      .app-shell-boot__stack {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+      }
+      .app-shell-boot__orb {
+        position: relative;
+        width: 104px;
+        height: 104px;
+      }
+      .app-shell-boot__halo {
+        position: absolute;
+        inset: -10px;
+        border-radius: 50%;
+        filter: blur(16px);
+        background: radial-gradient(
+          circle,
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 22%, transparent),
+          color-mix(in oklch, var(--color-tertiary, oklch(62% 0.1 145)) 18%, transparent),
+          transparent 70%
+        );
+        animation: hero-glow 3s ease-in-out infinite;
+      }
+      .app-shell-boot__ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 25%, transparent);
+        animation: ring-pulse 2.6s ease-in-out infinite;
+      }
+      .app-shell-boot__orbital {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        border: 1px dashed
+          color-mix(in oklch, var(--color-tertiary, oklch(62% 0.1 145)) 20%, transparent);
+        animation: orbital-spin 18s linear infinite;
+      }
+      .app-shell-boot__glass {
+        position: relative;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 20%, transparent);
+        background: color-mix(
+          in oklch,
+          var(--color-surface-container-highest, oklch(37% 0.016 65)) 60%,
+          transparent
+        );
+        backdrop-filter: blur(24px) saturate(140%);
+        -webkit-backdrop-filter: blur(24px) saturate(140%);
       }
       .app-shell-boot__logo {
-        width: 72px;
-        height: 72px;
+        width: 81px;
+        height: 81px;
         object-fit: contain;
         display: block;
-        opacity: 0.95;
       }
       .app-shell-boot__brand {
-        font-size: 22px;
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        color: #f0ede6;
-        opacity: 0.92;
+        margin: 0;
+        font-family: var(--f-serif, "Newsreader", Georgia, serif);
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--color-primary, oklch(68% 0.09 75));
+        -webkit-text-fill-color: var(--color-primary, oklch(68% 0.09 75));
+        text-shadow: 0 0 20px
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 40%, transparent);
       }
       .app-shell-boot__bar {
-        width: 96px;
+        width: 112px;
         height: 1px;
-        border-radius: 999px;
-        background: rgba(240, 237, 230, 0.12);
         overflow: hidden;
+        border-radius: 999px;
+        background: var(--color-outline-variant, oklch(22% 0.012 65));
       }
       .app-shell-boot__bar::after {
         content: "";
         display: block;
         width: 50%;
         height: 100%;
-        background: #c97a3c;
         border-radius: 999px;
-        animation: app-shell-sweep 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+        background: var(--color-primary, oklch(68% 0.09 75));
+        animation: loading-sweep 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
       }
-      @keyframes app-shell-sweep {
+      /* Inline keyframe copies — index.css redefines the same names with
+         identical declarations, so once the stylesheet arrives there's no
+         visible jump. Kept here so the boot shell animates pre-CSS too. */
+      @keyframes hero-glow {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      @keyframes ring-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.08);
+          opacity: 1;
+        }
+      }
+      @keyframes orbital-spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes loading-sweep {
         0% {
-          transform: translateX(-100%);
+          transform: translateX(-200%);
         }
         100% {
-          transform: translateX(200%);
+          transform: translateX(300%);
         }
       }
     </style>
@@ -282,9 +382,20 @@
   <body>
     <div id="root">
       <div class="app-shell-boot" aria-hidden="true">
-        <img class="app-shell-boot__logo" src="/logoNew.webp" alt="" />
-        <div class="app-shell-boot__brand">Everion Mind</div>
-        <div class="app-shell-boot__bar"></div>
+        <div class="synapse-bg"></div>
+        <div class="grain"></div>
+        <div class="app-shell-boot__stack">
+          <div class="app-shell-boot__orb">
+            <div class="app-shell-boot__halo"></div>
+            <div class="app-shell-boot__ring"></div>
+            <div class="app-shell-boot__orbital"></div>
+            <div class="app-shell-boot__glass glass-panel">
+              <img class="app-shell-boot__logo" src="/logoNew.webp" alt="" />
+            </div>
+          </div>
+          <h1 class="app-shell-boot__brand font-headline gradient-text glow-text">Everion Mind</h1>
+          <div class="app-shell-boot__bar"></div>
+        </div>
       </div>
     </div>
     <script>
