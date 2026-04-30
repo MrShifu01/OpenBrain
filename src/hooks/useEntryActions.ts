@@ -29,7 +29,7 @@ interface UseEntryActionsParams {
 
 // Undoable action history. Discriminated union — `type` narrows the shape.
 // Used by handleUndo to pick the right rollback path. Was `any` before.
-type LastAction =
+export type LastAction =
   | { type: "delete"; entry: Entry }
   | {
       type: "update";

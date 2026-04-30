@@ -125,11 +125,6 @@ export interface PlacementOptions {
   includeCompleted?: boolean;
 }
 
-export interface TodoItem {
-  entry: Entry;
-  dateStr: string;
-}
-
 export interface ExternalCalEvent {
   id: string;
   title: string;

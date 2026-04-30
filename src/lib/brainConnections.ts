@@ -58,17 +58,18 @@ async function _doExtractEntryConnections(entry: EntryRef, brainId: string): Pro
       console.warn("[concepts] No JSON in AI response for", entry.id, "· raw:", text.slice(0, 100));
       return;
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parsed: any;
     try {
       parsed = JSON.parse(jsonMatch[0]);
     } catch {
       // Truncated response — salvage complete objects from partial arrays
-      const salvageArray = (key: string): any[] => {
+      const salvageArray = (key: string): unknown[] => {
         const m = text.match(
           new RegExp(`"${key}"\\s*:\\s*(\\[[\\s\\S]*?)(?=\\s*(?:,\\s*"[a-z]|\\}\\s*$))`, "i"),
         );
         if (!m) return [];
-        const items: any[] = [];
+        const items: unknown[] = [];
         const objRe = /\{[^{}]*\}/g;
         let om: RegExpExecArray | null;
         while ((om = objRe.exec(m[1])) !== null) {

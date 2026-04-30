@@ -14,7 +14,7 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-type OnUpdate = (id: string, changes: any) => Promise<void>;
+type OnUpdate = (id: string, changes: Partial<Entry>) => Promise<void>;
 type OnPhase = (phase: string) => void;
 
 interface StepFlags {
@@ -50,6 +50,7 @@ function mergeEnrichmentFlags(
  * Handles: markdown fences, truncated responses (via brace-counting salvage).
  * Returns null if no usable JSON could be extracted.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseAIJSON(rawAI: string): any | null {
   const aiText = rawAI.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
   // Try full array/object first

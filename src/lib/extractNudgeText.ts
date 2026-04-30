@@ -5,10 +5,21 @@
  * - Rejects responses that look like leaked instruction text, JSON, or raw metadata
  * - Returns null if nothing usable is found
  */
-export function extractNudgeText(data: any): string | null {
-  if (!data?.content?.length) return null;
+interface NudgeContentBlock {
+  type?: string;
+  text?: string;
+}
+interface NudgeResponse {
+  content?: NudgeContentBlock[];
+}
 
-  const textBlock = data.content.find((b: any) => b.type === "text" && typeof b.text === "string");
+export function extractNudgeText(data: unknown): string | null {
+  const d = data as NudgeResponse | undefined;
+  if (!d?.content?.length) return null;
+
+  const textBlock = d.content.find(
+    (b): b is { type: "text"; text: string } => b.type === "text" && typeof b.text === "string",
+  );
   if (!textBlock) return null;
 
   const cleaned = textBlock.text

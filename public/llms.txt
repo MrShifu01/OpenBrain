@@ -19,6 +19,7 @@ Privacy: local-first storage, end-to-end encrypted vault, BYO AI key on the free
 - [The State of the Second Brain 2026](https://everionmind.com/research/second-brain-2026.html): Research synthesis with citations on information overload, app sprawl, and personal knowledge management.
 - [Privacy](https://everionmind.com/privacy): Encryption, data handling, retention.
 - [Terms](https://everionmind.com/terms): Service terms.
+- [Status](https://everionmind.com/status): Live system status — API, database, and AI provider uptime.
 
 ## Plans
 

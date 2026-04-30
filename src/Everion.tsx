@@ -43,6 +43,9 @@ import ViewError from "./components/ViewError";
 import { useNotifications } from "./hooks/useNotifications";
 import { useAppShell, type AppShellState } from "./hooks/useAppShell";
 import { useDataLayer } from "./hooks/useDataLayer";
+import type { LastAction } from "./hooks/useEntryActions";
+import type { OfflineOp } from "./types";
+import type { BackgroundTask } from "./hooks/useBackgroundCapture";
 import { useEntryRealtime } from "./hooks/useEntryRealtime";
 import { useBrain } from "./context/BrainContext";
 import { useEntries } from "./context/EntriesContext";
@@ -53,6 +56,7 @@ import { syncTimezoneIfChanged } from "./lib/syncTimezone";
 import { supabase } from "./lib/supabase";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lazyRetry(fn: () => Promise<any>) {
   return lazy(() =>
     fn()
@@ -104,8 +108,8 @@ interface EverionContentProps {
   handleVaultUnlock: (key: CryptoKey | null) => void;
   handleCreated: (entry: Entry) => void;
   handleCreatedBulk: (entry: Entry) => void;
-  lastAction: any;
-  setLastAction: (a: any) => void;
+  lastAction: LastAction | null;
+  setLastAction: (a: LastAction | null) => void;
   saveError: string | null;
   setSaveError: (e: string | null) => void;
   handleUndo: () => void;
@@ -113,12 +117,12 @@ interface EverionContentProps {
   setEntries: React.Dispatch<React.SetStateAction<Entry[]>>;
   isOnline: boolean;
   pendingCount: number;
-  failedOps: any[];
+  failedOps: OfflineOp[];
   clearFailedOps: () => void;
   canWrite: boolean;
-  nudge: any;
-  setNudge: (n: any) => void;
-  bgTasks: any[];
+  nudge: string | null;
+  setNudge: (n: string | null) => void;
+  bgTasks: BackgroundTask[];
   bgProcessFiles: (
     files: File[],
     brainId: string | undefined,
@@ -130,7 +134,7 @@ interface EverionContentProps {
       content: string;
       type: string;
       tags: string[];
-      metadata: Record<string, any>;
+      metadata: Record<string, unknown>;
       rawContent?: string;
     },
     brainId: string | undefined,
@@ -431,7 +435,7 @@ function EverionContent({
             onSelect={handleEntrySelect}
             onNavigate={appShell.setView}
             showGraph={ff("graph")}
-            concepts={godNodes.map((c: any) => ({
+            concepts={godNodes.map((c) => ({
               id: c.id,
               label: c.label,
               count: Array.isArray(c.source_entries) ? c.source_entries.length : undefined,

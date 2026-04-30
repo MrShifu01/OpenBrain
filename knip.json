@@ -32,5 +32,9 @@
     "scripts/**/*.ts"
   ],
   "project": ["src/**/*.{ts,tsx}", "api/**/*.ts", "tests/**/*.ts"],
-  "tags": ["-lintignore"]
+  "ignoreExportsUsedInFile": true,
+  "tags": ["-lintignore"],
+  "rules": {
+    "exports": "off"
+  }
 }

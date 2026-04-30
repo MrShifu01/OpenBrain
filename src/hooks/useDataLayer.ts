@@ -7,7 +7,7 @@ import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
 import { useEntryActions } from "./useEntryActions";
-import type { Entry } from "../types";
+import type { Entry, Link } from "../types";
 
 interface UseDataLayerParams {
   activeBrainId?: string;
@@ -39,7 +39,7 @@ export function useDataLayer({
     return [];
   });
   const [entriesLoaded, setEntriesLoaded] = useState(false);
-  const [links, setLinks] = useState<any[]>(LINKS);
+  const [links, setLinks] = useState<Link[]>(LINKS);
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
   const [vaultExists, setVaultExists] = useState(false);
   const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
@@ -69,12 +69,12 @@ export function useDataLayer({
     try {
       const r = await authFetch("/api/vault-entries");
       if (!r.ok) return;
-      const data: any[] = await r.json();
+      const data: Partial<Entry>[] = await r.json();
       const fetched: Entry[] = data.map((e) => ({
         ...e,
         type: "secret" as const,
         encrypted: true,
-      }));
+      })) as Entry[];
       vaultEntryIdsRef.current = new Set(fetched.map((e) => e.id));
       setVaultEntries(fetched);
     } catch (e) {
@@ -206,7 +206,7 @@ export function useDataLayer({
 
   // silentUpdate uses the base updater so enrichEntry's own flag writes don't re-trigger enrichment
   const silentUpdate = useCallback(
-    (id: string, changes: any) => _handleUpdateBase(id, changes, { silent: true }),
+    (id: string, changes: Partial<Entry>) => _handleUpdateBase(id, changes, { silent: true }),
     [_handleUpdateBase],
   );
 
@@ -222,7 +222,10 @@ export function useDataLayer({
     setEntries((prev) => prev.map((e) => (e.id === tempId ? { ...e, id: realId } : e)));
   }, []);
 
-  const addLinks = useCallback((newLinks: any[]) => setLinks((prev) => [...prev, ...newLinks]), []);
+  const addLinks = useCallback(
+    (newLinks: Link[]) => setLinks((prev) => [...prev, ...newLinks]),
+    [],
+  );
 
   const handleCreated = useCallback(
     (newEntry: Entry) => {

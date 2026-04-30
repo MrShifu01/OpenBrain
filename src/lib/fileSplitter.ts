@@ -58,12 +58,23 @@ export function parseAISplitResponse(raw: string): SplitEntry[] {
   const jsonMatch = cleaned.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   const candidate = jsonMatch ? jsonMatch[1] : cleaned;
 
-  const normalise = (parsed: any): SplitEntry[] => {
-    const arr = Array.isArray(parsed) ? parsed : parsed?.title ? [parsed] : [];
+  const normalise = (parsed: unknown): SplitEntry[] => {
+    const arr: unknown[] = Array.isArray(parsed)
+      ? parsed
+      : parsed && typeof parsed === "object" && "title" in parsed
+        ? [parsed]
+        : [];
     return arr
-      .filter((e: any) => e && typeof e.title === "string" && e.title.trim())
-      .map((e: any) => ({
+      .filter(
+        (e): e is Partial<SplitEntry> & { title: string } =>
+          !!e &&
+          typeof e === "object" &&
+          typeof (e as { title?: unknown }).title === "string" &&
+          ((e as { title: string }).title as string).trim().length > 0,
+      )
+      .map((e) => ({
         ...e,
+        content: typeof e.content === "string" ? e.content : "",
         type: typeof e.type === "string" && e.type.trim() ? e.type.trim() : "note",
       }));
   };
