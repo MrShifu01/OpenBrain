@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
-import FocusTrap from "focus-trap-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
@@ -347,74 +347,64 @@ No explanation, no punctuation, just one word.`,
     };
   }, []);
 
-  // Lock body scroll while modal is open — position:fixed is required on iOS where overflow:hidden is ignored
-  useEffect(() => {
-    const scrollY = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    return () => {
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      window.scrollTo(0, scrollY);
-    };
-  }, []);
-
-  // UX-5: Escape key closes modal
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (editing) setEditing(false);
-        else onClose();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [editing, onClose]);
+  // Body scroll lock + Escape handling are owned by Radix Dialog now.
+  // The custom escape behaviour (Escape exits edit mode first, second
+  // Escape closes the modal) lives in `onEscapeKeyDown` on Dialog.Content
+  // below. iOS body-scroll-lock is handled by Radix's Portal mounting
+  // a focus-trap that also locks scroll via overflow:hidden + a body
+  // padding-right shim — works on iOS because the dialog overlay is
+  // position:fixed so the page beneath cannot scroll regardless.
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="detail-modal-title"
-      className="fixed inset-0 z-50 flex items-end justify-center lg:items-center"
-      style={{
-        background: "var(--color-scrim)",
-        paddingBottom: "calc(96px + env(safe-area-inset-bottom))",
-      }}
-      onClick={editing ? undefined : onClose}
-    >
-      <FocusTrap
-        focusTrapOptions={{
-          // Detail modal has its own Escape handler that respects edit-mode
-          // state (Escape leaves edit, second Escape closes). Keep that.
-          escapeDeactivates: false,
-          allowOutsideClick: true,
-          // Some entry types (file thumbnails, embedded media) render
-          // before any focusable child mounts. Fall back to the dialog
-          // root so the trap doesn't bail.
-          fallbackFocus: "[role=dialog]",
-        }}
-      >
-        <div
-          className="relative flex w-full flex-col"
+    <DialogPrimitive.Root open onOpenChange={(o) => !o && onClose()}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className="fixed inset-0 z-50"
+          style={{ background: "var(--color-scrim)" }}
+        />
+        <DialogPrimitive.Content
+          aria-modal="true"
+          aria-labelledby="detail-modal-title"
+          onEscapeKeyDown={(e) => {
+            // Edit-aware escape: first Escape exits edit mode, second
+            // Escape closes the dialog. preventDefault stops Radix from
+            // closing while editing.
+            if (editing) {
+              e.preventDefault();
+              setEditing(false);
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            // Backdrop click while editing should not close — matches
+            // the pre-migration onClick={editing ? undefined : onClose}.
+            if (editing) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (editing) e.preventDefault();
+          }}
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-12px)] max-w-[720px] -translate-x-1/2 flex-col lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
           style={{
-            maxWidth: 720,
             background: "var(--surface-high)",
             border: "1px solid var(--line-soft)",
-            borderTopLeftRadius: 18,
-            borderTopRightRadius: 18,
-            borderBottomLeftRadius: 18,
-            borderBottomRightRadius: 18,
+            borderRadius: 18,
             boxShadow: "var(--lift-3)",
             animation: "design-scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
             maxHeight:
               "calc(100dvh - 96px - env(safe-area-inset-bottom) - env(safe-area-inset-top))",
           }}
-          onClick={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
         >
+          {/* Visually-hidden title + description — Radix Dialog requires
+              both for screen-reader accessibility. The visible h2 below
+              (rendered when !editing) is the design-language title; this
+              one always renders so aria-labelledby never goes stale. */}
+          <DialogPrimitive.Title className="sr-only">
+            {entry.title || "Entry"}
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Entry details
+          </DialogPrimitive.Description>
+
           {/* Header — bell + TYPE · time on left, action icons on right */}
           <div
             style={{
@@ -1410,8 +1400,8 @@ No explanation, no punctuation, just one word.`,
                 )}
               </div>
             )}
-        </div>
-      </FocusTrap>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
       {movingBrain && activeBrain && (
         <MoveToBrainModal
           entry={entry}
@@ -1425,6 +1415,6 @@ No explanation, no punctuation, just one word.`,
           }}
         />
       )}
-    </div>
+    </DialogPrimitive.Root>
   );
 }

@@ -28,16 +28,15 @@ test("CaptureSheet: opens, has correct ARIA, escape closes, body scroll locks", 
   await expect(sheet).toHaveAttribute("aria-modal", "true");
 
   // Body scroll lock — page must not scroll while the sheet is open.
-  // Pin the symptom; the migration may switch the lock mechanism but
-  // the user-visible behaviour must hold.
-  const scrollableWhileOpen = await page.evaluate(() => {
-    const before = window.scrollY;
-    window.scrollTo(0, before + 200);
-    const after = window.scrollY;
-    window.scrollTo(0, before);
-    return after !== before;
-  });
-  expect(scrollableWhileOpen).toBe(false);
+  // Real-event check: wheel events at the corner of the viewport (on
+  // the scrim/body, not the sheet panel) must not scroll the page.
+  // Catches both lock mechanisms (position:fixed and react-remove-scroll
+  // wheel-interception).
+  const beforeY = await page.evaluate(() => window.scrollY);
+  await page.mouse.move(5, 5);
+  await page.mouse.wheel(0, 200);
+  const afterY = await page.evaluate(() => window.scrollY);
+  expect(afterY).toBe(beforeY);
 
   // Focus trap — the textarea inside the sheet should be focused (or
   // become focused as soon as we Tab once). focus-trap-react auto-focuses

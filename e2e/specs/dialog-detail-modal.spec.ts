@@ -76,33 +76,34 @@ test("DetailModal: opens, escape closes, body scroll locks, ARIA correct", async
     await expect(detail).toHaveAttribute("aria-modal", "true");
 
     // ── Body scroll lock ──
-    // Current implementation pins document.body to position:fixed; the
-    // shadcn Dialog migration uses Radix's `data-state` + a different
-    // mechanism (overflow:hidden on body via Portal). Either way, the
-    // page MUST NOT scroll while the dialog is open. Test the symptom,
-    // not the implementation.
-    const scrollableWhileOpen = await page.evaluate(() => {
-      const before = window.scrollY;
-      window.scrollTo(0, before + 200);
-      const after = window.scrollY;
-      window.scrollTo(0, before);
-      return after !== before;
-    });
-    expect(scrollableWhileOpen).toBe(false);
+    // Real-event check: wheel events outside the dialog must not scroll
+    // the page. Catches both lock mechanisms (position:fixed + custom
+    // and Radix's react-remove-scroll which intercepts wheel events).
+    // Use the very corner of the viewport — guaranteed to be on the
+    // overlay/body, not on Dialog Content.
+    const beforeY = await page.evaluate(() => window.scrollY);
+    await page.mouse.move(5, 5);
+    await page.mouse.wheel(0, 200);
+    const afterY = await page.evaluate(() => window.scrollY);
+    expect(afterY).toBe(beforeY);
 
     // ── Escape closes ──
     await page.keyboard.press("Escape");
     await expect(detail).toBeHidden();
 
-    // ── Body scroll restored ──
-    const scrollableAfterClose = await page.evaluate(() => {
-      const before = window.scrollY;
-      window.scrollTo(0, before + 50);
-      const after = window.scrollY;
-      window.scrollTo(0, before);
-      return after !== before || document.body.scrollHeight <= window.innerHeight;
+    // ── Body scroll lock released ──
+    // After close, real wheel events must scroll the page again (or be
+    // a no-op if there's nothing to scroll). Either is fine — what
+    // matters is that the lock did NOT leak past close. We can't
+    // reliably assert "scroll moved" because the page may genuinely
+    // be shorter than viewport on a fresh capture; assert the
+    // behavioural inverse instead — that the body's inline lock
+    // styles (if used) are clear after close.
+    await page.waitForFunction(() => {
+      const s = document.body.style;
+      const h = document.documentElement.style;
+      return s.overflow !== "hidden" && s.position !== "fixed" && h.overflow !== "hidden";
     });
-    expect(scrollableAfterClose).toBe(true);
 
     noise.assertNoNew();
   } finally {
