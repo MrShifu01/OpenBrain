@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-> **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/`**
-> The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, and architecture reference. Six core docs:
+> **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/` (shorthand: `EML`)**
+> The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, and architecture reference. When the user says "EML" they mean this folder — treat it as `EverionMindLaunch/` everywhere. Six core docs:
 > - **`LAUNCH_CHECKLIST.md`** — active to-do (P0/P1/P2 tiered)
 > - **`ROADMAP.md`** — 21-day sprint + 12-month timeline
 > - **`STRATEGY.md`** — positioning, moat, viral mechanics

@@ -21,7 +21,9 @@ const INDEX_PATH = resolve(ROOT, "index.html");
 const PORT = Number(process.env.PORT || 5174);
 
 // Doc registry — display name + path + role. The order here is the order
-// shown in the dashboard tabs, so put action-oriented docs first.
+// shown in the dashboard library, so put action-oriented docs first.
+// Files in AUTO_GROUPS dirs (below) are picked up automatically — no need
+// to list them here unless you want to override the title or pin order.
 const DOCS = [
   { id: "checklist",    file: "LAUNCH_CHECKLIST.md", title: "Checklist",    role: "checklist" },
   { id: "roadmap",      file: "ROADMAP.md",          title: "Roadmap",      role: "doc" },
@@ -37,6 +39,14 @@ const DOCS = [
   { id: "arch-cron",    file: "architecture/cron.md",    title: "Cron + workflows", role: "doc", group: "architecture" },
   { id: "arch-enrich",  file: "architecture/enrich.md",  title: "Enrichment pipeline", role: "doc", group: "architecture" },
   { id: "arch-gmail",   file: "architecture/gmail.md",   title: "Gmail sync",     role: "doc", group: "architecture" },
+];
+
+// Auto-discovery — drop a `.md` file into one of these dirs and it appears
+// in the dashboard with no server edit. Title comes from the first `# H1`,
+// fallback to filename. Sort order applies within the group.
+const AUTO_GROUPS = [
+  { dir: "Audits", group: "audits", sort: "mtime-desc" },
+  // Future drop-in folders (Decisions/, Specs/) just add another entry here.
 ];
 
 function send(res, status, body, headers = {}) {
@@ -62,15 +72,75 @@ async function readDoc(rel) {
   return { content, mtime: st.mtimeMs };
 }
 
+// Read the first `# H1` from a markdown file. Returns null if none found
+// in the first ~40 lines (cheap heuristic — H1 always sits near the top).
+async function readFirstH1(absPath) {
+  try {
+    const content = await readFile(absPath, "utf8");
+    const head = content.split(/\r?\n/, 40);
+    for (const line of head) {
+      const m = /^#\s+(.+?)\s*$/.exec(line);
+      if (m) return m[1].trim();
+    }
+  } catch { /* unreadable — fall through */ }
+  return null;
+}
+
+// Slug + fallback title from a filename. Strips date prefix if present.
+function fallbackTitleFromFile(name) {
+  return name
+    .replace(/\.md$/i, "")
+    .replace(/^(\d{4}-\d{2}-\d{2})[-_]?/, "")  // strip leading YYYY-MM-DD
+    .replace(/[-_]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// Walk every AUTO_GROUPS dir and produce doc entries for the .md files.
+async function discoverAutoDocs() {
+  const out = [];
+  for (const group of AUTO_GROUPS) {
+    const absDir = resolve(ROOT, group.dir);
+    let entries = [];
+    try {
+      entries = await readdir(absDir, { withFileTypes: true });
+    } catch { continue; } // dir missing → skip silently
+    for (const ent of entries) {
+      if (!ent.isFile() || !ent.name.endsWith(".md")) continue;
+      const file = `${group.dir}/${ent.name}`;
+      const abs = resolve(ROOT, file);
+      const st = await stat(abs);
+      const h1 = await readFirstH1(abs);
+      const title = h1 || fallbackTitleFromFile(ent.name);
+      const id = `${group.group}-${ent.name.replace(/\.md$/i, "")}`;
+      out.push({ id, file, title, role: "doc", group: group.group, mtime: st.mtimeMs, bytes: st.size });
+    }
+    // Apply sort within this group only
+    if (group.sort === "mtime-desc") {
+      out.sort((a, b) => (a.group === group.group && b.group === group.group) ? b.mtime - a.mtime : 0);
+    }
+  }
+  return out;
+}
+
 async function listDocs() {
   const out = [];
+  const seenFiles = new Set();
   for (const doc of DOCS) {
     try {
       const st = await stat(resolve(ROOT, doc.file));
       out.push({ ...doc, mtime: st.mtimeMs, bytes: st.size });
+      seenFiles.add(doc.file);
     } catch {
       // file missing — skip from listing
     }
+  }
+  // Auto-discovered docs append after curated ones. Curated wins on
+  // file-path collision, so any audit can be promoted into DOCS to
+  // override its title or fix its order.
+  const auto = await discoverAutoDocs();
+  for (const doc of auto) {
+    if (seenFiles.has(doc.file)) continue;
+    out.push(doc);
   }
   return out;
 }
