@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Capacitor } from "@capacitor/core";
 import { registerSW } from "virtual:pwa-register";
 import { toast } from "sonner";
 
@@ -15,6 +16,12 @@ import { toast } from "sonner";
 // toast. Sonner already mounts a Toaster in Everion.tsx so this component
 // returns null on render — its only job is registering the SW listener
 // and firing the toast when needRefresh fires.
+//
+// Native-gate: skip SW registration entirely inside Capacitor's WebView.
+// Service workers + Capacitor have a long history of pain (cache mismatches,
+// scope conflicts with the file:// origin on iOS, ghost SWs surviving app
+// upgrades). Updates inside the native shell ride the App Store / Play
+// release pipeline instead.
 
 const TOAST_ID = "sw-update-prompt";
 
@@ -23,6 +30,7 @@ export default function UpdatePrompt() {
   const updateSWRef = useRef<((reload?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
+    if (Capacitor.isNativePlatform()) return;
     const fn = registerSW({
       onNeedRefresh() {
         // Persistent toast (duration: Infinity) — refreshing is the user's
