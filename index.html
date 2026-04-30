@@ -14,7 +14,15 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual"
     />
-    <meta name="theme-color" content="oklch(12% 0.009 60)" />
+    <!--
+      theme-color drives the iOS PWA status bar AND the safe-area chin around
+      the home indicator. A single hardcoded value leaks the wrong colour
+      whenever the active design family doesn't match. Two media-aware
+      fallbacks cover the FOUC window; DesignThemeContext then writes a
+      dynamic <meta name="theme-color"> matching the resolved --bg.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe1" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0e0e" />
     <meta
       name="description"
       content="One private place for the thoughts you'd lose and the facts you can't afford to — gate codes, policy numbers, half-formed ideas, and everything in between. Capture in one tap, recall by asking. Local-first, end-to-end encrypted."

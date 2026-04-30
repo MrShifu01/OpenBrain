@@ -103,12 +103,10 @@ export default function MobileHeader({
         willChange: "transform",
       }}
     >
-      <header
-        className="flex items-center justify-between gap-2 px-4 py-3"
-        style={{
-          paddingTop: "max(14px, env(safe-area-inset-top))",
-        }}
-      >
+      {/* Outer wrapper carries `.safe-top` (env(safe-area-inset-top)). Don't
+          re-add it here — that double-counts the notch and pushes the brand
+          ~60px below the safe area on devices with a sensor housing. */}
+      <header className="flex items-center justify-between gap-2 px-4 py-3">
         {/* Left: brand */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: 1 }}>
           <img

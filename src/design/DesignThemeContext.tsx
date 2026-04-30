@@ -103,6 +103,35 @@ function applyToDocument(variant: DesignVariant, mode: DesignMode) {
   html.classList.toggle("light", mode === "light");
   html.setAttribute("data-theme", mode);
   html.style.colorScheme = mode;
+  syncThemeColor();
+}
+
+// Read body's resolved background after CSS applies and write it to
+// <meta name="theme-color">. Without this, iOS paints the safe-area chin
+// (status bar + home indicator) in the static colour from index.html, which
+// leaks dark slate over light themes (the bluish strip users see at the
+// bottom of cream-coloured backgrounds). rAF lets the new family- class
+// styles compute before we sample.
+function syncThemeColor() {
+  if (typeof window === "undefined" || !document.body) return;
+  requestAnimationFrame(() => {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    if (!bg || bg === "rgba(0, 0, 0, 0)") return;
+    // Drop the static media-aware fallbacks once the dynamic tag exists —
+    // otherwise the browser may pick the OS-preference one over ours.
+    document
+      .querySelectorAll('meta[name="theme-color"][media]')
+      .forEach((el) => el.parentNode?.removeChild(el));
+    let meta = document.querySelector(
+      'meta[name="theme-color"]:not([media])',
+    ) as HTMLMetaElement | null;
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    if (meta.getAttribute("content") !== bg) meta.setAttribute("content", bg);
+  });
 }
 
 export const DesignThemeCtx = createContext<DesignThemeValue | null>(null);
