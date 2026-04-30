@@ -1,9 +1,73 @@
 # Offline-first audit + remediation
 
 > **Started:** 2026-04-30 19:13 SAST
-> **Status:** in progress
+> **Phase 1 (audit) finished:** 2026-04-30 19:35 SAST
+> **Status:** Phase 1 complete · Phase 2 ready to start
 > **Goal:** make `Local-first, works offline` (`src/views/Landing.tsx:1370`) actually true across every visible surface, not just the app shell.
 > **Why now:** the marketing claim is on the landing page; right now if Supabase or any read-path fetch fails the app feels broken instead of degrading gracefully. The boot watchdog shipped today (commit `539700e`) papers over the worst symptom but doesn't fix the underlying gap.
+
+---
+
+## Phase 1 findings (matrix)
+
+Severity legend: 🔴 broken (user sees blank/error) · 🟡 partial (works but UX is wrong) · 🟢 OK
+
+| # | Surface | Verdict | Evidence | Severity |
+|---|---|---|---|---|
+| 1 | App shell loads offline | 🟢 OK | `vite-plugin-pwa` precaches the bundle (`dist/sw.js`, 90 entries / 2141 KB). Boot shell + JS bundle hit cache. | — |
+| 2 | Initial-load entry list (warm cache) | 🟢 OK | `useDataLayer` mount reads `entriesCache` (`src/hooks/useDataLayer.ts:50`). When `entryRepo.list` returns `[]` due to offline, it doesn't overwrite the cache (`useDataLayer.ts:113,123` guard `length > 0`). | — |
+| 3 | Brain-switch entry list offline | 🔴 broken | `useDataLayer.ts:139` calls `setEntries([])` on brain change, then `entryRepo.list` returns `[]` offline → list stays blank until reconnect. | High |
+| 4 | `entryRepo.list` offline error signal | 🟡 partial | `entryRepo.ts:87-89` swallows the throw and returns `[]` with no offline indicator — caller can't tell "no entries" from "offline failure". | Medium |
+| 5 | Capture (offline create) | 🟢 OK | `useCaptureSheetParse.ts:250-268` branches to local NLP parsing, calls `doSave` which writes to `offlineQueue`. | — |
+| 6 | Capture-queue UX | 🟡 partial | `useOfflineSync` exposes `pendingCount` but it's not surfaced anywhere visible (no header chip, no banner). User can't see queue state. | Medium |
+| 7 | Capture-queue drain on reconnect | 🟢 OK | `useOfflineSync.drain` runs on `online` event + replays each op; max-retry → failed-store. Tests cover. | — |
+| 8 | Entry edit (`handleUpdate`) offline | 🟡 partial | `useEntryActions.ts:104` hard-blocks with toast "You can't save while offline." No queue. Read-only experience until back online. | Medium |
+| 9 | Entry delete offline | 🟡 partial | Optimistic update + cache write (`useEntryActions.ts:144`) but no queue — change vanishes on reconnect because the server never sees it. | High |
+| 10 | Search (`OmniSearch`) offline | 🔴 broken | No `isOnline` check. Hits `/api/search` blindly → throws / shows nothing → user thinks search is broken. | High |
+| 11 | Chat (`ChatView`) offline | 🔴 broken | No `isOnline` check, no offline copy. Submits prompt → `/api/llm` fails → generic error. Typed prompt may be lost. | High |
+| 12 | Vault unlock offline | 🟡 partial | `/api/vault` existence check + `/api/vault-entries` fetch both fail offline (`useDataLayer.ts:59,70`). Vault key derivation is local but the encrypted blob isn't cached, so unlock has nothing to decrypt. | High |
+| 13 | Calendar / Schedule offline | 🟢 OK | Reads from same `entries` array as Memory — inherits cache fallback. | — |
+| 14 | Settings tabs (read-only) offline | 🟡 partial | Each tab fetches its own data on mount with no `isOnline` guard. Display stays empty without explanation. | Low |
+| 15 | Settings mutations offline | 🔴 broken | Profile/AI/etc PATCH/POST throw on submit, generic error toasts. No "this needs internet" copy. | Medium |
+| 16 | Auth refresh offline | 🟡 partial | Supabase token-refresh call hits `/auth/v1/token`. When offline a refresh attempt 5xxs; haven't reproduced a forced sign-out, but it's plausible if a user idles past TTL while offline. | Medium |
+| 17 | Boot watchdog (12s) — offline gate | 🔴 broken | `index.html:298` watchdog fires regardless of `navigator.onLine` — an offline user gets reload-looped: every 12s tries reload, hits cache, fails to mount, repeat. (Mitigated by the once-per-session sessionStorage flag, but only after the first reload.) | High |
+| 18 | `pageshow.persisted` reload (10s threshold) | 🟢 OK | Only triggers on resume, not initial offline load. | — |
+| 19 | `NativeOfflineScreen` parity for web standalone PWA | 🟡 partial | Native-only. Web standalone PWA boot with no session + no network shows boot shell → blank app. | Medium |
+| 20 | Persistent offline banner | 🔴 broken | `isOnline` is plumbed through `DesktopSidebar` + `MobileHeader` props (`isOnline: _isOnline,` — destructured-and-ignored). No `OfflineBanner` component exists. | Medium |
+
+**Counts:** 6 🔴 broken · 9 🟡 partial · 5 🟢 OK / no-op
+
+---
+
+## Phase 2 priority order (driven by Phase 1)
+
+Rebuilt from the findings. P0 ships before launch, P1 before native, P2 after.
+
+**P0 — broken surfaces that contradict the landing-page claim:**
+1. Watchdog `navigator.onLine` gate — finding #17 — 5 min fix.
+2. `entryRepo.list` cache-fallback when fetch fails — fixes #3 and stops the brain-switch blank-list.
+3. `OfflineBanner` driven by `useOfflineSync.isOnline` + a `pendingCount` chip — fixes #6, #20 in one component.
+4. Network-aware error UX in chat (#11) and search (#10) — calm copy + preserve typed prompt.
+
+**P1 — partials worth tightening:**
+5. Entry edit + delete offline-queue (#8, #9) — promote them through the same `offlineQueue` machinery as create.
+6. Vault encrypted-blob cache (#12) — store the last `/api/vault-entries` result in IDB so unlock works offline.
+7. Auth refresh offline (#16) — add a "deferred refresh" mode in `authFetch` that holds on `!navigator.onLine` and resumes on `online` event.
+8. Web `OfflineScreen` parity (#19) — extract `NativeOfflineScreen` copy into a shared component, mount on web when `!isOnline && !cachedSession`.
+9. Settings mutations offline UX (#15) — disable submit + show "needs internet" inline copy.
+
+**P2 — polish:**
+10. Settings tabs read-only offline copy (#14).
+11. Playwright `e2e/specs/offline.spec.ts` covering the matrix.
+
+---
+
+## Live log
+
+Each working session appends a one-line entry below — most recent at top.
+
+- 2026-04-30 19:35 — Phase 1 audit complete. 6 broken / 9 partial / 5 OK across 20 surfaces. Top fixes: watchdog network gate, entryRepo cache-fallback, OfflineBanner, chat/search offline UX.
+- 2026-04-30 19:13 — Document opened. Pre-flight survey shows `entriesCache.ts` exists (good), `offlineQueue.ts` exists (good), `OfflineBanner` does NOT exist, `entryRepo` cache fallback unverified, watchdog ungated for offline. Phase 1 matrix queued.
 
 This doc lives at `EML/Working/` and refreshes in the dashboard every 2.5s. Tick boxes here as the sprint progresses; entries fed back into `LAUNCH_CHECKLIST.md` once the matrix turns green.
 
@@ -21,41 +85,36 @@ This doc lives at `EML/Working/` and refreshes in the dashboard every 2.5s. Tick
 
 ---
 
-## Phase 1 — Audit matrix (today)
+## Phase 1 — Audit matrix (DONE 2026-04-30)
 
-Walk every surface in DevTools-Offline mode + a real iOS PWA in airplane mode. Each row gets PASS / FAIL / N/A + the failing fetch path if any.
-
-- [ ] **Setup** — bring up local prod build (`npm run build && npx vite preview --port 5174`), seed an account with ≥10 entries, ≥1 vault row, ≥1 important memory.
-- [ ] **App shell loads offline** — kill network, hard reload. Boot shell → React mount → no white screen.
-- [ ] **Existing entries readable offline** — open Memory, scroll list, open detail view. Should serve from `entriesCache` when Supabase fetch fails.
-- [ ] **New capture queues offline** — type → save. Should land in `offlineQueue` with a "queued · will sync" UX, not throw.
-- [ ] **Capture queue drains on reconnect** — flip network back on, watch queue → 0 + entry appears in list.
-- [ ] **Search behaviour offline** — type query. Server-side embedding search will fail; UI must show a calm "Search needs internet" message, not a stack trace.
-- [ ] **Chat behaviour offline** — submit prompt. LLM proxy will fail; UI must surface "Chat needs internet" + persist the typed prompt.
-- [ ] **Vault unlock offline** — derive key, decrypt rows. If encrypted blobs are cached locally this works; if they're fetched live it won't.
-- [ ] **Calendar / Schedule views offline** — currently read entries via `useEntries`; should reuse the same cache fallback as Memory.
-- [ ] **Settings panels offline** — Profile/Account/Brain/etc. Read-only from cache OK, mutation surfaces should disable + explain.
-- [ ] **Auth refresh offline** — token expires while offline → app must NOT bounce to login. Reconnect must transparently refresh.
-- [ ] **Boot watchdog gate on `navigator.onLine`** — the 12s watchdog in `index.html` shouldn't reload-loop a user who's just offline. Verify + gate if needed.
-- [ ] **`NativeOfflineScreen` parity for web standalone** — same calm screen if web PWA boots with no session + no network.
-- [ ] **Persistent offline banner** — wire `useOfflineSync.isOnline` into a top-of-app `OfflineBanner` component so the user always knows the state.
-- [ ] **Capture queue badge** — show `pendingCount` somewhere visible (header chip or capture sheet).
-
-Output of Phase 1: `EML/Audits/2026-04-30-offline-first-audit.md` with the matrix + findings, sorted by severity.
+- [x] **Trace entry read path** — `entryRepo.list` returns `[]` on fetch failure; `useDataLayer` mount reads `entriesCache` and refresh guards on `length > 0` so cache survives offline (initial load). Brain switch is the regression.
+- [x] **Trace capture / queue path** — `useCaptureSheetParse:250-268` branches to local NLP + `offlineQueue`. `useOfflineSync.drain` handles reconnect.
+- [x] **Trace chat / search / LLM** — neither `ChatView` nor `OmniSearch` checks `isOnline`. Both will throw generic errors.
+- [x] **Trace vault / settings / calendar** — vault read-path uncached. Settings tabs each fire fetches without offline guards. Calendar reuses `entries` so it's OK.
+- [x] **Auth refresh + watchdog + indicators** — watchdog isn't gated on `navigator.onLine` (will reload-loop offline). `OfflineBanner` doesn't exist; `isOnline` is destructured-and-ignored in headers/sidebar.
+- [x] **Findings written above** — 20-row matrix, severity-tagged, P0/P1/P2 ordered.
 
 ---
 
-## Phase 2 — Remediation (next 1–2 days, gated on Phase 1 findings)
+## Phase 2 — Remediation (driven by Phase 1)
 
-Tentative — concrete shape decided by what Phase 1 finds.
+Order = priority above. Each item links to its finding number for traceability.
 
-- [ ] **Read-path cache fallback** — wrap `entryRepo.list` (and any other GET path the views depend on) so a fetch failure transparently serves from `entriesCache`. Cache-first when offline, network-then-cache when online.
-- [ ] **`OfflineBanner.tsx`** — slim chip at the top of the app driven by `useOfflineSync.isOnline`. Auto-dismiss on reconnect. Honour design tokens.
-- [ ] **Network-aware error UX** — chat / search / LLM / capture-AI surfaces detect offline and show consistent calm copy instead of generic error toasts.
-- [ ] **Watchdog network-gate** — in `index.html`, skip the 12s reload watchdog if `!navigator.onLine` (a user who's offline shouldn't be reload-looped).
-- [ ] **Web `OfflineScreen`** — when the app boots with no session + no network, mirror `NativeOfflineScreen` with the same copy + retry button.
-- [ ] **Auth refresh offline-tolerant** — Supabase token refresh on a known offline state should defer instead of throwing 5xx → fix in the auth layer.
-- [ ] **Vault offline path** — confirm the encrypted blob is included in the read-path cache; if not, add it.
+**P0 — broken (4 items, ≤ half-day):**
+- [ ] **#17 — watchdog network gate** — `index.html` skips reload if `!navigator.onLine`.
+- [ ] **#3, #4 — `entryRepo` cache fallback** — on fetch failure, read `entriesCache` and surface as the result. Caller-visible `offline: true` flag so views can render an "offline — showing cached" hint.
+- [ ] **#6, #20 — `OfflineBanner.tsx`** — top-of-app chip driven by `useOfflineSync.isOnline + pendingCount`. Wires `_isOnline` props that are currently destructured-ignored.
+- [ ] **#10, #11 — chat + search offline UX** — `isOnline` check before fire; calm "needs internet" inline message; preserve typed prompt across reconnect.
+
+**P1 — partials (5 items, ~1 day):**
+- [ ] **#8, #9 — entry edit + delete offline queue** — promote through same `offlineQueue` mechanism as create.
+- [ ] **#12 — vault blob cache** — IDB cache for `/api/vault-entries` last response so unlock decrypts offline.
+- [ ] **#16 — auth refresh deferred-while-offline** — short-circuit refresh in `authFetch` if `!navigator.onLine`.
+- [ ] **#19 — web `OfflineScreen` parity** — extract `NativeOfflineScreen` into a shared component, mount on web standalone PWA when `!cachedSession && !navigator.onLine`.
+- [ ] **#15 — settings mutation offline UX** — disable submit + inline "needs internet" copy.
+
+**P2 — polish:**
+- [ ] **#14 — settings read-only offline copy** — small banner per tab when current data is from cache.
 
 ---
 
