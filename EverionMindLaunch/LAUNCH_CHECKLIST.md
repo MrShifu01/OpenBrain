@@ -159,6 +159,36 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 
 ### Communications
 
+### Admin & support operations
+
+- [ ] **Internal admin CRM (user tiers + usage) MVP** ❌
+      Build a lean internal `/admin` support console (not a full sales CRM): user lookup (email/id), current tier (`free | starter | pro`), current-period usage counters, billing/subscription status, and recent audit-log timeline. Keep read-only by default; require explicit confirmation + audit logging for any mutation action.
+
+      **1–2 day implementation checklist (no new top-level `api/*.ts`):**
+      - [ ] **Schema (Supabase migration)**
+            - Add to `user_profiles`: `tier text not null default "free" check (tier in ("free", "starter", "pro"))`, `stripe_customer_id text`, `stripe_subscription_id text`, `billing_status text`, `billing_period_end timestamptz`.
+            - Create `user_usage` table: `user_id uuid`, `period_start date`, `period_end date`, counters (`captures`, `chats`, `voice_notes`, `improve_scans` int default 0), `updated_at timestamptz`; unique `(user_id, period_start)`.
+            - Add indexes: `user_profiles(tier)`, `user_usage(user_id, period_start desc)`, `audit_log(user_id, created_at desc)`.
+      - [ ] **API (route through existing handlers)**
+            - Extend `api/user-data.ts` with admin-gated resources/actions instead of creating new functions:
+              - `resource=admin_users` (GET): searchable list (email/id), tier, created_at, last_seen_at, billing_status.
+              - `resource=admin_user_overview` (GET): profile + current usage row + recent audit events.
+              - `resource=admin_set_tier` (POST): controlled tier change with reason, actor_id, and audit-log write.
+            - Enforce admin check in `withAuth` path; return 403 for non-admins.
+            - Add pagination + rate limiting on admin resources (avoid dumping full user table).
+      - [ ] **UI (`/admin` + Settings Admin tab)**
+            - Add `AdminUsersTable` with search, tier badges, and row click to detail drawer/panel.
+            - Add `AdminUserDetail` with 3 cards: Profile/Billing, Period Usage, Recent Audit Timeline.
+            - Add tier-change control with explicit confirmation modal + required reason text.
+            - Keep destructive actions hidden/disabled for MVP (read-only except tier update).
+      - [ ] **Safety / observability**
+            - Every admin mutation writes `audit_log` event: `admin_tier_changed` with before/after + reason.
+            - Add idempotency key support for tier change action.
+            - Add minimal e2e/admin smoke: admin can search + view user; non-admin gets 403.
+      - [ ] **Done criteria**
+            - Support can answer within 30 seconds: who is this user, what tier, current usage, latest billing state, and recent account events.
+            - No new top-level serverless function added (Vercel 12-function cap respected).
+
 - [ ] **Welcome email tested across clients** ❌
       Resend is configured. Verify rendering across Gmail, Outlook, Apple Mail. Use Mailtrap or send to real accounts.
 - [ ] **Email sender domain SPF/DKIM/DMARC** 🟡
