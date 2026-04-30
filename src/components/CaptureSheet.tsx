@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import FocusTrap from "focus-trap-react";
+import { Dialog as DialogPrimitive } from "radix-ui";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
 import { useBrain as useBrainCtx } from "../context/BrainContext";
@@ -196,23 +196,9 @@ export default function CaptureSheet({
     };
   }, [isOpen, onClose]);
 
-  // Tab focus is now trapped by <FocusTrap> below, which is a proper
-  // shift-Tab-aware boundary trap rather than the pre-WCAG-AA partial
-  // implementation that only fired when activeElement was at the ends
-  // of the focusable list.
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        if (preview) {
-          setPreview(null);
-          setText(preview._raw || "");
-        } else onClose();
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isOpen, onClose, preview]);
+  // Tab focus + Escape handled by Radix Dialog primitive below.
+  // Preview-aware Escape (back-to-typing instead of close) goes through
+  // onEscapeKeyDown on Content.
 
   // Flash a serif italic "saved." for 900ms after a successful save.
   useEffect(() => {
@@ -289,41 +275,51 @@ export default function CaptureSheet({
   };
 
   return (
-    <>
-      {/* Scrim */}
-      <div
-        className="fixed inset-0 z-50"
-        style={{
-          background: "var(--scrim)",
-          opacity: visible ? Math.max(0, 1 - dragY / 350) : 0,
-          transition: dragY > 0 ? "none" : "opacity 0.32s ease",
-        }}
-        onClick={preview ? undefined : onClose}
-        aria-hidden="true"
-      />
-
-      {/* Sheet container */}
-      <FocusTrap
-        active={isOpen && visible}
-        focusTrapOptions={{
-          // Capture handles its own Escape (and a "go back to typing"
-          // path when the preview is open). Don't let FocusTrap
-          // double-handle it.
-          escapeDeactivates: false,
-          // Outside clicks dismiss via the scrim handler — let them.
-          allowOutsideClick: true,
-          // The sheet animates in over 350ms; if focus is requested
-          // before the children mount, fall back to the dialog root.
-          fallbackFocus: () => sheetRef.current ?? document.body,
-        }}
-      >
-        <div
+    <DialogPrimitive.Root
+      open={isOpen || visible}
+      onOpenChange={(o) => {
+        if (o) return;
+        // Escape (Radix-driven close): preview-aware path goes back to
+        // typing instead of closing.
+        if (preview) {
+          setPreview(null);
+          setText(preview._raw || "");
+          return;
+        }
+        // Run our exit animation, then tell parent to unmount.
+        setVisible(false);
+        setTimeout(onClose, 360);
+      }}
+    >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className="fixed inset-0 z-50"
+          style={{
+            background: "var(--scrim)",
+            opacity: visible ? Math.max(0, 1 - dragY / 350) : 0,
+            transition: dragY > 0 ? "none" : "opacity 0.32s ease",
+          }}
+        />
+        <DialogPrimitive.Content
           ref={sheetRef}
-          role="dialog"
-          aria-modal="true"
           aria-label={preview ? "Confirm entry" : "Capture something"}
           className="capture-sheet"
-          tabIndex={-1}
+          onEscapeKeyDown={(e) => {
+            // Preview-aware: keep the preview→typing path. Radix's
+            // onOpenChange already handles the regular case.
+            if (preview) {
+              e.preventDefault();
+              setPreview(null);
+              setText(preview._raw || "");
+            }
+          }}
+          onPointerDownOutside={(e) => {
+            // Preview-aware: don't dismiss while reviewing.
+            if (preview) e.preventDefault();
+          }}
+          onInteractOutside={(e) => {
+            if (preview) e.preventDefault();
+          }}
           style={{
             background: "var(--surface-high)",
             border: "1px solid var(--line)",
@@ -338,6 +334,12 @@ export default function CaptureSheet({
             overflow: "hidden",
           }}
         >
+          <DialogPrimitive.Title className="sr-only">
+            {preview ? "Confirm entry" : "Capture something"}
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Quickly capture a thought, image, document, or voice note.
+          </DialogPrimitive.Description>
           <div aria-live="polite" aria-atomic="true" className="sr-only">
             {loading ? "Processing your entry…" : (status ?? "")}
           </div>
@@ -461,9 +463,9 @@ export default function CaptureSheet({
               }}
             />
           )}
-        </div>
-      </FocusTrap>
-    </>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
