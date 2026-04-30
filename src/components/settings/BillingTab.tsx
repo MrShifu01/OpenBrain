@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useSubscription } from "../../lib/useSubscription";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
@@ -65,6 +66,7 @@ function PlanCard({
   tagline,
   accent,
   highlight = false,
+  busy = false,
   onClick,
 }: {
   name: string;
@@ -72,11 +74,13 @@ function PlanCard({
   tagline: string;
   accent: string;
   highlight?: boolean;
+  busy?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
+      disabled={busy}
       className="press f-sans"
       style={{
         width: "100%",
@@ -89,9 +93,10 @@ function PlanCard({
         background: highlight
           ? `color-mix(in oklch, ${accent} 8%, var(--surface))`
           : "var(--surface)",
-        cursor: "pointer",
+        cursor: busy ? "wait" : "pointer",
         textAlign: "left",
         gap: 12,
+        opacity: busy ? 0.6 : 1,
       }}
     >
       <div>
@@ -119,36 +124,166 @@ function PlanCard({
   );
 }
 
-async function startCheckout(plan: "starter" | "pro", interval: "month" | "year" = "month") {
-  const r = await authFetch("/api/stripe-checkout", {
+// Web checkout — opens LemonSqueezy hosted page in same tab.
+async function startWebCheckout(plan: "starter" | "pro"): Promise<{ ok: boolean; error?: string }> {
+  const r = await authFetch("/api/lemon-checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ plan, interval }),
+    body: JSON.stringify({ plan }),
   });
-  if (!r.ok) return;
-  const { url } = await r.json();
-  if (url) window.location.href = url;
+  if (!r.ok) {
+    let message = "Checkout failed";
+    try {
+      const j = (await r.json()) as { error?: string };
+      if (j?.error) message = j.error;
+    } catch {
+      /* non-JSON */
+    }
+    return { ok: false, error: message };
+  }
+  const { url } = (await r.json()) as { url?: string };
+  if (!url) return { ok: false, error: "No checkout URL returned" };
+  window.location.href = url;
+  return { ok: true };
 }
 
-async function openPortal() {
-  const r = await authFetch("/api/stripe-portal", { method: "POST" });
-  if (!r.ok) return;
-  const { url } = await r.json();
-  if (url) window.location.href = url;
+// Native checkout — drives the RevenueCat SDK paywall. We dynamic-import so
+// the SDK doesn't enter the web bundle (it pulls native bridge code Vite
+// can't tree-shake).
+//
+// Configure-then-purchase is one round trip: configure() is idempotent, so
+// calling it on every checkout keeps the appUserId bound to user_profiles.id
+// even after a sign-out/sign-in cycle without us tracking RC state separately.
+async function startNativeCheckout(
+  appUserId: string,
+  plan: "starter" | "pro",
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { Purchases } = await import("@revenuecat/purchases-capacitor");
+
+    // Pick the platform-specific public RC key. Vite inlines these at build,
+    // so they must be prefixed VITE_*. Missing keys are operator error —
+    // surface clearly rather than failing inside the native bridge.
+    const isIOS = Capacitor.getPlatform() === "ios";
+    const apiKey = isIOS
+      ? import.meta.env.VITE_REVENUECAT_API_KEY_IOS
+      : import.meta.env.VITE_REVENUECAT_API_KEY_ANDROID;
+    if (!apiKey || typeof apiKey !== "string") {
+      return {
+        ok: false,
+        error: `Missing VITE_REVENUECAT_API_KEY_${isIOS ? "IOS" : "ANDROID"}`,
+      };
+    }
+
+    await Purchases.configure({ apiKey, appUserID: appUserId });
+
+    const offeringsRes = await Purchases.getOfferings();
+    const current = offeringsRes.current;
+    if (!current) {
+      return { ok: false, error: "No offerings configured in RevenueCat dashboard" };
+    }
+    const pkg = current.availablePackages.find((p) => p.identifier.toLowerCase().includes(plan));
+    if (!pkg) {
+      return { ok: false, error: `No package found for tier "${plan}"` };
+    }
+    await Purchases.purchasePackage({ aPackage: pkg });
+    return { ok: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Native checkout failed";
+    // RC throws on user-cancelled; treat that as a soft no-op.
+    if (/cancel/i.test(message)) return { ok: false };
+    return { ok: false, error: message };
+  }
+}
+
+async function openPortal(): Promise<{ ok: boolean; error?: string }> {
+  const r = await authFetch("/api/lemon-portal", { method: "POST" });
+  if (!r.ok) {
+    let message = "Could not open billing portal";
+    try {
+      const j = (await r.json()) as { error?: string };
+      if (j?.error) message = j.error;
+    } catch {
+      /* non-JSON */
+    }
+    return { ok: false, error: message };
+  }
+  const { url } = (await r.json()) as { url?: string };
+  if (!url) return { ok: false, error: "No portal URL returned" };
+  window.location.href = url;
+  return { ok: true };
 }
 
 export default function BillingTab() {
-  const { tier, usage, limits, pct, renewalDate, isLoading } = useSubscription();
+  const { tier, usage, limits, pct, renewalDate, provider, isLoading } = useSubscription();
+  const [busyPlan, setBusyPlan] = useState<"starter" | "pro" | "portal" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [appUserId, setAppUserId] = useState<string | null>(null);
 
-  // Handle return from Stripe Checkout
+  const isNative = Capacitor.isNativePlatform();
+
+  // Need user.id for the RC native flow — read it once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      // Lazy-import supabase to avoid the BillingTab pulling it on every chat
+      // session that never opens settings. The app's main bundle already has
+      // it cached so this resolves synchronously after first auth.
+      const { supabase } = await import("../../lib/supabase");
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!cancelled) setAppUserId(user?.id ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Strip ?billing=success / ?billing=cancel after returning from LemonSqueezy.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("billing") === "success") {
+    if (params.get("billing")) {
       params.delete("billing");
       const newUrl = `${window.location.pathname}${params.toString() ? "?" + params.toString() : ""}`;
       window.history.replaceState({}, "", newUrl);
     }
   }, []);
+
+  async function startCheckout(plan: "starter" | "pro") {
+    setError(null);
+    setBusyPlan(plan);
+    try {
+      const res = isNative
+        ? appUserId
+          ? await startNativeCheckout(appUserId, plan)
+          : { ok: false, error: "Not signed in" }
+        : await startWebCheckout(plan);
+      if (!res.ok && res.error) setError(res.error);
+    } finally {
+      setBusyPlan(null);
+    }
+  }
+
+  async function handleManage() {
+    setError(null);
+    setBusyPlan("portal");
+    try {
+      // Native users manage in App Store / Play settings — we can't open
+      // those from inside the app reliably, so surface a hint instead of
+      // calling /api/lemon-portal which only works for web subs.
+      if (provider === "revenuecat") {
+        setError(
+          "Manage your subscription from your device's Subscriptions settings (iOS) or Play Store > Subscriptions (Android).",
+        );
+        return;
+      }
+      const res = await openPortal();
+      if (!res.ok && res.error) setError(res.error);
+    } finally {
+      setBusyPlan(null);
+    }
+  }
 
   const tierLabel =
     tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Free";
@@ -194,10 +329,28 @@ export default function BillingTab() {
             className="f-sans"
             style={{ fontSize: 11, color: "var(--ink-ghost)", marginLeft: 8 }}
           >
-            expires {new Date(renewalDate).toLocaleDateString()}
+            renews {new Date(renewalDate).toLocaleDateString()}
           </span>
         )}
       </SettingsRow>
+
+      {error && (
+        <div
+          className="f-sans"
+          role="alert"
+          style={{
+            marginTop: 12,
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "color-mix(in oklch, var(--blood) 12%, var(--surface))",
+            border: "1px solid color-mix(in oklch, var(--blood) 35%, transparent)",
+            color: "var(--ink)",
+            fontSize: 12,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* Usage meters (only for paid tiers) */}
       {tier !== "free" && (
@@ -249,6 +402,7 @@ export default function BillingTab() {
             price="$4.99"
             tagline="Platform AI + 500 captures / mo"
             accent="var(--moss)"
+            busy={busyPlan === "starter"}
             onClick={() => startCheckout("starter")}
           />
           <PlanCard
@@ -257,6 +411,7 @@ export default function BillingTab() {
             tagline="Sonnet AI + 2 000 captures + all features"
             accent="var(--ember)"
             highlight
+            busy={busyPlan === "pro"}
             onClick={() => startCheckout("pro")}
           />
         </div>
@@ -269,16 +424,21 @@ export default function BillingTab() {
             tagline="Sonnet AI + 2 000 captures + all features"
             accent="var(--ember)"
             highlight
+            busy={busyPlan === "pro"}
             onClick={() => startCheckout("pro")}
           />
           <div style={{ marginTop: 4 }}>
-            <SettingsButton onClick={openPortal}>Manage subscription</SettingsButton>
+            <SettingsButton onClick={handleManage} disabled={busyPlan === "portal"}>
+              Manage subscription
+            </SettingsButton>
           </div>
         </div>
       )}
       {(tier === "pro" || tier === "max") && (
         <div style={{ marginTop: 16 }}>
-          <SettingsButton onClick={openPortal}>Manage subscription</SettingsButton>
+          <SettingsButton onClick={handleManage} disabled={busyPlan === "portal"}>
+            Manage subscription
+          </SettingsButton>
         </div>
       )}
 

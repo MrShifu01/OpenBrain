@@ -1,11 +1,21 @@
 import type { IncomingMessage } from "http";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { withAuth } from "./_lib/withAuth.js";
-import { markStripeEventSeen } from "./_lib/stripeIdempotency.js";
+import { markWebhookEventSeen } from "./_lib/webhookIdempotency.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
-import { stripe } from "./_lib/stripe.js";
 import { sbHeaders } from "./_lib/sbHeaders.js";
-import type Stripe from "stripe";
+import {
+  createCheckoutUrl as lemonCreateCheckoutUrl,
+  getCustomerPortalUrl as lemonGetCustomerPortalUrl,
+  verifyWebhookSignature as lemonVerifyWebhookSignature,
+} from "./_lib/lemonsqueezy.js";
+import {
+  grantEntitlement as rcGrantEntitlement,
+  revokePromotionalEntitlements as rcRevoke,
+  verifyWebhookAuth as rcVerifyWebhookAuth,
+  type RevenueCatWebhookBody,
+} from "./_lib/revenuecat.js";
+import { resolveTier, writePlanChange, type Tier } from "./_lib/billing.js";
 import crypto from "crypto";
 import webpush from "web-push";
 import { runGmailScanAllUsers } from "./_lib/gmailScan.js";
@@ -54,16 +64,20 @@ const MAX_CHARS = 8000;
 //   /api/important-memories → /api/user-data?resource=important_memories
 //   /api/cron/daily         → /api/user-data?resource=cron-daily
 //   /api/notifications      → /api/user-data?resource=notifications
-//   /api/stripe-checkout    → /api/user-data?resource=stripe-checkout
-//   /api/stripe-webhook     → /api/user-data?resource=stripe-webhook
-//   /api/stripe-portal      → /api/user-data?resource=stripe-portal
+//   /api/lemon-checkout     → /api/user-data?resource=lemon-checkout
+//   /api/lemon-webhook      → /api/user-data?resource=lemon-webhook
+//   /api/lemon-portal       → /api/user-data?resource=lemon-portal
+//   /api/revenuecat-webhook → /api/user-data?resource=revenuecat-webhook
 export default async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
   applySecurityHeaders(res);
   const rawBody = await bufferBody(req);
   const resource = req.query.resource as string | undefined;
 
-  // Stripe webhook uses raw body for signature verification
-  if (resource === "stripe-webhook") return handleStripeWebhook(req, res, rawBody);
+  // LemonSqueezy webhook uses raw body for HMAC signature verification.
+  if (resource === "lemon-webhook") return handleLemonWebhook(req, res, rawBody);
+  // RevenueCat uses Authorization header (raw body not required) but we
+  // still pass it through so signature/parse logic stays consistent.
+  if (resource === "revenuecat-webhook") return handleRevenueCatWebhook(req, res, rawBody);
 
   // Parse body for all other handlers. Reject malformed JSON instead of
   // silently coercing to {}, which used to mask 413/400-class errors and
@@ -96,8 +110,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "cron-hourly") return handleCronHourly(req, res);
   if (resource === "trigger-test-push") return handleTriggerTestPush(req, res);
   if (resource === "notifications") return handleNotifications(req, res);
-  if (resource === "stripe-checkout") return handleStripeCheckout(req, res);
-  if (resource === "stripe-portal") return handleStripePortal(req, res);
+  if (resource === "lemon-checkout") return handleLemonCheckout(req, res);
+  if (resource === "lemon-portal") return handleLemonPortal(req, res);
   if (resource === "profile") return handleProfile(req, res);
   // Default: memory
   return handleMemory(req, res);
@@ -1811,195 +1825,286 @@ const handleNotifications = withAuth(
   },
 );
 
-// ── /api/user-data?resource=stripe-checkout ──
-const handleStripeCheckout = withAuth(
+// ─────────────────────────────────────────────────────────────────────────────
+// Web checkout: LemonSqueezy
+//
+// LemonSqueezy is the merchant of record for the web. We POST to their
+// /v1/checkouts API to mint a one-shot hosted-checkout URL keyed to a variant
+// id (per-tier env var) with the user's id + tier embedded in custom_data.
+// The webhook handler below uses that custom_data to bridge into RevenueCat
+// so the same user's mobile install already shows them as paid.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── /api/user-data?resource=lemon-checkout ──
+const handleLemonCheckout = withAuth(
   { methods: ["POST"], rateLimit: 10 },
   async ({ req, res, user }) => {
-    const { plan, interval = "month" } = (req.body ?? {}) as {
-      plan?: string;
-      interval?: string;
-    };
+    const { plan } = (req.body ?? {}) as { plan?: string };
 
     if (plan !== "starter" && plan !== "pro") {
       return void res.status(400).json({ error: "Invalid plan" });
     }
-    if (interval !== "month" && interval !== "year") {
-      return void res.status(400).json({ error: "Invalid interval" });
-    }
 
-    const priceEnvKey =
-      interval === "year"
-        ? plan === "starter"
-          ? "STRIPE_STARTER_ANNUAL_PRICE_ID"
-          : "STRIPE_PRO_ANNUAL_PRICE_ID"
-        : plan === "starter"
-          ? "STRIPE_STARTER_PRICE_ID"
-          : "STRIPE_PRO_PRICE_ID";
-
-    const priceId = process.env[priceEnvKey];
-    if (!priceId) return void res.status(500).json({ error: "Plan not configured" });
-
-    // Get or create Stripe Customer
-    const profileRes = await fetch(
-      `${SB_URL}/rest/v1/user_personas?id=eq.${encodeURIComponent(user.id)}&select=stripe_customer_id`,
-      { headers: sbHeaders() },
-    );
-    if (!profileRes.ok) {
-      return void res.status(502).json({ error: "Payment provider unavailable" });
-    }
-    const [profile] = await profileRes.json();
-    let customerId: string = profile?.stripe_customer_id ?? "";
-
-    if (!customerId) {
-      try {
-        const customer = await stripe.customers.create({
-          email: user.email as string | undefined,
-          metadata: { user_id: user.id },
-        });
-        customerId = customer.id;
-      } catch (err) {
-        console.error("[stripe-checkout] Failed to create customer:", err);
-        return void res.status(502).json({ error: "Payment provider unavailable" });
-      }
-      const patchRes = await fetch(
-        `${SB_URL}/rest/v1/user_personas?id=eq.${encodeURIComponent(user.id)}`,
-        {
-          method: "PATCH",
-          headers: sbHeaders({ Prefer: "return=minimal" }),
-          body: JSON.stringify({ stripe_customer_id: customerId }),
-        },
-      );
-      if (!patchRes.ok) {
-        console.error(
-          "[stripe-checkout] Failed to save stripe_customer_id:",
-          await patchRes.text(),
-        );
-        // Still proceed — Stripe session is valid
-      }
-    }
+    const variantEnvKey =
+      plan === "starter" ? "LEMONSQUEEZY_STARTER_VARIANT_ID" : "LEMONSQUEEZY_PRO_VARIANT_ID";
+    const variantId = process.env[variantEnvKey];
+    if (!variantId) return void res.status(500).json({ error: "Plan not configured" });
 
     const host = (req.headers["host"] as string) || "everion.app";
-    const appUrl = `https://${host}`;
+    const successUrl = `https://${host}/settings?tab=billing&billing=success`;
 
-    let session: Stripe.Checkout.Session;
+    let url: string;
     try {
-      session = await stripe.checkout.sessions.create({
-        customer: customerId,
-        mode: "subscription",
-        line_items: [{ price: priceId, quantity: 1 }],
-        allow_promotion_codes: true,
-        success_url: `${appUrl}/settings?tab=billing&billing=success`,
-        cancel_url: `${appUrl}/settings?tab=billing&billing=cancel`,
-        metadata: { user_id: user.id },
+      url = await lemonCreateCheckoutUrl({
+        variantId,
+        email: user.email ?? null,
+        userId: user.id,
+        tier: plan,
+        successUrl,
       });
     } catch (err) {
-      console.error("[stripe-checkout] Failed to create session:", err);
+      console.error("[lemon-checkout] checkout URL create failed:", err);
       return void res.status(502).json({ error: "Payment provider unavailable" });
     }
-
-    res.status(200).json({ url: session.url });
+    res.status(200).json({ url });
   },
 );
 
-// ── /api/user-data?resource=stripe-webhook ──
-async function handleStripeWebhook(
+// ── /api/user-data?resource=lemon-webhook ──
+//
+// Bridges LemonSqueezy → RevenueCat. On every active-subscription event we:
+//   1. resolve the user (custom_data.user_id is always present because the
+//      checkout was minted with it embedded);
+//   2. write the tier to user_profiles;
+//   3. grant the matching RC promotional entitlement so mobile RC SDK sees
+//      the user as entitled even though they paid on web.
+// On cancel/expire we revoke the promotional entitlement and revert to free.
+async function handleLemonWebhook(
   req: ApiRequest,
   res: ApiResponse,
   rawBody: Buffer,
 ): Promise<void> {
-  const sig = req.headers["stripe-signature"] as string | undefined;
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (!sig || !secret) {
-    return void res.status(400).json({ error: "Missing stripe-signature header" });
+  const sigHeader = req.headers["x-signature"] as string | undefined;
+  const sigCheck = lemonVerifyWebhookSignature(rawBody, sigHeader);
+  if (!sigCheck.ok) {
+    console.warn(`[lemon-webhook] signature rejected: ${sigCheck.reason}`);
+    return void res.status(400).json({ error: `Invalid signature (${sigCheck.reason})` });
   }
 
-  let event: Stripe.Event;
+  let body: {
+    meta?: {
+      event_name?: string;
+      custom_data?: { user_id?: string; tier?: string };
+      webhook_id?: string;
+    };
+    data?: {
+      id?: string;
+      attributes?: {
+        customer_id?: number | string;
+        variant_id?: number | string;
+        status?: string;
+        renews_at?: string | null;
+        ends_at?: string | null;
+      };
+    };
+  };
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+    body = JSON.parse(rawBody.toString("utf-8"));
   } catch (err) {
-    console.error("[stripe-webhook] Signature verification failed:", err);
-    return void res.status(400).json({ error: "Invalid signature" });
+    console.error("[lemon-webhook] body parse failed:", err);
+    return void res.status(400).json({ error: "Invalid JSON body" });
   }
 
-  // Idempotency: Stripe retries on transient failures. Skip duplicate event.id.
-  const { firstTime } = await markStripeEventSeen(event.id);
+  const eventName = body.meta?.event_name ?? "";
+  const eventId = body.meta?.webhook_id ?? body.data?.id ?? "";
+  if (!eventName || !eventId) {
+    return void res.status(400).json({ error: "Missing event metadata" });
+  }
+
+  const { firstTime } = await markWebhookEventSeen("lemon", eventId);
   if (!firstTime) {
-    console.log(`[stripe-webhook] dropping duplicate event ${event.id} (${event.type})`);
+    console.log(`[lemon-webhook] dropping duplicate event ${eventId} (${eventName})`);
     return void res.status(200).json({ received: true, duplicate: true });
   }
 
-  // Track DB writes so we can return 5xx if Supabase fails — Stripe will retry.
-  let dbOk = true;
+  const userId = body.meta?.custom_data?.user_id ?? "";
+  if (!userId) {
+    console.warn(`[lemon-webhook] event ${eventId} missing custom_data.user_id`);
+    return void res.status(200).json({ received: true, ignored: "missing user_id" });
+  }
 
-  if (
-    event.type === "customer.subscription.created" ||
-    event.type === "customer.subscription.updated"
-  ) {
-    const sub = event.data.object as Stripe.Subscription;
-    const customerId = sub.customer as string;
-    const priceId = sub.items.data[0]?.price.id ?? "";
+  const attrs = body.data?.attributes ?? {};
+  const customerId = attrs.customer_id != null ? String(attrs.customer_id) : null;
+  const subscriptionId = body.data?.id ?? null;
+  const variantId = attrs.variant_id != null ? String(attrs.variant_id) : "";
+  const renewsAt = attrs.renews_at ?? null;
+  const endsAt = attrs.ends_at ?? null;
 
-    const tier =
-      priceId === process.env.STRIPE_PRO_PRICE_ID ||
-      priceId === process.env.STRIPE_PRO_ANNUAL_PRICE_ID
-        ? "pro"
-        : "starter";
+  const isActive =
+    eventName === "subscription_created" ||
+    eventName === "subscription_updated" ||
+    eventName === "subscription_resumed" ||
+    eventName === "subscription_unpaused";
 
-    const r = await fetch(
-      `${SB_URL}/rest/v1/user_personas?stripe_customer_id=eq.${encodeURIComponent(customerId)}`,
-      {
-        method: "PATCH",
-        headers: sbHeaders({ Prefer: "return=minimal" }),
-        body: JSON.stringify({
-          tier,
-          stripe_subscription_id: sub.id,
-          tier_expires_at: null,
-        }),
-      },
-    );
-    if (!r.ok) {
-      console.error(`[stripe-webhook] subscription upsert failed: ${r.status}`, event.id);
-      dbOk = false;
+  const isInactive =
+    eventName === "subscription_cancelled" ||
+    eventName === "subscription_expired" ||
+    eventName === "subscription_paused";
+
+  if (!isActive && !isInactive) {
+    // Other LS events (subscription_payment_*, subscription_plan_changed, etc.)
+    // — ignore for now; renews_at on subsequent _updated events keeps state fresh.
+    return void res.status(200).json({ received: true, ignored: eventName });
+  }
+
+  let tier: Tier;
+  let currentPeriodEnd: string | null;
+  let dbOk: { ok: boolean };
+
+  if (isActive) {
+    tier = resolveTier("lemonsqueezy", variantId);
+    if (tier === "free") {
+      // Variant id didn't match either configured tier — log + treat as cancellation
+      // rather than silently leaving the user on a stale tier.
+      console.warn(`[lemon-webhook] unknown variant_id ${variantId} on event ${eventId}`);
+    }
+    currentPeriodEnd = renewsAt;
+    dbOk = await writePlanChange({
+      userId,
+      provider: "lemonsqueezy",
+      tier,
+      lemonCustomerId: customerId,
+      lemonSubscriptionId: subscriptionId,
+      currentPeriodEnd,
+    });
+    if (dbOk.ok && tier !== "free") {
+      // Bridge to RevenueCat. Failure here doesn't block the user — the web
+      // session is paid. Mobile would just need a manual sync until next event.
+      const grantRes = await rcGrantEntitlement({
+        appUserId: userId,
+        entitlementId: tier, // "starter" | "pro"
+        duration: "monthly",
+      });
+      if (!grantRes.ok) {
+        console.warn(`[lemon-webhook] RC grant failed for user ${userId} tier ${tier}`);
+      }
+    }
+  } else {
+    // Cancellation / expiry — revoke and drop to free.
+    tier = "free";
+    currentPeriodEnd = endsAt ?? renewsAt;
+    dbOk = await writePlanChange({
+      userId,
+      provider: "lemonsqueezy",
+      tier,
+      lemonSubscriptionId: null,
+      currentPeriodEnd,
+    });
+    if (dbOk.ok) {
+      // Revoke both — caller may have been on either entitlement.
+      await rcRevoke(userId, "starter");
+      await rcRevoke(userId, "pro");
     }
   }
 
-  if (event.type === "customer.subscription.deleted") {
-    const sub = event.data.object as Stripe.Subscription;
-    const customerId = sub.customer as string;
-    const periodEndTs = sub.items.data[0]?.current_period_end ?? 0;
-    const periodEnd = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null;
-
-    const r = await fetch(
-      `${SB_URL}/rest/v1/user_personas?stripe_customer_id=eq.${encodeURIComponent(customerId)}`,
-      {
-        method: "PATCH",
-        headers: sbHeaders({ Prefer: "return=minimal" }),
-        body: JSON.stringify({
-          tier: "free",
-          stripe_subscription_id: null,
-          tier_expires_at: periodEnd,
-        }),
-      },
-    );
-    if (!r.ok) {
-      console.error(`[stripe-webhook] subscription delete update failed: ${r.status}`, event.id);
-      dbOk = false;
-    }
-  }
-
-  if (!dbOk) {
+  if (!dbOk.ok) {
     return void res.status(502).json({ error: "Database write failed — please retry" });
   }
   res.status(200).json({ received: true });
 }
 
-// ── /api/user-data?resource=stripe-portal ──
-const handleStripePortal = withAuth(
+// ── /api/user-data?resource=revenuecat-webhook ──
+//
+// RevenueCat fires on every native subscription state change. We trust RC as
+// the source of truth for App Store + Play because it does the receipt
+// validation we'd otherwise have to write twice. Authentication is a shared
+// bearer secret configured per-app in the RC dashboard.
+async function handleRevenueCatWebhook(
+  req: ApiRequest,
+  res: ApiResponse,
+  rawBody: Buffer,
+): Promise<void> {
+  const auth = req.headers["authorization"] as string | undefined;
+  if (!rcVerifyWebhookAuth(auth)) {
+    return void res.status(401).json({ error: "Unauthorized" });
+  }
+
+  let body: RevenueCatWebhookBody;
+  try {
+    body = JSON.parse(rawBody.toString("utf-8"));
+  } catch (err) {
+    console.error("[revenuecat-webhook] body parse failed:", err);
+    return void res.status(400).json({ error: "Invalid JSON body" });
+  }
+
+  const event = body.event;
+  if (!event || !event.type || !event.app_user_id) {
+    return void res.status(400).json({ error: "Missing event fields" });
+  }
+
+  const eventId =
+    event.id ?? `${event.type}:${event.app_user_id}:${event.event_timestamp_ms ?? "?"}`;
+  const { firstTime } = await markWebhookEventSeen("revenuecat", eventId);
+  if (!firstTime) {
+    console.log(`[revenuecat-webhook] dropping duplicate event ${eventId} (${event.type})`);
+    return void res.status(200).json({ received: true, duplicate: true });
+  }
+
+  const userId = event.app_user_id;
+  const productId = event.product_id ?? "";
+  const expirationIso = event.expiration_at_ms
+    ? new Date(event.expiration_at_ms).toISOString()
+    : null;
+
+  // PROMOTIONAL store events come from our own bridge from LemonSqueezy —
+  // skip them here (we already wrote the tier in handleLemonWebhook) so we
+  // don't echo-loop our own entitlements back into the DB.
+  if (event.store === "PROMOTIONAL") {
+    return void res.status(200).json({ received: true, ignored: "promotional" });
+  }
+
+  const isActive =
+    event.type === "INITIAL_PURCHASE" ||
+    event.type === "RENEWAL" ||
+    event.type === "PRODUCT_CHANGE" ||
+    event.type === "UNCANCELLATION";
+
+  const isInactive =
+    event.type === "CANCELLATION" ||
+    event.type === "EXPIRATION" ||
+    event.type === "BILLING_ISSUE";
+
+  if (!isActive && !isInactive) {
+    return void res.status(200).json({ received: true, ignored: event.type });
+  }
+
+  const tier: Tier = isActive ? resolveTier("revenuecat", productId) : "free";
+
+  const writeRes = await writePlanChange({
+    userId,
+    provider: "revenuecat",
+    tier,
+    appleOriginalTransactionId:
+      event.store === "APP_STORE" || event.store === "MAC_APP_STORE"
+        ? (event.original_transaction_id ?? null)
+        : undefined,
+    playPurchaseToken: event.store === "PLAY_STORE" ? (event.purchase_token ?? null) : undefined,
+    playProductId: event.store === "PLAY_STORE" ? productId : undefined,
+    currentPeriodEnd: expirationIso,
+  });
+
+  if (!writeRes.ok) {
+    return void res.status(502).json({ error: "Database write failed — please retry" });
+  }
+  res.status(200).json({ received: true });
+}
+
+// ── /api/user-data?resource=lemon-portal ──
+const handleLemonPortal = withAuth(
   { methods: ["POST"], rateLimit: 10 },
-  async ({ req, res, user }) => {
+  async ({ res, user }) => {
     const profileRes = await fetch(
-      `${SB_URL}/rest/v1/user_personas?id=eq.${encodeURIComponent(user.id)}&select=stripe_customer_id`,
+      `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(user.id)}&select=lemonsqueezy_customer_id`,
       { headers: sbHeaders() },
     );
     if (!profileRes.ok) {
@@ -2007,23 +2112,17 @@ const handleStripePortal = withAuth(
     }
     const [profile] = await profileRes.json();
 
-    if (!profile?.stripe_customer_id) {
+    if (!profile?.lemonsqueezy_customer_id) {
       return void res.status(400).json({ error: "No active subscription found" });
     }
 
-    const host = (req.headers["host"] as string) || "everion.app";
-
-    let portalSession: Stripe.BillingPortal.Session;
+    let url: string;
     try {
-      portalSession = await stripe.billingPortal.sessions.create({
-        customer: profile.stripe_customer_id,
-        return_url: `https://${host}/settings?tab=billing`,
-      });
+      url = await lemonGetCustomerPortalUrl(String(profile.lemonsqueezy_customer_id));
     } catch (err) {
-      console.error("[stripe-portal] Failed to create portal session:", err);
+      console.error("[lemon-portal] Failed to fetch portal url:", err);
       return void res.status(502).json({ error: "Payment provider unavailable" });
     }
-
-    res.status(200).json({ url: portalSession.url });
+    res.status(200).json({ url });
   },
 );

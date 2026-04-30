@@ -20,12 +20,16 @@ const LIMITS: Record<Tier, UsageCounts> = {
 
 const ZERO_USAGE: UsageCounts = { captures: 0, chats: 0, voice: 0, improve: 0 };
 
+type Provider = "lemonsqueezy" | "revenuecat" | "stripe" | null;
+
 interface SubscriptionState {
   tier: Tier;
   usage: UsageCounts;
   limits: UsageCounts;
   pct: Partial<Record<UsageAction, number>>;
   renewalDate: string | null;
+  /** Where the active subscription was paid — drives BillingTab branching. */
+  provider: Provider;
   isLoading: boolean;
 }
 
@@ -33,6 +37,7 @@ export function useSubscription(): SubscriptionState {
   const [tier, setTier] = useState<Tier>("free");
   const [usage, setUsage] = useState<UsageCounts>(ZERO_USAGE);
   const [renewalDate, setRenewalDate] = useState<string | null>(null);
+  const [provider, setProvider] = useState<Provider>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,7 +54,7 @@ export function useSubscription(): SubscriptionState {
       const [profileRes, usageRes] = await Promise.all([
         supabase
           .from("user_profiles")
-          .select("tier,tier_expires_at,stripe_subscription_id")
+          .select("tier,current_period_end,tier_expires_at,billing_provider")
           .eq("id", user.id)
           .single(),
         supabase
@@ -63,11 +68,18 @@ export function useSubscription(): SubscriptionState {
       if (cancelled) return;
 
       const rawTier = (profileRes.data?.tier ?? "free") as Tier;
+      // Prefer current_period_end (set by 064-style billing). Fall back to
+      // tier_expires_at for any pre-migration row left over from Stripe.
+      const renewsAt =
+        profileRes.data?.current_period_end ?? profileRes.data?.tier_expires_at ?? null;
+      // tier_expires_at is the legacy "downgrade after this point" column —
+      // honour it if set, otherwise trust the tier as-is.
       const expiresAt = profileRes.data?.tier_expires_at ?? null;
       const effectiveTier: Tier = expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
 
       setTier(effectiveTier);
-      setRenewalDate(expiresAt);
+      setRenewalDate(renewsAt);
+      setProvider((profileRes.data?.billing_provider as Provider) ?? null);
       setUsage(usageRes.data ?? ZERO_USAGE);
       setIsLoading(false);
     }
@@ -88,5 +100,5 @@ export function useSubscription(): SubscriptionState {
     }
   }
 
-  return { tier, usage, limits, pct, renewalDate, isLoading };
+  return { tier, usage, limits, pct, renewalDate, provider, isLoading };
 }
