@@ -45,6 +45,11 @@ const DOCS = [
 // in the dashboard with no server edit. Title comes from the first `# H1`,
 // fallback to filename. Sort order applies within the group.
 const AUTO_GROUPS = [
+  // Active in-flight work. Renders at the top of the dashboard so the
+  // current sprint is the first thing seen on every visit. Move .md
+  // files into Working/archive/ once shipped.
+  { dir: "Working", group: "working", sort: "mtime-desc" },
+  { dir: "Working/archive", group: "working-archive", sort: "mtime-desc" },
   { dir: "Audits", group: "audits", sort: "mtime-desc" },
   // Audits move here once addressed — kept for context, demoted in the UI
   // so they don't pollute the active "Audits" tab.

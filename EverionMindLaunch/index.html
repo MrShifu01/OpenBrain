@@ -1027,10 +1027,14 @@
       // it doesn't crowd the active Audits column. The `muted` flag dims
       // the section so addressed audits stay visible-but-de-emphasized.
       const DOC_GROUPS = [
+        // Currently Working renders first so the in-flight sprint is the
+        // top thing on every visit. Working Archive is muted at the bottom.
+        { key: "working", label: "Currently Working" },
         { key: "core", label: "Launch Control" },
         { key: "audits", label: "Audits" },
         { key: "architecture", label: "Architecture" },
         { key: "audits-archive", label: "Audit Archive", muted: true },
+        { key: "working-archive", label: "Working Archive", muted: true },
       ];
 
       function docGroupOf(doc) {
