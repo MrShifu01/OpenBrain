@@ -862,3 +862,56 @@ select option:hover {
     @apply font-sans;
   }
 }
+
+/* Calendar (react-day-picker v9) — brand theme on top of the picker's
+   default CSS. Hooks into design tokens so it doesn't look foreign. */
+.rdp-everion {
+  --rdp-accent-color: var(--ember);
+  --rdp-accent-background-color: var(--ember-wash);
+  --rdp-day-height: 30px;
+  --rdp-day-width: 30px;
+  --rdp-day_button-height: 30px;
+  --rdp-day_button-width: 30px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-today-color: var(--ember);
+  --rdp-outside-opacity: 0.4;
+  --rdp-disabled-opacity: 0.3;
+  font-family: var(--f-sans);
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--surface-high);
+}
+.rdp-everion .rdp-month_caption {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 4px 8px;
+}
+.rdp-everion .rdp-button_previous,
+.rdp-everion .rdp-button_next {
+  color: var(--ink-soft);
+  border-radius: 6px;
+}
+.rdp-everion .rdp-button_previous:hover,
+.rdp-everion .rdp-button_next:hover {
+  background: var(--ember-wash);
+  color: var(--ember);
+}
+.rdp-everion .rdp-day_button:hover:not([disabled]) {
+  background: var(--ember-wash);
+  color: var(--ember);
+}
+.rdp-everion .rdp-selected .rdp-day_button {
+  background: var(--ember);
+  color: var(--ember-ink);
+  font-weight: 600;
+}
+.rdp-everion .rdp-today .rdp-day_button {
+  font-weight: 600;
+}
+.rdp-everion .rdp-weekday {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Entry } from "../types";
 import { Button } from "../components/ui/button";
+import { DateField } from "../components/ui/date-field";
 import {
   Select,
   SelectContent,
@@ -186,16 +187,17 @@ export default function TodoEditPopover({ entry, rect, onClose, onSave }: Props)
             >
               Date
             </span>
-            <input
-              type="date"
+            <DateField
               value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="flex-1 rounded-xl border px-3 py-1.5 text-sm outline-none"
-              style={{
-                background: "var(--surface-low)",
-                borderColor: "var(--line-soft)",
-                color: dueDate ? "var(--ember)" : "var(--ink-ghost)",
-                fontFamily: "var(--f-sans)",
+              onChange={setDueDate}
+              ariaLabel="Due date"
+              placeholder="Pick a date"
+              triggerClassName="flex-1"
+              triggerStyle={{
+                height: 34,
+                borderRadius: 12,
+                padding: "0 12px",
+                fontSize: 13,
               }}
             />
             {dueDate && (

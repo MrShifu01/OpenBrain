@@ -6,6 +6,7 @@ import { useState } from "react";
 import { parseISO } from "date-fns";
 import type { Entry } from "../types";
 import { Button } from "../components/ui/button";
+import { DateField } from "../components/ui/date-field";
 import {
   Select,
   SelectContent,
@@ -320,11 +321,17 @@ export function EventEditor({
           >
             Date
           </span>
-          <input
-            type="date"
+          <DateField
             value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-            style={fieldStyle}
+            onChange={setDateStr}
+            ariaLabel="Event date"
+            triggerStyle={{
+              ...fieldStyle,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+            }}
           />
         </label>
         <label style={{ flex: "1 1 140px", display: "flex", flexDirection: "column", gap: 4 }}>

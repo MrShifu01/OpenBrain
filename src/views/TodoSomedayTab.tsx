@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "../components/ui/button";
+import { DateField } from "../components/ui/date-field";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import {
   Select,
@@ -1358,20 +1359,11 @@ function ScheduleInline({
         tone="ember"
         onClick={() => onConfirm(format(nextMon, "yyyy-MM-dd"))}
       />
-      <input
-        type="date"
+      <DateField
         value={picked}
-        onChange={(e) => setPicked(e.target.value)}
-        className="f-sans"
-        style={{
-          height: 30,
-          padding: "0 8px",
-          fontSize: 12,
-          border: "1px solid var(--line-soft)",
-          borderRadius: 8,
-          background: "var(--surface-low)",
-          color: "var(--ink)",
-        }}
+        onChange={setPicked}
+        ariaLabel="Pick a custom date"
+        placeholder="Pick date"
       />
       <SmallBtn label="Set" tone="moss" onClick={() => onConfirm(picked)} />
       <SmallBtn label="Cancel" tone="ghost" onClick={onCancel} />
