@@ -18,6 +18,18 @@
 >
 > Browse at `http://localhost:5174` via `node EverionMindLaunch/server.mjs` (live-syncs both directions: edit a `.md`, dashboard updates; tick a checkbox, `.md` updates). README in the same folder explains how the docs fit together.
 > If a launch-related task isn't here, it doesn't exist. Move it in before working on it.
+>
+> **Audit drop-in:** any `.md` in `EML/Audits/` is auto-discovered by the dashboard (no server edit needed). Title comes from the file's first `# H1`; sort is mtime-desc.
+>
+> **Audit address-and-archive workflow** (when the user asks to address an audit):
+> 1. Read the audit file end-to-end.
+> 2. Address each finding — code changes, commits, follow-up specs.
+> 3. For findings you do NOT address in this pass, lift them into `EML/LAUNCH_CHECKLIST.md` under the right priority tier with a traceability tag like `(from EML/Audits/<file>, finding #N)`.
+> 4. Prepend a `## Resolution — YYYY-MM-DD` section to the audit summarizing: addressed (with commit SHAs), deferred (with checklist links), wontfix (with reason).
+> 5. `git mv EML/Audits/<file>.md EML/Audits/archive/<file>.md`
+> 6. Commit: `chore(EML): archive Audits/<file> — addressed in <commits>, deferred N items to checklist`.
+>
+> The dashboard then drops the audit out of the active "Audits" group into "Audit Archive" (muted, bottom of library) on the next 2.5s poll. Nothing is deleted; the file + git history stay intact for future reference.
 
 > **DEFAULT RESPONSE STYLE: caveman skill, full intensity.**
 > All user-facing prose in this project follows the `caveman` skill (full mode by default). Drop articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries (sure/of course/happy to), and hedging. Fragments OK. Short synonyms (fix not "implement a solution for"). **Code blocks, file paths, and exact error strings stay verbatim — never compress those.** Switch to lite only if user asks; switch off only on explicit request.

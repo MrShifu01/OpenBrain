@@ -167,42 +167,139 @@
         50% { opacity: 0.4; }
       }
 
-      /* ── Doc tabs (nav across knowledge base) ───────────────────────── */
+      /* ── Document library ────────────────────────────────────────────── */
       nav.doc-tabs {
-        margin: 14px 0 4px;
-        display: flex;
-        gap: 4px;
-        flex-wrap: wrap;
+        margin: 18px 0 4px;
+        padding: 14px 0 18px;
         border-bottom: 1px solid var(--line);
       }
-      nav.doc-tabs .tab {
-        background: none;
-        border: 0;
-        padding: 9px 14px;
-        font-family: var(--f-sans);
+      .doc-library-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 18px;
+        margin-bottom: 14px;
+      }
+      .doc-library-title {
+        font-family: var(--f-serif);
+        font-size: 18px;
+        line-height: 1.2;
+        font-weight: 600;
+        margin: 0 0 3px;
+      }
+      .doc-library-note {
+        color: var(--ink-faint);
+        font-size: 12px;
+      }
+      .doc-search {
+        width: min(320px, 100%);
+        padding: 9px 13px;
         font-size: 13px;
-        font-weight: 500;
+        font-family: var(--f-sans);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        outline: none;
+      }
+      .doc-search:focus {
+        border-color: var(--ember);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 12%, transparent);
+      }
+      .doc-groups {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 18px;
+        align-items: start;
+      }
+      .doc-group {
+        min-width: 0;
+      }
+      .doc-group.muted { opacity: 0.62; }
+      .doc-group.muted:hover { opacity: 1; }
+      .doc-group.muted .doc-btn { font-size: 12px; min-height: 32px; }
+      .doc-group-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 7px;
+        color: var(--ink-faint);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .doc-group-title .count {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+      }
+      .doc-group-items {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .doc-btn {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 38px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 7px 9px;
         color: var(--ink-soft);
         cursor: pointer;
-        border-radius: 8px 8px 0 0;
-        margin-bottom: -1px;
-        border-bottom: 2px solid transparent;
-        transition: all 0.12s ease;
+        font-family: var(--f-sans);
+        font-size: 13px;
+        line-height: 1.25;
+        text-align: left;
+        transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
       }
-      nav.doc-tabs .tab:hover { color: var(--ember); background: var(--ember-wash); }
-      nav.doc-tabs .tab.active {
+      .doc-btn:hover {
+        background: var(--ember-wash);
         color: var(--ember);
-        border-bottom-color: var(--ember);
-        background: var(--surface);
       }
-      nav.doc-tabs .tab .group-tag {
-        font-size: 9px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: 700;
+      .doc-btn.active {
+        background: var(--surface);
+        border-color: var(--ember);
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
+      }
+      .doc-btn:focus-visible {
+        outline: 2px solid var(--ember);
+        outline-offset: 2px;
+      }
+      .doc-btn > span:first-child {
+        min-width: 0;
+      }
+      .doc-btn .doc-path {
+        display: block;
+        overflow: hidden;
         color: var(--ink-faint);
-        margin-right: 6px;
-        opacity: 0.7;
+        font-family: var(--f-mono);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .doc-btn .doc-role {
+        border-radius: 999px;
+        background: var(--line-soft);
+        color: var(--ink-faint);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 2px 6px;
+        text-transform: uppercase;
+      }
+      .doc-empty {
+        color: var(--ink-faint);
+        font-family: var(--f-serif);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px 0;
       }
 
       /* ── Score band (checklist only) ─────────────────────────────────── */
@@ -439,7 +536,8 @@
         .layout { grid-template-columns: 1fr; }
         nav.sidebar { position: static; max-height: none; }
         .scorecard { grid-template-columns: repeat(2, 1fr); }
-        nav.doc-tabs { font-size: 12px; }
+        .doc-library-head { align-items: stretch; flex-direction: column; }
+        .doc-search { width: 100%; }
       }
       nav.sidebar {
         position: sticky;
@@ -578,7 +676,7 @@
           <h1>Everion Mind — Launch Knowledge Base</h1>
           <div class="subtitle">
             <span class="ember-dot"></span>
-            Single source of truth for pre-launch, launch, and post-launch tasks · strategy · research · brainstorm.
+            Single source of truth for launch tasks, strategy, research, architecture, and audits.
           </div>
         </div>
         <div class="meta">
@@ -587,7 +685,7 @@
         </div>
       </header>
 
-      <nav class="doc-tabs" id="doc-tabs"></nav>
+      <nav class="doc-tabs" id="doc-tabs" aria-label="Document library"></nav>
 
       <main id="root"></main>
     </div>
@@ -601,6 +699,7 @@
       let docs = [];                          // [{ id, file, title, role, group, mtime, ... }]
       let activeDocId = "checklist";          // which tab is selected
       let docCache = new Map();               // docId → { content, mtime, parsed }
+      let docNavTerm = "";
       let activeStatus = "all";
       let activeCategory = "all";
       let searchTerm = "";
@@ -922,20 +1021,79 @@
       }
 
       // ───────────────────────────────────────────────────────────────────
-      // Render: Doc tabs (top nav)
+      // Render: Document library
       // ───────────────────────────────────────────────────────────────────
+      // Group order = render order. Audit Archive sits at the bottom so
+      // it doesn't crowd the active Audits column. The `muted` flag dims
+      // the section so addressed audits stay visible-but-de-emphasized.
+      const DOC_GROUPS = [
+        { key: "core", label: "Launch Control" },
+        { key: "audits", label: "Audits" },
+        { key: "architecture", label: "Architecture" },
+        { key: "audits-archive", label: "Audit Archive", muted: true },
+      ];
+
+      function docGroupOf(doc) {
+        return doc.group || "core";
+      }
+
       function renderTabs() {
         const tabsEl = document.getElementById("doc-tabs");
-        // Group architecture sub-docs visually under one parent tab
-        const archDocs = docs.filter(d => d.group === "architecture");
-        const standalone = docs.filter(d => !d.group);
-        const html = standalone.map(d =>
-          `<button class="tab ${d.id === activeDocId ? "active" : ""}" data-doc="${d.id}">${escapeHtml(d.title)}</button>`
-        ).join("") + (archDocs.length ? archDocs.map(d =>
-          `<button class="tab ${d.id === activeDocId ? "active" : ""}" data-doc="${d.id}"><span class="group-tag">arch</span>${escapeHtml(d.title)}</button>`
-        ).join("") : "");
-        tabsEl.innerHTML = html;
-        tabsEl.querySelectorAll(".tab").forEach(btn => {
+        const needle = docNavTerm.trim().toLowerCase();
+        const visibleDocs = docs.filter((doc) => {
+          if (!needle) return true;
+          return [doc.title, doc.file, doc.group || "launch"].join(" ").toLowerCase().includes(needle);
+        });
+        const knownGroups = new Set(DOC_GROUPS.map(g => g.key));
+        const extraGroups = [...new Set(visibleDocs.map(docGroupOf).filter(g => !knownGroups.has(g)))]
+          .map(key => ({ key, label: key.replace(/[-_]/g, " ") }));
+        const groups = [...DOC_GROUPS, ...extraGroups].map((group) => {
+          const groupDocs = visibleDocs.filter(doc => docGroupOf(doc) === group.key);
+          if (!groupDocs.length) return "";
+          return `
+            <section class="doc-group ${group.muted ? "muted" : ""}" aria-label="${escapeHtml(group.label)}">
+              <div class="doc-group-title">
+                <span>${escapeHtml(group.label)}</span>
+                <span class="count">${groupDocs.length}</span>
+              </div>
+              <div class="doc-group-items">
+                ${groupDocs.map(doc => `
+                  <button class="doc-btn ${doc.id === activeDocId ? "active" : ""}" data-doc="${doc.id}">
+                    <span>
+                      <span>${escapeHtml(doc.title)}</span>
+                      <span class="doc-path">${escapeHtml(doc.file)}</span>
+                    </span>
+                    <span class="doc-role">${doc.role === "checklist" ? "tasks" : "doc"}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </section>
+          `;
+        }).join("");
+
+        tabsEl.innerHTML = `
+          <div class="doc-library-head">
+            <div>
+              <div class="doc-library-title">Document Library</div>
+              <div class="doc-library-note">Grouped by job: launch control, audits, then architecture reference.</div>
+            </div>
+            <input type="search" class="doc-search" id="doc-search" placeholder="Find a document..." value="${escapeHtml(docNavTerm)}" aria-label="Search documents" />
+          </div>
+          <div class="doc-groups">
+            ${groups || `<div class="doc-empty">No documents match that search.</div>`}
+          </div>
+        `;
+
+        tabsEl.querySelector("#doc-search").addEventListener("input", (e) => {
+          docNavTerm = e.target.value;
+          renderTabs();
+          const search = document.getElementById("doc-search");
+          if (search) {
+            search.focus();
+            search.setSelectionRange(search.value.length, search.value.length);
+          }
+        });
+        tabsEl.querySelectorAll(".doc-btn").forEach(btn => {
           btn.addEventListener("click", () => {
             activeDocId = btn.dataset.doc;
             renderTabs();

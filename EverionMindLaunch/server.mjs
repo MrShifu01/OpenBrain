@@ -46,6 +46,9 @@ const DOCS = [
 // fallback to filename. Sort order applies within the group.
 const AUTO_GROUPS = [
   { dir: "Audits", group: "audits", sort: "mtime-desc" },
+  // Audits move here once addressed — kept for context, demoted in the UI
+  // so they don't pollute the active "Audits" tab.
+  { dir: "Audits/archive", group: "audits-archive", sort: "mtime-desc" },
   // Future drop-in folders (Decisions/, Specs/) just add another entry here.
 ];
 
