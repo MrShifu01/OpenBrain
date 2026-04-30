@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
 import { FEATURE_FLAGS, getAdminFlags, setAdminFlag } from "../../lib/featureFlags";
 import {
   ADMIN_PREF_DEFS,
@@ -335,31 +336,35 @@ function ScheduleInspectorSection() {
           </div>
           <PlacementTraceBlock label="My Day / Week (actions mode)" detail={resolved.actions} />
           <PlacementTraceBlock label="Calendar (this month)" detail={resolved.calendar} />
-          <details>
-            <summary
-              className="f-sans"
-              style={{ fontSize: 11, color: "var(--ink-faint)", cursor: "pointer" }}
-            >
-              metadata JSON
-            </summary>
-            <pre
-              style={{
-                margin: "6px 0 0",
-                fontFamily: "var(--f-mono)",
-                fontSize: 11,
-                color: "var(--ink-soft)",
-                background: "var(--surface)",
-                padding: 10,
-                borderRadius: 6,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                maxHeight: 240,
-                overflow: "auto",
-              }}
-            >
-              {resolved.metadata}
-            </pre>
-          </details>
+          <Accordion type="single" collapsible>
+            <AccordionItem value="metadata" className="border-0">
+              <AccordionTrigger
+                className="f-sans py-1.5 hover:no-underline"
+                style={{ fontSize: 11, color: "var(--ink-faint)" }}
+              >
+                metadata JSON
+              </AccordionTrigger>
+              <AccordionContent>
+                <pre
+                  style={{
+                    margin: "6px 0 0",
+                    fontFamily: "var(--f-mono)",
+                    fontSize: 11,
+                    color: "var(--ink-soft)",
+                    background: "var(--surface)",
+                    padding: 10,
+                    borderRadius: 6,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    maxHeight: 240,
+                    overflow: "auto",
+                  }}
+                >
+                  {resolved.metadata}
+                </pre>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       )}
     </div>
