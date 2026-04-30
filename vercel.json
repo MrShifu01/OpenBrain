@@ -43,6 +43,7 @@
     { "source": "/api/health", "destination": "/api/user-data?resource=health" },
     { "source": "/api/status", "destination": "/api/user-data?resource=status" },
     { "source": "/api/vault", "destination": "/api/user-data?resource=vault" },
+    { "source": "/api/vault-entries", "destination": "/api/user-data?resource=vault_entries" },
     { "source": "/api/audit", "destination": "/api/entries?resource=audit" },
     { "source": "/api/graph", "destination": "/api/entries?resource=graph" },
     { "source": "/v1/:action", "destination": "/api/v1?action=:action" },

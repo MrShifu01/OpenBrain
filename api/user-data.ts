@@ -77,6 +77,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "health") return handleHealth(req, res);
   if (resource === "status") return handlePublicStatus(req, res);
   if (resource === "vault") return handleVault(req, res);
+  if (resource === "vault_entries") return handleVaultEntries(req, res);
   if (resource === "pin") return handlePin(req, res);
   if (resource === "account") return handleDeleteAccount(req, res);
   if (resource === "full_export") return handleFullExport(req, res);
@@ -885,6 +886,75 @@ const handleVault = withAuth(
       return void res.status(502).json({ error: `Database error: ${err}` });
     }
     return void res.status(201).json({ ok: true });
+  },
+);
+
+// ── /api/vault-entries (rewritten to /api/user-data?resource=vault_entries) ──
+// CRUD for the encrypted vault_entries table. Server stores ciphertext only
+// (AES-256-GCM happens client-side); we never see plaintext content/metadata.
+const handleVaultEntries = withAuth(
+  { methods: ["GET", "POST", "DELETE"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (req.method === "GET") {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&select=id,title,content,metadata,tags,brain_id,created_at,updated_at&order=created_at.desc`,
+        { headers: hdrs() },
+      );
+      if (!r.ok) return void res.status(502).json({ error: "Database error" });
+      return void res.status(200).json(await r.json());
+    }
+
+    if (req.method === "POST") {
+      const { title, content, metadata, tags, brain_id } = (req.body || {}) as {
+        title?: unknown;
+        content?: unknown;
+        metadata?: unknown;
+        tags?: unknown;
+        brain_id?: unknown;
+      };
+      if (!title || typeof title !== "string" || !title.trim()) {
+        return void res.status(400).json({ error: "title required" });
+      }
+      if (typeof content !== "string") {
+        return void res.status(400).json({ error: "content must be a string (ciphertext)" });
+      }
+      const tagArr = Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
+      const payload: Record<string, unknown> = {
+        user_id: user.id,
+        title: title.trim().slice(0, 500),
+        content,
+        metadata: typeof metadata === "string" ? metadata : "",
+        tags: tagArr,
+      };
+      if (typeof brain_id === "string" && brain_id) payload.brain_id = brain_id;
+
+      const r = await fetch(`${SB_URL}/rest/v1/vault_entries`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=representation" }),
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const err = await r.text().catch(() => String(r.status));
+        return void res.status(502).json({ error: `Database error: ${err}` });
+      }
+      const rows: any[] = await r.json();
+      return void res.status(201).json(rows[0] ?? { ok: true });
+    }
+
+    // DELETE — soft delete; RLS scopes to owning user
+    const id = req.query.id as string;
+    if (!id) return void res.status(400).json({ error: "id required" });
+
+    const r = await fetch(
+      `${SB_URL}/rest/v1/vault_entries?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
+      {
+        method: "PATCH",
+        headers: hdrs({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ deleted_at: new Date().toISOString() }),
+      },
+    );
+    if (!r.ok) return void res.status(502).json({ error: "Database error" });
+    return void res.status(200).json({ ok: true });
   },
 );
 
