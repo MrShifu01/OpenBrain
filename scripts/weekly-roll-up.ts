@@ -31,17 +31,39 @@ interface Section {
   note?: string;
 }
 
-async function safeFetchJson(url: string, init: RequestInit, label: string): Promise<any> {
+// External API responses with unknown shape — script consumers do dotted access
+// on best-effort fields. A loose JSON type would force a cast at every site.
+interface LooseJson {
+  [k: string]: unknown;
+  // The list below covers the fields actually read by callers below; anything
+  // else falls through the index signature.
+  groups?: LooseJson[];
+  results?: unknown[];
+  workflow_runs?: LooseJson[];
+  metrics?: LooseJson;
+  pageviews?: unknown;
+  totals?: LooseJson;
+  title?: string;
+  count?: number;
+  lastSeen?: string;
+  created_at?: string;
+  html_url?: string;
+  conclusion?: string;
+  _error?: string;
+}
+
+async function safeFetchJson(url: string, init: RequestInit, label: string): Promise<LooseJson> {
   try {
     const r = await fetch(url, init);
     if (!r.ok) {
       console.warn(`[${label}] HTTP ${r.status}`);
       return { _error: `HTTP ${r.status}` };
     }
-    return await r.json();
-  } catch (err: any) {
-    console.warn(`[${label}] ${err.message}`);
-    return { _error: err.message };
+    return (await r.json()) as LooseJson;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[${label}] ${message}`);
+    return { _error: message };
   }
 }
 
@@ -73,7 +95,7 @@ async function sentrySection(): Promise<Section> {
       ...(Array.isArray(issues)
         ? issues
             .slice(0, 3)
-            .map((i: any): [string, string] => [
+            .map((i: { title?: string; count?: number; lastSeen?: string }): [string, string] => [
               "·",
               `${i.title?.slice(0, 60) ?? "(no title)"} — ${i.count}× last seen ${i.lastSeen?.slice(0, 10) ?? "?"}`,
             ])
@@ -101,7 +123,7 @@ async function posthogSection(): Promise<Section> {
     { method: "POST", headers, body: JSON.stringify(dauQuery) },
     "posthog-dau",
   );
-  const dau = dauRes?.results?.[0]?.[0] ?? "?";
+  const dau = (dauRes?.results as unknown[][] | undefined)?.[0]?.[0] ?? "?";
   // Captures = autocapture events filtered by element selector (best-effort)
   const captureQuery = {
     query: {
@@ -114,7 +136,7 @@ async function posthogSection(): Promise<Section> {
     { method: "POST", headers, body: JSON.stringify(captureQuery) },
     "posthog-pv",
   );
-  const pageviews = capRes?.results?.[0]?.[0] ?? "?";
+  const pageviews = (capRes?.results as unknown[][] | undefined)?.[0]?.[0] ?? "?";
   return {
     title: "PostHog",
     rows: [
@@ -139,7 +161,10 @@ async function vercelSection(): Promise<Section> {
     { headers },
     "vercel-overview",
   );
-  const pv = overview?.metrics?.pageviews?.value ?? overview?.pageviews ?? "?";
+  const pv =
+    (overview?.metrics?.pageviews as { value?: unknown } | undefined)?.value ??
+    overview?.pageviews ??
+    "?";
   return {
     title: "Vercel",
     rows: [["Pageviews (7d)", String(pv)]],
@@ -163,7 +188,7 @@ async function lighthouseSection(): Promise<Section> {
     title: "Lighthouse",
     rows: [
       ["Last successful run", lastRun.created_at?.slice(0, 10) ?? "?"],
-      ["Run URL", lastRun.html_url],
+      ["Run URL", lastRun.html_url ?? "?"],
     ],
   };
 }
@@ -178,9 +203,12 @@ async function e2eSection(): Promise<Section> {
     { headers },
     "e2e-runs",
   );
-  const recent = (runs?.workflow_runs ?? []).filter((r: any) => new Date(r.created_at) > since);
+  type Run = { created_at: string; conclusion?: string };
+  const recent = ((runs?.workflow_runs as Run[] | undefined) ?? []).filter(
+    (r) => new Date(r.created_at) > since,
+  );
   const total = recent.length;
-  const passed = recent.filter((r: any) => r.conclusion === "success").length;
+  const passed = recent.filter((r) => r.conclusion === "success").length;
   const passRate = total ? Math.round((passed / total) * 100) : 0;
   return {
     title: "E2E",

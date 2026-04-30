@@ -41,12 +41,19 @@ function getHashTokens(): {
   return null;
 }
 
+interface AppProps {
+  /** Initial auth intent when App is mounted from main's Landing → CTA flow.
+   *  "login" or "signup" — passed through to LoginScreen so the right form
+   *  opens immediately when the chunk arrives. */
+  initialAuthIntent?: "login" | "signup";
+}
+
 // Top-level route dispatcher. The /status route renders ahead of every
 // other check so a user who can't sign in (Supabase auth down, expired
 // keys, browser network issue) still sees the public status page.
 // Pulling the dispatch out keeps the AppMain hook order stable and
 // satisfies react-hooks/rules-of-hooks.
-export default function App(): JSX.Element {
+export default function App({ initialAuthIntent }: AppProps = {}): JSX.Element {
   if (typeof window !== "undefined" && window.location.pathname === "/status") {
     return (
       <ThemeProvider>
@@ -56,10 +63,10 @@ export default function App(): JSX.Element {
       </ThemeProvider>
     );
   }
-  return <AppMain />;
+  return <AppMain initialAuthIntent={initialAuthIntent} />;
 }
 
-function AppMain(): JSX.Element {
+function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
@@ -92,6 +99,7 @@ function AppMain(): JSX.Element {
     return false;
   });
   const [authIntent, setAuthIntent] = useState<"login" | "signup">(() => {
+    if (initialAuthIntent) return initialAuthIntent;
     if (typeof window === "undefined") return "login";
     const params = new URLSearchParams(window.location.search);
     if (params.get("invite")) return "signup";

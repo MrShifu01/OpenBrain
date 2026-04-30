@@ -199,7 +199,9 @@ const gmailScan: TaskRunner = async (brainId) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ brain_id: brainId || null }),
   });
-  let data: any;
+  let data:
+    | { debug?: { tokenRefreshFailed?: boolean }; error?: string; created?: number }
+    | undefined;
   try {
     data = await r?.json();
   } catch {

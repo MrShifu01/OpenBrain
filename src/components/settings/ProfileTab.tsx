@@ -250,6 +250,7 @@ export default function ProfileTab() {
       // Defensive client-side filter — refuses to render anything that isn't
       // explicitly a persona entry. Protects About You from any future
       // regression in the entries endpoint that might leak other types.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- defensive filter against future endpoint regression that might leak non-persona types; PersonaFact doesn't carry the discriminator field.
       const personaOnly = rows.filter((r: any) => r?.type === "persona");
       setFacts(personaOnly);
       setFactsError(null);
@@ -261,6 +262,7 @@ export default function ProfileTab() {
   }
   useEffect(() => {
     reloadFacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reloadFacts closes over fresh state every render; the brain-switch is the actual trigger we want, and reloadFacts always reads the latest brainId via the closure.
   }, [brainId]);
 
   // First time facts arrive, collapse every populated bucket — opt-in
@@ -1877,6 +1879,7 @@ function PersonaPromptDebug({
   // panel always shows current learnings.
   useEffect(() => {
     if (expanded) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() is recreated each render but reads brainId via closure; we only want to refire on the three explicit triggers below.
   }, [expanded, brainId, refreshKey]);
 
   async function distill() {

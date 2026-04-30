@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
@@ -74,7 +73,9 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     authFetch("/api/entries?staged=true")
       .then((r) => r?.json?.())
       .then((d) => {
-        const gmail = (d?.entries ?? []).filter((e: any) => e.metadata?.source === "gmail");
+        const gmail = (d?.entries ?? []).filter(
+          (e: { metadata?: { source?: string } }) => e.metadata?.source === "gmail",
+        );
         setStagedCount(gmail.length);
       })
       .catch(() => {});
@@ -90,6 +91,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("gmailConnected")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL-param surfacing on mount; the URL is then cleaned via replaceState.
       setMsg({ text: "Gmail connected successfully.", ok: true });
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -125,12 +127,24 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   }, []);
 
   async function handleConnect(preferences: { categories: string[]; custom: string }) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token ?? "";
-    const prefs = encodeURIComponent(JSON.stringify(preferences));
-    window.location.href = `/api/gmail-auth?provider=google&token=${encodeURIComponent(token)}&prefs=${prefs}`;
+    // POST with Authorization header so the Supabase bearer never lands in
+    // the URL. Server validates auth, signs the OAuth state with the user
+    // id baked in, and returns the Google authorise URL.
+    const r = await authFetch("/api/gmail-auth?provider=google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ preferences }),
+    });
+    if (!r.ok) {
+      setMsg({ text: `Connection failed: HTTP ${r.status}`, ok: false });
+      return;
+    }
+    const { redirect_url } = (await r.json()) as { redirect_url?: string };
+    if (!redirect_url) {
+      setMsg({ text: "Connection failed: missing redirect_url", ok: false });
+      return;
+    }
+    window.location.href = redirect_url;
   }
 
   async function handleSavePreferences(preferences: { categories: string[]; custom: string }) {

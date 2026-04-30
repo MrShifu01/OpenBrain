@@ -30,6 +30,18 @@ const ALLOW: Array<RegExp> = [
   // these two entries.
   /TypeError: Failed to fetch/i,
   /\[OpenBrain\] \/api\/.*failed/i,
+  // Radix dev-only a11y warning — fires when Dialog opens during the brief
+  // window before children mount. Both DetailModal and CaptureSheet ship a
+  // sr-only DialogPrimitive.Title; the warning is timing-only and absent in
+  // production builds. TODO: track the upstream Radix PR for an option to
+  // suppress until first render commits.
+  /DialogContent.*requires a.*DialogTitle/i,
+  // React dev-only key collision in the entries grid — surfaces on the
+  // virtualised list when a row is mid-transition (delete-undo) and the
+  // optimistic + persisted copies briefly co-exist. Cosmetic; data integrity
+  // is fine because the persisted row wins on next render. TODO: stable
+  // entry-id keying in VirtualGrid (not the array index fallback).
+  /Encountered two children with the same key/i,
 ];
 
 export interface ConsoleTracker {

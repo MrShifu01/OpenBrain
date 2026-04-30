@@ -35,6 +35,7 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
     const fresh = derivePrompts(entries);
     writeSuggestionsCache(brainId, fresh);
     setSuggestions(fresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally NOT depending on `entries` so suggestions stay stable while typing.
   }, [entriesLoaded, brainId]);
 
   const [input, setInput] = useState("");
@@ -73,6 +74,7 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
     }
     setInput("");
     send(text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- voiceLoading is read but the callback should NOT be recreated on every voice-loading transition (causes the textarea-bound onKeyDown to remount and lose composition state).
   }, [input, loading, send, entries, entriesLoaded]);
 
   const handleKeyDown = useCallback(

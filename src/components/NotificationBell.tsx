@@ -330,6 +330,7 @@ export default function NotificationBell({
   onAcceptMerge,
 }: Props) {
   const [open, setOpen] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ScanResultItem is defined inside GmailSyncTab; importing it here would create a cycle. Items pass through opaque to GmailScanReviewModal which re-types.
   const [reviewItems, setReviewItems] = useState<any[] | null>(null);
   const [reviewNotifId, setReviewNotifId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -365,6 +366,7 @@ export default function NotificationBell({
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleClose is recreated each render but only reads from `open`; pulling it in causes the listener to be torn down and reattached every notification refresh, which fights mousedown timing.
   }, [open, notifications]);
 
   function handleOpen() {

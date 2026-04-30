@@ -22,6 +22,7 @@ export function UsageWarningBanner({ onNavigate }: UsageWarningBannerProps) {
   useEffect(() => {
     const fresh = new Set<string>();
     if (typeof localStorage === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR fallback; resets to empty set on environments without localStorage so the banner renders deterministically.
       setDismissedKeys(fresh);
       return;
     }

@@ -251,7 +251,7 @@ function ProviderCard({
   );
 }
 
-export default function ProvidersTab(_props?: { activeBrain?: any }) {
+export default function ProvidersTab(_props?: { activeBrain?: { id?: string; name?: string } }) {
   const [groqDraft, setGroqDraft] = useState("");
   const [groqSaving, setGroqSaving] = useState(false);
   const [groqMsg, setGroqMsg] = useState<string | null>(null);

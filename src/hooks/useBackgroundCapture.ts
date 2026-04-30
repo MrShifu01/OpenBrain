@@ -60,10 +60,10 @@ function parseAIEntries(
     const jsonStr = extractJSON(aiText);
     const parsed = JSON.parse(jsonStr);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const entries = parsed.map((e: any, i: number) => ({
+      const entries = parsed.map((e: { title?: string; [k: string]: unknown }, i: number) => ({
         ...e,
         title: (e?.title || "").trim() || `${baseName}${parsed.length > 1 ? ` (${i + 1})` : ""}`,
-      }));
+      })) as ParsedEntry[];
       return { entries, parseError: "" };
     }
     if (parsed && typeof parsed === "object") {
@@ -282,7 +282,7 @@ export function useBackgroundCapture() {
         content: string;
         type: string;
         tags: string[];
-        metadata: Record<string, any>;
+        metadata: Record<string, unknown>;
         rawContent?: string;
       },
       brainId: string | undefined,

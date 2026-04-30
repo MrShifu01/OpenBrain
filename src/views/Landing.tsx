@@ -687,6 +687,7 @@ export default function Landing({ onAuth }: LandingProps) {
   useEffect(() => {
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a11y branch; renders the typewriter's final state instantly when motion is reduced.
       setTyped(phrases[0]);
       return;
     }

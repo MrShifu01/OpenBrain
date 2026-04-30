@@ -28,7 +28,9 @@ describe("vault secrets filter", () => {
       { id: "1", title: "A", type: "secret" },
       { id: "2", title: "B", type: "note" },
     ];
-    const secrets = entries.filter((e: any) => e.type === "secret" || e.encrypted === true);
+    const secrets = entries.filter(
+      (e: { type?: string; encrypted?: boolean }) => e.type === "secret" || e.encrypted === true,
+    );
     expect(secrets).toHaveLength(1);
     expect(secrets[0].id).toBe("1");
   });

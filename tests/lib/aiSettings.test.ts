@@ -97,16 +97,20 @@ describe("isAIConfigured", () => {
 describe("loadUserAISettings", () => {
   it("populates groq and gemini keys from Supabase data", async () => {
     const { supabase } = await import("../../src/lib/supabase");
-    (supabase.from as any).mockReturnValueOnce({
-      select: vi.fn().mockReturnValue({
-        eq: vi.fn().mockReturnValue({
-          limit: vi.fn().mockResolvedValue({
-            data: [{ groq_key: "gsk-loaded", gemini_key: "AIza-loaded", embed_provider: "google" }],
-            error: null,
+    (supabase.from as unknown as { mockReturnValueOnce: (v: unknown) => void }).mockReturnValueOnce(
+      {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue({
+              data: [
+                { groq_key: "gsk-loaded", gemini_key: "AIza-loaded", embed_provider: "google" },
+              ],
+              error: null,
+            }),
           }),
         }),
-      }),
-    });
+      },
+    );
     await loadUserAISettings("uid-123");
     expect(getGroqKey()).toBe("gsk-loaded");
     expect(getGeminiKey()).toBe("AIza-loaded");

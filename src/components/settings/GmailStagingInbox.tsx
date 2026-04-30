@@ -127,6 +127,7 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
   // sender / subject / snippet out of the entry's metadata so the next scan's
   // distillation pass has enough context to find patterns. Fire-and-forget;
   // the staging UI doesn't block on the network round-trip.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- entry metadata is dynamic per row; cluster/gmail_* fields read via untyped access.
   function recordDecision(entry: any, decision: "accept" | "reject", reason: string | null) {
     const meta = entry?.metadata ?? {};
     const fromHeader = String(meta.gmail_from || meta.from || "");
@@ -215,16 +216,11 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
       : "transform 350ms cubic-bezier(0.16, 1, 0.3, 1)"
     : "none";
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- gmail metadata is heterogeneous (cluster shape, enrichment flags, ai_insight, gmail_subject). Accessors below tolerate missing fields.
   const meta = (current?.metadata ?? {}) as Record<string, any>;
   const urgency = meta.urgency ?? "low";
   const typeLabel = TYPE_LABELS[current?.type ?? ""] ?? current?.type ?? "Gmail";
-  const cluster = meta.cluster as
-    | {
-        size: number;
-        sender_domain?: string;
-        members?: Array<{ subject: string; from: string; snippet?: string }>;
-      }
-    | undefined;
+  const cluster = meta.cluster;
   const clusterSize = cluster?.size ?? 0;
   const isParsed = meta.enrichment?.parsed === true;
   const hasInsight = !!meta.ai_insight || meta.enrichment?.has_insight === true;

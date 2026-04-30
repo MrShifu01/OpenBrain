@@ -30,7 +30,7 @@ interface CaptureSheetProps {
     content: string;
     type: string;
     tags: string[];
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
     rawContent?: string;
   }) => void;
   onNavigate?: (id: string) => void;
@@ -148,6 +148,7 @@ export default function CaptureSheet({
       setLoading(false);
       resetListening();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialText/resetState/setLoading are stable across renders by design (parent-owned); adding them would re-run the open/close branch every render and stomp on user typing.
   }, [isOpen, resetListening]);
 
   useEffect(() => {

@@ -863,6 +863,7 @@ function ChipWithMenu({
 
   useEffect(() => {
     if (!menuOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient panel state when menu closes; matches the close animation.
       setConfirmingDelete(false);
       setRenaming(false);
     }

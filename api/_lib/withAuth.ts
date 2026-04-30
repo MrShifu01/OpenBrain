@@ -44,6 +44,15 @@ interface WithAuthOptions {
    * Pass false to skip the outer rate-limit (sub-handlers must call rateLimit themselves).
    */
   rateLimit?: number | ((req: ApiRequest) => number) | false;
+  /**
+   * Optional suffix derivation for the rate-limit bucket. By default the
+   * limiter keys on `<ip>:<path>` — fine for single-purpose endpoints, but
+   * for routes that fan out by `?action=` or `?resource=` (e.g. /api/entries)
+   * the memory-feed traffic shares a bucket with admin/debug GETs, so opening
+   * the admin panel mid-session 429s on the first click. Passing a key
+   * deriver gives each action its own counter.
+   */
+  rateLimitKey?: (req: ApiRequest) => string | undefined;
   /** Cache-Control header to set (e.g. "no-store" or "private, max-age=60"). */
   cacheControl?: string;
 }
@@ -79,7 +88,8 @@ export function withAuth(
     try {
       if (limitSpec !== false) {
         const limit = typeof limitSpec === "function" ? limitSpec(req) : limitSpec;
-        if (!(await rateLimit(req, limit))) {
+        const suffix = opts.rateLimitKey?.(req);
+        if (!(await rateLimit(req, limit, 60_000, suffix))) {
           res.status(429).json({ error: "Too many requests" });
           return;
         }

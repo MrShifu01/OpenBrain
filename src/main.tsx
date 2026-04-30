@@ -9,7 +9,12 @@ const Analytics = lazy(() =>
   import("@vercel/analytics/react").then((m) => ({ default: m.Analytics })),
 );
 import "./index.css";
-import App from "./App";
+// App is lazy-loaded so anonymous Landing visitors don't pay for the
+// Supabase + auth + data-layer graph. The "boot App" decision happens below
+// in chooseInitialBoot() — returning users (with a session token in
+// localStorage) and any auth-implying URL bypass Landing entirely.
+const App = lazy(() => import("./App"));
+const Landing = lazy(() => import("./views/Landing"));
 import { ThemeProvider } from "./ThemeContext";
 import { DesignThemeProvider, applyInitialDesignTheme } from "./design/DesignThemeContext";
 import ErrorBoundary from "./ErrorBoundary";
@@ -112,8 +117,38 @@ window.addEventListener("error", (e) => {
 
 const pathname = window.location.pathname;
 
+// Anonymous landing fast path. Returns true when the visitor lands on `/`
+// with no auth signal anywhere — no session token in localStorage, no
+// magic-link hash, no invite token. In that case we render <Landing /> by
+// itself and let the user's first auth click lazy-load <App />.
+//
+// Cost on the win path: anonymous first-time visitor never imports Supabase
+// (~30 KB gz), authFetch, MemoryProvider, loadUserAISettings, or Everion's
+// upstream — Landing's chunk is the only thing parsed. Returning users (the
+// other large segment) skip this branch via the storage probe below and
+// boot App immediately, so their UX is unchanged.
+function isAnonymousLandingCase(): boolean {
+  if (pathname !== "/") return false;
+  if (window.location.hash.includes("access_token")) return false;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("invite")) return false;
+  // Storage probe — same naming convention as src/lib/supabase.ts.
+  // A session token's presence means this is a returning user; boot App.
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) return false;
+    }
+  } catch {
+    // localStorage unavailable (private mode, etc.) — fall through to Landing
+  }
+  return true;
+}
+
 function Root() {
   const [consent, setConsent] = useState(() => getConsentDecision());
+  const [showApp, setShowApp] = useState(() => !isAnonymousLandingCase());
+  const [authIntent, setAuthIntent] = useState<"login" | "signup">("login");
 
   // Hide the native splash screen once the first render has committed.
   // No-op on web; on iOS/Android this fades out the launch image.
@@ -137,9 +172,34 @@ function Root() {
   const KNOWN_PATHS = new Set(["/", "/login", "/admin"]);
   if (!KNOWN_PATHS.has(pathname)) return <NotFound />;
 
+  // Anonymous landing — render Landing alone. App is mounted only after
+  // the user clicks Sign in / Sign up, at which point the lazy chunk loads
+  // and App takes over (it reads `?intent=` to know which mode to open).
+  if (!showApp) {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <Landing
+            onAuth={(mode) => {
+              setAuthIntent(mode);
+              // Mirror what App expects: a /login pathname makes its
+              // showLogin initialiser fire and bypasses Landing again.
+              window.history.replaceState(null, "", "/login");
+              setShowApp(true);
+            }}
+          />
+        </Suspense>
+        {consent === null && <ConsentBanner onDecision={handleDecision} />}
+        <UpdatePrompt />
+      </>
+    );
+  }
+
   return (
     <>
-      <App />
+      <Suspense fallback={null}>
+        <App initialAuthIntent={authIntent} />
+      </Suspense>
       {consent === "accepted" && (
         <Suspense fallback={null}>
           <SpeedInsights />

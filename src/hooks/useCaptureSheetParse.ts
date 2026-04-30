@@ -41,7 +41,7 @@ interface UseCaptureSheetParseOptions {
     content: string;
     type: string;
     tags: string[];
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
     rawContent?: string;
   }) => void;
 }
@@ -527,6 +527,7 @@ export function useCaptureSheetParse({
         clearText();
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- uploadedFiles.length is intentionally read via ref-style closure; including it would invalidate the capture function on every file upload, breaking in-flight network calls. preserve-manual-memoization warning is a knock-on of this; both deliberate.
     [brainId, isOnline, doSave, onCreated, onClose, buildInput],
   );
 

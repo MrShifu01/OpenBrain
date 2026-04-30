@@ -100,6 +100,7 @@ export function useAppShell({
     const pending = localStorage.getItem("ob_pending_capture");
     if (pending) {
       localStorage.removeItem("ob_pending_capture");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only drain of pre-auth localStorage; runs once via [] deps.
       setCaptureInitialText(pending);
       setShowCapture(true);
     }
@@ -153,6 +154,7 @@ export function useAppShell({
 
   // Sync type icons when brain changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- per-brain icon table read from external store on brain switch.
     if (activeBrainId) setTypeIcons(getTypeIcons(activeBrainId));
   }, [activeBrainId]);
 

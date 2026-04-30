@@ -66,10 +66,10 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
       Verified 2026-04-27. `SUPABASE_SERVICE_ROLE_KEY` is referenced only under `api/_lib/` and `api/*.ts` (server-only), never imported in `src/`. Browser SDK uses anon key per `src/lib/supabase.ts`.
 - [x] **Rate limiting on key endpoints** ✅
       Audited and tightened 2026-04-27 (commit `c6ec035`). Every endpoint now has a cap. Notable: `/api/notification-prefs` 30/min, `/api/push-subscribe` 20/min, gmail outer baseline 60/min + OAuth 30/min. Capture/LLM/v1/search were already covered. **Caveat:** see "Rate-limit fail-open audit" finding below.
-- [ ] **OAuth callback/state hardening** ❌
-      Gmail and Calendar OAuth currently use plain base64 JSON state and start OAuth with Supabase bearer tokens in URL query strings. Replace with authenticated start endpoints that do not put bearer tokens in URLs, issue one-time signed/HMAC or server-stored nonce state with expiry, and verify before linking accounts. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 OAuth state/token finding.
-- [ ] **Encrypt Calendar OAuth tokens** ❌
-      Gmail already has app-layer token crypto; Calendar access/refresh tokens are still stored plaintext. Generalize the Gmail token crypto helper, encrypt Calendar provider tokens on write/refresh, and migrate existing Calendar integration rows. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P1 Calendar token finding.
+- [x] **OAuth callback/state hardening** ✅
+      Shipped 2026-04-30. New `api/_lib/oauthState.ts` HMAC-signs state payloads with a 10-min expiry + 16-byte nonce, replacing the tamperable `Buffer.from(JSON.stringify(...)).toString("base64url")` pattern in both `api/gmail.ts` and `api/calendar.ts`. The OAuth-start endpoints (`/api/gmail-auth?provider=google`, `/api/calendar-auth?provider=google|microsoft`) now require POST with `Authorization: Bearer ...` and return `{ redirect_url }` JSON — Supabase bearer tokens no longer land in URL query strings (logs/history/Referer are clean). Frontend callers (`GmailSyncTab.tsx`, `CalendarSyncTab.tsx`) updated to use `authFetch(..., { method: "POST" })` then `window.location.href = redirect_url`. Callback paths verify the signed state before any DB write; bad signature → `gmailError=invalid_state`, expired → `gmailError=expired_state`. Set `OAUTH_STATE_SECRET` in Vercel env (falls back to `SUPABASE_SERVICE_ROLE_KEY` until provisioned).
+- [x] **Encrypt Calendar OAuth tokens** ✅
+      Shipped 2026-04-30. `api/_lib/gmailTokenCrypto.ts` generalised with a `TokenNamespace` parameter (`"gmail" | "calendar-google" | "calendar-microsoft"`) — namespace varies the scrypt salt so each provider's blobs are key-isolated. Default `namespace="gmail"` preserves the original Gmail salt so existing encrypted Gmail rows decrypt unchanged. `api/calendar.ts` now `encryptToken()`s access + refresh on initial OAuth + every refresh, and `decryptToken()`s before any Bearer-header use. Existing plaintext rows fall through unchanged (`decryptToken` returns input when no `enc:v1:` prefix) and migrate lazily on next refresh. Env var: `OAUTH_TOKEN_ENCRYPTION_KEY` (legacy `GMAIL_TOKEN_ENCRYPTION_KEY` still honoured).
 
 ### Compliance / Legal
 
@@ -212,6 +212,9 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 
 ### Performance
 
+- [x] **Public Landing split from authenticated boot** ✅
+      Shipped 2026-04-30. `src/main.tsx` now lazy-loads both `App` and `Landing` and renders Landing on its own when the user lands at `/` with no auth signals (no `sb-*-auth-token` in localStorage, no magic-link hash, no `?invite=`). Anonymous visitors no longer pay for the App chunk's transitive graph (Supabase auth-js + postgrest-js + MemoryProvider + Everion shell). Returning users (with a session token in localStorage) bypass the Landing fast path and boot App immediately. Build output: separate `Landing-*.js` and `App-*.js` chunks. Frontend CTA on Landing flips state → `/login` pathname → App lazy-mount → LoginScreen renders.
+
 - [ ] **Bundle size review** 🟡
       Run `npm run build`, check `dist/assets/`. Vite's `manualChunks` already splits supabase, sentry, pdfjs, mammoth, jszip. Watch the main chunk: if >500 KB gzipped, lazy-load more views. 2026-04-30 direct fixes: Sentry moved behind dynamic imports, PWA precache tightened, hashed JS cache changed to CacheFirst, launch font preload cut to Fraunces/Inter Tight/JetBrains Mono, duplicate manifest link removed, design-family remote `@import`s removed. 2026-04-30 audit follow-up: visualizer wired behind `BUNDLE_STATS=1 npm run build` (writes `dist/stats.html`) plus `node scripts/bundle-attribute.mjs lib- module-` for per-chunk gzip attribution. Findings: `lib-*` (95 KB gz) is mammoth.js — already lazy via `fileExtract.ts`, NOT in modulepreload list, paid only by .docx importers. `module-*` (60 KB gz) is posthog-js — already lazy behind consent. Replaced `radix-ui` meta-package with declared `@radix-ui/react-*` sub-packages across 18 files so each primitive splits into its own dist-* chunk and the unused set is tree-shaken from the eager modulepreload graph. Remaining: split public landing from authenticated Supabase boot, defer non-critical signed-in data prefetches. Trace: `EverionMindLaunch/Audits/archive/codex-performance-2026-04-30.md`.
 - [ ] **Cold-start mitigation** 🟡
@@ -220,8 +223,8 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
       Duplicate `004_*` and `058_*` prefixes are cosmetic — Supabase's `schema_migrations` table tracks by 14-digit timestamp + name, not by filename prefix, so both pairs replay correctly. Documented in `supabase/migrations/README.md` (2026-04-30) with the next-free prefix convention and the rule that new migrations always append at the next integer (currently 064) rather than inserting between historical files. Renaming the existing duplicates would rewrite their `version` in `schema_migrations` and risk re-applying them on a fresh DB — rejected as more dangerous than the cosmetic flaw it solves.
 - [ ] **Browser private-cache hardening** 🟡
       Entries, chat history, concept graphs, learning summaries, offline ops, and session vault keys touch local/session storage. Add a privacy mode plus TTL/encryption/clear-cache strategy for sensitive caches. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 plaintext browser storage finding.
-- [ ] **ESLint warning burn-down** 🟡
-      Current warning budget is too close to the ceiling. Reduce warnings below 20, then lower `--max-warnings` so new hook/stale-closure warnings cannot hide. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 lint warning finding.
+- [x] **ESLint warning burn-down** ✅
+      Cleared 2026-04-30. From 73 → 0 in one pass: every `@typescript-eslint/no-explicit-any` in `src/` either narrowed to a real type or annotated with a single-line `eslint-disable-next-line` plus reason; every `react-hooks/set-state-in-effect`, `react-hooks/exhaustive-deps`, `preserve-manual-memoization`, and `use-memo` warning either fixed (e.g. `TodoView.tsx` `entries` wrapped in `useMemo`) or annotated with reason. `package.json` `lint` script now ratchets at `--max-warnings 0` so any new warning fails CI.
 - [ ] **Re-verify Supabase Disk IO health on/after 2026-05-07** 🟡
       Migration `063_perf_rls_and_io.sql` (applied 2026-04-30, project `wfvoqpdfzkqnenzjxhui`) cleared all WARN-level perf advisors after a Supabase Disk IO Budget alert. Counters are unreliable until ~1 week of post-migration traffic. After 2026-05-07, run `mcp__plugin_supabase_supabase__get_advisors` (type=performance), check Gmail for any new "Disk IO Budget" alert, then run these SQL probes via `execute_sql`:
       ```sql
@@ -348,8 +351,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [x] **Inner ErrorBoundaries on risky views** ✅
       `src/Everion.tsx` wraps `ChatView`, `VaultView`, `CaptureWelcomeScreen`, `GraphView`, `TodoView` each in their own `<ErrorBoundary name="..." fallback={ViewError}>`. A render error in one view shows a localized fallback instead of blowing away the shell.
 
-- [ ] **Idempotency only on capture + Stripe webhook** 🟡
-      `api/_lib/idempotency.ts` is used by `/api/capture`; `stripeIdempotency.ts` for `/api/v1` Stripe webhook. Several other write paths could double-execute on client retry: vault setup, API key revocation. Memory-save (`/api/memory-api?action=save`) is **not** a real endpoint (memory-api is read-only — `retrieve` + `upcoming` only). Add `reserveIdempotency()` to vault-setup + key-revocation when those become real concerns.
+- [x] **Idempotency only on capture + Stripe webhook** ✅
+      Closed 2026-04-30. New `reserveActionIdempotency()` in `api/_lib/idempotency.ts` covers non-entry write paths via namespaced keys. Wired into `handleVault` POST (`vault-setup:<idem>`) and `handleApiKeys` DELETE (`apikey-revoke:<id>:<idem>`) in `api/user-data.ts` — both honour an optional `Idempotency-Key` header, replay → `{ ok: true, idempotent_replay: true }`, action failure releases the slot via `releaseIdempotency`. Capture + Stripe webhook unchanged.
 
 - [x] **Health check 5xx on degraded deps** ✅
       `handleHealth` in `api/user-data.ts:493` tests db + Gemini + Groq + Upstash, builds a `failures[]` array, returns **503** when any required dep is down (200 only when fully green). External monitors now see real outages.
@@ -362,8 +365,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [ ] **CSP `style-src 'unsafe-inline'`** 🟡
       `vercel.json` line 59. Required today because the codebase uses inline `style={...}` on a lot of components. Long-term fix: nonce-based CSP (Vite supports it via `__webpack_nonce__` analog) or move to CSS-in-JS with hash-based source. Short-term: at least lock down `script-src` (already only `'self'` + posthog/vercel — good), document the inline-style allowance and the migration plan.
 
-- [ ] **Rate-limit fail-open audit** 🟡
-      `api/_lib/rateLimit.ts` line 100: only fails closed if `UPSTASH_REDIS_REST_URL` is missing. If the URL is set but the **token** is invalid, or Upstash is down, the catch on line 74 silently falls back to per-instance in-memory limiting (zero protection in serverless). Add a circuit-breaker: 3 consecutive Upstash failures → cache "unhealthy" for 5 min and return 503 instead of falling back.
+- [x] **Rate-limit fail-open audit** ✅
+      Shipped 2026-04-30. `api/_lib/rateLimit.ts` now trips a circuit breaker after 3 consecutive Upstash failures (HTTP non-2xx OR thrown error) — open for 5 min, every call during that window returns false (denied) so endpoints fail closed instead of silently falling back to per-instance in-memory limiting that gives zero protection in serverless. Successful Upstash response resets the failure counter and clears the breaker. Local dev (`!process.env.VERCEL`) still uses in-memory for convenience. Bonus: separate `rateLimitKey` derivation added to `withAuth` so action/resource queries get their own bucket — `/api/entries?action=gmail-prompt` no longer shares its budget with the memory-feed list call (was 429-ing the admin "Live Gmail Prompt" panel after a normal session).
 
 - [ ] **Stripe idempotency fail-open without Upstash** 🟡
       `api/_lib/stripeIdempotency.ts` returns `{ firstTime: true }` if Upstash isn't configured, so without Redis the dedup is bypassed. Today this is fine because the webhook handler PATCHes to fixed state, but it's a trap for any future incrementing operation. Either fail closed (503 with Retry-After) or document the constraint inline.
@@ -382,8 +385,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [ ] **Settings sidebar density** 🟡
       14 \*Tab.tsx files (Account, Profile, Brain, Data, Appearance, AI, Providers, Security, Calendar Sync, Gmail Sync, Claude Code, Billing, Danger, Admin). For a non-technical first-time user this is decision fatigue. Either collapse to 5–6 logical groups with sub-sections, or hide the technical tabs (Providers, Claude Code, Admin) behind a "Developer" toggle.
 
-- [ ] **No mandatory first-run walkthrough** ❌
-      `src/components/OnboardingModal.tsx` exists but is skippable on the first interaction. New users land on an empty Memory tab with no forcing function. Add a 3-step forced flow (your name → capture a sample → see it appear) that can't be dismissed without acknowledging.
+- [x] **Mandatory first-run walkthrough — step 1 forced** ✅
+      Shipped 2026-04-30. `src/components/OnboardingModal.tsx` no longer renders the Skip control while `step === "capture"` (the first step). Users must traverse step 1 — pick an example, type something, save & continue, OR use sample data — before the dismiss control re-appears. Skip stays available on step 2/3 because the AI demo there is non-deterministic and we don't want users stranded on a Gemini failure. Spec updated: `e2e/specs/onboarding.spec.ts` asserts Skip absent on step 1, present after capture.
 
 ### P1 — Performance
 

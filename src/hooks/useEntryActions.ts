@@ -246,6 +246,7 @@ export function useEntryActions({
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshCount is the explicit "force this callback to recreate when entries reload" trigger; lint says it's unused but removing it lets the callback close over a stale entries snapshot.
     [entries, isOnline, refreshCount, cryptoKey, setEntries, setSelected],
   );
 

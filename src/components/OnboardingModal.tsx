@@ -363,15 +363,25 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
                 );
               })}
             </div>
-            <Button
-              variant="link"
-              size="xs"
-              onClick={skip}
-              className="h-auto shrink-0 p-0"
-              style={{ color: "var(--ink-faint)" }}
-            >
-              Skip
-            </Button>
+            {/* Mandatory step 1. The "capture" step has no escape hatch
+                — users must traverse it (Save & continue / Try sample data
+                / use an example chip) before the Skip control re-appears.
+                After step 1 the Skip is allowed because step 2's AI call
+                can fail non-deterministically and we don't want users
+                stranded on a failed Gemini round-trip. */}
+            {step !== "capture" ? (
+              <Button
+                variant="link"
+                size="xs"
+                onClick={skip}
+                className="h-auto shrink-0 p-0"
+                style={{ color: "var(--ink-faint)" }}
+              >
+                Skip
+              </Button>
+            ) : (
+              <span aria-hidden="true" style={{ width: 38, flexShrink: 0 }} />
+            )}
           </div>
 
           {/* ─── STEP 1 — CAPTURE ─── */}

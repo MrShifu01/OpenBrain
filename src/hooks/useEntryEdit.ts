@@ -7,7 +7,7 @@ import type { Entry, Brain } from "../types";
 interface UseEntryEditOptions {
   entry: Entry;
   editing: boolean;
-  onUpdate?: (id: string, changes: any) => Promise<void>;
+  onUpdate?: (id: string, changes: Record<string, unknown>) => Promise<void>;
   onTypeIconChange?: (type: string, icon: string) => void;
   brains: Brain[];
 }
@@ -52,7 +52,7 @@ export function useEntryEdit({
       .split(",")
       .map((t) => t.trim())
       .filter(Boolean);
-    const changes: Record<string, any> = {
+    const changes: Record<string, unknown> = {
       title: fields.editTitle,
       content: fields.editContent,
       type: fields.editType,

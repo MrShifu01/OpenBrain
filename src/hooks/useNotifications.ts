@@ -6,6 +6,7 @@ export interface AppNotification {
   type: "merge_suggestion" | "gmail_review" | "auto_merged" | string;
   title: string;
   body?: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- payload shape varies across notification types (merge_suggestion, gmail_scan, gmail_review). Type-narrowed at each render site.
   data: Record<string, any>;
   read: boolean;
   dismissed: boolean;

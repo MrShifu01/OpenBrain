@@ -17,6 +17,7 @@ import { verifyAuth } from "./_lib/verifyAuth.js";
 import { withAuth, requireBrainAccess } from "./_lib/withAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
 import { encryptToken } from "./_lib/gmailTokenCrypto.js";
+import { signOAuthState, verifyOAuthState } from "./_lib/oauthState.js";
 import {
   type GmailPreferences,
   defaultPreferences,
@@ -93,10 +94,10 @@ Return only the rule text, no explanation.`,
 
 /* ── OAuth ── */
 
-function initiateGoogle(res: ApiResponse, userId: string, preferences: GmailPreferences) {
+function buildGoogleAuthUrl(userId: string, preferences: GmailPreferences): string | null {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) return res.status(500).json({ error: "GOOGLE_CLIENT_ID not set" });
-  const state = Buffer.from(JSON.stringify({ userId, preferences })).toString("base64url");
+  if (!clientId) return null;
+  const state = signOAuthState({ userId, data: { preferences } });
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", gmailRedirectUri());
@@ -105,7 +106,7 @@ function initiateGoogle(res: ApiResponse, userId: string, preferences: GmailPref
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", state);
-  res.redirect(302, url.toString());
+  return url.toString();
 }
 
 async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
@@ -114,16 +115,15 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
   if (error) return res.redirect(302, `${appUrl}/settings?gmailError=google_denied`);
   if (!code || !state) return res.redirect(302, `${appUrl}/settings?gmailError=missing_params`);
 
-  let userId: string;
-  let preferences: GmailPreferences;
-  try {
-    const decoded = JSON.parse(Buffer.from(state, "base64url").toString());
-    userId = decoded.userId;
-    preferences = decoded.preferences ?? defaultPreferences();
-    if (!userId) throw new Error("missing userId");
-  } catch {
-    return res.redirect(302, `${appUrl}/settings?gmailError=invalid_state`);
+  const verified = verifyOAuthState(state);
+  if (!verified.ok) {
+    const reason = verified.reason === "expired" ? "expired_state" : "invalid_state";
+    return res.redirect(302, `${appUrl}/settings?gmailError=${reason}`);
   }
+  const userId = verified.payload.userId;
+  const prefRaw = verified.payload.data?.preferences;
+  const preferences: GmailPreferences =
+    prefRaw && typeof prefRaw === "object" ? (prefRaw as GmailPreferences) : defaultPreferences();
 
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -161,32 +161,52 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
 }
 
 async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
-  // IP-based limit on the OAuth bootstrap. Both initiate (302 to Google) and
+  // IP-based limit on the OAuth bootstrap. Both initiate (POST → JSON) and
   // callback (token exchange + DB write) hit external services and writes;
   // unbounded grinding would burn Google quota and pollute integrations.
   if (!(await rateLimit(req, 30, 60_000, "gmail-auth"))) {
     return void res.status(429).json({ error: "Too many requests" });
   }
+
   const { provider, code } = req.query as Record<string, string>;
   if (provider !== "google")
     return res.status(400).json({ error: "Only google provider supported" });
-  if (code) return callbackGoogle(req, res);
+
+  // Google's redirect comes back here as a GET with `?code=`. Anything else
+  // hitting this path is the legitimate user-driven start of the flow.
+  if (req.method === "GET" && code) return callbackGoogle(req, res);
+
+  // Initiation no longer accepts a Supabase bearer in the URL — the previous
+  // `?token=<JWT>` pattern leaked tokens into server access logs, browser
+  // history, and Referer headers. Clients now POST with a normal
+  // Authorization header and receive a redirect URL to navigate to.
+  if (req.method !== "POST" && req.method !== "GET")
+    return res.status(405).json({ error: "Method not allowed" });
+
+  // Reject GET initiation outright — only POST can start the flow now.
+  if (req.method === "GET") {
+    return res
+      .status(405)
+      .json({ error: "Use POST with Authorization header to start OAuth" });
+  }
+
+  const user = await verifyAuth(req);
+  if (!user) return res.status(401).json({ error: "Unauthorized" });
 
   let preferences: GmailPreferences;
   try {
-    preferences = JSON.parse(decodeURIComponent((req.query.prefs as string) ?? ""));
+    const body = (req.body ?? {}) as { preferences?: GmailPreferences };
+    preferences =
+      body.preferences && typeof body.preferences === "object"
+        ? body.preferences
+        : defaultPreferences();
   } catch {
     preferences = defaultPreferences();
   }
 
-  const { token: queryToken } = req.query as Record<string, string>;
-  if (queryToken && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${queryToken}`;
-  }
-  const user = await verifyAuth(req);
-  if (!user) return res.status(401).json({ error: "Unauthorized" });
-  return initiateGoogle(res, user.id, preferences);
+  const redirectUrl = buildGoogleAuthUrl(user.id, preferences);
+  if (!redirectUrl) return res.status(500).json({ error: "GOOGLE_CLIENT_ID not set" });
+  return void res.status(200).json({ redirect_url: redirectUrl });
 }
 
 /* ── Main handler ── */

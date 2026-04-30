@@ -17,6 +17,8 @@ import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { verifyAuth } from "./_lib/verifyAuth.js";
 import { rateLimit } from "./_lib/rateLimit.js";
+import { encryptToken, decryptToken } from "./_lib/gmailTokenCrypto.js";
+import { signOAuthState, verifyOAuthState } from "./_lib/oauthState.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -41,10 +43,10 @@ function redirectUri(provider: string): string {
   return custom ?? `${base}/api/calendar-auth?provider=${provider}`;
 }
 
-function initiateGoogle(res: ApiResponse, userId: string) {
+function buildGoogleAuthUrl(userId: string): string | null {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) return res.status(500).json({ error: "GOOGLE_CLIENT_ID not set" });
-  const state = Buffer.from(JSON.stringify({ userId })).toString("base64url");
+  if (!clientId) return null;
+  const state = signOAuthState({ userId });
   const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri("google"));
@@ -53,7 +55,7 @@ function initiateGoogle(res: ApiResponse, userId: string) {
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("state", state);
-  res.redirect(302, url.toString());
+  return url.toString();
 }
 
 async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
@@ -62,13 +64,12 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
   if (error) return res.redirect(302, `${appUrl}/settings?calendarError=google_denied`);
   if (!code || !state) return res.redirect(302, `${appUrl}/settings?calendarError=missing_params`);
 
-  let userId: string;
-  try {
-    userId = JSON.parse(Buffer.from(state, "base64url").toString()).userId;
-    if (!userId) throw new Error();
-  } catch {
-    return res.redirect(302, `${appUrl}/settings?calendarError=invalid_state`);
+  const verified = verifyOAuthState(state);
+  if (!verified.ok) {
+    const reason = verified.reason === "expired" ? "expired_state" : "invalid_state";
+    return res.redirect(302, `${appUrl}/settings?calendarError=${reason}`);
   }
+  const userId = verified.payload.userId;
 
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -95,8 +96,8 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
     body: JSON.stringify({
       user_id: userId,
       provider: "google",
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      access_token: encryptToken(tokens.access_token, "calendar-google"),
+      refresh_token: encryptToken(tokens.refresh_token, "calendar-google"),
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       calendar_email: profile.email ?? null,
     }),
@@ -105,11 +106,11 @@ async function callbackGoogle(req: ApiRequest, res: ApiResponse) {
   res.redirect(302, `${appUrl}/settings?calendarConnected=google`);
 }
 
-function initiateMicrosoft(res: ApiResponse, userId: string) {
+function buildMicrosoftAuthUrl(userId: string): string | null {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
-  if (!clientId) return res.status(500).json({ error: "MICROSOFT_CLIENT_ID not set" });
+  if (!clientId) return null;
   const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
-  const state = Buffer.from(JSON.stringify({ userId })).toString("base64url");
+  const state = signOAuthState({ userId });
   const url = new URL(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`);
   url.searchParams.set("client_id", clientId);
   url.searchParams.set("redirect_uri", redirectUri("microsoft"));
@@ -117,7 +118,7 @@ function initiateMicrosoft(res: ApiResponse, userId: string) {
   url.searchParams.set("scope", MICROSOFT_SCOPES);
   url.searchParams.set("response_mode", "query");
   url.searchParams.set("state", state);
-  res.redirect(302, url.toString());
+  return url.toString();
 }
 
 async function callbackMicrosoft(req: ApiRequest, res: ApiResponse) {
@@ -127,13 +128,12 @@ async function callbackMicrosoft(req: ApiRequest, res: ApiResponse) {
   if (error) return res.redirect(302, `${appUrl}/settings?calendarError=microsoft_denied`);
   if (!code || !state) return res.redirect(302, `${appUrl}/settings?calendarError=missing_params`);
 
-  let userId: string;
-  try {
-    userId = JSON.parse(Buffer.from(state, "base64url").toString()).userId;
-    if (!userId) throw new Error();
-  } catch {
-    return res.redirect(302, `${appUrl}/settings?calendarError=invalid_state`);
+  const verified = verifyOAuthState(state);
+  if (!verified.ok) {
+    const reason = verified.reason === "expired" ? "expired_state" : "invalid_state";
+    return res.redirect(302, `${appUrl}/settings?calendarError=${reason}`);
   }
+  const userId = verified.payload.userId;
 
   const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
     method: "POST",
@@ -161,8 +161,8 @@ async function callbackMicrosoft(req: ApiRequest, res: ApiResponse) {
     body: JSON.stringify({
       user_id: userId,
       provider: "microsoft",
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      access_token: encryptToken(tokens.access_token, "calendar-microsoft"),
+      refresh_token: encryptToken(tokens.refresh_token, "calendar-microsoft"),
       token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       calendar_email: profile.mail ?? profile.userPrincipalName ?? null,
     }),
@@ -172,35 +172,54 @@ async function callbackMicrosoft(req: ApiRequest, res: ApiResponse) {
 }
 
 async function handleAuth(req: ApiRequest, res: ApiResponse): Promise<void> {
-  if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   const { provider, code } = req.query as Record<string, string>;
   if (!provider || !["google", "microsoft"].includes(provider)) {
     return res.status(400).json({ error: "provider must be google or microsoft" });
   }
-  if (code) {
+
+  // Provider redirect lands here as GET with ?code=. Anything else is a
+  // user-driven start — only POST allowed for that, never GET, so a Supabase
+  // bearer token can never end up in a URL query string or browser history.
+  if (req.method === "GET" && code) {
     return provider === "google" ? callbackGoogle(req, res) : callbackMicrosoft(req, res);
   }
-  const { token: queryToken } = req.query as Record<string, string>;
-  if (queryToken && !req.headers.authorization) {
-    req.headers.authorization = `Bearer ${queryToken}`;
+
+  if (req.method !== "POST") {
+    return res
+      .status(405)
+      .json({ error: "Use POST with Authorization header to start OAuth" });
   }
+
   const user = await verifyAuth(req);
   if (!user) return res.status(401).json({ error: "Unauthorized" });
-  return provider === "google" ? initiateGoogle(res, user.id) : initiateMicrosoft(res, user.id);
+
+  const redirectUrl =
+    provider === "google" ? buildGoogleAuthUrl(user.id) : buildMicrosoftAuthUrl(user.id);
+  if (!redirectUrl)
+    return res.status(500).json({
+      error: provider === "google" ? "GOOGLE_CLIENT_ID not set" : "MICROSOFT_CLIENT_ID not set",
+    });
+  return void res.status(200).json({ redirect_url: redirectUrl });
 }
 
 /* ── Token refresh helpers ── */
 
 async function refreshGoogle(integration: any): Promise<string | null> {
+  // Decrypt the stored access_token before any short-circuit return — the
+  // caller passes this directly to Google's API as a Bearer header. Existing
+  // plaintext rows fall through unchanged via decryptToken's prefix check.
+  const currentAccess = decryptToken(integration.access_token ?? "", "calendar-google");
   if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000))
-    return integration.access_token;
+    return currentAccess || null;
+  const refreshToken = decryptToken(integration.refresh_token ?? "", "calendar-google");
+  if (!refreshToken) return null;
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: integration.refresh_token,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
   });
@@ -210,7 +229,7 @@ async function refreshGoogle(integration: any): Promise<string | null> {
     method: "PATCH",
     headers: SB_HEADERS,
     body: JSON.stringify({
-      access_token: t.access_token,
+      access_token: encryptToken(t.access_token, "calendar-google"),
       token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString(),
     }),
   });
@@ -218,8 +237,11 @@ async function refreshGoogle(integration: any): Promise<string | null> {
 }
 
 async function refreshMicrosoft(integration: any): Promise<string | null> {
+  const currentAccess = decryptToken(integration.access_token ?? "", "calendar-microsoft");
   if (new Date(integration.token_expires_at) > new Date(Date.now() + 60_000))
-    return integration.access_token;
+    return currentAccess || null;
+  const refreshToken = decryptToken(integration.refresh_token ?? "", "calendar-microsoft");
+  if (!refreshToken) return null;
   const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
   const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
     method: "POST",
@@ -227,7 +249,7 @@ async function refreshMicrosoft(integration: any): Promise<string | null> {
     body: new URLSearchParams({
       client_id: process.env.MICROSOFT_CLIENT_ID!,
       client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
-      refresh_token: integration.refresh_token,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
       scope: "Calendars.Read User.Read offline_access",
     }),
@@ -238,7 +260,7 @@ async function refreshMicrosoft(integration: any): Promise<string | null> {
     method: "PATCH",
     headers: SB_HEADERS,
     body: JSON.stringify({
-      access_token: t.access_token,
+      access_token: encryptToken(t.access_token, "calendar-microsoft"),
       token_expires_at: new Date(Date.now() + t.expires_in * 1000).toISOString(),
     }),
   });

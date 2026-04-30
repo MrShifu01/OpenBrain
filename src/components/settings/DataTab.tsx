@@ -59,7 +59,9 @@ export default function DataTab({ brainId, activeBrain }: Props) {
         if (Array.isArray(arr)) {
           setEntryCount(arr.length);
           const month = new Date().toISOString().slice(0, 7);
-          setEntriesThisMonth(arr.filter((e: any) => e.created_at?.startsWith(month)).length);
+          setEntriesThisMonth(
+            arr.filter((e: { created_at?: string }) => e.created_at?.startsWith(month)).length,
+          );
         }
       }
     } catch (e) {
@@ -103,10 +105,12 @@ export default function DataTab({ brainId, activeBrain }: Props) {
       const cols = ["id", "title", "type", "content", "tags", "created_at", "updated_at"];
       const rows = [
         cols.join(","),
-        ...entries.map((e: any) =>
+        ...entries.map((e) =>
           cols
             .map((c) => {
-              const val = c === "tags" ? (e[c] || []).join("; ") : (e[c] ?? "");
+              const row = e as Record<string, unknown>;
+              const val =
+                c === "tags" ? ((row[c] as string[] | undefined) || []).join("; ") : (row[c] ?? "");
               return `"${String(val).replace(/"/g, '""')}"`;
             })
             .join(","),
@@ -149,15 +153,15 @@ export default function DataTab({ brainId, activeBrain }: Props) {
     setExportError(null);
     try {
       const entries = await fetchAllEntries();
-      const contacts = entries.filter((e: any) =>
-        ["person", "contact"].includes(e.type?.toLowerCase()),
+      const contacts = entries.filter((e) =>
+        ["person", "contact"].includes(String(e.type ?? "").toLowerCase()),
       );
       if (!contacts.length) {
         setExportError("No person/contact entries to export.");
         return;
       }
-      const vcards = contacts.map((e: any) => {
-        const meta = e.metadata || {};
+      const vcards = contacts.map((e) => {
+        const meta = (e.metadata ?? {}) as { email?: string; phone?: string };
         return [
           "BEGIN:VCARD",
           "VERSION:3.0",

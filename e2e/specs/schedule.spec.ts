@@ -16,9 +16,12 @@ test("Schedule view — Day / Week / Month tabs reachable, drawer opens", async 
 
   await page.addInitScript(() => {
     localStorage.setItem("openbrain_onboarded", "1");
-    // Schedule is gated behind the `todos` feature flag; force it on
+    localStorage.setItem("everion_onboarded", "1");
+    // Schedule is gated behind the `todos` feature flag; the segmented
+    // Day/Week/Month/Someday tab list is *also* gated on `someday` (otherwise
+    // the tab list collapses to mobile-only via `lg:hidden`). Enable both
     // for this run regardless of prod env config.
-    localStorage.setItem("openbrain_admin_flags", JSON.stringify({ todos: true }));
+    localStorage.setItem("openbrain_admin_flags", JSON.stringify({ todos: true, someday: true }));
   });
 
   await page.goto("/");

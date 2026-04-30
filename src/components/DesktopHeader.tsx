@@ -97,6 +97,7 @@ export default function DesktopHeader({
   // case the user signed in mid-session and the initial render captured "".
   useEffect(() => {
     const e = readCachedEmail();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mid-session sign-in fix; reads from external cache on mount, only sets when value actually changes.
     if (e && e !== email) setEmail(e);
   }, [email]);
 

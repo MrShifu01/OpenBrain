@@ -27,6 +27,7 @@ function detectExpirations(entries: Entry[]): string[] {
   const findings: string[] = [];
 
   for (const e of entries) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- metadata is dynamic per entry type; this loop reads date-shaped fields and tolerates absent/non-string values via the isNaN guard below.
     const meta = (e.metadata || {}) as Record<string, any>;
     for (const { key, label } of DATE_FIELDS) {
       const dateStr = meta[key];

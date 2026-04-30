@@ -65,8 +65,8 @@ export function useVaultOps({
     try {
       const r = await authFetch("/api/vault-entries");
       if (r.ok) {
-        const data: any[] = await r.json();
-        setVaultEntries(data.map((e) => ({ ...e, type: "secret" as const })));
+        const data: Array<Record<string, unknown>> = await r.json();
+        setVaultEntries(data.map((e) => ({ ...e, type: "secret" as const })) as Entry[]);
       }
     } catch (e) {
       console.error("[vault] fetch failed:", e);

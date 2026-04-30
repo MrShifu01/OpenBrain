@@ -107,6 +107,39 @@ export async function finalizeIdempotency(
   }
 }
 
+type ActionResult = { kind: "claimed" } | { kind: "replay" };
+
+/**
+ * Action-style idempotency for endpoints that don't create an entry row. Uses
+ * the same idempotency_keys table but never sets entry_id — the existence of
+ * the slot itself is the "this was done" marker. Caller passes a namespaced
+ * key (e.g. `vault-setup:<client-key>`) so different actions can't collide
+ * in the per-user keyspace.
+ *
+ * Flow:
+ *   claimed → caller proceeds; on failure must call releaseIdempotency
+ *   replay  → caller returns the action's idempotent response (e.g. {ok:true})
+ *
+ * No "in_flight" state — these endpoints have constant responses, so any
+ * pre-existing slot is treated as "already done" (returning 200 a few ms
+ * before the peer finalises is harmless because the response is the same).
+ */
+export async function reserveActionIdempotency(
+  userId: string,
+  namespacedKey: string,
+): Promise<ActionResult> {
+  const insertRes = await fetch(`${SB_URL}/rest/v1/idempotency_keys`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "resolution=ignore-duplicates,return=representation" }),
+    body: JSON.stringify({ user_id: userId, idempotency_key: namespacedKey, entry_id: null }),
+  });
+  if (insertRes.ok) {
+    const inserted: any[] = await insertRes.json().catch(() => []);
+    if (inserted.length > 0) return { kind: "claimed" };
+  }
+  return { kind: "replay" };
+}
+
 /**
  * Release a reservation when the caller bails out before inserting. Without
  * this, a failed handler would leave a permanent in_flight slot that returns

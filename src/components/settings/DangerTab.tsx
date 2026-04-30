@@ -84,15 +84,15 @@ export default function DangerTab({ activeBrain, deleteBrain, isOwner, deleteAcc
     const brainsData = brainsRes.ok ? await brainsRes.json() : { brains: [] };
     const allBrains: Brain[] = brainsData.brains || brainsData || [];
 
-    const result: Record<string, any> = { exported_at: new Date().toISOString(), brains: [] };
-
+    const brainsAcc: Record<string, unknown>[] = [];
     for (const brain of allBrains) {
       const r = await authFetch(`/api/export?brain_id=${brain.id}`);
       if (r.ok) {
         const data = await r.json().catch(() => null);
-        if (data) result.brains.push({ brain_id: brain.id, brain_name: brain.name, ...data });
+        if (data) brainsAcc.push({ brain_id: brain.id, brain_name: brain.name, ...data });
       }
     }
+    const result = { exported_at: new Date().toISOString(), brains: brainsAcc };
 
     const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);

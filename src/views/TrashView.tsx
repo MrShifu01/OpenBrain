@@ -27,7 +27,8 @@ export default function TrashView({ brainId, onRestore }: TrashViewProps) {
   };
 
   useEffect(() => {
-    load(); // eslint-disable-line react-hooks/set-state-in-effect
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load() reads brainId via closure; including it as a dep adds nothing since the brain change already retriggers.
   }, [brainId]);
 
   const restore = async (entry: Entry) => {

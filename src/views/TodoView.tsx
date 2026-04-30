@@ -324,7 +324,10 @@ export default function TodoView({
   somedayEnabled = false,
 }: TodoViewProps) {
   const ctx = useEntries();
-  const entries = propEntries || ctx?.entries || [];
+  // Memoised so downstream useMemo deps don't churn every render. Without this,
+  // the `propEntries || ctx?.entries || []` short-circuit produces a fresh `[]`
+  // on each tick when both sides are nullish, invalidating overdue/todoList/etc.
+  const entries = useMemo(() => propEntries || ctx?.entries || [], [propEntries, ctx?.entries]);
   const [tab, setTab] = useState<Tab>("calendar");
   const [showCompleted, setShowCompleted] = useState(false);
   const [editState, setEditState] = useState<{ entry: Entry; rect: DOMRect } | null>(null);

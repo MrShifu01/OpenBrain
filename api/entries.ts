@@ -39,10 +39,25 @@ function rateLimitForEntries(req: ApiRequest): number {
   return 30;
 }
 
+// Per-action rate-limit key suffix. Without this, every ?action=* GET shares
+// the bare /api/entries bucket with the memory-feed list call — so opening
+// the admin "Live Gmail Prompt" panel after a normal session would 429 on
+// the first click. Action and resource queries get their own buckets so
+// admin/debug paths don't compete with the feed.
+function rateLimitKeyForEntries(req: ApiRequest): string | undefined {
+  const action = req.query.action as string | undefined;
+  const resource = req.query.resource as string | undefined;
+  return action || resource || undefined;
+}
+
 // Dispatched via rewrites:
 //   /api/delete-entry, /api/update-entry → /api/entries
 export default withAuth(
-  { methods: ["GET", "POST", "PATCH", "DELETE"], rateLimit: rateLimitForEntries },
+  {
+    methods: ["GET", "POST", "PATCH", "DELETE"],
+    rateLimit: rateLimitForEntries,
+    rateLimitKey: rateLimitKeyForEntries,
+  },
   async (ctx) => {
     const resource = ctx.req.query.resource as string | undefined;
     const action = ctx.req.query.action as string | undefined;

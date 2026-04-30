@@ -167,6 +167,7 @@ export function useGraph() {
 
     const concepts = conceptGraph?.concepts ?? [];
     const result = buildGraph(displayEntries, concepts);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- graph layout is derived from entries+concepts; nodes/edges are downstream caches the layout iteration needs to mutate, so a useMemo would lose stable identity for drag positions.
     setNodes(result.nodes);
     setEdges(result.edges);
   }, [entries, conceptGraph]);

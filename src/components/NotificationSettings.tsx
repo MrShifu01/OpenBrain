@@ -401,6 +401,7 @@ export default function NotificationSettings(): JSX.Element {
           console.error("[NotificationSettings] Failed to get push subscription", err),
         );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- pushSupported is computed from a global feature-detect at component mount; it never changes, so omitting it is safe.
   }, []);
 
   async function handleEnable() {

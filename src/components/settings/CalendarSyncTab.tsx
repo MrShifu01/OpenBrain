@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
-import { supabase } from "../../lib/supabase";
 import { SettingsButton } from "./SettingsRow";
 import { IntegrationRow, DisconnectButton } from "./GmailSyncTab";
 
@@ -31,6 +30,7 @@ export default function CalendarSyncTab() {
     const connected = params.get("calendarConnected");
     const error = params.get("calendarError");
     if (connected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL-param surfacing on mount; the URL is then cleaned via replaceState.
       setMsg("Google Calendar connected successfully.");
       window.history.replaceState({}, "", window.location.pathname);
     }
@@ -54,11 +54,20 @@ export default function CalendarSyncTab() {
   }
 
   async function connectGoogle() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const token = session?.access_token ?? "";
-    window.location.href = `/api/calendar-auth?provider=google&token=${encodeURIComponent(token)}`;
+    // POST with Authorization header so the Supabase bearer never lands in
+    // the URL (logs, history, Referer header). Server returns the signed
+    // Google authorise URL — we navigate to it once we have it.
+    const r = await authFetch("/api/calendar-auth?provider=google", { method: "POST" });
+    if (!r.ok) {
+      setMsg(`Connection failed: HTTP ${r.status}`);
+      return;
+    }
+    const { redirect_url } = (await r.json()) as { redirect_url?: string };
+    if (!redirect_url) {
+      setMsg("Connection failed: missing redirect_url");
+      return;
+    }
+    window.location.href = redirect_url;
   }
 
   const googleInt = integrations.find((i) => i.provider === "google");

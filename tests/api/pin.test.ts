@@ -18,7 +18,7 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
-const setupReq = (overrides: any = {}) =>
+const setupReq = (overrides: Record<string, unknown> = {}) =>
   makeApiReq({
     method: "POST",
     query: { action: "setup", resource: "pin" },

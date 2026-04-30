@@ -20,7 +20,7 @@ export interface ChatMessage {
 
 interface PendingAction {
   tool: string;
-  args: Record<string, any>;
+  args: Record<string, unknown>;
   label: string;
 }
 
@@ -53,6 +53,7 @@ export function useChat(brainId: string | undefined) {
 
   useEffect(() => {
     if (!brainId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- chat history is per-brain in localStorage; reload + reset pending on brain switch.
     setMessages(loadHistory(brainId));
     setPendingAction(null);
   }, [brainId]);
@@ -77,7 +78,7 @@ export function useChat(brainId: string | undefined) {
         .map((m) => ({ role: m.role, content: m.content }));
 
       try {
-        const body: Record<string, any> = {
+        const body: Record<string, unknown> = {
           message: message.trim(),
           brain_id: brainId,
           history: historyForApi,

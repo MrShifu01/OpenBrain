@@ -7,8 +7,8 @@ interface EntryQuickActionsProps {
   entry: Entry;
   secretRevealed: boolean;
   onRevealSecret: (revealed: boolean) => void;
-  onReorder?: (entry: any) => void;
-  onUpdate?: (id: string, changes: any) => Promise<void>;
+  onReorder?: (entry: Entry) => void;
+  onUpdate?: (id: string, changes: Record<string, unknown>) => Promise<void>;
   handleShare: (entry: Entry) => void;
   shareMsg: string | null;
   onShareMsg: (msg: string | null) => void;

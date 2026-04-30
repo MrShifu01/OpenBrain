@@ -42,6 +42,7 @@ export default function ImportantMemoriesView({ brainId }: ImportantMemoriesView
   // Memory volume is small (user-curated, dozens not thousands).
   useEffect(() => {
     if (!brainId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset to empty when no brain is active; downstream renders depend on a defined empty state.
       setMemories([]);
       setLoading(false);
       return;

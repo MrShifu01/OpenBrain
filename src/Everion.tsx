@@ -255,6 +255,7 @@ function EverionContent({
     if (appShell.view in FEATURE_FLAGS && !ff(appShell.view as FeatureFlagKey)) {
       appShell.setView("memory");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ff() and appShell are referentially fresh every render; depending on them would re-run this every render. adminFlags + appShell.view are the actual decision inputs.
   }, [adminFlags, appShell.view, appShell.setView]);
 
   // Auto-sync IANA timezone on mount AND on SIGNED_IN. Skip TOKEN_REFRESHED:
@@ -308,6 +309,7 @@ function EverionContent({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- appShell as a whole would invalidate this listener every render; only the setter is read.
   }, [appShell.setShowCapture]);
 
   return (

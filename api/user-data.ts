@@ -12,6 +12,12 @@ import { runGmailScanAllUsers } from "./_lib/gmailScan.js";
 import { enrichAllBrains } from "./_lib/enrich.js";
 import { verifyCronBearer } from "./_lib/cronAuth.js";
 import { runPersonaDecayPass, runPersonaWeeklyPass } from "./_lib/personaHygiene.js";
+import {
+  IdempotencyError,
+  normalizeIdempotencyKey,
+  releaseIdempotency,
+  reserveActionIdempotency,
+} from "./_lib/idempotency.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -866,6 +872,24 @@ const handleVault = withAuth(
       return void res.status(400).json({ error: "Missing recovery_blob" });
     }
 
+    // Optional Idempotency-Key. Vault setup is a one-shot action; without
+    // this, a network retry between the existence-check and the INSERT can
+    // race past the PK guard if the first request hadn't committed yet.
+    let idemSlot: string | null = null;
+    try {
+      const idem = normalizeIdempotencyKey(req.headers["idempotency-key"]);
+      if (idem) {
+        idemSlot = `vault-setup:${idem}`;
+        const claim = await reserveActionIdempotency(user.id, idemSlot);
+        if (claim.kind === "replay") {
+          return void res.status(200).json({ ok: true, idempotent_replay: true });
+        }
+      }
+    } catch (e) {
+      if (e instanceof IdempotencyError) return void res.status(e.status).json({ error: e.publicMessage });
+      throw e;
+    }
+
     // Prevent overwrite — vault can only be set up once
     const existing = await fetch(
       `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=user_id`,
@@ -873,6 +897,7 @@ const handleVault = withAuth(
     );
     const rows: any[] = await existing.json();
     if (rows.length > 0) {
+      if (idemSlot) await releaseIdempotency(user.id, idemSlot);
       return void res.status(409).json({ error: "Vault already set up" });
     }
 
@@ -882,6 +907,7 @@ const handleVault = withAuth(
       body: JSON.stringify({ user_id: user.id, salt, verify_token, recovery_blob }),
     });
     if (!r.ok) {
+      if (idemSlot) await releaseIdempotency(user.id, idemSlot);
       const err = await r.text().catch(() => String(r.status));
       return void res.status(502).json({ error: `Database error: ${err}` });
     }
@@ -1182,6 +1208,24 @@ const handleApiKeys = withAuth(
     const id = req.query.id as string;
     if (!id) return void res.status(400).json({ error: "id required" });
 
+    // Optional Idempotency-Key keeps a retried revoke from re-stamping
+    // revoked_at and producing duplicate audit_log entries. The action
+    // response is constant {ok:true} so a "replay" can return immediately.
+    let idemSlot: string | null = null;
+    try {
+      const idem = normalizeIdempotencyKey(req.headers["idempotency-key"]);
+      if (idem) {
+        idemSlot = `apikey-revoke:${id}:${idem}`;
+        const claim = await reserveActionIdempotency(user.id, idemSlot);
+        if (claim.kind === "replay") {
+          return void res.status(200).json({ ok: true, idempotent_replay: true });
+        }
+      }
+    } catch (e) {
+      if (e instanceof IdempotencyError) return void res.status(e.status).json({ error: e.publicMessage });
+      throw e;
+    }
+
     const r = await fetch(
       `${SB_URL}/rest/v1/user_api_keys?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(user.id)}`,
       {
@@ -1190,7 +1234,10 @@ const handleApiKeys = withAuth(
         body: JSON.stringify({ revoked_at: new Date().toISOString() }),
       },
     );
-    if (!r.ok) return void res.status(502).json({ error: "Database error" });
+    if (!r.ok) {
+      if (idemSlot) await releaseIdempotency(user.id, idemSlot);
+      return void res.status(502).json({ error: "Database error" });
+    }
     return void res.status(200).json({ ok: true });
   },
 );

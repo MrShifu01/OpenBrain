@@ -122,7 +122,7 @@ interface LoginScreenProps {
 export default function LoginScreen({
   initialIntent = "login",
 }: LoginScreenProps = {}): JSX.Element {
-  const isInvited = useMemo(hasInvite, []);
+  const isInvited = useMemo(() => hasInvite(), []);
   const startSignup = initialIntent === "signup" || isInvited;
   const [showPwd, setShowPwd] = useState(false);
 

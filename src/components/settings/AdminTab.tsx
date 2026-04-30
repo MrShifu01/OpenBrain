@@ -891,7 +891,7 @@ export default function AdminTab() {
       });
       const ms = Date.now() - t0;
       const text = await res.text();
-      let parsed: any = null;
+      let parsed: Record<string, unknown> | null = null;
       try {
         parsed = JSON.parse(text);
       } catch {
@@ -908,7 +908,10 @@ export default function AdminTab() {
       }
 
       const aiText =
-        parsed?.content?.[0]?.text ?? parsed?.choices?.[0]?.message?.content ?? "(no text field)";
+        ((parsed as { content?: Array<{ text?: string }> })?.content?.[0]?.text ??
+          (parsed as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message
+            ?.content) ||
+        "(no text field)";
       setLlmResult({
         status: "pass",
         latencyMs: ms,
@@ -982,7 +985,7 @@ export default function AdminTab() {
       });
       const ms = Date.now() - t0;
       const text = await res.text();
-      let parsed: any = null;
+      let parsed: Record<string, unknown> | null = null;
       try {
         parsed = JSON.parse(text);
       } catch {
@@ -998,10 +1001,14 @@ export default function AdminTab() {
         return false;
       }
 
-      const aiText = parsed?.content?.[0]?.text ?? parsed?.choices?.[0]?.message?.content ?? "";
+      const aiText =
+        ((parsed as { content?: Array<{ text?: string }> })?.content?.[0]?.text ??
+          (parsed as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message
+            ?.content) ||
+        "";
 
       // Attempt to parse the AI JSON response (same logic as useCaptureSheetParse)
-      let entries: any[] = [];
+      let entries: Array<{ title?: string; metadata?: { phone?: string } }> = [];
       let parseError = "";
       try {
         const stripped = aiText.replace(/```json|```/g, "").trim();
@@ -1012,7 +1019,8 @@ export default function AdminTab() {
         parseError = `JSON parse failed: ${e instanceof Error ? e.message : String(e)}`;
       }
 
-      const tokensUsed = parsed?.usage?.total_tokens ?? "unknown";
+      const tokensUsed =
+        (parsed as { usage?: { total_tokens?: number } })?.usage?.total_tokens ?? "unknown";
 
       if (parseError) {
         setSplitResult({
@@ -1031,7 +1039,7 @@ export default function AdminTab() {
       }
 
       const titlesWithPhones = entries.map(
-        (e: any) => `• ${e.title ?? "(no title)"} — phone: ${e.metadata?.phone ?? "(missing)"}`,
+        (e) => `• ${e.title ?? "(no title)"} — phone: ${e.metadata?.phone ?? "(missing)"}`,
       );
 
       setSplitResult({
