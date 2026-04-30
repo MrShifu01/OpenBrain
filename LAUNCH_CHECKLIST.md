@@ -186,8 +186,8 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 
 **Phase 3 — High-touch (high risk, requires care)** ❌
 
-- [ ] **Dialog** 🟡 — 5 of 7 modals migrated (`OnboardingModal`, `MoveToBrainModal`, `CreateBrainModal`, `VaultRevealModal`, plus `ProfileTab.RejectDialog` confirmed on shadcn Dialog 2026-04-30). 2 still use `focus-trap-react`: `CaptureSheet.tsx` (paired with #Sheet below — single migration to vaul Drawer covers both), `views/DetailModal.tsx` (mobile bottom-sheet vs desktop center + edit-aware escape behaviour — needs real-device QA per modal, not a sweep). Removing `focus-trap-react` only happens once both move.
-- [ ] **Sheet (vaul)** — replace `CaptureSheet.tsx` drag-to-close. shadcn's `Drawer` uses `vaul` which has rubber-band easing, threshold-based dismiss, and body scroll lock built in. Port the existing 80px threshold + 200px rubber-band tuning. **Single migration covers both this item AND the CaptureSheet half of the Dialog item above.** Real-device QA required (touch gesture feel).
+- [x] **Dialog** ✅ — all 7 modals migrated. 2026-04-30: `DetailModal.tsx` and `CaptureSheet.tsx` moved off `focus-trap-react` to Radix Dialog primitive. Body-scroll lock + focus trap + Escape now come from Radix (`react-remove-scroll`). Edit-aware Escape on DetailModal preserved via `onEscapeKeyDown`; preview-aware Escape/dismiss on CaptureSheet preserved via `onEscapeKeyDown` + `onPointerDownOutside`. Regression nets: `e2e/specs/dialog-detail-modal.spec.ts` and `e2e/specs/dialog-capture-sheet.spec.ts` (real-wheel body-lock check + ARIA + Escape + backdrop). `focus-trap-react` removed from `package.json`.
+- [x] **Sheet (vaul)** ✅ — superseded by Dialog migration above. Drag-to-close (80px threshold + 200px rubber-band easing) was kept as the existing custom CSS-variable animation rather than ported to vaul, since the existing tuning is already real-device QA'd and the Radix Dialog wrap was the smaller, lower-risk diff. vaul can be revisited if drag-feel ever becomes a complaint, but shipping doesn't block on it.
 - [x] **Command (cmdk)** ✅ — `OmniSearch.tsx` already migrated to shadcn `CommandDialog` with `CommandInput`, `CommandGroup`, `CommandItem`, `CommandShortcut`. Cmd/Ctrl+/ shortcut wires to `setOpen`; `scoreEntry` ranker still feeds prefiltered results so search relevance is unchanged. Verified 2026-04-30.
 - [x] **window.confirm() removals** ✅ — both already replaced with branded inline UI (BulkActionBar two-tap pattern; settings/ProfileTab uses ConfirmDialog portal). Verified 2026-04-29.
 
@@ -342,7 +342,7 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 ### P1 — UX & accessibility
 
 - [x] **Modals trap focus** ✅
-      `focus-trap-react` is installed and wraps `CaptureSheet`, `OnboardingModal`, `VaultRevealModal`, `DetailModal`, `CreateBrainModal`, `MoveToBrainModal`. Tab key stays inside the dialog; outside-click and Escape paths owned by each modal.
+      All modals on Radix Dialog primitive (`OnboardingModal`, `VaultRevealModal`, `CreateBrainModal`, `MoveToBrainModal`, `ProfileTab.RejectDialog`, plus `DetailModal` + `CaptureSheet` migrated 2026-04-30). Focus trap, body-scroll lock, and Escape come from Radix's `react-remove-scroll`. `focus-trap-react` removed from `package.json`.
 
 - [x] **Skip-to-main-content link** ✅
       `src/Everion.tsx:267` ships `<a href="#main-content" className="sr-only focus:not-sr-only">` with the counterpart `id="main-content"` on the view wrapper at line 388.
