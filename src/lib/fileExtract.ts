@@ -69,10 +69,16 @@ async function extractViaAI(file: File): Promise<string> {
 
 async function extractXlsx(buffer: ArrayBuffer): Promise<string> {
   const mod = await import("exceljs");
-  const ExcelJS = (mod as any).default ?? mod;
+  // ESM/CJS interop: exceljs exposes its workbook as either a default
+  // export (CJS) or as the module itself (ESM). Type-only `any` here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ExcelJS = (mod as { default?: any }).default ?? mod;
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.load(buffer);
   const out: string[] = [];
+  // exceljs callbacks are loosely typed in their .d.ts. Localise the any
+  // to these three callback params.
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   wb.eachSheet((sheet: any) => {
     out.push(`=== ${sheet.name} ===`);
     sheet.eachRow({ includeEmpty: false }, (row: any) => {
@@ -92,6 +98,7 @@ async function extractXlsx(buffer: ArrayBuffer): Promise<string> {
     });
     out.push("");
   });
+  /* eslint-enable @typescript-eslint/no-explicit-any */
   return out.join("\n").trim();
 }
 
@@ -114,7 +121,8 @@ function stripHtml(html: string): string {
 
 async function extractPDF(buffer: ArrayBuffer): Promise<string> {
   const mod = await import("pdfjs-dist");
-  const pdfjsLib = (mod as any).default ?? mod;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pdfjsLib = (mod as { default?: any }).default ?? mod;
   if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
       "pdfjs-dist/build/pdf.worker.mjs",
@@ -131,7 +139,7 @@ async function extractPDF(buffer: ArrayBuffer): Promise<string> {
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const text = content.items.map((item: any) => item.str).join(" ");
+    const text = content.items.map((item: { str?: string }) => item.str ?? "").join(" ");
     if (text.trim()) pages.push(text.trim());
   }
   return pages.join("\n\n");
@@ -139,7 +147,8 @@ async function extractPDF(buffer: ArrayBuffer): Promise<string> {
 
 async function extractDocx(buffer: ArrayBuffer): Promise<string> {
   const mod = await import("mammoth");
-  const mammoth = (mod as any).default ?? mod;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mammoth = (mod as { default?: any }).default ?? mod;
   const result = await mammoth.extractRawText({ arrayBuffer: buffer });
   return result.value;
 }

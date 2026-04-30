@@ -15,8 +15,15 @@ vi.mock("../../src/lib/supabase", () => ({
 
 import { useSubscription } from "../../src/lib/useSubscription";
 
-function makeQueryBuilder(data: any, error: any = null) {
-  const builder: any = {};
+interface QueryBuilder {
+  select: ReturnType<typeof vi.fn>;
+  eq: ReturnType<typeof vi.fn>;
+  single: ReturnType<typeof vi.fn>;
+  maybeSingle: ReturnType<typeof vi.fn>;
+}
+
+function makeQueryBuilder(data: unknown, error: unknown = null): QueryBuilder {
+  const builder = {} as QueryBuilder;
   builder.select = vi.fn().mockReturnValue(builder);
   builder.eq = vi.fn().mockReturnValue(builder);
   builder.single = vi.fn().mockResolvedValue({ data, error });

@@ -7,7 +7,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function makeReq(overrides: Record<string, any> = {}) {
+type ReqOverrides = Record<string, unknown>;
+
+function makeReq(overrides: ReqOverrides = {}) {
   return {
     method: "POST",
     query: { action: "embed" },
@@ -20,8 +22,14 @@ function makeReq(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -46,7 +54,7 @@ vi.mock("../../api/_lib/securityHeaders.js", () => ({
 
 const mockGenerateEmbedding = vi.fn();
 vi.mock("../../api/_lib/generateEmbedding.js", () => ({
-  generateEmbedding: (...args: any[]) => mockGenerateEmbedding(...args),
+  generateEmbedding: (...args: unknown[]) => mockGenerateEmbedding(...args),
   generateEmbeddingsBatch: vi.fn().mockResolvedValue([[0.1, 0.2]]),
   buildEntryText: vi.fn().mockReturnValue("title content"),
 }));
@@ -82,7 +90,10 @@ describe("embed handler — retry on transient failure (S3-5)", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(mockGenerateEmbedding).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ ok: true });
@@ -97,7 +108,10 @@ describe("embed handler — retry on transient failure (S3-5)", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(mockGenerateEmbedding).toHaveBeenCalledTimes(3);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ ok: true });
@@ -109,7 +123,10 @@ describe("embed handler — retry on transient failure (S3-5)", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(mockGenerateEmbedding).toHaveBeenCalledTimes(3);
     expect(res.status).toHaveBeenCalledWith(502);
   });

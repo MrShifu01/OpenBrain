@@ -3,7 +3,23 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function makeReq(overrides: Record<string, any> = {}) {
+type ReqOverrides = Partial<{
+  method: string;
+  query: Record<string, string>;
+  headers: Record<string, string>;
+  body: unknown;
+  socket: { remoteAddress?: string };
+}>;
+
+interface MockReq {
+  method: string;
+  query: Record<string, string>;
+  headers: Record<string, string>;
+  body: unknown;
+  socket: { remoteAddress?: string };
+}
+
+function makeReq(overrides: ReqOverrides = {}): MockReq {
   return {
     method: "POST",
     query: {},
@@ -14,8 +30,14 @@ function makeReq(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -65,7 +87,7 @@ describe("search handler", () => {
     const handler = (await import("../../api/search.js")).default;
     const req = makeReq({ body: { query: "hello world", brain_id: "brain-1" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(200);
     const jsonArg = res.json.mock.calls[0][0];
     expect(jsonArg.fallback).toBe(false);
@@ -78,7 +100,7 @@ describe("search handler", () => {
       body: { query: "", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ fallback: true });
   });
@@ -90,7 +112,7 @@ describe("search handler", () => {
       body: { query: "   ", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ fallback: true });
   });
@@ -102,7 +124,7 @@ describe("search handler", () => {
       body: { query: "a".repeat(501), brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Query too long" });
   });
@@ -116,7 +138,7 @@ describe("search handler", () => {
       body: { query: "hello", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
@@ -129,7 +151,7 @@ describe("search handler", () => {
       body: { query: "hello", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(429);
   });
 
@@ -145,7 +167,7 @@ describe("search handler", () => {
       body: { query: "burger recipe", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
 
     expect(generateEmbedding).toHaveBeenCalledWith("burger recipe", "test-gemini-key");
     expect(mockFetch).toHaveBeenCalled();
@@ -173,11 +195,11 @@ describe("search handler", () => {
       body: { query: "tacos", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     const jsonArg = res.json.mock.calls[0][0];
     expect(jsonArg.fallback).toBe(false);
     expect(jsonArg.results).toHaveLength(2);
-    expect(jsonArg.results.map((r: any) => r.id)).toEqual(["e1", "e4"]);
+    expect(jsonArg.results.map((r: { id: string }) => r.id)).toEqual(["e1", "e4"]);
   });
 
   it("returns fallback:true when Supabase RPC fails", async () => {
@@ -188,7 +210,7 @@ describe("search handler", () => {
       body: { query: "burgers", brain_id: "brain-1" },
     });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.json).toHaveBeenCalledWith({ fallback: true });
   });
 
@@ -196,7 +218,7 @@ describe("search handler", () => {
     const handler = (await import("../../api/search.js")).default;
     const req = makeReq({ method: "DELETE", body: {} });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(req, res as unknown as Parameters<typeof handler>[1]);
     expect(res.status).toHaveBeenCalledWith(405);
   });
 });

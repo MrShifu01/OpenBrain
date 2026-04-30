@@ -6,8 +6,14 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -32,6 +38,7 @@ const ENTRIES = [
 ];
 
 describe("api/entries — pagination", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (req: any, res: any) => Promise<void>;
   let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -130,8 +137,8 @@ describe("api/entries — pagination", () => {
     await handler(req, res);
 
     // Verify that some fetch URL contains the cursor filter
-    const hasCursor = fetchSpy.mock.calls.some(([url]: any[]) =>
-      url.includes(encodeURIComponent(cursor)),
+    const hasCursor = fetchSpy.mock.calls.some((call) =>
+      String(call[0]).includes(encodeURIComponent(cursor)),
     );
     expect(hasCursor).toBe(true);
   });

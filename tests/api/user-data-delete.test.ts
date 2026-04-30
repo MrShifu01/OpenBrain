@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { makeApiReq, makeApiRes } from "../helpers/mockApiReq";
 
-const makeReq = (overrides: any = {}) =>
+const makeReq = (overrides: Record<string, unknown> = {}) =>
   makeApiReq({
     method: "DELETE",
     query: { resource: "account" },
@@ -52,7 +52,10 @@ describe("DELETE /api/user-data?resource=account (S3-6)", () => {
     const handler = (await import("../../api/user-data")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
 
     expect(res.status).toHaveBeenCalledWith(200);
     const responseData = res.json.mock.calls[0][0];
@@ -69,7 +72,10 @@ describe("DELETE /api/user-data?resource=account (S3-6)", () => {
     const handler = (await import("../../api/user-data")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
 
     expect(res.status).toHaveBeenCalledWith(200);
     const responseData = res.json.mock.calls[0][0];
@@ -84,7 +90,10 @@ describe("DELETE /api/user-data?resource=account (S3-6)", () => {
     const handler = (await import("../../api/user-data")).default;
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
 
     expect(res.status).toHaveBeenCalledWith(401);
   });

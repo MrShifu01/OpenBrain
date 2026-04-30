@@ -20,8 +20,14 @@ vi.mock("../../api/_lib/securityHeaders.js", () => ({
   applySecurityHeaders: vi.fn(),
 }));
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -32,6 +38,7 @@ const ENTRY_ID = "entry-uuid-1234";
 const BRAIN_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
 describe("api/entries — soft delete", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (req: any, res: any) => Promise<void>;
   let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -128,8 +135,8 @@ describe("api/entries — soft delete", () => {
     await handler(req, res);
 
     // The fallback direct query should include the deleted_at=is.null filter
-    const hasDeletedFilter = fetchSpy.mock.calls.some(([url]: any[]) =>
-      url.includes("deleted_at=is.null"),
+    const hasDeletedFilter = fetchSpy.mock.calls.some((call) =>
+      String(call[0]).includes("deleted_at=is.null"),
     );
     expect(hasDeletedFilter).toBe(true);
   });
@@ -150,9 +157,10 @@ describe("api/entries — soft delete", () => {
     await handler(req, res);
 
     // The query should include the "not is null" filter for deleted_at
-    const hasTrashFilter = fetchSpy.mock.calls.some(
-      ([url]: any[]) => url.includes("deleted_at=not.is.null") || url.includes("not.is.null"),
-    );
+    const hasTrashFilter = fetchSpy.mock.calls.some((call) => {
+      const url = String(call[0]);
+      return url.includes("deleted_at=not.is.null") || url.includes("not.is.null");
+    });
     expect(hasTrashFilter).toBe(true);
   });
 

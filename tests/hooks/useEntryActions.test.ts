@@ -23,8 +23,9 @@ vi.mock("../../src/lib/aiSettings", () => ({
 }));
 
 import { useEntryActions } from "../../src/hooks/useEntryActions";
+import type { Entry } from "../../src/types";
 
-const makeEntry = (id: string) => ({
+const makeEntry = (id: string): Entry => ({
   id,
   title: `Entry ${id}`,
   content: "content",
@@ -35,11 +36,17 @@ const makeEntry = (id: string) => ({
 });
 
 describe("useEntryActions", () => {
-  let entries: ReturnType<typeof makeEntry>[];
+  let entries: Entry[];
   let setEntries: ReturnType<typeof vi.fn>;
   let setSelected: ReturnType<typeof vi.fn>;
   let refreshCount: ReturnType<typeof vi.fn>;
   const isOnlineRef = { current: true };
+
+  // Cast mocks to the dispatcher signatures the hook expects. Vitest fns
+  // are duck-compatible at runtime; this just keeps tsc happy.
+  type SetEntries = React.Dispatch<React.SetStateAction<Entry[]>>;
+  type SetSelected = React.Dispatch<React.SetStateAction<Entry | null>>;
+  type RefreshCount = () => void;
 
   beforeEach(() => {
     entries = [makeEntry("a"), makeEntry("b"), makeEntry("c")];
@@ -52,12 +59,12 @@ describe("useEntryActions", () => {
   it("handleDelete removes entry from state optimistically", () => {
     const { result } = renderHook(() =>
       useEntryActions({
-        entries: entries as any,
-        setEntries: setEntries as any,
-        setSelected: setSelected as any,
+        entries,
+        setEntries: setEntries as unknown as SetEntries,
+        setSelected: setSelected as unknown as SetSelected,
         isOnline: true,
         isOnlineRef,
-        refreshCount: refreshCount as any,
+        refreshCount: refreshCount as unknown as RefreshCount,
         cryptoKey: null,
       }),
     );
@@ -71,12 +78,12 @@ describe("useEntryActions", () => {
   it("handleUndo restores deleted entry", () => {
     const { result } = renderHook(() =>
       useEntryActions({
-        entries: entries as any,
-        setEntries: setEntries as any,
-        setSelected: setSelected as any,
+        entries,
+        setEntries: setEntries as unknown as SetEntries,
+        setSelected: setSelected as unknown as SetSelected,
         isOnline: true,
         isOnlineRef,
-        refreshCount: refreshCount as any,
+        refreshCount: refreshCount as unknown as RefreshCount,
         cryptoKey: null,
       }),
     );
@@ -93,17 +100,17 @@ describe("useEntryActions", () => {
   it("handleCreated sets lastAction to create", () => {
     const { result } = renderHook(() =>
       useEntryActions({
-        entries: entries as any,
-        setEntries: setEntries as any,
-        setSelected: setSelected as any,
+        entries,
+        setEntries: setEntries as unknown as SetEntries,
+        setSelected: setSelected as unknown as SetSelected,
         isOnline: true,
         isOnlineRef,
-        refreshCount: refreshCount as any,
+        refreshCount: refreshCount as unknown as RefreshCount,
         cryptoKey: null,
       }),
     );
     act(() => {
-      result.current.handleCreated({ id: "new-id" } as any);
+      result.current.handleCreated(makeEntry("new-id"));
     });
     expect(result.current.lastAction?.type).toBe("create");
     // Narrow via the discriminant so id is in scope for this branch only.
@@ -115,12 +122,12 @@ describe("useEntryActions", () => {
   it("saveError is null by default", () => {
     const { result } = renderHook(() =>
       useEntryActions({
-        entries: entries as any,
-        setEntries: setEntries as any,
-        setSelected: setSelected as any,
+        entries,
+        setEntries: setEntries as unknown as SetEntries,
+        setSelected: setSelected as unknown as SetSelected,
         isOnline: true,
         isOnlineRef,
-        refreshCount: refreshCount as any,
+        refreshCount: refreshCount as unknown as RefreshCount,
         cryptoKey: null,
       }),
     );

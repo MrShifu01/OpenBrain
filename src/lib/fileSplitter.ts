@@ -9,7 +9,7 @@
 
 interface SplitEntry {
   title: string;
-  content: string;
+  content?: string;
   type: string;
   metadata?: Record<string, unknown>;
   tags?: string[];
@@ -74,7 +74,6 @@ export function parseAISplitResponse(raw: string): SplitEntry[] {
       )
       .map((e) => ({
         ...e,
-        content: typeof e.content === "string" ? e.content : "",
         type: typeof e.type === "string" && e.type.trim() ? e.type.trim() : "note",
       }));
   };

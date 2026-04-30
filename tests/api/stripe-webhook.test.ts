@@ -10,23 +10,31 @@ const mockConstructEvent = vi.fn();
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-function makeReq(overrides: Record<string, any> = {}) {
+type ReqOverrides = Record<string, unknown>;
+
+function makeReq(overrides: ReqOverrides = {}) {
   return {
     method: "POST",
     query: { resource: "stripe-webhook" },
     headers: { "stripe-signature": "sig_test" },
     body: {},
     socket: { remoteAddress: "127.0.0.1" },
-    on: vi.fn((event: string, cb: (chunk: Buffer) => void) => {
+    on: vi.fn((event: string, cb: (chunk?: Buffer) => void) => {
       if (event === "data") cb(Buffer.from(JSON.stringify({ id: "evt_1" })));
-      if (event === "end") (cb as any)();
+      if (event === "end") cb();
     }),
     ...overrides,
   };
 }
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -60,7 +68,10 @@ describe("stripe-webhook handler", () => {
     const handler = await setupHandler();
     const req = makeReq({ headers: {} });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
@@ -71,7 +82,10 @@ describe("stripe-webhook handler", () => {
     const handler = await setupHandler();
     const req = makeReq();
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid signature" });
   });
@@ -90,8 +104,11 @@ describe("stripe-webhook handler", () => {
       },
     });
     const handler = await setupHandler();
-    await handler(makeReq() as any, makeRes() as any);
-    const patchCall = mockFetch.mock.calls.find((c: any[]) =>
+    await handler(
+      makeReq() as Parameters<typeof handler>[0],
+      makeRes() as unknown as Parameters<typeof handler>[1],
+    );
+    const patchCall = mockFetch.mock.calls.find((c) =>
       (c[0] as string).includes("stripe_customer_id=eq.cus_abc"),
     );
     expect(patchCall).toBeDefined();
@@ -118,8 +135,11 @@ describe("stripe-webhook handler", () => {
       },
     });
     const handler = await setupHandler();
-    await handler(makeReq() as any, makeRes() as any);
-    const patchCall = mockFetch.mock.calls.find((c: any[]) =>
+    await handler(
+      makeReq() as Parameters<typeof handler>[0],
+      makeRes() as unknown as Parameters<typeof handler>[1],
+    );
+    const patchCall = mockFetch.mock.calls.find((c) =>
       (c[0] as string).includes("stripe_customer_id=eq.cus_def"),
     );
     expect(patchCall).toBeDefined();
@@ -142,8 +162,11 @@ describe("stripe-webhook handler", () => {
       },
     });
     const handler = await setupHandler();
-    await handler(makeReq() as any, makeRes() as any);
-    const patchCall = mockFetch.mock.calls.find((c: any[]) =>
+    await handler(
+      makeReq() as Parameters<typeof handler>[0],
+      makeRes() as unknown as Parameters<typeof handler>[1],
+    );
+    const patchCall = mockFetch.mock.calls.find((c) =>
       (c[0] as string).includes("stripe_customer_id=eq.cus_ghi"),
     );
     expect(patchCall).toBeDefined();
@@ -160,7 +183,10 @@ describe("stripe-webhook handler", () => {
     });
     const handler = await setupHandler();
     const res = makeRes();
-    await handler(makeReq() as any, res as any);
+    await handler(
+      makeReq() as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true });
   });

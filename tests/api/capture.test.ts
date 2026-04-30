@@ -3,7 +3,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-function makeReq(overrides: Record<string, any> = {}) {
+type ReqOverrides = Record<string, unknown>;
+
+function makeReq(overrides: ReqOverrides = {}) {
   return {
     method: "POST",
     query: {},
@@ -14,8 +16,14 @@ function makeReq(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -59,7 +67,10 @@ describe("capture handler — flexible types", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "Test", p_type: "document" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).not.toHaveBeenCalledWith(400);
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(supabaseBody.type).toBe("document");
@@ -69,7 +80,10 @@ describe("capture handler — flexible types", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "Smash Social Club", p_type: "company" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).not.toHaveBeenCalledWith(400);
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(supabaseBody.type).toBe("company");
@@ -79,7 +93,10 @@ describe("capture handler — flexible types", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "Fresh Meat Co", p_type: "supplier" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).not.toHaveBeenCalledWith(400);
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(supabaseBody.type).toBe("supplier");
@@ -89,7 +106,10 @@ describe("capture handler — flexible types", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "No type entry" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     const supabaseBody = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(supabaseBody.type).toBe("note");
   });
@@ -98,7 +118,10 @@ describe("capture handler — flexible types", () => {
     const handler = (await import("../../api/capture")).default;
     const req = makeReq({ body: { p_title: "", p_type: "note" } });
     const res = makeRes();
-    await handler(req as any, res as any);
+    await handler(
+      req as Parameters<typeof handler>[0],
+      res as unknown as Parameters<typeof handler>[1],
+    );
     expect(res.status).toHaveBeenCalledWith(400);
   });
 });

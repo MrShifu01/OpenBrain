@@ -23,9 +23,17 @@ interface MockReqOptions {
   remoteAddress?: string;
 }
 
-export function makeApiReq(opts: MockReqOptions = {}) {
+interface ApiReq extends Readable {
+  method: string;
+  query: Record<string, string>;
+  headers: Record<string, string>;
+  body: unknown;
+  socket: { remoteAddress: string };
+}
+
+export function makeApiReq(opts: MockReqOptions = {}): ApiReq {
   const json = opts.body === undefined ? "" : JSON.stringify(opts.body);
-  const stream = Readable.from([json]) as any;
+  const stream = Readable.from([json]) as ApiReq;
   // Common Express-ish fields the handlers read directly.
   stream.method = opts.method ?? "POST";
   stream.query = opts.query ?? {};
@@ -39,12 +47,19 @@ export function makeApiReq(opts: MockReqOptions = {}) {
   return stream;
 }
 
-export function makeApiRes() {
-  const res: any = {};
+// Loose ApiRes shape for assertions; cast to any so existing handlers'
+// strict ApiResponse typings don't reject it at the call site. Tests should
+// type-narrow on the .mock fields where they read them.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ApiRes = any;
+
+export function makeApiRes(): ApiRes {
+  const res: ApiRes = {};
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.send = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
   res.end = vi.fn().mockReturnValue(res);
+  res.redirect = vi.fn().mockReturnValue(res);
   return res;
 }

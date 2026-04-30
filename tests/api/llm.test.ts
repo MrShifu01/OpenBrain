@@ -6,7 +6,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Minimal mock request/response helpers
-function makeReq(overrides: Record<string, any> = {}) {
+type ReqOverrides = Record<string, unknown>;
+
+function makeReq(overrides: ReqOverrides = {}) {
   return {
     method: "POST",
     query: {},
@@ -16,8 +18,14 @@ function makeReq(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeRes() {
-  const res: any = {};
+interface MockRes {
+  status: ReturnType<typeof vi.fn>;
+  json: ReturnType<typeof vi.fn>;
+  setHeader: ReturnType<typeof vi.fn>;
+}
+
+function makeRes(): MockRes {
+  const res = {} as MockRes;
   res.status = vi.fn().mockReturnValue(res);
   res.json = vi.fn().mockReturnValue(res);
   res.setHeader = vi.fn();
@@ -34,6 +42,7 @@ vi.mock("../../api/_lib/rateLimit.js", () => ({
 }));
 
 describe("api/llm — transcribe action", () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (req: any, res: any) => Promise<void>;
 
   beforeEach(async () => {
@@ -90,7 +99,7 @@ describe("api/llm — transcribe action", () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ text: "hello" }),
-    } as any);
+    } as unknown as Response);
     await handler(req, res);
     expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 10);
   });
