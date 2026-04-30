@@ -9,6 +9,12 @@ import CaptureSecretPanel, { type SecretForm } from "./CaptureSecretPanel";
 import CaptureEntryBody from "./CaptureEntryBody";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
 interface CaptureSheetProps {
   isOpen: boolean;
@@ -473,24 +479,6 @@ interface CaptureBrainPillProps {
 }
 
 function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: CaptureBrainPillProps) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDoc);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const target = captureBrain ?? activeBrain;
   if (!target) return null;
   const personal = brains.find((b) => b.is_personal);
@@ -498,12 +486,8 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
   const sorted = personal ? [personal, ...others] : others;
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
+    <DropdownMenu>
+      <DropdownMenuTrigger
         aria-label={`Capture into ${target.name} — change brain`}
         className="press"
         style={{
@@ -550,64 +534,29 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          style={{
-            position: "absolute",
-            top: "calc(100% + 4px)",
-            left: 0,
-            minWidth: 200,
-            background: "var(--bg)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 8,
-            boxShadow: "var(--shadow-lg)",
-            padding: 4,
-            zIndex: "var(--z-fullscreen)",
-          }}
-        >
-          {sorted.map((b) => {
-            const selected = b.id === target.id;
-            return (
-              <button
-                key={b.id}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                onClick={() => {
-                  onPick(b);
-                  setOpen(false);
-                }}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[200px]">
+        {sorted.map((b) => {
+          const selected = b.id === target.id;
+          return (
+            <DropdownMenuItem
+              key={b.id}
+              onSelect={() => onPick(b)}
+              style={{ background: selected ? "var(--ember-wash)" : undefined }}
+            >
+              <span
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  width: "100%",
-                  padding: "6px 8px",
-                  background: selected ? "var(--ember-wash)" : "transparent",
-                  border: 0,
-                  borderRadius: 4,
-                  color: "var(--ink)",
-                  fontSize: 12,
-                  textAlign: "left",
-                  cursor: "pointer",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 }}
               >
-                <span
-                  style={{
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {b.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                {b.name}
+              </span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
