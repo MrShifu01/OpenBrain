@@ -71,6 +71,44 @@ if ("serviceWorker" in navigator && !isNative()) {
   });
 }
 
+// iOS PWA resume bug — when a standalone-mode PWA is backgrounded for long
+// enough, iOS Safari freezes the JS execution context but keeps the page
+// snapshot in BFCache. On resume, `pageshow` fires with `persisted=true` and
+// the user sees the boot shell from index.html (or a frozen React tree)
+// while no JS is actually running. The user has to force-quit and reopen.
+//
+// Fix: track when the page was hidden, and on resume, if more than RESUME_THRESHOLD_MS
+// elapsed, force a reload. Short app-switches stay snappy; long suspends recover.
+// `pageshow.persisted` alone isn't enough because iOS sometimes fires it for
+// short backgroundings — the timestamp gate keeps the reload behaviour
+// proportionate.
+if (!isNative()) {
+  const HIDDEN_AT_KEY = "everion:hidden-at";
+  const RESUME_THRESHOLD_MS = 10_000;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") {
+      try {
+        sessionStorage.setItem(HIDDEN_AT_KEY, String(Date.now()));
+      } catch {
+        // sessionStorage can throw in private mode — survive without the timestamp.
+      }
+    }
+  });
+  window.addEventListener("pageshow", (e) => {
+    const ev = e as PageTransitionEvent;
+    if (!ev.persisted) return;
+    let hiddenAt = 0;
+    try {
+      hiddenAt = Number(sessionStorage.getItem(HIDDEN_AT_KEY) ?? "0");
+    } catch {
+      /* private mode */
+    }
+    if (hiddenAt > 0 && Date.now() - hiddenAt > RESUME_THRESHOLD_MS) {
+      window.location.reload();
+    }
+  });
+}
+
 // Capacitor wrap — register deep-link + native network listeners as early
 // as possible so a cold-start magic-link callback isn't dropped.
 void initCapacitorBridge();
