@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction, RefObject } from "react";
 import { authFetch } from "../lib/authFetch";
 import { entryRepo } from "../lib/entryRepo";
 import { readEntriesCache, writeEntriesCache } from "../lib/entriesCache";
+import { readVaultEntriesCache, writeVaultEntriesCache } from "../lib/vaultEntriesCache";
 import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
@@ -69,8 +70,22 @@ export function useDataLayer({
       .catch((err) => console.error("[OpenBrain] /api/vault check failed", err));
   }, []);
 
-  // Fetch vault entries for the memory feed (titles are plaintext; content stays encrypted)
+  // Fetch vault entries for the memory feed (titles are plaintext; content
+  // stays encrypted). Cache is read first so the vault tab works offline —
+  // the cached blob is the same AES-GCM ciphertext the server returns, so
+  // local storage doesn't widen the trust boundary. Reconnect overwrites
+  // with the latest server view.
   const fetchVaultEntries = useCallback(async () => {
+    // Cache first — non-blocking, gives offline users immediate vault content.
+    readVaultEntriesCache()
+      .then((cached) => {
+        if (cached && cached.length > 0) {
+          vaultEntryIdsRef.current = new Set(cached.map((e) => e.id));
+          setVaultEntries((prev) => (prev.length === 0 ? cached : prev));
+        }
+      })
+      .catch(() => {});
+
     try {
       const r = await authFetch("/api/vault-entries");
       if (!r.ok) return;
@@ -82,6 +97,8 @@ export function useDataLayer({
       })) as Entry[];
       vaultEntryIdsRef.current = new Set(fetched.map((e) => e.id));
       setVaultEntries(fetched);
+      // Persist for the next offline boot.
+      writeVaultEntriesCache(fetched).catch(() => {});
     } catch (e) {
       console.debug("[useDataLayer] fetchVaultEntries failed", e);
     }

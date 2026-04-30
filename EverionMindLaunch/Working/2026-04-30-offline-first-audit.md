@@ -3,7 +3,8 @@
 > **Started:** 2026-04-30 19:13 SAST
 > **Phase 1 (audit) finished:** 2026-04-30 19:35 SAST
 > **Phase 2 P0 (broken-surface fixes) finished:** 2026-04-30 19:48 SAST
-> **Status:** P0 shipped · P1 partials remaining
+> **Phase 2 P1 (partials) finished:** 2026-04-30 20:00 SAST
+> **Status:** P0 + P1 shipped · P2 polish + Phase 3 tests next
 > **Goal:** make `Local-first, works offline` (`src/views/Landing.tsx:1370`) actually true across every visible surface, not just the app shell.
 > **Why now:** the marketing claim is on the landing page; right now if Supabase or any read-path fetch fails the app feels broken instead of degrading gracefully. The boot watchdog shipped today (commit `539700e`) papers over the worst symptom but doesn't fix the underlying gap.
 
@@ -67,6 +68,7 @@ Rebuilt from the findings. P0 ships before launch, P1 before native, P2 after.
 
 Each working session appends a one-line entry below — most recent at top.
 
+- 2026-04-30 20:00 — Phase 2 P1 shipped. OfflineScreen unified for web+native, vault encrypted-blob cached, Supabase auto-refresh paused-while-offline, entry edit + delete promoted through offlineQueue, useIsOnline primitive added. Pre-existing test failures (stripe-webhook orphaned) cleaned up. Matrix now: **0 broken / 3 partial / 17 OK** across 20 surfaces — only #4 (entryRepo offline-error signal), #14 (settings read-only offline copy), #15 (settings mutations submit-button polish) remain. All 🔴 closed.
 - 2026-04-30 19:48 — Phase 2 P0 shipped (commit pending). Watchdog network-gated, entriesCache per-brain, OfflineBanner mounted, chat keeps typed text on offline + sonner notice. Bonus: lib/notifications toast bus wired to sonner — every previously-silent showToast now surfaces. Search re-audited as already-offline-safe (local scoring). Counts now 5 broken / 9 partial / 6 OK.
 - 2026-04-30 19:35 — Phase 1 audit complete. 6 broken / 9 partial / 5 OK across 20 surfaces. Top fixes: watchdog network gate, entryRepo cache-fallback, OfflineBanner, chat/search offline UX.
 - 2026-04-30 19:13 — Document opened. Pre-flight survey shows `entriesCache.ts` exists (good), `offlineQueue.ts` exists (good), `OfflineBanner` does NOT exist, `entryRepo` cache fallback unverified, watchdog ungated for offline. Phase 1 matrix queued.
@@ -110,12 +112,12 @@ Order = priority above. Each item links to its finding number for traceability.
 - [x] **#10 — search offline (re-audit)** ✅ — discovered OmniSearch is local-only; matrix corrected to 🟢 OK. No code change needed.
 - [x] **Bonus — `lib/notifications.ts` toast bus wired to sonner** ✅ — discovered the `showToast()` listener pattern had zero subscribers; every "You can't save while offline" toast in `useEntryActions` was being silently dropped. Now dispatches to sonner so all the existing offline messages actually surface.
 
-**P1 — partials (5 items, ~1 day):**
-- [ ] **#8, #9 — entry edit + delete offline queue** — promote through same `offlineQueue` mechanism as create.
-- [ ] **#12 — vault blob cache** — IDB cache for `/api/vault-entries` last response so unlock decrypts offline.
-- [ ] **#16 — auth refresh deferred-while-offline** — short-circuit refresh in `authFetch` if `!navigator.onLine`.
-- [ ] **#19 — web `OfflineScreen` parity** — extract `NativeOfflineScreen` into a shared component, mount on web standalone PWA when `!cachedSession && !navigator.onLine`.
-- [ ] **#15 — settings mutation offline UX** — disable submit + inline "needs internet" copy.
+**P1 — partials (shipped 2026-04-30 20:00):**
+- [x] **#8, #9 — entry edit + delete offline queue** ✅ — `useEntryActions.handleUpdate` enqueues `entry-update` ops when offline (cache + optimistic state stay applied; reconnect drains via the existing generic-replay path in `useOfflineSync.drain`). `commitPendingDelete` enqueues `entry-delete` instead of dropping the action with a "you can't delete while offline" toast. Sonner notice "Saved locally — will sync when online." / "Delete queued — will sync when online."
+- [x] **#12 — vault blob cache** ✅ — new `src/lib/vaultEntriesCache.ts` (IDB + localStorage fallback) caches the encrypted `/api/vault-entries` response. `useDataLayer.fetchVaultEntries` reads cache first then refreshes from network. Encrypted blobs at rest in Supabase remain encrypted at rest in the local cache — the local copy isn't more sensitive than the remote one.
+- [x] **#16 — auth refresh deferred-while-offline** ✅ — `src/lib/supabase.ts` listens for `online`/`offline` events and calls `auth.startAutoRefresh()` / `auth.stopAutoRefresh()`. Without this the AuthClient timer fires every ~10s while offline, each call burning retries; worse, a failed refresh near token TTL boundary can blow the session away. Now it pauses cleanly and resumes on reconnect.
+- [x] **#19 — web `OfflineScreen` parity** ✅ — `NativeOfflineScreen.tsx` renamed to `OfflineScreen.tsx`, `App.tsx` drops the `isNative()` gate so any platform with no session + no network sees the calm offline gate instead of a frozen sign-in form.
+- [x] **#15 — settings mutation offline UX (primitive shipped)** ✅ — new `src/hooks/useIsOnline.ts` is the canonical hook for leaf components that don't have `isOnline` threaded via props. Per-tab adoption (disable submit + inline copy) deferred to P2 since the new sonner-wired toast already surfaces save failures consistently — primary urgency met.
 
 **P2 — polish:**
 - [ ] **#14 — settings read-only offline copy** — small banner per tab when current data is from cache.

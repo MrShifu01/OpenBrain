@@ -9,9 +9,8 @@ import ErrorBoundary from "./ErrorBoundary";
 import { MemoryProvider } from "./MemoryContext";
 import { ThemeProvider } from "./ThemeContext";
 import LoadingScreen from "./components/LoadingScreen";
-import NativeOfflineScreen from "./components/NativeOfflineScreen";
+import OfflineScreen from "./components/OfflineScreen";
 import { Button } from "./components/ui/button";
-import { isNative } from "./lib/capacitorBridge";
 import type { Session } from "@supabase/auth-js";
 
 // Heavy code paths a first-paint visitor almost never hits — keep them out
@@ -70,15 +69,15 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
-  // Native wrap only — track connectivity so the app can show a calm offline
-  // gate when there's no session and no internet (login can't proceed).
-  const [nativeOffline, setNativeOffline] = useState<boolean>(() => {
+  // Track connectivity so the app can show a calm offline gate when there's
+  // no session and no internet (login can't proceed). Used on both native
+  // and web standalone PWA — see OfflineScreen for context.
+  const [bootOffline, setBootOffline] = useState<boolean>(() => {
     if (typeof navigator === "undefined") return false;
-    return isNative() && !navigator.onLine;
+    return !navigator.onLine;
   });
   useEffect(() => {
-    if (!isNative()) return;
-    const sync = () => setNativeOffline(!navigator.onLine);
+    const sync = () => setBootOffline(!navigator.onLine);
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
     return () => {
@@ -314,10 +313,10 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
         )}
       </ThemeProvider>
     );
-  if (!session && nativeOffline)
+  if (!session && bootOffline)
     return (
       <ThemeProvider>
-        <NativeOfflineScreen onRetry={() => setNativeOffline(!navigator.onLine)} />
+        <OfflineScreen onRetry={() => setBootOffline(!navigator.onLine)} />
       </ThemeProvider>
     );
   if (!session)

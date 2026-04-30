@@ -1,19 +1,24 @@
 import { useEffect, useState } from "react";
 
-// Calm full-page offline state for the native wrap. Mounts when the app boots
-// without a network connection AND has no cached entries to render. Web users
-// almost never hit this (PWA service-worker caches the shell), but on a fresh
-// native install with airplane mode on, the WebView would otherwise render a
-// half-loaded login screen with no signal of why.
+// Calm full-page offline state. Mounts when the app boots without network AND
+// without a usable session. Used in two places:
+//
+//   1. Native wrap (Capacitor) — the WebView would otherwise render a
+//      half-loaded login screen with no signal of why; this shows up
+//      immediately with retry-on-online.
+//   2. Web standalone PWA — the SW serves the shell but LoginScreen needs
+//      a live Supabase auth round-trip to do anything. Without this, a
+//      cold-start in airplane mode leaves the user staring at a frozen
+//      sign-in form.
 //
 // The component subscribes to its own retry signal via the parent — pass
 // `onRetry` so the parent re-attempts the fetch that decided to mount this.
 
-interface NativeOfflineScreenProps {
+interface OfflineScreenProps {
   onRetry?: () => void;
 }
 
-export default function NativeOfflineScreen({ onRetry }: NativeOfflineScreenProps) {
+export default function OfflineScreen({ onRetry }: OfflineScreenProps) {
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {

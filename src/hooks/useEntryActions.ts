@@ -6,7 +6,8 @@ import { writeEntriesCache } from "../lib/entriesCache";
 import { encryptEntry } from "../lib/crypto";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import { recordDecision } from "../lib/learningEngine";
-import type { Entry } from "../types";
+import { enqueue as enqueueOfflineOp } from "../lib/offlineQueue";
+import type { Entry, OfflineOp } from "../types";
 
 function normalizeTags(tags: unknown): string {
   if (!Array.isArray(tags)) return "";
@@ -80,7 +81,23 @@ export function useEntryActions({
         showToast("Delete failed — entry restored.", "error");
       });
     } else {
-      showToast("You can't delete while offline.", "error");
+      // Offline: queue the delete instead of dropping it on the floor.
+      // useOfflineSync.drain replays generic ops (everything other than
+      // raw-capture) by url+method+body, so this entry-delete op replays
+      // exactly the same DELETE call once the user is back online.
+      enqueueOfflineOp({
+        id: `delete-${id}-${Date.now()}`,
+        url: "/api/delete-entry",
+        method: "DELETE",
+        body: JSON.stringify({ id }),
+        created_at: new Date().toISOString(),
+        // Tagged so the queue badge can group / count distinct op types
+        // without inspecting URLs.
+        type: "entry-delete",
+      } as OfflineOp & { type: string }).catch((err) =>
+        captureError(err, "commitPendingDelete:enqueue"),
+      );
+      showToast("Delete queued — will sync when online.", "info");
     }
     pendingDeleteRef.current = null;
   }, [entries, isOnlineRef, setEntries, activeBrainId]);
@@ -108,10 +125,6 @@ export function useEntryActions({
   const handleUpdate = useCallback(
     async (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => {
       const previous = entries.find((e) => e.id === id);
-      if (!isOnline) {
-        showToast("You can't save while offline.", "error");
-        return;
-      }
       const entryType = changes.type || previous?.type;
       const isSecret = entryType === "secret";
       // Phase 3 of schedule fix: stamp user_edited_at whenever metadata is
@@ -152,6 +165,33 @@ export function useEntryActions({
         return next;
       });
       setSelected((prev) => (prev?.id === id ? { ...prev, ...changes } : prev));
+
+      // Offline: queue the update instead of throwing. Optimistic state has
+      // already been applied above and cached; useOfflineSync.drain replays
+      // this PATCH on reconnect. We don't roll back the optimistic update on
+      // queue-enqueue — the cache + the queued op are both consistent until
+      // the server speaks.
+      if (!isOnline) {
+        try {
+          await enqueueOfflineOp({
+            id: `update-${id}-${Date.now()}`,
+            url: "/api/update-entry",
+            method: "PATCH",
+            body: JSON.stringify({ id, ...serverChanges }),
+            created_at: new Date().toISOString(),
+            type: "entry-update",
+          } as OfflineOp & { type: string });
+          if (!options?.silent) {
+            showToast("Saved locally — will sync when online.", "info");
+          }
+        } catch (err) {
+          captureError(err, "handleUpdate:enqueue");
+          if (!options?.silent) {
+            showToast("Couldn't queue your edit. Try again.", "error");
+          }
+        }
+        return;
+      }
 
       try {
         const res = await authFetch("/api/update-entry", {

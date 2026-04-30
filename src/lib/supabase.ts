@@ -25,6 +25,33 @@ const auth = new AuthClient({
   detectSessionInUrl: true,
 });
 
+// Defer Supabase token auto-refresh while the browser reports offline.
+// Without this, the AuthClient's internal timer fires every ~10s while the
+// user is offline, each call failing with "Failed to fetch" and burning
+// retries. Worse, a failed refresh near token TTL boundary can blow away the
+// session and force a sign-in once reconnected. Pausing while offline keeps
+// the existing session alive; resuming on `online` triggers an immediate
+// refresh on the next tick.
+if (typeof window !== "undefined") {
+  const handleOnline = () => {
+    auth.startAutoRefresh().catch((err) => {
+      console.warn("[supabase] startAutoRefresh failed", err);
+    });
+  };
+  const handleOffline = () => {
+    auth.stopAutoRefresh().catch((err) => {
+      console.warn("[supabase] stopAutoRefresh failed", err);
+    });
+  };
+  window.addEventListener("online", handleOnline);
+  window.addEventListener("offline", handleOffline);
+  // Apply current state on boot — `navigator.onLine` was false at module
+  // load means we should already be paused.
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    handleOffline();
+  }
+}
+
 // Per-request token injection — matches supabase-js' fetchWithAuth so RLS
 // sees the user's JWT after sign-in and falls back to the anon key when
 // signed out.
