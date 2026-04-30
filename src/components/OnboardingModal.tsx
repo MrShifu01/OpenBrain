@@ -4,7 +4,7 @@ import { getEmbedHeaders } from "../lib/aiSettings";
 import { supabase } from "../lib/supabase";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
-import { VisuallyHidden } from "radix-ui";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 interface OnboardingModalProps {
   onComplete: (opts?: { nextAction?: "vault" | "import" }) => void;
@@ -306,9 +306,9 @@ export default function OnboardingModal({ onComplete, brainId }: OnboardingModal
           boxShadow: "var(--lift-3)",
         }}
       >
-        <VisuallyHidden.Root>
+        <VisuallyHidden>
           <DialogTitle>Onboarding</DialogTitle>
-        </VisuallyHidden.Root>
+        </VisuallyHidden>
         <div className="contents">
           {/* Top row: brand + progress + skip */}
           <div style={{ display: "flex", alignItems: "center", marginBottom: 24, gap: 12 }}>

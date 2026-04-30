@@ -550,6 +550,7 @@ export default function TodoView({
               onUpdate={ctx?.handleUpdate}
               onDelete={ctx?.handleDelete}
               showHeader={false}
+              addHint
             />
 
             {todoList.length > 0 && toDateKey(selectedDate) === todayKey && (
@@ -587,6 +588,7 @@ export default function TodoView({
               externalEvents={externalEvents}
               onUpdate={ctx?.handleUpdate}
               onDelete={ctx?.handleDelete}
+              addHint
             />
 
             {completed.length > 0 && (

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Dialog as DialogPrimitive } from "radix-ui";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
 import { useBrain as useBrainCtx } from "../context/BrainContext";

@@ -251,6 +251,7 @@ export function DayAgenda({
   onUpdate,
   onDelete,
   showHeader = true,
+  addHint = false,
 }: {
   date: Date;
   entries: Entry[];
@@ -260,6 +261,11 @@ export function DayAgenda({
   /** Hide the "X events" label + date header — callers like the Day tab
    *  render their own page header so this would duplicate it. */
   showHeader?: boolean;
+  /** Show "type above to add one" hint under the empty state — only safe to
+   *  pass true from contexts that render TodoQuickAdd directly above this
+   *  component (Day + Week tabs). The Calendar/Month grid doesn't, so it
+   *  keeps the bare empty state. */
+  addHint?: boolean;
 }) {
   const dateKey = toDateKey(date);
   const events = useMemo(() => {
@@ -274,18 +280,32 @@ export function DayAgenda({
   if (!showHeader) {
     if (events.length === 0) {
       return (
-        <p
-          className="f-serif"
-          style={{
-            margin: 0,
-            fontSize: 14,
-            fontStyle: "italic",
-            color: "var(--ink-ghost)",
-            padding: "12px 0",
-          }}
-        >
-          Nothing scheduled.
-        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 0" }}>
+          <p
+            className="f-serif"
+            style={{
+              margin: 0,
+              fontSize: 14,
+              fontStyle: "italic",
+              color: "var(--ink-ghost)",
+            }}
+          >
+            Nothing scheduled.
+          </p>
+          {addHint && (
+            <p
+              className="f-sans"
+              style={{
+                margin: 0,
+                fontSize: 12,
+                color: "var(--ink-faint)",
+                letterSpacing: "0.005em",
+              }}
+            >
+              ↑ type above to add an event.
+            </p>
+          )}
+        </div>
       );
     }
     return (

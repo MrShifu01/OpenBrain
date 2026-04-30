@@ -3,7 +3,13 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
+
+// Bundle visualizer — opt-in via `BUNDLE_STATS=1 npm run build`. Emits
+// dist/stats.html (treemap + sunburst, gzip + brotli sizes). Off by default
+// so normal builds don't write 1 MB of HTML into the deploy artefact.
+const bundleStatsEnabled = process.env.BUNDLE_STATS === "1";
 
 // Sentry source-map upload only runs when ALL three env vars are present.
 // In Vercel: add SENTRY_AUTH_TOKEN (Sentry → Settings → Auth Tokens, scope
@@ -55,6 +61,14 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    bundleStatsEnabled &&
+      visualizer({
+        filename: "dist/stats.html",
+        gzipSize: true,
+        brotliSize: true,
+        template: "treemap",
+        title: "Everion bundle stats",
+      }),
     sentryEnabled &&
       sentryVitePlugin({
         org: process.env.SENTRY_ORG,
