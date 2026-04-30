@@ -178,14 +178,31 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
       return;
     }
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        // Render immediately. Settings load in background — Everion can boot
-        // with stale (or missing) settings; loadUserAISettings populates the
-        // store as it resolves and any consumer that reads settings re-renders
-        // when it lands. Cuts cold-load by 200–600 ms on slow networks where
-        // /api/profile + /api/api_keys round-trips were blocking first paint.
+    // Time-bound getSession — auth-js reads from localStorage but can also
+    // refresh near-expiry tokens, which hits the network. iOS PWA in airplane
+    // mode stays stuck on LoadingScreen for ever if we wait for that. Race
+    // with a 5s timeout: on win, the resolved value (session or null) is
+    // used; on timeout, drop to null so the OfflineScreen / login gate
+    // takes over instead of an indefinite spinner.
+    let sessionResolved = false;
+    Promise.race([
+      supabase.auth.getSession().then((r) => ({ kind: "ok" as const, session: r.data.session })),
+      new Promise<{ kind: "timeout" }>((resolve) =>
+        setTimeout(() => resolve({ kind: "timeout" }), 5000),
+      ),
+    ])
+      .then((result) => {
+        if (sessionResolved) return;
+        sessionResolved = true;
+        if (result.kind === "timeout") {
+          // Don't sign out — the stored token may still be valid; we just
+          // couldn't confirm it in time. onAuthStateChange (subscribed below)
+          // will still flip session to a real value once auth-js wakes up.
+          console.warn("[App] getSession timed out — proceeding with null session");
+          setSession(null);
+          return;
+        }
+        const { session } = result;
         if (session?.user?.id) {
           void loadSettings(session.user.id);
           identifyPostHogUser(session.user.id, session.user.email ?? "");
@@ -193,6 +210,8 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
         setSession(session);
       })
       .catch(async () => {
+        if (sessionResolved) return;
+        sessionResolved = true;
         // Corrupted/malformed token in localStorage — clear it and send to login
         await supabase.auth
           .signOut()

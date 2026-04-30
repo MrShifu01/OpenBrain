@@ -100,7 +100,10 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,ico,png,svg}"],
+        // webp added 2026-04-30 — `/logoNew.webp` was 404'ing offline (used
+        // by the LoadingScreen splash and the inline boot shell), showing
+        // the broken-image glyph in airplane mode.
+        globPatterns: ["**/*.{js,css,ico,png,svg,webp}"],
         // Exclude heavy lazy chunks from the precache. These are
         // dynamic-imported only when a user actually uses the feature
         // (PDF capture, .xlsx import, GraphView, AdminTab). Including
