@@ -9,6 +9,7 @@ import TodoCalendarTab, { DayAgenda, WeekStrip, startOfWeek } from "./TodoCalend
 import TodoEditPopover from "./TodoEditPopover";
 import TodoRowItem from "./TodoRowItem";
 import TodoSomedayTab from "./TodoSomedayTab";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 // ── PrimePro Day/Week pager + banners ─────────────────────────────────────
 
@@ -458,48 +459,53 @@ export default function TodoView({
       >
         {/* Tab switcher — mobile-only by default, but surfaced on desktop too
             when Someday is enabled so power users can flip between the four
-            views without leaving the schedule shell. */}
-        <div
-          className={`mb-4 flex items-center overflow-hidden rounded-xl border ${somedayEnabled ? "" : "lg:hidden"}`}
-          style={{ borderColor: "var(--line-soft)" }}
+            views without leaving the schedule shell. Tabs primitive gives
+            arrow-key navigation + ARIA roles for free. */}
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as Tab)}
+          className={`mb-4 ${somedayEnabled ? "" : "lg:hidden"}`}
         >
-          {TABS.map((t, i) => {
-            const active = tab === t.id;
-            // Soft "your pile is growing" nudge — only on Someday, only past
-            // 20. No number; the count is one tap away. Ember dot on the
-            // inactive tab, white dot on the active one (which has an ember
-            // background) so it stays visible either way.
-            const showDot = typeof t.count === "number" && t.count > 20;
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                className="relative flex-1 py-2 text-sm font-medium transition-colors"
-                style={{
-                  background: active ? "var(--ember)" : "var(--surface)",
-                  color: active ? "var(--ember-ink)" : "var(--ink-soft)",
-                  borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
-                }}
-              >
-                {t.label}
-                {showDot && (
-                  <span
-                    aria-label={`${t.count} items`}
-                    style={{
-                      position: "absolute",
-                      top: 6,
-                      right: 8,
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: active ? "var(--ember-ink)" : "var(--ember)",
-                    }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
+          <TabsList
+            aria-label="Schedule view"
+            className="h-auto w-full overflow-hidden rounded-xl border border-[var(--line-soft)] bg-transparent p-0"
+          >
+            {TABS.map((t, i) => {
+              // Soft "your pile is growing" nudge — only on Someday, only past
+              // 20. No number; the count is one tap away. Ember dot on the
+              // inactive tab, white dot on the active one (which has an ember
+              // background) so it stays visible either way.
+              const showDot = typeof t.count === "number" && t.count > 20;
+              const active = tab === t.id;
+              return (
+                <TabsTrigger
+                  key={t.id}
+                  value={t.id}
+                  className="relative flex-1 rounded-none border-0 py-2 text-sm font-medium transition-colors data-[state=active]:bg-[var(--ember)] data-[state=active]:text-[var(--ember-ink)] data-[state=active]:shadow-none data-[state=inactive]:bg-[var(--surface)] data-[state=inactive]:text-[var(--ink-soft)]"
+                  style={{
+                    borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
+                  }}
+                >
+                  {t.label}
+                  {showDot && (
+                    <span
+                      aria-label={`${t.count} items`}
+                      style={{
+                        position: "absolute",
+                        top: 6,
+                        right: 8,
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: active ? "var(--ember-ink)" : "var(--ember)",
+                      }}
+                    />
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         {/* ── Calendar tab ── */}
         {tab === "calendar" && (

@@ -3,6 +3,7 @@ import NotificationBell from "./components/NotificationBell";
 import type { AppNotification } from "./hooks/useNotifications";
 import type { Entry } from "./types";
 import { Button } from "./components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
 
 interface Props {
   appShell: AppShellState;
@@ -117,64 +118,40 @@ export default function MemoryHeader({
         }}
       >
         {/* Grid / List / Timeline segmented */}
-        <div
-          style={{
-            display: "inline-flex",
-            padding: 3,
-            background: "var(--surface-low)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 8,
-            gap: 2,
-            flexShrink: 0,
-          }}
-        >
-          {[
-            { id: "memory-grid", label: "Grid" },
-            { id: "memory-list", label: "List" },
-            { id: "timeline", label: "Timeline" },
-          ].map((v) => {
-            const active =
-              v.id === "timeline"
-                ? appShell.view === "timeline"
-                : v.id === "memory-grid"
-                  ? appShell.view === "memory" && appShell.gridViewMode === "grid"
-                  : appShell.view === "memory" && appShell.gridViewMode === "list";
-            return (
-              <button
-                key={v.id}
-                onClick={() => {
-                  appShell.setSelected(null);
-                  if (v.id === "timeline") {
-                    appShell.setView("timeline");
-                  } else if (v.id === "memory-grid") {
-                    appShell.setView("memory");
-                    appShell.setGridViewMode("grid");
-                  } else {
-                    appShell.setView("memory");
-                    appShell.setGridViewMode("list");
-                  }
-                }}
-                className="press"
-                aria-pressed={active}
-                style={{
-                  padding: "6px 14px",
-                  minHeight: 28,
-                  borderRadius: 6,
-                  fontFamily: "var(--f-sans)",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  background: active ? "var(--surface-high)" : "transparent",
-                  color: active ? "var(--ink)" : "var(--ink-faint)",
-                  border: active ? "1px solid var(--line-soft)" : "1px solid transparent",
-                  cursor: "pointer",
-                  transition: "all 180ms",
-                }}
+        {(() => {
+          const value =
+            appShell.view === "timeline"
+              ? "timeline"
+              : appShell.gridViewMode === "list"
+                ? "memory-list"
+                : "memory-grid";
+          return (
+            <Tabs
+              value={value}
+              onValueChange={(v) => {
+                appShell.setSelected(null);
+                if (v === "timeline") {
+                  appShell.setView("timeline");
+                } else if (v === "memory-grid") {
+                  appShell.setView("memory");
+                  appShell.setGridViewMode("grid");
+                } else {
+                  appShell.setView("memory");
+                  appShell.setGridViewMode("list");
+                }
+              }}
+            >
+              <TabsList
+                aria-label="View mode"
+                className="border border-[var(--line-soft)] bg-[var(--surface-low)]"
               >
-                {v.label}
-              </button>
-            );
-          })}
-        </div>
+                <TabsTrigger value="memory-grid">Grid</TabsTrigger>
+                <TabsTrigger value="memory-list">List</TabsTrigger>
+                <TabsTrigger value="timeline">Timeline</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          );
+        })()}
 
         {/* vertical rule */}
         <span
