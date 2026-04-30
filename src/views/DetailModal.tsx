@@ -395,10 +395,10 @@ No explanation, no punctuation, just one word.`,
           onTouchMove={(e) => e.stopPropagation()}
         >
           {/* Visually-hidden title + description — Radix Dialog requires
-              both for screen-reader accessibility. The visible h2 below
-              (rendered when !editing) is the design-language title; this
-              one always renders so aria-labelledby never goes stale. */}
-          <DialogPrimitive.Title className="sr-only">
+              both for screen-reader accessibility. This sr-only title owns
+              the `detail-modal-title` id so aria-labelledby stays valid
+              even in edit mode (when the visible h2 below is unmounted). */}
+          <DialogPrimitive.Title id="detail-modal-title" className="sr-only">
             {entry.title || "Entry"}
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">
@@ -660,7 +660,6 @@ No explanation, no punctuation, just one word.`,
               }}
             >
               <h2
-                id="detail-modal-title"
                 className="f-serif"
                 style={{
                   fontSize: 32,
