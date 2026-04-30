@@ -193,7 +193,7 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
         <DropdownMenuContent
           side={dropUp ? "top" : "bottom"}
           align="start"
-          className="max-w-[320px] min-w-[240px]"
+          className="max-w-[320px] min-w-[240px] gap-0.5 rounded-xl p-1.5"
         >
           {sorted.map((b) => {
             const isActive = b.id === activeBrain.id;
@@ -201,6 +201,7 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
               <DropdownMenuItem
                 key={b.id}
                 onSelect={() => pick(b)}
+                className="gap-2 rounded-lg px-2.5 py-2"
                 style={{
                   background: isActive ? "var(--ember-wash)" : undefined,
                   color: "var(--ink)",
@@ -212,12 +213,14 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
+                      fontSize: 13,
+                      fontWeight: 500,
                     }}
                   >
                     {b.name}
                   </div>
                   {b.is_personal && (
-                    <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 1 }}>
+                    <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>
                       Personal
                     </div>
                   )}
@@ -243,10 +246,11 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
 
           {!hideCreate && (
             <>
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="my-1" />
               <DropdownMenuItem
                 onSelect={() => setCreating(true)}
-                style={{ color: "var(--ember)", fontWeight: 500 }}
+                className="gap-2 rounded-lg px-2.5 py-2"
+                style={{ color: "var(--ember)", fontWeight: 500, fontSize: 13 }}
               >
                 <span style={{ width: 14, textAlign: "center" }}>+</span>
                 <span>New brain</span>

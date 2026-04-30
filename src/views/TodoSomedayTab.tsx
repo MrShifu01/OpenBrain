@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "../components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -867,7 +868,7 @@ function ChipWithMenu({
   }, [menuOpen]);
 
   return (
-    <div style={{ position: "relative", display: "inline-flex" }}>
+    <div style={{ display: "inline-flex" }}>
       <button
         onClick={onSelect}
         className="press f-sans"
@@ -889,41 +890,29 @@ function ChipWithMenu({
       >
         {tag} · {count}
       </button>
-      <button
-        onClick={onOpenMenu}
-        aria-label={`Edit category ${tag}`}
-        className="press f-sans"
-        style={{
-          height: 32,
-          padding: "0 8px",
-          fontSize: 13,
-          border: active ? "1px solid var(--ember)" : "1px solid transparent",
-          borderRadius: "0 8px 8px 0",
-          background: active ? "var(--ember-wash)" : "transparent",
-          color: active ? "var(--ember)" : "var(--ink-faint)",
-          cursor: "pointer",
-          transition: "all 180ms",
-        }}
-      >
-        ⋯
-      </button>
-      {menuOpen && (
-        <div
+      <Popover open={menuOpen} onOpenChange={(o) => (o ? onOpenMenu() : onCloseMenu())}>
+        <PopoverTrigger
+          aria-label={`Edit category ${tag}`}
+          className="press f-sans"
           style={{
-            position: "absolute",
-            top: 32,
-            left: 0,
-            zIndex: "var(--z-sticky)",
-            minWidth: 200,
-            background: "var(--surface)",
-            border: "1px solid var(--line-soft)",
-            borderRadius: 10,
-            boxShadow: "var(--lift-2)",
-            padding: 6,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
+            height: 32,
+            padding: "0 8px",
+            fontSize: 13,
+            border: active ? "1px solid var(--ember)" : "1px solid transparent",
+            borderRadius: "0 8px 8px 0",
+            background: active ? "var(--ember-wash)" : "transparent",
+            color: active ? "var(--ember)" : "var(--ink-faint)",
+            cursor: "pointer",
+            transition: "all 180ms",
           }}
+        >
+          ⋯
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={4}
+          className="min-w-[200px] p-1.5"
+          style={{ background: "var(--surface)", borderColor: "var(--line-soft)" }}
         >
           {renaming ? (
             <div style={{ display: "flex", gap: 4, padding: 4 }}>
@@ -996,7 +985,7 @@ function ChipWithMenu({
               </div>
             </div>
           ) : (
-            <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <MenuItem label="Rename" onClick={() => setRenaming(true)} />
               <MenuItem
                 label="Delete category"
@@ -1004,10 +993,10 @@ function ChipWithMenu({
                 onClick={() => setConfirmingDelete(true)}
               />
               <MenuItem label="Close" onClick={onCloseMenu} />
-            </>
+            </div>
           )}
-        </div>
-      )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
