@@ -358,14 +358,11 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ### P1 — Performance
 
-- [ ] **Sequential `/api/*` calls on cold load** 🟡
-      `src/hooks/useDataLayer.ts` fires vault status, vault entries, and search-graph prefetch as separate awaits. On 3G this stacks ~300–500 ms of needless latency. Batch them with `Promise.allSettled([...])` so the page hydrates in one round-trip instead of three.
+- [x] **Sequential `/api/*` calls on cold load** ✅ — shipped in commit `92ff14d`. `src/hooks/useDataLayer.ts:168` now uses `Promise.all([...])` to fan out vault status, vault entries, and search-graph prefetch in parallel.
 
-- [ ] **`entryRepo.list({ limit: 1000 })` without pagination cursor** 🟡
-      For users with >5k entries the initial fetch blocks the network tab for 2–3 s. Implement cursor pagination: 200 on first call, then 500 ms-staggered follow-ups so the UI is interactive before the long tail arrives.
+- [x] **`entryRepo.list` cursor pagination** ✅ — shipped in commit `92ff14d`. `src/lib/entryRepo.ts` now exposes `{ entries, nextCursor, hasMore }`; first call grabs the configured page size, follow-ups stream in. No more 2–3 s blocking fetch for >5k-entry accounts.
 
-- [ ] **`public/og.png` is 41 KB uncompressed** 🟡
-      Compress to WebP (target <15 KB) and ship both `og.png` and `og.webp`, or accept the 41 KB if shares are infrequent. Cosmetic but cheap.
+- [x] **`public/og.png` compressed** ✅ — down from 41 KB to 8.9 KB (commit `92ff14d`). Below the 15 KB target, no need to ship a separate `.webp`.
 
 - [x] **No `loading="lazy"` on user-uploaded image content** ✅ (N/A)
       Audited `src/`: there are no `<img>` or `<Image>` tags rendering user content. Image extraction goes through Gemini multimodal at capture time and returns extracted text — the binary is never displayed back. Nothing to lazy-load.

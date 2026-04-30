@@ -1,5 +1,15 @@
 # CLAUDE.md
 
+> **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/LAUNCH_CHECKLIST.md`**
+> The canonical, be-all-end-all list for **pre-launch, launch, and post-launch** tasks, considerations, decisions, and direction. Always:
+> - **Add** new items here (not in scratch docs, not in chat, not in commit messages alone)
+> - **Edit** existing items here when scope or status changes
+> - **Audit** here when verifying status (`git log` / file checks must reconcile against this file)
+> - **Confirm** decisions here — once a decision is locked, it lands as a `[x]` item or a "Decided YYYY-MM-DD:" block
+>
+> Browse it at `http://localhost:5174` via `node EverionMindLaunch/server.mjs` (live-syncs both directions: edit the .md, dashboard updates; tick the dashboard, .md updates). README in the same folder.
+> If a launch-related task isn't in this file, it doesn't exist. Move it in before working on it.
+
 > **DEFAULT RESPONSE STYLE: caveman skill, full intensity.**
 > All user-facing prose in this project follows the `caveman` skill (full mode by default). Drop articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries (sure/of course/happy to), and hedging. Fragments OK. Short synonyms (fix not "implement a solution for"). **Code blocks, file paths, and exact error strings stay verbatim — never compress those.** Switch to lite only if user asks; switch off only on explicit request.
 > Skill lives at `~/.claude/plugins/cache/caveman/.../skills/caveman/SKILL.md`. Invoke `/caveman lite|full|ultra` to change intensity mid-session.

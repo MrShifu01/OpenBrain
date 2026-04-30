@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Everion Mind — Launch Dashboard</title>
+    <style>
+      :root {
+        --bg: #f7f3ee;
+        --surface: #fffcf6;
+        --surface-high: #ffffff;
+        --ink: #2a1f1a;
+        --ink-soft: #5b4b41;
+        --ink-faint: #94857a;
+        --ink-ghost: #b8aca0;
+        --line: #e6dccf;
+        --line-soft: #efe7da;
+        --ember: #c64f17;
+        --ember-wash: #fbe5d6;
+        --moss: #4d7755;
+        --moss-wash: #e0eadf;
+        --blood: #a83a2a;
+        --blood-wash: #f7d9d3;
+        --gold: #b88a2c;
+        --shadow-sm: 0 1px 2px rgba(42, 31, 26, 0.06);
+        --shadow-md: 0 2px 8px rgba(42, 31, 26, 0.08);
+        --shadow-lg: 0 8px 24px rgba(42, 31, 26, 0.12);
+        --f-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --f-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Source Serif 4", Georgia, serif;
+        --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1a1310;
+          --surface: #221a16;
+          --surface-high: #2a201b;
+          --ink: #f0e6da;
+          --ink-soft: #c0b3a4;
+          --ink-faint: #8a7a6c;
+          --ink-ghost: #5b4d43;
+          --line: #3a2e26;
+          --line-soft: #322620;
+          --ember: #e6814d;
+          --ember-wash: #3a221a;
+          --moss: #7fa787;
+          --moss-wash: #1f2a22;
+          --blood: #d66659;
+          --blood-wash: #2e1a18;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; padding: 0; }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--f-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--ember); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code {
+        font-family: var(--f-mono);
+        font-size: 0.85em;
+        background: var(--line-soft);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: var(--ink-soft);
+      }
+
+      /* ── Layout ──────────────────────────────────────────────────────── */
+      .shell {
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 24px 24px 96px;
+      }
+
+      /* ── Header ──────────────────────────────────────────────────────── */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 24px;
+        margin-bottom: 8px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .title-block h1 {
+        font-family: var(--f-serif);
+        font-size: 32px;
+        line-height: 1.1;
+        font-weight: 600;
+        margin: 0 0 4px;
+        letter-spacing: -0.01em;
+      }
+      .title-block .subtitle {
+        color: var(--ink-faint);
+        font-size: 13px;
+      }
+      .title-block .subtitle .ember-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ember);
+        margin-right: 6px;
+        vertical-align: 1px;
+      }
+      .meta {
+        text-align: right;
+        font-size: 12px;
+        color: var(--ink-faint);
+      }
+      .meta .live-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--moss);
+        margin-right: 5px;
+        vertical-align: 1px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+
+      /* ── Score band ──────────────────────────────────────────────────── */
+      .scorecard {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin: 22px 0 8px;
+      }
+      .score {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 18px;
+        box-shadow: var(--shadow-sm);
+      }
+      .score .num {
+        font-family: var(--f-serif);
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .score .label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-faint);
+        margin-top: 6px;
+      }
+      .score.done .num { color: var(--moss); }
+      .score.partial .num { color: var(--gold); }
+      .score.missing .num { color: var(--blood); }
+      .score.open .num { color: var(--ink-soft); }
+
+      .progress-bar {
+        margin-top: 14px;
+        background: var(--line-soft);
+        border-radius: 999px;
+        overflow: hidden;
+        height: 8px;
+        display: flex;
+        box-shadow: var(--shadow-sm) inset;
+      }
+      .progress-bar .seg.done { background: var(--moss); }
+      .progress-bar .seg.partial { background: var(--gold); }
+      .progress-bar .seg.missing { background: var(--blood); }
+      .progress-bar .seg.open { background: var(--ink-ghost); }
+
+      /* ── Filters ─────────────────────────────────────────────────────── */
+      .filters {
+        margin: 28px 0 18px;
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .chip-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        color: var(--ink-soft);
+        font-size: 12px;
+        font-weight: 500;
+        padding: 5px 11px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        font-family: var(--f-sans);
+      }
+      .chip:hover { background: var(--ember-wash); border-color: var(--ember); color: var(--ember); }
+      .chip.active { background: var(--ember); color: #fff; border-color: var(--ember); }
+      .chip .count {
+        opacity: 0.6;
+        margin-left: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .chip.active .count { opacity: 0.9; }
+      .search {
+        flex: 1;
+        min-width: 200px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-family: var(--f-sans);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .search:focus { border-color: var(--ember); }
+
+      /* ── Sections + Items ────────────────────────────────────────────── */
+      .section {
+        margin: 28px 0;
+      }
+      .section h2 {
+        font-family: var(--f-serif);
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 4px;
+        color: var(--ink);
+      }
+      .section .section-meta {
+        font-size: 12px;
+        color: var(--ink-faint);
+        margin-bottom: 12px;
+      }
+      .section .section-meta .cat-tag {
+        display: inline-block;
+        background: var(--ember-wash);
+        color: var(--ember);
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-right: 6px;
+      }
+
+      .item {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 16px;
+        margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: flex-start;
+        transition: box-shadow 0.15s, border-color 0.15s;
+      }
+      .item:hover { border-color: var(--ink-ghost); box-shadow: var(--shadow-md); }
+      .item.done { background: color-mix(in srgb, var(--moss-wash) 35%, var(--surface)); border-color: color-mix(in srgb, var(--moss) 30%, var(--line)); }
+
+      /* Custom checkbox — never use OS-native UI per CLAUDE.md DESIGN PHILOSOPHY */
+      .item .checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 1.5px solid var(--ink-ghost);
+        background: var(--surface-high);
+        cursor: pointer;
+        position: relative;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+      .item .checkbox:hover { border-color: var(--ember); }
+      .item .checkbox:checked {
+        background: var(--moss);
+        border-color: var(--moss);
+      }
+      .item .checkbox:checked::after {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 2px;
+        width: 6px;
+        height: 11px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+      .item .checkbox:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      .item .body {
+        min-width: 0;
+      }
+      .item .title {
+        font-weight: 500;
+        color: var(--ink);
+        line-height: 1.4;
+      }
+      .item.done .title { text-decoration: line-through; color: var(--ink-faint); }
+      .item .title strong { font-weight: 700; }
+      .item .desc {
+        margin-top: 4px;
+        color: var(--ink-soft);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .item .desc.collapsed {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .item .desc-toggle {
+        background: none;
+        border: 0;
+        padding: 0;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--ember);
+        cursor: pointer;
+        font-family: var(--f-sans);
+      }
+      .item .desc-toggle:hover { text-decoration: underline; }
+
+      .item .status-pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        font-family: var(--f-sans);
+      }
+      .status-pill.done { background: var(--moss-wash); color: var(--moss); }
+      .status-pill.partial { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+      .status-pill.missing { background: var(--blood-wash); color: var(--blood); }
+      .status-pill.open { background: var(--line-soft); color: var(--ink-faint); }
+
+      /* ── Sidebar nav ─────────────────────────────────────────────────── */
+      .layout {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 32px;
+        margin-top: 22px;
+      }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        nav.sidebar { position: static; max-height: none; }
+        .scorecard { grid-template-columns: repeat(2, 1fr); }
+      }
+      nav.sidebar {
+        position: sticky;
+        top: 18px;
+        max-height: calc(100vh - 36px);
+        overflow-y: auto;
+      }
+      nav.sidebar h3 {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--ink-faint);
+        margin: 18px 0 8px;
+      }
+      nav.sidebar h3:first-child { margin-top: 0; }
+      nav.sidebar a {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-size: 12.5px;
+        color: var(--ink-soft);
+        text-decoration: none;
+      }
+      nav.sidebar a:hover { background: var(--ember-wash); color: var(--ember); }
+      nav.sidebar a .num {
+        font-size: 10px;
+        color: var(--ink-faint);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* ── Toast ───────────────────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(60px);
+        background: var(--ink);
+        color: var(--bg);
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transition: all 0.25s ease;
+        pointer-events: none;
+        z-index: 100;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      .toast.error { background: var(--blood); color: #fff; }
+
+      /* ── Empty state ─────────────────────────────────────────────────── */
+      .empty {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--ink-faint);
+        font-style: italic;
+        font-family: var(--f-serif);
+      }
+
+      /* Section anchor offset for sidebar nav */
+      .section { scroll-margin-top: 18px; }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header>
+        <div class="title-block">
+          <h1>Everion Mind — Launch Dashboard</h1>
+          <div class="subtitle">
+            <span class="ember-dot"></span>
+            Single source of truth for pre-launch, launch, and post-launch tasks.
+          </div>
+        </div>
+        <div class="meta">
+          <div><span class="live-dot"></span>Live · <span id="last-updated">—</span></div>
+          <div style="margin-top: 4px"><code id="source-path">LAUNCH_CHECKLIST.md</code></div>
+        </div>
+      </header>
+
+      <div class="scorecard" id="scorecard"></div>
+      <div class="progress-bar" id="progress"></div>
+
+      <div class="filters">
+        <div class="chip-row" id="status-filter"></div>
+        <div class="chip-row" id="category-filter"></div>
+        <input type="search" class="search" id="search" placeholder="Search items, descriptions, codepaths…" />
+      </div>
+
+      <div class="layout">
+        <nav class="sidebar" id="sidebar"></nav>
+        <main id="content"></main>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script type="module">
+      // ── Category map: H2/H3 heading → category bucket ─────────────────
+      // Determines the sub-category for each item. Order matters — first
+      // match wins. Heading text is matched case-insensitively as a substring.
+      const CATEGORY_MAP = [
+        { match: ["readiness scorecard"], cat: "Overview" },
+        { match: ["infrastructure"], cat: "Infrastructure" },
+        { match: ["security"], cat: "Security" },
+        { match: ["compliance", "legal"], cat: "Compliance" },
+        { match: ["telemetry", "observability"], cat: "Telemetry" },
+        { match: ["weekly automated roll-up"], cat: "Telemetry" },
+        { match: ["billing", "stripe"], cat: "Billing" },
+        { match: ["quality"], cat: "Quality / UX" },
+        { match: ["communications"], cat: "Communications" },
+        { match: ["design system", "ui consistency", "shadcn", "phase 1", "phase 2", "phase 3", "cross-cutting"], cat: "Design System" },
+        { match: ["pwa"], cat: "PWA" },
+        { match: ["performance"], cat: "Performance" },
+        { match: ["shared brains"], cat: "Multi-Brain (P2)" },
+        { match: ["other backlog"], cat: "Backlog" },
+        { match: ["owner-only"], cat: "Owner Tasks" },
+        { match: ["before public launch"], cat: "Owner Tasks" },
+        { match: ["weekly roll-up email setup"], cat: "Owner Tasks" },
+        { match: ["people stuff"], cat: "Owner Tasks" },
+        { match: ["visibility"], cat: "Owner Tasks" },
+        { match: ["one-time then quarterly"], cat: "Owner Tasks" },
+        { match: ["findings from readiness audit"], cat: "Audit Findings" },
+        { match: ["stability-critical"], cat: "Stability" },
+        { match: ["ux", "accessibility"], cat: "Quality / UX" },
+        { match: ["maintainability"], cat: "Code Quality" },
+        { match: ["compliance follow-ups"], cat: "Compliance" },
+        { match: ["post-launch hardening"], cat: "Post-Launch" },
+        { match: ["operations", "bus factor"], cat: "Operations" },
+        { match: ["mobile app launch", "capacitor wrap"], cat: "Mobile" },
+        { match: ["implementation playbook"], cat: "Mobile" },
+        { match: ["build order"], cat: "Mobile" },
+        { match: ["app-feel requirements"], cat: "Mobile" },
+        { match: ["auth", "deep linking"], cat: "Mobile" },
+        { match: ["native plugins"], cat: "Mobile" },
+        { match: ["session storage"], cat: "Mobile" },
+        { match: ["offline behaviour"], cat: "Mobile" },
+        { match: ["real-device test"], cat: "Mobile" },
+        { match: ["acceptance criteria"], cat: "Mobile" },
+        { match: ["m0", "submission blockers"], cat: "App Store Submission" },
+        { match: ["m1", "listing copy"], cat: "Marketing / Store Copy" },
+        { match: ["apple description"], cat: "Marketing / Store Copy" },
+        { match: ["google play full description"], cat: "Marketing / Store Copy" },
+        { match: ["m2", "visual assets"], cat: "Visual Assets" },
+        { match: ["m3", "native shell config"], cat: "Mobile" },
+        { match: ["m4", "store metadata"], cat: "App Store Submission" },
+        { match: ["m5", "pre-submission gate"], cat: "App Store Submission" },
+        { match: ["m6", "cannot assess"], cat: "App Store Submission" },
+        { match: ["important memories"], cat: "Post-Launch" },
+        { match: ["vault"], cat: "Post-Launch" },
+        { match: ["marketing copy"], cat: "Marketing / Store Copy" },
+        { match: ["this week"], cat: "Owner Tasks" },
+      ];
+
+      function categorize(headingPath) {
+        const haystack = headingPath.join(" ").toLowerCase();
+        for (const { match, cat } of CATEGORY_MAP) {
+          if (match.some((m) => haystack.includes(m))) return cat;
+        }
+        return "Other";
+      }
+
+      // ── Status detection ──────────────────────────────────────────────
+      function statusOf(line) {
+        const checked = /^\s*-\s*\[[xX]\]/.test(line);
+        if (checked) return "done";
+        if (line.includes("🟡")) return "partial";
+        if (line.includes("❌")) return "missing";
+        return "open";
+      }
+
+      const STATUS_LABEL = {
+        done: "Done",
+        partial: "Partial",
+        missing: "Missing",
+        open: "Open",
+      };
+
+      // ── Markdown parser — minimal, focused on checkbox lines ──────────
+      // Walks the file line-by-line, tracking the current heading path.
+      // Each checkbox line becomes an item with: lineNumber, status, title,
+      // description (continuation lines), and category.
+      function parse(md) {
+        const lines = md.split(/\r?\n/);
+        const items = [];
+        const headingPath = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+
+          // Track headings (H1 / H2 / H3 / H4)
+          const hMatch = /^(#{1,4})\s+(.+)$/.exec(line);
+          if (hMatch) {
+            const depth = hMatch[1].length;
+            headingPath.length = depth - 1;
+            headingPath[depth - 1] = hMatch[2].trim();
+            continue;
+          }
+
+          // Match top-level checkbox lines (not deeply indented sub-items)
+          const cbMatch = /^(\s{0,4})-\s*\[([ xX])\]\s*(.+)$/.exec(line);
+          if (!cbMatch) continue;
+          const [, indent, , rest] = cbMatch;
+          if (indent.length > 4) continue; // skip sub-bullets (under-an-item lists)
+
+          // Extract description: continuation lines until next checkbox or
+          // blank-then-non-indented line. Simple heuristic that matches the
+          // existing checklist conventions.
+          const descLines = [];
+          let j = i + 1;
+          while (j < lines.length) {
+            const next = lines[j];
+            if (/^(\s{0,4})-\s*\[[ xX]\]/.test(next)) break;
+            if (/^#{1,4}\s/.test(next)) break;
+            if (/^\s*$/.test(next)) {
+              // Allow one blank line then check if next is a continuation
+              const after = lines[j + 1];
+              if (!after) break;
+              if (/^(\s{0,4})-\s*\[[ xX]\]/.test(after)) break;
+              if (/^#{1,4}\s/.test(after)) break;
+            }
+            descLines.push(next);
+            j++;
+          }
+
+          const status = statusOf(line);
+          const title = rest.replace(/✅|🟡|❌/g, "").trim();
+          const desc = descLines.join("\n").trim();
+
+          items.push({
+            lineNumber: i + 1,
+            status,
+            title,
+            desc,
+            headingPath: [...headingPath],
+            section: headingPath.slice(1).join(" › ") || "Top",
+            category: categorize(headingPath),
+          });
+        }
+
+        return items;
+      }
+
+      // ── Render helpers ────────────────────────────────────────────────
+      const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+
+      // Tiny inline markdown: **bold**, `code`, [text](url)
+      function inlineMd(s) {
+        let out = escapeHtml(s);
+        out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        return out;
+      }
+
+      function renderDesc(desc) {
+        if (!desc) return "";
+        // Render only the first paragraph + collapse the rest. Strip leading
+        // whitespace to keep monospace blocks readable.
+        const para = desc.split(/\n\s*\n/);
+        const first = para[0].trim();
+        const rest = para.slice(1).join("\n\n").trim();
+        return first ? inlineMd(first) + (rest ? "\n\n" + inlineMd(rest) : "") : "";
+      }
+
+      // ── State ─────────────────────────────────────────────────────────
+      let allItems = [];
+      let lastMtime = 0;
+      let activeStatus = "all";
+      let activeCategory = "all";
+      let searchTerm = "";
+
+      // ── Toast ─────────────────────────────────────────────────────────
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      function toast(msg, kind = "ok") {
+        clearTimeout(toastTimer);
+        toastEl.textContent = msg;
+        toastEl.className = `toast show ${kind === "error" ? "error" : ""}`;
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+      }
+
+      // ── Toggle handler — POST /toggle, optimistic UI ──────────────────
+      async function onToggle(e) {
+        const cb = e.target;
+        const lineNumber = Number(cb.dataset.line);
+        const checked = cb.checked;
+        cb.disabled = true;
+        try {
+          const res = await fetch("/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lineNumber, checked }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          toast(checked ? "Marked done" : "Re-opened");
+          // Refetch so the rest of the UI (counts, ordering) stays in sync
+          await load(true);
+        } catch (err) {
+          cb.checked = !checked;
+          toast(`Toggle failed: ${err.message}`, "error");
+        } finally {
+          cb.disabled = false;
+        }
+      }
+
+      // ── Filter expand/collapse on description ─────────────────────────
+      function onDescToggle(e) {
+        const btn = e.target;
+        const desc = btn.previousElementSibling;
+        const collapsed = desc.classList.toggle("collapsed");
+        btn.textContent = collapsed ? "Show more" : "Show less";
+      }
+
+      // ── Render ────────────────────────────────────────────────────────
+      function render() {
+        // Filter
+        const filtered = allItems.filter((it) => {
+          if (activeStatus !== "all" && it.status !== activeStatus) return false;
+          if (activeCategory !== "all" && it.category !== activeCategory) return false;
+          if (searchTerm) {
+            const hay = (it.title + " " + it.desc + " " + it.section).toLowerCase();
+            if (!hay.includes(searchTerm)) return false;
+          }
+          return true;
+        });
+
+        // Scorecard counts (always over allItems)
+        const counts = { done: 0, partial: 0, missing: 0, open: 0 };
+        for (const it of allItems) counts[it.status]++;
+        const total = allItems.length || 1;
+
+        document.getElementById("scorecard").innerHTML = `
+          <div class="score done"><div class="num">${counts.done}</div><div class="label">Done</div></div>
+          <div class="score partial"><div class="num">${counts.partial}</div><div class="label">Partial</div></div>
+          <div class="score missing"><div class="num">${counts.missing}</div><div class="label">Missing</div></div>
+          <div class="score open"><div class="num">${counts.open}</div><div class="label">Open</div></div>
+        `;
+
+        document.getElementById("progress").innerHTML = `
+          <div class="seg done" style="width: ${(counts.done / total) * 100}%"></div>
+          <div class="seg partial" style="width: ${(counts.partial / total) * 100}%"></div>
+          <div class="seg missing" style="width: ${(counts.missing / total) * 100}%"></div>
+          <div class="seg open" style="width: ${(counts.open / total) * 100}%"></div>
+        `;
+
+        // Status filter chips
+        const statusEl = document.getElementById("status-filter");
+        const statuses = [
+          ["all", "All", allItems.length],
+          ["open", "Open", counts.open],
+          ["missing", "Missing", counts.missing],
+          ["partial", "Partial", counts.partial],
+          ["done", "Done", counts.done],
+        ];
+        statusEl.innerHTML = statuses
+          .map(([k, label, n]) => `<button class="chip ${activeStatus === k ? "active" : ""}" data-status="${k}">${label}<span class="count">${n}</span></button>`)
+          .join("");
+
+        // Category filter chips
+        const catCounts = {};
+        for (const it of allItems) catCounts[it.category] = (catCounts[it.category] || 0) + 1;
+        const cats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+        const catEl = document.getElementById("category-filter");
+        catEl.innerHTML = `<button class="chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">All categories</button>` +
+          cats.map(([cat, n]) => `<button class="chip ${activeCategory === cat ? "active" : ""}" data-cat="${cat}">${cat}<span class="count">${n}</span></button>`).join("");
+
+        // Group filtered items by section (heading path joined)
+        const grouped = new Map();
+        for (const it of filtered) {
+          const key = it.headingPath.slice(1).join(" › ") || it.headingPath[0] || "Top";
+          if (!grouped.has(key)) grouped.set(key, { items: [], category: it.category });
+          grouped.get(key).items.push(it);
+        }
+
+        // Sidebar
+        const sidebarEl = document.getElementById("sidebar");
+        if (grouped.size === 0) {
+          sidebarEl.innerHTML = "";
+        } else {
+          // Group sidebar entries by category
+          const byCat = new Map();
+          for (const [section, { items, category }] of grouped) {
+            if (!byCat.has(category)) byCat.set(category, []);
+            byCat.get(category).push([section, items.length]);
+          }
+          const sortedCats = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+          sidebarEl.innerHTML = sortedCats.map(([cat, sections]) =>
+            `<h3>${cat}</h3>` + sections.map(([section, n]) =>
+              `<a href="#${anchorize(section)}"><span>${escapeHtml(section.split(" › ").pop() || section)}</span><span class="num">${n}</span></a>`
+            ).join("")
+          ).join("");
+        }
+
+        // Main content
+        const contentEl = document.getElementById("content");
+        if (grouped.size === 0) {
+          contentEl.innerHTML = `<div class="empty">No items match these filters.</div>`;
+          return;
+        }
+
+        contentEl.innerHTML = [...grouped.entries()].map(([section, { items, category }]) => `
+          <section class="section" id="${anchorize(section)}">
+            <h2>${escapeHtml(section.split(" › ").pop() || section)}</h2>
+            <div class="section-meta">
+              <span class="cat-tag">${escapeHtml(category)}</span>
+              ${escapeHtml(section)}
+            </div>
+            ${items.map(renderItem).join("")}
+          </section>
+        `).join("");
+
+        // Wire up handlers
+        contentEl.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
+        contentEl.querySelectorAll(".desc-toggle").forEach((btn) => btn.addEventListener("click", onDescToggle));
+      }
+
+      function anchorize(s) {
+        return "s-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      function renderItem(it) {
+        const checked = it.status === "done" ? "checked" : "";
+        const showMore = it.desc && it.desc.length > 220;
+        const descHtml = renderDesc(it.desc);
+        return `
+          <article class="item ${it.status === "done" ? "done" : ""}">
+            <input type="checkbox" class="checkbox" id="cb-${it.lineNumber}" name="cb-${it.lineNumber}" data-line="${it.lineNumber}" ${checked} aria-label="Mark ${escapeHtml(it.title.slice(0, 60))} ${checked ? "incomplete" : "done"}" />
+            <div class="body">
+              <div class="title">${inlineMd(it.title)}</div>
+              ${descHtml ? `<div class="desc${showMore ? " collapsed" : ""}">${descHtml}</div>` : ""}
+              ${showMore ? `<button class="desc-toggle">Show more</button>` : ""}
+            </div>
+            <span class="status-pill ${it.status}">${STATUS_LABEL[it.status]}</span>
+          </article>
+        `;
+      }
+
+      // ── Filter wiring ─────────────────────────────────────────────────
+      document.getElementById("status-filter").addEventListener("click", (e) => {
+        const btn = e.target.closest(".chip");
+        if (!btn) return;
+        activeStatus = btn.dataset.status;
+        render();
+      });
+      document.getElementById("category-filter").addEventListener("click", (e) => {
+        const btn = e.target.closest(".chip");
+        if (!btn) return;
+        activeCategory = btn.dataset.cat;
+        render();
+      });
+      document.getElementById("search").addEventListener("input", (e) => {
+        searchTerm = e.target.value.trim().toLowerCase();
+        render();
+      });
+
+      // ── Load + live polling ───────────────────────────────────────────
+      async function load(force = false) {
+        try {
+          const res = await fetch("/checklist", { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const mtime = Number(res.headers.get("x-mtime") || 0);
+          if (!force && mtime <= lastMtime) return; // nothing changed
+          lastMtime = mtime;
+          const md = await res.text();
+          allItems = parse(md);
+          document.getElementById("last-updated").textContent =
+            new Date(mtime || Date.now()).toLocaleTimeString();
+          render();
+        } catch (err) {
+          console.error(err);
+          toast(`Load failed: ${err.message}`, "error");
+        }
+      }
+
+      load(true);
+      setInterval(() => load(false), 2500);
+    </script>
+  </body>
+</html>
