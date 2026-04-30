@@ -115,34 +115,62 @@ export default function DesktopSidebar({
         padding: "20px 12px",
       }}
     >
-      {/* Brand */}
-      <div
+      {/* Brand — logo + serif wordmark, with editorial micro-tagline below.
+          Click anywhere on the block returns to the memory tab. */}
+      <button
+        type="button"
         onClick={() => onNavigate("memory")}
         className="press"
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "0 10px 16px",
+          alignItems: "flex-start",
+          gap: 10,
+          padding: "0 10px 18px",
           cursor: "pointer",
+          background: "transparent",
+          border: 0,
+          textAlign: "left",
+          width: "100%",
         }}
+        aria-label="Everion — back to Memory"
       >
         <img
           src="/logoNew.webp"
-          width={30}
-          height={30}
+          width={32}
+          height={32}
           alt=""
           aria-hidden="true"
           decoding="async"
-          style={{ flexShrink: 0, objectFit: "contain", display: "block" }}
+          style={{ flexShrink: 0, objectFit: "contain", display: "block", marginTop: 2 }}
         />
-        <span
-          className="f-serif"
-          style={{ fontSize: 20, fontWeight: 450, letterSpacing: "-0.01em", color: "var(--ink)" }}
-        >
-          Everion
+        <span style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 22,
+              fontWeight: 500,
+              letterSpacing: "-0.015em",
+              lineHeight: 1.05,
+              color: "var(--ink)",
+            }}
+          >
+            Everion
+          </span>
+          <span
+            className="f-serif"
+            style={{
+              fontSize: 11,
+              fontStyle: "italic",
+              fontWeight: 400,
+              letterSpacing: "0.01em",
+              color: "var(--ink-faint)",
+              lineHeight: 1.2,
+            }}
+          >
+            second memory, quietly kept.
+          </span>
         </span>
-      </div>
+      </button>
 
       {/* Brain switcher slot */}
       {children && <div style={{ marginBottom: 12, padding: "0 2px" }}>{children}</div>}
