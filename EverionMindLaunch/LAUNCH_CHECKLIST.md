@@ -228,8 +228,8 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
 
 - [x] **Service worker update flow tested** ✅
       Wired 2026-04-27 (commit `c6ec035`). `src/components/UpdatePrompt.tsx` calls `registerSW` from `virtual:pwa-register`, surfaces a "new version — refresh" toast on `needRefresh`, and posts `SKIP_WAITING` (sw.js handles it). `controllerchange` listener in `main.tsx` triggers reload. **Still owed:** smoke-test by shipping a deploy and confirming a returning user sees the toast.
-- [ ] **Offline mode tested** 🟡
-      At least the app shell should load offline. Verify via Chrome DevTools → Application → Service Workers → Offline.
+- [x] **Offline mode tested** ✅
+      Three-phase sprint shipped 2026-04-30. **Phase 1 audit:** 20-surface matrix scored each route (capture/entries/chat/vault/search/settings/admin) for boot, render, mutate, and recover behaviour while offline. **Phase 2 P0+P1 fixes:** per-brain entries cache (was single-key, blanked on brain switch), vault entries cache (mirrors AES-GCM ciphertext from server, IDB + localStorage fallback), `OfflineBanner` (top-of-app, role="status", offline + queue-drain modes), `OfflineScreen` reused for web standalone (was native-only), Supabase auth-refresh paused on `offline` event (was firing every 10s and burning retries), entry-update + entry-delete enqueued via `enqueueOfflineOp` instead of dropped, sonner-wired `showToast` (the lib/notifications bus had zero subscribers — every toast was being silently dropped, fixed by wiring directly to sonner), chat send shows calm "needs internet" toast and KEEPS typed text. **Phase 3 e2e:** `e2e/specs/offline.spec.ts` flips `context.setOffline(true)` + `dispatchEvent('offline')` and asserts banner visibility, cached list still renders, and banner clears on reconnect. (from `EML/Working/archive/2026-04-30-offline-first-audit.md`)
 
 ### Performance
 

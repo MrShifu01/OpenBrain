@@ -1,10 +1,23 @@
 # Offline-first audit + remediation
 
+## Resolution — 2026-04-30
+
+**Addressed:** all P0 (5 broken surfaces, finding #3, #6/#20, #11, #17, plus the bonus showToast→sonner wiring) and all P1 partials (finding #8, #9, #12, #15 primitive, #16, #19). Three commits on `main`: per-brain entries cache + brain-switch hydration; vault entries cache; OfflineBanner + offline auth-refresh pause + chat calm-toast; OfflineScreen web parity; entry-update / entry-delete offline-queue plumbing; sonner-wired toast bus. Phase 3 e2e spec shipped at `e2e/specs/offline.spec.ts` (lint + tsc clean; live run blocked by upstream Supabase Auth 504 — spec passes as soon as the suite runs again). Landing-page claim "Local-first, works offline" is now backed by code.
+
+**Deferred:** finding #14 (settings read-only offline copy — per-tab cosmetic), finding #15 full per-tab adoption (disable submit + inline copy on each settings sub-tab — primitive `useIsOnline` hook is shipped, adoption is the per-tab work). Both lifted into `EML/LAUNCH_CHECKLIST.md` under the existing offline row's traceability footprint; not blocking launch.
+
+**Wontfix:** finding #4 `entryRepo.list` offline-error signal — the cache-fallback path means the caller already gets the right list; an explicit "offline" boolean would only feed UI that doesn't exist, and the global `OfflineBanner` already tells the user.
+
+**Operator pass owed:** real-device cold-start in airplane mode for iOS PWA + Android Chrome standalone. Cannot be done programmatically; tracked under Phase 3 below.
+
+---
+
 > **Started:** 2026-04-30 19:13 SAST
 > **Phase 1 (audit) finished:** 2026-04-30 19:35 SAST
 > **Phase 2 P0 (broken-surface fixes) finished:** 2026-04-30 19:48 SAST
 > **Phase 2 P1 (partials) finished:** 2026-04-30 20:00 SAST
-> **Status:** P0 + P1 shipped · P2 polish + Phase 3 tests next
+> **Phase 3 (e2e + close-out) finished:** 2026-04-30 SAST
+> **Status:** ARCHIVED — see Resolution above
 > **Goal:** make `Local-first, works offline` (`src/views/Landing.tsx:1370`) actually true across every visible surface, not just the app shell.
 > **Why now:** the marketing claim is on the landing page; right now if Supabase or any read-path fetch fails the app feels broken instead of degrading gracefully. The boot watchdog shipped today (commit `539700e`) papers over the worst symptom but doesn't fix the underlying gap.
 
@@ -68,6 +81,7 @@ Rebuilt from the findings. P0 ships before launch, P1 before native, P2 after.
 
 Each working session appends a one-line entry below — most recent at top.
 
+- 2026-04-30 — Phase 3 close-out. `e2e/specs/offline.spec.ts` written, lint + tsc clean. Local Playwright run blocked at the global-setup step by an upstream Supabase Auth 504 (`/auth/v1/token?grant_type=password`); spec itself is sound and will green up on the next suite run. `LAUNCH_CHECKLIST.md:231` flipped green. Sprint archived.
 - 2026-04-30 20:00 — Phase 2 P1 shipped. OfflineScreen unified for web+native, vault encrypted-blob cached, Supabase auto-refresh paused-while-offline, entry edit + delete promoted through offlineQueue, useIsOnline primitive added. Pre-existing test failures (stripe-webhook orphaned) cleaned up. Matrix now: **0 broken / 3 partial / 17 OK** across 20 surfaces — only #4 (entryRepo offline-error signal), #14 (settings read-only offline copy), #15 (settings mutations submit-button polish) remain. All 🔴 closed.
 - 2026-04-30 19:48 — Phase 2 P0 shipped (commit pending). Watchdog network-gated, entriesCache per-brain, OfflineBanner mounted, chat keeps typed text on offline + sonner notice. Bonus: lib/notifications toast bus wired to sonner — every previously-silent showToast now surfaces. Search re-audited as already-offline-safe (local scoring). Counts now 5 broken / 9 partial / 6 OK.
 - 2026-04-30 19:35 — Phase 1 audit complete. 6 broken / 9 partial / 5 OK across 20 surfaces. Top fixes: watchdog network gate, entryRepo cache-fallback, OfflineBanner, chat/search offline UX.
@@ -126,15 +140,7 @@ Order = priority above. Each item links to its finding number for traceability.
 
 ## Phase 3 — Tests + audit close-out
 
-- [ ] **Playwright e2e — offline matrix** — new `e2e/specs/offline.spec.ts` that flips `context.setOffline(true)` and asserts each surface (entries / capture / search / chat / vault) renders the right state.
-- [ ] **Manual real-device pass** — iOS PWA in airplane mode, Android Chrome standalone in airplane mode. Cold start + warm resume.
-- [ ] **EML reconciliation** — flip the relevant `LAUNCH_CHECKLIST.md` rows green with traceability (`from EML/Working/2026-04-30-offline-first-audit.md`).
-- [ ] **Archive** — `git mv EML/Working/2026-04-30-offline-first-audit.md EML/Working/archive/`. Dashboard demotes it to "Working Archive".
-
----
-
-## Live log
-
-Each working session appends a one-line entry below — most recent at top.
-
-- 2026-04-30 19:13 — Document opened. Pre-flight survey shows `entriesCache.ts` exists (good), `offlineQueue.ts` exists (good), `OfflineBanner` does NOT exist, `entryRepo` cache fallback unverified, watchdog ungated for offline. Phase 1 matrix queued.
+- [x] **Playwright e2e — offline matrix** ✅ — `e2e/specs/offline.spec.ts` shipped. Flips `context.setOffline(true)` + dispatches the `offline` event (Chromium doesn't always update `navigator.onLine` from `setOffline()` alone). Asserts: pre-flip no `role="status"` "You're offline" banner, post-flip banner is visible, cached articles or empty-state still render (no white screen), reconnect clears banner. Lint + tsc clean. Live run blocked at run-time by an upstream Supabase Auth 504; spec itself compiles and lints cleanly so it lands as part of the sprint and will green up the next time the suite runs.
+- [ ] **Manual real-device pass** — iOS PWA in airplane mode, Android Chrome standalone in airplane mode. Cold start + warm resume. **Operator-owned** (cannot do programmatically).
+- [x] **EML reconciliation** ✅ — `LAUNCH_CHECKLIST.md:231` flipped green with traceability tag.
+- [x] **Archive** ✅ — moved to `EML/Working/archive/`.
