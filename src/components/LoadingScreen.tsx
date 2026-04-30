@@ -4,7 +4,13 @@ export default function LoadingScreen(): JSX.Element {
   return (
     <div
       className="fixed inset-0 flex flex-col items-center justify-center"
-      style={{ background: "var(--color-background)", zIndex: "var(--z-loading)" }}
+      style={{
+        background: "var(--bg, var(--color-background))",
+        bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))",
+        minHeight: "calc(100dvh + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        zIndex: "var(--z-loading)",
+      }}
     >
       <div className="synapse-bg" />
       <div className="grain" />

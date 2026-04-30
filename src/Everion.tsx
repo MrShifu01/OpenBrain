@@ -936,15 +936,17 @@ function EverionContent({
           {appShell.view !== "capture" && !appShell.showCapture && (
             <FloatingCaptureButton onClick={() => appShell.setShowCapture(true)} />
           )}
-          <BottomNav
-            activeView={appShell.view}
-            onNavigate={(id) => {
-              setSelected(null);
-              appShell.setShowCapture(false);
-              appShell.setView(id);
-            }}
-            onCapture={() => appShell.setShowCapture(true)}
-          />
+          {!appShell.showCapture && (
+            <BottomNav
+              activeView={appShell.view}
+              onNavigate={(id) => {
+                setSelected(null);
+                appShell.setShowCapture(false);
+                appShell.setView(id);
+              }}
+              onCapture={() => appShell.setShowCapture(true)}
+            />
+          )}
         </div>
       </div>
     </>

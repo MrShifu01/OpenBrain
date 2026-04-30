@@ -321,7 +321,7 @@ export default function CaptureEntryBody({
       {/* Bottom action bar */}
       <div
         style={{
-          padding: "14px 20px",
+          padding: "14px 20px calc(14px + env(safe-area-inset-bottom, 0px))",
           borderTop: "1px solid var(--line-soft)",
           background: "var(--surface)",
           display: "flex",
