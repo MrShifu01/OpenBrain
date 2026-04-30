@@ -1,14 +1,23 @@
 # CLAUDE.md
 
-> **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/LAUNCH_CHECKLIST.md`**
-> The canonical, be-all-end-all list for **pre-launch, launch, and post-launch** tasks, considerations, decisions, and direction. Always:
-> - **Add** new items here (not in scratch docs, not in chat, not in commit messages alone)
-> - **Edit** existing items here when scope or status changes
-> - **Audit** here when verifying status (`git log` / file checks must reconcile against this file)
-> - **Confirm** decisions here — once a decision is locked, it lands as a `[x]` item or a "Decided YYYY-MM-DD:" block
+> **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/`**
+> The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, and architecture reference. Six core docs:
+> - **`LAUNCH_CHECKLIST.md`** — active to-do (P0/P1/P2 tiered)
+> - **`ROADMAP.md`** — 21-day sprint + 12-month timeline
+> - **`STRATEGY.md`** — positioning, moat, viral mechanics
+> - **`RESEARCH.md`** — competitor matrix, market evidence, MVP principles
+> - **`BRAINSTORM.md`** — priority-scored idea park
+> - **`IMPORTS_SPEC.md`** — mass + continuous import architecture
+> - **`architecture/*.md`** — reference docs for cross-cutting components (auth, capture, cron, enrich, gmail, bell)
 >
-> Browse it at `http://localhost:5174` via `node EverionMindLaunch/server.mjs` (live-syncs both directions: edit the .md, dashboard updates; tick the dashboard, .md updates). README in the same folder.
-> If a launch-related task isn't in this file, it doesn't exist. Move it in before working on it.
+> Always:
+> - **Add** new items to the right doc (checklist for now, roadmap for next, brainstorm for someday)
+> - **Edit** existing items when scope or status changes
+> - **Audit** here when verifying status (`git log` / file checks must reconcile against these files)
+> - **Confirm** decisions here — once locked, they land as a `[x]` item or a "Decided YYYY-MM-DD:" block
+>
+> Browse at `http://localhost:5174` via `node EverionMindLaunch/server.mjs` (live-syncs both directions: edit a `.md`, dashboard updates; tick a checkbox, `.md` updates). README in the same folder explains how the docs fit together.
+> If a launch-related task isn't here, it doesn't exist. Move it in before working on it.
 
 > **DEFAULT RESPONSE STYLE: caveman skill, full intensity.**
 > All user-facing prose in this project follows the `caveman` skill (full mode by default). Drop articles (a/an/the), filler (just/really/basically/actually/simply), pleasantries (sure/of course/happy to), and hedging. Fragments OK. Short synonyms (fix not "implement a solution for"). **Code blocks, file paths, and exact error strings stay verbatim — never compress those.** Switch to lite only if user asks; switch off only on explicit request.

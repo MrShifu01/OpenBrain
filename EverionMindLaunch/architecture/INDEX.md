@@ -1,9 +1,6 @@
-# Documentation Roadmap
+# Architecture Documentation Index
 
-Curated list of components, pipelines, and workflows worth documenting at
-the depth of `bell.md`. Tiered by leverage — Tier 1 has the highest payoff
-(cross-cutting hubs, recent bug magnets, footgun density). Each entry has
-a one-line *why this is worth a writeup*.
+> Reference docs for cross-cutting components, pipelines, and workflows. Tiered by leverage — Tier 1 has the highest payoff (cross-cutting hubs, recent bug magnets, footgun density). Each entry has a one-line *why this is worth a writeup*. Source files live alongside this INDEX in `EverionMindLaunch/architecture/`.
 
 **Done:**
 - ✅ [Notification Bell](bell.md) — `src/components/NotificationBell.tsx`

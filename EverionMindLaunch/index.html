@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Everion Mind — Launch Dashboard</title>
+    <title>Everion Mind — Launch Knowledge Base</title>
     <style>
       :root {
         --bg: #f7f3ee;
@@ -68,6 +68,46 @@
         border-radius: 4px;
         color: var(--ink-soft);
       }
+      pre {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        font-family: var(--f-mono);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--ink);
+      }
+      pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+      blockquote {
+        margin: 0 0 14px;
+        padding: 8px 14px;
+        border-left: 3px solid var(--ember);
+        background: var(--ember-wash);
+        color: var(--ink-soft);
+        border-radius: 0 8px 8px 0;
+      }
+      blockquote p { margin: 4px 0; }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 8px 0 16px;
+        font-size: 13px;
+      }
+      th, td {
+        text-align: left;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        background: var(--surface);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      td { background: var(--surface-high); }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
 
       /* ── Layout ──────────────────────────────────────────────────────── */
       .shell {
@@ -77,18 +117,18 @@
       }
 
       /* ── Header ──────────────────────────────────────────────────────── */
-      header {
+      header.top {
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
         gap: 24px;
-        margin-bottom: 8px;
-        padding-bottom: 18px;
+        margin-bottom: 4px;
+        padding-bottom: 14px;
         border-bottom: 1px solid var(--line);
       }
       .title-block h1 {
         font-family: var(--f-serif);
-        font-size: 32px;
+        font-size: 28px;
         line-height: 1.1;
         font-weight: 600;
         margin: 0 0 4px;
@@ -96,9 +136,9 @@
       }
       .title-block .subtitle {
         color: var(--ink-faint);
-        font-size: 13px;
+        font-size: 12.5px;
       }
-      .title-block .subtitle .ember-dot {
+      .title-block .ember-dot {
         display: inline-block;
         width: 6px;
         height: 6px;
@@ -127,7 +167,45 @@
         50% { opacity: 0.4; }
       }
 
-      /* ── Score band ──────────────────────────────────────────────────── */
+      /* ── Doc tabs (nav across knowledge base) ───────────────────────── */
+      nav.doc-tabs {
+        margin: 14px 0 4px;
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid var(--line);
+      }
+      nav.doc-tabs .tab {
+        background: none;
+        border: 0;
+        padding: 9px 14px;
+        font-family: var(--f-sans);
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink-soft);
+        cursor: pointer;
+        border-radius: 8px 8px 0 0;
+        margin-bottom: -1px;
+        border-bottom: 2px solid transparent;
+        transition: all 0.12s ease;
+      }
+      nav.doc-tabs .tab:hover { color: var(--ember); background: var(--ember-wash); }
+      nav.doc-tabs .tab.active {
+        color: var(--ember);
+        border-bottom-color: var(--ember);
+        background: var(--surface);
+      }
+      nav.doc-tabs .tab .group-tag {
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: var(--ink-faint);
+        margin-right: 6px;
+        opacity: 0.7;
+      }
+
+      /* ── Score band (checklist only) ─────────────────────────────────── */
       .scorecard {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -222,7 +300,7 @@
       }
       .search:focus { border-color: var(--ember); }
 
-      /* ── Sections + Items ────────────────────────────────────────────── */
+      /* ── Sections + Items (checklist) ────────────────────────────────── */
       .section {
         margin: 28px 0;
       }
@@ -267,7 +345,7 @@
       .item.done { background: color-mix(in srgb, var(--moss-wash) 35%, var(--surface)); border-color: color-mix(in srgb, var(--moss) 30%, var(--line)); }
 
       /* Custom checkbox — never use OS-native UI per CLAUDE.md DESIGN PHILOSOPHY */
-      .item .checkbox {
+      .checkbox {
         appearance: none;
         -webkit-appearance: none;
         width: 22px;
@@ -279,14 +357,14 @@
         position: relative;
         transition: all 0.15s ease;
         flex-shrink: 0;
-        margin-top: 2px;
+        margin: 0;
       }
-      .item .checkbox:hover { border-color: var(--ember); }
-      .item .checkbox:checked {
+      .checkbox:hover { border-color: var(--ember); }
+      .checkbox:checked {
         background: var(--moss);
         border-color: var(--moss);
       }
-      .item .checkbox:checked::after {
+      .checkbox:checked::after {
         content: "";
         position: absolute;
         left: 6px;
@@ -297,11 +375,11 @@
         border-width: 0 2px 2px 0;
         transform: rotate(45deg);
       }
-      .item .checkbox:disabled { opacity: 0.4; cursor: not-allowed; }
+      .checkbox:disabled { opacity: 0.4; cursor: not-allowed; }
 
-      .item .body {
-        min-width: 0;
-      }
+      .item .checkbox { margin-top: 2px; }
+
+      .item .body { min-width: 0; }
       .item .title {
         font-weight: 500;
         color: var(--ink);
@@ -350,7 +428,7 @@
       .status-pill.missing { background: var(--blood-wash); color: var(--blood); }
       .status-pill.open { background: var(--line-soft); color: var(--ink-faint); }
 
-      /* ── Sidebar nav ─────────────────────────────────────────────────── */
+      /* ── Sidebar TOC ─────────────────────────────────────────────────── */
       .layout {
         display: grid;
         grid-template-columns: 220px 1fr;
@@ -361,6 +439,7 @@
         .layout { grid-template-columns: 1fr; }
         nav.sidebar { position: static; max-height: none; }
         .scorecard { grid-template-columns: repeat(2, 1fr); }
+        nav.doc-tabs { font-size: 12px; }
       }
       nav.sidebar {
         position: sticky;
@@ -388,11 +467,77 @@
         text-decoration: none;
       }
       nav.sidebar a:hover { background: var(--ember-wash); color: var(--ember); }
+      nav.sidebar a.depth-3 { padding-left: 22px; font-size: 12px; opacity: 0.85; }
       nav.sidebar a .num {
         font-size: 10px;
         color: var(--ink-faint);
         font-variant-numeric: tabular-nums;
       }
+
+      /* ── Doc rendering ───────────────────────────────────────────────── */
+      .doc-content {
+        max-width: 800px;
+      }
+      .doc-content h1 {
+        font-family: var(--f-serif);
+        font-size: 30px;
+        font-weight: 600;
+        margin: 0 0 6px;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+      }
+      .doc-content h2 {
+        font-family: var(--f-serif);
+        font-size: 22px;
+        font-weight: 600;
+        margin: 32px 0 8px;
+        color: var(--ink);
+        padding-top: 8px;
+        border-top: 1px solid var(--line-soft);
+        scroll-margin-top: 18px;
+      }
+      .doc-content h3 {
+        font-family: var(--f-sans);
+        font-size: 16px;
+        font-weight: 700;
+        margin: 22px 0 6px;
+        color: var(--ink);
+        scroll-margin-top: 18px;
+      }
+      .doc-content h4 {
+        font-family: var(--f-sans);
+        font-size: 14px;
+        font-weight: 700;
+        margin: 18px 0 4px;
+        color: var(--ink-soft);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .doc-content p { margin: 0 0 12px; color: var(--ink); }
+      .doc-content ul, .doc-content ol {
+        margin: 0 0 14px;
+        padding-left: 20px;
+      }
+      .doc-content li { margin: 4px 0; }
+      .doc-content li.checkbox-item {
+        list-style: none;
+        margin-left: -20px;
+        padding-left: 0;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 6px;
+      }
+      .doc-content li.checkbox-item .label {
+        line-height: 1.5;
+        padding-top: 1px;
+      }
+      .doc-content li.checkbox-item.done .label {
+        text-decoration: line-through;
+        color: var(--ink-faint);
+      }
+      .doc-content li.checkbox-item .checkbox { margin-top: 1px; }
 
       /* ── Toast ───────────────────────────────────────────────────────── */
       .toast {
@@ -423,47 +568,55 @@
         font-family: var(--f-serif);
       }
 
-      /* Section anchor offset for sidebar nav */
       .section { scroll-margin-top: 18px; }
     </style>
   </head>
   <body>
     <div class="shell">
-      <header>
+      <header class="top">
         <div class="title-block">
-          <h1>Everion Mind — Launch Dashboard</h1>
+          <h1>Everion Mind — Launch Knowledge Base</h1>
           <div class="subtitle">
             <span class="ember-dot"></span>
-            Single source of truth for pre-launch, launch, and post-launch tasks.
+            Single source of truth for pre-launch, launch, and post-launch tasks · strategy · research · brainstorm.
           </div>
         </div>
         <div class="meta">
           <div><span class="live-dot"></span>Live · <span id="last-updated">—</span></div>
-          <div style="margin-top: 4px"><code id="source-path">LAUNCH_CHECKLIST.md</code></div>
+          <div style="margin-top: 4px"><code id="active-doc-path">—</code></div>
         </div>
       </header>
 
-      <div class="scorecard" id="scorecard"></div>
-      <div class="progress-bar" id="progress"></div>
+      <nav class="doc-tabs" id="doc-tabs"></nav>
 
-      <div class="filters">
-        <div class="chip-row" id="status-filter"></div>
-        <div class="chip-row" id="category-filter"></div>
-        <input type="search" class="search" id="search" placeholder="Search items, descriptions, codepaths…" />
-      </div>
-
-      <div class="layout">
-        <nav class="sidebar" id="sidebar"></nav>
-        <main id="content"></main>
-      </div>
+      <main id="root"></main>
     </div>
 
     <div class="toast" id="toast"></div>
 
     <script type="module">
-      // ── Category map: H2/H3 heading → category bucket ─────────────────
-      // Determines the sub-category for each item. Order matters — first
-      // match wins. Heading text is matched case-insensitively as a substring.
+      // ───────────────────────────────────────────────────────────────────
+      // State
+      // ───────────────────────────────────────────────────────────────────
+      let docs = [];                          // [{ id, file, title, role, group, mtime, ... }]
+      let activeDocId = "checklist";          // which tab is selected
+      let docCache = new Map();               // docId → { content, mtime, parsed }
+      let activeStatus = "all";
+      let activeCategory = "all";
+      let searchTerm = "";
+
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      function toast(msg, kind = "ok") {
+        clearTimeout(toastTimer);
+        toastEl.textContent = msg;
+        toastEl.className = `toast show ${kind === "error" ? "error" : ""}`;
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Category map (for the checklist's sub-categorization)
+      // ───────────────────────────────────────────────────────────────────
       const CATEGORY_MAP = [
         { match: ["readiness scorecard"], cat: "Overview" },
         { match: ["infrastructure"], cat: "Infrastructure" },
@@ -479,12 +632,7 @@
         { match: ["performance"], cat: "Performance" },
         { match: ["shared brains"], cat: "Multi-Brain (P2)" },
         { match: ["other backlog"], cat: "Backlog" },
-        { match: ["owner-only"], cat: "Owner Tasks" },
-        { match: ["before public launch"], cat: "Owner Tasks" },
-        { match: ["weekly roll-up email setup"], cat: "Owner Tasks" },
-        { match: ["people stuff"], cat: "Owner Tasks" },
-        { match: ["visibility"], cat: "Owner Tasks" },
-        { match: ["one-time then quarterly"], cat: "Owner Tasks" },
+        { match: ["owner-only", "before public launch", "weekly roll-up email setup", "people stuff", "visibility", "one-time then quarterly"], cat: "Owner Tasks" },
         { match: ["findings from readiness audit"], cat: "Audit Findings" },
         { match: ["stability-critical"], cat: "Stability" },
         { match: ["ux", "accessibility"], cat: "Quality / UX" },
@@ -492,28 +640,12 @@
         { match: ["compliance follow-ups"], cat: "Compliance" },
         { match: ["post-launch hardening"], cat: "Post-Launch" },
         { match: ["operations", "bus factor"], cat: "Operations" },
-        { match: ["mobile app launch", "capacitor wrap"], cat: "Mobile" },
-        { match: ["implementation playbook"], cat: "Mobile" },
-        { match: ["build order"], cat: "Mobile" },
-        { match: ["app-feel requirements"], cat: "Mobile" },
-        { match: ["auth", "deep linking"], cat: "Mobile" },
-        { match: ["native plugins"], cat: "Mobile" },
-        { match: ["session storage"], cat: "Mobile" },
-        { match: ["offline behaviour"], cat: "Mobile" },
-        { match: ["real-device test"], cat: "Mobile" },
-        { match: ["acceptance criteria"], cat: "Mobile" },
-        { match: ["m0", "submission blockers"], cat: "App Store Submission" },
-        { match: ["m1", "listing copy"], cat: "Marketing / Store Copy" },
-        { match: ["apple description"], cat: "Marketing / Store Copy" },
-        { match: ["google play full description"], cat: "Marketing / Store Copy" },
+        { match: ["mobile app launch", "capacitor wrap", "implementation playbook", "build order", "app-feel requirements", "auth", "deep linking", "native plugins", "session storage", "offline behaviour", "real-device test", "acceptance criteria"], cat: "Mobile" },
+        { match: ["m0", "submission blockers", "m4", "store metadata", "m5", "pre-submission gate", "m6", "cannot assess"], cat: "App Store Submission" },
+        { match: ["m1", "listing copy", "apple description", "google play full description", "marketing copy"], cat: "Marketing / Store Copy" },
         { match: ["m2", "visual assets"], cat: "Visual Assets" },
         { match: ["m3", "native shell config"], cat: "Mobile" },
-        { match: ["m4", "store metadata"], cat: "App Store Submission" },
-        { match: ["m5", "pre-submission gate"], cat: "App Store Submission" },
-        { match: ["m6", "cannot assess"], cat: "App Store Submission" },
-        { match: ["important memories"], cat: "Post-Launch" },
-        { match: ["vault"], cat: "Post-Launch" },
-        { match: ["marketing copy"], cat: "Marketing / Store Copy" },
+        { match: ["important memories", "vault"], cat: "Post-Launch" },
         { match: ["this week"], cat: "Owner Tasks" },
       ];
 
@@ -525,7 +657,6 @@
         return "Other";
       }
 
-      // ── Status detection ──────────────────────────────────────────────
       function statusOf(line) {
         const checked = /^\s*-\s*\[[xX]\]/.test(line);
         if (checked) return "done";
@@ -534,26 +665,17 @@
         return "open";
       }
 
-      const STATUS_LABEL = {
-        done: "Done",
-        partial: "Partial",
-        missing: "Missing",
-        open: "Open",
-      };
+      const STATUS_LABEL = { done: "Done", partial: "Partial", missing: "Missing", open: "Open" };
 
-      // ── Markdown parser — minimal, focused on checkbox lines ──────────
-      // Walks the file line-by-line, tracking the current heading path.
-      // Each checkbox line becomes an item with: lineNumber, status, title,
-      // description (continuation lines), and category.
-      function parse(md) {
+      // ───────────────────────────────────────────────────────────────────
+      // Markdown parser (checklist mode — extracts items)
+      // ───────────────────────────────────────────────────────────────────
+      function parseChecklist(md) {
         const lines = md.split(/\r?\n/);
         const items = [];
         const headingPath = [];
-
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-
-          // Track headings (H1 / H2 / H3 / H4)
           const hMatch = /^(#{1,4})\s+(.+)$/.exec(line);
           if (hMatch) {
             const depth = hMatch[1].length;
@@ -561,16 +683,11 @@
             headingPath[depth - 1] = hMatch[2].trim();
             continue;
           }
-
-          // Match top-level checkbox lines (not deeply indented sub-items)
           const cbMatch = /^(\s{0,4})-\s*\[([ xX])\]\s*(.+)$/.exec(line);
           if (!cbMatch) continue;
           const [, indent, , rest] = cbMatch;
-          if (indent.length > 4) continue; // skip sub-bullets (under-an-item lists)
+          if (indent.length > 4) continue;
 
-          // Extract description: continuation lines until next checkbox or
-          // blank-then-non-indented line. Simple heuristic that matches the
-          // existing checklist conventions.
           const descLines = [];
           let j = i + 1;
           while (j < lines.length) {
@@ -578,7 +695,6 @@
             if (/^(\s{0,4})-\s*\[[ xX]\]/.test(next)) break;
             if (/^#{1,4}\s/.test(next)) break;
             if (/^\s*$/.test(next)) {
-              // Allow one blank line then check if next is a continuation
               const after = lines[j + 1];
               if (!after) break;
               if (/^(\s{0,4})-\s*\[[ xX]\]/.test(after)) break;
@@ -602,67 +718,194 @@
             category: categorize(headingPath),
           });
         }
-
         return items;
       }
 
-      // ── Render helpers ────────────────────────────────────────────────
-      const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({
+      // ───────────────────────────────────────────────────────────────────
+      // Markdown renderer (doc mode — pretty rendering, checkboxes work)
+      // ───────────────────────────────────────────────────────────────────
+      const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
       }[c]));
 
-      // Tiny inline markdown: **bold**, `code`, [text](url)
       function inlineMd(s) {
         let out = escapeHtml(s);
+        // Code spans first (so they're protected from other transforms)
         out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+        // Bold + italic
         out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+        // Links [text](url)
         out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
         return out;
       }
 
-      function renderDesc(desc) {
-        if (!desc) return "";
-        // Render only the first paragraph + collapse the rest. Strip leading
-        // whitespace to keep monospace blocks readable.
-        const para = desc.split(/\n\s*\n/);
-        const first = para[0].trim();
-        const rest = para.slice(1).join("\n\n").trim();
-        return first ? inlineMd(first) + (rest ? "\n\n" + inlineMd(rest) : "") : "";
+      // Render markdown to HTML. Returns { html, headings: [{depth, text, anchor}], checkboxLines: [{lineNumber, checked, anchor}] }
+      function renderMarkdown(md) {
+        const lines = md.split(/\r?\n/);
+        const out = [];
+        const headings = [];
+        const checkboxLines = [];
+        let i = 0;
+        let inList = null; // "ul" | "ol" | null
+        let listBuffer = [];
+        const flushList = () => {
+          if (!inList) return;
+          out.push(`<${inList}>${listBuffer.join("")}</${inList}>`);
+          listBuffer = [];
+          inList = null;
+        };
+        const slug = (s) => "h-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+        while (i < lines.length) {
+          const line = lines[i];
+
+          // Fenced code block
+          if (/^```/.test(line)) {
+            flushList();
+            const lang = line.slice(3).trim();
+            const code = [];
+            i++;
+            while (i < lines.length && !/^```/.test(lines[i])) {
+              code.push(lines[i]);
+              i++;
+            }
+            i++; // skip closing fence
+            out.push(`<pre><code class="lang-${escapeHtml(lang)}">${escapeHtml(code.join("\n"))}</code></pre>`);
+            continue;
+          }
+
+          // Horizontal rule
+          if (/^\s*---+\s*$/.test(line)) {
+            flushList();
+            out.push("<hr/>");
+            i++;
+            continue;
+          }
+
+          // Headings
+          const hMatch = /^(#{1,6})\s+(.+)$/.exec(line);
+          if (hMatch) {
+            flushList();
+            const depth = hMatch[1].length;
+            const text = hMatch[2].trim();
+            const anchor = slug(text);
+            headings.push({ depth, text, anchor });
+            out.push(`<h${depth} id="${anchor}">${inlineMd(text)}</h${depth}>`);
+            i++;
+            continue;
+          }
+
+          // Blockquote
+          if (/^>\s?/.test(line)) {
+            flushList();
+            const block = [];
+            while (i < lines.length && /^>\s?/.test(lines[i])) {
+              block.push(lines[i].replace(/^>\s?/, ""));
+              i++;
+            }
+            out.push(`<blockquote>${block.map(l => `<p>${inlineMd(l)}</p>`).join("")}</blockquote>`);
+            continue;
+          }
+
+          // Table — header line + separator line
+          if (/^\s*\|.+\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?\s*[-:]+/.test(lines[i + 1])) {
+            flushList();
+            const header = line.split("|").map(c => c.trim()).filter(Boolean);
+            i += 2; // skip header + separator
+            const rows = [];
+            while (i < lines.length && /^\s*\|.+\|\s*$/.test(lines[i])) {
+              rows.push(lines[i].split("|").map(c => c.trim()).filter(Boolean));
+              i++;
+            }
+            out.push(
+              `<table><thead><tr>${header.map(c => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>` +
+              rows.map(r => `<tr>${r.map(c => `<td>${inlineMd(c)}</td>`).join("")}</tr>`).join("") +
+              `</tbody></table>`
+            );
+            continue;
+          }
+
+          // Checkbox list item
+          const cbMatch = /^(\s*)-\s*\[([ xX])\]\s*(.+)$/.exec(line);
+          if (cbMatch) {
+            if (inList !== "ul") { flushList(); inList = "ul"; }
+            const [, , box, rest] = cbMatch;
+            const checked = box.toLowerCase() === "x";
+            const lineNumber = i + 1;
+            checkboxLines.push({ lineNumber, checked });
+            const labelHtml = inlineMd(rest);
+            listBuffer.push(
+              `<li class="checkbox-item ${checked ? "done" : ""}">` +
+                `<input type="checkbox" class="checkbox doc-toggle" data-line="${lineNumber}" id="cb-${lineNumber}" name="cb-${lineNumber}" ${checked ? "checked" : ""} />` +
+                `<span class="label">${labelHtml}</span>` +
+              `</li>`
+            );
+            i++;
+            continue;
+          }
+
+          // Bullet list
+          const bMatch = /^(\s*)[-*]\s+(.+)$/.exec(line);
+          if (bMatch) {
+            if (inList !== "ul") { flushList(); inList = "ul"; }
+            listBuffer.push(`<li>${inlineMd(bMatch[2])}</li>`);
+            i++;
+            continue;
+          }
+
+          // Ordered list
+          const oMatch = /^(\s*)(\d+)\.\s+(.+)$/.exec(line);
+          if (oMatch) {
+            if (inList !== "ol") { flushList(); inList = "ol"; }
+            listBuffer.push(`<li>${inlineMd(oMatch[3])}</li>`);
+            i++;
+            continue;
+          }
+
+          // Blank line — close list, do nothing
+          if (/^\s*$/.test(line)) {
+            flushList();
+            i++;
+            continue;
+          }
+
+          // Plain paragraph (greedy until next block)
+          flushList();
+          const para = [line];
+          i++;
+          while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|>\s|```|---|\s*[-*]\s|\s*\d+\.\s|\s*\|.+\|\s*$)/.test(lines[i])) {
+            para.push(lines[i]);
+            i++;
+          }
+          out.push(`<p>${inlineMd(para.join(" "))}</p>`);
+        }
+        flushList();
+        return { html: out.join("\n"), headings };
       }
 
-      // ── State ─────────────────────────────────────────────────────────
-      let allItems = [];
-      let lastMtime = 0;
-      let activeStatus = "all";
-      let activeCategory = "all";
-      let searchTerm = "";
-
-      // ── Toast ─────────────────────────────────────────────────────────
-      const toastEl = document.getElementById("toast");
-      let toastTimer = null;
-      function toast(msg, kind = "ok") {
-        clearTimeout(toastTimer);
-        toastEl.textContent = msg;
-        toastEl.className = `toast show ${kind === "error" ? "error" : ""}`;
-        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
-      }
-
-      // ── Toggle handler — POST /toggle, optimistic UI ──────────────────
+      // ───────────────────────────────────────────────────────────────────
+      // Toggle handler (works for both modes — sends docPath)
+      // ───────────────────────────────────────────────────────────────────
       async function onToggle(e) {
         const cb = e.target;
+        if (!cb.matches(".checkbox")) return;
         const lineNumber = Number(cb.dataset.line);
+        if (!Number.isFinite(lineNumber)) return;
         const checked = cb.checked;
         cb.disabled = true;
+        const doc = docs.find(d => d.id === activeDocId);
+        if (!doc) return;
         try {
           const res = await fetch("/toggle", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lineNumber, checked }),
+            body: JSON.stringify({ docPath: doc.file, lineNumber, checked }),
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           toast(checked ? "Marked done" : "Re-opened");
-          // Refetch so the rest of the UI (counts, ordering) stays in sync
-          await load(true);
+          docCache.delete(activeDocId);
+          await loadActiveDoc(true);
         } catch (err) {
           cb.checked = !checked;
           toast(`Toggle failed: ${err.message}`, "error");
@@ -671,7 +914,6 @@
         }
       }
 
-      // ── Filter expand/collapse on description ─────────────────────────
       function onDescToggle(e) {
         const btn = e.target;
         const desc = btn.previousElementSibling;
@@ -679,10 +921,48 @@
         btn.textContent = collapsed ? "Show more" : "Show less";
       }
 
-      // ── Render ────────────────────────────────────────────────────────
-      function render() {
-        // Filter
-        const filtered = allItems.filter((it) => {
+      // ───────────────────────────────────────────────────────────────────
+      // Render: Doc tabs (top nav)
+      // ───────────────────────────────────────────────────────────────────
+      function renderTabs() {
+        const tabsEl = document.getElementById("doc-tabs");
+        // Group architecture sub-docs visually under one parent tab
+        const archDocs = docs.filter(d => d.group === "architecture");
+        const standalone = docs.filter(d => !d.group);
+        const html = standalone.map(d =>
+          `<button class="tab ${d.id === activeDocId ? "active" : ""}" data-doc="${d.id}">${escapeHtml(d.title)}</button>`
+        ).join("") + (archDocs.length ? archDocs.map(d =>
+          `<button class="tab ${d.id === activeDocId ? "active" : ""}" data-doc="${d.id}"><span class="group-tag">arch</span>${escapeHtml(d.title)}</button>`
+        ).join("") : "");
+        tabsEl.innerHTML = html;
+        tabsEl.querySelectorAll(".tab").forEach(btn => {
+          btn.addEventListener("click", () => {
+            activeDocId = btn.dataset.doc;
+            renderTabs();
+            loadActiveDoc(true);
+          });
+        });
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Render: Checklist mode (full filter UI)
+      // ───────────────────────────────────────────────────────────────────
+      function anchorize(s) {
+        return "s-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      function renderChecklist(items) {
+        const root = document.getElementById("root");
+        const counts = { done: 0, partial: 0, missing: 0, open: 0 };
+        for (const it of items) counts[it.status]++;
+        const total = items.length || 1;
+
+        // Build filter chips
+        const catCounts = {};
+        for (const it of items) catCounts[it.category] = (catCounts[it.category] || 0) + 1;
+        const cats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+
+        const filtered = items.filter((it) => {
           if (activeStatus !== "all" && it.status !== activeStatus) return false;
           if (activeCategory !== "all" && it.category !== activeCategory) return false;
           if (searchTerm) {
@@ -692,47 +972,6 @@
           return true;
         });
 
-        // Scorecard counts (always over allItems)
-        const counts = { done: 0, partial: 0, missing: 0, open: 0 };
-        for (const it of allItems) counts[it.status]++;
-        const total = allItems.length || 1;
-
-        document.getElementById("scorecard").innerHTML = `
-          <div class="score done"><div class="num">${counts.done}</div><div class="label">Done</div></div>
-          <div class="score partial"><div class="num">${counts.partial}</div><div class="label">Partial</div></div>
-          <div class="score missing"><div class="num">${counts.missing}</div><div class="label">Missing</div></div>
-          <div class="score open"><div class="num">${counts.open}</div><div class="label">Open</div></div>
-        `;
-
-        document.getElementById("progress").innerHTML = `
-          <div class="seg done" style="width: ${(counts.done / total) * 100}%"></div>
-          <div class="seg partial" style="width: ${(counts.partial / total) * 100}%"></div>
-          <div class="seg missing" style="width: ${(counts.missing / total) * 100}%"></div>
-          <div class="seg open" style="width: ${(counts.open / total) * 100}%"></div>
-        `;
-
-        // Status filter chips
-        const statusEl = document.getElementById("status-filter");
-        const statuses = [
-          ["all", "All", allItems.length],
-          ["open", "Open", counts.open],
-          ["missing", "Missing", counts.missing],
-          ["partial", "Partial", counts.partial],
-          ["done", "Done", counts.done],
-        ];
-        statusEl.innerHTML = statuses
-          .map(([k, label, n]) => `<button class="chip ${activeStatus === k ? "active" : ""}" data-status="${k}">${label}<span class="count">${n}</span></button>`)
-          .join("");
-
-        // Category filter chips
-        const catCounts = {};
-        for (const it of allItems) catCounts[it.category] = (catCounts[it.category] || 0) + 1;
-        const cats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
-        const catEl = document.getElementById("category-filter");
-        catEl.innerHTML = `<button class="chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">All categories</button>` +
-          cats.map(([cat, n]) => `<button class="chip ${activeCategory === cat ? "active" : ""}" data-cat="${cat}">${cat}<span class="count">${n}</span></button>`).join("");
-
-        // Group filtered items by section (heading path joined)
         const grouped = new Map();
         for (const it of filtered) {
           const key = it.headingPath.slice(1).join(" › ") || it.headingPath[0] || "Top";
@@ -740,56 +979,84 @@
           grouped.get(key).items.push(it);
         }
 
-        // Sidebar
-        const sidebarEl = document.getElementById("sidebar");
-        if (grouped.size === 0) {
-          sidebarEl.innerHTML = "";
-        } else {
-          // Group sidebar entries by category
-          const byCat = new Map();
-          for (const [section, { items, category }] of grouped) {
-            if (!byCat.has(category)) byCat.set(category, []);
-            byCat.get(category).push([section, items.length]);
-          }
-          const sortedCats = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-          sidebarEl.innerHTML = sortedCats.map(([cat, sections]) =>
-            `<h3>${cat}</h3>` + sections.map(([section, n]) =>
-              `<a href="#${anchorize(section)}"><span>${escapeHtml(section.split(" › ").pop() || section)}</span><span class="num">${n}</span></a>`
-            ).join("")
-          ).join("");
+        // Sidebar (grouped by category)
+        const byCat = new Map();
+        for (const [section, { items, category }] of grouped) {
+          if (!byCat.has(category)) byCat.set(category, []);
+          byCat.get(category).push([section, items.length]);
         }
+        const sortedCats = [...byCat.entries()].sort((a, b) => a[0].localeCompare(b[0]));
 
-        // Main content
-        const contentEl = document.getElementById("content");
-        if (grouped.size === 0) {
-          contentEl.innerHTML = `<div class="empty">No items match these filters.</div>`;
-          return;
-        }
-
-        contentEl.innerHTML = [...grouped.entries()].map(([section, { items, category }]) => `
-          <section class="section" id="${anchorize(section)}">
-            <h2>${escapeHtml(section.split(" › ").pop() || section)}</h2>
-            <div class="section-meta">
-              <span class="cat-tag">${escapeHtml(category)}</span>
-              ${escapeHtml(section)}
+        root.innerHTML = `
+          <div class="scorecard">
+            <div class="score done"><div class="num">${counts.done}</div><div class="label">Done</div></div>
+            <div class="score partial"><div class="num">${counts.partial}</div><div class="label">Partial</div></div>
+            <div class="score missing"><div class="num">${counts.missing}</div><div class="label">Missing</div></div>
+            <div class="score open"><div class="num">${counts.open}</div><div class="label">Open</div></div>
+          </div>
+          <div class="progress-bar">
+            <div class="seg done" style="width: ${(counts.done / total) * 100}%"></div>
+            <div class="seg partial" style="width: ${(counts.partial / total) * 100}%"></div>
+            <div class="seg missing" style="width: ${(counts.missing / total) * 100}%"></div>
+            <div class="seg open" style="width: ${(counts.open / total) * 100}%"></div>
+          </div>
+          <div class="filters">
+            <div class="chip-row" id="status-filter">
+              ${[["all", "All", items.length], ["open", "Open", counts.open], ["missing", "Missing", counts.missing], ["partial", "Partial", counts.partial], ["done", "Done", counts.done]]
+                .map(([k, label, n]) => `<button class="chip ${activeStatus === k ? "active" : ""}" data-status="${k}">${label}<span class="count">${n}</span></button>`).join("")}
             </div>
-            ${items.map(renderItem).join("")}
-          </section>
-        `).join("");
+            <div class="chip-row" id="category-filter">
+              <button class="chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">All categories</button>
+              ${cats.map(([cat, n]) => `<button class="chip ${activeCategory === cat ? "active" : ""}" data-cat="${cat}">${escapeHtml(cat)}<span class="count">${n}</span></button>`).join("")}
+            </div>
+            <input type="search" class="search" id="search" placeholder="Search items, descriptions, codepaths…" value="${escapeHtml(searchTerm)}" />
+          </div>
+          <div class="layout">
+            <nav class="sidebar">${sortedCats.length ? sortedCats.map(([cat, sections]) =>
+              `<h3>${escapeHtml(cat)}</h3>` + sections.map(([section, n]) =>
+                `<a href="#${anchorize(section)}"><span>${escapeHtml(section.split(" › ").pop() || section)}</span><span class="num">${n}</span></a>`
+              ).join("")
+            ).join("") : ""}</nav>
+            <div>${grouped.size === 0 ? `<div class="empty">No items match these filters.</div>` :
+              [...grouped.entries()].map(([section, { items, category }]) => `
+                <section class="section" id="${anchorize(section)}">
+                  <h2>${escapeHtml(section.split(" › ").pop() || section)}</h2>
+                  <div class="section-meta">
+                    <span class="cat-tag">${escapeHtml(category)}</span>
+                    ${escapeHtml(section)}
+                  </div>
+                  ${items.map(renderItem).join("")}
+                </section>
+              `).join("")
+            }</div>
+          </div>
+        `;
 
-        // Wire up handlers
-        contentEl.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
-        contentEl.querySelectorAll(".desc-toggle").forEach((btn) => btn.addEventListener("click", onDescToggle));
-      }
-
-      function anchorize(s) {
-        return "s-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        // Wire handlers
+        root.querySelector("#status-filter").addEventListener("click", (e) => {
+          const btn = e.target.closest(".chip");
+          if (!btn) return;
+          activeStatus = btn.dataset.status;
+          renderChecklist(items);
+        });
+        root.querySelector("#category-filter").addEventListener("click", (e) => {
+          const btn = e.target.closest(".chip");
+          if (!btn) return;
+          activeCategory = btn.dataset.cat;
+          renderChecklist(items);
+        });
+        root.querySelector("#search").addEventListener("input", (e) => {
+          searchTerm = e.target.value.trim().toLowerCase();
+          renderChecklist(items);
+        });
+        root.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
+        root.querySelectorAll(".desc-toggle").forEach((btn) => btn.addEventListener("click", onDescToggle));
       }
 
       function renderItem(it) {
         const checked = it.status === "done" ? "checked" : "";
         const showMore = it.desc && it.desc.length > 220;
-        const descHtml = renderDesc(it.desc);
+        const descHtml = it.desc ? inlineMd(it.desc.split(/\n\s*\n/)[0].trim()) : "";
         return `
           <article class="item ${it.status === "done" ? "done" : ""}">
             <input type="checkbox" class="checkbox" id="cb-${it.lineNumber}" name="cb-${it.lineNumber}" data-line="${it.lineNumber}" ${checked} aria-label="Mark ${escapeHtml(it.title.slice(0, 60))} ${checked ? "incomplete" : "done"}" />
@@ -803,45 +1070,78 @@
         `;
       }
 
-      // ── Filter wiring ─────────────────────────────────────────────────
-      document.getElementById("status-filter").addEventListener("click", (e) => {
-        const btn = e.target.closest(".chip");
-        if (!btn) return;
-        activeStatus = btn.dataset.status;
-        render();
-      });
-      document.getElementById("category-filter").addEventListener("click", (e) => {
-        const btn = e.target.closest(".chip");
-        if (!btn) return;
-        activeCategory = btn.dataset.cat;
-        render();
-      });
-      document.getElementById("search").addEventListener("input", (e) => {
-        searchTerm = e.target.value.trim().toLowerCase();
-        render();
-      });
+      // ───────────────────────────────────────────────────────────────────
+      // Render: Doc mode (markdown render + TOC sidebar)
+      // ───────────────────────────────────────────────────────────────────
+      function renderDoc(rendered) {
+        const root = document.getElementById("root");
+        // Build TOC from H2/H3 only
+        const tocItems = rendered.headings.filter(h => h.depth === 2 || h.depth === 3);
+        const sidebarHtml = tocItems.length
+          ? `<h3>On this page</h3>` + tocItems.map(h =>
+              `<a href="#${h.anchor}" class="depth-${h.depth}"><span>${escapeHtml(h.text)}</span></a>`
+            ).join("")
+          : "";
 
-      // ── Load + live polling ───────────────────────────────────────────
-      async function load(force = false) {
+        root.innerHTML = `
+          <div class="layout">
+            <nav class="sidebar">${sidebarHtml}</nav>
+            <div class="doc-content">${rendered.html}</div>
+          </div>
+        `;
+
+        root.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Loading
+      // ───────────────────────────────────────────────────────────────────
+      async function loadDocList() {
+        const res = await fetch("/docs", { cache: "no-store" });
+        const { docs: list } = await res.json();
+        docs = list;
+      }
+
+      async function loadActiveDoc(force = false) {
+        const doc = docs.find(d => d.id === activeDocId);
+        if (!doc) return;
+        document.getElementById("active-doc-path").textContent = doc.file;
+
         try {
-          const res = await fetch("/checklist", { cache: "no-store" });
+          const res = await fetch(`/docs/${encodeURIComponent(doc.file)}`, { cache: "no-store" });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const mtime = Number(res.headers.get("x-mtime") || 0);
-          if (!force && mtime <= lastMtime) return; // nothing changed
-          lastMtime = mtime;
+          const cached = docCache.get(activeDocId);
+          if (!force && cached && cached.mtime === mtime) return;
           const md = await res.text();
-          allItems = parse(md);
-          document.getElementById("last-updated").textContent =
-            new Date(mtime || Date.now()).toLocaleTimeString();
-          render();
+          docCache.set(activeDocId, { content: md, mtime });
+          document.getElementById("last-updated").textContent = new Date(mtime || Date.now()).toLocaleTimeString();
+
+          if (doc.role === "checklist") {
+            const items = parseChecklist(md);
+            renderChecklist(items);
+          } else {
+            const rendered = renderMarkdown(md);
+            renderDoc(rendered);
+          }
         } catch (err) {
           console.error(err);
           toast(`Load failed: ${err.message}`, "error");
         }
       }
 
-      load(true);
-      setInterval(() => load(false), 2500);
+      // ───────────────────────────────────────────────────────────────────
+      // Boot + live polling
+      // ───────────────────────────────────────────────────────────────────
+      async function boot() {
+        await loadDocList();
+        renderTabs();
+        await loadActiveDoc(true);
+      }
+      boot();
+
+      // Live update — re-fetch every 2.5s, only re-render if mtime changed
+      setInterval(() => loadActiveDoc(false), 2500);
     </script>
   </body>
 </html>

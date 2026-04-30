@@ -1,5 +1,7 @@
 # Mass Continuous Imports — Architecture
 
+> **Status:** Specification document. Implementation slot: post-launch (Month 6–12 alongside REST Gateway and external integrations). Tracks one-time backfill + ongoing sync as separate-but-related architectures. Cross-references: `ROADMAP.md` Month 6–12 § "External integrations"; `RESEARCH.md` § "Specialized capture clippers".
+
 Architecture for ingesting data from Gmail, Google Drive, Notion, Obsidian, and local computer folders into Everion memory.
 
 ---
