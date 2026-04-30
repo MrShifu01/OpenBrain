@@ -29,7 +29,7 @@ Nothing else matters until these four are done. Order is fixed.
 
 | #   | Blocker                                            | Why it blocks launch                         | Effort   |
 | --- | -------------------------------------------------- | -------------------------------------------- | -------- |
-| 1   | **Stripe + server-side tier enforcement**          | No revenue possible without this.            | 5–7 days |
+| 1   | **LemonSqueezy + RevenueCat + tier enforcement**   | No revenue possible without this. Code shipped 2026-04-30; operator config (LS variants, RC dashboard, store products) outstanding. | 1–2 days config |
 | 2   | **Brain Feed (home screen)**                       | No habit loop, Day 7 retention < 15%.        | 3–5 days |
 | 3   | **Onboarding that delivers the aha moment in 60s** | No activation, all acquisition spend wastes. | 3–4 days |
 | 4   | **Product analytics (PostHog)**                    | Flying blind kills iteration speed.          | 1–2 days |
@@ -50,12 +50,12 @@ Nothing else matters until these four are done. Order is fixed.
 - [ ] Clean `vercel.json` rewrites. Remove legacy aliases (`/api/delete-entry` → `/api/entries`).
 - [ ] Run `npm run typecheck` + Knip. Fix all errors, remove dead exports.
 
-### Days 4–7: Stripe + Tier Enforcement (Blocker #1)
+### Days 4–7: LemonSqueezy + RevenueCat + Tier Enforcement (Blocker #1)
 
-- [ ] Database migration for `user_usage` (period, captures, chats, voice_notes, improve_scans). Add `tier` column (`free | starter | pro`) to `user_profiles`.
+- [x] **Database migration for billing + tier columns** ✅ — `user_usage` (031), `user_profiles.tier` (031), LemonSqueezy/RevenueCat columns (065).
 - [ ] Build `lib/usage.ts` — `checkAndIncrement(userId, action)` returns `{ allowed, remaining }`. Call from `api/capture`, `api/chat`, `api/voice`, `api/improve`. Block with 429 if over limit.
-- [ ] Stripe integration. Products: `price_free`, `price_starter_monthly` ($4.99), `price_pro_monthly` ($9.99). Annual discount optional (2 months free). `api/stripe/checkout.ts` creates Checkout session. `api/stripe/webhook.ts` syncs subscription state → `user_profiles.tier`. Customer Portal in `Settings > Billing`.
-- [ ] Upgrade prompts: at `remaining < 10%` show non-blocking banner; at `0` block with modal + Stripe Checkout.
+- [x] **Payment integration shipped** ✅ — LemonSqueezy for web (merchant of record, handles VAT) + RevenueCat for native iOS/Android (abstracts Apple + Play). Bridge: `lemon-webhook` calls RC `grantEntitlement` so a web purchase shows up as paid on mobile too. Variants: `LEMONSQUEEZY_STARTER_VARIANT_ID` ($4.99/mo), `LEMONSQUEEZY_PRO_VARIANT_ID` ($9.99/mo). Customer Portal in `Settings > Billing` (web → LS portal; native → OS Subscriptions hint). Commit `c484030`.
+- [ ] Upgrade prompts: at `remaining < 10%` show non-blocking banner; at `0` block with modal that routes to web checkout (LS) or native paywall (RC SDK) per platform.
 - [ ] BYOK users bypass limits. If `user_ai_settings.provider_key` set, skip usage check.
 
 ### Definition of done
@@ -63,7 +63,7 @@ Nothing else matters until these four are done. Order is fixed.
 - [ ] Nav at 5 items
 - [ ] Multi-brain, Vault, Todo, Refine, Graph hidden behind flags or removed from nav
 - [ ] `user_usage` table migrated
-- [ ] Stripe Checkout + webhook live
+- [x] LemonSqueezy + RevenueCat checkout + webhooks live ✅ (code; operator config still pending — see LAUNCH_CHECKLIST Billing section)
 - [ ] Upgrade prompt at 90% / 100%
 - [ ] `npm run typecheck` clean
 
@@ -260,7 +260,7 @@ Tempting but kill focus:
 - **Mobile native apps** — PWA works. Native after $5K MRR. (Capacitor wrap is on the launch checklist as a *separate* track that doesn't block web launch.)
 - **Self-hosted / on-prem** — you're a SaaS. Say no.
 - **API marketplace / plugin system** — REST Gateway only. No plugins until the platform has a reason to exist.
-- **Voice-RAG real-time mode** (Retell AI + Deepgram). Distraction until feed + onboarding + Stripe live. Revisit at Month 6+ if voice capture is a top-3 used feature.
+- **Voice-RAG real-time mode** (Retell AI + Deepgram). Distraction until feed + onboarding + payment configured. Revisit at Month 6+ if voice capture is a top-3 used feature.
 - **Concept Graph WebGL polish** — keep deferred until 50-entry threshold. No time on graph UX until telemetry shows users reaching it.
 
 ---

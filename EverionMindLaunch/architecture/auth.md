@@ -355,7 +355,7 @@ request of a new billing period — see CLAUDE.md note about `user_usage`
 
 ```ts
 1. Read user_ai_settings (BYOK keys + per-user model overrides)
-2. Read user_profiles.tier (synced from Stripe)
+2. Read user_profiles.tier (synced from LemonSqueezy webhook for web subs and the RevenueCat webhook for native subs)
 3. BYOK priority: anthropic > openai > gemini > openrouter
    → return that provider's config immediately (BYOK wins over tier)
 4. No BYOK → managed provider by tier:
@@ -415,22 +415,50 @@ prevent timing oracle attacks. Full details in `Docs/Components/cron.md`.
 
 ---
 
-## Stripe tier sync
+## Tier sync — LemonSqueezy + RevenueCat
 
-User → tier mapping sits in `user_profiles.tier`. Stripe webhooks at
-`POST /api/user-data?resource=stripe-webhook` write it on subscription
-state change:
+User → tier mapping sits in `user_profiles.tier`. Two webhook paths
+write it; whichever fires last wins.
+
+**Web — LemonSqueezy** at `POST /api/user-data?resource=lemon-webhook`:
 
 ```
-checkout.session.completed       → set tier from price_id mapping
-customer.subscription.updated    → re-derive tier
-customer.subscription.deleted    → tier = 'free'
-invoice.payment_failed           → no change (Stripe retries)
+subscription_created    → set tier from variant_id mapping
+                          + grantEntitlement on RevenueCat (bridge)
+subscription_updated    → re-derive tier (renewal extends RC entitlement)
+subscription_resumed    → re-grant
+subscription_cancelled  → tier = 'free'
+                          + revoke_promotionals on RevenueCat
+subscription_expired    → tier = 'free' + revoke
+subscription_paused     → tier = 'free' + revoke
 ```
 
-Webhook auth via signature verification (`api/_lib/stripe.ts`
-`verifyWebhook`). Idempotency keys in `stripe_idempotency` prevent
-double-processing on retries.
+Auth via HMAC-SHA256 signature in `X-Signature` header
+(`api/_lib/lemonsqueezy.ts` `verifyWebhookSignature`,
+`crypto.timingSafeEqual`). Idempotency via Upstash SET-NX in
+`webhookIdempotency.ts` keyed `lemon:event:<webhook_id>`.
+
+**Native — RevenueCat** at `POST /api/user-data?resource=revenuecat-webhook`:
+
+```
+INITIAL_PURCHASE        → set tier from product_id mapping
+RENEWAL                 → re-derive tier (renewal extends period)
+PRODUCT_CHANGE          → re-derive tier
+UNCANCELLATION          → re-derive tier
+CANCELLATION            → tier = 'free'
+EXPIRATION              → tier = 'free'
+BILLING_ISSUE           → tier = 'free' (RC will fire RENEWAL on recovery)
+```
+
+Auth via shared bearer secret in the `Authorization` header
+(`revenuecat.ts` `verifyWebhookAuth`). Idempotency keyed
+`revenuecat:event:<event.id>`. PROMOTIONAL-store events are dropped
+because the LS bridge already wrote the tier — re-handling would
+echo-loop the entitlement back into the DB.
+
+Tier is the source of truth. The Apple original-transaction-id and
+Google purchase-token columns on `user_profiles` are audit trail only —
+RC owns that state.
 
 `user_ai_settings.plan` is a denormalised mirror updated alongside —
 some queries in the BYOK paths read it instead of joining

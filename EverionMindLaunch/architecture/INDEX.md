@@ -58,9 +58,13 @@
 **Files:** `src/components/BrainSwitcher.tsx` + `CreateBrainModal.tsx` + `MoveToBrainModal.tsx` + `BrainTab.tsx` + `useBrain.ts` + `multiBrain` feature flag + `brain_metadata` migration 060
 **Why:** Recently-shipped feature behind a flag. Move-between-brains rules, ownership, RLS interaction. Per-capture brain pill. The plumbing isn't fully exposed yet — doc captures the design intent before it leaks.
 
-### 15. Stripe / billing
-**Files:** `src/components/settings/BillingTab.tsx` + `api/_lib/stripe.ts` + `stripeIdempotency.ts` + the four `stripe-*` user-data resources + tier sync
-**Why:** Webhook signature verification, idempotency keys, plan / interval mapping, subscription state ↔ user_profiles.tier. Handles real money, deserves the diligence.
+### 15. Billing — LemonSqueezy + RevenueCat
+**Files:** `src/components/settings/BillingTab.tsx` + `api/_lib/billing.ts` + `lemonsqueezy.ts` + `revenuecat.ts` + `webhookIdempotency.ts` + the four billing resources in `api/user-data.ts` (`lemon-checkout`, `lemon-webhook`, `lemon-portal`, `revenuecat-webhook`) + migration `065`
+**Why:** LemonSqueezy is the merchant of record for the web (handles VAT / tax / global compliance) — replaced Stripe 2026-04-30 (commit `c484030`). RevenueCat abstracts Apple App Store + Google Play for native. The two sides bridge: the LS webhook calls RC `grantEntitlement` so a web purchase shows up as paid on mobile too. Webhook signature verification (HMAC-SHA256 for LS, bearer for RC), idempotency via `webhookIdempotency.ts` SET-NX, plan/variant mapping, subscription state ↔ `user_profiles.tier`. Handles real money, deserves the diligence.
+
+### 15a. Admin support CRM
+**Files:** `src/components/settings/AdminCRMSection.tsx` + `admin_users` / `admin_user_overview` / `admin_set_tier` resources in `api/user-data.ts` + migration `066` (RPCs + tier index)
+**Why:** Internal `/admin` console for support: search any user, view tier + this-month usage + last 50 audit events, override tier with a recorded reason. Read-only by default; the tier mutation is gated behind an inline reason panel and writes `audit_log` action `admin_tier_changed { actor_id, previous_tier, new_tier, reason }`. Two `SECURITY DEFINER` RPCs (`admin_list_users`, `admin_user_overview`) granted to `service_role` only — caller's `app_metadata.is_admin` is checked in the API layer first.
 
 ### 16. Service Worker + PWA + self-heal
 **Files:** `src/sw.js` + `src/components/UpdatePrompt.tsx` + `main.tsx` self-heal + `ErrorBoundary.tsx`

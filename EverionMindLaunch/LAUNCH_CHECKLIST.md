@@ -19,7 +19,7 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
 | **UI / Visual**        | 7.5 / 10 | Strong design language (Espresso/Ivory/Bronze + serif/sans pairing), WCAG AA dark-theme contrast bump shipped, mobile + desktop layouts diverge cleanly. No tablet hack. Settings sidebar consolidated 12 → 5 sections (Personal / Account / Brain / Connections / Privacy & danger), Admin gated. |
 | **UX**                 | 6.0 / 10 | Capture flow is tight, OmniSearch + keyboard shortcuts feel native, friendlyError mapping in place. Drag: no mandatory first-run walkthrough, modals don't trap focus, empty-states for Vault/Calendar/Chat lack action CTAs, no skip-to-content link.                                             |
 | **Maintainability**    | 8.6 / 10 | TypeScript strict, 11 e2e specs, 450 unit tests passing, Vitest + Playwright separated cleanly, CLAUDE.md + RUNBOOK.md present. ESLint warning ratchet at **73** (down from 297, -224, -75%). Drag: 6 `as any` casts in src/ (all legit ESM-compat or annotated Supabase quirks). **Zero god-components >1000 lines.** TodoCalendarTab split 1576 → 430 + 3 sibling files; VaultView split 1207 → 101 + 4 sibling files; EntryList split 918 → 244 + 2 sibling files (EntryCard 424, EntryRow 276).                                                                  |
-| **Stability**          | 5.5 / 10 | Single top-level ErrorBoundary, AI provider calls have no retry, idempotency only on capture + Stripe webhook. Health check returns booleans without 5xx-ing on degraded deps. **This is the weakest dimension and the most likely to surface as a public-traffic bug.**                           |
+| **Stability**          | 5.5 / 10 | Single top-level ErrorBoundary, AI provider calls have no retry, idempotency on capture + Lemon/RevenueCat webhooks + a few action endpoints. Health check returns booleans without 5xx-ing on degraded deps. **This is the weakest dimension and the most likely to surface as a public-traffic bug.**                           |
 | **Compliance / Legal** | 7.0 / 10 | Privacy + ToS drafted in plain English, AI-output disclaimer surfaced, GDPR delete cascade (054) + full export endpoint working, consent banner gates Sentry + PostHog. Drag: drafts not lawyer-vetted; SPF/DKIM/DMARC for sender domain unverified.                                               |
 
 **Where to spend the next sprint:** Stability (5.5) and UX (6.0) are the two dimensions where the score-to-effort ratio is highest. Specific items below.
@@ -125,16 +125,26 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 
   Subject format: `Everion weekly — 23 errors, 142 DAU, e2e ✓, perf 91/85`
 
-### Billing (if Stripe is part of launch)
+### Billing (LemonSqueezy web + RevenueCat mobile)
 
-- [ ] **Stripe products configured live** ❌
-      `stripe-checkout`, `stripe-webhook`, `stripe-portal` endpoints exist. Confirm they point at live keys, live products, live webhook signing secret.
+Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSqueezy (merchant of record — handles VAT/tax/global compliance). Native subs go through RevenueCat which abstracts App Store + Google Play. The two sides bridge via the LemonSqueezy webhook calling RevenueCat's promotional entitlement API, so a user who pays on web is recognised as paid on mobile.
+
+- [x] **Code shipped — billing migration to LemonSqueezy + RevenueCat** ✅
+      Migration `065` relocated billing columns to `user_profiles` + lock-billing trigger covers Lemon/RC/audit columns. `api/user-data.ts` exposes `lemon-checkout`, `lemon-webhook` (with RC bridge), `lemon-portal`, `revenuecat-webhook`. Frontend `BillingTab.tsx` branches on `Capacitor.isNativePlatform()` — web POSTs to `/api/lemon-checkout`, native dynamic-imports `@revenuecat/purchases-capacitor`. `useSubscription` exposes `provider` so the Manage button knows whether to call the LS portal or surface OS-settings hint.
 - [x] **Webhook idempotency** ✅
-      `api/_lib/stripeIdempotency.ts` uses Upstash `SET NX` with 24h TTL keyed on `event.id`; handler returns 502 on Redis failure rather than re-processing. **Caveat:** see "Stripe idempotency fail-open" finding below — without Upstash configured the dedup is bypassed.
-- [ ] **Tax handling decided** ❌
-      SA VAT: 15%, threshold R1M/year. If you'll exceed, register and use Stripe Tax. If not, document the call.
+      `api/_lib/webhookIdempotency.ts` (replaces `stripeIdempotency.ts`) uses Upstash `SET NX` with 24h TTL, namespaced per provider (`lemon:event:<id>`, `revenuecat:event:<id>`). Both handlers also drop PROMOTIONAL-store RC events to avoid echo-loop with the bridge. **Caveat:** without Upstash configured the dedup is bypassed — see "Webhook idempotency fail-open" finding below.
+- [ ] **LemonSqueezy live store configured** ❌
+      Operator setup: create the two variants in LS dashboard, set `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_STARTER_VARIANT_ID`, `LEMONSQUEEZY_PRO_VARIANT_ID` in Vercel env. Point webhook URL at `https://<host>/api/lemon-webhook`.
+- [ ] **RevenueCat dashboard configured** ❌
+      Operator setup: create RC project, add iOS + Android app entries (each gets its own public key), set `REVENUECAT_SECRET_API_KEY` (server) + `REVENUECAT_WEBHOOK_AUTH` (bearer secret). Vite-side: `VITE_REVENUECAT_API_KEY_IOS`, `VITE_REVENUECAT_API_KEY_ANDROID` (build-inlined). Configure entitlements named `starter` and `pro`. Webhook URL → `https://<host>/api/revenuecat-webhook`.
+- [ ] **App Store Connect + Play Console products** ❌
+      Register matching subscription products in both stores. Link them as `starter` / `pro` in the RC dashboard so `Purchases.getOfferings()` returns them on device.
+- [x] **Tax handling — solved by merchant-of-record** ✅
+      LemonSqueezy is the merchant of record so SA VAT, EU VAT, US sales tax are all handled by them — no Stripe Tax / VAT registration needed for the web path. Mobile flows are taxed by Apple / Google in their respective regions automatically. (Original concern was around the R1M/year SA VAT threshold.)
 - [ ] **Subscription cancellation flow tested** ❌
-      End-to-end: cancel → portal → confirm → webhook → DB updates `user_usage` → user sees correct state.
+      End-to-end: subscribe (LS) → portal → cancel → confirm `lemon-webhook` `subscription_cancelled` fires → RC `revoke_promotionals` succeeds → user_profiles drops to free → BillingTab reflects new state.
+- [ ] **End-to-end native sandbox test** ❌
+      Once App Store Connect + Play Console products are live and TestFlight/internal track is up, run a sandbox subscribe → renewal → cancel cycle on a real device per platform.
 
 ---
 
@@ -161,33 +171,14 @@ A single Monday-morning email aggregating all five tools so I see the whole pict
 
 ### Admin & support operations
 
-- [ ] **Internal admin CRM (user tiers + usage) MVP** ❌
-      Build a lean internal `/admin` support console (not a full sales CRM): user lookup (email/id), current tier (`free | starter | pro`), current-period usage counters, billing/subscription status, and recent audit-log timeline. Keep read-only by default; require explicit confirmation + audit logging for any mutation action.
+- [x] **Internal admin CRM (user tiers + usage) MVP** ✅
+      Shipped 2026-04-30 in commit `421e85d`. Settings → Admin tab now opens with a "Support CRM" section: search by email substring or UUID prefix, click a row to see Profile/Billing + this-month Usage + last 50 Audit events, and override tier inline with a required reason that lands in `audit_log` as `admin_tier_changed { actor_id, previous_tier, new_tier, reason }`.
 
-      **1–2 day implementation checklist (no new top-level `api/*.ts`):**
-      - [ ] **Schema (Supabase migration)**
-            - Add to `user_profiles`: `tier text not null default "free" check (tier in ("free", "starter", "pro"))`, `stripe_customer_id text`, `stripe_subscription_id text`, `billing_status text`, `billing_period_end timestamptz`.
-            - Create `user_usage` table: `user_id uuid`, `period_start date`, `period_end date`, counters (`captures`, `chats`, `voice_notes`, `improve_scans` int default 0), `updated_at timestamptz`; unique `(user_id, period_start)`.
-            - Add indexes: `user_profiles(tier)`, `user_usage(user_id, period_start desc)`, `audit_log(user_id, created_at desc)`.
-      - [ ] **API (route through existing handlers)**
-            - Extend `api/user-data.ts` with admin-gated resources/actions instead of creating new functions:
-              - `resource=admin_users` (GET): searchable list (email/id), tier, created_at, last_seen_at, billing_status.
-              - `resource=admin_user_overview` (GET): profile + current usage row + recent audit events.
-              - `resource=admin_set_tier` (POST): controlled tier change with reason, actor_id, and audit-log write.
-            - Enforce admin check in `withAuth` path; return 403 for non-admins.
-            - Add pagination + rate limiting on admin resources (avoid dumping full user table).
-      - [ ] **UI (`/admin` + Settings Admin tab)**
-            - Add `AdminUsersTable` with search, tier badges, and row click to detail drawer/panel.
-            - Add `AdminUserDetail` with 3 cards: Profile/Billing, Period Usage, Recent Audit Timeline.
-            - Add tier-change control with explicit confirmation modal + required reason text.
-            - Keep destructive actions hidden/disabled for MVP (read-only except tier update).
-      - [ ] **Safety / observability**
-            - Every admin mutation writes `audit_log` event: `admin_tier_changed` with before/after + reason.
-            - Add idempotency key support for tier change action.
-            - Add minimal e2e/admin smoke: admin can search + view user; non-admin gets 403.
-      - [ ] **Done criteria**
-            - Support can answer within 30 seconds: who is this user, what tier, current usage, latest billing state, and recent account events.
-            - No new top-level serverless function added (Vercel 12-function cap respected).
+      - [x] **Schema** — migration `066_admin_crm.sql` adds `user_profiles(tier)` index + two `SECURITY DEFINER` RPCs (`admin_list_users`, `admin_user_overview`) granted to `service_role` only. `user_usage` (031) and `audit_log` (057) reused as-is. Billing columns landed in migration `065` alongside the LemonSqueezy/RevenueCat work.
+      - [x] **API** — `api/user-data.ts` exposes three resources: `admin_users` (GET, paginated search), `admin_user_overview` (GET, returns the three-card payload in one round-trip), `admin_set_tier` (POST, validates UUID + tier + reason, supports `Idempotency-Key` header, fire-and-forget audit_log write so logging hiccups can't undo a successful tier change). All gated on `app_metadata.is_admin === true` — non-admins get 403. Rate-limited per-action via `withAuth`'s `rateLimitKey`.
+      - [x] **UI** — `src/components/settings/AdminCRMSection.tsx` rendered first inside `AdminTab.tsx`. Inline tier-change panel (no native confirm — design philosophy), tier badges with brand tokens, mono-font for IDs, three Card sections (Profile/Billing, Usage, Audit Timeline). Auto-loads most-recent users on first open.
+      - [x] **Safety** — `admin_tier_changed` audit row on every mutation; `Idempotency-Key` namespaced as `admin_set_tier:<target>:<key>`; UUID + tier + reason all server-validated; 12-function Vercel cap respected.
+      - [ ] **e2e admin smoke** ❌ — minimal Playwright spec: admin can search + view a user; non-admin gets 403. Acceptable to defer until first non-admin signs up.
 
 - [ ] **Welcome email tested across clients** ❌
       Resend is configured. Verify rendering across Gmail, Outlook, Apple Mail. Use Mailtrap or send to real accounts.
@@ -317,12 +308,13 @@ Distilled from the rest of the file. **Only items that require Christian — cli
 - [ ] **Configure Resend SPF / DKIM / DMARC** for `noreply@everion.smashburgerbar.co.za`. Records in <https://resend.com/domains>; paste into your DNS provider for `smashburgerbar.co.za`. Verify at <https://www.mail-tester.com> — aim for 10/10.
 - [ ] **Customer support channel**: forward `support@everion.smashburgerbar.co.za` to your inbox. Add the link in app footer.
 
-### 💳 Stripe (only if billing is part of launch)
+### 💳 LemonSqueezy + RevenueCat (only if billing is part of launch)
 
-- [ ] **Configure live Stripe products**: copy product IDs from live mode into `STRIPE_STARTER_PRICE_ID`, `STRIPE_PRO_PRICE_ID`, etc. in Vercel env vars.
-- [ ] **Wire Stripe live webhook signing secret** into `STRIPE_WEBHOOK_SECRET` (Vercel env). Different from test mode secret.
-- [ ] **SA VAT decision**: register for VAT if you'll cross R1M/year, use Stripe Tax. If not, document the call.
-- [ ] **End-to-end subscription cancellation test**: subscribe → portal → cancel → confirm webhook → DB updates → user sees correct state.
+- [ ] **LemonSqueezy live products + env vars**: create the two variants in LS dashboard, copy variant ids to `LEMONSQUEEZY_STARTER_VARIANT_ID` + `LEMONSQUEEZY_PRO_VARIANT_ID`, set `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET` in Vercel env. Point webhook URL at `https://everion.smashburgerbar.co.za/api/lemon-webhook`.
+- [ ] **RevenueCat dashboard + env vars**: create RC project, register iOS + Android app entries, store entitlements `starter` / `pro`. Vercel env: `REVENUECAT_SECRET_API_KEY` + `REVENUECAT_WEBHOOK_AUTH`. Vite-side env (build-inlined): `VITE_REVENUECAT_API_KEY_IOS` + `VITE_REVENUECAT_API_KEY_ANDROID`. Webhook URL → `/api/revenuecat-webhook`.
+- [ ] **App Store Connect + Play Console subscription products**: register matching `everionmind.starter.monthly` + `everionmind.pro.monthly` SKUs in both stores; link to RC entitlements.
+- [ ] **VAT — handled by merchant of record**: LemonSqueezy bills VAT for you globally, no SA registration needed for the web path. Mobile is taxed by Apple / Google in their own regions.
+- [ ] **End-to-end subscription cancellation test**: subscribe → portal → cancel → confirm `lemon-webhook` `subscription_cancelled` → RC `revoke_promotionals` → DB → user sees free tier.
 
 ### 📊 Weekly roll-up email setup
 
@@ -339,7 +331,7 @@ Eight GitHub Actions secrets to add (Settings → Secrets and variables → Acti
 
 - [ ] **Onboarding test with 3 strangers** — friends/family who haven't seen the app. Have them screen-record while you watch silently, no coaching. Single highest-value pre-launch task. Today/this week.
 - [ ] **Real-device QA pass**: real iPhone Safari, real Android Chrome, Windows Chrome + Firefox, Mac Safari + Chrome. PWA install flow on each. ~1 hr.
-- [ ] **Co-admin on every dashboard** (bus factor): Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min/provider × 8 = 80 min total.
+- [ ] **Co-admin on every dashboard** (bus factor): Vercel team, Supabase organization, LemonSqueezy, RevenueCat, App Store Connect, Play Console, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min/provider × 8 = 80 min total.
 - [ ] **Optional but cheap insurance**: 30-min legal review of `src/views/PrivacyPolicy.tsx` + `src/views/TermsOfService.tsx` drafts before launch. Plain English drafts exist; lawyer-vet for ZAR-jurisdiction.
 
 ### 🔗 Visibility (small but high-leverage)
@@ -381,8 +373,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [x] **Inner ErrorBoundaries on risky views** ✅
       `src/Everion.tsx` wraps `ChatView`, `VaultView`, `CaptureWelcomeScreen`, `GraphView`, `TodoView` each in their own `<ErrorBoundary name="..." fallback={ViewError}>`. A render error in one view shows a localized fallback instead of blowing away the shell.
 
-- [x] **Idempotency only on capture + Stripe webhook** ✅
-      Closed 2026-04-30. New `reserveActionIdempotency()` in `api/_lib/idempotency.ts` covers non-entry write paths via namespaced keys. Wired into `handleVault` POST (`vault-setup:<idem>`) and `handleApiKeys` DELETE (`apikey-revoke:<id>:<idem>`) in `api/user-data.ts` — both honour an optional `Idempotency-Key` header, replay → `{ ok: true, idempotent_replay: true }`, action failure releases the slot via `releaseIdempotency`. Capture + Stripe webhook unchanged.
+- [x] **Idempotency only on capture + payment webhook** ✅
+      Closed 2026-04-30. New `reserveActionIdempotency()` in `api/_lib/idempotency.ts` covers non-entry write paths via namespaced keys. Wired into `handleVault` POST (`vault-setup:<idem>`), `handleApiKeys` DELETE (`apikey-revoke:<id>:<idem>`), and `admin_set_tier` POST (`admin_set_tier:<target>:<idem>`) in `api/user-data.ts` — all honour an optional `Idempotency-Key` header, replay short-circuits, action failure releases the slot via `releaseIdempotency`. Capture and the Lemon/RevenueCat webhooks have their own SET-NX dedup via `webhookIdempotency.ts`.
 
 - [x] **Health check 5xx on degraded deps** ✅
       `handleHealth` in `api/user-data.ts:493` tests db + Gemini + Groq + Upstash, builds a `failures[]` array, returns **503** when any required dep is down (200 only when fully green). External monitors now see real outages.
@@ -398,8 +390,8 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 - [x] **Rate-limit fail-open audit** ✅
       Shipped 2026-04-30. `api/_lib/rateLimit.ts` now trips a circuit breaker after 3 consecutive Upstash failures (HTTP non-2xx OR thrown error) — open for 5 min, every call during that window returns false (denied) so endpoints fail closed instead of silently falling back to per-instance in-memory limiting that gives zero protection in serverless. Successful Upstash response resets the failure counter and clears the breaker. Local dev (`!process.env.VERCEL`) still uses in-memory for convenience. Bonus: separate `rateLimitKey` derivation added to `withAuth` so action/resource queries get their own bucket — `/api/entries?action=gmail-prompt` no longer shares its budget with the memory-feed list call (was 429-ing the admin "Live Gmail Prompt" panel after a normal session).
 
-- [ ] **Stripe idempotency fail-open without Upstash** 🟡
-      `api/_lib/stripeIdempotency.ts` returns `{ firstTime: true }` if Upstash isn't configured, so without Redis the dedup is bypassed. Today this is fine because the webhook handler PATCHes to fixed state, but it's a trap for any future incrementing operation. Either fail closed (503 with Retry-After) or document the constraint inline.
+- [ ] **Webhook idempotency fail-open without Upstash** 🟡
+      `api/_lib/webhookIdempotency.ts` (Lemon + RC) returns `{ firstTime: true }` if Upstash isn't configured, so without Redis the dedup is bypassed. Today this is fine because the webhook handlers PATCH to fixed state and the RC bridge `grantEntitlement` is idempotent on RC's side, but it's a trap for any future incrementing operation. Either fail closed (503 with Retry-After) or document the constraint inline.
 
 ### P1 — UX & accessibility
 
@@ -461,7 +453,7 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 - [x] **Staging Supabase project** ✅ — `everion-staging` (`rsnrvebcjbstfxhkfsjq`, eu-west-1, free tier, $0/mo). Schema mirrors production via `supabase/migrations/*.sql`. URL + anon key in `.env.example`. Workflow: apply new migrations to staging FIRST, verify, THEN apply to production. Drift check reminder saved to Christian's Everion memory for 2026-05-28.
 - [x] **Pin `/status` link somewhere user-visible** ✅ — landing footer + login "Having trouble?" wired 2026-04-29. Support email signature still owed once sender domain is configured.
-- [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, Stripe, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
+- [ ] **Co-admin on every dashboard** ❌ — bus factor. Add a second admin (wife / co-founder / trusted contractor) to: Vercel team, Supabase organization, LemonSqueezy, RevenueCat, App Store Connect, Play Console, Sentry, PostHog, Resend, Upstash, GitHub repo. ~10 min per provider; total ~90 min.
 - [ ] **Test Supabase backup restore** ❌ — depends on the Pro-upgrade above. **Currently on Free tier (no automated backups exist).** Once Pro is on, backups run daily automatically with 7-day retention; this item becomes a one-time dry-run + a quarterly habit. A backup you've never restored is a hope, not a backup.
 
   **Step 0: confirm Pro is active** (1 min, after you've upgraded)
@@ -719,13 +711,11 @@ The wrap is done when:
 - [ ] `POST_NOTIFICATIONS` (Android 13+) for push.
 - [ ] **Skip** `WRITE_EXTERNAL_STORAGE` — scoped storage on Android 11+ removes need; including it triggers extra Play review.
 
-**Stripe vs IAP — decision required (BLOCKER)**
+**Web vs IAP — RESOLVED (Path B chosen and shipped 2026-04-30)**
 
-- [ ] Pick path before iOS submission:
-  - **Path A (fast):** ship iOS as free + BYOK only. "Use ours" upgrade opens external Safari sheet to web checkout. Apple now allows external link-out for reader/subscription apps post-Epic, but the link must NOT be styled as the primary CTA inside the app.
-  - **Path B (cleaner):** wire Apple In-App Purchase + RevenueCat → unify with Stripe. Apple takes 15% (Small Business Program, <$1M/yr) or 30%, but no review friction.
-- Don't ship Stripe-from-Capacitor on iOS without Path A or B. Apple rejects on first submission.
-- Google Play: Stripe accepted for now but Play Billing is preferred. Plan Play Billing for v2 of the wrap.
+- [x] **Path B chosen — RevenueCat-wrapped IAP for native + LemonSqueezy for web** ✅
+      Apple takes 15% (Small Business Program, <$1M/yr) or 30%; Google Play Billing applies similarly. Both stores' receipts validate through RevenueCat (no two-store integration code on our side). Web stays on LemonSqueezy where Apple/Play don't apply. Bridge: LS webhook → RC promotional entitlement grant — same user gets entitled across surfaces. Stripe was retired in commit `c484030`.
+- [ ] **Operator config** — App Store Connect + Play Console product creation + RC dashboard linking. See "RevenueCat dashboard configured" + "App Store Connect + Play Console products" items in the Billing section above.
 
 ### M1 — Listing copy (paste-ready, drafted 2026-04-29)
 
@@ -874,7 +864,7 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 **Apple App Store Connect**
 
 - [ ] **App Privacy nutrition labels** (must match `/privacy`):
-  - Data Linked to You: Email (account), Purchase history (Stripe), Diagnostic (Sentry, no PII)
+  - Data Linked to You: Email (account), Purchase history (LemonSqueezy on web; Apple/Google in-app via RevenueCat on native), Diagnostic (Sentry, no PII)
   - Data Not Linked to You: Usage analytics (PostHog, consent-gated)
   - Data Not Collected: Vault contents, location, contacts, browsing history
 - [ ] **Age rating:** 4+ — pick "Infrequent/Mild — Mature Themes" if onboarding keeps the "if I die" copy.
@@ -898,7 +888,7 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 - [ ] Android `AndroidManifest.xml` permissions match runtime requests (no extras)
 - [ ] Bundle ID `com.everionmind.app` locked in App Store Connect + Play Console
 - [ ] Universal Links + App Links files served at `/.well-known/` and validated by Apple's `swcutil` / Google's Digital Asset Links tester
-- [ ] Stripe IAP path resolved (M0 Path A or B chosen and implemented)
+- [x] IAP path resolved (Path B — RevenueCat for native + LemonSqueezy for web; shipped 2026-04-30 commit `c484030`)
 - [ ] Service-worker registration gated behind `!isNativePlatform()`
 - [ ] 8 screenshots generated at all required sizes (Apple 6.9", 6.5", 5.5"; Android phone, tablet)
 - [ ] Feature graphic 1024×500 generated
