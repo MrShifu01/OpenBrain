@@ -257,13 +257,16 @@ function EverionContent({
     }
   }, [adminFlags, appShell.view, appShell.setView]);
 
-  // Auto-sync IANA timezone on mount AND on every auth state change.
-  // Mount alone misses the case where the app loads pre-auth and the
-  // useEffect closure has already fired by the time the session lands.
+  // Auto-sync IANA timezone on mount AND on SIGNED_IN. Skip TOKEN_REFRESHED:
+  // Supabase fires that every 5–30 min during a session, which spammed
+  // /api/notification-prefs to the rate-limit ceiling under e2e and produced
+  // 429 noise. The session-scoped sessionStorage gate inside
+  // syncTimezoneIfChanged still handles legit duplicate calls within a
+  // single page load.
   useEffect(() => {
     syncTimezoneIfChanged();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      if (event === "SIGNED_IN") {
         syncTimezoneIfChanged();
       }
     });
