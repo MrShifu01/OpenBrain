@@ -6,6 +6,7 @@ import MobileMoreMenu from "./MobileMoreMenu";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 // Auto-hide on scroll-down, slide back in on scroll-up. Mirrors the
 // pattern shipping in Mail / Twitter / Instagram — gives users back the
@@ -145,48 +146,58 @@ export default function MobileHeader({
             />
           )}
           {onSearch && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onSearch}
-              aria-label="Search"
-              style={{ color: "var(--ink-soft)" }}
-            >
-              <svg
-                width="18"
-                height="18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="11" cy="11" r="6.5" />
-                <path d="m20 20-3.5-3.5" />
-              </svg>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onSearch}
+                  aria-label="Search"
+                  style={{ color: "var(--ink-soft)" }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle cx="11" cy="11" r="6.5" />
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Search</TooltipContent>
+            </Tooltip>
           )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Open menu"
-            style={{ color: "var(--ink-soft)" }}
-          >
-            <svg
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Open menu"
+                style={{ color: "var(--ink-soft)" }}
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Menu</TooltipContent>
+          </Tooltip>
         </div>
       </header>
 

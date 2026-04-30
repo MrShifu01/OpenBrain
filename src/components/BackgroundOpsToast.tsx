@@ -1,178 +1,88 @@
-// Toast stack for the generic background-ops system. Mirrors
-// BackgroundTaskToast visually but reads from useBackgroundOps so any
-// startTask call surfaces here regardless of which tab launched it.
+// Generic background-ops toast bridge. Mounts once in Everion.tsx, reads
+// from useBackgroundOps(), and pushes each running/done/error task into the
+// shared sonner Toaster. Returns null — the JSX lives in <Toaster>.
+//
+// Originally rendered a custom floating stack at bottom-44; that site is
+// now retired in favour of the single sonner queue mounted at the bottom
+// of the screen.
 
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { useBackgroundOps } from "../hooks/useBackgroundOps";
-import { Button } from "./ui/button";
 
-function Spinner() {
-  return (
-    <svg className="h-4 w-4 shrink-0 animate-spin" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      viewBox="0 0 24 24"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-    </svg>
-  );
-}
-
-function ErrorIcon() {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-      />
-    </svg>
-  );
+function progressDescription(p: { current: number; total?: number; suffix?: string }): string {
+  const head = p.total ? `${p.current} / ${p.total}` : `${p.current}`;
+  return p.suffix ? `${head} · ${p.suffix}` : `${head}…`;
 }
 
 export function BackgroundOpsToast() {
-  const { tasks, dismissTask, dismissAll } = useBackgroundOps();
-  if (tasks.length === 0) return null;
+  const { tasks, dismissTask } = useBackgroundOps();
+  const seenStatus = useRef<Map<string, string>>(new Map());
+  // Progress changes live inside `running` status; track the last-emitted
+  // progress string per task so we update sonner only when the text changes.
+  const lastProgress = useRef<Map<string, string>>(new Map());
 
-  const finished = tasks.filter((t) => t.status === "done" || t.status === "error");
+  useEffect(() => {
+    const currentIds = new Set(tasks.map((t) => t.id));
 
-  return (
-    <div
-      // Sits above the file-capture toast (bottom-24) so the two stacks don't overlap.
-      className="fixed bottom-44 left-1/2 z-[60] flex -translate-x-1/2 flex-col gap-2 lg:bottom-24"
-      style={{ maxWidth: "calc(100vw - 2rem)", width: 340 }}
-    >
-      {tasks.map((task) => {
-        const isActive = task.status === "running";
-        const isDone = task.status === "done";
-        const isError = task.status === "error";
+    for (const id of Array.from(seenStatus.current.keys())) {
+      if (!currentIds.has(id)) {
+        toast.dismiss(id);
+        seenStatus.current.delete(id);
+        lastProgress.current.delete(id);
+      }
+    }
 
-        return (
-          <div
-            key={task.id}
-            className="flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-lg"
-            style={{
-              background: "var(--color-surface-container-high)",
-              borderColor: isError
-                ? "var(--color-error)"
-                : isDone
-                  ? "var(--color-primary)"
-                  : "var(--color-outline-variant)",
-            }}
-          >
-            <span
-              className="mt-0.5"
-              style={{
-                color: isError
-                  ? "var(--color-error)"
-                  : isDone
-                    ? "var(--color-primary)"
-                    : "var(--color-on-surface-variant)",
-              }}
-            >
-              {isActive && <Spinner />}
-              {isDone && <CheckIcon />}
-              {isError && <ErrorIcon />}
-            </span>
+    for (const task of tasks) {
+      const prev = seenStatus.current.get(task.id);
+      const progressText = task.progress ? progressDescription(task.progress) : "Working…";
+      const dismissOpt = { onDismiss: () => dismissTask(task.id) };
 
-            <div className="min-w-0 flex-1">
-              <p
-                className="truncate text-sm font-medium"
-                style={{ color: "var(--color-on-surface)" }}
-              >
-                {task.label}
-              </p>
-              <p
-                className="text-xs break-words"
-                style={{
-                  color: isError ? "var(--color-error)" : "var(--color-on-surface-variant)",
-                }}
-              >
-                {isError
-                  ? task.error || "Failed"
-                  : isDone
-                    ? task.result || "Done"
-                    : task.progress
-                      ? renderProgress(task.progress)
-                      : "Working…"}
-              </p>
-            </div>
+      if (task.status === "done") {
+        if (prev !== "done") {
+          toast.success(task.label, {
+            id: task.id,
+            description: task.result || "Done",
+            ...dismissOpt,
+            ...(task.action
+              ? {
+                  action: {
+                    label: task.action.label,
+                    onClick: () => {
+                      window.dispatchEvent(
+                        new CustomEvent(task.action!.event, { detail: task.action!.detail }),
+                      );
+                      dismissTask(task.id);
+                    },
+                  },
+                }
+              : {}),
+          });
+          seenStatus.current.set(task.id, "done");
+        }
+      } else if (task.status === "error") {
+        if (prev !== "error") {
+          toast.error(task.label, {
+            id: task.id,
+            description: task.error || "Failed",
+            ...dismissOpt,
+          });
+          seenStatus.current.set(task.id, "error");
+        }
+      } else {
+        // running — re-emit if status changed OR if progress text changed.
+        const lastProg = lastProgress.current.get(task.id);
+        if (prev !== "running" || lastProg !== progressText) {
+          toast.loading(task.label, {
+            id: task.id,
+            description: progressText,
+          });
+          seenStatus.current.set(task.id, "running");
+          lastProgress.current.set(task.id, progressText);
+        }
+      }
+    }
+  }, [tasks, dismissTask]);
 
-            {isDone && task.action && (
-              <Button
-                size="xs"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new CustomEvent(task.action!.event, { detail: task.action!.detail }),
-                  );
-                  dismissTask(task.id);
-                }}
-                className="press-scale ml-auto shrink-0 rounded-lg"
-                style={{
-                  background: "var(--color-primary)",
-                  color: "var(--color-on-primary)",
-                }}
-              >
-                {task.action.label}
-              </Button>
-            )}
-
-            {!isActive && (
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => dismissTask(task.id)}
-                aria-label="Dismiss"
-                className="h-6 w-6 shrink-0 rounded-full"
-                style={{ color: "var(--color-on-surface-variant)" }}
-              >
-                <svg
-                  className="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </Button>
-            )}
-          </div>
-        );
-      })}
-
-      {finished.length > 1 && (
-        <Button
-          variant="link"
-          size="xs"
-          onClick={dismissAll}
-          className="self-end text-xs"
-          style={{ color: "var(--color-on-surface-variant)" }}
-        >
-          Dismiss all
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function renderProgress(p: { current: number; total?: number; suffix?: string }): string {
-  const head = p.total ? `${p.current} / ${p.total}` : `${p.current}`;
-  return p.suffix ? `${head} · ${p.suffix}` : `${head}…`;
+  return null;
 }

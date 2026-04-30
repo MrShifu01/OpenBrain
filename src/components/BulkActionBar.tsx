@@ -3,6 +3,7 @@ import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -279,13 +280,44 @@ export default function BulkActionBar({
                 Tap to confirm
               </Button>
             ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    disabled={deleting}
+                    aria-label={`Delete ${count} selected`}
+                    onClick={() => setConfirmingDelete(true)}
+                    className="text-[var(--blood,#c44)]"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
+                      />
+                    </svg>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete {count}</TooltipContent>
+              </Tooltip>
+            ))}
+          <Button size="sm" onClick={() => setExpanded(true)} aria-label="More actions">
+            More
+          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
               <Button
                 size="icon-sm"
                 variant="ghost"
-                disabled={deleting}
-                aria-label={`Delete ${count} selected`}
-                onClick={() => setConfirmingDelete(true)}
-                className="text-[var(--blood,#c44)]"
+                onClick={onCancel}
+                aria-label="Cancel selection"
               >
                 <svg
                   className="h-4 w-4"
@@ -294,28 +326,12 @@ export default function BulkActionBar({
                   strokeWidth="2"
                   viewBox="0 0 24 24"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </Button>
-            ))}
-          <Button size="sm" onClick={() => setExpanded(true)} aria-label="More actions">
-            More
-          </Button>
-          <Button size="icon-sm" variant="ghost" onClick={onCancel} aria-label="Cancel selection">
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </Button>
+            </TooltipTrigger>
+            <TooltipContent>Cancel</TooltipContent>
+          </Tooltip>
         </div>
       </div>
     );

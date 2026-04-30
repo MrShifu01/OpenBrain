@@ -5,6 +5,7 @@ import BrainSwitcher from "./BrainSwitcher";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 interface DesktopHeaderProps {
   searchInput: string;
@@ -191,15 +192,20 @@ export default function DesktopHeader({
           }}
         />
         {searchInput ? (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => onSearchChange("")}
-            aria-label="Clear search"
-            style={{ color: "var(--ink-faint)" }}
-          >
-            ×
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => onSearchChange("")}
+                aria-label="Clear search"
+                style={{ color: "var(--ink-faint)" }}
+              >
+                ×
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Clear search</TooltipContent>
+          </Tooltip>
         ) : (
           <kbd
             aria-hidden="true"
@@ -236,44 +242,53 @@ export default function DesktopHeader({
           />
         )}
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={onToggleTheme}
-          aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-          style={{ color: "var(--ink-soft)" }}
-        >
-          {isDark ? SUN_ICON : MOON_ICON}
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onToggleTheme}
+              aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              style={{ color: "var(--ink-soft)" }}
+            >
+              {isDark ? SUN_ICON : MOON_ICON}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{isDark ? "Light mode" : "Dark mode"}</TooltipContent>
+        </Tooltip>
 
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => onNavigate("settings")}
-          aria-label={email ? `Account — ${email}` : "Account"}
-          title={email || "Account"}
-          className="ml-1.5 rounded-full"
-          style={{
-            background: "var(--ember-wash)",
-            color: "var(--ember)",
-          }}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            style={{ display: "block" }}
-          >
-            <circle cx="12" cy="10" r="3.5" />
-            <path d="M6 18.5c1-2.7 3.4-4.2 6-4.2s5 1.5 6 4.2" />
-          </svg>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onNavigate("settings")}
+              aria-label={email ? `Account — ${email}` : "Account"}
+              className="ml-1.5 rounded-full"
+              style={{
+                background: "var(--ember-wash)",
+                color: "var(--ember)",
+              }}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                style={{ display: "block" }}
+              >
+                <circle cx="12" cy="10" r="3.5" />
+                <path d="M6 18.5c1-2.7 3.4-4.2 6-4.2s5 1.5 6 4.2" />
+              </svg>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{email || "Account"}</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   );
