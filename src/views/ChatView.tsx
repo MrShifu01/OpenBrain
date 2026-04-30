@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
+import { toast } from "sonner";
 import { useChat } from "../hooks/useChat";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { useEntries } from "../context/EntriesContext";
@@ -67,6 +68,15 @@ export default function ChatView({ brainId, onNavigate }: ChatViewProps) {
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || loading || voiceLoading) return;
+    // Chat needs the LLM proxy; bail with a calm message and KEEP the typed
+    // text so reconnect lets the user send without retyping.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      toast("You're offline · Chat needs internet. We'll keep your message ready.", {
+        id: "chat-offline",
+        duration: 4000,
+      });
+      return;
+    }
     if (entriesLoaded && entries.length === 0) {
       setNoMemoryToast(true);
       setTimeout(() => setNoMemoryToast(false), 3000);

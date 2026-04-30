@@ -6,6 +6,7 @@ export const KEYS = {
   EMBED_PROVIDER: `${P}embed_provider`,
   OFFLINE_QUEUE: `${P}queue`,
   ENTRIES_CACHE: `${P}entries`,
+  entriesCacheForBrain: (brainId: string) => `${P}entries:${brainId}`,
   USAGE: `${P}usage`,
   learningDecisions: (brainId: string) => `${P}learning_decisions:${brainId}`,
   learningSummary: (brainId: string) => `${P}learning_summary:${brainId}`,

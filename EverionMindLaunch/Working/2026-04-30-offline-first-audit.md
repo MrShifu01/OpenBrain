@@ -2,7 +2,8 @@
 
 > **Started:** 2026-04-30 19:13 SAST
 > **Phase 1 (audit) finished:** 2026-04-30 19:35 SAST
-> **Status:** Phase 1 complete · Phase 2 ready to start
+> **Phase 2 P0 (broken-surface fixes) finished:** 2026-04-30 19:48 SAST
+> **Status:** P0 shipped · P1 partials remaining
 > **Goal:** make `Local-first, works offline` (`src/views/Landing.tsx:1370`) actually true across every visible surface, not just the app shell.
 > **Why now:** the marketing claim is on the landing page; right now if Supabase or any read-path fetch fails the app feels broken instead of degrading gracefully. The boot watchdog shipped today (commit `539700e`) papers over the worst symptom but doesn't fix the underlying gap.
 
@@ -23,7 +24,7 @@ Severity legend: 🔴 broken (user sees blank/error) · 🟡 partial (works but 
 | 7 | Capture-queue drain on reconnect | 🟢 OK | `useOfflineSync.drain` runs on `online` event + replays each op; max-retry → failed-store. Tests cover. | — |
 | 8 | Entry edit (`handleUpdate`) offline | 🟡 partial | `useEntryActions.ts:104` hard-blocks with toast "You can't save while offline." No queue. Read-only experience until back online. | Medium |
 | 9 | Entry delete offline | 🟡 partial | Optimistic update + cache write (`useEntryActions.ts:144`) but no queue — change vanishes on reconnect because the server never sees it. | High |
-| 10 | Search (`OmniSearch`) offline | 🔴 broken | No `isOnline` check. Hits `/api/search` blindly → throws / shows nothing → user thinks search is broken. | High |
+| 10 | Search (`OmniSearch`) offline | 🟢 OK | Correction after re-audit — OmniSearch scores entries locally via `searchIndex`. The only `/api/search` call is a concept-graph link prefetch in `useDataLayer:158` whose catch is fire-and-forget. Search is fundamentally offline-friendly. | — |
 | 11 | Chat (`ChatView`) offline | 🔴 broken | No `isOnline` check, no offline copy. Submits prompt → `/api/llm` fails → generic error. Typed prompt may be lost. | High |
 | 12 | Vault unlock offline | 🟡 partial | `/api/vault` existence check + `/api/vault-entries` fetch both fail offline (`useDataLayer.ts:59,70`). Vault key derivation is local but the encrypted blob isn't cached, so unlock has nothing to decrypt. | High |
 | 13 | Calendar / Schedule offline | 🟢 OK | Reads from same `entries` array as Memory — inherits cache fallback. | — |
@@ -35,7 +36,7 @@ Severity legend: 🔴 broken (user sees blank/error) · 🟡 partial (works but 
 | 19 | `NativeOfflineScreen` parity for web standalone PWA | 🟡 partial | Native-only. Web standalone PWA boot with no session + no network shows boot shell → blank app. | Medium |
 | 20 | Persistent offline banner | 🔴 broken | `isOnline` is plumbed through `DesktopSidebar` + `MobileHeader` props (`isOnline: _isOnline,` — destructured-and-ignored). No `OfflineBanner` component exists. | Medium |
 
-**Counts:** 6 🔴 broken · 9 🟡 partial · 5 🟢 OK / no-op
+**Counts:** 5 🔴 broken · 9 🟡 partial · 6 🟢 OK / no-op (search re-audit moved #10 → OK)
 
 ---
 
@@ -66,6 +67,7 @@ Rebuilt from the findings. P0 ships before launch, P1 before native, P2 after.
 
 Each working session appends a one-line entry below — most recent at top.
 
+- 2026-04-30 19:48 — Phase 2 P0 shipped (commit pending). Watchdog network-gated, entriesCache per-brain, OfflineBanner mounted, chat keeps typed text on offline + sonner notice. Bonus: lib/notifications toast bus wired to sonner — every previously-silent showToast now surfaces. Search re-audited as already-offline-safe (local scoring). Counts now 5 broken / 9 partial / 6 OK.
 - 2026-04-30 19:35 — Phase 1 audit complete. 6 broken / 9 partial / 5 OK across 20 surfaces. Top fixes: watchdog network gate, entryRepo cache-fallback, OfflineBanner, chat/search offline UX.
 - 2026-04-30 19:13 — Document opened. Pre-flight survey shows `entriesCache.ts` exists (good), `offlineQueue.ts` exists (good), `OfflineBanner` does NOT exist, `entryRepo` cache fallback unverified, watchdog ungated for offline. Phase 1 matrix queued.
 
@@ -100,11 +102,13 @@ This doc lives at `EML/Working/` and refreshes in the dashboard every 2.5s. Tick
 
 Order = priority above. Each item links to its finding number for traceability.
 
-**P0 — broken (4 items, ≤ half-day):**
-- [ ] **#17 — watchdog network gate** — `index.html` skips reload if `!navigator.onLine`.
-- [ ] **#3, #4 — `entryRepo` cache fallback** — on fetch failure, read `entriesCache` and surface as the result. Caller-visible `offline: true` flag so views can render an "offline — showing cached" hint.
-- [ ] **#6, #20 — `OfflineBanner.tsx`** — top-of-app chip driven by `useOfflineSync.isOnline + pendingCount`. Wires `_isOnline` props that are currently destructured-ignored.
-- [ ] **#10, #11 — chat + search offline UX** — `isOnline` check before fire; calm "needs internet" inline message; preserve typed prompt across reconnect.
+**P0 — broken (shipped 2026-04-30 19:35):**
+- [x] **#17 — watchdog network gate** ✅ — `index.html` watchdog skips reload when `navigator.onLine === false`. Offline users no longer reload-loop.
+- [x] **#3, #4 — per-brain `entriesCache` + offline-tolerant brain switch** ✅ — `entriesCache.ts` now keyed by `brainId` (legacy single-key cache preserved as fallback so users carrying old caches don't lose their list). `useDataLayer` brain-switch reads the new brain's cache instead of clearing entries unconditionally — offline brain switch shows the right brain's cached entries instead of blank.
+- [x] **#6, #20 — `OfflineBanner.tsx`** ✅ — top-of-app chip in `Everion.tsx`. Two states: offline (blood, pulsing dot, "X queued") + online-with-queue (ember, "Syncing X queued changes…"). Auto-disappears when both clear.
+- [x] **#11 — chat offline UX** ✅ — `ChatView.handleSend` checks `navigator.onLine`, fires sonner toast "You're offline · Chat needs internet. We'll keep your message ready.", does NOT clear the typed text so reconnect lets the user send without retyping.
+- [x] **#10 — search offline (re-audit)** ✅ — discovered OmniSearch is local-only; matrix corrected to 🟢 OK. No code change needed.
+- [x] **Bonus — `lib/notifications.ts` toast bus wired to sonner** ✅ — discovered the `showToast()` listener pattern had zero subscribers; every "You can't save while offline" toast in `useEntryActions` was being silently dropped. Now dispatches to sonner so all the existing offline messages actually surface.
 
 **P1 — partials (5 items, ~1 day):**
 - [ ] **#8, #9 — entry edit + delete offline queue** — promote through same `offlineQueue` mechanism as create.

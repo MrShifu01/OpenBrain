@@ -45,14 +45,19 @@ export function useDataLayer({
   const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
   const vaultEntryIdsRef = useRef<Set<string>>(new Set());
 
-  // Load entries cache on mount
+  // Load entries cache on mount — read the per-brain cache for the active brain
+  // first, falling back to the legacy single-key cache. Empty cache leaves the
+  // existing list intact (could be hydrated from the synchronous localStorage
+  // bootstrap above).
   useEffect(() => {
-    readEntriesCache()
+    readEntriesCache(activeBrainId)
       .then((cached) => {
         if (cached && cached.length > 0) setEntries((prev) => (prev.length === 0 ? cached : prev));
       })
       .catch((err) => console.error("[OpenBrain] readEntriesCache failed", err));
-  }, []);
+    // activeBrainId in deps so the cache load re-runs if the brain changes
+    // before the network refresh can fill in.
+  }, [activeBrainId]);
 
   // Vault existence check
   useEffect(() => {
@@ -122,7 +127,7 @@ export function useDataLayer({
       .then((all) => {
         if (all.length > 0) {
           setEntries(all);
-          writeEntriesCache(all);
+          writeEntriesCache(all, activeBrainId);
           all.filter((e) => e.type !== "secret").forEach(indexEntry);
         }
       })
@@ -132,11 +137,20 @@ export function useDataLayer({
   // Fetch entries + prefetch links when brain changes.
   // prevBrainIdRef guards against clearing entries on initial mount
   // (which would flash-blank the cached list before the API returns).
+  // On brain switch we hydrate from the new brain's cache synchronously
+  // (best-effort) before kicking off the network refresh — keeps the user
+  // looking at the right brain's entries even when offline.
   const prevBrainIdRef = useRef(activeBrainId);
   useEffect(() => {
     if (!activeBrainId) return;
     if (prevBrainIdRef.current !== activeBrainId) {
-      setEntries([]);
+      // Hydrate from cache if the new brain has one — replaces the unconditional
+      // setEntries([]) which used to flash blank for offline users.
+      readEntriesCache(activeBrainId)
+        .then((cached) => {
+          setEntries(cached && cached.length > 0 ? cached : []);
+        })
+        .catch(() => setEntries([]));
       setLinks([]);
       prevBrainIdRef.current = activeBrainId;
     }
@@ -151,12 +165,13 @@ export function useDataLayer({
       .catch((err) => console.error("[OpenBrain] /api/search prefetch failed", err));
   }, [activeBrainId, refreshEntries]);
 
-  // Write-back cache after entries settle
+  // Write-back cache after entries settle — keyed on the active brain so a
+  // brain switch can read the right cache later.
   useEffect(() => {
     if (!entriesLoaded) return;
-    const t = setTimeout(() => writeEntriesCache(entries), 3000);
+    const t = setTimeout(() => writeEntriesCache(entries, activeBrainId), 3000);
     return () => clearTimeout(t);
-  }, [entries, entriesLoaded]);
+  }, [entries, entriesLoaded, activeBrainId]);
 
   const handleVaultUnlock = useCallback((key: CryptoKey | null) => {
     setCryptoKey(key);
@@ -191,6 +206,7 @@ export function useDataLayer({
     isOnlineRef,
     refreshCount,
     cryptoKey,
+    activeBrainId,
   });
 
   // Flush pending delete on page hide / unload

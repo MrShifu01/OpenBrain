@@ -21,6 +21,7 @@ import { useStagedCount } from "./hooks/useStagedCount";
 import { VirtualGrid, VirtualTimeline } from "./components/EntryList";
 import BulkActionBar from "./components/BulkActionBar";
 import OnboardingModal from "./components/OnboardingModal";
+import OfflineBanner from "./components/OfflineBanner";
 import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
 const CaptureSheet = lazy(() => import("./components/CaptureSheet"));
@@ -320,6 +321,7 @@ function EverionContent({
         focused; `focus:not-sr-only` brings it into view as a styled chip.
         Counterpart `id="main-content"` is on the view-content wrapper below.
       */}
+      <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only"

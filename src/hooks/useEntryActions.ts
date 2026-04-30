@@ -25,6 +25,9 @@ interface UseEntryActionsParams {
   isOnlineRef: React.MutableRefObject<boolean>;
   refreshCount: () => void;
   cryptoKey: CryptoKey | null;
+  /** Active brain — used to key the per-brain entries cache so edits/deletes
+   *  persist into the right slot for offline reads. */
+  activeBrainId?: string;
 }
 
 // Undoable action history. Discriminated union — `type` narrows the shape.
@@ -52,6 +55,7 @@ export function useEntryActions({
   isOnlineRef,
   refreshCount,
   cryptoKey,
+  activeBrainId,
 }: UseEntryActionsParams) {
   const [lastAction, setLastAction] = useState<LastAction | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -60,7 +64,10 @@ export function useEntryActions({
   const commitPendingDelete = useCallback(() => {
     if (!pendingDeleteRef.current) return;
     const { id, entry } = pendingDeleteRef.current;
-    writeEntriesCache(entries.filter((e) => e.id !== id));
+    writeEntriesCache(
+      entries.filter((e) => e.id !== id),
+      activeBrainId,
+    );
     if (isOnlineRef.current) {
       authFetch("/api/delete-entry", {
         method: "DELETE",
@@ -76,7 +83,7 @@ export function useEntryActions({
       showToast("You can't delete while offline.", "error");
     }
     pendingDeleteRef.current = null;
-  }, [entries, isOnlineRef, setEntries]);
+  }, [entries, isOnlineRef, setEntries, activeBrainId]);
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -141,7 +148,7 @@ export function useEntryActions({
       // Apply optimistically before the request so the UI feels instant
       setEntries((prev) => {
         const next = prev.map((e) => (e.id === id ? { ...e, ...changes } : e));
-        writeEntriesCache(next);
+        writeEntriesCache(next, activeBrainId);
         return next;
       });
       setSelected((prev) => (prev?.id === id ? { ...prev, ...changes } : prev));
@@ -161,7 +168,7 @@ export function useEntryActions({
         if (previous) {
           setEntries((prev) => {
             const rolled = prev.map((e) => (e.id === id ? previous : e));
-            writeEntriesCache(rolled);
+            writeEntriesCache(rolled, activeBrainId);
             return rolled;
           });
           setSelected((prev) => (prev?.id === id ? previous : prev));

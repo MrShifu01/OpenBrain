@@ -295,6 +295,11 @@
       // sees the splash forever until they force-quit. sessionStorage gates
       // the reload to once per session so a genuinely slow network can't
       // create a reload loop.
+      //
+      // navigator.onLine gate: a user who is offline can never load the JS
+      // bundle from the network, so reloading them is pointless and creates
+      // a flicker loop. Skip the watchdog while offline; the SW cache will
+      // serve next reload regardless.
       (function () {
         var KEY = "everion:boot-watchdog-fired";
         var TIMEOUT_MS = 12000;
@@ -304,6 +309,10 @@
           timer = setTimeout(function () {
             var bootShellGone = !document.querySelector(".app-shell-boot");
             if (bootShellGone) return;
+            // Don't fire while the browser reports offline — the user has
+            // no path to a fresh bundle, and the visible boot shell beats
+            // a reload loop.
+            if (typeof navigator !== "undefined" && navigator.onLine === false) return;
             try {
               if (sessionStorage.getItem(KEY)) return;
               sessionStorage.setItem(KEY, "1");
