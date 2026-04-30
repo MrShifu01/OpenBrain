@@ -222,6 +222,23 @@ App audit on 2026-04-29 found ~298 hand-rolled UI instances across 49+ files wit
       Entries, chat history, concept graphs, learning summaries, offline ops, and session vault keys touch local/session storage. Add a privacy mode plus TTL/encryption/clear-cache strategy for sensitive caches. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 plaintext browser storage finding.
 - [ ] **ESLint warning burn-down** 🟡
       Current warning budget is too close to the ceiling. Reduce warnings below 20, then lower `--max-warnings` so new hook/stale-closure warnings cannot hide. Trace: `EverionMindLaunch/Audits/archive/codex-2026-04-30.md` P2 lint warning finding.
+- [ ] **Re-verify Supabase Disk IO health on/after 2026-05-07** 🟡
+      Migration `063_perf_rls_and_io.sql` (applied 2026-04-30, project `wfvoqpdfzkqnenzjxhui`) cleared all WARN-level perf advisors after a Supabase Disk IO Budget alert. Counters are unreliable until ~1 week of post-migration traffic. After 2026-05-07, run `mcp__plugin_supabase_supabase__get_advisors` (type=performance), check Gmail for any new "Disk IO Budget" alert, then run these SQL probes via `execute_sql`:
+      ```sql
+      -- 1. Indexes still unused after a week of traffic (now safe to drop, EXCEPT FK covers)
+      SELECT relname AS table_name, indexrelname AS index_name, idx_scan,
+             pg_size_pretty(pg_relation_size(indexrelid)) AS size
+        FROM pg_stat_user_indexes
+       WHERE schemaname = 'public' AND idx_scan = 0
+       ORDER BY pg_relation_size(indexrelid) DESC;
+      -- 2. Cache hit ratio per table — anything <99% = memory pressure / hot scans
+      SELECT relname, heap_blks_read, heap_blks_hit,
+             round(100.0*heap_blks_hit/NULLIF(heap_blks_read+heap_blks_hit,0), 2) AS hit_pct
+        FROM pg_statio_user_tables
+       WHERE schemaname = 'public'
+       ORDER BY heap_blks_read DESC LIMIT 10;
+      ```
+      Do NOT drop `idempotency_keys_entry_id_idx` or `user_ai_settings_active_brain_id_idx` even if `idx_scan = 0` — those are FK covering indexes that protect parent UPDATE/DELETE.
 
 ---
 
