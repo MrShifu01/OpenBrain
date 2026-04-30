@@ -10,6 +10,7 @@ import {
   setAdminPref,
   type AdminPrefs,
 } from "../../lib/adminPrefs";
+import AdminCRMSection from "./AdminCRMSection";
 import GmailScanReviewModal from "./GmailScanReviewModal";
 import { MOCK_REVIEW_ITEMS } from "../../data/mockGmailReviewItems";
 import { useEntries } from "../../context/EntriesContext";
@@ -1114,6 +1115,7 @@ export default function AdminTab() {
 
   return (
     <div>
+      <AdminCRMSection />
       <TierChanger />
       <PushTestSection />
       <DailySummarySection />

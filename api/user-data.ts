@@ -112,6 +112,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "notifications") return handleNotifications(req, res);
   if (resource === "lemon-checkout") return handleLemonCheckout(req, res);
   if (resource === "lemon-portal") return handleLemonPortal(req, res);
+  if (resource === "admin_users") return handleAdminUsers(req, res);
+  if (resource === "admin_user_overview") return handleAdminUserOverview(req, res);
+  if (resource === "admin_set_tier") return handleAdminSetTier(req, res);
   if (resource === "profile") return handleProfile(req, res);
   // Default: memory
   return handleMemory(req, res);
@@ -2124,5 +2127,187 @@ const handleLemonPortal = withAuth(
       return void res.status(502).json({ error: "Payment provider unavailable" });
     }
     res.status(200).json({ url });
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin CRM
+//
+// Internal support console: lookup, view, and (cautiously) mutate any user's
+// tier. Gated on `app_metadata.is_admin === true` in the JWT — same model as
+// the entries.ts admin endpoints so support knows one mechanism. All mutations
+// land in audit_log so we can reconstruct who changed what when.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function isAdminUser(user: { app_metadata?: Record<string, unknown> }): boolean {
+  return user.app_metadata?.is_admin === true;
+}
+
+interface AdminUserRow {
+  id: string;
+  email: string | null;
+  tier: string;
+  billing_provider: string | null;
+  current_period_end: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+}
+
+// ── /api/user-data?resource=admin_users ──
+// Search + pagination. Empty q returns the most recently created users so
+// opening the console always shows fresh signups first.
+const handleAdminUsers = withAuth(
+  { methods: ["GET"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (!isAdminUser(user)) return void res.status(403).json({ error: "Forbidden" });
+
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const limit = Math.min(Math.max(Number(req.query.limit) || 25, 1), 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/admin_list_users`, {
+      method: "POST",
+      headers: sbHeaders(),
+      body: JSON.stringify({ p_q: q || null, p_limit: limit, p_offset: offset }),
+    });
+    if (!r.ok) {
+      console.error(`[admin_users] RPC failed: ${r.status}`, await r.text());
+      return void res.status(502).json({ error: "Lookup failed" });
+    }
+    const rows = (await r.json()) as AdminUserRow[];
+    res.status(200).json({ users: rows, limit, offset, q });
+  },
+);
+
+// ── /api/user-data?resource=admin_user_overview ──
+// One user — profile + billing + this month's usage + last 50 audit events.
+const handleAdminUserOverview = withAuth(
+  { methods: ["GET"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (!isAdminUser(user)) return void res.status(403).json({ error: "Forbidden" });
+
+    const target = typeof req.query.id === "string" ? req.query.id.trim() : "";
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) {
+      return void res.status(400).json({ error: "id must be a UUID" });
+    }
+
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/admin_user_overview`, {
+      method: "POST",
+      headers: sbHeaders(),
+      body: JSON.stringify({ p_user_id: target }),
+    });
+    if (!r.ok) {
+      console.error(`[admin_user_overview] RPC failed: ${r.status}`, await r.text());
+      return void res.status(502).json({ error: "Lookup failed" });
+    }
+    const data = await r.json();
+    if (data?.error === "user not found") {
+      return void res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json(data);
+  },
+);
+
+// ── /api/user-data?resource=admin_set_tier ──
+// Manual tier override. Reason is required (free-text 1-200 chars) so the
+// audit trail is meaningful. Idempotency-Key header dedups accidental
+// double-submits within 24h. Writes audit_log AFTER the tier update so the
+// log only records actually-applied changes.
+const handleAdminSetTier = withAuth(
+  { methods: ["POST"], rateLimit: 30 },
+  async ({ req, res, user }) => {
+    if (!isAdminUser(user)) return void res.status(403).json({ error: "Forbidden" });
+
+    const body = (req.body ?? {}) as {
+      target_user_id?: string;
+      tier?: string;
+      reason?: string;
+    };
+    const target = (body.target_user_id ?? "").trim();
+    const newTier = (body.tier ?? "").trim();
+    const reason = (body.reason ?? "").trim();
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) {
+      return void res.status(400).json({ error: "target_user_id must be a UUID" });
+    }
+    if (newTier !== "free" && newTier !== "starter" && newTier !== "pro") {
+      return void res.status(400).json({ error: "tier must be free | starter | pro" });
+    }
+    if (reason.length < 1 || reason.length > 200) {
+      return void res.status(400).json({ error: "reason required (1-200 chars)" });
+    }
+
+    // Idempotency: optional client-supplied Idempotency-Key header. If a
+    // duplicate request arrives (double-click, retry on flaky network), the
+    // second one short-circuits to "already processed" without re-PATCHing.
+    let idemKey: string | null = null;
+    try {
+      idemKey = normalizeIdempotencyKey(req.headers["idempotency-key"]);
+    } catch (e) {
+      if (e instanceof IdempotencyError) {
+        return void res.status(e.status).json({ error: e.message });
+      }
+      throw e;
+    }
+    const namespacedKey = idemKey ? `admin_set_tier:${target}:${idemKey}` : null;
+    if (namespacedKey) {
+      const result = await reserveActionIdempotency(user.id, namespacedKey);
+      if (result.kind === "replay") {
+        return void res.status(200).json({ ok: true, replay: true });
+      }
+    }
+
+    // Read previous tier so the audit log captures before/after.
+    const prevRes = await fetch(
+      `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(target)}&select=tier`,
+      { headers: sbHeaders() },
+    );
+    if (!prevRes.ok) {
+      if (namespacedKey) await releaseIdempotency(user.id, namespacedKey);
+      return void res.status(502).json({ error: "Lookup failed" });
+    }
+    const [prevRow] = (await prevRes.json()) as Array<{ tier?: string }>;
+    if (!prevRow) {
+      if (namespacedKey) await releaseIdempotency(user.id, namespacedKey);
+      return void res.status(404).json({ error: "User not found" });
+    }
+    const prevTier = prevRow.tier ?? "free";
+
+    const patchRes = await fetch(
+      `${SB_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(target)}`,
+      {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ tier: newTier }),
+      },
+    );
+    if (!patchRes.ok) {
+      if (namespacedKey) await releaseIdempotency(user.id, namespacedKey);
+      console.error(`[admin_set_tier] PATCH failed: ${patchRes.status}`, await patchRes.text());
+      return void res.status(502).json({ error: "Update failed" });
+    }
+
+    // Audit-log entry. Fire-and-forget so a logging hiccup doesn't undo the
+    // tier change. The PATCH already succeeded — losing one log row is the
+    // less-bad failure mode than a confused customer.
+    fetch(`${SB_URL}/rest/v1/audit_log`, {
+      method: "POST",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({
+        user_id: target,
+        action: "admin_tier_changed",
+        metadata: {
+          actor_id: user.id,
+          actor_email: user.email ?? null,
+          previous_tier: prevTier,
+          new_tier: newTier,
+          reason,
+        },
+      }),
+    }).catch((err) => {
+      console.error("[admin_set_tier] audit_log write failed:", err);
+    });
+
+    res.status(200).json({ ok: true, previous_tier: prevTier, new_tier: newTier });
   },
 );
