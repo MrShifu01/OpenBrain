@@ -302,6 +302,7 @@ export default function CaptureSheet({
         />
         <DialogPrimitive.Content
           ref={sheetRef}
+          aria-modal="true"
           aria-label={preview ? "Confirm entry" : "Capture something"}
           className="capture-sheet"
           onEscapeKeyDown={(e) => {
