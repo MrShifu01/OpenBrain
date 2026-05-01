@@ -5,6 +5,7 @@ import { authFetch } from "../lib/authFetch";
 import { getEmbedHeaders } from "../lib/aiSettings";
 import { parseAISplitResponse } from "../lib/fileSplitter";
 import { PROMPTS } from "../config/prompts";
+import { enqueue as enqueueOfflineOp } from "../lib/offlineQueue";
 import type { Entry } from "../types";
 
 type TaskStatus = "extracting" | "classifying" | "saving" | "done" | "error";
@@ -293,22 +294,75 @@ export function useBackgroundCapture() {
         ...prev,
         { id: taskId, filename: entry.title, status: "saving" as TaskStatus },
       ]);
-      try {
-        const embedHeaders = getEmbedHeaders();
-        const metadata = {
-          ...(entry.metadata || {}),
-          ...(entry.rawContent && entry.rawContent.length > 150
-            ? { raw_content: entry.rawContent.slice(0, 8000) }
-            : {}),
-        };
-        const saveBody = JSON.stringify({
-          p_title: entry.title,
-          p_content: entry.content,
-          p_type: entry.type || "note",
-          p_metadata: metadata,
-          p_tags: entry.tags || [],
-          p_brain_id: brainId,
+      const embedHeaders = getEmbedHeaders();
+      const metadata = {
+        ...(entry.metadata || {}),
+        ...(entry.rawContent && entry.rawContent.length > 150
+          ? { raw_content: entry.rawContent.slice(0, 8000) }
+          : {}),
+      };
+      const saveBody = JSON.stringify({
+        p_title: entry.title,
+        p_content: entry.content,
+        p_type: entry.type || "note",
+        p_metadata: metadata,
+        p_tags: entry.tags || [],
+        p_brain_id: brainId,
+      });
+
+      // Offline shortcut — don't even attempt the network. Surface the entry
+      // immediately with a temp id so it appears in the list, then enqueue
+      // the POST. useOfflineSync drains the queue when we reconnect; the
+      // server-side capture endpoint handles enrichment, and the temp id
+      // gets patched to the real id via onEntryIdUpdate (wired through
+      // useDataLayer.patchEntryId).
+      const enqueueAsOffline = async (reason: string) => {
+        const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        try {
+          await enqueueOfflineOp({
+            id: crypto.randomUUID(),
+            url: "/api/capture",
+            method: "POST",
+            body: saveBody,
+            tempId,
+            created_at: new Date().toISOString(),
+          });
+        } catch (e) {
+          updateTask(taskId, {
+            status: "error",
+            error: `Couldn't queue save: ${e instanceof Error ? e.message : String(e)}`,
+          });
+          return;
+        }
+        onCreated({
+          id: tempId,
+          title: entry.title,
+          content: entry.content,
+          type: (entry.type || "note") as Entry["type"],
+          metadata: {
+            ...metadata,
+            enrichment: { embedded: false, concepts_count: 0, has_insight: false },
+            offline_pending: true,
+          },
+          pinned: false,
+          importance: 0,
+          tags: entry.tags || [],
+          created_at: new Date().toISOString(),
+        } as Entry);
+        updateTask(taskId, {
+          status: "done",
+          entryTitle: entry.title,
+          warning: `Saved offline (${reason}) — will sync when back online`,
         });
+        setTimeout(() => dismissTask(taskId), 8000);
+      };
+
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        await enqueueAsOffline("offline");
+        return;
+      }
+
+      try {
         let res: Response | null = null;
         let saveErr = "Save failed";
         for (let attempt = 0; attempt < 3; attempt++) {
@@ -343,14 +397,27 @@ export function useBackgroundCapture() {
           } as Entry);
           updateTask(taskId, { status: "done", entryTitle: entry.title });
           setTimeout(() => dismissTask(taskId), 8000);
+        } else if (
+          // Network died mid-save (no response at all) or the request failed
+          // and the device dropped offline since — fall back to the queue
+          // instead of stranding the user with "Save failed".
+          (!res ||
+            saveErr.toLowerCase().includes("network") ||
+            saveErr.toLowerCase().includes("fetch")) &&
+          typeof navigator !== "undefined" &&
+          navigator.onLine === false
+        ) {
+          await enqueueAsOffline(saveErr);
         } else {
           updateTask(taskId, { status: "error", error: saveErr });
         }
       } catch (e) {
-        updateTask(taskId, {
-          status: "error",
-          error: e instanceof Error ? e.message : "Save failed",
-        });
+        const err = e instanceof Error ? e.message : "Save failed";
+        if (typeof navigator !== "undefined" && navigator.onLine === false) {
+          await enqueueAsOffline(err);
+        } else {
+          updateTask(taskId, { status: "error", error: err });
+        }
       }
     },
     [updateTask, dismissTask],
