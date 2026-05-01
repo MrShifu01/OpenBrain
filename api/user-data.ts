@@ -1844,12 +1844,20 @@ const handleLemonCheckout = withAuth(
   async ({ req, res, user }) => {
     const { plan } = (req.body ?? {}) as { plan?: string };
 
-    if (plan !== "starter" && plan !== "pro") {
+    // Max is wired in the type system + DB but not yet purchaseable — the
+    // env var is intentionally unset until launch. The 500 below covers the
+    // case where someone hits this endpoint after manually setting the env
+    // var; until then the 400 keeps Max strictly admin-overrideable.
+    if (plan !== "starter" && plan !== "pro" && plan !== "max") {
       return void res.status(400).json({ error: "Invalid plan" });
     }
 
     const variantEnvKey =
-      plan === "starter" ? "LEMONSQUEEZY_STARTER_VARIANT_ID" : "LEMONSQUEEZY_PRO_VARIANT_ID";
+      plan === "starter"
+        ? "LEMONSQUEEZY_STARTER_VARIANT_ID"
+        : plan === "pro"
+          ? "LEMONSQUEEZY_PRO_VARIANT_ID"
+          : "LEMONSQUEEZY_MAX_VARIANT_ID";
     const variantId = process.env[variantEnvKey];
     if (!variantId) return void res.status(500).json({ error: "Plan not configured" });
 
@@ -2230,8 +2238,13 @@ const handleAdminSetTier = withAuth(
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) {
       return void res.status(400).json({ error: "target_user_id must be a UUID" });
     }
-    if (newTier !== "free" && newTier !== "starter" && newTier !== "pro") {
-      return void res.status(400).json({ error: "tier must be free | starter | pro" });
+    if (
+      newTier !== "free" &&
+      newTier !== "starter" &&
+      newTier !== "pro" &&
+      newTier !== "max"
+    ) {
+      return void res.status(400).json({ error: "tier must be free | starter | pro | max" });
     }
     if (reason.length < 1 || reason.length > 200) {
       return void res.status(400).json({ error: "reason required (1-200 chars)" });

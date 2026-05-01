@@ -150,6 +150,7 @@ function PlanCard({
   onCta,
   ctaCaption,
   featured,
+  comingSoon,
 }: {
   tier: string;
   price: string;
@@ -160,20 +161,54 @@ function PlanCard({
   onCta: () => void;
   ctaCaption?: string;
   featured?: boolean;
+  /**
+   * Renders the card in a muted-but-visible state with a "Coming soon" badge,
+   * disabled CTA, and damped colours. Used for tiers that exist in the pricing
+   * lineup but aren't purchaseable yet (Max). Setting this OVERRIDES featured.
+   */
+  comingSoon?: boolean;
 }) {
   return (
     <div
       className="press"
       style={{
         padding: 32,
-        background: featured ? "var(--surface-high)" : "var(--surface)",
-        border: `1px solid ${featured ? "var(--ember)" : "var(--line-soft)"}`,
+        background: comingSoon
+          ? "color-mix(in oklch, var(--surface) 70%, transparent)"
+          : featured
+            ? "var(--surface-high)"
+            : "var(--surface)",
+        border: `1px solid ${
+          comingSoon ? "var(--line-soft)" : featured ? "var(--ember)" : "var(--line-soft)"
+        }`,
         borderRadius: 18,
         transition: "all 240ms",
         display: "flex",
         flexDirection: "column",
+        position: "relative",
+        opacity: comingSoon ? 0.78 : 1,
       }}
     >
+      {comingSoon && (
+        <span
+          className="f-sans"
+          style={{
+            position: "absolute",
+            top: 14,
+            right: 14,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ember)",
+            background: "color-mix(in oklch, var(--ember) 14%, transparent)",
+            padding: "3px 9px",
+            borderRadius: 999,
+          }}
+        >
+          Coming soon
+        </span>
+      )}
       <div
         className="f-serif"
         style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginBottom: 8 }}
@@ -253,12 +288,13 @@ function PlanCard({
         ))}
       </ul>
       <Button
-        variant={featured ? "default" : "outline"}
+        variant={comingSoon ? "outline" : featured ? "default" : "outline"}
         size="lg"
         className="mt-auto w-full"
         onClick={onCta}
+        disabled={comingSoon}
       >
-        {cta}
+        {comingSoon ? "Notify me" : cta}
       </Button>
       {ctaCaption && (
         <div
@@ -1355,9 +1391,9 @@ export default function Landing({ onAuth }: LandingProps) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-              gap: 20,
-              maxWidth: 1000,
+              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+              gap: 18,
+              maxWidth: 1240,
               margin: "0 auto",
             }}
           >
@@ -1406,6 +1442,28 @@ export default function Landing({ onAuth }: LandingProps) {
               ctaCaption="upgrade in-app whenever you're ready"
               onCta={() => goto("signup")}
               featured
+            />
+            <PlanCard
+              tier="Max"
+              price="$19.99"
+              suffix="/mo"
+              body="For when you're done settling for less."
+              bullets={[
+                "Everything in Pro",
+                "Frontier AI models (top-tier from each major lab)",
+                "Unlimited captures · chats · voice",
+                "File storage in app or encrypted vault",
+                "Earliest access to new features",
+              ]}
+              cta="Notify me"
+              ctaCaption="ships when frontier models stabilise"
+              onCta={() => {
+                /* No-op while Max is pre-launch. The notify-me capture goes
+                   through the existing email-list capture once that endpoint
+                   is wired (LAUNCH_CHECKLIST). For now the disabled state on
+                   the button is the truth-teller. */
+              }}
+              comingSoon
             />
           </div>
         </section>

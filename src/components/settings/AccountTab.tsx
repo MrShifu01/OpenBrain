@@ -65,7 +65,7 @@ export default function AccountTab({ email, isAdmin }: Props) {
         ? "Pro"
         : billingTier === "starter"
           ? "Starter"
-          : "Free";
+          : "Hobby";
   const tierColor = isAdmin
     ? "var(--ember)"
     : billingTier === "max"

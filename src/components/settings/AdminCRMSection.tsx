@@ -58,7 +58,7 @@ interface AdminUserOverview {
   }>;
 }
 
-const TIERS = ["free", "starter", "pro"] as const;
+const TIERS = ["free", "starter", "pro", "max"] as const;
 type Tier = (typeof TIERS)[number];
 
 function tierColor(tier: string): string {
@@ -74,6 +74,13 @@ function fmtDate(iso: string | null | undefined): string {
   } catch {
     return iso;
   }
+}
+
+function tierLabel(tier: string): string {
+  // Display rename: machine name "free" → user-visible "hobby" so the brand
+  // stops calling unpaid users "free." DB rows + API contracts still say
+  // "free" everywhere — only the badge text changes.
+  return tier === "free" ? "hobby" : tier;
 }
 
 function TierBadge({ tier }: { tier: string }) {
@@ -93,7 +100,7 @@ function TierBadge({ tier }: { tier: string }) {
         whiteSpace: "nowrap",
       }}
     >
-      {tier}
+      {tierLabel(tier)}
     </span>
   );
 }

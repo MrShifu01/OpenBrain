@@ -7,7 +7,15 @@
  * mobile flow goes through RevenueCat, which itself wraps App Store + Play.
  *
  * Tiers (machine names — match user_profiles.tier check constraint):
- *   "free" | "starter" | "pro"
+ *   "free" | "starter" | "pro" | "max"
+ *
+ * The "free" tier displays as "Hobby" in the UI (label-only rename — the
+ * machine name stays "free" so the DB CHECK constraint and historical rows
+ * keep working). The "max" tier is wired end-to-end but the LemonSqueezy +
+ * RevenueCat product IDs are intentionally left undefined until launch;
+ * resolveTier returns "free" for unknown SKUs so checkout can't accidentally
+ * grant Max before we publish it. AdminTab override is the only path that
+ * can set tier="max" today.
  *
  * Storage: public.user_profiles (PK = id = auth.users.id). NEVER user_personas
  * — that's the chat-persona record. See migration 065 for the relocation that
@@ -17,14 +25,14 @@ import { sbHeaders } from "./sbHeaders.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 
-export type Tier = "free" | "starter" | "pro";
+export type Tier = "free" | "starter" | "pro" | "max";
 export type Provider = "lemonsqueezy" | "revenuecat" | "stripe";
 
 interface PlanCatalog {
   /** LemonSqueezy variant ids (read from env so prod/test switch cleanly). */
-  lemon: { starter: string | null; pro: string | null };
+  lemon: { starter: string | null; pro: string | null; max: string | null };
   /** RevenueCat product ids — what the mobile SDK reports for the active sub. */
-  revenuecat: { starter: string | null; pro: string | null };
+  revenuecat: { starter: string | null; pro: string | null; max: string | null };
 }
 
 /** Read-time so missing env vars don't throw at module-load. */
@@ -33,6 +41,9 @@ export function readPlanCatalog(): PlanCatalog {
     lemon: {
       starter: process.env.LEMONSQUEEZY_STARTER_VARIANT_ID ?? null,
       pro: process.env.LEMONSQUEEZY_PRO_VARIANT_ID ?? null,
+      // Max is unset until launch. resolveTier short-circuits when null so an
+      // empty productId from the webhook can't accidentally match.
+      max: process.env.LEMONSQUEEZY_MAX_VARIANT_ID ?? null,
     },
     revenuecat: {
       // RC product ids are the App Store / Play product ids you registered
@@ -41,6 +52,9 @@ export function readPlanCatalog(): PlanCatalog {
       // configured that way.
       starter: process.env.REVENUECAT_STARTER_PRODUCT_ID ?? "everionmind.starter.monthly",
       pro: process.env.REVENUECAT_PRO_PRODUCT_ID ?? "everionmind.pro.monthly",
+      // No default for Max — until the App Store / Play product is live we
+      // don't want a stable identifier the SDK could match against.
+      max: process.env.REVENUECAT_MAX_PRODUCT_ID ?? null,
     },
   };
 }
@@ -48,9 +62,11 @@ export function readPlanCatalog(): PlanCatalog {
 export function resolveTier(provider: Provider, productId: string): Tier {
   const catalog = readPlanCatalog();
   if (provider === "lemonsqueezy") {
+    if (catalog.lemon.max && productId === catalog.lemon.max) return "max";
     if (productId === catalog.lemon.pro) return "pro";
     if (productId === catalog.lemon.starter) return "starter";
   } else if (provider === "revenuecat") {
+    if (catalog.revenuecat.max && productId === catalog.revenuecat.max) return "max";
     if (productId === catalog.revenuecat.pro) return "pro";
     if (productId === catalog.revenuecat.starter) return "starter";
   }

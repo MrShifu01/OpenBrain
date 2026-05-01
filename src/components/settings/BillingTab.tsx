@@ -286,7 +286,7 @@ export default function BillingTab() {
   }
 
   const tierLabel =
-    tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Free";
+    tier === "max" ? "Max" : tier === "pro" ? "Pro" : tier === "starter" ? "Starter" : "Hobby";
   const tierColor =
     tier === "max" || tier === "pro"
       ? "var(--ember)"
@@ -455,7 +455,7 @@ export default function BillingTab() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {(["", "Free", "Starter", "Pro"] as const).map((h) => (
+              {(["", "Hobby", "Starter", "Pro", "Max"] as const).map((h) => (
                 <th
                   key={h}
                   className="f-sans"
@@ -478,14 +478,27 @@ export default function BillingTab() {
           </thead>
           <tbody>
             {[
-              { label: "Price", free: "$0", starter: "$4.99/mo", pro: "$9.99/mo" },
-              { label: "Raw capture", free: "✓", starter: "✓", pro: "✓" },
-              { label: "BYOK AI", free: "✓", starter: "✓", pro: "✓" },
-              { label: "Platform AI", free: "—", starter: "✓", pro: "✓" },
-              { label: "Captures / mo", free: "—", starter: "500", pro: "2 000" },
-              { label: "Chats / mo", free: "—", starter: "200", pro: "1 000" },
-              { label: "AI models", free: "—", starter: "Flash", pro: "Sonnet" },
-              { label: "All features", free: "—", starter: "—", pro: "✓" },
+              {
+                label: "Price",
+                free: "$0",
+                starter: "$4.99/mo",
+                pro: "$9.99/mo",
+                max: "$19.99/mo",
+              },
+              { label: "Raw capture", free: "✓", starter: "✓", pro: "✓", max: "✓" },
+              { label: "BYOK AI", free: "✓", starter: "✓", pro: "✓", max: "✓" },
+              { label: "Platform AI", free: "—", starter: "✓", pro: "✓", max: "✓" },
+              { label: "Captures / mo", free: "—", starter: "500", pro: "2 000", max: "Unlimited" },
+              { label: "Chats / mo", free: "—", starter: "200", pro: "1 000", max: "Unlimited" },
+              {
+                label: "AI models",
+                free: "—",
+                starter: "Flash",
+                pro: "Sonnet",
+                max: "Frontier",
+              },
+              { label: "File storage", free: "—", starter: "—", pro: "—", max: "✓" },
+              { label: "All features", free: "—", starter: "—", pro: "✓", max: "✓" },
             ].map((row, i) => (
               <tr
                 key={row.label}
@@ -497,7 +510,7 @@ export default function BillingTab() {
                 >
                   {row.label}
                 </td>
-                {(["free", "starter", "pro"] as const).map((t) => (
+                {(["free", "starter", "pro", "max"] as const).map((t) => (
                   <td
                     key={t}
                     className="f-sans"
@@ -510,7 +523,13 @@ export default function BillingTab() {
                           ? "var(--ink-ghost)"
                           : row[t] === "✓"
                             ? "var(--moss)"
-                            : "var(--ink)",
+                            : t === "max"
+                              ? // Max is wired but not yet purchaseable — keep its
+                                // column visually present but muted so users don't
+                                // expect to upgrade today. Coming-soon label below
+                                // the table communicates the timing.
+                                "var(--ink-soft)"
+                              : "var(--ink)",
                       fontWeight: t === tier ? 600 : 400,
                     }}
                   >
@@ -521,6 +540,20 @@ export default function BillingTab() {
             ))}
           </tbody>
         </table>
+        <div
+          className="f-sans"
+          style={{
+            padding: "10px 14px",
+            fontSize: 11,
+            color: "var(--ink-faint)",
+            borderTop: "1px solid var(--line-soft)",
+            textAlign: "center",
+            background: "var(--surface-high)",
+          }}
+        >
+          Max — frontier AI models, unlimited usage, file storage to app or vault.{" "}
+          <span style={{ color: "var(--ember)", fontWeight: 600 }}>Coming soon.</span>
+        </div>
       </div>
     </div>
   );
