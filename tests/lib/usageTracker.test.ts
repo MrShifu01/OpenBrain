@@ -50,9 +50,23 @@ describe("usageTracker", () => {
   it("getMonthlyUsage aggregates tokens for the current month only", async () => {
     const { recordUsage, getMonthlyUsage } = await import("../../src/lib/usageTracker");
 
-    // Current month (2026-04)
+    // Compute current + previous month from the actual clock so the test
+    // doesn't go stale every month-roll. Was previously hard-coded to
+    // 2026-04 and broke on 2026-05-01 even though the implementation is
+    // unchanged.
+    const now = new Date();
+    const yyyy = now.getUTCFullYear();
+    const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
+    const prev = new Date(Date.UTC(yyyy, now.getUTCMonth() - 1, 15));
+    const prevYyyy = prev.getUTCFullYear();
+    const prevMm = String(prev.getUTCMonth() + 1).padStart(2, "0");
+    const thisMonthEarly = `${yyyy}-${mm}-01`;
+    const thisMonthMid = `${yyyy}-${mm}-07`;
+    const lastMonthMid = `${prevYyyy}-${prevMm}-15`;
+
+    // Current month — should be included
     recordUsage({
-      date: "2026-04-01",
+      date: thisMonthEarly,
       type: "llm",
       inputTokens: 1000,
       outputTokens: 500,
@@ -60,7 +74,7 @@ describe("usageTracker", () => {
       model: "gemini-2.5-flash-lite",
     });
     recordUsage({
-      date: "2026-04-07",
+      date: thisMonthMid,
       type: "llm",
       inputTokens: 2000,
       outputTokens: 1000,
@@ -69,7 +83,7 @@ describe("usageTracker", () => {
     });
     // Previous month — should be excluded
     recordUsage({
-      date: "2026-03-15",
+      date: lastMonthMid,
       type: "llm",
       inputTokens: 9999,
       outputTokens: 9999,

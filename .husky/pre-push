@@ -1,3 +1,7 @@
 npm run format:check
 npm run lint
 npm run typecheck
+# Mirror the CI `npm audit --audit-level=high` step so a fresh advisory
+# landing in the npm registry doesn't surprise us in CI minutes after we
+# push. Same threshold as .github/workflows/ci.yml.
+npm audit --audit-level=high

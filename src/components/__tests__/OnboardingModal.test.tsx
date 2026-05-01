@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import OnboardingModal from "../OnboardingModal";
 
@@ -11,16 +11,14 @@ describe("OnboardingModal — structure", () => {
     expect(dialog).not.toBeNull();
   });
 
-  it("renders a Skip button", () => {
+  // Step 1 deliberately has no Skip button (mandatory first capture, anti-bounce
+  // safeguard). Skip reappears on step 2 once the first capture lands. The
+  // e2e spec `e2e/specs/onboarding.spec.ts` exercises the full
+  // capture → Skip flow end-to-end; replicating it here would just race the
+  // imperative state machine in unit-land.
+  it("does NOT render a Skip button on the first step", () => {
     render(<OnboardingModal onComplete={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
-  });
-
-  it("calls onComplete when Skip is clicked", () => {
-    const onComplete = vi.fn();
-    render(<OnboardingModal onComplete={onComplete} />);
-    fireEvent.click(screen.getByRole("button", { name: /skip/i }));
-    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /skip/i })).toBeNull();
   });
 });
 

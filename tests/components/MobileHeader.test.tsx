@@ -2,14 +2,19 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ThemeProvider } from "../../src/ThemeContext";
 import { DesignThemeProvider } from "../../src/design/DesignThemeContext";
+import { TooltipProvider } from "../../src/components/ui/tooltip";
 import MobileHeader from "../../src/components/MobileHeader";
 
 // Redesigned mobile header — 36px touch targets (min-height: 36px inline),
 // serif brand with a coloured status dot, no text "Offline/Syncing" label.
+// TooltipProvider wraps the tree because MobileHeader's search + menu
+// buttons are inside <Tooltip> primitives that throw without a provider.
 function renderWithTheme(ui: React.ReactElement) {
   return render(
     <DesignThemeProvider>
-      <ThemeProvider>{ui}</ThemeProvider>
+      <ThemeProvider>
+        <TooltipProvider>{ui}</TooltipProvider>
+      </ThemeProvider>
     </DesignThemeProvider>,
   );
 }

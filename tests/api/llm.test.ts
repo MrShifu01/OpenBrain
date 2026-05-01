@@ -101,6 +101,14 @@ describe("api/llm — transcribe action", () => {
       json: async () => ({ text: "hello" }),
     } as unknown as Response);
     await handler(req, res);
-    expect(rateLimit).toHaveBeenCalledWith(expect.anything(), 10);
+    // rateLimit signature evolved to (req, limit, windowMs, key) — assert
+    // the limit argument explicitly while accepting the trailing window/key
+    // so future tunings don't break this assertion.
+    expect(rateLimit).toHaveBeenCalledWith(
+      expect.anything(),
+      10,
+      expect.any(Number),
+      expect.any(String),
+    );
   });
 });
