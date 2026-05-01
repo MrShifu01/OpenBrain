@@ -1,8 +1,10 @@
 # 30-Day Launch Schedule — 2026-05-01 → 2026-06-01
 
-**Solo dev. PWA + Android. Closed beta on day 30. Public on day 45.**
+**Solo dev. PWA + Android live on day 30 = closed beta opens. 30-day beta phase. Public launch (PH + HN + Reddit blast) on ~2026-07-01 (day 60). iOS submitted during beta phase (~week 5-6).**
 
 This is the operational schedule. ROADMAP.md is the strategic horizon (3-week sprint → 12-month plan). LAUNCH_CHECKLIST.md is the live task list. **This file translates both into dated daily blocks** so every morning you open it and see exactly what today is for.
+
+> **Locked decisions (2026-05-01):** iOS shipped post-Android (week 5+, during beta). Trademark check on **"Everion Mind"** (full product name). Google Play Dev, Vercel Pro, Supabase Pro need enrollment day 1. Daily ceiling 7-9 h. **Day 30 = closed beta launch** (50-100 invites, Twitter announce, NO PH). 30-day beta phase. **Day 60 (~2026-07-01) = public launch with PH + HN + Reddit blast.** Domain transfer to `everionmind.com` in week 2. Global launch. Polish current Landing.tsx, no separate marketing site.
 
 ---
 
@@ -10,16 +12,18 @@ This is the operational schedule. ROADMAP.md is the strategic horizon (3-week sp
 
 | # | Assumption | If wrong |
 | - | ---------- | -------- |
-| 1 | **iOS = out** for the 1-month window. Android + PWA + landing only. | +7 days, +Apple Dev $99, +Privacy Manifest, +screenshots @ 6.9", +reviewer demo backdoor. iOS opens day 31+. |
-| 2 | **Trademark on "Everion" is clean** (USPTO + WIPO + ZA-CIPC class-9 software). | Brand change = schedule reset. **You have not yet ticked LAUNCH_CHECKLIST.md:689 — do this Friday morning before doing anything else.** |
-| 3 | **Google Play Developer account = active** by EOD 2026-05-04 ($25, instant). | Submission deadline pushes by however long enrollment takes. |
-| 4 | **7-9 h/day weekdays, 4-6 h weekends.** ~50 h/week. ~200 h budget for the 30 days. | Halve the velocity = drop Brain Feed v1, drop one polish item per week, ship ugly-but-honest. |
-| 5 | **Day 30 = closed beta launch, not public.** 100-invite waitlist → 7-day soak → public + Product Hunt + HN on day 45. | If you insist on public day 30, drop Brain Feed entirely and accept Day 7 retention < 25% in week 5. |
-| 6 | **"Website" = Landing.tsx polished + `everionmind.com` custom domain.** No separate marketing-site repo. | +3-4 days for separate Astro/Next site if you want one. |
-| 7 | **Global launch.** LemonSqueezy = merchant of record handles VAT/tax. Apple/Google geo-restriction not toggled. | SA-only is faster operationally but smaller TAM. |
-| 8 | **Brain Feed dropped from week 1-3.** Ships as Month 1 follow-up. Day 30 launches without it. | If kept: -1 polish week + retention can't be measured until Day 7 anyway. |
-| 9 | **Onboarding "aha in 60s" stays in scope.** ROADMAP Week 2 days 11-13. Highest-leverage retention lever before the feed exists. | Drop = Day 7 retention 10-15%. Don't drop. |
-| 10 | **PostHog funnel stays in scope.** 8 events from ROADMAP. Without it you fly blind in week 5. | Drop = no data, no iteration, no retention math. Don't drop. |
+| 1 | **iOS = SHIPS POST-LAUNCH (week 5-6).** Android + PWA only in the 30-day window. iOS submission targeted for ~2026-06-15. Capacitor wrap is already installed for both, so it's TestFlight + Apple Dev enrollment + Privacy Manifest + iOS screenshots later, NOT a rebuild. | If you insist iOS-day-30: -1 week of polish + Apple review variance (1-3 days median, up to 7) destroys the calendar buffer. |
+| 2 | **Trademark on "Everion Mind"** (full product name, USPTO TESS + WIPO Madrid Monitor + ZA-CIPC class-9 software). NOT YET CHECKED — day-1 morning, hard-block escalation. | Brand change = schedule reset. **The single most schedule-fragile item.** |
+| 3 | **Google Play Developer account NOT YET ENROLLED.** Day-1 morning task ($25, ~10-min form, instant approval most cases — 24h worst case). | If Google delays approval beyond day 4, AAB upload deadline (day 21) pushes back. Plan B: launch PWA-only on day 30, Android slips 3-7 days. |
+| 4 | **Vercel Pro + Supabase Pro NOT YET PAID.** Day-1 task. Both required: Vercel for `maxDuration: 300` on llm.ts/gmail.ts/user-data.ts, Supabase for backups + 8 GB DB. | Hobby/Free at public-launch traffic = function timeouts + DB cap-out + zero recovery from "I dropped a table." Non-negotiable. |
+| 5 | **`everionmind.com` NOT YET BOUGHT — buy + DNS-swap in week 2 (per 2026-05-01 decision).** Domain purchase is 5 min any time; the migration (Vercel domain swap, Supabase auth allowed-redirects, LemonSqueezy webhook URL, RevenueCat webhook URL) is the actual work and needs a quiet day. Schedule slot: day 8 (Fri 05-08). Until then, all dashboards stay on `everion.smashburgerbar.co.za`. | If purchase slips into week 3, Play Console listing + assetlinks.json need to point at the swapped domain — last-minute migration risk. Buy NLT day 8 morning. |
+| 6 | **7-9 h/day weekdays, 4-6 h weekends.** ~50 h/week. ~200 h budget for the 30 days. | Halve the velocity = drop Brain Feed v0, drop streak counter, drop Cmd+K, ship ugly-but-honest. |
+| 7 | **Day 30 = closed beta launch (LOCKED 2026-05-01).** 50-100 invites + Twitter announce. NO Product Hunt, HN, or Reddit blast. 30-day beta phase. **Day ~60 (~2026-07-01) = public launch with PH + HN + Reddit.** Beta phase produces retention data + word-of-mouth + PH waitlist + iOS submission. | If beta retention < 25% by day 45, push public launch to day 75 and fix retention first. |
+| 8 | **`everionmind.com` polished Landing + custom domain.** No separate marketing-site repo. | +3-4 days for an Astro/Next marketing site you don't need. |
+| 9 | **Global launch.** LemonSqueezy = merchant of record handles VAT/tax. Apple/Google geo-restriction not toggled. | SA-only is faster operationally but smaller TAM. |
+| 10 | **Brain Feed v0 ships day 11 (week 2)** — fast version: surface gap-analyst output + 1 resurfaced memory + capture bar. NOT the full ROADMAP Brain Feed (3-5 days). v0 = 1.5 days. | Drop entirely = empty home screen at public launch. v0 is the cheapest defensible version. |
+| 11 | **Onboarding "aha in 60s" stays in scope.** ROADMAP Week 2 days 11-13. Highest-leverage retention lever pre-launch. | Drop = Day 7 retention 10-15%. Don't drop. |
+| 12 | **PostHog funnel stays in scope.** 8 events from ROADMAP. Without it you fly blind. | Drop = no data, no iteration, no retention math. Don't drop. |
 
 ---
 
@@ -35,16 +39,32 @@ Pinned from ROADMAP.md. Print it.
 
 ---
 
-## The four hard deadlines
+## The five hard deadlines
 
 | Date | Deadline | If missed |
 | ---- | -------- | --------- |
-| 2026-05-04 (Mon Wk1) | Trademark check, Google Play Dev account, Vercel Pro, Supabase Pro | **Schedule slips 1:1.** No code work matters until the dashboards are paid + provisioned. |
-| 2026-05-14 (Wed Wk2) | Operator setup complete (LS variants, RC dashboard, Play Console subscription products) | Native build can't reach an entitlement. Drop billing from Android v1 = launch as free-only Android, paid web-only. |
-| 2026-05-22 (Fri Wk4) | Play Console internal-testing track LIVE with signed AAB | Submission for production review pushes past day 30. |
-| 2026-05-28 (Thu Wk4) | Play Console production review submitted | Day-30 launch becomes day-32+ launch. Soft buffer of 4 days assumes no review feedback. |
+| 2026-05-02 (Sat Wk1) | Trademark check on "Everion Mind" — Google Play Dev enrollment — Vercel Pro — Supabase Pro all green | **Schedule slips 1:1.** No code work matters until the dashboards are paid + provisioned. Trademark conflict = brand-change escalation, separate decision tree. |
+| 2026-05-08 (Fri Wk2) | `everionmind.com` purchased + DNS swap done + Supabase/LS/RC webhook URLs updated | Listing copy + assetlinks.json must reference the live domain by week 3 day 18. Last-minute domain swap mid-launch = high regression risk. |
+| 2026-05-14 (Wed Wk2) | Operator setup complete (LS variants, RC dashboard, Play Console subscription products) | Native build can't reach an entitlement. Plan B: launch Android as free-only, paid web-only — but it splits the billing surface and forces tier-comparison-table caveats. |
+| 2026-05-21 (Thu Wk3) | Play Console internal-testing track LIVE with signed AAB | **Pulled forward 1 day from original schedule** — Play production review takes 1-7 days, so AAB upload day 21 → review submit day 22 → ideally approved by day 28. Plan B: launch PWA-only on day 30, Android slips 3-7 days. |
+| 2026-05-28 (Thu Wk4) | Play Console production review submitted **AND APPROVED** for day-30 public launch | If submitted-but-not-approved on day 30: launch PWA + Android-coming-soon banner. Don't post PH/HN/Reddit until Android approves (the listing review happens in public). |
 
-**Beyond day 30: 14 days of beta feedback + Brain Feed v1 + content prep → public launch 2026-06-15 (PH + HN + content blast).**
+**Beta + public-launch arc (LOCKED 2026-05-01):**
+
+| Phase | Window | What's live | Marketing posture |
+| ----- | ------ | ----------- | ----------------- |
+| Build | Day 1–29 | Internal only | Twitter daily build-in-public |
+| **Closed beta** | **Day 30 (Sat 2026-05-30)** | PWA + Android, 50-100 invites | Twitter announce, your network, beta-only landing |
+| Beta phase | Day 30–60 | Iterating on retention | Cultivate PH hunter relationship, build PH "upcoming" waitlist, daily build-in-public |
+| **Public launch** | **Day ~60 (Mon 2026-07-01)** | Full public + iOS | **Product Hunt + HN + Reddit blast same day** |
+
+**During beta phase (days 30-60):**
+- Brain Feed v1 (full ROADMAP version) ships ~day 38
+- iOS submission to App Store ~day 42 (Apple Dev enrollment day 31)
+- 1 Twitter thread / week with beta learnings
+- PH "upcoming" page live by day 35
+- Hunter outreach (3-5 candidates) by day 45
+- Retention data review every Monday — kill or double down on features per Day 7 numbers
 
 ---
 
@@ -52,22 +72,51 @@ Pinned from ROADMAP.md. Print it.
 
 ```
 Week 1 (Fri 05-01 → Thu 05-07)  DECIDE & PROVISION
-  Trademark + dashboards + dev account + ruthless pruning of nav
+  Trademark + dashboards + dev accounts + ruthless pruning of nav
 
-Week 2 (Fri 05-08 → Thu 05-14)  ONBOARDING + INSTRUMENT
+Week 2 (Fri 05-08 → Thu 05-14)  DOMAIN + ONBOARDING + INSTRUMENT + FEED v0
+  Buy everionmind.com + DNS swap + auth-redirect migration day 1
   Aha-in-60s flow, PostHog funnel, streak counter, Cmd+K capture
+  Brain Feed v0 (gap-analyst + 1 resurfaced + capture bar)
 
-Week 3 (Fri 05-15 → Thu 05-21)  NATIVE + ASSETS
-  Real-device QA, screenshots @ 1080×1920, demo video, Privacy
-  Manifest equivalents (Android Data Safety form), Lighthouse green
+Week 3 (Fri 05-15 → Thu 05-21)  NATIVE + ASSETS + LIGHTHOUSE
+  Real-device QA, screenshots @ 1080×1920, demo video, Play Data
+  Safety form, AAB signed + uploaded by day 21 (Thu), Lighthouse
+  green, demo account for Play review.
 
-Week 4 (Fri 05-22 → Thu 05-28)  SUBMIT + LANDING POLISH
-  Play internal testing → production review, Landing copy lock,
-  custom domain DNS, status/changelog pages, beta invite list
+Week 4 (Fri 05-22 → Thu 05-28)  SUBMIT + LANDING POLISH + BETA INVITE PREP
+  Play production review submitted day 22, daily review-status
+  check, Landing copy lock, FAQ refresh, status/changelog pages,
+  beta invite list compiled (50-100 names), beta invite email
+  drafted, welcome email tested across clients.
 
-Buffer (Fri 05-29 → Mon 06-01)  REVIEW WAIT + BETA INVITES
-  Watch review queue. Ship rejections within 24h. Open closed
-  beta to invite list once Play approves.
+Buffer (Fri 05-29 → Sat 05-30)  REVIEW WAIT + CLOSED BETA OPENS
+  Watch Play review. Day 30 (Sat 2026-05-30) = beta opens to
+  invite list. Twitter announce. NO PH/HN/Reddit.
+
+----- BETA PHASE (Day 30 → Day 60) -----
+
+Days 30-37  BETA WEEK 1 — TRIAGE
+  Watch Sentry like a hawk. Reply to every signup within 1h.
+  Hand-hold first 50 users. Ship critical fixes inside 6 hours.
+
+Days 38-44  BETA WEEK 2 — BRAIN FEED v1 + iOS PREP
+  Ship full ROADMAP Brain Feed (3-card composition). Apple
+  Developer Program enrollment + Privacy Manifest + iOS
+  screenshots @ 1290×2796.
+
+Days 45-51  BETA WEEK 3 — PH PRE-LAUNCH + iOS SUBMISSION
+  PH "upcoming" page live, hunter outreach (3-5 candidates),
+  iOS TestFlight build, App Store review submitted.
+
+Days 52-59  BETA WEEK 4 — LAUNCH ASSETS + INVITE WAITLIST
+  Launch GIF (1280×720), HN/Reddit drafts, indie-hackers post
+  drafted, email-to-beta-list "we're going public" prepared.
+
+Day 60 (Mon 2026-07-01)  PUBLIC LAUNCH — PH + HN + REDDIT
+  00:01 PST PH submission. 00:05 PST Twitter pin. ~03:00 PST
+  "Show HN" post. Reddit posts staggered through morning.
+  Reply to every comment within 30 min for first 6 hours.
 ```
 
 ---
@@ -79,8 +128,8 @@ Buffer (Fri 05-29 → Mon 06-01)  REVIEW WAIT + BETA INVITES
 ## Day 1 — Friday 2026-05-01
 
 **Morning (2 h)**
-- 09:00–09:30 — Trademark check on "Everion" (USPTO TESS, WIPO Madrid Monitor, ZA-CIPC search). If any class-9 software mark conflicts → STOP and decide rebrand vs proceed. ([LAUNCH_CHECKLIST.md:689](../LAUNCH_CHECKLIST.md))
-- 09:30–10:00 — **Google Play Developer enrollment** ($25, takes ~10 min for the form, ~24h for approval). Use the same Google account that owns `play.google.com` for `com.everionmind.app`.
+- 09:00–09:30 — **Trademark check on "Everion Mind"** (USPTO TESS, WIPO Madrid Monitor, ZA-CIPC search — all class-9 software). If any conflicting mark surfaces → STOP and decide rebrand vs proceed before any further work. ([LAUNCH_CHECKLIST.md:689](../LAUNCH_CHECKLIST.md))
+- 09:30–10:00 — **Google Play Developer enrollment** ($25, ~10-min form, instant approval most cases / 24h worst case). Use the Google account that owns `com.everionmind.app`.
 - 10:00–11:00 — **Vercel Pro upgrade** ($20/mo). Required because `vercel.json` configures `maxDuration: 300` on `gmail.ts` / `llm.ts` / `user-data.ts` and Hobby caps at 60s.
 
 **Afternoon (3 h)**
@@ -538,6 +587,8 @@ Public launch (PH + HN + content blast) target: **2026-06-15** (day 45). Two wee
 
 Daily Twitter is the spine. Everything else hangs off it.
 
+## Build phase (days 1-29)
+
 | When | What | Channel |
 | ---- | ---- | ------- |
 | Daily, 17:00–17:15 | One build-in-public tweet | Twitter/X |
@@ -545,10 +596,71 @@ Daily Twitter is the spine. Everything else hangs off it.
 | Week 2 day 12 | Demo video v1 | Twitter, landing hero |
 | Week 3 day 18 | Final 8 screenshots | Play Store, Twitter, landing |
 | Week 4 day 23 | Beta invite landing live | Direct + Twitter |
-| **Day 30** | Closed beta tweets (tier 1 emails first) | Twitter, email |
-| **Day 45 (post-30)** | PH + HN + Reddit launch | All channels, content blast |
 
-What NOT to do before Day 7 retention is measured (~day 37):
+## Closed beta phase (days 30-60)
+
+| When | What | Channel |
+| ---- | ---- | ------- |
+| **Day 30 (Sat 2026-05-30)** | "Beta is open. Reply for invite." | Twitter pinned tweet |
+| Day 30 evening | Tier-1 invites (10 personal notes) | Email |
+| Day 31 | Tier-2 invites (40 form-letter) | Resend |
+| Day 32-44 | Daily build-in-public + beta learnings | Twitter |
+| Day 35 | **PH "upcoming" page live** | Product Hunt |
+| Day 38 | Brain Feed v1 announcement thread | Twitter |
+| Day 42 | iOS submission tweet ("on App Store soon") | Twitter |
+| Day 45 | **Hunter outreach** (3-5 candidates) | DM/email |
+| Day 50 | Indie Hackers "Building in public" post | Indie Hackers |
+| Day 52 | Launch GIF preview tweet | Twitter (build hype) |
+| Day 55 | Apply to PH "Maker Festival" or featured collections | PH community |
+| Day 58 | "Going public Monday" tweet thread | Twitter |
+| Day 59 | Email beta list "we're going public, would mean a lot if you upvoted" | Email |
+
+## Public launch day — Day 60 (Mon 2026-07-01)
+
+| Time (PST) | Action |
+| ---------- | ------ |
+| 00:01 | **PH submission live** (your hunter posts, NOT you) |
+| 00:05 | Pin launch tweet on Twitter with PH link |
+| 00:10 | Reply to your hunter's PH comment (maker comment: who/why/different) |
+| 00:30 | Pre-warmed network (5-10 people) upvote + comment authentically |
+| 03:00 | **"Show HN" post** ("Show HN: Everion — second brain with encrypted vault") |
+| 06:00 | Reddit r/productivity post |
+| 08:00 | Reddit r/PKMS post |
+| 09:00 | Email beta list "we're live on PH — link inside" |
+| 10:00 | Reddit r/SideProject post |
+| 12:00 | Indie Hackers Launch post |
+| 14:00 | LinkedIn personal post |
+| All day | **Reply to every PH comment within 30 min** for first 6 hours |
+| 18:00 | Mid-day Twitter update (rank, traffic spike screenshot) |
+| 23:00 | "Thank you" tweet with first-day metrics |
+
+## Product Hunt playbook (specifics)
+
+**Pre-launch (days 30-55):**
+
+1. **Sign up for PH "upcoming"** at `producthunt.com/upcoming` — submit Everion. Free public URL with "Notify me" button. Goal: 200+ signups before launch.
+2. **Find your hunter.** Search past hunters of: Reflect, Mem, Notion, Obsidian, Tana, Capacities, Heptabase. DM/email 5-10 of them with: "I'm launching Everion in 3 weeks (PWA + Android, encrypted vault + AI), here's a 60s demo, would you hunt it?" Offer them lifetime Pro. **One yes is enough.**
+3. **Build PH karma** — comment on 1-2 PH launches/day during beta. Real comments, not "great launch!" Builds your maker profile so PH doesn't see you as a one-shot.
+4. **Twitter following** — every Twitter follower with PH karma is a potential first-hour upvoter. Daily build-in-public tweets compound.
+
+**Launch day mechanics:**
+
+- **00:01 PST submit** (Tuesday-Thursday). Why: full 24h visibility window, weekday traffic, US morning kicks in 6h later.
+- **Asset:** 1280×720 GIF or short MP4 video. Static screenshots underperform 2-3x. Show capture → ask → cited answer in 8-12 seconds. Loop seamlessly.
+- **Tagline (60 chars max):** value-driven, not feature-driven. Working draft: `"your second brain — kept quietly."`
+- **Description (260 chars):** Two-sentence hook. "The fleeting thoughts and the high-stakes facts. One private, encrypted home you can ask anything."
+- **Maker comment (within 5 min of going live):** Who you are, why you built it, what makes it different. Personal, not corporate. ~150-250 words.
+- **First-hour upvotes weight heaviest.** 5-10 friends primed to upvote AND leave a 1-2 sentence comment within 30 min. **Real PH accounts.** PH detects coordinated voting; shadow-bans on bots.
+
+**The bar to hit:**
+
+- **Top 10 of the day** = featured in PH daily email + sidebar = ~500-2000 signups
+- **Top 5** = same + frontpage exposure = ~2000-5000 signups
+- **Top 3** = compounding (newsletter mentions for 2-3 weeks) = ~5000-10000 signups
+
+**Day-of engagement is the difference between top 10 and top 30.** Block the entire day. No meetings.
+
+What NOT to do before Day 7 retention is measured (during beta phase):
 
 - Paid ads
 - Big PR push
@@ -561,8 +673,8 @@ What NOT to do before Day 7 retention is measured (~day 37):
 
 | # | Risk | Probability | Impact | Mitigation |
 | - | ---- | ----------- | ------ | ---------- |
-| 1 | Play Console rejection on subscription metadata | M | H | Submit AAB by day 22 (week 4 Friday) for 6-day buffer. Demo account `review@everionmind.com` wired. |
-| 2 | Trademark conflict on "Everion" | L | XH | Day-1 morning check, hard-block escalation. |
+| 1 | Play Console rejection on subscription metadata | M | H | Submit AAB by day 21 (Thu Wk3) for 9-day buffer. Demo account `review@everionmind.com` wired. |
+| 2 | Trademark conflict on "Everion Mind" | L | XH | Day-1 morning check, hard-block escalation. |
 | 3 | Stranger onboarding tests reveal a structural confusion | M | M | Tests scheduled days 11/12/13 — still 17 days of buffer to act. |
 | 4 | Magic-link deep-link cold-start race on Android | M | M | Tested day 6 + reverified day 15. Failure mode: drop magic-link from v1, force email/password. |
 | 5 | Bundle size regression after onboarding rewrite | L | M | Lighthouse re-run end of week 2. |
@@ -576,11 +688,21 @@ What NOT to do before Day 7 retention is measured (~day 37):
 
 If any of these is true on the date noted, **launch slips 1 week minimum** and we re-plan:
 
+**Build-phase tripwires (days 1-30):**
+
 - Day 7 (2026-05-07): operator setup not complete (LS + RC not configured)
 - Day 14 (2026-05-14): onboarding aha-in-60s not delivering an insight in test
-- Day 21 (2026-05-21): real-device QA finds a P0 bug (capture, auth, vault)
-- Day 22 (2026-05-22): AAB not signed + uploaded to Play internal testing
-- Day 28 (2026-05-28): Play production review not yet submitted
+- Day 21 (2026-05-21): AAB not signed + uploaded to Play internal testing
+- Day 22 (2026-05-22): Play production review not yet submitted
+- Day 28 (2026-05-28): Play not approved (Plan B = launch beta as PWA-only, Android slips 3-7 days)
+
+**Beta-phase tripwires (days 30-60):**
+
+- Day 37 (2026-06-06): Day-7 retention < 15% — pause Brain Feed v1 work, fix onboarding instead
+- Day 45 (2026-06-14): no hunter signed up to launch you on PH — extend beta or self-hunt (lower ceiling)
+- Day 50 (2026-06-19): iOS submission rejected by Apple — fix or drop iOS from day-60 launch
+- Day 55 (2026-06-24): PH "upcoming" page < 100 signups — push public launch to day 75 to build waitlist
+- Day 58 (2026-06-27): launch GIF / screenshots / maker-comment not finalised — pull all-nighter or push launch 1 week
 
 ---
 

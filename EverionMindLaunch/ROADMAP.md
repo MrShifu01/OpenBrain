@@ -193,6 +193,78 @@ Target: **value demonstrated in under 60 seconds.** Not a tour. A demo.
 
 **Do NOT:** paid ads before Day 7 retention ≥ 25%. You'll burn money fast.
 
+---
+
+### Product Hunt — the public launch (day 60 = ~2026-07-01)
+
+PH visitors aren't random — they're earned. Six levers, ranked by ROI. **Tactical day-by-day calendar lives in `Working/2026-05-01-30-day-launch-schedule.md`** — the section below is the strategic frame.
+
+#### 1. Hunter relationship (highest leverage, hardest to fake)
+
+- Find a hunter with karma in PKM/productivity (past hunters of Notion, Reflect, Mem, Obsidian, Tana, Capacities, Heptabase).
+- DM/email 5-10 candidates 2 weeks before launch with: 1-paragraph pitch, 60s demo video link, "would you hunt this?"
+- Offer them lifetime Pro access. **One yes is enough.**
+- Hunter-led launches outperform self-hunted launches 3-10x. Hunter's followers see the launch in their feed; PH amplifies hunter posts in feed-rank.
+
+#### 2. PH "upcoming" page (free top-of-funnel)
+
+- Submit Everion to `producthunt.com/upcoming` 30 days before launch.
+- Public URL with "Notify me" button. PH emails the waitlist on launch day.
+- Goal: 200+ signups by launch day. Drive traffic via Twitter daily build-in-public + email beta-list.
+
+#### 3. Launch-day asset quality
+
+- **Submit at 00:01 PST (Pacific) Tuesday-Thursday.** Full 24h visibility window, weekday traffic, US morning kicks in 6h later.
+- **Asset = 1280×720 GIF or short MP4 video** (NOT static screenshots — they underperform 2-3x). 8-12s loop showing capture → ask → cited answer.
+- **Tagline (60 chars max):** value-driven. Working draft: `"your second brain — kept quietly."`
+- **Description (260 chars):** Two-sentence hook. "The fleeting thoughts and the high-stakes facts. One private, encrypted home you can ask anything."
+- **Maker comment (within 5 min of launch):** Personal, not corporate. Who you are, why you built it, what makes it different. ~150-250 words.
+
+#### 4. Pre-warmed audience (first hour decides the day)
+
+- First-hour upvotes weight heaviest in PH's ranking algorithm.
+- 5-10 friends primed to upvote AND leave a 1-2 sentence genuine comment within 30 min.
+- **Real PH accounts only.** PH detects coordinated voting (same IP, account-creation patterns, vote timing) and shadow-bans. One bot-vote can sink the launch.
+- Build PH karma during beta phase: comment authentically on 1-2 PH launches/day. Builds your maker profile so PH doesn't see you as a one-shot.
+
+#### 5. Cross-channel push day-of (parallel spikes)
+
+| Time (PST) | Channel | Action |
+| ---------- | ------- | ------ |
+| 00:01 | PH | Hunter posts (NOT you) |
+| 00:05 | Twitter | Pin launch tweet with PH link |
+| 00:30 | PH | First-hour upvotes from primed network |
+| 03:00 | HN | "Show HN: Everion — second brain with encrypted vault" |
+| 06:00 | Reddit r/productivity | Launch post |
+| 08:00 | Reddit r/PKMS | Launch post |
+| 09:00 | Email | "We're live on PH — link inside" to beta list |
+| 10:00 | Reddit r/SideProject | Launch post |
+| 12:00 | Indie Hackers | Launch post |
+| 14:00 | LinkedIn | Personal post |
+
+#### 6. Day-of engagement (the difference between top 10 and top 30)
+
+- **Reply to every PH comment within 30 min for the first 6 hours.** Comments = engagement signal = ranking boost.
+- Block the entire day. No meetings.
+- Mid-day Twitter update with rank + traffic spike screenshot. Builds momentum.
+
+#### The bar to hit
+
+| Rank on launch day | Outcome | Approx signups |
+| ------------------ | ------- | -------------- |
+| Top 30 | Listed but not featured | 100-500 |
+| **Top 10** | Featured in PH daily email + sidebar | **500-2000** |
+| **Top 5** | + Frontpage exposure | **2000-5000** |
+| **Top 3** | + Newsletter mentions for 2-3 weeks (compounding) | **5000-10000** |
+
+#### What NOT to do on launch day
+
+- Don't submit yourself if a hunter is willing — hunter-led is 3-10x better
+- Don't recruit upvotes via paid services or coordinated WhatsApp groups (PH detects, shadow-bans)
+- Don't post HN/Reddit/IH simultaneously with PH — stagger by 2-6 hours so each spike is independent
+- Don't launch on Friday/weekend — PH traffic drops 40-60% vs weekdays
+- Don't launch in a holiday week (US Thanksgiving, July 4, Christmas) — traffic halved + competing launches reduced (paradox: also harder to rank because top-3 takes fewer votes)
+
 ### Weekly rituals
 
 - **Monday 9am** — Review PostHog funnel. Pick ONE number that dropped. Focus all improvement on it until it recovers.
