@@ -8,6 +8,7 @@ import CapturePreviewPanel, { type PreviewState } from "./CapturePreviewPanel";
 import CaptureSecretPanel, { type SecretForm } from "./CaptureSecretPanel";
 import CaptureEntryBody from "./CaptureEntryBody";
 import CaptureListBody from "./CaptureListBody";
+import { Button } from "./ui/button";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { parseListText } from "../lib/listParser";
@@ -52,10 +53,6 @@ export default function CaptureSheet({
   const [text, setText] = useState("");
   const [activeTab, setActiveTab] = useState<"entry" | "secret" | "list">("entry");
   const [somedayActive, setSomedayActive] = useState(false);
-  // Manual type override picked via the "Capture as" pill. memory == default
-  // (AI classification). reminder/todo bypass AI by passing forcedType to the
-  // save flow. list flips activeTab to "list" so the list-body renders.
-  const [captureType, setCaptureType] = useState<CaptureTypeKey>("memory");
   const [secretForm, setSecretForm] = useState<SecretForm>({ title: "", content: "" });
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState("");
@@ -99,6 +96,8 @@ export default function CaptureSheet({
     confirmSave,
     handleImageFile,
     handleDocFiles,
+    secretCandidate,
+    clearSecretCandidate,
   } = useCaptureSheetParse({
     brainId: effectiveBrainId,
     isOnline,
@@ -141,7 +140,6 @@ export default function CaptureSheet({
       setText("");
       setActiveTab("entry");
       setSomedayActive(false);
-      setCaptureType("memory");
       setSecretForm({ title: "", content: "" });
       setSecretError("");
       setCaptureBrain(null);
@@ -243,12 +241,7 @@ export default function CaptureSheet({
       setText("");
       return;
     }
-    // Forced type override (reminder / todo). NLP still runs (dates,
-    // priority, tags) — only the classifier's type guess gets pinned.
-    // memory falls through with no forcedType so AI picks the type.
-    const forcedType =
-      captureType === "reminder" || captureType === "todo" ? captureType : undefined;
-    capture(text, () => setText(""), forcedType);
+    capture(text, () => setText(""));
   };
 
   const handleSaveList = () => {
@@ -282,8 +275,8 @@ export default function CaptureSheet({
   };
 
   // Single source of truth for which option the type pill should display.
-  // Combines the parallel state (activeTab + somedayActive + captureType)
-  // into one key so the pill stays consistent with whatever body is rendered.
+  // Derived purely from activeTab + somedayActive — there's no captureType
+  // state because "memory" is the only non-tab-driven choice.
   const displayedType: CaptureTypeKey =
     activeTab === "secret"
       ? "vault"
@@ -291,41 +284,31 @@ export default function CaptureSheet({
         ? "list"
         : somedayActive
           ? "someday"
-          : captureType;
+          : "memory";
 
   const handlePickType = (id: CaptureTypeKey) => {
     if (id === "vault") {
-      // Match the existing vault button's behavior: unlock-redirect or flip
-      // activeTab. Picking it again does nothing — flipping back to memory
-      // happens via picking another type.
       if (activeTab === "secret") return;
       if (somedayActive) setSomedayActive(false);
-      setCaptureType("memory");
       toggleVault();
       return;
     }
     if (id === "someday") {
       if (!somedayEnabled || somedayActive) return;
-      if (activeTab === "secret") setActiveTab("entry");
-      if (activeTab === "list") setActiveTab("entry");
-      setCaptureType("memory");
+      if (activeTab !== "entry") setActiveTab("entry");
       setSomedayActive(true);
       requestAnimationFrame(() => textareaRef.current?.focus());
       return;
     }
     if (id === "list") {
-      if (activeTab === "secret") setActiveTab("entry");
       if (somedayActive) setSomedayActive(false);
-      setCaptureType("list");
       setActiveTab("list");
       requestAnimationFrame(() => textareaRef.current?.focus());
       return;
     }
-    // memory / reminder / todo — plain entry body, no special tab.
-    if (activeTab === "secret") setActiveTab("entry");
-    if (activeTab === "list") setActiveTab("entry");
+    // memory — plain entry body, AI does the typing.
+    if (activeTab !== "entry") setActiveTab("entry");
     if (somedayActive) setSomedayActive(false);
-    setCaptureType(id);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -340,6 +323,33 @@ export default function CaptureSheet({
     setPreviewTitle(next.title);
     setPreviewTags(next.tags);
     setPreviewType(next.type);
+  };
+
+  // Secret detected by AI on a plain-text capture — user picks vault (encrypt)
+  // or note (save plain). Yes flips into the vault flow with the captured
+  // title + content prefilled so the user just needs to confirm. No re-saves
+  // through doSave with type=note so the entry doesn't get lost.
+  const handleSecretYes = () => {
+    if (!secretCandidate) return;
+    setSecretForm({
+      title: secretCandidate.title,
+      content: secretCandidate.content || (secretCandidate.metadata?.full_text as string) || "",
+    });
+    if (cryptoKey) {
+      setActiveTab("secret");
+    } else {
+      // No vault key yet — send them to vault setup. They'll come back to
+      // re-capture once the vault is initialised.
+      if (onNavigate) onNavigate("vault");
+    }
+    setText("");
+    clearSecretCandidate();
+  };
+  const handleSecretNo = () => {
+    if (!secretCandidate) return;
+    doSave({ ...secretCandidate, type: "note" }, text);
+    setText("");
+    clearSecretCandidate();
   };
 
   return (
@@ -445,7 +455,15 @@ export default function CaptureSheet({
           </div>
 
           {/* Body */}
-          {preview ? (
+          {secretCandidate ? (
+            <SecretConfirmPanel
+              title={secretCandidate.title}
+              hasVault={!!cryptoKey}
+              onYes={handleSecretYes}
+              onNo={handleSecretNo}
+              onCancel={() => clearSecretCandidate()}
+            />
+          ) : preview ? (
             <CapturePreviewPanel
               preview={previewStateObj}
               onPreviewChange={handlePreviewChange}
@@ -562,6 +580,110 @@ export default function CaptureSheet({
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
+  );
+}
+
+// ── Secret confirmation panel ─────────────────────────────────────────────
+// Rendered when AI classifies a typed memory capture as type="secret".
+// Two paths: Yes → flip into the encrypted vault flow with title prefilled;
+// No → caller saves the same content as a plain note. Cancel returns to
+// editing the original text. Uses the same inline-panel pattern as the
+// preview / list / vault bodies so the modal height stays constant.
+
+interface SecretConfirmPanelProps {
+  title: string;
+  hasVault: boolean;
+  onYes: () => void;
+  onNo: () => void;
+  onCancel: () => void;
+}
+
+function SecretConfirmPanel({ title, hasVault, onYes, onNo, onCancel }: SecretConfirmPanelProps) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        padding: "32px 28px 24px",
+        gap: 20,
+        minHeight: 320,
+      }}
+    >
+      <div>
+        <div
+          className="f-sans"
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "var(--ember)",
+            marginBottom: 10,
+          }}
+        >
+          looks sensitive
+        </div>
+        <h2
+          className="f-serif"
+          style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 450,
+            lineHeight: 1.25,
+            letterSpacing: "-0.01em",
+            color: "var(--ink)",
+          }}
+        >
+          Save "{title}" to your Vault?
+        </h2>
+        <p
+          className="f-serif"
+          style={{
+            margin: "10px 0 0",
+            fontSize: 15,
+            fontStyle: "italic",
+            color: "var(--ink-soft)",
+            lineHeight: 1.5,
+          }}
+        >
+          {hasVault
+            ? "the vault encrypts this on your device — only you can read it back."
+            : "you don't have a vault yet — opening Vault setup so you can secure this."}
+        </p>
+      </div>
+
+      <div
+        style={{
+          marginTop: "auto",
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+        }}
+      >
+        <Button onClick={onYes} style={{ width: "100%", justifyContent: "center" }}>
+          {hasVault ? "Yes, save to Vault" : "Set up Vault"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={onNo}
+          style={{ width: "100%", justifyContent: "center" }}
+        >
+          No, save as note
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={onCancel}
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            color: "var(--ink-faint)",
+          }}
+        >
+          Cancel — keep editing
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -795,7 +917,10 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
 // the actual save behavior. Picking vault or someday delegates to the
 // existing toggle handlers; the other types set captureType.
 
-export type CaptureTypeKey = "memory" | "reminder" | "todo" | "list" | "vault" | "someday";
+// reminder + todo aren't pill options — AI auto-classifies them when the
+// captured text mentions a date or actionable verb. Pinning the type would
+// just hide the AI's better guess.
+export type CaptureTypeKey = "memory" | "list" | "vault" | "someday";
 
 interface CaptureTypePillProps {
   captureType: CaptureTypeKey;
@@ -805,8 +930,6 @@ interface CaptureTypePillProps {
 
 const TYPE_LABELS: Record<CaptureTypeKey, string> = {
   memory: "memory",
-  reminder: "reminder",
-  todo: "todo",
   list: "list",
   vault: "vault",
   someday: "someday",
@@ -815,8 +938,6 @@ const TYPE_LABELS: Record<CaptureTypeKey, string> = {
 function CaptureTypePill({ captureType, somedayEnabled, onPick }: CaptureTypePillProps) {
   const allOptions: { id: CaptureTypeKey; hint?: string; disabled?: boolean }[] = [
     { id: "memory", hint: "AI sorts" },
-    { id: "reminder" },
-    { id: "todo" },
     { id: "list" },
     { id: "vault" },
     { id: "someday", disabled: !somedayEnabled, hint: somedayEnabled ? undefined : "off" },

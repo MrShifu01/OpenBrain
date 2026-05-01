@@ -10,7 +10,6 @@ import { runContactPipeline, contactToEntryPayload } from "../lib/contactPipelin
 import { PROMPTS } from "../config/prompts";
 import { showToast } from "../lib/notifications";
 import { recordDecision } from "../lib/learningEngine";
-import { parseTask } from "../lib/nlpParser";
 import { trackFirstCapture, trackCaptureMethod, type CaptureMethod } from "../lib/events";
 import type { Entry } from "../types";
 
@@ -71,6 +70,11 @@ export function useCaptureSheetParse({
   const [previewType, setPreviewType] = useState("note");
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const rawContentRef = useRef<string>("");
+  // When AI classifies a text capture as type="secret", we hold the parsed
+  // entry here instead of saving immediately — the parent renders an inline
+  // "Save to Vault?" confirmation. Yes routes to the encrypted vault flow,
+  // No saves as a plain note. Cleared by the parent via clearSecretCandidate.
+  const [secretCandidate, setSecretCandidate] = useState<ParsedEntry | null>(null);
 
   const resetState = useCallback(() => {
     setStatus(null);
@@ -80,6 +84,7 @@ export function useCaptureSheetParse({
     setPreviewTags("");
     setPreviewType("note");
     setUploadedFiles([]);
+    setSecretCandidate(null);
   }, []);
 
   const removeUploadedFile = useCallback((name: string) => {
@@ -239,7 +244,7 @@ export function useCaptureSheetParse({
   );
 
   const capture = useCallback(
-    async (text: string, clearText: () => void, forcedType?: string) => {
+    async (text: string, clearText: () => void) => {
       const input = buildInput(text);
       if (!input) return;
       rawContentRef.current = input;
@@ -251,53 +256,18 @@ export function useCaptureSheetParse({
       // Funnel — fire BEFORE the save round-trip so we count attempted
       // captures, not just successful ones (the dashboard subtracts
       // capture_method from /api/capture 2xx counts to surface failure rate).
-      // Voice is currently lumped under "text" because useVoiceRecorder
-      // appends to the same textarea and we can't tell them apart at this
-      // layer; revisit if voice activation matters for the funnel.
       const method: CaptureMethod = uploadedFiles.length > 0 ? "file" : "text";
       trackCaptureMethod({ method });
       trackFirstCapture({ method });
 
-      // Optimistic single-text capture (no file uploads) — same path online
-      // and offline. parseTask runs the local NLP heuristics (date/priority/
-      // energy/tags) so the entry has useful metadata at first paint, then
-      // doSave routes through bgQueueDirectSave which either POSTs to
-      // /api/capture (server enriches: parse, insight, concepts, persona,
-      // embed) or enqueues for replay when reconnecting. The client-side
-      // callAI round-trip used to gate the UI for 2-5s waiting on the same
-      // parse the server already does — pulling it off the critical path
-      // is the biggest "feels instant" win.
-      //
-      // File uploads still take the AI-classify path below because parseTask
-      // can't read PDFs/docx/etc; callAI is the only way to extract a title
-      // and split multi-entry files at capture time.
+      // Both text and file captures route through the AI classifier so the
+      // type is chosen from the full taxonomy (person, reminder, todo,
+      // contact, secret, note, etc.) instead of always landing as "note".
+      // Pre-AI fast path used local NLP for "feels instant" but capped every
+      // captured memory at type="note" — that's the regression we're undoing.
+      // 2-5s "thinking…" is acceptable for accurate classification + secret
+      // detection, which the local heuristic can't do.
       const hasFiles = uploadedFiles.length > 0;
-      if (!hasFiles) {
-        const nlp = parseTask(input);
-        const localMeta: Record<string, unknown> = {};
-        if (nlp.dueDate) localMeta.due_date = nlp.dueDate;
-        if (nlp.dayOfMonth) localMeta.day_of_month = nlp.dayOfMonth;
-        if (nlp.priority) localMeta.priority = nlp.priority;
-        if (nlp.energy) localMeta.energy = nlp.energy;
-        // forcedType pins the type when the user picked it via the "Capture as"
-        // pill (reminder/todo). NLP still runs so dates/priority get extracted —
-        // we just skip the classifier's type guess.
-        await doSave(
-          {
-            title: nlp.cleanTitle || input.slice(0, 60),
-            content: input,
-            type: forcedType || "note",
-            tags: nlp.tags,
-            metadata: localMeta,
-          },
-          input,
-        );
-        return;
-      }
-
-      // Files-only path from here. The hasFiles guard above already returned
-      // for plain text. Re-derived inside the catch handlers / hasFiles
-      // branch below so existing references keep compiling.
       try {
         const hasMultipleFiles = uploadedFiles.length > 1;
         const basePrompt = hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE;
@@ -442,6 +412,17 @@ export function useCaptureSheetParse({
         if (Array.isArray(parsedRaw) && parsedRaw.length === 1) {
           const single = parsedRaw[0];
           if (single.title) {
+            // Secret detected on plain-text captures → hand to parent for
+            // confirmation instead of saving. Files always save through
+            // because they can carry secrets as part of a larger document
+            // (a PDF with a password) where vault-encrypting the whole
+            // thing would destroy the surrounding context.
+            if (!hasFiles && single.type === "secret") {
+              setSecretCandidate(single);
+              setLoading(false);
+              setStatus(null);
+              return;
+            }
             // AI classified successfully — save immediately
             await doSave(single, rawContentRef.current);
             return;
@@ -526,6 +507,12 @@ export function useCaptureSheetParse({
 
         const parsed = parsedRaw as ParsedEntry;
         if (parsed.title) {
+          if (!hasFiles && parsed.type === "secret") {
+            setSecretCandidate(parsed);
+            setLoading(false);
+            setStatus(null);
+            return;
+          }
           // AI classification succeeded — save immediately, no preview needed
           await doSave(parsed, rawContentRef.current);
           return;
@@ -820,5 +807,7 @@ export function useCaptureSheetParse({
     confirmSave,
     handleImageFile,
     handleDocFiles,
+    secretCandidate,
+    clearSecretCandidate: () => setSecretCandidate(null),
   };
 }
