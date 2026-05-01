@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, type JSX } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase, readCachedSession } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
@@ -66,7 +66,18 @@ export default function App({ initialAuthIntent }: AppProps = {}): JSX.Element {
 }
 
 function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
-  const [session, setSession] = useState<Session | null | undefined>(undefined);
+  // Synchronously hydrate session from localStorage so we can render the
+  // signed-in shell on the first paint instead of waiting for auth-js's
+  // async getSession (which can do a network refresh near token expiry,
+  // adding 4-6s to cold boot). The async useEffect below still runs and
+  // upgrades to the canonical Session once auth-js confirms; if the cached
+  // token has been revoked server-side, authFetch's 401 retry handles the
+  // mismatch. `undefined` is reserved for "no cache + no answer yet" so the
+  // loading screen still shows for genuinely first-time loads.
+  const [session, setSession] = useState<Session | null | undefined>(() => {
+    const cached = readCachedSession();
+    return cached ? (cached as unknown as Session) : undefined;
+  });
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   // Track connectivity so the app can show a calm offline gate when there's

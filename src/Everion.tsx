@@ -24,7 +24,28 @@ import OnboardingModal from "./components/OnboardingModal";
 import OfflineBanner from "./components/OfflineBanner";
 import BottomNav from "./components/BottomNav";
 import MobileHeader from "./components/MobileHeader";
-const CaptureSheet = lazy(() => import("./components/CaptureSheet"));
+// CaptureSheet is the heaviest single piece of the signed-in shell — voice
+// recorder, NLP parser, file extraction, AI calls. We don't want it on the
+// critical path, but we DO want it parsed and ready by the time the user
+// taps the capture button. Lazy + idle-prefetch:
+//   • lazy() keeps it out of the first paint chunk
+//   • prefetchCaptureSheet() called below from a useEffect after mount runs
+//     the import on the next idle frame so the chunk is already cached and
+//     parsed when the user opens it (sub-50ms instead of 100-500ms).
+const captureSheetImport = () => import("./components/CaptureSheet");
+const CaptureSheet = lazy(captureSheetImport);
+function prefetchCaptureSheet() {
+  // requestIdleCallback isn't on iOS Safari (still). Fall back to setTimeout
+  // with a small delay so the prefetch runs after the first useful paint
+  // without blocking the layout commit.
+  type Idle = (cb: () => void, opts?: { timeout?: number }) => number;
+  const ric: Idle | undefined =
+    typeof window !== "undefined"
+      ? (window as unknown as { requestIdleCallback?: Idle }).requestIdleCallback
+      : undefined;
+  if (ric) ric(() => void captureSheetImport().catch(() => {}), { timeout: 2000 });
+  else setTimeout(() => void captureSheetImport().catch(() => {}), 1500);
+}
 import DesktopSidebar from "./components/DesktopSidebar";
 import DesktopHeader from "./components/DesktopHeader";
 import LoadingScreen from "./components/LoadingScreen";
@@ -985,6 +1006,12 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     if (isOnline) sync();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Pre-warm the CaptureSheet chunk after mount so the first capture tap
+  // doesn't pay chunk download + parse latency. See captureSheetImport above.
+  useEffect(() => {
+    prefetchCaptureSheet();
+  }, []);
+
   const appShell = useAppShell({ initialShowCapture, activeBrainId: activeBrain?.id });
 
   const dataLayer = useDataLayer({
@@ -1090,7 +1117,13 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     [activeBrain, brains, setActiveBrain, refresh],
   );
 
-  if (brainsLoading)
+  // Block the UI on the brains fetch only when we have nothing to render —
+  // i.e. truly first-ever boot with no cache. With useBrain's localStorage
+  // hydrate, returning users render immediately and the network refresh
+  // updates state in place; any brain-set change after that surfaces in a
+  // single re-render rather than bouncing the whole shell back to a
+  // LoadingScreen for the duration of the round-trip.
+  if (brainsLoading && brains.length === 0)
     return (
       <>
         <LoadingScreen />

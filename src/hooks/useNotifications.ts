@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { authFetch } from "../lib/authFetch";
+import { idleSchedule } from "../lib/idleSchedule";
 
 export interface AppNotification {
   id: string;
@@ -38,9 +39,13 @@ export function useNotifications() {
     fetchingRef.current = false;
   }, []);
 
-  // Load on mount
+  // Defer initial load off the critical path. Notifications are a bell badge
+  // in the header — the user doesn't see the count for the first second of
+  // a cold boot, and racing this against the entries fetch slows the latter.
   useEffect(() => {
-    fetch_();
+    idleSchedule(() => {
+      fetch_();
+    });
   }, [fetch_]);
 
   // Re-fetch when tab regains focus

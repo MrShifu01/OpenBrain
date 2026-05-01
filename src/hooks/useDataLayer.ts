@@ -8,6 +8,7 @@ import { decryptEntry, cacheVaultKey } from "../lib/crypto";
 import { indexEntry } from "../lib/searchIndex";
 import { LINKS } from "../data/constants";
 import { useEntryActions } from "./useEntryActions";
+import { idleSchedule } from "../lib/idleSchedule";
 import type { Entry, Link } from "../types";
 
 interface UseDataLayerParams {
@@ -85,14 +86,19 @@ export function useDataLayer({
     // before the network refresh can fill in.
   }, [activeBrainId]);
 
-  // Vault existence check
+  // Vault existence check — deferred to idle. The vault badge is purely
+  // decorative on first paint (icon in DesktopSidebar / MobileMoreMenu);
+  // racing it against the entries fetch on cold boot just steals
+  // bandwidth from the critical path.
   useEffect(() => {
-    authFetch("/api/vault")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (d?.exists) setVaultExists(true);
-      })
-      .catch((err) => console.error("[OpenBrain] /api/vault check failed", err));
+    idleSchedule(() => {
+      authFetch("/api/vault")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d?.exists) setVaultExists(true);
+        })
+        .catch((err) => console.error("[OpenBrain] /api/vault check failed", err));
+    });
   }, []);
 
   // Fetch vault entries for the memory feed (titles are plaintext; content
@@ -129,8 +135,13 @@ export function useDataLayer({
     }
   }, []);
 
+  // Defer the vault-entries fetch off the critical path. Vault entries are a
+  // separate tab (not the default Memory view), so first paint never depends
+  // on this — we yield bandwidth to /api/entries phase 1 instead.
   useEffect(() => {
-    fetchVaultEntries();
+    idleSchedule(() => {
+      fetchVaultEntries();
+    });
   }, [fetchVaultEntries]);
 
   const refreshEntries = useCallback(async () => {
@@ -202,14 +213,21 @@ export function useDataLayer({
       prevBrainIdRef.current = activeBrainId;
     }
     refreshEntries();
-    authFetch(`/api/search?brain_id=${encodeURIComponent(activeBrainId)}&threshold=0.55`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const arr = Array.isArray(data) ? data : data.links || [];
-        if (arr.length > 0) setLinks(arr);
-      })
-      .catch((err) => console.error("[OpenBrain] /api/search prefetch failed", err));
+    // Link prefetch deferred to idle. Links power the "Related" panel inside
+    // DetailModal — first paint of the Memory grid never reads them, so this
+    // doesn't belong on the critical path. The cached LINKS constant covers
+    // any same-frame consumer until /api/search responds in the background.
+    const brainIdForLinks = activeBrainId;
+    idleSchedule(() => {
+      authFetch(`/api/search?brain_id=${encodeURIComponent(brainIdForLinks)}&threshold=0.55`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const arr = Array.isArray(data) ? data : data.links || [];
+          if (arr.length > 0) setLinks(arr);
+        })
+        .catch((err) => console.error("[OpenBrain] /api/search prefetch failed", err));
+    });
   }, [activeBrainId, refreshEntries]);
 
   // Write-back cache after entries settle — keyed on the active brain so a

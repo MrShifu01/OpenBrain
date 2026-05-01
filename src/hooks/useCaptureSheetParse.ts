@@ -247,28 +247,44 @@ export function useCaptureSheetParse({
       setStatus("thinking");
       setErrorDetail(null);
 
-      if (!isOnline) {
+      // Optimistic single-text capture (no file uploads) — same path online
+      // and offline. parseTask runs the local NLP heuristics (date/priority/
+      // energy/tags) so the entry has useful metadata at first paint, then
+      // doSave routes through bgQueueDirectSave which either POSTs to
+      // /api/capture (server enriches: parse, insight, concepts, persona,
+      // embed) or enqueues for replay when reconnecting. The client-side
+      // callAI round-trip used to gate the UI for 2-5s waiting on the same
+      // parse the server already does — pulling it off the critical path
+      // is the biggest "feels instant" win.
+      //
+      // File uploads still take the AI-classify path below because parseTask
+      // can't read PDFs/docx/etc; callAI is the only way to extract a title
+      // and split multi-entry files at capture time.
+      const hasFiles = uploadedFiles.length > 0;
+      if (!hasFiles) {
         const nlp = parseTask(input);
-        const offlineMeta: Record<string, unknown> = {};
-        if (nlp.dueDate) offlineMeta.due_date = nlp.dueDate;
-        if (nlp.dayOfMonth) offlineMeta.day_of_month = nlp.dayOfMonth;
-        if (nlp.priority) offlineMeta.priority = nlp.priority;
-        if (nlp.energy) offlineMeta.energy = nlp.energy;
+        const localMeta: Record<string, unknown> = {};
+        if (nlp.dueDate) localMeta.due_date = nlp.dueDate;
+        if (nlp.dayOfMonth) localMeta.day_of_month = nlp.dayOfMonth;
+        if (nlp.priority) localMeta.priority = nlp.priority;
+        if (nlp.energy) localMeta.energy = nlp.energy;
         await doSave(
           {
             title: nlp.cleanTitle || input.slice(0, 60),
             content: input,
             type: "note",
             tags: nlp.tags,
-            metadata: offlineMeta,
+            metadata: localMeta,
           },
           input,
         );
         return;
       }
 
+      // Files-only path from here. The hasFiles guard above already returned
+      // for plain text. Re-derived inside the catch handlers / hasFiles
+      // branch below so existing references keep compiling.
       try {
-        const hasFiles = uploadedFiles.length > 0;
         const hasMultipleFiles = uploadedFiles.length > 1;
         const basePrompt = hasMultipleFiles ? PROMPTS.FILE_SPLIT : PROMPTS.CAPTURE;
         const res = await callAI({

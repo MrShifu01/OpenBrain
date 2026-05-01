@@ -52,6 +52,38 @@ if (typeof window !== "undefined") {
   }
 }
 
+// Synchronous session probe — reads the auth-js localStorage value directly
+// so first-paint code (App.tsx) can render without awaiting the async
+// auth-js getSession path (which can refresh near-expiry tokens over the
+// network). Returns the cached session when it parses, has an access_token,
+// and isn't past expires_at; otherwise returns null and the caller falls
+// back to the async path. We intentionally don't try to refresh here — the
+// background auth-js subscription handles that and updates state when it
+// completes.
+export interface CachedSession {
+  access_token: string;
+  refresh_token?: string;
+  expires_at?: number;
+  user?: { id?: string; email?: string; app_metadata?: Record<string, unknown> };
+}
+export function readCachedSession(): CachedSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(`sb-${projectRef}-auth-token`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedSession;
+    if (!parsed || typeof parsed.access_token !== "string") return null;
+    // Treat as live if there's no expires_at OR expiry is in the future.
+    // Auth-js stores expires_at as a Unix-second timestamp.
+    if (typeof parsed.expires_at === "number" && parsed.expires_at * 1000 < Date.now()) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 // Per-request token injection — matches supabase-js' fetchWithAuth so RLS
 // sees the user's JWT after sign-in and falls back to the anon key when
 // signed out.
