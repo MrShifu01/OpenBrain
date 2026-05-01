@@ -1,13 +1,5 @@
 import { useRef, type ReactNode } from "react";
-import {
-  IconMic,
-  IconAttach,
-  IconVault,
-  IconSend,
-  IconX,
-  IconCamera,
-  VoiceWaveform,
-} from "./captureIcons";
+import { IconMic, IconAttach, IconSend, IconX, IconCamera, VoiceWaveform } from "./captureIcons";
 import { Button } from "./ui/button";
 
 const MOD = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘" : "Ctrl";
@@ -26,8 +18,6 @@ interface EntryStatusInfo {
 interface EntryActionHandlers {
   onSave: () => void;
   onStartVoice: () => void;
-  onToggleVault: () => void;
-  onToggleSomeday?: () => void;
   onRemoveFile: (name: string) => void;
   onAttachFiles: (files: File[]) => void;
   onImageFile: (file: File) => void;
@@ -47,14 +37,13 @@ interface Props {
   extracting?: boolean;
   showSavedWhisper: boolean;
   canSave: boolean;
-  cryptoKey: CryptoKey | null | undefined;
-  activeTab: "entry" | "secret";
-  somedayEnabled?: boolean;
   somedayActive?: boolean;
   statusInfo: EntryStatusInfo;
   handlers: EntryActionHandlers;
   /** Inline "Capturing to {Brain} ⌄" chip rendered above the textarea. */
   brainPill?: ReactNode;
+  /** Inline "Capture as {type} ⌄" chip rendered next to the brain pill. */
+  typePill?: ReactNode;
 }
 
 export default function CaptureEntryBody({
@@ -66,13 +55,11 @@ export default function CaptureEntryBody({
   extracting = false,
   showSavedWhisper,
   canSave,
-  cryptoKey,
-  activeTab,
-  somedayEnabled = false,
   somedayActive = false,
   statusInfo,
   handlers,
   brainPill,
+  typePill,
 }: Props) {
   const imgRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -133,16 +120,19 @@ export default function CaptureEntryBody({
           position: "relative",
         }}
       >
-        {brainPill && (
+        {(brainPill || typePill) && (
           <div
             style={{
               marginBottom: 10,
               display: "flex",
               alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
               minWidth: 0,
             }}
           >
             {brainPill}
+            {typePill}
           </div>
         )}
         <textarea
@@ -362,44 +352,10 @@ export default function CaptureEntryBody({
           >
             {IconAttach}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handlers.onToggleVault}
-            aria-label="Save to vault"
-            aria-pressed={(activeTab as string) === "secret"}
-            style={{
-              padding: 0,
-              color:
-                (activeTab as string) === "secret"
-                  ? "var(--ember)"
-                  : cryptoKey
-                    ? "var(--ink-faint)"
-                    : "var(--ink-ghost)",
-            }}
-            title={cryptoKey ? "Save to vault" : "Unlock vault first"}
-          >
-            {IconVault}
-          </Button>
-          {somedayEnabled && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlers.onToggleSomeday}
-              aria-label="Save to someday list"
-              aria-pressed={somedayActive}
-              style={{
-                fontSize: 18,
-                fontWeight: 600,
-                color: somedayActive ? "var(--ember)" : "var(--ink-faint)",
-              }}
-              title={
-                somedayActive ? "Someday on — saves with no date" : "Send to Someday list (no date)"
-              }
-            >
-              ∞
-            </Button>
-          )}
+          {/* Vault + Someday were here — they moved into the "Capture as"
+              type pill so the icon row stays focused on input modes (mic /
+              camera / file upload). Removing the icons cleans up the
+              footer and gives the type pill a single source of truth. */}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

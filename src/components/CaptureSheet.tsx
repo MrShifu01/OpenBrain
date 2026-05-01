@@ -7,14 +7,10 @@ import type { Brain, Entry } from "../types";
 import CapturePreviewPanel, { type PreviewState } from "./CapturePreviewPanel";
 import CaptureSecretPanel, { type SecretForm } from "./CaptureSecretPanel";
 import CaptureEntryBody from "./CaptureEntryBody";
+import CaptureListBody from "./CaptureListBody";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { parseListText } from "../lib/listParser";
 
 interface CaptureSheetProps {
   isOpen: boolean;
@@ -54,8 +50,12 @@ export default function CaptureSheet({
   somedayEnabled = false,
 }: CaptureSheetProps) {
   const [text, setText] = useState("");
-  const [activeTab, setActiveTab] = useState<"entry" | "secret">("entry");
+  const [activeTab, setActiveTab] = useState<"entry" | "secret" | "list">("entry");
   const [somedayActive, setSomedayActive] = useState(false);
+  // Manual type override picked via the "Capture as" pill. memory == default
+  // (AI classification). reminder/todo bypass AI by passing forcedType to the
+  // save flow. list flips activeTab to "list" so the list-body renders.
+  const [captureType, setCaptureType] = useState<CaptureTypeKey>("memory");
   const [secretForm, setSecretForm] = useState<SecretForm>({ title: "", content: "" });
   const [secretSaving, setSecretSaving] = useState(false);
   const [secretError, setSecretError] = useState("");
@@ -141,6 +141,7 @@ export default function CaptureSheet({
       setText("");
       setActiveTab("entry");
       setSomedayActive(false);
+      setCaptureType("memory");
       setSecretForm({ title: "", content: "" });
       setSecretError("");
       setCaptureBrain(null);
@@ -225,7 +226,9 @@ export default function CaptureSheet({
   const canSave =
     activeTab === "entry"
       ? text.trim().length > 0 || uploadedFiles.length > 0
-      : secretForm.title.trim().length > 0 && secretForm.content.trim().length > 0;
+      : activeTab === "list"
+        ? text.trim().length > 0
+        : secretForm.title.trim().length > 0 && secretForm.content.trim().length > 0;
 
   const handleSave = () => {
     if (activeTab !== "entry") return;
@@ -240,13 +243,34 @@ export default function CaptureSheet({
       setText("");
       return;
     }
+    // Forced type override (reminder / todo). Bypasses AI classification —
+    // the user explicitly told us what this is. Memory falls through to AI.
+    if (captureType === "reminder" || captureType === "todo") {
+      const t = text.trim();
+      if (!t) return;
+      const title = t.length > 60 ? t.slice(0, 57) + "…" : t;
+      doSave({ title, content: t, type: captureType, tags: [], metadata: {} }, t);
+      setText("");
+      return;
+    }
     capture(text, () => setText(""));
   };
 
-  const toggleSomeday = () => {
-    if (!somedayEnabled) return;
-    setSomedayActive((v) => !v);
-    requestAnimationFrame(() => textareaRef.current?.focus());
+  const handleSaveList = () => {
+    const t = text.trim();
+    if (!t) return;
+    const payload = buildListPayload(t);
+    doSave(
+      {
+        title: payload.title,
+        content: payload.content,
+        type: "list",
+        tags: [],
+        metadata: payload.metadata,
+      },
+      t,
+    );
+    setText("");
   };
 
   const toggleVault = () => {
@@ -260,6 +284,54 @@ export default function CaptureSheet({
       setActiveTab("entry");
       requestAnimationFrame(() => textareaRef.current?.focus());
     }
+  };
+
+  // Single source of truth for which option the type pill should display.
+  // Combines the parallel state (activeTab + somedayActive + captureType)
+  // into one key so the pill stays consistent with whatever body is rendered.
+  const displayedType: CaptureTypeKey =
+    activeTab === "secret"
+      ? "vault"
+      : activeTab === "list"
+        ? "list"
+        : somedayActive
+          ? "someday"
+          : captureType;
+
+  const handlePickType = (id: CaptureTypeKey) => {
+    if (id === "vault") {
+      // Match the existing vault button's behavior: unlock-redirect or flip
+      // activeTab. Picking it again does nothing — flipping back to memory
+      // happens via picking another type.
+      if (activeTab === "secret") return;
+      if (somedayActive) setSomedayActive(false);
+      setCaptureType("memory");
+      toggleVault();
+      return;
+    }
+    if (id === "someday") {
+      if (!somedayEnabled || somedayActive) return;
+      if (activeTab === "secret") setActiveTab("entry");
+      if (activeTab === "list") setActiveTab("entry");
+      setCaptureType("memory");
+      setSomedayActive(true);
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      return;
+    }
+    if (id === "list") {
+      if (activeTab === "secret") setActiveTab("entry");
+      if (somedayActive) setSomedayActive(false);
+      setCaptureType("list");
+      setActiveTab("list");
+      requestAnimationFrame(() => textareaRef.current?.focus());
+      return;
+    }
+    // memory / reminder / todo — plain entry body, no special tab.
+    if (activeTab === "secret") setActiveTab("entry");
+    if (activeTab === "list") setActiveTab("entry");
+    if (somedayActive) setSomedayActive(false);
+    setCaptureType(id);
+    requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
   // Bridge between PreviewState object and hook's individual state setters
@@ -413,6 +485,31 @@ export default function CaptureSheet({
                 else setSecretForm({ title: "", content: "" });
               }}
             />
+          ) : activeTab === "list" ? (
+            <CaptureListBody
+              text={text}
+              onTextChange={setText}
+              loading={loading}
+              canSave={canSave}
+              brainPill={
+                showBrainPill && brainCtx.brains.length > 1 ? (
+                  <CaptureBrainPill
+                    brains={brainCtx.brains}
+                    activeBrain={brainCtx.activeBrain}
+                    captureBrain={captureBrain}
+                    onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                  />
+                ) : undefined
+              }
+              typePill={
+                <CaptureTypePill
+                  captureType={displayedType}
+                  somedayEnabled={somedayEnabled}
+                  onPick={handlePickType}
+                />
+              }
+              onSave={handleSaveList}
+            />
           ) : (
             <CaptureEntryBody
               text={text}
@@ -423,9 +520,6 @@ export default function CaptureSheet({
               extracting={extracting}
               showSavedWhisper={showSavedWhisper}
               canSave={canSave}
-              cryptoKey={cryptoKey}
-              activeTab={activeTab}
-              somedayEnabled={somedayEnabled}
               somedayActive={somedayActive}
               brainPill={
                 showBrainPill && brainCtx.brains.length > 1 ? (
@@ -437,6 +531,13 @@ export default function CaptureSheet({
                   />
                 ) : undefined
               }
+              typePill={
+                <CaptureTypePill
+                  captureType={displayedType}
+                  somedayEnabled={somedayEnabled}
+                  onPick={handlePickType}
+                />
+              }
               statusInfo={{
                 status,
                 errorDetail,
@@ -446,8 +547,6 @@ export default function CaptureSheet({
               handlers={{
                 onSave: handleSave,
                 onStartVoice: startVoice,
-                onToggleVault: toggleVault,
-                onToggleSomeday: toggleSomeday,
                 onRemoveFile: removeUploadedFile,
                 onAttachFiles: (files) => {
                   handleDocFiles(files).catch((err) => console.error("[docInput]", err));
@@ -471,28 +570,75 @@ export default function CaptureSheet({
   );
 }
 
-// ── Per-capture brain override pill ────────────────────────────────────────
-// Lightweight inline picker. Doesn't change the app-wide active brain.
-// Resets each time the sheet closes.
+// ── Inline dropdown pill ───────────────────────────────────────────────────
+// Lightweight non-Radix dropdown — the previous Radix DropdownMenu inside
+// the capture Dialog froze for several hundred ms on first open while
+// Radix coordinated focus-scope between the two portals. Plain absolute-
+// positioned div renders instantly. Outside-click + Escape both close it.
 
-interface CaptureBrainPillProps {
-  brains: Brain[];
-  activeBrain: Brain | null;
-  captureBrain: Brain | null;
-  onPick: (b: Brain) => void;
+interface InlineDropdownOption {
+  id: string;
+  label: string;
+  hint?: string;
+  disabled?: boolean;
 }
 
-function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: CaptureBrainPillProps) {
-  const target = captureBrain ?? activeBrain;
-  if (!target) return null;
-  const personal = brains.find((b) => b.is_personal);
-  const others = brains.filter((b) => !b.is_personal).sort((a, b) => a.name.localeCompare(b.name));
-  const sorted = personal ? [personal, ...others] : others;
+interface InlineDropdownPillProps {
+  triggerLabel: string; // "Capturing to" / "Capture as"
+  triggerValue: string; // "My Brain" / "memory"
+  triggerValueAccent?: boolean; // tints value with --ember when true
+  ariaLabel: string;
+  options: InlineDropdownOption[];
+  selectedId: string | null;
+  onPick: (id: string) => void;
+}
+
+function InlineDropdownPill({
+  triggerLabel,
+  triggerValue,
+  triggerValueAccent,
+  ariaLabel,
+  options,
+  selectedId,
+  onPick,
+}: InlineDropdownPillProps) {
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (
+        menuRef.current?.contains(e.target as Node) ||
+        triggerRef.current?.contains(e.target as Node)
+      )
+        return;
+      setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open]);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={`Capture into ${target.name} — change brain`}
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
         className="press"
         style={{
           display: "inline-flex",
@@ -511,10 +657,10 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
           maxWidth: 240,
         }}
       >
-        <span style={{ opacity: 0.7 }}>Capturing to&nbsp;</span>
+        <span style={{ opacity: 0.7 }}>{triggerLabel}&nbsp;</span>
         <span
           style={{
-            color: captureBrain ? "var(--ember)" : "var(--ink)",
+            color: triggerValueAccent ? "var(--ember)" : "var(--ink)",
             fontWeight: 600,
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -522,7 +668,7 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
             minWidth: 0,
           }}
         >
-          {target.name}
+          {triggerValue}
         </span>
         <svg
           aria-hidden="true"
@@ -538,29 +684,181 @@ function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: Capture
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[200px]">
-        {sorted.map((b) => {
-          const selected = b.id === target.id;
-          return (
-            <DropdownMenuItem
-              key={b.id}
-              onSelect={() => onPick(b)}
-              style={{ background: selected ? "var(--ember-wash)" : undefined }}
-            >
-              <span
+      </button>
+      {open && (
+        <div
+          ref={menuRef}
+          role="menu"
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            marginTop: 6,
+            background: "var(--surface-high)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            boxShadow: "var(--lift-2)",
+            minWidth: 180,
+            zIndex: 60,
+            overflow: "hidden",
+            padding: "4px 0",
+          }}
+        >
+          {options.map((opt) => {
+            const selected = opt.id === selectedId;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                role="menuitem"
+                disabled={opt.disabled}
+                onClick={() => {
+                  if (opt.disabled) return;
+                  onPick(opt.id);
+                  setOpen(false);
+                }}
+                className="press"
                 style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 14px",
+                  background: selected ? "var(--ember-wash, rgba(255,79,31,0.08))" : "transparent",
+                  border: 0,
+                  fontFamily: "var(--f-sans)",
+                  fontSize: 13,
+                  fontWeight: selected ? 600 : 500,
+                  color: opt.disabled ? "var(--ink-faint)" : "var(--ink)",
+                  cursor: opt.disabled ? "not-allowed" : "pointer",
                 }}
               >
-                {b.name}
-              </span>
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {opt.label}
+                </span>
+                {opt.hint && (
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 11, color: "var(--ink-faint)", flexShrink: 0 }}
+                  >
+                    {opt.hint}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
+}
+
+// ── Per-capture brain override pill ────────────────────────────────────────
+// Resets each time the sheet closes.
+
+interface CaptureBrainPillProps {
+  brains: Brain[];
+  activeBrain: Brain | null;
+  captureBrain: Brain | null;
+  onPick: (b: Brain) => void;
+}
+
+function CaptureBrainPill({ brains, activeBrain, captureBrain, onPick }: CaptureBrainPillProps) {
+  const target = captureBrain ?? activeBrain;
+  if (!target) return null;
+  const personal = brains.find((b) => b.is_personal);
+  const others = brains.filter((b) => !b.is_personal).sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = personal ? [personal, ...others] : others;
+
+  return (
+    <InlineDropdownPill
+      triggerLabel="Capturing to"
+      triggerValue={target.name}
+      triggerValueAccent={!!captureBrain}
+      ariaLabel={`Capture into ${target.name} — change brain`}
+      options={sorted.map((b) => ({ id: b.id, label: b.name }))}
+      selectedId={target.id}
+      onPick={(id) => {
+        const next = sorted.find((b) => b.id === id);
+        if (next) onPick(next);
+      }}
+    />
+  );
+}
+
+// ── Capture-as type pill ───────────────────────────────────────────────────
+// Sibling to CaptureBrainPill. Driven by the parent's captureType + the
+// vault/someday flags so a single source-of-truth label always reflects
+// the actual save behavior. Picking vault or someday delegates to the
+// existing toggle handlers; the other types set captureType.
+
+export type CaptureTypeKey = "memory" | "reminder" | "todo" | "list" | "vault" | "someday";
+
+interface CaptureTypePillProps {
+  captureType: CaptureTypeKey;
+  somedayEnabled: boolean;
+  onPick: (id: CaptureTypeKey) => void;
+}
+
+const TYPE_LABELS: Record<CaptureTypeKey, string> = {
+  memory: "memory",
+  reminder: "reminder",
+  todo: "todo",
+  list: "list",
+  vault: "vault",
+  someday: "someday",
+};
+
+function CaptureTypePill({ captureType, somedayEnabled, onPick }: CaptureTypePillProps) {
+  const allOptions: { id: CaptureTypeKey; hint?: string; disabled?: boolean }[] = [
+    { id: "memory", hint: "AI sorts" },
+    { id: "reminder" },
+    { id: "todo" },
+    { id: "list" },
+    { id: "vault" },
+    { id: "someday", disabled: !somedayEnabled, hint: somedayEnabled ? undefined : "off" },
+  ];
+  const accent = captureType === "vault" || captureType === "someday";
+  return (
+    <InlineDropdownPill
+      triggerLabel="Capture as"
+      triggerValue={TYPE_LABELS[captureType]}
+      triggerValueAccent={accent}
+      ariaLabel={`Capturing as ${TYPE_LABELS[captureType]} — change type`}
+      options={allOptions.map((o) => ({
+        id: o.id,
+        label: TYPE_LABELS[o.id],
+        hint: o.hint,
+        disabled: o.disabled,
+      }))}
+      selectedId={captureType}
+      onPick={(id) => onPick(id as CaptureTypeKey)}
+    />
+  );
+}
+
+// Helper used by the inline list-body when the user saves — splits the typed
+// text into a list-name + items[] via the deterministic listParser. First
+// non-empty line becomes the name; remaining lines feed the parser as items.
+export function buildListPayload(text: string): {
+  title: string;
+  content: string;
+  metadata: { items: ReturnType<typeof parseListText>; list_v: 1 };
+} {
+  const trimmed = text.trim();
+  const firstNL = trimmed.indexOf("\n");
+  const title = (firstNL > 0 ? trimmed.slice(0, firstNL) : trimmed).trim() || "Untitled list";
+  const itemsText = firstNL > 0 ? trimmed.slice(firstNL + 1) : "";
+  const items = parseListText(itemsText);
+  const itemTitles = items.map((i) => `- ${i.title}`).join("\n");
+  const content = items.length ? `${title}\n\n${itemTitles}` : title;
+  return { title, content, metadata: { items, list_v: 1 } };
 }
