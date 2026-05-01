@@ -1,24 +1,38 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { NavIcon } from "./icons/NavIcons";
 import { useKeyboardVisible } from "../hooks/useKeyboardVisible";
+import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "../lib/featureFlags";
 
-// 5 items, center is the capture FAB — matches the redesign's mobile bottom nav.
-const NAV_ITEMS = [
-  { id: "memory", label: "Memory", icon: NavIcon.grid },
-  { id: "chat", label: "Chat", icon: NavIcon.chat },
-  { id: "_capture_fab", label: "Add", isFAB: true, icon: NavIcon.add },
-  { id: "todos", label: "Schedule", icon: NavIcon.todos },
-  { id: "settings", label: "Settings", icon: NavIcon.settings },
+// 5-slot grid: capture FAB always anchors center. Side slots are flag-aware:
+// when a feature is OFF in prod (e.g. Chat or Schedule) we drop the slot
+// rather than render a tab that routes to an empty view (Everion.tsx redirects
+// disabled views back to memory — without this filter, tapping the tab does
+// nothing visible to the user).
+const ALL_ITEMS = [
+  { id: "memory", label: "Memory", icon: NavIcon.grid, flag: undefined },
+  { id: "chat", label: "Chat", icon: NavIcon.chat, flag: "chat" as FeatureFlagKey },
+  { id: "_capture_fab", label: "Add", isFAB: true, icon: NavIcon.add, flag: undefined },
+  { id: "todos", label: "Schedule", icon: NavIcon.todos, flag: "todos" as FeatureFlagKey },
+  { id: "settings", label: "Settings", icon: NavIcon.settings, flag: undefined },
 ];
 
 interface BottomNavProps {
   activeView: string;
   onNavigate: (id: string) => void;
   onCapture: () => void;
+  adminFlags?: Record<string, boolean>;
 }
 
-function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
+function BottomNavInner({ activeView, onNavigate, onCapture, adminFlags }: BottomNavProps) {
   const keyboardVisible = useKeyboardVisible();
+  const navItems = useMemo(() => {
+    const flags = adminFlags ?? {};
+    return ALL_ITEMS.filter((item) => {
+      if (!item.flag) return true;
+      if (!(item.flag in FEATURE_FLAGS)) return true;
+      return isFeatureEnabled(item.flag, flags);
+    });
+  }, [adminFlags]);
   if (keyboardVisible) return null;
   return (
     <nav
@@ -38,7 +52,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture }: BottomNavProps) {
         height: "calc(56px + env(safe-area-inset-bottom, 0px))",
       }}
     >
-      {NAV_ITEMS.map((item) => {
+      {navItems.map((item) => {
         const isActive = activeView === item.id;
 
         if (item.isFAB) {

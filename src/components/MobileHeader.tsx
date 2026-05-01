@@ -213,6 +213,7 @@ export default function MobileHeader({
 
       <MobileMoreMenu
         isOpen={menuOpen}
+        adminFlags={adminFlags}
         onNavigate={(id) => {
           setMenuOpen(false);
           if (id !== "close" && onNavigate) onNavigate(id);

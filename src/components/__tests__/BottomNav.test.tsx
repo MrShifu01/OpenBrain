@@ -1,5 +1,22 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+
+// Pin VITE_FEATURE_* flags OFF for this suite so prod posture (no admin
+// overrides → no Chat/Schedule slot) is reproducible regardless of .env.local.
+vi.mock("../../lib/featureFlags", async () => {
+  const actual =
+    await vi.importActual<typeof import("../../lib/featureFlags")>("../../lib/featureFlags");
+  const FEATURE_FLAGS = Object.fromEntries(
+    Object.entries(actual.FEATURE_FLAGS).map(([key, val]) => [key, { ...val, prodEnabled: false }]),
+  ) as typeof actual.FEATURE_FLAGS;
+  return {
+    ...actual,
+    FEATURE_FLAGS,
+    isFeatureEnabled: (key: keyof typeof FEATURE_FLAGS, flags: Record<string, boolean>) =>
+      FEATURE_FLAGS[key].prodEnabled || (flags[key] ?? false),
+  };
+});
+
 import BottomNav from "../BottomNav";
 
 describe("BottomNav — FAB capture action", () => {
@@ -33,5 +50,24 @@ describe("BottomNav — FAB capture action", () => {
     render(<BottomNav activeView="memory" onNavigate={vi.fn()} onCapture={vi.fn()} />);
     const memBtn = screen.getByRole("button", { name: /^memory$/i });
     expect(memBtn).toHaveAttribute("aria-current", "page");
+  });
+
+  it("hides Chat and Schedule when their flags are off", () => {
+    render(<BottomNav activeView="memory" onNavigate={vi.fn()} onCapture={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /^chat$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^schedule$/i })).toBeNull();
+  });
+
+  it("shows Chat / Schedule when admin flags enable them", () => {
+    render(
+      <BottomNav
+        activeView="memory"
+        onNavigate={vi.fn()}
+        onCapture={vi.fn()}
+        adminFlags={{ chat: true, todos: true }}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /^chat$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^schedule$/i })).toBeInTheDocument();
   });
 });

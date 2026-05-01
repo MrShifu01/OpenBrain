@@ -1,22 +1,25 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { NavIcon } from "./icons/NavIcons";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "./ui/sheet";
 import { useDesignTheme } from "../design/DesignThemeContext";
+import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "../lib/featureFlags";
 
 interface MobileMoreMenuProps {
   isOpen: boolean;
   onNavigate: (id: string) => void;
+  adminFlags?: Record<string, boolean>;
 }
 
-// View IDs match Everion.tsx NAV_VIEWS (memory, chat, todos, memories, vault).
-// "memories" = the Important tab. The hamburger menu surfaces every view so
-// users can reach the long-tail (Important, Vault) that aren't in BottomNav.
-const NAV_ITEMS = [
+// View IDs match Everion.tsx NAV_VIEWS. Flag column matches FEATURE_FLAGS keys
+// so the menu only surfaces views that actually render. Without filtering,
+// tapping a flag-disabled item triggers Everion.tsx's redirect-to-memory and
+// looks like a broken nav button.
+const ALL_ITEMS: { id: string; label: string; icon: React.ReactNode; flag?: FeatureFlagKey }[] = [
   { id: "memory", label: "Memory", icon: NavIcon.grid },
-  { id: "chat", label: "Chat", icon: NavIcon.chat },
-  { id: "todos", label: "Schedule", icon: NavIcon.todos },
-  { id: "memories", label: "Important", icon: NavIcon.timeline },
-  { id: "vault", label: "Vault", icon: NavIcon.vault },
+  { id: "chat", label: "Chat", icon: NavIcon.chat, flag: "chat" },
+  { id: "todos", label: "Schedule", icon: NavIcon.todos, flag: "todos" },
+  { id: "memories", label: "Important", icon: NavIcon.timeline, flag: "importantMemories" },
+  { id: "vault", label: "Vault", icon: NavIcon.vault, flag: "vault" },
 ];
 
 const SUN_ICON = (
@@ -115,9 +118,17 @@ function NavRow({
   );
 }
 
-function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
+function MobileMoreMenuInner({ isOpen, onNavigate, adminFlags }: MobileMoreMenuProps) {
   const { mode, toggleMode } = useDesignTheme();
   const isDark = mode === "dark";
+  const navItems = useMemo(() => {
+    const flags = adminFlags ?? {};
+    return ALL_ITEMS.filter((item) => {
+      if (!item.flag) return true;
+      if (!(item.flag in FEATURE_FLAGS)) return true;
+      return isFeatureEnabled(item.flag, flags);
+    });
+  }, [adminFlags]);
 
   return (
     <Sheet open={isOpen} onOpenChange={(o) => !o && onNavigate("close")}>
@@ -184,7 +195,7 @@ function MobileMoreMenuInner({ isOpen, onNavigate }: MobileMoreMenuProps) {
           }}
           aria-label="More navigation"
         >
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavRow
               key={item.id}
               label={item.label}

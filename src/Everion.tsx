@@ -967,6 +967,7 @@ function EverionContent({
           {!appShell.showCapture && (
             <BottomNav
               activeView={appShell.view}
+              adminFlags={adminFlags}
               onNavigate={(id) => {
                 setSelected(null);
                 appShell.setShowCapture(false);
