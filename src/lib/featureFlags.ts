@@ -33,6 +33,11 @@ export const FEATURE_FLAGS = {
     icon: "🧠",
     prodEnabled: import.meta.env.VITE_FEATURE_MULTI_BRAIN === "true",
   },
+  lists: {
+    label: "Lists",
+    icon: "≡",
+    prodEnabled: import.meta.env.VITE_FEATURE_LISTS === "true",
+  },
   extraThemes: {
     label: "Extra themes (Aurora, Atelier, Blueprint, Botanical, Newsprint, Zine)",
     icon: "🎨",

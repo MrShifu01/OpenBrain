@@ -103,6 +103,7 @@ const DetailModal = lazyRetry(() => import("./views/DetailModal"));
 const VaultView = lazyRetry(() => import("./views/VaultView"));
 const ImportantMemoriesView = lazyRetry(() => import("./views/ImportantMemoriesView"));
 const ChatView = lazyRetry(() => import("./views/ChatView"));
+const ListsView = lazyRetry(() => import("./views/ListsView"));
 const VaultRevealModal = lazyRetry(() => import("./components/VaultRevealModal"));
 function Loader() {
   return (
@@ -117,6 +118,7 @@ const NAV_VIEWS = [
   { id: "chat", l: "Chat", ic: "💬" },
   { id: "graph", l: "Graph", ic: "✦" },
   { id: "todos", l: "Schedule", ic: "✓" },
+  { id: "lists", l: "Lists", ic: "≡" },
   { id: "memories", l: "Important", ic: "★" },
   { id: "vault", l: "Vault", ic: "🔐" },
 ];
@@ -829,6 +831,28 @@ function EverionContent({
                     onVaultUnlock={handleVaultUnlock}
                     brainId={activeBrain?.id}
                     onEntryCreated={(e: Entry) => setEntries((prev) => [e, ...prev])}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+            {appShell.view === "lists" && ff("lists") && (
+              <ErrorBoundary
+                name="ListsView"
+                fallback={(error, reset) => (
+                  <ViewError view="Lists" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <ListsView
+                    entries={entries}
+                    brainId={activeBrain?.id}
+                    onEntryCreated={handleCreated}
+                    onEntryUpdate={(updated: Entry) =>
+                      setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+                    }
+                    onEntryDelete={(id: string) =>
+                      setEntries((prev) => prev.filter((e) => e.id !== id))
+                    }
                   />
                 </Suspense>
               </ErrorBoundary>

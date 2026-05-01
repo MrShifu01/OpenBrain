@@ -19,6 +19,7 @@ export const CANONICAL_TYPES = [
   "idea",
   "decision",
   "persona",
+  "list",
   "other",
   "secret",
 ] as const;

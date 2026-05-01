@@ -32,7 +32,7 @@ function renderMenu(ui: React.ReactElement) {
 // Pre-launch flag posture is OFF for chat / todos / vault / important — the
 // menu hides items whose flag is off so we don't render dead nav. Tests that
 // assert on those items pass adminFlags to flip the relevant flag on.
-const ALL_ON = { chat: true, todos: true, importantMemories: true, vault: true };
+const ALL_ON = { chat: true, todos: true, lists: true, importantMemories: true, vault: true };
 
 describe("MobileMoreMenu", () => {
   it("does not render content when closed", () => {
@@ -51,6 +51,7 @@ describe("MobileMoreMenu", () => {
     expect(screen.queryByText("Vault")).toBeNull();
     expect(screen.queryByText("Chat")).toBeNull();
     expect(screen.queryByText("Schedule")).toBeNull();
+    expect(screen.queryByText("Lists")).toBeNull();
     expect(screen.queryByText("Important")).toBeNull();
     // Always-on items remain visible.
     expect(screen.getByText("Memory")).toBeInTheDocument();

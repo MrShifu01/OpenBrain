@@ -139,6 +139,25 @@ These are higher-risk, higher-reward ideas not yet scored. Bring up in a brainst
 
 ---
 
+## Lists v2+ deferrals (from spec-lists-v1.md)
+
+Documented but explicitly out of v1 (which ships paste-driven checklists with reorder/edit/delete behind `VITE_FEATURE_LISTS`). These come back when v1 retention/usage data justifies the build cost.
+
+- **File upload import** — Word `.docx`, PDF, Excel `.xlsx`. Existing `fileExtract.ts` covers MD/PDF/Word; Excel needs a new parser. Cost: ~1 day.
+- **AI prose split** — paste a paragraph ("here are some movies: Inception, Tenet, Memento") → 3 items. Reuses `/api/llm` with a list-specific prompt. Cost: ~half a day.
+- **Per-item embedding** — each list item gets its own vector so cross-list semantic search works ("find me everything about milk"). Trade-off: embedding cost + DB rows scale linearly with item count. Cost: ~1 day + ongoing AI spend.
+- **Vault-encrypted lists** — "list of API keys", "list of safe codes". Reuses the AES-256-GCM passphrase derivation; items stored as encrypted blobs in `metadata.items_encrypted`. Cost: ~1 day, doubles the encryption surface.
+- **List templates** — "groceries", "packing", "movie night", "meeting agenda". Pre-seeded item lists the user can fork. Cost: ~half a day; but adds maintenance surface (templates rot).
+- **Drag-drop reorder** — replaces the v1 ↑↓ buttons. Need either `react-beautiful-dnd` (deprecated) or `@dnd-kit/core` (active). Adds bundle size. Cost: ~half a day.
+- **Cross-brain shared lists** — gated by the multi-brain flag. Lists shared across brains a single user owns; useful for couples/teams down the road. Cost: ~1 day; depends on multi-brain phase 2.
+- **"Convert item → standalone entry"** — graduate a list item ("watch *Tenet*") to a real entry with full enrichment. Cost: ~half a day.
+- **Push notifications** — "your X list has 3 unchecked items, last opened 5 days ago". Needs the broader notifications work first. Cost: ~half a day after notifications layer ships.
+- **Recurring lists** — groceries that reset every Sunday, packing list that resets per trip. Cost: ~1 day; needs cron + UI state for "what cycle are we in".
+
+*(Added 2026-05-01 alongside Lists v1 spec.)*
+
+---
+
 ## Ops tooling — parking lot (operator-side, not product)
 
 These don't ship to users; they make the solo-founder ops sustainable during launch + beta phase. Don't promote to roadmap unless an actual time-sink shows up.
