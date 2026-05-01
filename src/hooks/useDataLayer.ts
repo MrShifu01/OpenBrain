@@ -135,7 +135,12 @@ export function useDataLayer({
 
   const refreshEntries = useCallback(async () => {
     if (!activeBrainId) return;
-    setEntriesLoaded(false);
+    // Don't flip entriesLoaded back to false here — that would flash the
+    // skeleton over already-rendered cached entries on every brain switch
+    // or reconnect. The flag is one-way: once we've shown anything (cache
+    // or network), we keep showing something while the next fetch is in
+    // flight. Initial-mount skeleton is handled by the bootstrap initialiser
+    // + readEntriesCache .finally() above, both of which only flip true.
     setLoadError(null);
     // Fire phase 1 (fast 20-row first-paint) and phase 2 (full 1000-row
     // background) concurrently so phase 2 isn't gated on phase 1's
