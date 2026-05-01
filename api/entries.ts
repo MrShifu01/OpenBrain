@@ -14,11 +14,11 @@ import {
 import { flagsOf } from "./_lib/enrichFlags.js";
 import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
-import { distillGmailForUser } from "./_lib/distillGmail.js";
+import { distillGmailForUser, loadRecentGmailDecisions } from "./_lib/distillGmail.js";
 import {
   buildPrompt as buildGmailPrompt,
-  loadGmailLearnings,
   defaultPreferences as defaultGmailPreferences,
+  type GmailLearnings,
 } from "./_lib/gmailScan.js";
 
 const SB_URL = process.env.SUPABASE_URL;
@@ -817,12 +817,32 @@ async function handleGmailDecision({ req, res, user }: HandlerContext): Promise<
 // for persona.
 async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
   if (!isAdminUser(user)) throw new ApiError(403, "Forbidden");
-  const r = await fetch(
-    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(user.id)}&select=accepted_summary,rejected_summary,summary_updated_at,preferences&limit=1`,
-    { headers: sbHeadersNoContent() },
-  );
-  if (!r.ok) throw new ApiError(502, `gmail_integrations HTTP ${r.status}`);
-  const rows: any[] = await r.json();
+
+  // Single parallel wave for everything the panel needs. The previous shape
+  // was 7 sequential round-trips: integration → dynamic import → recent
+  // decisions → count(accept) → count(reject) → loadGmailLearnings (which
+  // calls recent decisions A SECOND TIME) → buildPrompt. On a cold lambda
+  // that easily took 1.5–3 s. Now: one wave of 4 fetches in parallel, then
+  // CPU-only prompt assembly with the recent decisions already in hand.
+  const userIdEnc = encodeURIComponent(user.id);
+  const [integRes, recent, cAcc, cRej] = await Promise.all([
+    fetch(
+      `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${userIdEnc}&select=accepted_summary,rejected_summary,summary_updated_at,preferences&limit=1`,
+      { headers: sbHeadersNoContent() },
+    ),
+    loadRecentGmailDecisions(user.id, 5).catch(() => ({ accepts: [], rejects: [] })),
+    fetch(
+      `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${userIdEnc}&decision=eq.accept&select=id&limit=1`,
+      { headers: sbHeaders({ Prefer: "count=exact" }) },
+    ),
+    fetch(
+      `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${userIdEnc}&decision=eq.reject&select=id&limit=1`,
+      { headers: sbHeaders({ Prefer: "count=exact" }) },
+    ),
+  ]);
+
+  if (!integRes.ok) throw new ApiError(502, `gmail_integrations HTTP ${integRes.status}`);
+  const rows: any[] = await integRes.json();
   const integ = rows[0] ?? null;
   if (!integ) {
     res.status(200).json({
@@ -838,28 +858,31 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
     return;
   }
 
-  const { loadRecentGmailDecisions } = await import("./_lib/distillGmail.js");
-  const recent = await loadRecentGmailDecisions(user.id, 5);
-
-  // Counts per side for the panel header.
-  const cAcc = await fetch(
-    `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${encodeURIComponent(user.id)}&decision=eq.accept&select=id`,
-    { headers: sbHeaders({ Prefer: "count=exact" }) },
-  );
-  const cRej = await fetch(
-    `${SB_URL}/rest/v1/gmail_decisions?user_id=eq.${encodeURIComponent(user.id)}&decision=eq.reject&select=id`,
-    { headers: sbHeaders({ Prefer: "count=exact" }) },
-  );
   const accepts = parseInt(cAcc.headers.get("content-range")?.split("/")[1] || "0", 10);
   const rejects = parseInt(cRej.headers.get("content-range")?.split("/")[1] || "0", 10);
 
   // Render the literal classifier prompt template the live scan uses, with
-  // a placeholder block instead of real email threads. Same buildPrompt +
-  // loadGmailLearnings the runtime calls — what you see is exactly what
-  // Gemini sees, minus the per-scan thread data.
+  // a placeholder block instead of real email threads. Same buildPrompt the
+  // runtime calls — what you see is exactly what Gemini sees, minus the
+  // per-scan thread data. We assemble GmailLearnings inline from what we
+  // already fetched, instead of calling loadGmailLearnings (which would
+  // trigger a second loadRecentGmailDecisions round-trip).
   let prompt: string | null = null;
   try {
-    const learnings = await loadGmailLearnings(user.id, integ);
+    const learnings: GmailLearnings = {
+      acceptedSummary: (integ.accepted_summary ?? "").trim() || null,
+      rejectedSummary: (integ.rejected_summary ?? "").trim() || null,
+      recentAccepts: recent.accepts.map((a) => ({
+        subject: a.subject,
+        from: a.from,
+        reason: a.reason,
+      })),
+      recentRejects: recent.rejects.map((r) => ({
+        subject: r.subject,
+        from: r.from,
+        reason: r.reason,
+      })),
+    };
     const prefs = integ.preferences ?? defaultGmailPreferences();
     const placeholder: any = {
       messages: [
