@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { authFetch } from "../lib/authFetch";
 import { getLearningsContext } from "../lib/learningEngine";
+import { trackFirstChat } from "../lib/events";
 
 export interface DebugInfo {
   provider: string;
@@ -61,6 +62,10 @@ export function useChat(brainId: string | undefined) {
   const send = useCallback(
     async (message: string, confirmed = false) => {
       if (!brainId || !message.trim()) return;
+
+      // Funnel — fire on user-initiated sends only. `confirmed=true` is a
+      // tool-call retry loop, not a fresh user message.
+      if (!confirmed) trackFirstChat();
 
       const userMsg: ChatMessage = {
         role: "user",

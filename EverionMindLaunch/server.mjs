@@ -39,6 +39,7 @@ const DOCS = [
   { id: "arch-cron",    file: "architecture/cron.md",    title: "Cron + workflows", role: "doc", group: "architecture" },
   { id: "arch-enrich",  file: "architecture/enrich.md",  title: "Enrichment pipeline", role: "doc", group: "architecture" },
   { id: "arch-gmail",   file: "architecture/gmail.md",   title: "Gmail sync",     role: "doc", group: "architecture" },
+  { id: "arch-events",  file: "architecture/events.md",  title: "PostHog events", role: "doc", group: "architecture" },
 ];
 
 // Auto-discovery — drop a `.md` file into one of these dirs and it appears

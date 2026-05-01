@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
+import { trackTierChange } from "./events";
+
+const TIER_SEEN_KEY = "everion_tier_seen";
 
 type Tier = "free" | "starter" | "pro" | "max";
 type UsageAction = "captures" | "chats" | "voice" | "improve";
@@ -76,6 +79,18 @@ export function useSubscription(): SubscriptionState {
       // honour it if set, otherwise trust the tier as-is.
       const expiresAt = profileRes.data?.tier_expires_at ?? null;
       const effectiveTier: Tier = expiresAt && new Date(expiresAt) < new Date() ? "free" : rawTier;
+
+      // Funnel — diff the tier we last saw on this device against the one
+      // we just loaded. trackTierChange handles direction (up vs down) and
+      // is a no-op when prev/next match. No localStorage value on first
+      // load → skip the diff (we don't fire on initial signup).
+      try {
+        const prevTier = localStorage.getItem(TIER_SEEN_KEY) ?? undefined;
+        if (prevTier) trackTierChange(prevTier, effectiveTier);
+        localStorage.setItem(TIER_SEEN_KEY, effectiveTier);
+      } catch {
+        /* private mode — silently skip funnel tracking, the DB is source of truth */
+      }
 
       setTier(effectiveTier);
       setRenewalDate(renewsAt);

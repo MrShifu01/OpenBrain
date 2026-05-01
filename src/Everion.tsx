@@ -76,6 +76,7 @@ import { useAdminDevMode } from "./hooks/useAdminDevMode";
 import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "./lib/featureFlags";
 import { syncTimezoneIfChanged } from "./lib/syncTimezone";
 import { supabase } from "./lib/supabase";
+import { trackNavViewActive } from "./lib/events";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -279,6 +280,18 @@ function EverionContent({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- ff() and appShell are referentially fresh every render; depending on them would re-run this every render. adminFlags + appShell.view are the actual decision inputs.
   }, [adminFlags, appShell.view, appShell.setView]);
+
+  // PostHog funnel — emit nav_view_active on every view change. Initial
+  // "memory" mount also fires (from === undefined) so the first session
+  // has a clean entry point in the dashboard.
+  const prevViewRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const from = prevViewRef.current;
+    if (from !== appShell.view) {
+      trackNavViewActive({ view: appShell.view, from });
+      prevViewRef.current = appShell.view;
+    }
+  }, [appShell.view]);
 
   // Auto-sync IANA timezone on mount AND on SIGNED_IN. Skip TOKEN_REFRESHED:
   // Supabase fires that every 5–30 min during a session, which spammed

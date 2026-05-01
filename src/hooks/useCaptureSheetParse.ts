@@ -11,6 +11,7 @@ import { PROMPTS } from "../config/prompts";
 import { showToast } from "../lib/notifications";
 import { recordDecision } from "../lib/learningEngine";
 import { parseTask } from "../lib/nlpParser";
+import { trackFirstCapture, trackCaptureMethod, type CaptureMethod } from "../lib/events";
 import type { Entry } from "../types";
 
 const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -246,6 +247,16 @@ export function useCaptureSheetParse({
       setLoading(true);
       setStatus("thinking");
       setErrorDetail(null);
+
+      // Funnel — fire BEFORE the save round-trip so we count attempted
+      // captures, not just successful ones (the dashboard subtracts
+      // capture_method from /api/capture 2xx counts to surface failure rate).
+      // Voice is currently lumped under "text" because useVoiceRecorder
+      // appends to the same textarea and we can't tell them apart at this
+      // layer; revisit if voice activation matters for the funnel.
+      const method: CaptureMethod = uploadedFiles.length > 0 ? "file" : "text";
+      trackCaptureMethod({ method });
+      trackFirstCapture({ method });
 
       // Optimistic single-text capture (no file uploads) — same path online
       // and offline. parseTask runs the local NLP heuristics (date/priority/

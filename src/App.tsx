@@ -3,6 +3,7 @@ import { supabase, readCachedSession } from "./lib/supabase";
 import { loadUserAISettings } from "./lib/aiSettings";
 import { authFetch } from "./lib/authFetch";
 import { identifyPostHogUser, resetPostHog } from "./lib/posthog";
+import { trackSignupCompleted, trackDay7ReturnIfDue } from "./lib/events";
 import { setCachedEmail, setCachedIsAdmin } from "./lib/userEmailCache";
 import Landing from "./views/Landing";
 import ErrorBoundary from "./ErrorBoundary";
@@ -237,6 +238,14 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
       if (session?.user?.id) {
         void loadSettings(session.user.id);
         identifyPostHogUser(session.user.id, session.user.email ?? "");
+        // Funnel events — both are localStorage-gated to fire once per device.
+        // signup_completed gates on first SIGNED_IN per device; day_7_return
+        // gates on user-age >= 7d. Both are no-ops if PostHog hasn't loaded
+        // (consent not granted) or if they've fired before on this device.
+        trackSignupCompleted({ email: session.user.email });
+        if (session.user.created_at) {
+          trackDay7ReturnIfDue({ signup_at: session.user.created_at });
+        }
       } else {
         // Sign-out — drop the PostHog session so a shared device doesn't
         // merge two users' behaviour into one identified profile.

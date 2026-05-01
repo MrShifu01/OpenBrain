@@ -68,3 +68,10 @@ export function identifyPostHogUser(userId: string, email: string): void {
 export function resetPostHog(): void {
   client?.reset();
 }
+
+// Fire a named event. No-op if consent isn't granted or PostHog hasn't loaded
+// yet — call sites stay simple and never need to gate. Properties are
+// stringified by posthog-js; pass primitives or shallow objects only.
+export function track(event: string, props?: Record<string, unknown>): void {
+  client?.capture(event, props);
+}

@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useEntryEdit } from "../hooks/useEntryEdit";
 import { EntryQuickActions } from "../components/EntryQuickActions";
 import { authFetch } from "../lib/authFetch";
+import { trackFirstInsightViewed } from "../lib/events";
 import { CANONICAL_TYPES } from "../types";
 import type { Entry, Brain } from "../types";
 import { BrainContext } from "../context/BrainContext";
@@ -142,6 +143,21 @@ export default function DetailModal({
       }
     };
   }, []);
+
+  // Funnel — fire once per device when the user opens an entry that has
+  // any AI enrichment surfaced (insight, concepts, persona). Empty entries
+  // don't count: the goal is to count "user saw the AI value", not "user
+  // opened any entry". Gated to first-time-only by trackFirstInsightViewed.
+  useEffect(() => {
+    const enrichment = entry.metadata?.enrichment as
+      | { has_insight?: boolean; concepts_count?: number }
+      | undefined;
+    const hasInsight = !!enrichment?.has_insight;
+    const hasConcepts = (enrichment?.concepts_count ?? 0) > 0;
+    if (hasInsight || hasConcepts) {
+      trackFirstInsightViewed({ entry_id: entry.id });
+    }
+  }, [entry.id, entry.metadata?.enrichment]);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [movingBrain, setMovingBrain] = useState(false);
