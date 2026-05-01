@@ -68,14 +68,14 @@ if (getConsentDecision() === "accepted") {
   void initPostHog();
 }
 
-// When a new service worker takes control (after skipWaiting), reload so the
-// fresh chunks are served instead of the stale cached ones.
-// Native wrap doesn't use a SW (Capacitor serves bundled assets), so skip there.
-if ("serviceWorker" in navigator && !isNative()) {
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    window.location.reload();
-  });
-}
+// Don't auto-reload on `controllerchange`. vite-plugin-pwa already handles
+// the reload internally — when the user taps "Refresh" in <UpdatePrompt>,
+// it posts SKIP_WAITING to the new SW and reloads via its own `controlling`
+// listener (node_modules/vite-plugin-pwa/.../register.js:52-55). The
+// previous listener fired the same reload again whenever the SW took
+// control through any path, which produced a visible flash 4-5s into a
+// session whenever a new build had landed in the background. Letting the
+// plugin own the reload means it only happens after the user opts in.
 
 // iOS PWA resume bug — when a standalone-mode PWA is backgrounded for long
 // enough, iOS Safari freezes the JS execution context but keeps the page
