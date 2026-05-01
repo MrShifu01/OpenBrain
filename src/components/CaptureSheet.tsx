@@ -243,17 +243,12 @@ export default function CaptureSheet({
       setText("");
       return;
     }
-    // Forced type override (reminder / todo). Bypasses AI classification —
-    // the user explicitly told us what this is. Memory falls through to AI.
-    if (captureType === "reminder" || captureType === "todo") {
-      const t = text.trim();
-      if (!t) return;
-      const title = t.length > 60 ? t.slice(0, 57) + "…" : t;
-      doSave({ title, content: t, type: captureType, tags: [], metadata: {} }, t);
-      setText("");
-      return;
-    }
-    capture(text, () => setText(""));
+    // Forced type override (reminder / todo). NLP still runs (dates,
+    // priority, tags) — only the classifier's type guess gets pinned.
+    // memory falls through with no forcedType so AI picks the type.
+    const forcedType =
+      captureType === "reminder" || captureType === "todo" ? captureType : undefined;
+    capture(text, () => setText(""), forcedType);
   };
 
   const handleSaveList = () => {

@@ -239,7 +239,7 @@ export function useCaptureSheetParse({
   );
 
   const capture = useCallback(
-    async (text: string, clearText: () => void) => {
+    async (text: string, clearText: () => void, forcedType?: string) => {
       const input = buildInput(text);
       if (!input) return;
       rawContentRef.current = input;
@@ -279,11 +279,14 @@ export function useCaptureSheetParse({
         if (nlp.dayOfMonth) localMeta.day_of_month = nlp.dayOfMonth;
         if (nlp.priority) localMeta.priority = nlp.priority;
         if (nlp.energy) localMeta.energy = nlp.energy;
+        // forcedType pins the type when the user picked it via the "Capture as"
+        // pill (reminder/todo). NLP still runs so dates/priority get extracted —
+        // we just skip the classifier's type guess.
         await doSave(
           {
             title: nlp.cleanTitle || input.slice(0, 60),
             content: input,
-            type: "note",
+            type: forcedType || "note",
             tags: nlp.tags,
             metadata: localMeta,
           },
