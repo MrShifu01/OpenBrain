@@ -54,6 +54,11 @@ const AUTO_GROUPS = [
   // Audits move here once addressed — kept for context, demoted in the UI
   // so they don't pollute the active "Audits" tab.
   { dir: "Audits/archive", group: "audits-archive", sort: "mtime-desc" },
+  // Marketing folder — paste-ready launch assets. Each subfolder gets its
+  // own group so PH/Twitter/email don't bleed into one big list. Add new
+  // subfolders here when launching new channels (e.g. marketing/HackerNews,
+  // marketing/Reddit, marketing/Email).
+  { dir: "marketing/ProductHunt", group: "marketing-producthunt", sort: "name-asc" },
   // Future drop-in folders (Decisions/, Specs/) just add another entry here.
 ];
 
@@ -122,9 +127,17 @@ async function discoverAutoDocs() {
       const id = `${group.group}-${ent.name.replace(/\.md$/i, "")}`;
       out.push({ id, file, title, role: "doc", group: group.group, mtime: st.mtimeMs, bytes: st.size });
     }
-    // Apply sort within this group only
+    // Apply sort within this group only.
+    // mtime-desc = newest first (good for active sprint / audits).
+    // name-asc = alphabetic by file name (good for paste-ready asset
+    //   folders where the natural reading order is hunter → upcoming →
+    //   maker-comment → launch-day-checklist).
     if (group.sort === "mtime-desc") {
       out.sort((a, b) => (a.group === group.group && b.group === group.group) ? b.mtime - a.mtime : 0);
+    } else if (group.sort === "name-asc") {
+      out.sort((a, b) =>
+        (a.group === group.group && b.group === group.group) ? a.file.localeCompare(b.file) : 0,
+      );
     }
   }
   return out;
