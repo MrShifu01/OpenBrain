@@ -139,6 +139,14 @@ These are higher-risk, higher-reward ideas not yet scored. Bring up in a brainst
 
 ---
 
+## Ops tooling — parking lot (operator-side, not product)
+
+These don't ship to users; they make the solo-founder ops sustainable during launch + beta phase. Don't promote to roadmap unless an actual time-sink shows up.
+
+- **n8n MCP server for launch ops automation.** n8n now exposes workflows as MCP tools (callable from any MCP-aware LLM) and consumes other MCP servers. **Not for the product** — Everion's own MCP is the user-facing surface. Possible owner-side wins: PostHog → daily funnel summary email at 7:30am, beta-feedback inbox routing, Twitter daily-build-in-public scheduling from a Notion backlog. **Bar to set up:** a recurring ops task that takes ≥ 20 min/day for ≥ 30 days AND scripting it directly would take ≥ 4h. Below that bar, a `cron + Resend + 50 lines of TS` is faster and one-less-service-to-host. Re-evaluate day 30 if the morning PostHog walk feels grindy. Don't host n8n before then. *(Added 2026-05-01.)*
+
+---
+
 ## How to maintain this file
 
 - **Add an idea?** Append to the end of the master table, fill the scoring columns, write a 2–3 sentence description below.
