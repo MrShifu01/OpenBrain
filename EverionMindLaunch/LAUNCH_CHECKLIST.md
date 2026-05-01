@@ -26,6 +26,106 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
 
 ---
 
+## Week-plan cross-reference
+
+Every open `[ ]` item below has a calendar slot in one of the four weekly plans in `Working/`. When working from this checklist, find your current week below to see which items land that week.
+
+> **Maintenance rule:** if you re-prioritize an item, update its row in this table AND in the relevant week plan. Drift between this index and the week plans is the failure mode.
+
+### Week 1 — DECIDE & PROVISION (Fri 2026-05-01 → Thu 2026-05-07)
+
+Plan: [`Working/2026-05-01-week-1-plan.md`](Working/2026-05-01-week-1-plan.md)
+
+| Day | Checklist item | Section |
+| --- | -------------- | ------- |
+| Fri 05-01 | Trademark search "Everion Mind" | (new — added to schedule, not in checklist body yet) |
+| Fri 05-01 | Vercel Pro upgrade | P0 / Infrastructure |
+| Fri 05-01 | Supabase Pro upgrade | P0 / Infrastructure |
+| Fri 05-01 | Google Play Developer enrollment | Owner-only / Before public launch |
+| Fri 05-01 | Customer support `support@` forward (legacy host) | Owner-only / Before public launch |
+| Sat 05-02 | Rotate exposed keys (Resend, Groq, Upstash, CRON_SECRET, VAPID) | P0 / Security |
+| Sat 05-02 | Sentry alerts (3 rules) | P0 / Telemetry |
+| Sat 05-02 | Add `SUPABASE_DB_URL` GH secret + trigger first backup | P0 / Infrastructure |
+| Sat 05-02 | Confirm SSL grade A + DNS A/AAAA (legacy host) | P0 / Infrastructure |
+| Sun 05-03 → Mon 05-04 | **Onboarding test with 3 strangers** | Owner-only / People stuff |
+| Tue 05-05 | Co-admin on 7 dashboards (Vercel/Supabase/Sentry/PostHog/Resend/Upstash/GitHub) | Operations & bus factor |
+| Wed 05-06 | Weekly roll-up email setup (8 GH secrets + script + workflow) | P0 / Telemetry / Weekly automated roll-up |
+| Thu 05-07 | Slack day + week-1 retro | (operational, not a checklist item) |
+
+### Week 2 — DOMAIN + ONBOARDING + INSTRUMENT + FEED v0 (Fri 2026-05-08 → Thu 2026-05-14)
+
+Plan: [`Working/2026-05-08-week-2-plan.md`](Working/2026-05-08-week-2-plan.md). Sub-specs: [`spec-brain-feed-v0.md`](Working/spec-brain-feed-v0.md), [`spec-streak-counter.md`](Working/spec-streak-counter.md), [`spec-cmd-k-capture.md`](Working/spec-cmd-k-capture.md).
+
+| Day | Checklist item | Section |
+| --- | -------------- | ------- |
+| Fri 05-08 | Domain cutover to `everionmind.com` (Vercel + Supabase auth + LS/RC webhook URLs) | (new — schedule item, not yet in checklist) |
+| Fri 05-08 | Custom domain SSL + DNS verified (new domain) | P0 / Infrastructure |
+| Fri 05-08 | Sender domain SPF/DKIM/DMARC for new domain | P1 / Compliance follow-ups |
+| Fri 05-08 | Customer support `support@everionmind.com` forward | Owner-only / Before public launch |
+| Sat 05-09 | Onboarding aha-in-60s polish + step-timing telemetry | (sourced from week-1 stranger test notes) |
+| Sun 05-10 | PostHog funnel pinned + cohorts saved | (new — funnel events shipped 2026-05-01 in commit `052db23`) |
+| Sun 05-10 | Sentry alerts re-verification on new domain | P0 / Telemetry |
+| Mon 05-11 → Tue 05-12 | Brain Feed v0 (backend + render) | (new — schedule item) |
+| Wed 05-13 | Streak counter (DB migration 068 + increment + chip) | (new — schedule item) |
+| Thu 05-14 (AM) | Cmd+K global capture shortcut | (new — schedule item) |
+| Thu 05-14 (PM) | LemonSqueezy live store configured | P0 / Billing |
+| Thu 05-14 (PM) | RevenueCat dashboard configured | P0 / Billing |
+
+### Week 3 — QA + Play Console submission (Fri 2026-05-15 → Thu 2026-05-21)
+
+Plan: [`Working/2026-05-15-week-3-plan.md`](Working/2026-05-15-week-3-plan.md). Sub-specs: [`spec-play-console-submission.md`](Working/spec-play-console-submission.md), [`spec-android-qa-matrix.md`](Working/spec-android-qa-matrix.md).
+
+| Day | Checklist item | Section |
+| --- | -------------- | ------- |
+| Fri-Sat 05-15/16 | Real-device QA pass (Android matrix) | P1 / Quality |
+| Sun 05-17 | Play Store assets (icons, screenshots, feature graphic) | Mobile app launch |
+| Mon 05-18 (AM) | Play Console listing copy + data safety form | Mobile app launch |
+| Mon 05-18 (PM) | App Store Connect + **Play Console subscription products** | P0 / Billing |
+| Tue 05-19 | Sign + upload AAB to internal testing | Mobile app launch |
+| Wed 05-20 | RC subscription cancellation flow E2E (Android sandbox) | P0 / Billing |
+| Wed 05-20 | Play Console pre-launch report green | Mobile app launch |
+| Thu 05-21 | Production review submitted (HARD DEADLINE) | Mobile app launch |
+
+### Week 4 — Polish + closed-beta launch (Fri 2026-05-22 → Sat 2026-05-30)
+
+Plan: [`Working/2026-05-22-week-4-plan.md`](Working/2026-05-22-week-4-plan.md).
+
+| Day | Checklist item | Section |
+| --- | -------------- | ------- |
+| Fri 05-22 | Lighthouse pass on production (≥90 perf, ≥95 a11y/best/SEO) | P1 / Quality |
+| Fri 05-22 | E2E suite back to green | P1 / Quality |
+| Sat 05-23 | Real-device QA pass (web cross-browser) | P1 / Quality |
+| Sun 05-24 | Welcome email tested across clients | P1 / Communications |
+| Sun 05-24 | mail-tester.com 10/10 (SPF/DKIM/DMARC) | P1 / Compliance follow-ups |
+| Mon 05-25 (AM) | LemonSqueezy subscription cancellation flow E2E (web) | P0 / Billing |
+| Mon 05-25 (PM) | Native sandbox subscription E2E (Android, if approved) | P0 / Billing |
+| Tue 05-26 (AM) | Closed beta invite list (50-100 named) | (new — operational) |
+| Tue 05-26 (PM) | Test Supabase backup restore (one-time rehearsal) | Operations & bus factor |
+| Wed 05-27 (AM) | Pre-launch audit doc (security/perf/content/billing) | (synthetic — covers many items) |
+| Wed 05-27 (PM) | 30-min legal review of Privacy + ToS | P1 / Compliance follow-ups |
+| Thu 05-28 | Final polish slack + dress rehearsal | (operational) |
+| Fri 05-29 | LAUNCH EVE — sleep cutoff 22:00 | (operational) |
+| **Sat 05-30** | **Closed beta launch — first 50-100 invites sent** | (Day 30 — schedule's hard deadline) |
+
+### Beta phase ops (Sun 2026-05-31 → Mon 2026-07-01) and post-launch deferrals
+
+Doc: [`Working/beta-phase-ops.md`](Working/beta-phase-ops.md).
+
+| Window | Checklist item | Section |
+| ------ | -------------- | ------- |
+| Days 30-60 | Daily PostHog walk + Sentry/Vercel scan + build-in-public tweet | (operational cadence) |
+| Day ~35 | PH "upcoming" page submission | (marketing — lives in `marketing/ProductHunt/upcoming-page.md`) |
+| Day ~38 | Brain Feed v1 (full ROADMAP version) | (deferred from week 2 v0) |
+| Day ~42 | iOS App Store submission | Mobile app launch (week 5-6 of arc) |
+| Day ~45 | PH hunter outreach (3-5 candidates) | `marketing/ProductHunt/hunter-outreach.md` |
+| Day ~60 | Public launch — PH + HN + Reddit blast | `marketing/ProductHunt/launch-day-checklist.md` |
+| Post-day-60 | Audit-log UI surface | P2 / Post-launch hardening |
+| Post-day-60 | CSP nonce migration (drop `'unsafe-inline'`) | P2 / Post-launch hardening |
+| Post-day-60 | Settings sidebar density review (if data shows decision fatigue) | P1 / UX & accessibility |
+| Post-day-60 | Shared brains phase 2+ (invites, members, RLS) | P2 / Post-launch backlog |
+
+---
+
 ## P0 — Blocks launch (must have)
 
 ### Infrastructure
