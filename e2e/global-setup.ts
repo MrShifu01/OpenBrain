@@ -16,6 +16,7 @@
 import { chromium, type FullConfig } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { sweepE2EResidue } from "./helpers/sweep-residue";
 
 function readEnvLocal(): Record<string, string> {
   const out: Record<string, string> = {};
@@ -62,6 +63,13 @@ export default async function globalSetup(_config: FullConfig): Promise<void> {
         `vars are already there.`,
     );
   }
+
+  // Sweep residue from any previous run BEFORE we start. Without this, an
+  // aborted/crashed run could leave entries sitting in the admin's brain
+  // until the next teardown — pollutes the real UI between runs. Best-effort:
+  // failures are swallowed inside sweepE2EResidue so a teardown problem
+  // doesn't gate the run.
+  await sweepE2EResidue({ supabaseUrl, anonKey, email, password, phase: "setup" });
 
   // Sign in via the Auth REST API directly — no browser flake, no UI.
   const tokenRes = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
