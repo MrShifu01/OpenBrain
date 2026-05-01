@@ -316,7 +316,7 @@ export function useBackgroundCapture() {
       // server-side capture endpoint handles enrichment, and the temp id
       // gets patched to the real id via onEntryIdUpdate (wired through
       // useDataLayer.patchEntryId).
-      const enqueueAsOffline = async (reason: string) => {
+      const enqueueAsOffline = async () => {
         const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         try {
           await enqueueOfflineOp({
@@ -352,13 +352,13 @@ export function useBackgroundCapture() {
         updateTask(taskId, {
           status: "done",
           entryTitle: entry.title,
-          warning: `Saved offline (${reason}) — will sync when back online`,
+          warning: "Saved offline — will sync when back online",
         });
         setTimeout(() => dismissTask(taskId), 8000);
       };
 
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
-        await enqueueAsOffline("offline");
+        await enqueueAsOffline();
         return;
       }
 
@@ -407,14 +407,14 @@ export function useBackgroundCapture() {
           typeof navigator !== "undefined" &&
           navigator.onLine === false
         ) {
-          await enqueueAsOffline(saveErr);
+          await enqueueAsOffline();
         } else {
           updateTask(taskId, { status: "error", error: saveErr });
         }
       } catch (e) {
         const err = e instanceof Error ? e.message : "Save failed";
         if (typeof navigator !== "undefined" && navigator.onLine === false) {
-          await enqueueAsOffline(err);
+          await enqueueAsOffline();
         } else {
           updateTask(taskId, { status: "error", error: err });
         }

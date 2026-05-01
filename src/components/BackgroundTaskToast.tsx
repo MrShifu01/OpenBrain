@@ -53,7 +53,10 @@ export function BackgroundTaskToast({ tasks, onDismiss }: Props) {
       if (task.status === "done") {
         toast.success(title, {
           id: task.id,
-          description: task.warning ? `AI failed: ${task.warning}` : STATUS_LABEL.done,
+          // Warning text is self-describing — see processFiles' classifyWarning
+          // (always mentions "AI") and queueDirectSave's offline message. No
+          // prefix to avoid leaking "AI failed:" onto offline-success toasts.
+          description: task.warning || STATUS_LABEL.done,
           ...dismissOpt,
         });
       } else if (task.status === "error") {
