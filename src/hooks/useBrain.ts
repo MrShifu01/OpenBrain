@@ -3,11 +3,52 @@ import { authFetch } from "../lib/authFetch";
 import type { Brain } from "../types";
 
 const ACTIVE_KEY = "openbrain_active_brain_id";
+const BRAINS_CACHE_KEY = "openbrain_brains_cache";
+
+function readBrainsCache(): Brain[] {
+  try {
+    const cached = localStorage.getItem(BRAINS_CACHE_KEY);
+    if (!cached) return [];
+    const parsed = JSON.parse(cached);
+    if (Array.isArray(parsed) && parsed.every((b) => b && typeof b.id === "string")) {
+      return parsed;
+    }
+  } catch {
+    /* fall through */
+  }
+  return [];
+}
+
+function writeBrainsCache(brains: Brain[]) {
+  try {
+    localStorage.setItem(BRAINS_CACHE_KEY, JSON.stringify(brains));
+  } catch {
+    /* quota / private mode */
+  }
+}
 
 export function useBrain(onBrainSwitch?: (brain: Brain | null) => void) {
-  const [brains, setBrains] = useState<Brain[]>([]);
-  const [activeBrain, setActiveBrainState] = useState<Brain | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Hydrate synchronously from localStorage so offline boots and cold loads
+  // can resolve activeBrainId before the network reply lands. Without this,
+  // /api/brains failure (offline or slow) leaves activeBrain=null forever,
+  // which strands useDataLayer's refreshEntries (early-returns on missing
+  // brain id) and blocks entry creation.
+  const [brains, setBrains] = useState<Brain[]>(() => readBrainsCache());
+  const [activeBrain, setActiveBrainState] = useState<Brain | null>(() => {
+    const cached = readBrainsCache();
+    if (cached.length === 0) return null;
+    let cachedId: string | null = null;
+    try {
+      cachedId = localStorage.getItem(ACTIVE_KEY);
+    } catch {
+      /* ignore */
+    }
+    const personal = cached.find((b) => b.is_personal) ?? null;
+    return (cachedId && cached.find((b) => b.id === cachedId)) || personal || cached[0] || null;
+  });
+  // Loading reflects "are we still waiting for the first network resolution".
+  // Default to false when cache hydrated us — UI can render immediately.
+  const [loading, setLoading] = useState(() => readBrainsCache().length === 0);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBrains = useCallback(async () => {
@@ -18,6 +59,7 @@ export function useBrain(onBrainSwitch?: (brain: Brain | null) => void) {
       if (!res.ok) throw new Error("Failed to load brains");
       const data: Brain[] = await res.json();
       setBrains(data);
+      writeBrainsCache(data);
 
       // Resolution order for active brain:
       //   1. Server-persisted active_brain_id (cross-device, X-Active-Brain-Id header)

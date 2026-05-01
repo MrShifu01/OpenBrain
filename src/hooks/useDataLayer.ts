@@ -39,7 +39,28 @@ export function useDataLayer({
     }
     return [];
   });
-  const [entriesLoaded, setEntriesLoaded] = useState(false);
+  // entriesLoaded means "first hydration attempt finished" — NOT "network
+  // request completed". Used by the Memory view's grid/list to flip from
+  // <SkeletonCard /> to the real list. If we wait for the network we strand
+  // the user on a skeleton forever when offline OR when useBrain hasn't
+  // resolved an activeBrainId yet (refreshEntries early-returns without
+  // setting the flag in that case). Default to true when the synchronous
+  // localStorage bootstrap above already produced rows — first paint shows
+  // the cached list immediately, the network refresh upgrades it later.
+  const [entriesLoaded, setEntriesLoaded] = useState<boolean>(() => {
+    // Mirror the bootstrap above — we can't read the function-state initialiser
+    // back so re-derive the same flag.
+    try {
+      const cached = localStorage.getItem("openbrain_entries");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return true;
+      }
+    } catch {
+      /* fall through */
+    }
+    return false;
+  });
   const [links, setLinks] = useState<Link[]>(LINKS);
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
   const [vaultExists, setVaultExists] = useState(false);
@@ -49,13 +70,17 @@ export function useDataLayer({
   // Load entries cache on mount — read the per-brain cache for the active brain
   // first, falling back to the legacy single-key cache. Empty cache leaves the
   // existing list intact (could be hydrated from the synchronous localStorage
-  // bootstrap above).
+  // bootstrap above). Either way, flip entriesLoaded once the cache attempt
+  // resolves so the Memory view renders the cached list (or empty-state)
+  // instead of stalling on the skeleton when activeBrainId isn't ready or
+  // the network is down.
   useEffect(() => {
     readEntriesCache(activeBrainId)
       .then((cached) => {
         if (cached && cached.length > 0) setEntries((prev) => (prev.length === 0 ? cached : prev));
       })
-      .catch((err) => console.error("[OpenBrain] readEntriesCache failed", err));
+      .catch((err) => console.error("[OpenBrain] readEntriesCache failed", err))
+      .finally(() => setEntriesLoaded(true));
     // activeBrainId in deps so the cache load re-runs if the brain changes
     // before the network refresh can fill in.
   }, [activeBrainId]);
