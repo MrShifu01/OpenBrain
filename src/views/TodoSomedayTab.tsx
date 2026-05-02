@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
+import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "../components/ui/button";
@@ -628,29 +629,37 @@ export default function TodoSomedayTab({
         </div>
       )}
 
-      {selectMode && selectedIds.size > 0 && (
-        <SomedayBulkBar
-          count={selectedIds.size}
-          allVisibleCount={items.length}
-          allSelected={items.every((e) => selectedIds.has(e.id))}
-          knownTags={knownTags}
-          onSelectAllVisible={() => {
-            const next = new Set(selectedIds);
-            items.forEach((e) => next.add(e.id));
-            setSelectedIds(next);
-          }}
-          onClearVisible={() => {
-            const next = new Set(selectedIds);
-            items.forEach((e) => next.delete(e.id));
-            setSelectedIds(next);
-          }}
-          onDone={bulkDone}
-          onSchedule={bulkSchedule}
-          onDrop={bulkDrop}
-          onAssignCategory={bulkAssignCategory}
-          onCancel={clearSelection}
-        />
-      )}
+      {selectMode &&
+        selectedIds.size > 0 &&
+        // Portal to <body> so the bar's `position: fixed` is anchored to the
+        // viewport, not the `.animate-view-enter` ancestor (whose slide-up
+        // transform creates a containing block that breaks fixed positioning
+        // — same reason Memory's BulkActionBar lives outside the wrapper in
+        // Everion.tsx:881-884).
+        createPortal(
+          <SomedayBulkBar
+            count={selectedIds.size}
+            allVisibleCount={items.length}
+            allSelected={items.every((e) => selectedIds.has(e.id))}
+            knownTags={knownTags}
+            onSelectAllVisible={() => {
+              const next = new Set(selectedIds);
+              items.forEach((e) => next.add(e.id));
+              setSelectedIds(next);
+            }}
+            onClearVisible={() => {
+              const next = new Set(selectedIds);
+              items.forEach((e) => next.delete(e.id));
+              setSelectedIds(next);
+            }}
+            onDone={bulkDone}
+            onSchedule={bulkSchedule}
+            onDrop={bulkDrop}
+            onAssignCategory={bulkAssignCategory}
+            onCancel={clearSelection}
+          />,
+          document.body,
+        )}
     </div>
   );
 }

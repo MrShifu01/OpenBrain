@@ -16,16 +16,33 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 // Threshold of 60px means the first short scroll never triggers a hide,
 // only a meaningful intent to read deeper. Tiny dy gates (>4 / <-4) kill
 // jitter from rubber-band on iOS.
+//
+// Listens via capture-phase on `document` (catches scroll events
+// regardless of which element scrolled) AND reads from the union of
+// `window.scrollY`, `documentElement.scrollTop`, and `body.scrollTop`.
+// Memory view's `useWindowVirtualizer` was producing scroll events that
+// the old window-only listener missed in some mobile browsers — capture
+// + multi-source read covers every scroll mode.
+function readScrollY(): number {
+  if (typeof window === "undefined") return 0;
+  return Math.max(
+    window.scrollY || 0,
+    window.pageYOffset || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0,
+  );
+}
+
 function useHideOnScroll(threshold = 60): boolean {
   const [hidden, setHidden] = useState(false);
   useEffect(() => {
-    let lastY = window.scrollY;
+    let lastY = readScrollY();
     let ticking = false;
     const onScroll = () => {
       if (ticking) return;
       ticking = true;
       requestAnimationFrame(() => {
-        const y = window.scrollY;
+        const y = readScrollY();
         const dy = y - lastY;
         if (y > threshold && dy > 4) setHidden(true);
         else if (dy < -4 || y < threshold) setHidden(false);
@@ -33,8 +50,15 @@ function useHideOnScroll(threshold = 60): boolean {
         ticking = false;
       });
     };
+    // Capture-phase on document catches scroll bubbling from any descendant
+    // (window virtualizers, nested scroll containers). Window listener stays
+    // for normal page scrolls.
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", onScroll, true);
+    };
   }, [threshold]);
   return hidden;
 }

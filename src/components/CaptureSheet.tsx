@@ -701,8 +701,8 @@ interface InlineDropdownOption {
 }
 
 interface InlineDropdownPillProps {
-  triggerLabel: string; // "Capturing to" / "Capture as"
-  triggerValue: string; // "My Brain" / "memory"
+  triggerLabel: string; // "Capturing to" / "Capture to"
+  triggerValue: string; // "My Brain" / "Remember"
   triggerValueAccent?: boolean; // tints value with --ember when true
   ariaLabel: string;
   options: InlineDropdownOption[];
@@ -929,7 +929,7 @@ interface CaptureTypePillProps {
 }
 
 const TYPE_LABELS: Record<CaptureTypeKey, string> = {
-  memory: "memory",
+  memory: "Remember",
   list: "list",
   vault: "vault",
   someday: "someday",
@@ -945,10 +945,10 @@ function CaptureTypePill({ captureType, somedayEnabled, onPick }: CaptureTypePil
   const accent = captureType === "vault" || captureType === "someday";
   return (
     <InlineDropdownPill
-      triggerLabel="Capture as"
+      triggerLabel="Capture to"
       triggerValue={TYPE_LABELS[captureType]}
       triggerValueAccent={accent}
-      ariaLabel={`Capturing as ${TYPE_LABELS[captureType]} — change type`}
+      ariaLabel={`Capturing to ${TYPE_LABELS[captureType]} — change type`}
       options={allOptions.map((o) => ({
         id: o.id,
         label: TYPE_LABELS[o.id],
