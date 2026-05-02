@@ -43,6 +43,16 @@ export const FEATURE_FLAGS = {
     icon: "🗂",
     prodEnabled: import.meta.env.VITE_FEATURE_VAULT_TEMPLATES === "true",
   },
+  vaultPinBiometric: {
+    label: "Vault PIN + biometric unlock",
+    icon: "🔓",
+    prodEnabled: import.meta.env.VITE_FEATURE_VAULT_PIN_BIOMETRIC === "true",
+  },
+  appLock: {
+    label: "App-level biometric re-auth",
+    icon: "📱",
+    prodEnabled: import.meta.env.VITE_FEATURE_APP_LOCK === "true",
+  },
   extraThemes: {
     label: "Extra themes (Aurora, Atelier, Blueprint, Botanical, Newsprint, Zine)",
     icon: "🎨",

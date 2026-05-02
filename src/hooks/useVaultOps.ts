@@ -11,6 +11,23 @@ import {
   decryptVaultKeyFromRecovery,
 } from "../lib/crypto";
 import type { TemplateId } from "../lib/vaultTemplates";
+import {
+  loadPinRecord,
+  savePinRecord,
+  clearPinRecord,
+  loadBiometricRecord,
+  saveBiometricRecord,
+  clearBiometricRecord,
+  unwrapVaultKeyWithPin,
+  wrapVaultKeyWithPin,
+  unwrapVaultKeyWithBiometricMaterial,
+  wrapVaultKeyWithBiometricMaterial,
+  isValidPin,
+  type PinRecord,
+  type BiometricRecord,
+} from "../lib/vaultPinKey";
+import { assertBiometric, enrollBiometric, isBiometricAvailable } from "../lib/biometric";
+import { isFeatureEnabled, getAdminFlags } from "../lib/featureFlags";
 import type { Entry } from "../types";
 
 interface VaultData {
@@ -62,6 +79,18 @@ export function useVaultOps({
   // Vault entries from the dedicated vault_entries table
   const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
 
+  // PIN + biometric (sub-project 3). Behind feature flag; no-op when off.
+  const pinFlagEnabled = isFeatureEnabled("vaultPinBiometric", getAdminFlags());
+  const [pinRecord, setPinRecord] = useState<PinRecord | null>(() =>
+    pinFlagEnabled ? loadPinRecord() : null,
+  );
+  const [bioRecord, setBioRecord] = useState<BiometricRecord | null>(() =>
+    pinFlagEnabled ? loadBiometricRecord() : null,
+  );
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+
   const fetchVaultEntries = useCallback(async () => {
     try {
       const r = await authFetch("/api/vault-entries");
@@ -98,12 +127,17 @@ export function useVaultOps({
         }
         if (data.exists) {
           setVaultData(data);
-          setStatus("locked");
+          // Prefer PIN/biometric if a wrapper record exists on this device.
+          if (pinFlagEnabled && (loadPinRecord() || loadBiometricRecord())) {
+            setStatus("pin");
+          } else {
+            setStatus("locked");
+          }
           fetchVaultEntries();
         } else setStatus("setup");
       })
       .catch(() => setStatus("setup"));
-  }, [cryptoKey, fetchVaultEntries]);
+  }, [cryptoKey, fetchVaultEntries, pinFlagEnabled]);
 
   useEffect(() => {
     if (status !== "unlocked" || !cryptoKey || secrets.length === 0) {
@@ -166,12 +200,19 @@ export function useVaultOps({
         return;
       }
       onVaultUnlock(key);
-      setStatus("unlocked");
+      // If the PIN/biometric flag is on AND this device has no PIN record
+      // yet, route to the one-time PIN setup screen so the next unlock
+      // doesn't have to re-derive from the passphrase.
+      if (pinFlagEnabled && !loadPinRecord()) {
+        setStatus("pin-setup");
+      } else {
+        setStatus("unlocked");
+      }
     } catch {
       setError("Decryption failed");
     }
     setBusy(false);
-  }, [passphrase, vaultData, onVaultUnlock]);
+  }, [passphrase, vaultData, onVaultUnlock, pinFlagEnabled]);
 
   const handleRecoveryUnlock = useCallback(async () => {
     const cleaned = recoveryInput.trim().toUpperCase();
@@ -186,12 +227,125 @@ export function useVaultOps({
         return;
       }
       onVaultUnlock(key);
-      setStatus("unlocked");
+      if (pinFlagEnabled && !loadPinRecord()) {
+        setStatus("pin-setup");
+      } else {
+        setStatus("unlocked");
+      }
     } catch {
       setError("Recovery failed — check your key and try again");
     }
     setBusy(false);
-  }, [recoveryInput, vaultData, onVaultUnlock]);
+  }, [recoveryInput, vaultData, onVaultUnlock, pinFlagEnabled]);
+
+  // ── PIN + biometric (sub-project 3) ──
+
+  const handlePinUnlock = useCallback(
+    async (enteredPin: string) => {
+      const record = loadPinRecord();
+      if (!record) {
+        setPinError("No PIN configured on this device.");
+        return;
+      }
+      setPinBusy(true);
+      setPinError("");
+      const key = await unwrapVaultKeyWithPin(record, enteredPin);
+      if (!key) {
+        setPinError("Wrong PIN.");
+        setPinBusy(false);
+        return;
+      }
+      onVaultUnlock(key);
+      setStatus("unlocked");
+      setPin("");
+      setPinBusy(false);
+    },
+    [onVaultUnlock],
+  );
+
+  const handleBiometricUnlock = useCallback(async () => {
+    const bio = loadBiometricRecord();
+    if (!bio) {
+      setPinError("No biometric configured on this device.");
+      return;
+    }
+    setPinBusy(true);
+    setPinError("");
+    const assertion = await assertBiometric(bio.credential_id_b64);
+    if (!assertion?.prfOutput) {
+      setPinError("Biometric unlock failed — try PIN.");
+      setPinBusy(false);
+      return;
+    }
+    const key = await unwrapVaultKeyWithBiometricMaterial(bio, assertion.prfOutput);
+    if (!key) {
+      setPinError("Biometric unlock failed — wrong credential?");
+      setPinBusy(false);
+      return;
+    }
+    onVaultUnlock(key);
+    setStatus("unlocked");
+    setPinBusy(false);
+  }, [onVaultUnlock]);
+
+  const handlePinSetup = useCallback(
+    async (
+      params: { pin: string; enableBiometric: boolean },
+      userId?: string,
+      userEmail?: string,
+    ) => {
+      if (!cryptoKey) {
+        setPinError("Vault is locked — re-enter passphrase first.");
+        return;
+      }
+      if (!isValidPin(params.pin)) {
+        setPinError("PIN must be 4–8 digits.");
+        return;
+      }
+      setPinBusy(true);
+      setPinError("");
+      try {
+        const pinRec = await wrapVaultKeyWithPin(cryptoKey, params.pin);
+        savePinRecord(pinRec);
+        setPinRecord(pinRec);
+
+        if (params.enableBiometric && (await isBiometricAvailable()) && userId) {
+          const enrollment = await enrollBiometric(userId, userEmail || userId);
+          if (enrollment?.prfSupported && enrollment.prfOutput.byteLength >= 32) {
+            const bioRec = await wrapVaultKeyWithBiometricMaterial(
+              cryptoKey,
+              enrollment.prfOutput,
+              enrollment.credentialIdB64,
+            );
+            saveBiometricRecord(bioRec);
+            setBioRecord(bioRec);
+          }
+        }
+        setStatus("unlocked");
+      } catch (e) {
+        setPinError(e instanceof Error ? e.message : "Setup failed");
+      }
+      setPinBusy(false);
+    },
+    [cryptoKey],
+  );
+
+  const skipPinSetup = useCallback(() => {
+    setStatus("unlocked");
+  }, []);
+
+  const goToPassphraseFromPin = useCallback(() => {
+    setPin("");
+    setPinError("");
+    setStatus("locked");
+  }, []);
+
+  const removePinAndBiometric = useCallback(() => {
+    clearPinRecord();
+    clearBiometricRecord();
+    setPinRecord(null);
+    setBioRecord(null);
+  }, []);
 
   const toggleReveal = (id: string) => {
     setRevealedIds((prev) => {
@@ -457,6 +611,20 @@ export function useVaultOps({
     handleAddSecret,
     handleAddSecretWithTemplate,
     bulkDelete,
+    // PIN + biometric (sub-project 3)
+    pinFlagEnabled,
+    pinRecord,
+    bioRecord,
+    pin,
+    setPin,
+    pinError,
+    pinBusy,
+    handlePinUnlock,
+    handleBiometricUnlock,
+    handlePinSetup,
+    skipPinSetup,
+    goToPassphraseFromPin,
+    removePinAndBiometric,
     toggleReveal,
     copyToClipboard,
     resetAddForm,
