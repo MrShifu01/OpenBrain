@@ -14,7 +14,25 @@ interface MobileMoreMenuProps {
 // so the menu only surfaces views that actually render. Without filtering,
 // tapping a flag-disabled item triggers Everion.tsx's redirect-to-memory and
 // looks like a broken nav button.
+const HOME_ICON = (
+  <svg
+    aria-hidden="true"
+    width="18"
+    height="18"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    viewBox="0 0 24 24"
+  >
+    <path d="m3 11 9-8 9 8" />
+    <path d="M5 10v10h14V10" />
+  </svg>
+);
+
 const ALL_ITEMS: { id: string; label: string; icon: React.ReactNode; flag?: FeatureFlagKey }[] = [
+  { id: "home", label: "Home", icon: HOME_ICON },
   { id: "memory", label: "Memory", icon: NavIcon.grid },
   { id: "chat", label: "Chat", icon: NavIcon.chat, flag: "chat" },
   { id: "todos", label: "Schedule", icon: NavIcon.todos, flag: "todos" },

@@ -33,6 +33,7 @@ interface DesktopSidebarProps {
 }
 
 const NAV_ICONS: Record<string, ReactNode> = {
+  home: NavIcon.home,
   capture: NavIcon.capture,
   memory: NavIcon.grid,
   chat: NavIcon.chat,

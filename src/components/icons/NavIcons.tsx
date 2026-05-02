@@ -27,6 +27,14 @@ function Icon({
 }
 
 export const NavIcon = {
+  home: (
+    <Icon>
+      <path
+        {...P}
+        d="M2.25 12 12 2.25 21.75 12M4.5 9.75v10.125A1.125 1.125 0 0 0 5.625 21H9.75v-6h4.5v6h4.125a1.125 1.125 0 0 0 1.125-1.125V9.75"
+      />
+    </Icon>
+  ),
   capture: (
     <Icon>
       <path

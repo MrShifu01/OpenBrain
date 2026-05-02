@@ -78,6 +78,7 @@ import { syncTimezoneIfChanged } from "./lib/syncTimezone";
 import { supabase } from "./lib/supabase";
 import { trackNavViewActive } from "./lib/events";
 import { AppLockGate } from "./components/AppLockGate";
+import HomeView from "./views/HomeView";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,6 +116,7 @@ function Loader() {
 }
 
 const NAV_VIEWS = [
+  { id: "home", l: "Home", ic: "⌂" },
   { id: "memory", l: "Memory", ic: "▦" },
   { id: "chat", l: "Chat", ic: "💬" },
   { id: "graph", l: "Graph", ic: "✦" },
@@ -858,6 +860,21 @@ function EverionContent({
                 </Suspense>
               </ErrorBoundary>
             )}
+            {appShell.view === "home" && (
+              <ErrorBoundary
+                name="HomeView"
+                fallback={(error, reset) => <ViewError view="Home" error={error} onReset={reset} />}
+              >
+                <HomeView
+                  entryCount={entries.length}
+                  brainCount={brains.length}
+                  brainName={activeBrain?.name}
+                  onNavigate={appShell.setView}
+                  onOpenCapture={() => appShell.setShowCapture(true)}
+                  onCreateBrain={() => appShell.setShowCreateBrain(true)}
+                />
+              </ErrorBoundary>
+            )}
             {appShell.view === "settings" && <SettingsView onNavigate={appShell.setView} />}
             {appShell.view === "capture" && (
               <ErrorBoundary
@@ -966,7 +983,9 @@ function EverionContent({
                 if (opts?.nextAction === "vault") {
                   appShell.setView("vault");
                 } else {
-                  appShell.setView("memory");
+                  // New users land on Home so they see the first-run checklist.
+                  // Existing users skip this branch (showOnboarding is already false).
+                  appShell.setView("home");
                 }
               }}
               brainId={activeBrain?.id}
