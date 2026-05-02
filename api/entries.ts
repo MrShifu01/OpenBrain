@@ -861,6 +861,23 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
   const accepts = parseInt(cAcc.headers.get("content-range")?.split("/")[1] || "0", 10);
   const rejects = parseInt(cRej.headers.get("content-range")?.split("/")[1] || "0", 10);
 
+  // Catch-up distill — the auto-trigger in the staging endpoint only fires
+  // every 20 decisions, which leaves a gap when a user crosses the
+  // MIN_FOR_DISTILL threshold (3) for the first time. If we have enough
+  // signal for a side but no summary yet, fire-and-forget so the panel
+  // populates on the next refresh (or the auto-reload below).
+  const MIN_FOR_DISTILL = 3;
+  const acceptedSummary = (integ.accepted_summary ?? "").trim() || null;
+  const rejectedSummary = (integ.rejected_summary ?? "").trim() || null;
+  const acceptsNeedDistill = accepts >= MIN_FOR_DISTILL && !acceptedSummary;
+  const rejectsNeedDistill = rejects >= MIN_FOR_DISTILL && !rejectedSummary;
+  const pending_distill = acceptsNeedDistill || rejectsNeedDistill;
+  if (pending_distill) {
+    distillGmailForUser(user.id).catch((e) =>
+      console.error("[gmail-prompt] catch-up distill failed:", e?.message ?? e),
+    );
+  }
+
   // Render the literal classifier prompt template the live scan uses, with
   // a placeholder block instead of real email threads. Same buildPrompt the
   // runtime calls — what you see is exactly what Gemini sees, minus the
@@ -911,6 +928,7 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
     counts: { accepts, rejects },
     preferences: integ.preferences ?? null,
     prompt,
+    pending_distill,
   });
 }
 

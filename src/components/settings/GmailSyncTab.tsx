@@ -481,6 +481,9 @@ interface GmailPromptPayload {
   recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
   counts: { accepts: number; rejects: number };
   prompt: string | null;
+  // Server fired a catch-up distill because counts >= threshold but a
+  // summary is missing. UI shows "Distilling…" and auto-reloads.
+  pending_distill?: boolean;
 }
 
 function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
@@ -514,6 +517,18 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
   useEffect(() => {
     if (expanded) load();
   }, [expanded, staged]);
+
+  // If the panel is open and the server told us it kicked off a catch-up
+  // distill, poll once after ~12s so the summary appears without a manual
+  // refresh. Distill runs Gemini Flash → typically 4-8s end-to-end.
+  const pendingDistill = data?.pending_distill;
+  useEffect(() => {
+    if (!expanded || !pendingDistill) return;
+    const t = setTimeout(() => {
+      load();
+    }, 12_000);
+    return () => clearTimeout(t);
+  }, [expanded, pendingDistill]);
 
   async function distill() {
     setDistilling(true);
@@ -631,14 +646,28 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
                     label={`KEEP rules (${data.counts.accepts})`}
                     color="var(--moss)"
                     value={data.acceptedSummary}
-                    emptyText="No KEEP summary yet — happens automatically after ~3 accepts. Accept a few emails the user-style way, then click Distill now."
+                    pending={!!data.pending_distill && data.counts.accepts >= 3}
+                    emptyText={
+                      data.counts.accepts >= 3
+                        ? "Summary missing — distill should have run. Click Distill now."
+                        : `Need ${3 - data.counts.accepts} more accept${
+                            data.counts.accepts === 2 ? "" : "s"
+                          } to auto-summarize. Accept a few emails the user-style way.`
+                    }
                   />
 
                   <SummaryBlock
                     label={`SKIP rules (${data.counts.rejects})`}
                     color="var(--blood)"
                     value={data.rejectedSummary}
-                    emptyText="No SKIP summary yet — happens automatically after ~3 rejects. Swipe-left a few noisy emails, then click Distill now."
+                    pending={!!data.pending_distill && data.counts.rejects >= 3}
+                    emptyText={
+                      data.counts.rejects >= 3
+                        ? "Summary missing — distill should have run. Click Distill now."
+                        : `Need ${3 - data.counts.rejects} more reject${
+                            data.counts.rejects === 2 ? "" : "s"
+                          } to auto-summarize. Swipe-left a few noisy emails.`
+                    }
                   />
 
                   <RecentList
@@ -752,11 +781,13 @@ function SummaryBlock({
   color,
   value,
   emptyText,
+  pending,
 }: {
   label: string;
   color: string;
   value: string | null;
   emptyText: string;
+  pending?: boolean;
 }): React.ReactElement {
   return (
     <div>
@@ -791,10 +822,49 @@ function SummaryBlock({
         >
           {value}
         </pre>
+      ) : pending ? (
+        <div
+          className="f-sans"
+          style={{
+            margin: 0,
+            padding: 10,
+            background: "var(--surface)",
+            border: "1px dashed var(--ember)",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "var(--ember)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 12,
+              height: 12,
+              borderRadius: "50%",
+              border: "2px solid currentColor",
+              borderTopColor: "transparent",
+              animation: "spin 0.8s linear infinite",
+              display: "inline-block",
+            }}
+          />
+          Distilling now — refreshing in a moment…
+        </div>
       ) : (
         <div
-          className="f-serif"
-          style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+          className="f-sans"
+          style={{
+            margin: 0,
+            padding: 10,
+            background: "var(--surface)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "var(--ink-soft)",
+            lineHeight: 1.55,
+          }}
         >
           {emptyText}
         </div>
