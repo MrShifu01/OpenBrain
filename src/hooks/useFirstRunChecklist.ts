@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { authFetch } from "../lib/authFetch";
-import { loadPinRecord } from "../lib/vaultPinKey";
 
 // First-run checklist item identifiers — these double as React keys and CTA
 // targets. Order matters: it determines render order.
@@ -44,16 +43,20 @@ interface RemoteState {
   personaDone: boolean;
   gmailDone: boolean;
   calendarDone: boolean;
+  vaultDone: boolean;
 }
 
 async function loadRemote(): Promise<RemoteState> {
-  // Persona: any meaningful field filled means "told us about themselves".
-  const personaP = authFetch("/api/user-data?resource=persona")
+  // Persona lives at /api/user-data?resource=profile (handler reads
+  // user_personas table but the resource key is "profile"). Response shape:
+  // { profile: row | null }. Any of full_name / preferred_name / context
+  // being non-empty counts as "told us about themselves".
+  const personaP = authFetch("/api/user-data?resource=profile")
     .then((r) => r?.json?.() ?? null)
     .then((data) => {
-      if (!data) return false;
-      const p = data?.persona ?? data;
-      return Boolean(p?.full_name || p?.preferred_name || p?.context);
+      const p = data?.profile;
+      if (!p) return false;
+      return Boolean(p.full_name || p.preferred_name || p.context);
     })
     .catch(() => false);
 
@@ -70,8 +73,24 @@ async function loadRemote(): Promise<RemoteState> {
     })
     .catch(() => false);
 
-  const [personaDone, gmailDone, calendarDone] = await Promise.all([personaP, gmailP, calendarP]);
-  return { personaDone, gmailDone, calendarDone };
+  // Vault: server-side check for any encrypted entry. PIN lives in
+  // localStorage and so doesn't survive a fresh device — counting
+  // vault_entries rows is the only cross-device-accurate signal.
+  const vaultP = authFetch("/api/user-data?resource=vault_entries")
+    .then((r) => r?.json?.() ?? null)
+    .then((data) => {
+      const list = Array.isArray(data) ? data : (data?.entries ?? data?.vault_entries ?? []);
+      return Array.isArray(list) && list.length > 0;
+    })
+    .catch(() => false);
+
+  const [personaDone, gmailDone, calendarDone, vaultDone] = await Promise.all([
+    personaP,
+    gmailP,
+    calendarP,
+    vaultP,
+  ]);
+  return { personaDone, gmailDone, calendarDone, vaultDone };
 }
 
 interface UseFirstRunChecklistOptions {
@@ -87,6 +106,7 @@ export function useFirstRunChecklist({
     personaDone: false,
     gmailDone: false,
     calendarDone: false,
+    vaultDone: false,
   });
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState<boolean>(() => {
@@ -96,32 +116,26 @@ export function useFirstRunChecklist({
       return false;
     }
   });
-  // PIN lives in localStorage; recompute on demand when the user returns from
-  // the vault setup flow. We re-read on every refresh() call.
-  const [vaultDone, setVaultDone] = useState<boolean>(() => loadPinRecord() !== null);
 
   const refresh = useCallback(() => {
     setLoading(true);
-    setVaultDone(loadPinRecord() !== null);
     void loadRemote()
       .then(setRemote)
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only fetch of remote checklist state; refresh() sets loading/vaultDone synchronously then resolves remote async.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only fetch of remote checklist state.
     refresh();
   }, [refresh]);
 
-  // Re-check vault status when window regains focus — handles the round-trip
-  // through the vault setup flow without needing a manual refresh button.
+  // Re-fetch when the window regains focus — handles round-trips through
+  // settings tabs and the vault setup flow without needing a manual refresh.
   useEffect(() => {
-    const onFocus = () => {
-      setVaultDone(loadPinRecord() !== null);
-    };
+    const onFocus = () => refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
+  }, [refresh]);
 
   const dismiss = useCallback(() => {
     try {
@@ -176,8 +190,8 @@ export function useFirstRunChecklist({
     {
       id: "vault",
       title: "Set up your vault",
-      body: "Encrypted store for IDs, codes, bank details. PIN unlock once you're in.",
-      done: vaultDone,
+      body: "Encrypted store for IDs, codes, bank details. Add your first secret to mark this done.",
+      done: remote.vaultDone,
       action: { kind: "navigate", view: "vault" },
     },
     {

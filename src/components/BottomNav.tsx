@@ -8,22 +8,33 @@ import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "../lib/fea
 // rather than render a tab that routes to an empty view (Everion.tsx redirects
 // disabled views back to memory — without this filter, tapping the tab does
 // nothing visible to the user).
+// Sentinel id "_more" triggers the MobileMoreMenu sheet instead of navigating.
+// Settings is reachable from inside that sheet, so giving it a dedicated tab
+// here was duplication. More is also a better foothold for future destinations
+// (Lists, Important, Vault) without the bottom bar overflowing.
 const ALL_ITEMS = [
   { id: "memory", label: "Memory", icon: NavIcon.grid, flag: undefined },
   { id: "chat", label: "Chat", icon: NavIcon.chat, flag: "chat" as FeatureFlagKey },
   { id: "_capture_fab", label: "Add", isFAB: true, icon: NavIcon.add, flag: undefined },
   { id: "todos", label: "Schedule", icon: NavIcon.todos, flag: "todos" as FeatureFlagKey },
-  { id: "settings", label: "Settings", icon: NavIcon.settings, flag: undefined },
+  { id: "_more", label: "More", icon: NavIcon.more, flag: undefined },
 ];
 
 interface BottomNavProps {
   activeView: string;
   onNavigate: (id: string) => void;
   onCapture: () => void;
+  onOpenMore: () => void;
   adminFlags?: Record<string, boolean>;
 }
 
-function BottomNavInner({ activeView, onNavigate, onCapture, adminFlags }: BottomNavProps) {
+function BottomNavInner({
+  activeView,
+  onNavigate,
+  onCapture,
+  onOpenMore,
+  adminFlags,
+}: BottomNavProps) {
   const keyboardVisible = useKeyboardVisible();
   const navItems = useMemo(() => {
     const flags = adminFlags ?? {};
@@ -87,7 +98,7 @@ function BottomNavInner({ activeView, onNavigate, onCapture, adminFlags }: Botto
         return (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id)}
+            onClick={() => (item.id === "_more" ? onOpenMore() : onNavigate(item.id))}
             aria-label={item.label}
             aria-current={isActive ? "page" : undefined}
             className="press"

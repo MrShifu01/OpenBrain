@@ -49,8 +49,11 @@ export function useAppShell({
   initialShowCapture,
   activeBrainId,
 }: UseAppShellOptions = {}): AppShellState {
-  // Navigation
-  const [view, setView] = useState("memory");
+  // Navigation — Home is the default landing view for all users. Existing
+  // users get the dashboard the next time they reload; they can still tap
+  // any nav item to go elsewhere, and the choice doesn't persist (stateless
+  // per-session).
+  const [view, setView] = useState("home");
   const [selected, setSelected] = useState<Entry | null>(null);
 
   // Modals

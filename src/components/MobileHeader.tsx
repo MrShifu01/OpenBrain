@@ -2,7 +2,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
-import MobileMoreMenu from "./MobileMoreMenu";
 import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
@@ -85,7 +84,7 @@ export default function MobileHeader({
   isOnline: _isOnline,
   pendingCount: _pendingCount,
   onSearch,
-  onNavigate,
+  onNavigate: _onNavigate,
   children,
   notifications = [],
   unreadCount = 0,
@@ -97,7 +96,6 @@ export default function MobileHeader({
   const { adminFlags } = useAdminDevMode();
   const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
   const hidden = useHideOnScroll();
-  const [menuOpen, setMenuOpen] = useState(false);
 
   // Publish the header's hide state as a CSS var so other sticky bars
   // (e.g. settings mobile tabs) can sit flush at the top when the header
@@ -197,31 +195,6 @@ export default function MobileHeader({
               <TooltipContent>Search</TooltipContent>
             </Tooltip>
           )}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setMenuOpen(true)}
-                aria-label="Open menu"
-                style={{ color: "var(--ink-soft)" }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Menu</TooltipContent>
-          </Tooltip>
         </div>
       </header>
 
@@ -234,15 +207,6 @@ export default function MobileHeader({
           <BrainSwitcher cardMode />
         </div>
       )}
-
-      <MobileMoreMenu
-        isOpen={menuOpen}
-        adminFlags={adminFlags}
-        onNavigate={(id) => {
-          setMenuOpen(false);
-          if (id !== "close" && onNavigate) onNavigate(id);
-        }}
-      />
     </div>
   );
 }

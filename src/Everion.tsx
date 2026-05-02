@@ -23,6 +23,7 @@ import BulkActionBar from "./components/BulkActionBar";
 import OnboardingModal from "./components/OnboardingModal";
 import OfflineBanner from "./components/OfflineBanner";
 import BottomNav from "./components/BottomNav";
+import MobileMoreMenu from "./components/MobileMoreMenu";
 import MobileHeader from "./components/MobileHeader";
 // CaptureSheet is the heaviest single piece of the signed-in shell — voice
 // recorder, NLP parser, file extraction, AI calls. We don't want it on the
@@ -213,6 +214,7 @@ function EverionContent({
     useEntries();
   const notifs = useNotifications();
   const [selectedVaultEntry, setSelectedVaultEntry] = useState<Entry | null>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // Save errors are transient — surface via sonner instead of inline banner.
   useEffect(() => {
@@ -1034,8 +1036,21 @@ function EverionContent({
                 appShell.setView(id);
               }}
               onCapture={() => appShell.setShowCapture(true)}
+              onOpenMore={() => setMoreOpen(true)}
             />
           )}
+          <MobileMoreMenu
+            isOpen={moreOpen}
+            adminFlags={adminFlags}
+            onNavigate={(id) => {
+              setMoreOpen(false);
+              if (id !== "close") {
+                setSelected(null);
+                appShell.setShowCapture(false);
+                appShell.setView(id);
+              }
+            }}
+          />
         </div>
       </div>
     </>
