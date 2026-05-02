@@ -1,21 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type JSX } from "react";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 import { Button } from "./ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-
-// Cross-brain assignment is gated until shared/community brains lands. Flip
-// this back to true when that feature ships — the picker code below is left
-// intact so restoring is a single-line change.
-const SHARED_BRAINS_ENABLED = false;
 
 interface Props {
   selectedIds: Set<string>;
@@ -28,43 +15,63 @@ interface Props {
   allSelected?: boolean;
 }
 
+type Phase = "idle" | "typing" | "confirmDelete";
+
 export default function BulkActionBar({
   selectedIds,
-  entries: _entries,
-  brains,
+  entries,
+  brains: _brains,
   onDone,
   onCancel,
   onSelectAll,
   onDelete,
   allSelected = false,
 }: Props) {
-  const [targetType, setTargetType] = useState("");
-  const [targetBrainIds, setTargetBrainIds] = useState<Set<string>>(new Set());
-  const [progress, setProgress] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [busy, setBusy] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  // Two-tap inline delete: first tap arms the trash button (shows
-  // "Tap to confirm"), second tap executes. Auto-reverts after 2.5s.
-  // No OS dialog — design philosophy in CLAUDE.md.
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [suggested, setSuggested] = useState<string | null>(null);
 
-  // Auto-disarm the inline delete confirmation after 2.5s of no follow-up
-  // tap. Otherwise an armed trash button could sit there for minutes and
-  // surprise the user on their next tap.
+  // Reset phase when the selection changes externally — keeps a stale "Are
+  // you sure you want to delete?" from sitting around after the user has
+  // already cleared selection.
   useEffect(() => {
-    if (!confirmingDelete) return;
-    const t = setTimeout(() => setConfirmingDelete(false), 2500);
-    return () => clearTimeout(t);
-  }, [confirmingDelete]);
+    if (selectedIds.size === 0) {
+      setPhase("idle");
+      setSuggested(null);
+    }
+  }, [selectedIds.size]);
 
   const count = selectedIds.size;
-  const hasAction = !!targetType || targetBrainIds.size > 0;
+
+  async function applyType(type: string) {
+    if (busy) return;
+    setBusy(true);
+    const ids = [...selectedIds];
+    const updated: Entry[] = [];
+    for (const id of ids) {
+      try {
+        const res = await authFetch("/api/update-entry", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, type }),
+        });
+        if (res.ok) updated.push(await res.json());
+      } catch (err) {
+        console.error("[BulkActionBar] type update failed", id, err);
+      }
+    }
+    setBusy(false);
+    setPhase("idle");
+    setSuggested(null);
+    onDone(updated);
+  }
 
   async function suggestType() {
+    if (aiTyping) return;
     setAiTyping(true);
     try {
-      const selected = _entries.filter((e) => selectedIds.has(e.id)).slice(0, 5);
+      const selected = entries.filter((e) => selectedIds.has(e.id)).slice(0, 5);
       const sample = selected
         .map((e) => `- ${e.title}: ${(e.content || "").slice(0, 120)}`)
         .join("\n");
@@ -84,431 +91,176 @@ export default function BulkActionBar({
           .trim()
           .toLowerCase();
         const raw = full.replace(/[^a-z]/g, " ");
-        // Find whichever type appears EARLIEST in the response
         const match = types
           .map((t) => ({ t, idx: raw.search(new RegExp(`\\b${t}\\b`)) }))
           .filter((m) => m.idx >= 0)
           .sort((a, b) => a.idx - b.idx)[0]?.t;
-        if (match) setTargetType(match);
-        else console.warn("[bulkSuggestType] no match, got:", full);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        console.error("[bulkSuggestType]", res.status, errData);
+        if (match) setSuggested(match);
       }
     } catch (err) {
-      console.error("[bulkSuggestType]", err);
+      console.error("[BulkActionBar] suggestType failed", err);
     }
     setAiTyping(false);
   }
 
-  function toggleBrain(id: string) {
-    setTargetBrainIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   async function bulkDelete() {
-    if (!onDelete) return;
-    setDeleting(true);
-    await onDelete([...selectedIds]);
-    setDeleting(false);
-    onCancel();
-  }
-
-  async function apply() {
-    if (!hasAction) return;
-    const ids = [...selectedIds];
-    const updated: Entry[] = [];
-    let done = 0;
-
-    setProgress(`Updating 0 / ${ids.length}…`);
-
-    for (const id of ids) {
-      let entryOk = true;
-
-      if (targetType) {
-        try {
-          const res = await authFetch("/api/update-entry", {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id, type: targetType }),
-          });
-          if (res.ok) updated.push(await res.json());
-          else entryOk = false;
-        } catch (err) {
-          console.error("[BulkActionBar] type update failed for entry", id, err);
-          entryOk = false;
-        }
-      }
-
-      for (const brain_id of targetBrainIds) {
-        try {
-          const res = await authFetch("/api/entry-brains", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ entry_id: id, brain_id }),
-          });
-          if (!res.ok) entryOk = false;
-        } catch (err) {
-          console.error("[BulkActionBar] brain assignment failed for entry", id, err);
-          entryOk = false;
-        }
-      }
-
-      if (entryOk) done++;
-      setProgress(`Updating ${done} / ${ids.length}…`);
+    if (!onDelete || busy) return;
+    setBusy(true);
+    try {
+      await onDelete([...selectedIds]);
+    } finally {
+      setBusy(false);
+      setPhase("idle");
+      onCancel();
     }
-
-    setProgress(null);
-    onDone(updated);
-  }
-
-  const selectedBrainNames = brains.filter((b) => targetBrainIds.has(b.id)).map((b) => b.name);
-
-  const dropdownContentClass = "max-h-[180px]";
-
-  // Collapsed pill — low-profile chip so selecting more items isn't blocked.
-  // Position: sit ~12px above the BottomNav (56px + safe-area-inset-bottom).
-  // Hard-coded `bottom-24` = 96px gets eaten by the home indicator on iPhones
-  // with a tall safe area, hiding the pill. z-index above BottomNav (50).
-  if (!expanded) {
-    // While a bulk delete is in flight, replace all controls with a single
-    // "Deleting…" indicator so the user sees the action was acknowledged.
-    // The pill auto-dismisses (onCancel) once onDelete completes, but if the
-    // delete is slow this prevents a "did anything happen?" gap.
-    if (deleting) {
-      return (
-        <div
-          className="fixed left-1/2 -translate-x-1/2"
-          style={{
-            bottom: "calc(68px + env(safe-area-inset-bottom))",
-            zIndex: "var(--z-fab)",
-            width: "auto",
-            maxWidth: "92vw",
-          }}
-        >
-          <div
-            className="flex items-center gap-3 rounded-full border py-2.5 pr-5 pl-5 shadow-lg"
-            style={{
-              background: "var(--color-surface-container-high)",
-              borderColor: "var(--color-outline-variant)",
-              boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.18))",
-            }}
-            role="status"
-            aria-live="polite"
-          >
-            <svg
-              className="h-4 w-4 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-              style={{ color: "var(--color-error, var(--blood))" }}
-            >
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-              <path
-                d="M22 12a10 10 0 0 1-10 10"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                fill="none"
-              />
-            </svg>
-            <span
-              className="text-xs font-semibold whitespace-nowrap"
-              style={{ color: "var(--color-on-surface)" }}
-            >
-              Deleting {count} {count === 1 ? "entry" : "entries"}…
-            </span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className="fixed left-1/2 -translate-x-1/2"
-        style={{
-          bottom: "calc(68px + env(safe-area-inset-bottom))",
-          zIndex: "var(--z-fab)",
-          width: "auto",
-          maxWidth: "92vw",
-        }}
-      >
-        <div
-          className="flex items-center gap-2 rounded-full border py-1.5 pr-1.5 pl-4 shadow-lg"
-          style={{
-            background: "var(--color-surface-container-high)",
-            borderColor: "var(--color-outline-variant)",
-            boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.18))",
-          }}
-        >
-          <span
-            className="text-xs font-semibold whitespace-nowrap"
-            style={{ color: "var(--color-on-surface)" }}
-          >
-            {count} selected
-          </span>
-          {onSelectAll && (
-            <Button size="sm" variant={allSelected ? "default" : "outline"} onClick={onSelectAll}>
-              {allSelected ? "Deselect all" : "Select all"}
-            </Button>
-          )}
-          {/* Delete — most-common bulk action surfaced inline so it doesn't
-              hide behind the More panel. Confirm before destructive op.
-              On success, dismiss the pill — keeping it open after action is
-              taken just creates a "what now?" moment for the user. */}
-          {onDelete &&
-            (confirmingDelete ? (
-              <Button
-                size="sm"
-                variant="destructive"
-                disabled={deleting}
-                aria-label={`Confirm delete ${count}`}
-                onClick={async () => {
-                  setDeleting(true);
-                  try {
-                    await onDelete(Array.from(selectedIds));
-                    onCancel();
-                  } finally {
-                    setDeleting(false);
-                    setConfirmingDelete(false);
-                  }
-                }}
-              >
-                Tap to confirm
-              </Button>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    disabled={deleting}
-                    aria-label={`Delete ${count} selected`}
-                    onClick={() => setConfirmingDelete(true)}
-                    className="text-[var(--blood,#c44)]"
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"
-                      />
-                    </svg>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Delete {count}</TooltipContent>
-              </Tooltip>
-            ))}
-          <Button size="sm" onClick={() => setExpanded(true)} aria-label="More actions">
-            More
-          </Button>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={onCancel}
-                aria-label="Cancel selection"
-              >
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Cancel</TooltipContent>
-          </Tooltip>
-        </div>
-      </div>
-    );
   }
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2"
       style={{
-        // Match the collapsed pill's clearance from BottomNav.
-        bottom: "calc(68px + env(safe-area-inset-bottom))",
+        position: "fixed",
+        left: "50%",
+        transform: "translateX(-50%)",
+        bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
         zIndex: "var(--z-fab)",
-        width: "min(92vw, 480px)",
+        width: "min(96vw, 520px)",
       }}
     >
       <div
-        className="flex flex-col gap-3 rounded-2xl border p-4 shadow-lg"
         style={{
-          background: "var(--color-surface-container-high)",
-          borderColor: "var(--color-outline-variant)",
-          boxShadow: "var(--shadow-lg, 0 8px 32px rgba(0,0,0,0.18))",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+          padding: 12,
+          borderRadius: 16,
+          background: "var(--surface-high)",
+          border: "1px solid var(--line)",
+          boxShadow: "var(--lift-3)",
         }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setExpanded(false)}
-            aria-label="Back to selecting"
-          >
-            <svg
-              className="h-4 w-4"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-            {count} {count === 1 ? "entry" : "entries"} selected
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onCancel}>
+        {/* Header row — mirrors SomedayBulkBar */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            {count} selected
+          </span>
+          <span style={{ flex: 1 }} />
+          {onSelectAll && (
+            <Button size="xs" variant="outline" onClick={onSelectAll}>
+              {allSelected ? "Clear" : "Select all"}
+            </Button>
+          )}
+          <Button size="xs" variant="ghost" onClick={onCancel} aria-label="Cancel selection">
             Cancel
           </Button>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          {/* Type picker — opens upward */}
-          <div className="relative flex flex-1 flex-col gap-1">
-            <div className="flex items-center justify-between">
-              <label
-                className="text-[11px] font-semibold tracking-wide uppercase"
-                style={{ color: "var(--color-on-surface-variant)" }}
-              >
-                Change type
-              </label>
-              <button
-                type="button"
+        {phase === "idle" && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <ActionBtn
+              label="Change type"
+              tone="ember"
+              disabled={busy}
+              onClick={() => setPhase("typing")}
+            />
+            {onDelete && (
+              <ActionBtn
+                label={`Delete · ${count}`}
+                tone="ghost"
+                disabled={busy}
+                onClick={() => setPhase("confirmDelete")}
+              />
+            )}
+          </div>
+        )}
+
+        {phase === "typing" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p className="f-sans" style={{ margin: 0, fontSize: 12, color: "var(--ink-soft)" }}>
+                Change {count} {count === 1 ? "entry" : "entries"} to…
+              </p>
+              <Button
+                size="xs"
+                variant="outline"
                 onClick={suggestType}
-                disabled={aiTyping}
-                className="rounded-md px-1.5 py-0.5 text-[9px] font-semibold transition-all disabled:opacity-50"
-                style={{
-                  background: "var(--color-primary-container)",
-                  color: "var(--color-primary)",
-                }}
+                disabled={aiTyping || busy}
+                aria-label="Suggest a type with AI"
               >
                 {aiTyping ? "…" : "✦ AI"}
-              </button>
+              </Button>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                className="flex w-full items-center justify-between rounded-xl border bg-transparent px-2.5 py-1.5 text-left text-xs outline-none"
-                style={{
-                  borderColor: "var(--color-outline-variant)",
-                  color: "var(--color-on-surface)",
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {CANONICAL_TYPES.map((t) => (
+                <Button
+                  key={t}
+                  size="sm"
+                  variant={suggested === t ? "default" : "outline"}
+                  disabled={busy}
+                  onClick={() => applyType(t)}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </Button>
+              ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setPhase("idle");
+                  setSuggested(null);
                 }}
               >
-                <span className="truncate">
-                  {targetType
-                    ? targetType.charAt(0).toUpperCase() + targetType.slice(1)
-                    : "— keep —"}
-                </span>
-                <svg
-                  className="h-3 w-3 flex-shrink-0"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="start" className={dropdownContentClass}>
-                <DropdownMenuItem onSelect={() => setTargetType("")}>— keep —</DropdownMenuItem>
-                {CANONICAL_TYPES.map((t) => (
-                  <DropdownMenuItem
-                    key={t}
-                    onSelect={() => setTargetType(t)}
-                    style={{
-                      background: targetType === t ? "var(--color-primary-container)" : undefined,
-                    }}
-                  >
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Brain multi-picker — hidden until shared brains ships. */}
-          {SHARED_BRAINS_ENABLED && (
-            <div className="relative flex flex-1 flex-col gap-1">
-              <label
-                className="text-[11px] font-semibold tracking-wide uppercase"
-                style={{ color: "var(--color-on-surface-variant)" }}
-              >
-                Add to brains
-              </label>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="flex w-full items-center justify-between rounded-xl border bg-transparent px-2.5 py-1.5 text-left text-xs outline-none"
-                  style={{
-                    borderColor: "var(--color-outline-variant)",
-                    color: "var(--color-on-surface)",
-                  }}
-                >
-                  <span className="truncate">
-                    {targetBrainIds.size === 0 ? "— none —" : selectedBrainNames.join(", ")}
-                  </span>
-                  <svg
-                    className="h-3 w-3 flex-shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="top" align="start" className={dropdownContentClass}>
-                  {brains.map((b) => (
-                    <DropdownMenuCheckboxItem
-                      key={b.id}
-                      checked={targetBrainIds.has(b.id)}
-                      onCheckedChange={() => toggleBrain(b.id)}
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      {b.name}
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                Cancel
+              </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Apply */}
-        <Button onClick={apply} disabled={!hasAction || !!progress || deleting} className="w-full">
-          {progress ?? `Apply to ${count} ${count === 1 ? "entry" : "entries"}`}
-        </Button>
-
-        {/* Destructive actions */}
-        {onDelete && (
-          <div className="flex gap-2">
-            <Button
-              variant="destructive"
-              onClick={bulkDelete}
-              disabled={deleting || !!progress}
-              className="flex-1"
+        {phase === "confirmDelete" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p
+              className="f-sans"
+              style={{ margin: 0, fontSize: 12, color: "var(--ink)", lineHeight: 1.45 }}
             >
-              {deleting ? "Deleting…" : `Delete ${count}`}
-            </Button>
+              Delete {count} {count === 1 ? "entry" : "entries"}? This can&apos;t be undone.
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button size="sm" variant="outline" onClick={() => setPhase("idle")}>
+                Cancel
+              </Button>
+              <Button size="sm" variant="destructive" disabled={busy} onClick={bulkDelete}>
+                {busy ? "Deleting…" : "Delete"}
+              </Button>
+            </div>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function ActionBtn({
+  label,
+  onClick,
+  disabled,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone: "ember" | "moss" | "ghost";
+}): JSX.Element {
+  const variant = tone === "ember" ? "default" : tone === "moss" ? "moss" : "outline";
+  return (
+    <Button
+      variant={variant}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      disabled={disabled}
+      className="flex-1"
+    >
+      {label}
+    </Button>
   );
 }

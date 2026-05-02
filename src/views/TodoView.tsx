@@ -405,16 +405,11 @@ export default function TodoView({
     );
   }
 
-  const somedayCount = useMemo(
-    () => entries.filter((e) => e.type === "someday" && !isDone(e)).length,
-    [entries],
-  );
-
-  const TABS: { id: Tab; label: string; count?: number }[] = [
+  const TABS: { id: Tab; label: string }[] = [
     { id: "today", label: "Day" },
     { id: "list", label: "Week" },
     { id: "calendar", label: "Month" },
-    ...(somedayEnabled ? [{ id: "someday" as const, label: "Someday", count: somedayCount }] : []),
+    ...(somedayEnabled ? [{ id: "someday" as const, label: "Someday" }] : []),
   ];
 
   return (
@@ -473,40 +468,18 @@ export default function TodoView({
             aria-label="Schedule view"
             className="h-auto w-full overflow-hidden rounded-xl border border-[var(--line-soft)] bg-transparent p-0"
           >
-            {TABS.map((t, i) => {
-              // Soft "your pile is growing" nudge — only on Someday, only past
-              // 20. No number; the count is one tap away. Ember dot on the
-              // inactive tab, white dot on the active one (which has an ember
-              // background) so it stays visible either way.
-              const showDot = typeof t.count === "number" && t.count > 20;
-              const active = tab === t.id;
-              return (
-                <TabsTrigger
-                  key={t.id}
-                  value={t.id}
-                  className="relative flex-1 rounded-none border-0 py-2 text-sm font-medium transition-colors data-[state=active]:bg-[var(--ember)] data-[state=active]:text-[var(--ember-ink)] data-[state=active]:shadow-none data-[state=inactive]:bg-[var(--surface)] data-[state=inactive]:text-[var(--ink-soft)]"
-                  style={{
-                    borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
-                  }}
-                >
-                  {t.label}
-                  {showDot && (
-                    <span
-                      aria-label={`${t.count} items`}
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        right: 8,
-                        width: 6,
-                        height: 6,
-                        borderRadius: "50%",
-                        background: active ? "var(--ember-ink)" : "var(--ember)",
-                      }}
-                    />
-                  )}
-                </TabsTrigger>
-              );
-            })}
+            {TABS.map((t, i) => (
+              <TabsTrigger
+                key={t.id}
+                value={t.id}
+                className="relative flex-1 rounded-none border-0 py-2 text-sm font-medium transition-colors data-[state=active]:bg-[var(--ember)] data-[state=active]:text-[var(--ember-ink)] data-[state=active]:shadow-none data-[state=inactive]:bg-[var(--surface)] data-[state=inactive]:text-[var(--ink-soft)]"
+                style={{
+                  borderRight: i < TABS.length - 1 ? "1px solid var(--line-soft)" : "none",
+                }}
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
 
