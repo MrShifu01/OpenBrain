@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../ui/accordion";
 import GmailSetupModal from "./GmailSetupModal";
 import GmailScanReviewModal, { type ScanResultItem } from "./GmailScanReviewModal";
 import GmailStagingInbox from "./GmailStagingInbox";
@@ -490,11 +489,13 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
   const [data, setData] = useState<GmailPromptPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  // Expanded-state lives in the shadcn Accordion below as a "single + collapsible"
-  // value. We keep a derived `expanded` boolean so the existing "load when open"
-  // useEffect contract is preserved (the hook depends on `expanded` + `staged`).
-  const [accordionValue, setAccordionValue] = useState<string>("");
-  const expanded = accordionValue === "open";
+  // Plain useState toggle. Replaced shadcn Accordion (which clipped async
+  // content via Radix's `--radix-accordion-content-height` variable + the
+  // wrapper's `overflow-hidden`). Symptom: panel rendered at the size it had
+  // when first opened, never expanded as data loaded — close + reopen would
+  // re-measure and reveal a bit more each cycle. This pattern doesn't animate,
+  // doesn't clip, and renders content at its natural height every time.
+  const [expanded, setExpanded] = useState(false);
   const [distilling, setDistilling] = useState(false);
   const [distillMsg, setDistillMsg] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
@@ -553,225 +554,253 @@ function GmailPromptDebug({ staged }: { staged: number }): React.ReactElement {
 
   return (
     <div style={{ marginTop: 32, paddingTop: 18, borderTop: "1px dashed var(--line)" }}>
-      <Accordion type="single" collapsible value={accordionValue} onValueChange={setAccordionValue}>
-        <AccordionItem value="open" className="border-0">
-          <AccordionTrigger
-            className="gap-2.5 py-2 hover:no-underline [&>svg]:text-[color:var(--ember)]"
-            style={{ paddingInline: 4 }}
+      <button
+        type="button"
+        className="press"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "8px 4px",
+          background: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: 14,
+            height: 14,
+            color: "var(--ember)",
+            transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+            transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path
+              d="M1 1L5 5L9 1"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span
+          className="f-mono"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ember)",
+          }}
+        >
+          Admin · live gmail prompt
+        </span>
+        <span
+          className="f-sans"
+          style={{
+            marginLeft: "auto",
+            fontSize: 11,
+            color: "var(--ink-faint)",
+            fontStyle: "italic",
+          }}
+        >
+          watch the classifier learn
+        </span>
+      </button>
+      {expanded && (
+        <div className="pb-0">
+          <div
+            style={{
+              marginTop: 12,
+              padding: 16,
+              background: "var(--surface-low)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 12,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
           >
-            <span
-              className="f-mono"
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                color: "var(--ember)",
-              }}
-            >
-              Admin · live gmail prompt
-            </span>
-            <span
-              className="f-sans"
-              style={{
-                marginRight: "auto",
-                fontSize: 11,
-                color: "var(--ink-faint)",
-                fontStyle: "italic",
-              }}
-            >
-              watch the classifier learn
-            </span>
-          </AccordionTrigger>
-          <AccordionContent className="pb-0">
-            <div
-              style={{
-                marginTop: 12,
-                padding: 16,
-                background: "var(--surface-low)",
-                border: "1px solid var(--line-soft)",
-                borderRadius: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              {loading && !data && (
-                <p
-                  className="f-mono"
-                  style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}
+            {loading && !data && (
+              <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}>
+                loading…
+              </p>
+            )}
+            {err && (
+              <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
+                error: {err}
+              </p>
+            )}
+            {data && (
+              <>
+                <div
+                  className="f-sans"
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-faint)",
+                    display: "flex",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
                 >
-                  loading…
-                </p>
-              )}
-              {err && (
-                <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
-                  error: {err}
-                </p>
-              )}
-              {data && (
-                <>
-                  <div
-                    className="f-sans"
+                  <span>
+                    <strong style={{ color: "var(--moss)" }}>{data.counts.accepts}</strong> accepts
+                  </span>
+                  <span>
+                    <strong style={{ color: "var(--blood)" }}>{data.counts.rejects}</strong> rejects
+                  </span>
+                  {data.summaryUpdatedAt && (
+                    <span>
+                      updated{" "}
+                      {new Date(data.summaryUpdatedAt).toLocaleString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                <SummaryBlock
+                  label={`KEEP rules (${data.counts.accepts})`}
+                  color="var(--moss)"
+                  value={data.acceptedSummary}
+                  pending={!!data.pending_distill && data.counts.accepts >= 3}
+                  emptyText={
+                    data.counts.accepts >= 3
+                      ? "Summary missing — distill should have run. Click Distill now."
+                      : `Need ${3 - data.counts.accepts} more accept${
+                          data.counts.accepts === 2 ? "" : "s"
+                        } to auto-summarize. Accept a few emails the user-style way.`
+                  }
+                />
+
+                <SummaryBlock
+                  label={`SKIP rules (${data.counts.rejects})`}
+                  color="var(--blood)"
+                  value={data.rejectedSummary}
+                  pending={!!data.pending_distill && data.counts.rejects >= 3}
+                  emptyText={
+                    data.counts.rejects >= 3
+                      ? "Summary missing — distill should have run. Click Distill now."
+                      : `Need ${3 - data.counts.rejects} more reject${
+                          data.counts.rejects === 2 ? "" : "s"
+                        } to auto-summarize. Swipe-left a few noisy emails.`
+                  }
+                />
+
+                <RecentList
+                  label={`Recent kept (${data.recentAccepts.length})`}
+                  items={data.recentAccepts}
+                  emptyText="No recent accepts."
+                />
+                <RecentList
+                  label={`Recent skipped (${data.recentRejects.length})`}
+                  items={data.recentRejects}
+                  emptyText="No recent rejects."
+                />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <Button
+                    type="button"
+                    onClick={distill}
+                    disabled={distilling}
+                    variant="outline"
+                    size="sm"
                     style={{
-                      fontSize: 11,
-                      color: "var(--ink-faint)",
-                      display: "flex",
-                      gap: 16,
-                      flexWrap: "wrap",
+                      background: "var(--ember-wash)",
+                      color: "var(--ember)",
+                      borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
                     }}
                   >
-                    <span>
-                      <strong style={{ color: "var(--moss)" }}>{data.counts.accepts}</strong>{" "}
-                      accepts
-                    </span>
-                    <span>
-                      <strong style={{ color: "var(--blood)" }}>{data.counts.rejects}</strong>{" "}
-                      rejects
-                    </span>
-                    {data.summaryUpdatedAt && (
-                      <span>
-                        updated{" "}
-                        {new Date(data.summaryUpdatedAt).toLocaleString(undefined, {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                  </div>
-
-                  <SummaryBlock
-                    label={`KEEP rules (${data.counts.accepts})`}
-                    color="var(--moss)"
-                    value={data.acceptedSummary}
-                    pending={!!data.pending_distill && data.counts.accepts >= 3}
-                    emptyText={
-                      data.counts.accepts >= 3
-                        ? "Summary missing — distill should have run. Click Distill now."
-                        : `Need ${3 - data.counts.accepts} more accept${
-                            data.counts.accepts === 2 ? "" : "s"
-                          } to auto-summarize. Accept a few emails the user-style way.`
-                    }
-                  />
-
-                  <SummaryBlock
-                    label={`SKIP rules (${data.counts.rejects})`}
-                    color="var(--blood)"
-                    value={data.rejectedSummary}
-                    pending={!!data.pending_distill && data.counts.rejects >= 3}
-                    emptyText={
-                      data.counts.rejects >= 3
-                        ? "Summary missing — distill should have run. Click Distill now."
-                        : `Need ${3 - data.counts.rejects} more reject${
-                            data.counts.rejects === 2 ? "" : "s"
-                          } to auto-summarize. Swipe-left a few noisy emails.`
-                    }
-                  />
-
-                  <RecentList
-                    label={`Recent kept (${data.recentAccepts.length})`}
-                    items={data.recentAccepts}
-                    emptyText="No recent accepts."
-                  />
-                  <RecentList
-                    label={`Recent skipped (${data.recentRejects.length})`}
-                    items={data.recentRejects}
-                    emptyText="No recent rejects."
-                  />
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    {distilling ? "Distilling…" : "Distill now"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => load()}
+                    disabled={loading}
+                    variant="outline"
+                    size="sm"
+                    style={{ color: "var(--ink-soft)" }}
+                  >
+                    {loading ? "Refreshing…" : "Refresh"}
+                  </Button>
+                  {data.prompt && (
                     <Button
                       type="button"
-                      onClick={distill}
-                      disabled={distilling}
+                      onClick={() => setShowRaw((v) => !v)}
                       variant="outline"
                       size="sm"
                       style={{
-                        background: "var(--ember-wash)",
-                        color: "var(--ember)",
-                        borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
+                        color: showRaw ? "var(--ember)" : "var(--ink-soft)",
+                        borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
                       }}
                     >
-                      {distilling ? "Distilling…" : "Distill now"}
+                      {showRaw ? "Hide raw prompt" : "Show raw prompt"}
                     </Button>
-                    <Button
-                      type="button"
-                      onClick={() => load()}
-                      disabled={loading}
-                      variant="outline"
-                      size="sm"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      {loading ? "Refreshing…" : "Refresh"}
-                    </Button>
-                    {data.prompt && (
-                      <Button
-                        type="button"
-                        onClick={() => setShowRaw((v) => !v)}
-                        variant="outline"
-                        size="sm"
-                        style={{
-                          color: showRaw ? "var(--ember)" : "var(--ink-soft)",
-                          borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
-                        }}
-                      >
-                        {showRaw ? "Hide raw prompt" : "Show raw prompt"}
-                      </Button>
-                    )}
-                    {data.prompt && (
-                      <span
-                        className="f-sans"
-                        style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
-                      >
-                        {data.prompt.length.toLocaleString()} chars
-                      </span>
-                    )}
-                    {distillMsg && (
-                      <span
-                        className="f-sans"
-                        style={{
-                          fontSize: 11,
-                          fontStyle: "italic",
-                          color: distillMsg.startsWith("Failed")
-                            ? "var(--blood)"
-                            : "var(--ink-faint)",
-                          width: "100%",
-                        }}
-                      >
-                        {distillMsg}
-                      </span>
-                    )}
-                  </div>
-
-                  {showRaw && data.prompt && (
-                    <pre
-                      className="f-mono"
-                      style={{
-                        margin: 0,
-                        padding: 12,
-                        background: "var(--surface)",
-                        border: "1px solid var(--line-soft)",
-                        borderRadius: 8,
-                        fontSize: 11,
-                        color: "var(--ink-soft)",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-word",
-                        maxHeight: 480,
-                        overflowY: "auto",
-                        lineHeight: 1.55,
-                      }}
-                    >
-                      {data.prompt}
-                    </pre>
                   )}
-                </>
-              )}
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+                  {data.prompt && (
+                    <span
+                      className="f-sans"
+                      style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
+                    >
+                      {data.prompt.length.toLocaleString()} chars
+                    </span>
+                  )}
+                  {distillMsg && (
+                    <span
+                      className="f-sans"
+                      style={{
+                        fontSize: 11,
+                        fontStyle: "italic",
+                        color: distillMsg.startsWith("Failed")
+                          ? "var(--blood)"
+                          : "var(--ink-faint)",
+                        width: "100%",
+                      }}
+                    >
+                      {distillMsg}
+                    </span>
+                  )}
+                </div>
+
+                {showRaw && data.prompt && (
+                  <pre
+                    className="f-mono"
+                    style={{
+                      margin: 0,
+                      padding: 12,
+                      background: "var(--surface)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      color: "var(--ink-soft)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      maxHeight: 480,
+                      overflowY: "auto",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {data.prompt}
+                  </pre>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

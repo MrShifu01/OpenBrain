@@ -1851,10 +1851,12 @@ function PersonaPromptDebug({
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
-  // Mirrors GmailPromptDebug: shadcn Accordion's controlled value drives the
-  // expand state. Existing `expanded` boolean keeps the load-on-open contract.
-  const [accordionValue, setAccordionValue] = useState<string>("");
-  const expanded = accordionValue === "open";
+  // Plain useState toggle. Replaced Radix accordion (which clipped async
+  // content via `--radix-accordion-content-height` + outer `overflow-hidden`).
+  // Symptom: panel rendered at the size measured on first open; close + reopen
+  // would show slightly more each cycle as Radix re-measured. No animation,
+  // no clipping, content always renders at natural height.
+  const [expanded, setExpanded] = useState(false);
   const [distilling, setDistilling] = useState(false);
   const [distillMsg, setDistillMsg] = useState<string | null>(null);
 
@@ -1913,262 +1915,259 @@ function PersonaPromptDebug({
         borderTop: "1px dashed var(--line)",
       }}
     >
-      <AccordionPrimitive.Root
-        type="single"
-        collapsible
-        value={accordionValue}
-        onValueChange={setAccordionValue}
+      <button
+        type="button"
+        className="press"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "8px 4px",
+          background: "transparent",
+          border: 0,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
       >
-        <AccordionPrimitive.Item value="open">
-          <AccordionPrimitive.Header className="flex">
-            <AccordionPrimitive.Trigger
-              className="press"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                width: "100%",
-                padding: "8px 4px",
-                background: "transparent",
-                border: 0,
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: "inline-flex",
-                  width: 14,
-                  height: 14,
-                  color: "var(--ember)",
-                  transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
-                  transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
-                }}
-              >
-                <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
-                  <path
-                    d="M1 1L5 5L9 1"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </span>
-              <span
-                className="f-mono"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--ember)",
-                }}
-              >
-                Admin · live persona prompt
-              </span>
-              <span
-                className="f-sans"
-                style={{ fontSize: 11, color: "var(--ink-faint)", fontStyle: "italic" }}
-              >
-                watch the extractor learn
-              </span>
-            </AccordionPrimitive.Trigger>
-          </AccordionPrimitive.Header>
-          <AccordionPrimitive.Content className="data-open:animate-accordion-down data-closed:animate-accordion-up overflow-hidden">
-            <div
-              style={{
-                marginTop: 12,
-                padding: 16,
-                background: "var(--surface-low)",
-                border: "1px solid var(--line-soft)",
-                borderRadius: 12,
-                display: "flex",
-                flexDirection: "column",
-                gap: 14,
-              }}
-            >
-              {loading && !data && (
-                <p
-                  className="f-mono"
-                  style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}
-                >
-                  loading prompt…
-                </p>
-              )}
-              {err && (
-                <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
-                  error: {err}
-                </p>
-              )}
+        <span
+          aria-hidden="true"
+          style={{
+            display: "inline-flex",
+            width: 14,
+            height: 14,
+            color: "var(--ember)",
+            transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
+            transition: "transform 200ms cubic-bezier(.16,1,.3,1)",
+            flexShrink: 0,
+          }}
+        >
+          <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path
+              d="M1 1L5 5L9 1"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+        <span
+          className="f-mono"
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--ember)",
+          }}
+        >
+          Admin · live persona prompt
+        </span>
+        <span
+          className="f-sans"
+          style={{
+            marginLeft: "auto",
+            fontSize: 11,
+            color: "var(--ink-faint)",
+            fontStyle: "italic",
+          }}
+        >
+          watch the extractor learn
+        </span>
+      </button>
+      {expanded && (
+        <div>
+          <div
+            style={{
+              marginTop: 12,
+              padding: 16,
+              background: "var(--surface-low)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 12,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            {loading && !data && (
+              <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--ink-faint)" }}>
+                loading prompt…
+              </p>
+            )}
+            {err && (
+              <p className="f-mono" style={{ margin: 0, fontSize: 12, color: "var(--blood)" }}>
+                error: {err}
+              </p>
+            )}
 
-              {data && (
-                <>
-                  <DebugBlock
-                    label="Identity"
-                    value={`${data.context.userName || "(no preferred name)"}${
-                      data.context.fullName && data.context.fullName !== data.context.userName
-                        ? `  ·  ${data.context.fullName}`
-                        : ""
-                    }${data.context.pronouns ? `  ·  ${data.context.pronouns}` : ""}`}
-                  />
+            {data && (
+              <>
+                <DebugBlock
+                  label="Identity"
+                  value={`${data.context.userName || "(no preferred name)"}${
+                    data.context.fullName && data.context.fullName !== data.context.userName
+                      ? `  ·  ${data.context.fullName}`
+                      : ""
+                  }${data.context.pronouns ? `  ·  ${data.context.pronouns}` : ""}`}
+                />
 
-                  <DebugBlock
-                    label="Core profile (About You)"
-                    value={data.context.coreContext || "(empty)"}
-                    multiline
-                  />
+                <DebugBlock
+                  label="Core profile (About You)"
+                  value={data.context.coreContext || "(empty)"}
+                  multiline
+                />
 
-                  <DebugList
-                    label={`Confirmed facts the model already knows (${data.context.confirmedFacts.length})`}
-                    items={data.context.confirmedFacts}
-                    emptyText="None yet — facts confirmed via chat or pinned will appear here."
-                  />
+                <DebugList
+                  label={`Confirmed facts the model already knows (${data.context.confirmedFacts.length})`}
+                  items={data.context.confirmedFacts}
+                  emptyText="None yet — facts confirmed via chat or pinned will appear here."
+                />
 
-                  <div>
-                    <div
-                      className="f-sans"
+                <div>
+                  <div
+                    className="f-sans"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      color: "var(--ink-faint)",
+                      marginBottom: 4,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>Distilled skip rules</span>
+                    <Button
+                      type="button"
+                      onClick={distill}
+                      disabled={distilling}
+                      variant="outline"
+                      size="xs"
+                      className="rounded-full tracking-wider uppercase"
                       style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        color: "var(--ink-faint)",
-                        marginBottom: 4,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
+                        height: 22,
+                        fontSize: 10,
+                        background: "var(--ember-wash)",
+                        color: "var(--ember)",
+                        borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
                       }}
                     >
-                      <span>Distilled skip rules</span>
-                      <Button
-                        type="button"
-                        onClick={distill}
-                        disabled={distilling}
-                        variant="outline"
-                        size="xs"
-                        className="rounded-full tracking-wider uppercase"
+                      {distilling ? "Distilling…" : "Distill now"}
+                    </Button>
+                    {distillMsg && (
+                      <span
                         style={{
-                          height: 22,
                           fontSize: 10,
-                          background: "var(--ember-wash)",
-                          color: "var(--ember)",
-                          borderColor: "color-mix(in oklch, var(--ember) 30%, transparent)",
+                          fontWeight: 500,
+                          textTransform: "none",
+                          letterSpacing: 0,
+                          color: distillMsg.startsWith("Failed")
+                            ? "var(--blood)"
+                            : "var(--ink-faint)",
+                          fontStyle: "italic",
                         }}
                       >
-                        {distilling ? "Distilling…" : "Distill now"}
-                      </Button>
-                      {distillMsg && (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 500,
-                            textTransform: "none",
-                            letterSpacing: 0,
-                            color: distillMsg.startsWith("Failed")
-                              ? "var(--blood)"
-                              : "var(--ink-faint)",
-                            fontStyle: "italic",
-                          }}
-                        >
-                          {distillMsg}
-                        </span>
-                      )}
-                    </div>
-                    {data.context.rejectedSummary ? (
-                      <pre
-                        className="f-mono"
-                        style={{
-                          margin: 0,
-                          padding: 10,
-                          background: "var(--surface)",
-                          border: "1px solid var(--line-soft)",
-                          borderRadius: 8,
-                          fontSize: 12,
-                          color: "var(--ink-soft)",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                          lineHeight: 1.55,
-                        }}
-                      >
-                        {data.context.rejectedSummary}
-                      </pre>
-                    ) : (
-                      <div
-                        className="f-serif"
-                        style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
-                      >
-                        No distilled summary yet — happens automatically after ~20 rejections, or
-                        click <em>Distill now</em>.
-                      </div>
+                        {distillMsg}
+                      </span>
                     )}
                   </div>
-
-                  <DebugRejectedList
-                    label={`Recent specific rejections (${data.context.rejectedFacts.length})`}
-                    items={data.context.rejectedFacts}
-                    emptyText="No recent rejections. Mark facts as Not me and the most recent few appear here as concrete examples for the prompt."
-                  />
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <Button
-                      type="button"
-                      onClick={() => setShowRaw((v) => !v)}
-                      variant="outline"
-                      size="sm"
-                      style={{
-                        color: showRaw ? "var(--ember)" : "var(--ink-soft)",
-                        borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
-                      }}
-                    >
-                      {showRaw ? "Hide raw prompt" : "Show raw prompt"}
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => load()}
-                      disabled={loading}
-                      variant="outline"
-                      size="sm"
-                      style={{ color: "var(--ink-soft)" }}
-                    >
-                      {loading ? "Refreshing…" : "Refresh"}
-                    </Button>
-                    <span
-                      className="f-sans"
-                      style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
-                    >
-                      {data.prompt.length.toLocaleString()} chars
-                    </span>
-                  </div>
-
-                  {showRaw && (
+                  {data.context.rejectedSummary ? (
                     <pre
                       className="f-mono"
                       style={{
                         margin: 0,
-                        padding: 12,
+                        padding: 10,
                         background: "var(--surface)",
                         border: "1px solid var(--line-soft)",
                         borderRadius: 8,
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "var(--ink-soft)",
                         whiteSpace: "pre-wrap",
                         wordBreak: "break-word",
-                        maxHeight: 480,
-                        overflowY: "auto",
                         lineHeight: 1.55,
                       }}
                     >
-                      {data.prompt}
+                      {data.context.rejectedSummary}
                     </pre>
+                  ) : (
+                    <div
+                      className="f-serif"
+                      style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-faint)" }}
+                    >
+                      No distilled summary yet — happens automatically after ~20 rejections, or
+                      click <em>Distill now</em>.
+                    </div>
                   )}
-                </>
-              )}
-            </div>
-          </AccordionPrimitive.Content>
-        </AccordionPrimitive.Item>
-      </AccordionPrimitive.Root>
+                </div>
+
+                <DebugRejectedList
+                  label={`Recent specific rejections (${data.context.rejectedFacts.length})`}
+                  items={data.context.rejectedFacts}
+                  emptyText="No recent rejections. Mark facts as Not me and the most recent few appear here as concrete examples for the prompt."
+                />
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <Button
+                    type="button"
+                    onClick={() => setShowRaw((v) => !v)}
+                    variant="outline"
+                    size="sm"
+                    style={{
+                      color: showRaw ? "var(--ember)" : "var(--ink-soft)",
+                      borderColor: showRaw ? "var(--ember)" : "var(--line-soft)",
+                    }}
+                  >
+                    {showRaw ? "Hide raw prompt" : "Show raw prompt"}
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => load()}
+                    disabled={loading}
+                    variant="outline"
+                    size="sm"
+                    style={{ color: "var(--ink-soft)" }}
+                  >
+                    {loading ? "Refreshing…" : "Refresh"}
+                  </Button>
+                  <span
+                    className="f-sans"
+                    style={{ fontSize: 11, color: "var(--ink-faint)", marginLeft: "auto" }}
+                  >
+                    {data.prompt.length.toLocaleString()} chars
+                  </span>
+                </div>
+
+                {showRaw && (
+                  <pre
+                    className="f-mono"
+                    style={{
+                      margin: 0,
+                      padding: 12,
+                      background: "var(--surface)",
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      color: "var(--ink-soft)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      maxHeight: 480,
+                      overflowY: "auto",
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {data.prompt}
+                  </pre>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
