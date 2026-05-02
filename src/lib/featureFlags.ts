@@ -38,6 +38,11 @@ export const FEATURE_FLAGS = {
     icon: "≡",
     prodEnabled: import.meta.env.VITE_FEATURE_LISTS === "true",
   },
+  vaultTemplates: {
+    label: "Vault entry templates",
+    icon: "🗂",
+    prodEnabled: import.meta.env.VITE_FEATURE_VAULT_TEMPLATES === "true",
+  },
   extraThemes: {
     label: "Extra themes (Aurora, Atelier, Blueprint, Botanical, Newsprint, Zine)",
     icon: "🎨",

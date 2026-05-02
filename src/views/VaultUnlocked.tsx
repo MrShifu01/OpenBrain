@@ -12,6 +12,10 @@ import type { Entry } from "../types";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { getAdminFlags, isFeatureEnabled } from "../lib/featureFlags";
+import { getTemplateOrFreeform, type TemplateId, type VaultTemplate } from "../lib/vaultTemplates";
+import { VaultTemplatePicker } from "../components/vault/VaultTemplatePicker";
+import { VaultTemplateForm } from "../components/vault/VaultTemplateForm";
 
 type VaultOps = ReturnType<typeof useVaultOps>;
 
@@ -44,6 +48,7 @@ export function VaultUnlocked({
     setAddError,
     addBusy,
     handleAddSecret,
+    handleAddSecretWithTemplate,
     bulkDelete,
     toggleReveal,
     copyToClipboard,
@@ -54,6 +59,24 @@ export function VaultUnlocked({
   // Match the memory grid's grid/list toggle so the unlocked vault feels
   // like the same surface, just filtered to encrypted entries.
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const templatesEnabled = isFeatureEnabled("vaultTemplates", getAdminFlags());
+
+  // Picker → form state for the templates flow. Reset whenever the modal
+  // closes so reopening starts fresh on the picker step.
+  const [pickedTemplate, setPickedTemplate] = useState<TemplateId | null>(null);
+  const closeAddSecret = () => {
+    if (addBusy) return;
+    setShowAddSecret(false);
+    setPickedTemplate(null);
+  };
+
+  // Wrap startAddSecret so reopening the modal always lands on the picker
+  // step, even after a previous template was picked or saved.
+  const openAddSecret = () => {
+    setPickedTemplate(null);
+    startAddSecret();
+  };
 
   return (
     <div
@@ -114,7 +137,7 @@ export function VaultUnlocked({
                 </TabsTrigger>
               </TabsList>
             </Tabs>
-            <Button onClick={startAddSecret} size="sm">
+            <Button onClick={openAddSecret} size="sm">
               + Add secret
             </Button>
             <Button
@@ -262,32 +285,12 @@ export function VaultUnlocked({
                 </div>
 
                 {revealed ? (
-                  <div className="space-y-3 px-3 pb-3">
-                    <div
-                      className="rounded-xl border p-3"
-                      style={{
-                        background: "var(--color-surface-dim)",
-                        borderColor: "var(--color-outline-variant)",
-                      }}
-                    >
-                      <p className="text-on-surface font-mono text-sm break-all">{e.content}</p>
-                    </div>
-                    <div
-                      className="flex items-center gap-2 border-t pt-1"
-                      style={{ borderColor: "var(--color-outline-variant)" }}
-                    >
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        onClick={() => copyToClipboard(e.content || "", "Content copied")}
-                      >
-                        📋 Copy content
-                      </Button>
-                      <Button variant="outline" size="xs" onClick={() => onSelect(e)}>
-                        Edit
-                      </Button>
-                    </div>
-                  </div>
+                  <ShapedReveal
+                    entry={e}
+                    templatesEnabled={templatesEnabled}
+                    onCopy={copyToClipboard}
+                    onEdit={onSelect}
+                  />
                 ) : (
                   <div className="flex items-center gap-2 px-3 pb-3">
                     <span className="text-on-surface-variant text-sm tracking-widest">
@@ -336,7 +339,7 @@ export function VaultUnlocked({
         <div
           className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
           style={{ background: "var(--color-scrim)", padding: "12px 12px 0" }}
-          onClick={() => !addBusy && setShowAddSecret(false)}
+          onClick={closeAddSecret}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -359,7 +362,7 @@ export function VaultUnlocked({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => !addBusy && setShowAddSecret(false)}
+                  onClick={closeAddSecret}
                   aria-label="Close"
                   style={{ color: "var(--color-on-surface-variant)" }}
                 >
@@ -381,160 +384,339 @@ export function VaultUnlocked({
                 } as React.CSSProperties
               }
             >
-              <div className="space-y-1">
-                <label
-                  className="text-[11px] font-medium tracking-wide uppercase"
-                  style={{ color: "var(--color-on-surface-variant)" }}
-                >
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={addTitle}
-                  onChange={(e) => {
-                    setAddTitle(e.target.value);
-                    setAddError("");
-                  }}
-                  placeholder="e.g. Gmail password"
-                  className="text-on-surface placeholder:text-on-surface-variant w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
-                  style={{ borderColor: "var(--color-outline-variant)" }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  className="text-[11px] font-medium tracking-wide uppercase"
-                  style={{ color: "var(--color-on-surface-variant)" }}
-                >
-                  Secret value
-                </label>
-                <textarea
-                  value={addContent}
-                  onChange={(e) => {
-                    setAddContent(e.target.value);
-                    setAddError("");
-                  }}
-                  rows={3}
-                  placeholder="Password, key, card number, etc."
-                  className="text-on-surface placeholder:text-on-surface-variant w-full resize-none rounded-xl border bg-transparent px-3 py-2.5 font-mono text-sm transition-colors outline-none"
-                  style={{ borderColor: "var(--color-outline-variant)" }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label
-                  className="text-[11px] font-medium tracking-wide uppercase"
-                  style={{ color: "var(--color-on-surface-variant)" }}
-                >
-                  Tags (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={addTags}
-                  onChange={(e) => setAddTags(e.target.value)}
-                  placeholder="work, banking, 2fa"
-                  className="text-on-surface placeholder:text-on-surface-variant w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
-                  style={{ borderColor: "var(--color-outline-variant)" }}
-                  onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
-                  onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label
-                    className="text-[11px] font-medium tracking-wide uppercase"
-                    style={{ color: "var(--color-on-surface-variant)" }}
-                  >
-                    Extra fields
-                  </label>
-                  <Button
-                    variant="link"
-                    size="xs"
-                    onClick={() => setAddMetaRows((p) => [...p, { key: "", value: "" }])}
-                    className="px-0"
-                  >
-                    + Add field
-                  </Button>
-                </div>
-                {addMetaRows.map((row, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={row.key}
-                      onChange={(e) =>
-                        setAddMetaRows((p) =>
-                          p.map((r, idx) => (idx === i ? { ...r, key: e.target.value } : r)),
-                        )
-                      }
-                      placeholder="username"
-                      className="text-on-surface placeholder:text-on-surface-variant min-w-0 flex-1 rounded-xl border bg-transparent px-2.5 py-2 text-xs outline-none"
-                      style={{ borderColor: "var(--color-outline-variant)" }}
-                    />
-                    <input
-                      type="text"
-                      value={row.value}
-                      onChange={(e) =>
-                        setAddMetaRows((p) =>
-                          p.map((r, idx) => (idx === i ? { ...r, value: e.target.value } : r)),
-                        )
-                      }
-                      placeholder="value"
-                      className="text-on-surface placeholder:text-on-surface-variant min-w-0 flex-1 rounded-xl border bg-transparent px-2.5 py-2 text-xs outline-none"
-                      style={{ borderColor: "var(--color-outline-variant)" }}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => setAddMetaRows((p) => p.filter((_, idx) => idx !== i))}
-                      aria-label="Remove field"
-                      style={{ color: "var(--color-error)" }}
+              {templatesEnabled ? (
+                pickedTemplate === null ? (
+                  <VaultTemplatePicker onPick={setPickedTemplate} />
+                ) : (
+                  <VaultTemplateForm
+                    templateId={pickedTemplate}
+                    busy={addBusy}
+                    error={addError}
+                    onSubmit={(payload) => {
+                      void handleAddSecretWithTemplate(payload);
+                    }}
+                    onBack={() => setPickedTemplate(null)}
+                  />
+                )
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[11px] font-medium tracking-wide uppercase"
+                      style={{ color: "var(--color-on-surface-variant)" }}
                     >
-                      ✕
-                    </Button>
+                      Title
+                    </label>
+                    <input
+                      type="text"
+                      value={addTitle}
+                      onChange={(e) => {
+                        setAddTitle(e.target.value);
+                        setAddError("");
+                      }}
+                      placeholder="e.g. Gmail password"
+                      className="text-on-surface placeholder:text-on-surface-variant w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
+                      style={{ borderColor: "var(--color-outline-variant)" }}
+                      onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                      onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                    />
                   </div>
-                ))}
-              </div>
 
-              {addError && (
-                <p className="text-xs" style={{ color: "var(--color-error)" }}>
-                  {addError}
-                </p>
+                  <div className="space-y-1">
+                    <label
+                      className="text-[11px] font-medium tracking-wide uppercase"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      Secret value
+                    </label>
+                    <textarea
+                      value={addContent}
+                      onChange={(e) => {
+                        setAddContent(e.target.value);
+                        setAddError("");
+                      }}
+                      rows={3}
+                      placeholder="Password, key, card number, etc."
+                      className="text-on-surface placeholder:text-on-surface-variant w-full resize-none rounded-xl border bg-transparent px-3 py-2.5 font-mono text-sm transition-colors outline-none"
+                      style={{ borderColor: "var(--color-outline-variant)" }}
+                      onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                      onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label
+                      className="text-[11px] font-medium tracking-wide uppercase"
+                      style={{ color: "var(--color-on-surface-variant)" }}
+                    >
+                      Tags (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={addTags}
+                      onChange={(e) => setAddTags(e.target.value)}
+                      placeholder="work, banking, 2fa"
+                      className="text-on-surface placeholder:text-on-surface-variant w-full rounded-xl border bg-transparent px-3 py-2.5 text-sm transition-colors outline-none"
+                      style={{ borderColor: "var(--color-outline-variant)" }}
+                      onFocus={(e) => (e.target.style.borderColor = "var(--color-primary)")}
+                      onBlur={(e) => (e.target.style.borderColor = "var(--color-outline-variant)")}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label
+                        className="text-[11px] font-medium tracking-wide uppercase"
+                        style={{ color: "var(--color-on-surface-variant)" }}
+                      >
+                        Extra fields
+                      </label>
+                      <Button
+                        variant="link"
+                        size="xs"
+                        onClick={() => setAddMetaRows((p) => [...p, { key: "", value: "" }])}
+                        className="px-0"
+                      >
+                        + Add field
+                      </Button>
+                    </div>
+                    {addMetaRows.map((row, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={row.key}
+                          onChange={(e) =>
+                            setAddMetaRows((p) =>
+                              p.map((r, idx) => (idx === i ? { ...r, key: e.target.value } : r)),
+                            )
+                          }
+                          placeholder="username"
+                          className="text-on-surface placeholder:text-on-surface-variant min-w-0 flex-1 rounded-xl border bg-transparent px-2.5 py-2 text-xs outline-none"
+                          style={{ borderColor: "var(--color-outline-variant)" }}
+                        />
+                        <input
+                          type="text"
+                          value={row.value}
+                          onChange={(e) =>
+                            setAddMetaRows((p) =>
+                              p.map((r, idx) => (idx === i ? { ...r, value: e.target.value } : r)),
+                            )
+                          }
+                          placeholder="value"
+                          className="text-on-surface placeholder:text-on-surface-variant min-w-0 flex-1 rounded-xl border bg-transparent px-2.5 py-2 text-xs outline-none"
+                          style={{ borderColor: "var(--color-outline-variant)" }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => setAddMetaRows((p) => p.filter((_, idx) => idx !== i))}
+                          aria-label="Remove field"
+                          style={{ color: "var(--color-error)" }}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {addError && (
+                    <p className="text-xs" style={{ color: "var(--color-error)" }}>
+                      {addError}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 
-            <div
-              className="flex items-center gap-2 border-t p-3"
-              style={{
-                borderColor: "var(--color-outline-variant)",
-                flexShrink: 0,
-                paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
-              }}
-            >
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => !addBusy && setShowAddSecret(false)}
-                className="flex-1"
+            {!templatesEnabled && (
+              <div
+                className="flex items-center gap-2 border-t p-3"
+                style={{
+                  borderColor: "var(--color-outline-variant)",
+                  flexShrink: 0,
+                  paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))",
+                }}
               >
-                Cancel
-              </Button>
-              <Button
-                size="lg"
-                onClick={handleAddSecret}
-                disabled={addBusy || !addTitle.trim() || !addContent.trim()}
-                className="flex-1"
-              >
-                {addBusy ? "Encrypting..." : "🔒 Save secret"}
-              </Button>
-            </div>
+                <Button variant="outline" size="lg" onClick={closeAddSecret} className="flex-1">
+                  Cancel
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={handleAddSecret}
+                  disabled={addBusy || !addTitle.trim() || !addContent.trim()}
+                  className="flex-1"
+                >
+                  {addBusy ? "Encrypting..." : "🔒 Save secret"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Reveal block — switches between shaped (template) and flat (legacy) render.
+// Flag-off short-circuits to flat. Freeform template also renders flat (it
+// has no structured fields). Anything else gets labelled rows from the
+// template schema.
+function ShapedReveal({
+  entry,
+  templatesEnabled,
+  onCopy,
+  onEdit,
+}: {
+  entry: Entry;
+  templatesEnabled: boolean;
+  onCopy: (text: string, label?: string) => void;
+  onEdit: (entry: Entry) => void;
+}) {
+  const template: VaultTemplate | null = templatesEnabled
+    ? getTemplateOrFreeform(entry.metadata as Record<string, unknown> | undefined)
+    : null;
+  const isShaped = template && template.id !== "freeform";
+
+  return (
+    <div className="space-y-3 px-3 pb-3">
+      {isShaped ? (
+        <ShapedRows entry={entry} template={template} onCopy={onCopy} />
+      ) : (
+        <div
+          className="rounded-xl border p-3"
+          style={{
+            background: "var(--color-surface-dim)",
+            borderColor: "var(--color-outline-variant)",
+          }}
+        >
+          <p className="text-on-surface font-mono text-sm break-all">{entry.content}</p>
+        </div>
+      )}
+      <div
+        className="flex items-center gap-2 border-t pt-1"
+        style={{ borderColor: "var(--color-outline-variant)" }}
+      >
+        <Button
+          variant="outline"
+          size="xs"
+          onClick={() => onCopy(entry.content || "", "Content copied")}
+        >
+          📋 Copy {isShaped ? template!.primarySecretLabel.toLowerCase() : "content"}
+        </Button>
+        <Button variant="outline" size="xs" onClick={() => onEdit(entry)}>
+          Edit
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ShapedRows({
+  entry,
+  template,
+  onCopy,
+}: {
+  entry: Entry;
+  template: VaultTemplate;
+  onCopy: (text: string, label?: string) => void;
+}) {
+  const meta = (entry.metadata ?? {}) as Record<string, unknown>;
+  const primary = entry.content ?? "";
+  return (
+    <div
+      className="space-y-2 rounded-xl border p-3"
+      style={{
+        background: "var(--color-surface-dim)",
+        borderColor: "var(--color-outline-variant)",
+      }}
+    >
+      <ShapedRow
+        label={template.primarySecretLabel}
+        value={primary}
+        masked={template.primarySecretMasked}
+        copyable
+        multiline={template.primarySecretMultiline}
+        onCopy={onCopy}
+      />
+      {template.fields.map((field) => {
+        const raw = meta[field.key];
+        const value = typeof raw === "string" ? raw : "";
+        if (!value) return null;
+        return (
+          <ShapedRow
+            key={field.key}
+            label={field.label}
+            value={value}
+            masked={field.masked}
+            copyable={field.copyable}
+            multiline={field.inputType === "textarea"}
+            onCopy={onCopy}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+function ShapedRow({
+  label,
+  value,
+  masked,
+  copyable,
+  multiline,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  masked: boolean;
+  copyable: boolean;
+  multiline: boolean;
+  onCopy: (text: string, label?: string) => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const display = !masked || revealed ? value : "•".repeat(Math.min(value.length, 12));
+  return (
+    <div
+      className="flex items-start justify-between gap-2 border-b pb-2 last:border-0 last:pb-0"
+      style={{ borderColor: "var(--color-outline-variant)" }}
+    >
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <div
+          className="text-[10px] font-medium tracking-wide uppercase"
+          style={{ color: "var(--color-on-surface-variant)" }}
+        >
+          {label}
+        </div>
+        <div
+          className={`text-on-surface font-mono text-sm ${multiline ? "break-all whitespace-pre-wrap" : "break-all"}`}
+        >
+          {display || "—"}
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1">
+        {masked && (
+          <button
+            type="button"
+            onClick={() => setRevealed((r) => !r)}
+            className="press rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase"
+            style={{ color: "var(--color-primary)" }}
+            aria-label={revealed ? "Hide" : "Reveal"}
+          >
+            {revealed ? "Hide" : "Show"}
+          </button>
+        )}
+        {copyable && value && (
+          <button
+            type="button"
+            onClick={() => onCopy(value, `${label} copied`)}
+            className="press rounded-md px-2 py-0.5 text-[10px]"
+            style={{ color: "var(--color-on-surface-variant)" }}
+            aria-label={`Copy ${label}`}
+          >
+            📋
+          </button>
+        )}
+      </div>
     </div>
   );
 }

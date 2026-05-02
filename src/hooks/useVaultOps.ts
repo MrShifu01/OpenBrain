@@ -10,6 +10,7 @@ import {
   encryptVaultKeyForRecovery,
   decryptVaultKeyFromRecovery,
 } from "../lib/crypto";
+import type { TemplateId } from "../lib/vaultTemplates";
 import type { Entry } from "../types";
 
 interface VaultData {
@@ -280,6 +281,78 @@ export function useVaultOps({
     setAddBusy(false);
   }, [addTitle, addContent, addTags, addMetaRows, cryptoKey, brainId, onEntryCreated]);
 
+  // New path: template-shaped add. Coexists with handleAddSecret (legacy
+  // free-form path) so flag-off keeps working unchanged. Spec:
+  // docs/superpowers/specs/2026-05-02-vault-entry-templates-design.md
+  const handleAddSecretWithTemplate = useCallback(
+    async (payload: {
+      templateId: TemplateId;
+      title: string;
+      content: string;
+      metadataObj: Record<string, string>;
+      tags: string[];
+    }) => {
+      if (!cryptoKey) {
+        setAddError("Vault is locked");
+        return;
+      }
+      if (!payload.title.trim() || !payload.content.trim()) {
+        setAddError("Title and content are required");
+        return;
+      }
+      setAddBusy(true);
+      setAddError("");
+      try {
+        const metadata: Record<string, string> = {
+          template_type: payload.templateId,
+        };
+        for (const [k, v] of Object.entries(payload.metadataObj)) {
+          if (v && v.trim()) metadata[k] = v;
+        }
+        const plain = {
+          title: payload.title.trim(),
+          content: payload.content,
+          type: "secret" as const,
+          tags: payload.tags,
+          metadata,
+        };
+        const encrypted = await encryptEntry(plain, cryptoKey);
+        const res = await authFetch("/api/vault-entries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: plain.title,
+            content: encrypted.content,
+            metadata: typeof encrypted.metadata === "string" ? encrypted.metadata : "",
+            tags: payload.tags,
+            ...(brainId ? { brain_id: brainId } : {}),
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error || `HTTP ${res.status}`);
+        }
+        const result = await res.json().catch(() => null);
+        const newEntry: Entry = {
+          id: result?.id || Date.now().toString(),
+          title: plain.title,
+          content: plain.content,
+          type: "secret",
+          tags: payload.tags,
+          metadata,
+        };
+        setDecryptedSecrets((prev) => [newEntry, ...prev]);
+        onEntryCreated?.(newEntry);
+        resetAddForm();
+        setShowAddSecret(false);
+      } catch (e) {
+        setAddError(e instanceof Error ? e.message : "Failed to save secret");
+      }
+      setAddBusy(false);
+    },
+    [cryptoKey, brainId, onEntryCreated],
+  );
+
   const bulkDelete = useCallback(async () => {
     if (
       !confirm(
@@ -382,6 +455,7 @@ export function useVaultOps({
     handleUnlock,
     handleRecoveryUnlock,
     handleAddSecret,
+    handleAddSecretWithTemplate,
     bulkDelete,
     toggleReveal,
     copyToClipboard,
