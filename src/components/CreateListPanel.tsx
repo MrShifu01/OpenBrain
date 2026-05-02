@@ -117,7 +117,7 @@ export default function CreateListPanel({
       <DialogContent
         showCloseButton={false}
         aria-label="New list"
-        className="anim-scale-in-design relative max-h-[calc(100vh-32px)] !max-w-[min(560px,calc(100vw-32px))] overflow-y-auto !rounded-[18px]"
+        className="anim-scale-in-design max-h-[calc(100vh-32px)] !max-w-[min(560px,calc(100vw-32px))] overflow-y-auto !rounded-[18px]"
         style={{
           padding: "32px 32px 24px",
           background: "var(--surface-high)",
