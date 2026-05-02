@@ -1,23 +1,47 @@
+import { useMemo, useState } from "react";
+import type { Entry } from "../types";
 import FirstRunChecklist from "../components/FirstRunChecklist";
+import GreetingHero from "../components/home/GreetingHero";
+import TodayCard from "../components/home/TodayCard";
+import InboxTriageCard from "../components/home/InboxTriageCard";
+import RecentCapturesStrip from "../components/home/RecentCapturesStrip";
+import QuickCaptureChips from "../components/home/QuickCaptureChips";
 
 interface HomeViewProps {
-  entryCount: number;
+  entries: Entry[];
   brainCount: number;
   brainName?: string;
+  stagedCount: number;
   onNavigate: (view: string) => void;
   onOpenCapture: () => void;
+  onOpenCaptureWith: (initialText: string) => void;
   onCreateBrain: () => void;
+  onSelectEntry: (entry: Entry) => void;
 }
 
 export default function HomeView({
-  entryCount,
+  entries,
   brainCount,
   brainName,
+  stagedCount,
   onNavigate,
   onOpenCapture,
+  onOpenCaptureWith,
   onCreateBrain,
+  onSelectEntry,
 }: HomeViewProps) {
-  const greeting = brainName ? `welcome to ${brainName}.` : "welcome.";
+  // Cutoff is captured once on mount — keeps the "this week" tally stable
+  // across re-renders and satisfies the purity rule (no Date.now in render).
+  const [cutoff] = useState(() => Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const thisWeekCount = useMemo(
+    () =>
+      entries.filter((e) => {
+        if (!e.created_at) return false;
+        const t = new Date(e.created_at).getTime();
+        return !isNaN(t) && t >= cutoff;
+      }).length,
+    [entries, cutoff],
+  );
 
   return (
     <div
@@ -25,43 +49,32 @@ export default function HomeView({
       style={{
         maxWidth: 720,
         padding: "32px 20px 80px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
       }}
     >
-      <header style={{ marginBottom: 28 }}>
-        <h1
-          className="f-serif"
-          style={{
-            fontSize: 32,
-            fontWeight: 400,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.15,
-            color: "var(--ink)",
-            margin: 0,
-          }}
-        >
-          {greeting}
-        </h1>
-        <p
-          className="f-serif"
-          style={{
-            fontSize: 16,
-            fontStyle: "italic",
-            color: "var(--ink-soft)",
-            margin: "8px 0 0",
-            lineHeight: 1.5,
-          }}
-        >
-          the more your brain knows, the more it remembers for you.
-        </p>
-      </header>
+      <GreetingHero
+        thisWeekCount={thisWeekCount}
+        totalCount={entries.length}
+        brainName={brainName}
+      />
+
+      <TodayCard entries={entries} onNavigate={onNavigate} />
+
+      <InboxTriageCard stagedCount={stagedCount} onNavigate={onNavigate} />
 
       <FirstRunChecklist
-        entryCount={entryCount}
+        entryCount={entries.length}
         brainCount={brainCount}
         onNavigate={onNavigate}
         onOpenCapture={onOpenCapture}
         onCreateBrain={onCreateBrain}
       />
+
+      <RecentCapturesStrip entries={entries} onSelectEntry={onSelectEntry} />
+
+      <QuickCaptureChips onOpenCaptureWith={onOpenCaptureWith} />
     </div>
   );
 }

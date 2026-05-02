@@ -866,12 +866,15 @@ function EverionContent({
                 fallback={(error, reset) => <ViewError view="Home" error={error} onReset={reset} />}
               >
                 <HomeView
-                  entryCount={entries.length}
+                  entries={entries}
                   brainCount={brains.length}
                   brainName={activeBrain?.name}
+                  stagedCount={stagedCount}
                   onNavigate={appShell.setView}
                   onOpenCapture={() => appShell.setShowCapture(true)}
+                  onOpenCaptureWith={(text) => appShell.openCapture(text)}
                   onCreateBrain={() => appShell.setShowCreateBrain(true)}
+                  onSelectEntry={handleEntrySelect}
                 />
               </ErrorBoundary>
             )}

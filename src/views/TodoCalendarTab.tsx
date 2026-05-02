@@ -16,7 +16,7 @@
 //   - TodoCalendarChrome.tsx  → header, dots, day cell, month grid, panel, sheet, FAB
 //   - TodoCalendarEvent.tsx   → EventCard, EventEditor, DayDetailContent
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import type { Entry } from "../types";
 import { type ExternalCalEvent, toDateKey } from "./todoUtils";
@@ -31,13 +31,7 @@ import {
   externalToCalEvents,
   useIsDesktop,
 } from "./todoCalendarHelpers";
-import {
-  BottomSheet,
-  CalendarHeader,
-  FloatingActionButton,
-  MonthGrid,
-  SidePanel,
-} from "./TodoCalendarChrome";
+import { BottomSheet, CalendarHeader, MonthGrid, SidePanel } from "./TodoCalendarChrome";
 import { DayDetailContent, EventCard } from "./TodoCalendarEvent";
 
 interface Props {
@@ -64,7 +58,6 @@ export default function TodoCalendarTab({
   const [selectedKey, setSelectedKey] = useState<string | null>(todayKey);
   const [sheetOpen, setSheetOpen] = useState(false);
   const isDesktop = useIsDesktop(1024);
-  const quickAddRef = useRef<HTMLDivElement | null>(null);
 
   const year = navDate.getFullYear();
   const month = navDate.getMonth();
@@ -114,13 +107,6 @@ export default function TodoCalendarTab({
     if (!isDesktop) setSheetOpen(true);
   };
 
-  const handleAddClick = () => {
-    quickAddRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Focus the first input inside QuickAdd if one exists.
-    const input = quickAddRef.current?.querySelector("input, textarea") as HTMLElement | null;
-    setTimeout(() => input?.focus(), 250);
-  };
-
   // ── Render ──
   return (
     <div
@@ -133,9 +119,7 @@ export default function TodoCalendarTab({
         gap: 16,
       }}
     >
-      <div ref={quickAddRef}>
-        <QuickAdd brainId={brainId} onAdded={onAdded} />
-      </div>
+      <QuickAdd brainId={brainId} onAdded={onAdded} />
 
       {externalEvents.length === 0 && (
         <p
@@ -197,8 +181,6 @@ export default function TodoCalendarTab({
           )}
         </BottomSheet>
       )}
-
-      <FloatingActionButton onClick={handleAddClick} />
 
       <style>{`
         .cal-day:hover {
