@@ -16,6 +16,7 @@ import { getAdminFlags, isFeatureEnabled } from "../lib/featureFlags";
 import { getTemplateOrFreeform, type TemplateId, type VaultTemplate } from "../lib/vaultTemplates";
 import { VaultTemplatePicker } from "../components/vault/VaultTemplatePicker";
 import { VaultTemplateForm } from "../components/vault/VaultTemplateForm";
+import { buildVaultBackup, downloadVaultBackup } from "../lib/vaultBackup";
 
 type VaultOps = ReturnType<typeof useVaultOps>;
 
@@ -76,6 +77,29 @@ export function VaultUnlocked({
   const openAddSecret = () => {
     setPickedTemplate(null);
     startAddSecret();
+  };
+
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupNotice, setBackupNotice] = useState<{ kind: "ok" | "err"; text: string } | null>(
+    null,
+  );
+  const downloadBackup = async () => {
+    if (backupBusy) return;
+    setBackupBusy(true);
+    setBackupNotice(null);
+    try {
+      const backup = await buildVaultBackup();
+      downloadVaultBackup(backup);
+      setBackupNotice({
+        kind: "ok",
+        text: `Downloaded ${backup.entries.length} encrypted entries · open /decrypt.html to read offline.`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Backup failed";
+      setBackupNotice({ kind: "err", text: msg });
+    }
+    setBackupBusy(false);
+    setTimeout(() => setBackupNotice(null), 6000);
   };
 
   return (
@@ -154,6 +178,15 @@ export function VaultUnlocked({
             >
               {bulkMode ? "Cancel" : "Select"}
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={downloadBackup}
+              disabled={backupBusy}
+              title="Download an encrypted backup you can decrypt offline at /decrypt.html"
+            >
+              {backupBusy ? "Bundling…" : "↓ Backup"}
+            </Button>
             <Button variant="outline" size="sm" onClick={lockVault}>
               Lock
             </Button>
@@ -167,6 +200,19 @@ export function VaultUnlocked({
           style={{ color: "var(--color-primary)", background: "var(--color-primary-container)" }}
         >
           {copyMsg}
+        </div>
+      )}
+
+      {backupNotice && (
+        <div
+          className="rounded-xl px-3 py-2 text-center text-xs font-medium"
+          style={
+            backupNotice.kind === "ok"
+              ? { color: "var(--moss)", background: "var(--surface)" }
+              : { color: "var(--danger)", background: "var(--surface)" }
+          }
+        >
+          {backupNotice.text}
         </div>
       )}
 

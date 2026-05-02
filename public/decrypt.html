@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Everion · Offline vault decryption</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      :root {
+        --ember: #b45a2c;
+        --ink: #1a1611;
+        --ink-soft: #4d433a;
+        --ink-faint: #897b6d;
+        --bg: #f7f1e8;
+        --surface: #fffaf2;
+        --surface-low: #f1e8d8;
+        --line-soft: #e0d4be;
+        --danger: #b3261e;
+        --moss: #5a7a3d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.5;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 32px;
+        font-weight: 450;
+        letter-spacing: -0.015em;
+        margin: 0 0 8px;
+      }
+      .lede {
+        font-family: Georgia, serif;
+        font-style: italic;
+        color: var(--ink-soft);
+        margin: 0 0 24px;
+        font-size: 16px;
+      }
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 16px;
+      }
+      .panel h2 {
+        font-family: Georgia, serif;
+        font-size: 18px;
+        font-weight: 500;
+        margin: 0 0 12px;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 600;
+        color: var(--ink-soft);
+        margin: 12px 0 6px;
+      }
+      input[type="file"], input[type="password"], input[type="text"], textarea {
+        width: 100%;
+        font-family: inherit;
+        font-size: 14px;
+        padding: 10px 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        background: var(--surface-low);
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      input:focus, textarea:focus { border-color: var(--ember); }
+      textarea { font-family: ui-monospace, "SF Mono", Menlo, monospace; min-height: 120px; resize: vertical; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      button {
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        padding: 10px 16px;
+        border-radius: 999px;
+        border: 1px solid var(--ember);
+        background: var(--ember);
+        color: #fff;
+        cursor: pointer;
+        transition: filter 0.15s;
+      }
+      button:hover:not(:disabled) { filter: brightness(0.95); }
+      button:disabled { opacity: 0.4; cursor: not-allowed; }
+      button.secondary {
+        background: transparent;
+        color: var(--ember);
+      }
+      .status {
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-top: 12px;
+      }
+      .status.error { background: #f8d7d7; color: var(--danger); border: 1px solid #e8a8a8; }
+      .status.ok { background: #e3eddc; color: var(--moss); border: 1px solid #b9d099; }
+      .entries { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+      .entry {
+        background: var(--surface);
+        border: 1px solid var(--line-soft);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+      .entry-title { font-weight: 600; font-size: 16px; margin: 0 0 6px; }
+      .entry-meta { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px; }
+      .entry-content { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; white-space: pre-wrap; word-break: break-word; background: var(--surface-low); padding: 10px; border-radius: 8px; margin: 8px 0; }
+      .entry-meta-rows { display: grid; grid-template-columns: 140px 1fr; gap: 4px 12px; font-size: 13px; margin-top: 8px; }
+      .entry-meta-rows dt { font-weight: 600; color: var(--ink-soft); }
+      .entry-meta-rows dd { margin: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; word-break: break-word; }
+      .entry-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+      .entry-tag { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--surface-low); color: var(--ink-soft); }
+      .footer-note { color: var(--ink-faint); font-size: 12px; margin-top: 24px; }
+      details { margin-top: 8px; }
+      details summary { cursor: pointer; font-size: 13px; color: var(--ink-soft); }
+      details > div { margin-top: 8px; }
+      .toggle-row { display: flex; gap: 8px; margin-bottom: 8px; }
+      .toggle-row button {
+        flex: 1;
+        background: transparent;
+        color: var(--ink-soft);
+        border-color: var(--line-soft);
+      }
+      .toggle-row button.active {
+        background: var(--ember);
+        color: #fff;
+        border-color: var(--ember);
+      }
+      @media print {
+        button, .toggle-row, input[type="file"], .panel:first-of-type, .footer-note { display: none !important; }
+        body { background: #fff; }
+        .entry { break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Offline vault decryption</h1>
+      <p class="lede">
+        Runs entirely in your browser. No network calls. Save this page to disk and it works without
+        the internet — that's the promise on <a href="/privacy">/privacy</a>.
+      </p>
+
+      <div class="panel">
+        <h2>1 · Load your backup</h2>
+        <p style="margin: 0; color: var(--ink-soft); font-size: 13px;">
+          Either upload the JSON file you downloaded from Settings → Privacy → "Download offline
+          backup", or paste its contents.
+        </p>
+        <label for="file">Backup file (.json)</label>
+        <input type="file" id="file" accept="application/json,.json" />
+        <details>
+          <summary>Or paste JSON</summary>
+          <div>
+            <textarea id="paste" placeholder='{"version":"everion-vault-export-v1", ...}'></textarea>
+          </div>
+        </details>
+      </div>
+
+      <div class="panel">
+        <h2>2 · Unlock</h2>
+        <div class="toggle-row">
+          <button type="button" id="modePass" class="active">Master passphrase</button>
+          <button type="button" id="modeRecovery">Recovery key</button>
+        </div>
+        <div id="passField">
+          <label for="pass">Master passphrase</label>
+          <input type="password" id="pass" autocomplete="off" />
+        </div>
+        <div id="recoveryField" style="display: none;">
+          <label for="recovery">Recovery key (XXXX-XXXX-XXXX-XXXX-XXXX)</label>
+          <input type="text" id="recovery" autocomplete="off" />
+        </div>
+        <div class="row" style="margin-top: 16px;">
+          <button type="button" id="decryptBtn" disabled>🔓 Decrypt</button>
+          <button type="button" class="secondary" id="printBtn" disabled>🖨 Print</button>
+        </div>
+        <div id="status"></div>
+      </div>
+
+      <div id="entries" class="entries"></div>
+
+      <p class="footer-note">
+        Everion never sees your passphrase or recovery key. This page calls no servers and stores
+        nothing. Reload the tab to wipe everything.
+      </p>
+    </div>
+
+    <script type="module">
+      // ── Web Crypto helpers (ported verbatim from src/lib/crypto.ts) ──
+      const CIPHER = "AES-GCM";
+      const CIPHERTEXT_PREFIX = "v1:";
+      const VAULT_VERIFY_PLAINTEXT = "openbrain-vault-ok";
+
+      const hexToBytes = (hex) =>
+        new Uint8Array(hex.match(/.{2}/g).map((b) => parseInt(b, 16)));
+
+      async function deriveKey(passphrase, saltBytes) {
+        const material = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(passphrase),
+          { name: "PBKDF2" },
+          false,
+          ["deriveKey"],
+        );
+        return crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt: saltBytes, iterations: 310000, hash: "SHA-256" },
+          material,
+          { name: CIPHER, length: 256 },
+          true,
+          ["encrypt", "decrypt"],
+        );
+      }
+
+      async function decryptText(encoded, key) {
+        if (!encoded || !encoded.startsWith(CIPHERTEXT_PREFIX)) {
+          throw new Error("Not an encrypted value");
+        }
+        const inner = encoded.slice(CIPHERTEXT_PREFIX.length);
+        const colon = inner.indexOf(":");
+        const ivHex = inner.slice(0, colon);
+        const cipherB64 = inner.slice(colon + 1);
+        const iv = hexToBytes(ivHex);
+        const cipher = Uint8Array.from(atob(cipherB64), (c) => c.charCodeAt(0));
+        const buf = await crypto.subtle.decrypt({ name: CIPHER, iv }, key, cipher);
+        return new TextDecoder().decode(buf);
+      }
+
+      async function unlockWithPassphrase(passphrase, vault) {
+        const salt = hexToBytes(vault.salt);
+        const key = await deriveKey(passphrase, salt);
+        try {
+          const verify = await decryptText(vault.verify_token, key);
+          if (verify !== VAULT_VERIFY_PLAINTEXT) return null;
+          return key;
+        } catch {
+          return null;
+        }
+      }
+
+      async function unlockWithRecoveryKey(recoveryKey, vault) {
+        const blob = vault.recovery_blob;
+        if (!blob) throw new Error("Backup has no recovery blob");
+        const firstColon = blob.indexOf(":");
+        const saltHex = blob.slice(0, firstColon);
+        const cipher = blob.slice(firstColon + 1);
+        const salt = hexToBytes(saltHex);
+        const recoveryAes = await deriveKey(recoveryKey, salt);
+        try {
+          const rawB64 = await decryptText(cipher, recoveryAes);
+          const rawKey = Uint8Array.from(atob(rawB64), (c) => c.charCodeAt(0));
+          return await crypto.subtle.importKey("raw", rawKey, { name: CIPHER, length: 256 }, true, [
+            "encrypt",
+            "decrypt",
+          ]);
+        } catch {
+          return null;
+        }
+      }
+
+      // ── State + DOM wiring ──
+      const $ = (id) => document.getElementById(id);
+      let backup = null;
+      let mode = "pass";
+
+      function setStatus(text, kind) {
+        const el = $("status");
+        if (!text) {
+          el.innerHTML = "";
+          return;
+        }
+        el.className = "status " + (kind || "");
+        el.textContent = text;
+      }
+
+      function refreshDecryptButton() {
+        const ready =
+          backup &&
+          ((mode === "pass" && $("pass").value.trim().length > 0) ||
+            (mode === "recovery" && $("recovery").value.trim().length > 0));
+        $("decryptBtn").disabled = !ready;
+      }
+
+      function adoptBackup(parsed) {
+        try {
+          if (!parsed || parsed.version !== "everion-vault-export-v1") {
+            throw new Error("Wrong format — expected everion-vault-export-v1");
+          }
+          if (!parsed.vault?.salt || !parsed.vault?.verify_token) {
+            throw new Error("Backup is missing vault setup (salt / verify_token)");
+          }
+          if (!Array.isArray(parsed.entries)) {
+            throw new Error("Backup entries[] is missing");
+          }
+          backup = parsed;
+          setStatus(`Loaded ${parsed.entries.length} encrypted entries · ready to decrypt.`, "ok");
+        } catch (e) {
+          backup = null;
+          setStatus(e.message, "error");
+        }
+        refreshDecryptButton();
+      }
+
+      $("file").addEventListener("change", async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const text = await file.text();
+        try {
+          adoptBackup(JSON.parse(text));
+        } catch {
+          setStatus("File is not valid JSON", "error");
+        }
+      });
+      $("paste").addEventListener("input", (e) => {
+        const v = e.target.value.trim();
+        if (!v) return;
+        try {
+          adoptBackup(JSON.parse(v));
+        } catch {
+          setStatus("Pasted text is not valid JSON yet", "error");
+        }
+      });
+      $("pass").addEventListener("input", refreshDecryptButton);
+      $("recovery").addEventListener("input", refreshDecryptButton);
+
+      $("modePass").addEventListener("click", () => {
+        mode = "pass";
+        $("modePass").classList.add("active");
+        $("modeRecovery").classList.remove("active");
+        $("passField").style.display = "";
+        $("recoveryField").style.display = "none";
+        refreshDecryptButton();
+      });
+      $("modeRecovery").addEventListener("click", () => {
+        mode = "recovery";
+        $("modeRecovery").classList.add("active");
+        $("modePass").classList.remove("active");
+        $("passField").style.display = "none";
+        $("recoveryField").style.display = "";
+        refreshDecryptButton();
+      });
+
+      function renderEntry(entry, decryptedContent, decryptedMeta) {
+        const div = document.createElement("div");
+        div.className = "entry";
+        const titleEl = document.createElement("h3");
+        titleEl.className = "entry-title";
+        titleEl.textContent = entry.title || "(untitled)";
+        div.appendChild(titleEl);
+
+        if (entry.created_at) {
+          const meta = document.createElement("div");
+          meta.className = "entry-meta";
+          meta.textContent = new Date(entry.created_at).toLocaleString();
+          div.appendChild(meta);
+        }
+
+        const content = document.createElement("div");
+        content.className = "entry-content";
+        content.textContent = decryptedContent;
+        div.appendChild(content);
+
+        if (decryptedMeta && typeof decryptedMeta === "object") {
+          const keys = Object.keys(decryptedMeta).filter(
+            (k) => k !== "template_type" && decryptedMeta[k] != null && decryptedMeta[k] !== "",
+          );
+          if (keys.length > 0) {
+            const dl = document.createElement("dl");
+            dl.className = "entry-meta-rows";
+            for (const k of keys) {
+              const dt = document.createElement("dt");
+              dt.textContent = k.replace(/_/g, " ");
+              const dd = document.createElement("dd");
+              dd.textContent = String(decryptedMeta[k]);
+              dl.appendChild(dt);
+              dl.appendChild(dd);
+            }
+            div.appendChild(dl);
+          }
+          if (decryptedMeta.template_type) {
+            const meta = document.createElement("div");
+            meta.className = "entry-meta";
+            meta.style.marginTop = "8px";
+            meta.textContent = "Template: " + decryptedMeta.template_type;
+            div.appendChild(meta);
+          }
+        }
+
+        if (Array.isArray(entry.tags) && entry.tags.length > 0) {
+          const tags = document.createElement("div");
+          tags.className = "entry-tags";
+          for (const t of entry.tags) {
+            const span = document.createElement("span");
+            span.className = "entry-tag";
+            span.textContent = t;
+            tags.appendChild(span);
+          }
+          div.appendChild(tags);
+        }
+        return div;
+      }
+
+      $("decryptBtn").addEventListener("click", async () => {
+        if (!backup) return;
+        $("decryptBtn").disabled = true;
+        setStatus("Deriving key…", "");
+        try {
+          const key =
+            mode === "pass"
+              ? await unlockWithPassphrase($("pass").value, backup.vault)
+              : await unlockWithRecoveryKey($("recovery").value.trim().toUpperCase(), backup.vault);
+          if (!key) {
+            setStatus(
+              mode === "pass"
+                ? "Wrong passphrase — try again."
+                : "Recovery key failed — check it and try again.",
+              "error",
+            );
+            $("decryptBtn").disabled = false;
+            return;
+          }
+          setStatus("Decrypting entries…", "");
+          const container = $("entries");
+          container.innerHTML = "";
+          let ok = 0;
+          let failed = 0;
+          for (const entry of backup.entries) {
+            let content = "";
+            let meta = null;
+            try {
+              content = entry.content ? await decryptText(entry.content, key) : "";
+            } catch {
+              content = "[unable to decrypt content — wrong key?]";
+              failed++;
+            }
+            try {
+              if (entry.metadata && typeof entry.metadata === "string") {
+                const decoded = await decryptText(entry.metadata, key);
+                meta = JSON.parse(decoded);
+              }
+            } catch {
+              meta = null;
+            }
+            container.appendChild(renderEntry(entry, content, meta));
+            ok++;
+          }
+          setStatus(
+            `Decrypted ${ok} entr${ok === 1 ? "y" : "ies"}` +
+              (failed > 0 ? ` · ${failed} content blob${failed === 1 ? "" : "s"} failed` : "") +
+              ".",
+            failed > 0 ? "error" : "ok",
+          );
+          $("printBtn").disabled = false;
+        } catch (e) {
+          setStatus("Unexpected error: " + (e?.message || e), "error");
+        }
+        $("decryptBtn").disabled = false;
+      });
+
+      $("printBtn").addEventListener("click", () => window.print());
+    </script>
+  </body>
+</html>
