@@ -439,12 +439,35 @@ function MockGmailReviewSection() {
 }
 
 function DeveloperPreviewSection() {
-  function openLandingPreview() {
+  function openLandingPreview(heroVariant?: 1 | 2 | 3) {
     const url = new URL(window.location.href);
-    url.search = "?preview=landing";
+    url.search = heroVariant ? `?preview=landing&hero=${heroVariant}` : "?preview=landing";
     url.hash = "";
     window.open(url.toString(), "_blank", "noopener");
   }
+
+  // Each variant points at a webp the user drops into /public.
+  // Fallback gradient renders if the file is missing.
+  const VARIANTS: { id: 1 | 2 | 3; label: string; hint: string; path: string }[] = [
+    {
+      id: 1,
+      label: "Hero variant 1",
+      hint: "Man at desk · orbital memory cosmos.",
+      path: "/landing-hero-1.webp",
+    },
+    {
+      id: 2,
+      label: "Hero variant 2",
+      hint: "Laptop · floating UI cards extending out of screen.",
+      path: "/landing-hero-2.webp",
+    },
+    {
+      id: 3,
+      label: "Hero variant 3",
+      hint: "Woman touching a web of memory cards.",
+      path: "/landing-hero-3.webp",
+    },
+  ];
 
   return (
     <div
@@ -455,33 +478,85 @@ function DeveloperPreviewSection() {
           Developer previews
         </div>
         <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
-          Render screens that are normally gated behind auth state — useful for reviewing the
-          marketing surface without logging out.
+          Open the marketing surface in a new tab to compare hero variants. Each row points at a
+          different /public/landing-hero-N.webp file — drop the images at those paths to see them.
+          Sign-in clicks close the preview tab.
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "10px 14px",
-          background: "var(--surface-low)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: 8,
-        }}
-      >
-        <div style={{ minWidth: 0, paddingRight: 12 }}>
-          <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
-            Landing page
+      <div style={{ display: "grid", gap: 6 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 8,
+          }}
+        >
+          <div style={{ minWidth: 0, paddingRight: 12 }}>
+            <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+              Default landing
+            </div>
+            <div
+              className="f-sans"
+              style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}
+            >
+              /landing-hero.webp · gradient fallback if absent.
+            </div>
           </div>
-          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
-            Opens /?preview=landing in a new tab. Sign-in clicks close the tab.
-          </div>
+          <Button
+            onClick={() => openLandingPreview()}
+            variant="outline"
+            size="xs"
+            className="rounded-full"
+          >
+            Open ↗
+          </Button>
         </div>
-        <Button onClick={openLandingPreview} variant="outline" size="xs" className="rounded-full">
-          Open preview ↗
-        </Button>
+
+        {VARIANTS.map((v) => (
+          <div
+            key={v.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 14px",
+              background: "var(--surface-low)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 8,
+            }}
+          >
+            <div style={{ minWidth: 0, paddingRight: 12 }}>
+              <div
+                className="f-sans"
+                style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+              >
+                {v.label}
+              </div>
+              <div
+                className="f-sans"
+                style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}
+              >
+                {v.hint}{" "}
+                <span style={{ fontFamily: "var(--f-mono)", color: "var(--ink-ghost)" }}>
+                  {v.path}
+                </span>
+              </div>
+            </div>
+            <Button
+              onClick={() => openLandingPreview(v.id)}
+              variant="outline"
+              size="xs"
+              className="rounded-full"
+            >
+              Open ↗
+            </Button>
+          </div>
+        ))}
       </div>
     </div>
   );

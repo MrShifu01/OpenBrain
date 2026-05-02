@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface LandingHeroProps {
   onAuth: (mode: "login" | "signup") => void;
@@ -9,11 +9,20 @@ interface LandingHeroProps {
 // (Everion + ember dot, var(--f-serif)) is preserved exactly — only the
 // scale and the surrounding negative space change.
 //
-// To swap in a real photo: drop a webp into public/landing-hero.webp and the
-// <img> below picks it up automatically. Falls back to the layered gradient
-// if the file is missing (handled by onError → display:none).
+// Photo source: by default loads /landing-hero.webp. The admin preview hatch
+// passes ?hero=1|2|3 in the URL to compare alternates — drop those at
+// /public/landing-hero-1.webp, /landing-hero-2.webp, /landing-hero-3.webp.
+// Falls back to the layered gradient if the file is missing.
+function pickPhotoSrc(): string {
+  if (typeof window === "undefined") return "/landing-hero.webp";
+  const v = new URLSearchParams(window.location.search).get("hero");
+  if (v === "1" || v === "2" || v === "3") return `/landing-hero-${v}.webp`;
+  return "/landing-hero.webp";
+}
+
 export default function LandingHero({ onAuth }: LandingHeroProps) {
   const [photoFailed, setPhotoFailed] = useState(false);
+  const photoSrc = useMemo(() => pickPhotoSrc(), []);
 
   return (
     <section
@@ -38,7 +47,7 @@ export default function LandingHero({ onAuth }: LandingHeroProps) {
     >
       {!photoFailed && (
         <img
-          src="/landing-hero.webp"
+          src={photoSrc}
           alt=""
           aria-hidden="true"
           decoding="async"
