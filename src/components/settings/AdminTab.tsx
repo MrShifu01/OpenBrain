@@ -438,6 +438,55 @@ function MockGmailReviewSection() {
   );
 }
 
+function DeveloperPreviewSection() {
+  function openLandingPreview() {
+    const url = new URL(window.location.href);
+    url.search = "?preview=landing";
+    url.hash = "";
+    window.open(url.toString(), "_blank", "noopener");
+  }
+
+  return (
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
+      <div style={{ marginBottom: 14 }}>
+        <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+          Developer previews
+        </div>
+        <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          Render screens that are normally gated behind auth state — useful for reviewing the
+          marketing surface without logging out.
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          background: "var(--surface-low)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: 8,
+        }}
+      >
+        <div style={{ minWidth: 0, paddingRight: 12 }}>
+          <div className="f-sans" style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+            Landing page
+          </div>
+          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            Opens /?preview=landing in a new tab. Sign-in clicks close the tab.
+          </div>
+        </div>
+        <Button onClick={openLandingPreview} variant="outline" size="xs" className="rounded-full">
+          Open preview ↗
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AdminDisplaySection() {
   const [prefs, setPrefs] = useState<AdminPrefs>(getAdminPrefs);
 
@@ -1117,6 +1166,7 @@ export default function AdminTab() {
     <div>
       <AdminCRMSection />
       <TierChanger />
+      <DeveloperPreviewSection />
       <PushTestSection />
       <DailySummarySection />
       <ScheduleInspectorSection />
