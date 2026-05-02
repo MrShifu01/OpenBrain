@@ -77,6 +77,7 @@ import { isFeatureEnabled, FEATURE_FLAGS, type FeatureFlagKey } from "./lib/feat
 import { syncTimezoneIfChanged } from "./lib/syncTimezone";
 import { supabase } from "./lib/supabase";
 import { trackNavViewActive } from "./lib/events";
+import { AppLockGate } from "./components/AppLockGate";
 
 // Retry dynamic imports once on failure (stale chunk hash after deploy)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1201,37 +1202,39 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
           <BackgroundOpsProvider>
             <TooltipProvider delayDuration={400}>
               <Toaster position="bottom-center" />
-              <EverionContent
-                appShell={appShell}
-                cryptoKey={dataLayer.cryptoKey}
-                handleVaultUnlock={dataLayer.handleVaultUnlock}
-                handleCreated={dataLayer.handleCreated}
-                handleCreatedBulk={dataLayer.handleCreatedBulk}
-                lastAction={dataLayer.lastAction}
-                setLastAction={dataLayer.setLastAction}
-                saveError={dataLayer.saveError}
-                setSaveError={dataLayer.setSaveError}
-                handleUndo={dataLayer.handleUndo}
-                commitPendingDelete={dataLayer.commitPendingDelete}
-                setEntries={dataLayer.setEntries}
-                isOnline={isOnline}
-                pendingCount={pendingCount}
-                failedOps={failedOps}
-                clearFailedOps={clearFailedOps}
-                canWrite={canWrite}
-                nudge={nudge}
-                setNudge={setNudge}
-                bgTasks={bgTasks}
-                bgProcessFiles={bgProcessFiles}
-                bgQueueDirectSave={bgQueueDirectSave}
-                bgDismissTask={bgDismissTask}
-                bgDismissAll={bgDismissAll}
-                filtered={filtered}
-                sortedTimeline={sortedTimeline}
-                availableEntryTypes={availableEntryTypes}
-                vaultEntries={dataLayer.vaultEntries}
-                loadError={dataLayer.loadError}
-              />
+              <AppLockGate>
+                <EverionContent
+                  appShell={appShell}
+                  cryptoKey={dataLayer.cryptoKey}
+                  handleVaultUnlock={dataLayer.handleVaultUnlock}
+                  handleCreated={dataLayer.handleCreated}
+                  handleCreatedBulk={dataLayer.handleCreatedBulk}
+                  lastAction={dataLayer.lastAction}
+                  setLastAction={dataLayer.setLastAction}
+                  saveError={dataLayer.saveError}
+                  setSaveError={dataLayer.setSaveError}
+                  handleUndo={dataLayer.handleUndo}
+                  commitPendingDelete={dataLayer.commitPendingDelete}
+                  setEntries={dataLayer.setEntries}
+                  isOnline={isOnline}
+                  pendingCount={pendingCount}
+                  failedOps={failedOps}
+                  clearFailedOps={clearFailedOps}
+                  canWrite={canWrite}
+                  nudge={nudge}
+                  setNudge={setNudge}
+                  bgTasks={bgTasks}
+                  bgProcessFiles={bgProcessFiles}
+                  bgQueueDirectSave={bgQueueDirectSave}
+                  bgDismissTask={bgDismissTask}
+                  bgDismissAll={bgDismissAll}
+                  filtered={filtered}
+                  sortedTimeline={sortedTimeline}
+                  availableEntryTypes={availableEntryTypes}
+                  vaultEntries={dataLayer.vaultEntries}
+                  loadError={dataLayer.loadError}
+                />
+              </AppLockGate>
             </TooltipProvider>
           </BackgroundOpsProvider>
         </ConceptGraphProvider>

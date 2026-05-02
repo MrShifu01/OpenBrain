@@ -2,6 +2,7 @@ import { useState } from "react";
 import { getStoredPinHash, verifyPin, setupPin, clearStoredPin } from "../../lib/pin";
 import SettingsRow from "./SettingsRow";
 import { Button } from "../ui/button";
+import { AppLockSection } from "./AppLockSection";
 
 type Mode =
   | "idle"
@@ -223,6 +224,8 @@ export default function SecurityTab() {
           {success}
         </p>
       )}
+
+      <AppLockSection />
     </div>
   );
 }
