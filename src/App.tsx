@@ -388,6 +388,22 @@ function AppMain({ initialAuthIntent }: AppProps = {}): JSX.Element {
   const isAdmin =
     (session.user?.app_metadata as { is_admin?: boolean } | undefined)?.is_admin === true;
 
+  // Admin preview hatch: ?preview=landing renders the marketing page even
+  // for signed-in users so the developer can review it without logging out.
+  // Sign-in / Sign-up clicks become a no-op + close-tab hint.
+  const previewLanding = new URLSearchParams(window.location.search).get("preview") === "landing";
+  if (previewLanding && isAdmin) {
+    return (
+      <ThemeProvider>
+        <Landing
+          onAuth={() => {
+            window.close();
+          }}
+        />
+      </ThemeProvider>
+    );
+  }
+
   if (isAdminRoute) {
     if (!isAdmin) {
       window.location.replace("/");
