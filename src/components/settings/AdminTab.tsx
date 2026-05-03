@@ -592,6 +592,20 @@ interface HealthSnapshot {
   groq: boolean;
   error: string | null;
 }
+interface SentryIssue {
+  id: string;
+  title: string;
+  count: string;
+  userCount: number;
+  lastSeen: string;
+  permalink: string;
+}
+interface SentrySnapshot {
+  configured: boolean;
+  issues: SentryIssue[];
+  missing?: string[];
+  error?: string;
+}
 
 function relTime(iso: string): string {
   const d = new Date(iso);
@@ -627,9 +641,15 @@ function DebugDashboardSection() {
   const [ci, setCi] = useState<CIRun | null>(null);
   const [commits, setCommits] = useState<RecentCommit[]>([]);
   const [health, setHealth] = useState<HealthSnapshot | null>(null);
+  const [sentry, setSentry] = useState<SentrySnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<number | null>(null);
-  const [errors, setErrors] = useState<{ ci?: string; commits?: string; health?: string }>({});
+  const [errors, setErrors] = useState<{
+    ci?: string;
+    commits?: string;
+    health?: string;
+    sentry?: string;
+  }>({});
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -707,10 +727,26 @@ function DebugDashboardSection() {
         } satisfies HealthSnapshot;
       });
 
-    const [ciResult, commitsResult, healthResult] = await Promise.all([ciP, commitsP, healthP]);
+    const sentryP = authFetch("/api/user-data?resource=sentry_issues")
+      .then(async (r) => {
+        if (!r?.ok) throw new Error(`HTTP ${r?.status ?? "?"}`);
+        return (await r.json()) as SentrySnapshot;
+      })
+      .catch((e: Error) => {
+        setErrors((prev) => ({ ...prev, sentry: e.message }));
+        return { configured: false, issues: [] } as SentrySnapshot;
+      });
+
+    const [ciResult, commitsResult, healthResult, sentryResult] = await Promise.all([
+      ciP,
+      commitsP,
+      healthP,
+      sentryP,
+    ]);
     setCi(ciResult);
     setCommits(commitsResult);
     setHealth(healthResult);
+    setSentry(sentryResult);
     setLastRefresh(Date.now());
     setLoading(false);
   }, []);
@@ -987,10 +1023,123 @@ function DebugDashboardSection() {
       </div>
 
       <div
+        style={{
+          display: "grid",
+          gap: 8,
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          marginTop: 8,
+        }}
+      >
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            className="f-sans"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Sentry · top issues 24h
+          </div>
+          {!sentry ? (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              {loading ? "loading…" : errors.sentry || "no data"}
+            </div>
+          ) : !sentry.configured ? (
+            <div
+              className="f-sans"
+              style={{ fontSize: 12, color: "var(--ink-soft)", lineHeight: 1.45 }}
+            >
+              Configure {sentry.missing?.join(", ")} in Vercel env to enable.{" "}
+              <a
+                href="https://sentry.io/settings/account/api/auth-tokens/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--ember)" }}
+              >
+                Get token ↗
+              </a>
+            </div>
+          ) : sentry.error ? (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--blood)" }}>
+              {sentry.error}
+            </div>
+          ) : sentry.issues.length === 0 ? (
+            <div
+              className="f-sans"
+              style={{
+                fontSize: 12,
+                color: "var(--ink-soft)",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <StatusDot ok={true} />
+              no unresolved issues
+            </div>
+          ) : (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              {sentry.issues.map((i) => (
+                <li key={i.id}>
+                  <a
+                    href={i.permalink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="f-sans"
+                    style={{ display: "block", textDecoration: "none", color: "var(--ink)" }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <StatusDot ok={false} />
+                      {i.title}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--ink-faint)",
+                        marginTop: 1,
+                        marginLeft: 16,
+                      }}
+                    >
+                      {i.count} events · {i.userCount} users · {relTime(i.lastSeen)}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div
         className="f-sans"
         style={{ fontSize: 11, color: "var(--ink-ghost)", marginTop: 8, fontStyle: "italic" }}
       >
-        Sentry / Vercel-token tiles are deferred — wire SENTRY_TOKEN + VERCEL_TOKEN to enable.
+        Vercel-token tile (function 5xx logs) deferred — needs VERCEL_TOKEN + project ID.
       </div>
     </div>
   );

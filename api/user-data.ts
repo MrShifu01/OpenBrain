@@ -95,6 +95,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
 
   if (resource === "activity") return handleActivity(req, res);
   if (resource === "health") return handleHealth(req, res);
+  if (resource === "sentry_issues") return handleSentryIssues(req, res);
   if (resource === "status") return handlePublicStatus(req, res);
   if (resource === "vault") return handleVault(req, res);
   if (resource === "vault_entries") return handleVaultEntries(req, res);
@@ -854,6 +855,78 @@ const handleHealth = withAuth(
       groq,
       upstash,
     });
+  },
+);
+
+// ── Sentry issues read-API proxy (admin debug dashboard) ──
+// Sentry's API token can't live in the browser, so the dashboard tile
+// hits this proxy instead. Requires three env vars in Vercel:
+//   SENTRY_AUTH_TOKEN — Settings → Account → API → Auth Tokens (scope: project:read)
+//   SENTRY_ORG        — slug of the org (e.g. "everion")
+//   SENTRY_PROJECT    — slug of the project (e.g. "everion-web")
+// Returns { configured, issues: [{ id, title, count, userCount, lastSeen, permalink }] }.
+// `configured: false` lets the tile render an instructive empty state
+// rather than a 500 — same pattern handleHealth uses for Gemini/Groq.
+const handleSentryIssues = withAuth(
+  { methods: ["GET"], rateLimit: 20 },
+  async ({ res }) => {
+    const token = (process.env.SENTRY_AUTH_TOKEN || "").trim();
+    const org = (process.env.SENTRY_ORG || "").trim();
+    const project = (process.env.SENTRY_PROJECT || "").trim();
+
+    if (!token || !org || !project) {
+      res.status(200).json({
+        configured: false,
+        issues: [],
+        missing: [
+          !token && "SENTRY_AUTH_TOKEN",
+          !org && "SENTRY_ORG",
+          !project && "SENTRY_PROJECT",
+        ].filter(Boolean),
+      });
+      return;
+    }
+
+    try {
+      const url = `https://sentry.io/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(project)}/issues/?query=is%3Aunresolved&statsPeriod=24h&sort=freq&limit=5`;
+      const r = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        const detail = await r.text().catch(() => "");
+        res.status(200).json({
+          configured: true,
+          issues: [],
+          error: `Sentry HTTP ${r.status}: ${detail.slice(0, 200)}`,
+        });
+        return;
+      }
+      const arr = (await r.json()) as Array<{
+        id: string;
+        title: string;
+        count: string;
+        userCount: number;
+        lastSeen: string;
+        permalink: string;
+      }>;
+      res.status(200).json({
+        configured: true,
+        issues: arr.map((i) => ({
+          id: i.id,
+          title: i.title,
+          count: i.count,
+          userCount: i.userCount,
+          lastSeen: i.lastSeen,
+          permalink: i.permalink,
+        })),
+      });
+    } catch (err) {
+      res.status(200).json({
+        configured: true,
+        issues: [],
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   },
 );
 
