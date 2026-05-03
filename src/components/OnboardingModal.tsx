@@ -17,8 +17,8 @@ const EXAMPLES = [
     text: "the customer kept saying 'we just need it to not break during month-end' — that's the real pitch",
   },
   {
-    label: "the gate code",
-    text: "gate code for Mom's place is 4471 · alarm panic word 'rooibos'",
+    label: "a recipe to remember",
+    text: "Mom's chocolate cake — 200g dark chocolate, 175g butter, 4 eggs · bake 25 min at 180°C",
   },
   {
     label: "a renewal date",

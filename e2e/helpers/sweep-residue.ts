@@ -100,7 +100,10 @@ export async function sweepE2EResidue(deps: SweepDeps): Promise<SweepResult> {
     {
       name: "entries",
       table: "entries",
-      filter: `&${userScope}&or=(title.ilike.*e2e-*,content.ilike.*e2e-*,tags.cs.{e2e},metadata->>e2e_test.eq.true)`,
+      // Last clause catches the onboarding "Mom's chocolate cake" example —
+      // not e2e-tagged but uniquely recognisable. If we change the example
+      // again, drop this clause.
+      filter: `&${userScope}&or=(title.ilike.*e2e-*,content.ilike.*e2e-*,tags.cs.{e2e},metadata->>e2e_test.eq.true,title.ilike.*Mom%27s%20chocolate%20cake*)`,
       scopeFilter: userScope,
     },
     {

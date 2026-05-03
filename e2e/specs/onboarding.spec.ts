@@ -13,6 +13,7 @@ import { trackConsole } from "../helpers/console";
 // non-deterministically and we don't want users stranded.
 test("onboarding gates on localStorage and stays dismissed after first-capture + Skip", async ({
   page,
+  request,
 }) => {
   const noise = trackConsole(page);
 
@@ -36,25 +37,73 @@ test("onboarding gates on localStorage and stays dismissed after first-capture +
   // Mandatory step: Skip must NOT be present on step 1.
   await expect(modal.getByRole("button", { name: /^skip$/i })).toHaveCount(0);
 
+  // Capture the entry id from the /api/capture response so finally{} can
+  // hard-delete it. Without this the onboarding example sits in the
+  // admin's brain forever — there's no e2e- prefix on the title and the
+  // residue sweep would miss it.
+  const captureResponsePromise = page.waitForResponse(
+    (r) => r.url().includes("/api/capture") && r.request().method() === "POST",
+  );
+
   // Trigger the first capture so we move past the mandatory gate. Tap a
   // pre-filled example chip rather than typing — keeps the test fast and
-  // avoids racing the textarea onChange handler.
-  await modal.getByRole("button", { name: /the gate code/i }).click();
+  // avoids racing the textarea onChange handler. Picked a non-secret
+  // example so the entry, even if cleanup somehow fails, never carries
+  // sensitive content.
+  await modal.getByRole("button", { name: /a recipe to remember/i }).click();
   await modal.getByRole("button", { name: /save & continue/i }).click();
 
-  // After at least one capture the Skip control re-appears so the user
-  // can bail out without going through the AI demo (network-dependent).
-  const skipBtn = modal.getByRole("button", { name: /^skip$/i });
-  await expect(skipBtn).toBeVisible();
-  await skipBtn.click();
-  await expect(modal).toHaveCount(0);
+  let createdEntryId: string | null = null;
+  try {
+    const captureResponse = await captureResponsePromise;
+    const data = await captureResponse.json().catch(() => null);
+    createdEntryId = (data?.entry?.id as string | undefined) ?? null;
+  } catch {
+    /* best-effort — finally{} below still runs */
+  }
 
-  const flag = await page.evaluate(() => localStorage.getItem("everion_onboarded"));
-  expect(flag).toBe("1");
+  try {
+    // After at least one capture the Skip control re-appears so the user
+    // can bail out without going through the AI demo (network-dependent).
+    const skipBtn = modal.getByRole("button", { name: /^skip$/i });
+    await expect(skipBtn).toBeVisible();
+    await skipBtn.click();
+    await expect(modal).toHaveCount(0);
 
-  // The actual regression: the modal coming back on the next visit.
-  await page.reload();
-  await expect(page.getByRole("dialog", { name: /onboarding/i })).toHaveCount(0);
+    const flag = await page.evaluate(() => localStorage.getItem("everion_onboarded"));
+    expect(flag).toBe("1");
 
-  noise.assertNoNew();
+    // The actual regression: the modal coming back on the next visit.
+    await page.reload();
+    await expect(page.getByRole("dialog", { name: /onboarding/i })).toHaveCount(0);
+
+    noise.assertNoNew();
+  } finally {
+    // Hard-delete the onboarding capture so it doesn't sit in the admin's
+    // brain. Uses the in-page session token (we're already signed in).
+    if (createdEntryId) {
+      const token = await page.evaluate(() => {
+        const url = (
+          (import.meta as unknown as { env?: { VITE_SUPABASE_URL?: string } }).env
+            ?.VITE_SUPABASE_URL ?? ""
+        ).replace(/^https?:\/\//, "");
+        const ref = url.split(".")[0];
+        const raw = localStorage.getItem(`sb-${ref}-auth-token`);
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw) as { access_token?: string };
+          return parsed.access_token ?? null;
+        } catch {
+          return null;
+        }
+      });
+      if (token) {
+        await request
+          .delete(`/api/delete-entry?id=${encodeURIComponent(createdEntryId)}&permanent=true`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+          .catch(() => {});
+      }
+    }
+  }
 });
