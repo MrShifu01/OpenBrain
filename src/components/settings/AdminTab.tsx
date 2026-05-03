@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
@@ -557,6 +557,440 @@ function DeveloperPreviewSection() {
             </Button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Minimal cross-system debug dashboard. Three live tiles — CI run, recent
+// commits, backend health — all using existing endpoints + GitHub's public
+// API (no new tokens needed). Sentry/Vercel-log tiles are deferred until
+// the corresponding env vars are wired.
+const GH_REPO = "MrShifu01/EverionMind";
+const REFRESH_MS = 30_000;
+
+interface CIRun {
+  status: string;
+  conclusion: string | null;
+  name: string;
+  createdAt: string;
+  url: string;
+  msg: string;
+}
+interface RecentCommit {
+  sha: string;
+  msg: string;
+  author: string;
+  date: string;
+  url: string;
+}
+interface HealthSnapshot {
+  ok: boolean;
+  latencyMs: number;
+  db: boolean;
+  gemini: boolean;
+  groq: boolean;
+  error: string | null;
+}
+
+function relTime(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const ms = Date.now() - d.getTime();
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  return `${days}d ago`;
+}
+
+function StatusDot({ ok }: { ok: boolean | null }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: ok === null ? "var(--ink-ghost)" : ok ? "var(--moss)" : "var(--blood)",
+        marginRight: 8,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function DebugDashboardSection() {
+  const [ci, setCi] = useState<CIRun | null>(null);
+  const [commits, setCommits] = useState<RecentCommit[]>([]);
+  const [health, setHealth] = useState<HealthSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState<number | null>(null);
+  const [errors, setErrors] = useState<{ ci?: string; commits?: string; health?: string }>({});
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setErrors({});
+    const ciP = fetch(
+      `https://api.github.com/repos/${GH_REPO}/actions/runs?branch=main&per_page=1`,
+      { headers: { Accept: "application/vnd.github+json" } },
+    )
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const run = d?.workflow_runs?.[0];
+        if (!run) return null;
+        return {
+          status: run.status as string,
+          conclusion: (run.conclusion ?? null) as string | null,
+          name: (run.name ?? "workflow") as string,
+          createdAt: run.created_at as string,
+          url: run.html_url as string,
+          msg: (run.head_commit?.message ?? "").split("\n")[0] as string,
+        } satisfies CIRun;
+      })
+      .catch((e: Error) => {
+        setErrors((prev) => ({ ...prev, ci: e.message }));
+        return null;
+      });
+
+    const commitsP = fetch(`https://api.github.com/repos/${GH_REPO}/commits?sha=main&per_page=3`, {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const arr = (await r.json()) as Array<{
+          sha: string;
+          html_url: string;
+          commit: { message: string; author: { name: string; date: string } };
+        }>;
+        return arr.map((c) => ({
+          sha: c.sha.slice(0, 7),
+          msg: (c.commit.message ?? "").split("\n")[0],
+          author: c.commit.author?.name ?? "unknown",
+          date: c.commit.author?.date ?? "",
+          url: c.html_url,
+        }));
+      })
+      .catch((e: Error) => {
+        setErrors((prev) => ({ ...prev, commits: e.message }));
+        return [] as RecentCommit[];
+      });
+
+    const t0 = Date.now();
+    const healthP = authFetch("/api/user-data?resource=health")
+      .then(async (r) => {
+        const latencyMs = Date.now() - t0;
+        if (!r?.ok) throw new Error(`HTTP ${r?.status ?? "?"}`);
+        const d = await r.json();
+        return {
+          ok: Boolean(d?.db && d?.gemini),
+          latencyMs,
+          db: Boolean(d?.db),
+          gemini: Boolean(d?.gemini),
+          groq: Boolean(d?.groq),
+          error: null,
+        } satisfies HealthSnapshot;
+      })
+      .catch((e: Error) => {
+        setErrors((prev) => ({ ...prev, health: e.message }));
+        return {
+          ok: false,
+          latencyMs: Date.now() - t0,
+          db: false,
+          gemini: false,
+          groq: false,
+          error: e.message,
+        } satisfies HealthSnapshot;
+      });
+
+    const [ciResult, commitsResult, healthResult] = await Promise.all([ciP, commitsP, healthP]);
+    setCi(ciResult);
+    setCommits(commitsResult);
+    setHealth(healthResult);
+    setLastRefresh(Date.now());
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only initial fetch + 30s poll for cross-system status; refresh() updates state via Promise.all callback.
+    void refresh();
+    const id = setInterval(() => void refresh(), REFRESH_MS);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const ciOk = ci === null ? null : ci.status === "completed" ? ci.conclusion === "success" : null;
+
+  return (
+    <div
+      style={{ marginBottom: 28, paddingBottom: 24, borderBottom: "1px solid var(--line-soft)" }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 14,
+          gap: 12,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="f-sans" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+            Debug dashboard
+          </div>
+          <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+            Live cross-system status — refreshes every 30s.{" "}
+            {lastRefresh && (
+              <span style={{ color: "var(--ink-ghost)" }}>
+                Last: {relTime(new Date(lastRefresh).toISOString())}
+              </span>
+            )}
+          </div>
+        </div>
+        <Button
+          onClick={() => void refresh()}
+          disabled={loading}
+          variant="outline"
+          size="xs"
+          className="rounded-full"
+        >
+          {loading ? "…" : "Refresh"}
+        </Button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gap: 8,
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        }}
+      >
+        <a
+          href={ci?.url ?? `https://github.com/${GH_REPO}/actions`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+            textDecoration: "none",
+            display: "block",
+          }}
+        >
+          <div
+            className="f-sans"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Latest CI
+          </div>
+          {errors.ci ? (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--blood)" }}>
+              {errors.ci}
+            </div>
+          ) : ci ? (
+            <div>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                <StatusDot ok={ciOk} />
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+                >
+                  {ci.status === "completed" ? ci.conclusion : ci.status}
+                </span>
+              </div>
+              <div
+                className="f-sans"
+                style={{
+                  fontSize: 12,
+                  color: "var(--ink-soft)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {ci.msg || ci.name}
+              </div>
+              <div
+                className="f-sans"
+                style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 2 }}
+              >
+                {relTime(ci.createdAt)}
+              </div>
+            </div>
+          ) : (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              {loading ? "loading…" : "no runs"}
+            </div>
+          )}
+        </a>
+
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            className="f-sans"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Backend health
+          </div>
+          {health ? (
+            <>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                <StatusDot ok={health.ok} />
+                <span
+                  className="f-sans"
+                  style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+                >
+                  {health.ok ? "healthy" : "degraded"}{" "}
+                  <span style={{ color: "var(--ink-faint)", fontWeight: 400 }}>
+                    · {health.latencyMs}ms
+                  </span>
+                </span>
+              </div>
+              <div
+                className="f-sans"
+                style={{
+                  fontSize: 12,
+                  color: "var(--ink-soft)",
+                  display: "flex",
+                  gap: 10,
+                  flexWrap: "wrap",
+                }}
+              >
+                <span>
+                  <StatusDot ok={health.db} />
+                  DB
+                </span>
+                <span>
+                  <StatusDot ok={health.gemini} />
+                  Gemini
+                </span>
+                <span>
+                  <StatusDot ok={health.groq} />
+                  Groq
+                </span>
+              </div>
+              {health.error && (
+                <div
+                  className="f-sans"
+                  style={{ fontSize: 11, color: "var(--blood)", marginTop: 4 }}
+                >
+                  {health.error}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              {loading ? "probing…" : errors.health || "no data"}
+            </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-low)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+          }}
+        >
+          <div
+            className="f-sans"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-faint)",
+              letterSpacing: 0.5,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            Recent commits
+          </div>
+          {errors.commits ? (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--blood)" }}>
+              {errors.commits}
+            </div>
+          ) : commits.length > 0 ? (
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              {commits.map((c) => (
+                <li key={c.sha}>
+                  <a
+                    href={c.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="f-sans"
+                    style={{ display: "block", textDecoration: "none", color: "var(--ink)" }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: "var(--f-mono)",
+                          color: "var(--ink-faint)",
+                          marginRight: 6,
+                          fontSize: 11,
+                        }}
+                      >
+                        {c.sha}
+                      </span>
+                      {c.msg}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 1 }}>
+                      {c.author} · {relTime(c.date)}
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="f-sans" style={{ fontSize: 12, color: "var(--ink-faint)" }}>
+              {loading ? "loading…" : "no commits"}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div
+        className="f-sans"
+        style={{ fontSize: 11, color: "var(--ink-ghost)", marginTop: 8, fontStyle: "italic" }}
+      >
+        Sentry / Vercel-token tiles are deferred — wire SENTRY_TOKEN + VERCEL_TOKEN to enable.
       </div>
     </div>
   );
@@ -1239,6 +1673,7 @@ export default function AdminTab() {
 
   return (
     <div>
+      <DebugDashboardSection />
       <AdminCRMSection />
       <TierChanger />
       <DeveloperPreviewSection />
