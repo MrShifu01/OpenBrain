@@ -37,6 +37,7 @@ const ALL_ITEMS: { id: string; label: string; icon: React.ReactNode; flag?: Feat
   { id: "chat", label: "Chat", icon: NavIcon.chat, flag: "chat" },
   { id: "todos", label: "Schedule", icon: NavIcon.todos, flag: "todos" },
   { id: "lists", label: "Lists", icon: NavIcon.lists, flag: "lists" },
+  { id: "contacts", label: "Contacts", icon: NavIcon.contacts, flag: "contacts" },
   { id: "memories", label: "Important", icon: NavIcon.timeline, flag: "importantMemories" },
   { id: "vault", label: "Vault", icon: NavIcon.vault, flag: "vault" },
 ];

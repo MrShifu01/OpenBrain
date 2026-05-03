@@ -38,6 +38,11 @@ export const FEATURE_FLAGS = {
     icon: "≡",
     prodEnabled: import.meta.env.VITE_FEATURE_LISTS === "true",
   },
+  contacts: {
+    label: "Contacts",
+    icon: "👤",
+    prodEnabled: import.meta.env.VITE_FEATURE_CONTACTS === "true",
+  },
   vaultTemplates: {
     label: "Vault entry templates",
     icon: "🗂",

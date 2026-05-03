@@ -107,6 +107,7 @@ const VaultView = lazyRetry(() => import("./views/VaultView"));
 const ImportantMemoriesView = lazyRetry(() => import("./views/ImportantMemoriesView"));
 const ChatView = lazyRetry(() => import("./views/ChatView"));
 const ListsView = lazyRetry(() => import("./views/ListsView"));
+const ContactsView = lazyRetry(() => import("./views/ContactsView"));
 const VaultRevealModal = lazyRetry(() => import("./components/VaultRevealModal"));
 function Loader() {
   return (
@@ -123,6 +124,7 @@ const NAV_VIEWS = [
   { id: "graph", l: "Graph", ic: "✦" },
   { id: "todos", l: "Schedule", ic: "✓" },
   { id: "lists", l: "Lists", ic: "≡" },
+  { id: "contacts", l: "Contacts", ic: "◉" },
   { id: "memories", l: "Important", ic: "★" },
   { id: "vault", l: "Vault", ic: "🔐" },
 ];
@@ -858,6 +860,23 @@ function EverionContent({
                     onEntryDelete={(id: string) =>
                       setEntries((prev) => prev.filter((e) => e.id !== id))
                     }
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            )}
+            {appShell.view === "contacts" && ff("contacts") && (
+              <ErrorBoundary
+                name="ContactsView"
+                fallback={(error, reset) => (
+                  <ViewError view="Contacts" error={error} onReset={reset} />
+                )}
+              >
+                <Suspense fallback={<Loader />}>
+                  <ContactsView
+                    entries={entries}
+                    brainId={activeBrain?.id}
+                    onEntryCreated={handleCreated}
+                    onSelectEntry={handleEntrySelect}
                   />
                 </Suspense>
               </ErrorBoundary>
