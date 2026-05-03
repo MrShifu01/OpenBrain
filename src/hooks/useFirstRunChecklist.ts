@@ -38,6 +38,43 @@ export interface FirstRunChecklistState {
 }
 
 const DISMISS_KEY = "everion_home_checklist_dismissed_at";
+// Per-item one-shot done flag. Once an item has ever been observed as
+// done — whether the live API said so or the user manually opted in — we
+// remember it locally and stop re-checking. Prevents the "vault was
+// detected → API blip → vault flips back to incomplete" flicker.
+//
+// Shape: { capture5?: ISOString, persona?: ISOString, gmail?: ISOString, ... }
+// Read on every render; written when a fresh remote check confirms an
+// item that wasn't already pinned.
+const DONE_FLAGS_KEY = "everion_home_checklist_done_v1";
+
+type DoneFlags = Partial<Record<ChecklistItemId, string>>;
+
+function readDoneFlags(): DoneFlags {
+  try {
+    const raw = localStorage.getItem(DONE_FLAGS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as DoneFlags) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeDoneFlags(flags: DoneFlags): void {
+  try {
+    localStorage.setItem(DONE_FLAGS_KEY, JSON.stringify(flags));
+  } catch {
+    /* ignore (private mode / quota) */
+  }
+}
+
+function pinDone(id: ChecklistItemId): void {
+  const flags = readDoneFlags();
+  if (flags[id]) return;
+  flags[id] = new Date().toISOString();
+  writeDoneFlags(flags);
+}
 
 interface RemoteState {
   personaDone: boolean;
@@ -116,11 +153,41 @@ export function useFirstRunChecklist({
       return false;
     }
   });
+  // doneFlags is the sticky-once-done bag. We re-read on every refresh so
+  // toggling stays consistent if other tabs / unfortunate cleanups happen,
+  // but any item that's ever flipped done stays pinned forward.
+  const [doneFlags, setDoneFlags] = useState<DoneFlags>(() => readDoneFlags());
 
   const refresh = useCallback(() => {
     setLoading(true);
     void loadRemote()
-      .then(setRemote)
+      .then((next) => {
+        // Pin any item the live check just confirmed done so a future
+        // network blip can't undo it.
+        const flags = readDoneFlags();
+        let mutated = false;
+        if (next.personaDone && !flags.persona) {
+          flags.persona = new Date().toISOString();
+          mutated = true;
+        }
+        if (next.gmailDone && !flags.gmail) {
+          flags.gmail = new Date().toISOString();
+          mutated = true;
+        }
+        if (next.calendarDone && !flags.calendar) {
+          flags.calendar = new Date().toISOString();
+          mutated = true;
+        }
+        if (next.vaultDone && !flags.vault) {
+          flags.vault = new Date().toISOString();
+          mutated = true;
+        }
+        if (mutated) {
+          writeDoneFlags(flags);
+          setDoneFlags(flags);
+        }
+        setRemote(next);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -155,6 +222,16 @@ export function useFirstRunChecklist({
     setDismissed(false);
   }, []);
 
+  // Pin in-memory-derived items as soon as they go true so they stay done
+  // even if entries get deleted later or brains get pruned.
+  if (entryCount >= 5 && !doneFlags.capture5) pinDone("capture5");
+  if (brainCount > 1 && !doneFlags.brain) pinDone("brain");
+
+  // Helper: an item is done if EITHER the live signal says so OR we've
+  // ever pinned it locally. One-and-done semantics — no flicker.
+  const stickyDone = (id: ChecklistItemId, live: boolean): boolean =>
+    Boolean(live || doneFlags[id]);
+
   const items: ChecklistItem[] = [
     {
       id: "capture5",
@@ -163,42 +240,42 @@ export function useFirstRunChecklist({
         entryCount >= 5
           ? `${entryCount} thoughts saved.`
           : `${entryCount} of 5 — your brain gets sharper around here.`,
-      done: entryCount >= 5,
+      done: stickyDone("capture5", entryCount >= 5),
       action: { kind: "openCapture" },
     },
     {
       id: "persona",
       title: "Tell your brain about you",
       body: "Name, context, habits — answers get noticeably more personal.",
-      done: remote.personaDone,
+      done: stickyDone("persona", remote.personaDone),
       action: { kind: "settings", tab: "persona" },
     },
     {
       id: "gmail",
       title: "Connect Gmail",
       body: "Continuous inbox capture — the killer feature.",
-      done: remote.gmailDone,
+      done: stickyDone("gmail", remote.gmailDone),
       action: { kind: "settings", tab: "connections" },
     },
     {
       id: "calendar",
       title: "Connect Google Calendar",
       body: "Time-aware recall and reminders.",
-      done: remote.calendarDone,
+      done: stickyDone("calendar", remote.calendarDone),
       action: { kind: "settings", tab: "connections" },
     },
     {
       id: "vault",
       title: "Set up your vault",
       body: "Encrypted store for IDs, codes, bank details. Add your first secret to mark this done.",
-      done: remote.vaultDone,
+      done: stickyDone("vault", remote.vaultDone),
       action: { kind: "navigate", view: "vault" },
     },
     {
       id: "brain",
       title: "Add a second brain",
       body: "Separate work from personal — switch with one tap.",
-      done: brainCount > 1,
+      done: stickyDone("brain", brainCount > 1),
       action: { kind: "createBrain" },
     },
   ];
