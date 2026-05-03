@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { authFetch } from "../lib/authFetch";
 
 // First-run checklist item identifiers — these double as React keys and CTA
@@ -38,43 +38,12 @@ export interface FirstRunChecklistState {
 }
 
 const DISMISS_KEY = "everion_home_checklist_dismissed_at";
-// Per-item one-shot done flag. Once an item has ever been observed as
-// done — whether the live API said so or the user manually opted in — we
-// remember it locally and stop re-checking. Prevents the "vault was
-// detected → API blip → vault flips back to incomplete" flicker.
-//
-// Shape: { capture5?: ISOString, persona?: ISOString, gmail?: ISOString, ... }
-// Read on every render; written when a fresh remote check confirms an
-// item that wasn't already pinned.
-const DONE_FLAGS_KEY = "everion_home_checklist_done_v1";
 
+// Server-side sticky-done flags. Once an item is observed as done — by a
+// live remote check or an in-memory threshold — we POST it here so the row
+// persists across devices and survives API blips. Schema: one row per
+// (user_id, item_id) in user_checklist_done.
 type DoneFlags = Partial<Record<ChecklistItemId, string>>;
-
-function readDoneFlags(): DoneFlags {
-  try {
-    const raw = localStorage.getItem(DONE_FLAGS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? (parsed as DoneFlags) : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeDoneFlags(flags: DoneFlags): void {
-  try {
-    localStorage.setItem(DONE_FLAGS_KEY, JSON.stringify(flags));
-  } catch {
-    /* ignore (private mode / quota) */
-  }
-}
-
-function pinDone(id: ChecklistItemId): void {
-  const flags = readDoneFlags();
-  if (flags[id]) return;
-  flags[id] = new Date().toISOString();
-  writeDoneFlags(flags);
-}
 
 interface RemoteState {
   personaDone: boolean;
@@ -130,6 +99,30 @@ async function loadRemote(): Promise<RemoteState> {
   return { personaDone, gmailDone, calendarDone, vaultDone };
 }
 
+async function loadDoneFlags(): Promise<DoneFlags> {
+  try {
+    const r = await authFetch("/api/user-data?resource=checklist_done");
+    if (!r?.ok) return {};
+    const data = await r.json();
+    const items = (data?.items ?? {}) as Record<string, string>;
+    return items as DoneFlags;
+  } catch {
+    return {};
+  }
+}
+
+async function pinDoneRemote(id: ChecklistItemId): Promise<void> {
+  try {
+    await authFetch("/api/user-data?resource=checklist_done", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId: id }),
+    });
+  } catch {
+    /* best-effort — local optimistic state already shows it as done */
+  }
+}
+
 interface UseFirstRunChecklistOptions {
   entryCount: number;
   brainCount: number;
@@ -153,43 +146,41 @@ export function useFirstRunChecklist({
       return false;
     }
   });
-  // doneFlags is the sticky-once-done bag. We re-read on every refresh so
-  // toggling stays consistent if other tabs / unfortunate cleanups happen,
-  // but any item that's ever flipped done stays pinned forward.
-  const [doneFlags, setDoneFlags] = useState<DoneFlags>(() => readDoneFlags());
+  const [doneFlags, setDoneFlags] = useState<DoneFlags>({});
+  // In-flight pin requests so we don't hammer the server with the same id
+  // every render while threshold conditions stay true.
+  const pinningRef = useRef<Set<ChecklistItemId>>(new Set());
+
+  const pinIfNew = useCallback((id: ChecklistItemId) => {
+    setDoneFlags((prev) => {
+      if (prev[id]) return prev;
+      if (pinningRef.current.has(id)) return prev;
+      pinningRef.current.add(id);
+      void pinDoneRemote(id).finally(() => pinningRef.current.delete(id));
+      return { ...prev, [id]: new Date().toISOString() };
+    });
+  }, []);
 
   const refresh = useCallback(() => {
     setLoading(true);
-    void loadRemote()
-      .then((next) => {
-        // Pin any item the live check just confirmed done so a future
-        // network blip can't undo it.
-        const flags = readDoneFlags();
-        let mutated = false;
-        if (next.personaDone && !flags.persona) {
-          flags.persona = new Date().toISOString();
-          mutated = true;
-        }
-        if (next.gmailDone && !flags.gmail) {
-          flags.gmail = new Date().toISOString();
-          mutated = true;
-        }
-        if (next.calendarDone && !flags.calendar) {
-          flags.calendar = new Date().toISOString();
-          mutated = true;
-        }
-        if (next.vaultDone && !flags.vault) {
-          flags.vault = new Date().toISOString();
-          mutated = true;
-        }
-        if (mutated) {
-          writeDoneFlags(flags);
-          setDoneFlags(flags);
-        }
+    void Promise.all([loadRemote(), loadDoneFlags()])
+      .then(([next, serverFlags]) => {
         setRemote(next);
+        setDoneFlags((prev) => {
+          // Merge: server flags are authoritative for the cross-device baseline,
+          // but keep any optimistic local pins from this session.
+          const merged: DoneFlags = { ...prev, ...serverFlags };
+          // Pin anything the live check just confirmed if it's not already
+          // on the server.
+          if (next.personaDone && !merged.persona) pinIfNew("persona");
+          if (next.gmailDone && !merged.gmail) pinIfNew("gmail");
+          if (next.calendarDone && !merged.calendar) pinIfNew("calendar");
+          if (next.vaultDone && !merged.vault) pinIfNew("vault");
+          return merged;
+        });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [pinIfNew]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only fetch of remote checklist state.
@@ -203,6 +194,13 @@ export function useFirstRunChecklist({
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
+
+  // Pin in-memory-derived items as soon as they go true so they stay done
+  // even if entries get deleted later or brains get pruned.
+  useEffect(() => {
+    if (entryCount >= 5) pinIfNew("capture5");
+    if (brainCount > 1) pinIfNew("brain");
+  }, [entryCount, brainCount, pinIfNew]);
 
   const dismiss = useCallback(() => {
     try {
@@ -222,13 +220,8 @@ export function useFirstRunChecklist({
     setDismissed(false);
   }, []);
 
-  // Pin in-memory-derived items as soon as they go true so they stay done
-  // even if entries get deleted later or brains get pruned.
-  if (entryCount >= 5 && !doneFlags.capture5) pinDone("capture5");
-  if (brainCount > 1 && !doneFlags.brain) pinDone("brain");
-
   // Helper: an item is done if EITHER the live signal says so OR we've
-  // ever pinned it locally. One-and-done semantics — no flicker.
+  // ever pinned it server-side. One-and-done semantics — no flicker.
   const stickyDone = (id: ChecklistItemId, live: boolean): boolean =>
     Boolean(live || doneFlags[id]);
 

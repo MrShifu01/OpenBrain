@@ -117,6 +117,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "admin_user_overview") return handleAdminUserOverview(req, res);
   if (resource === "admin_set_tier") return handleAdminSetTier(req, res);
   if (resource === "profile") return handleProfile(req, res);
+  if (resource === "checklist_done") return handleChecklistDone(req, res);
   // Default: memory
   return handleMemory(req, res);
 }
@@ -179,6 +180,49 @@ const handleProfile = withAuth(
     }
     const saved = await r.json();
     return void res.status(200).json({ profile: Array.isArray(saved) ? saved[0] : saved });
+  },
+);
+
+// ── /api/user-data?resource=checklist_done ──
+// Cross-device sticky-done flags for the home first-run checklist. The hook
+// pins items here once any signal (live remote check or in-memory threshold)
+// confirms them, and they stay pinned forever — fetching this on mount lets a
+// fresh device see the same completed state as the device that first ticked
+// the item.
+//
+// GET  — { items: { capture5: ISO, persona: ISO, ... } }
+// POST — body: { itemId: string }. Upserts (user_id, item_id) → idempotent.
+const CHECKLIST_ITEM_ID_RE = /^[a-z][a-z0-9_]{0,39}$/;
+const handleChecklistDone = withAuth(
+  { methods: ["GET", "POST"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (req.method === "GET") {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/user_checklist_done?user_id=eq.${encodeURIComponent(user.id)}&select=item_id,completed_at`,
+        { headers: hdrs() },
+      );
+      if (!r.ok) return void res.status(502).json({ error: "Failed to fetch checklist" });
+      const rows: Array<{ item_id: string; completed_at: string }> = await r.json();
+      const items: Record<string, string> = {};
+      for (const row of rows) items[row.item_id] = row.completed_at;
+      return void res.status(200).json({ items });
+    }
+
+    // POST — pin a single item.
+    const { itemId } = (req.body ?? {}) as { itemId?: unknown };
+    if (typeof itemId !== "string" || !CHECKLIST_ITEM_ID_RE.test(itemId)) {
+      return void res.status(400).json({ error: "itemId must match [a-z][a-z0-9_]*" });
+    }
+    const r = await fetch(`${SB_URL}/rest/v1/user_checklist_done?on_conflict=user_id,item_id`, {
+      method: "POST",
+      headers: hdrs({ Prefer: "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify({ user_id: user.id, item_id: itemId }),
+    });
+    if (!r.ok) {
+      const detail = await r.text().catch(() => "");
+      return void res.status(502).json({ error: "save_failed", detail: detail.slice(0, 200) });
+    }
+    return void res.status(200).json({ ok: true });
   },
 );
 
