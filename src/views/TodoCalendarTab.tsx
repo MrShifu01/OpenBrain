@@ -211,7 +211,11 @@ export default function TodoCalendarTab({
           to { opacity: 1; }
         }
         @media (max-width: 1023px) {
-          .cal-body { flex-direction: column; }
+          /* In column direction, align-items controls the cross-axis = horizontal.
+             Default flex-start would shrink cal-main to its content width, leaving
+             the calendar squashed left. Stretch fills the screen. */
+          .cal-body { flex-direction: column; align-items: stretch; }
+          .cal-main { width: 100%; }
         }
       `}</style>
     </div>
