@@ -266,12 +266,13 @@ export function MonthGrid({
 }) {
   const grid = useMemo(() => buildMonthGrid(navDate.getFullYear(), navDate.getMonth()), [navDate]);
   return (
-    <div>
+    <div style={{ width: "100%" }}>
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
           marginBottom: 8,
+          width: "100%",
         }}
       >
         {DAY_ABBRS.map((d) => (
@@ -302,6 +303,7 @@ export function MonthGrid({
           display: "grid",
           gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
           gap: 1,
+          width: "100%",
         }}
       >
         {grid.flat().map((day, i) => {

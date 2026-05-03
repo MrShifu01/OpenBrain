@@ -449,6 +449,7 @@ export default function TodoView({
       </header>
 
       <div
+        className="schedule-content"
         style={{
           padding: "16px 24px 120px",
           maxWidth: tab === "calendar" ? 1100 : 780,
@@ -644,6 +645,15 @@ export default function TodoView({
           onSave={handleEditSave}
         />
       )}
+
+      <style>{`
+        /* On phones the 24px gutter makes the month grid feel cramped — drop
+           it to 12px so all 7 columns get a usable width. Desktop keeps the
+           generous gutter. */
+        @media (max-width: 640px) {
+          .schedule-content { padding-left: 12px !important; padding-right: 12px !important; }
+        }
+      `}</style>
     </div>
   );
 }
