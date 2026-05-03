@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Brain } from "../../types";
 import SettingsRow, { SettingsToggle, SettingsValue } from "./SettingsRow";
 import { authFetch } from "../../lib/authFetch";
@@ -42,6 +42,12 @@ export default function BrainTab({ activeBrain, onRefreshBrains }: Props) {
   const { adminFlags } = useAdminDevMode();
   const showMulti = isFeatureEnabled("multiBrain", adminFlags);
 
+  // Sharing UI is gated behind the brain being yours and not personal.
+  // Personal brains stay private; only non-personal brains can be shared.
+  const canShareActive =
+    (activeBrain.my_role === "owner" || activeBrain.owner_id === undefined) &&
+    !activeBrain.is_personal;
+
   return (
     <div>
       {showMulti && (
@@ -54,6 +60,8 @@ export default function BrainTab({ activeBrain, onRefreshBrains }: Props) {
           }}
         />
       )}
+
+      {canShareActive && <MembersSection brain={activeBrain} />}
 
       <SettingsRow label="Name">
         <SettingsValue>{activeBrain.name}</SettingsValue>
@@ -356,6 +364,359 @@ function MultiBrainSection({ brains, activeBrain, onChanged }: MultiBrainSection
             await onChanged();
           }}
         />
+      )}
+    </div>
+  );
+}
+
+// ── Sharing — invites, members, role changes ─────────────────────────────
+// Owner-only management for a single brain. Lists current members + pending
+// invites, lets the owner invite by email with a role, change roles, remove
+// members, and revoke pending invites.
+
+interface MembersResponse {
+  members: Array<{
+    user_id: string;
+    role: "owner" | "member" | "viewer";
+    email: string | null;
+    joined_at?: string;
+  }>;
+  invites: Array<{
+    id: string;
+    email: string;
+    role: "viewer" | "member";
+    created_at: string;
+    expires_at: string;
+  }>;
+  my_role: "owner" | "member" | "viewer";
+}
+
+function MembersSection({ brain }: { brain: Brain }) {
+  const [data, setData] = useState<MembersResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"viewer" | "member">("member");
+  const [sending, setSending] = useState(false);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const r = await authFetch(`/api/brains?action=members&id=${encodeURIComponent(brain.id)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setData((await r.json()) as MembersResponse);
+    } catch (err) {
+      setMsg({
+        text: err instanceof Error ? err.message : "Failed to load members",
+        ok: false,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh closes over fresh state every render; the brain-switch is the trigger we want.
+  }, [brain.id]);
+
+  async function sendInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!inviteEmail.trim() || sending) return;
+    setSending(true);
+    setMsg(null);
+    try {
+      const r = await authFetch("/api/brains?action=invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brain_id: brain.id,
+          email: inviteEmail.trim(),
+          role: inviteRole,
+        }),
+      });
+      const d = (await r.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        invite?: { email_sent?: boolean; email_error?: string };
+      };
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setInviteEmail("");
+      setMsg({
+        text: d.invite?.email_sent
+          ? `Invite sent to ${inviteEmail.trim()}.`
+          : `Invite created. Email not sent (${d.invite?.email_error ?? "no Resend"}). Copy the link from the pending list.`,
+        ok: true,
+      });
+      await refresh();
+    } catch (err) {
+      setMsg({
+        text: err instanceof Error ? err.message : "Invite failed",
+        ok: false,
+      });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function changeRole(userId: string, role: "viewer" | "member") {
+    const key = `role-${userId}`;
+    setBusyKey(key);
+    try {
+      const r = await authFetch("/api/brains?action=update-role", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brain_id: brain.id, user_id: userId, role }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      await refresh();
+    } catch (err) {
+      setMsg({
+        text: err instanceof Error ? err.message : "Role change failed",
+        ok: false,
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function removeMember(userId: string) {
+    const key = `remove-${userId}`;
+    setBusyKey(key);
+    try {
+      const r = await authFetch(
+        `/api/brains?action=remove-member&id=${encodeURIComponent(brain.id)}&user_id=${encodeURIComponent(userId)}`,
+        { method: "DELETE" },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      await refresh();
+    } catch (err) {
+      setMsg({
+        text: err instanceof Error ? err.message : "Remove failed",
+        ok: false,
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function revokeInvite(inviteId: string) {
+    const key = `revoke-${inviteId}`;
+    setBusyKey(key);
+    try {
+      const r = await authFetch(
+        `/api/brains?action=revoke-invite&invite_id=${encodeURIComponent(inviteId)}`,
+        { method: "DELETE" },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      await refresh();
+    } catch (err) {
+      setMsg({
+        text: err instanceof Error ? err.message : "Revoke failed",
+        ok: false,
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    padding: "6px 8px",
+    background: "var(--surface)",
+    border: "1px solid var(--line-soft)",
+    borderRadius: 6,
+    color: "var(--ink)",
+    fontSize: 13,
+    fontFamily: "var(--f-sans)",
+  };
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: 12 }}>
+        <div className="f-serif" style={{ fontSize: 18, color: "var(--ink)" }}>
+          People with access
+        </div>
+        <div style={{ fontSize: 12, color: "var(--ink-faint)", marginTop: 2 }}>
+          Invite collaborators by email. Members can read and write; viewers are read-only.
+        </div>
+      </div>
+
+      <form
+        onSubmit={sendInvite}
+        style={{
+          display: "flex",
+          gap: 8,
+          alignItems: "stretch",
+          marginBottom: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="email"
+          required
+          value={inviteEmail}
+          onChange={(e) => setInviteEmail(e.target.value)}
+          placeholder="email@example.com"
+          style={{ ...fieldStyle, flex: 1, minWidth: 220 }}
+        />
+        <select
+          value={inviteRole}
+          onChange={(e) => setInviteRole(e.target.value as "viewer" | "member")}
+          style={{ ...fieldStyle, appearance: "none", paddingRight: 24 }}
+        >
+          <option value="member">Member (read + write)</option>
+          <option value="viewer">Viewer (read-only)</option>
+        </select>
+        <Button type="submit" disabled={sending || !inviteEmail.trim()} size="sm">
+          {sending ? "Sending…" : "Invite"}
+        </Button>
+      </form>
+
+      {msg && (
+        <div
+          role="status"
+          style={{
+            fontSize: 12,
+            color: msg.ok ? "var(--moss)" : "var(--blood)",
+            background: msg.ok ? "var(--moss-wash)" : "var(--blood-wash)",
+            padding: "8px 12px",
+            borderRadius: 6,
+            marginBottom: 12,
+          }}
+        >
+          {msg.text}
+        </div>
+      )}
+
+      {loading && !data ? (
+        <div style={{ fontSize: 12, color: "var(--ink-faint)" }}>Loading members…</div>
+      ) : (
+        <div
+          style={{
+            border: "1px solid var(--line-soft)",
+            borderRadius: 10,
+            overflow: "hidden",
+          }}
+        >
+          {(data?.members ?? []).map((m, i, arr) => {
+            const isOwner = m.role === "owner";
+            const isLast = i === arr.length - 1 && (data?.invites?.length ?? 0) === 0;
+            return (
+              <div
+                key={m.user_id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 14px",
+                  borderBottom: isLast ? 0 : "1px solid var(--line-soft)",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ink)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {m.email ?? `user ${m.user_id.slice(0, 8)}…`}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 2 }}>
+                    {isOwner ? "Owner" : m.role === "member" ? "Member" : "Viewer"}
+                  </div>
+                </div>
+                {!isOwner && (
+                  <>
+                    <select
+                      value={m.role}
+                      disabled={busyKey === `role-${m.user_id}`}
+                      onChange={(e) => changeRole(m.user_id, e.target.value as "viewer" | "member")}
+                      style={{ ...fieldStyle, appearance: "none", paddingRight: 24 }}
+                    >
+                      <option value="member">Member</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                    <Button
+                      type="button"
+                      onClick={() => removeMember(m.user_id)}
+                      disabled={busyKey === `remove-${m.user_id}`}
+                      variant="outline"
+                      size="xs"
+                      style={{ color: "var(--blood)" }}
+                    >
+                      Remove
+                    </Button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {(data?.invites ?? []).length > 0 && (
+            <div
+              style={{
+                padding: "8px 14px",
+                fontSize: 11,
+                color: "var(--ink-faint)",
+                background: "var(--surface-low)",
+                borderTop: "1px solid var(--line-soft)",
+                borderBottom: "1px solid var(--line-soft)",
+                textTransform: "uppercase",
+                letterSpacing: 1,
+              }}
+            >
+              Pending invites
+            </div>
+          )}
+
+          {(data?.invites ?? []).map((inv, i, arr) => {
+            const isLast = i === arr.length - 1;
+            return (
+              <div
+                key={inv.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 14px",
+                  borderBottom: isLast ? 0 : "1px solid var(--line-soft)",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ink)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {inv.email}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 2 }}>
+                    {inv.role === "member" ? "Member" : "Viewer"} · expires{" "}
+                    {new Date(inv.expires_at).toLocaleDateString()}
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => revokeInvite(inv.id)}
+                  disabled={busyKey === `revoke-${inv.id}`}
+                  variant="outline"
+                  size="xs"
+                  style={{ color: "var(--blood)" }}
+                >
+                  Revoke
+                </Button>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

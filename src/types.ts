@@ -133,6 +133,8 @@ export interface Brain {
   /** Optional short description set by owner (multi-brain phase 1). */
   description?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Caller's role on this brain. 'owner' for owned brains; 'member' / 'viewer' for shared. */
+  my_role?: "owner" | "member" | "viewer";
 }
 
 export interface ToastEvent {

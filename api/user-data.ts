@@ -1,6 +1,8 @@
 import type { IncomingMessage } from "http";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { withAuth } from "./_lib/withAuth.js";
+import { checkBrainAccess } from "./_lib/checkBrainAccess.js";
+import { sendInviteEmail } from "./_lib/sendInviteEmail.js";
 import { markWebhookEventSeen } from "./_lib/webhookIdempotency.js";
 import { applySecurityHeaders } from "./_lib/securityHeaders.js";
 import { sbHeaders } from "./_lib/sbHeaders.js";
@@ -247,14 +249,11 @@ const handleBrains = withAuth(
       if (id !== null && (typeof id !== "string" || id.length > 100))
         return void res.status(400).json({ error: "id must be uuid or null" });
 
-      // If id is provided, verify ownership before persisting.
+      // If id is provided, verify access (owner OR member/viewer) before
+      // persisting — switching to a shared brain is legal.
       if (id) {
-        const own = await fetch(
-          `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id`,
-          { headers: hdrs() },
-        );
-        const ownRows: any[] = own.ok ? await own.json() : [];
-        if (!ownRows.length) return void res.status(403).json({ error: "Forbidden" });
+        const access = await checkBrainAccess(user.id, id);
+        if (!access) return void res.status(403).json({ error: "Forbidden" });
       }
 
       // Upsert into user_ai_settings (PK on user_id) — works whether row exists or not.
@@ -269,6 +268,387 @@ const handleBrains = withAuth(
       });
       if (!r.ok) return void res.status(502).json({ error: "Failed to set active brain" });
       return void res.status(200).json({ ok: true, active_brain_id: id });
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Brain sharing (phase 2 of multi-brain). Owner sends an email-keyed
+    // invite, recipient redeems via /api/brains?action=accept.
+    // Roles: 'viewer' (read-only) | 'member' (read + write).
+    // ─────────────────────────────────────────────────────────────────────
+
+    // Helper: confirm caller owns the brain. Owner-only actions use this.
+    const requireOwner = async (brainId: string): Promise<boolean> => {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id,name`,
+        { headers: hdrs() },
+      );
+      const rows: any[] = r.ok ? await r.json() : [];
+      return rows.length > 0;
+    };
+
+    const ROLE_RE = /^(viewer|member)$/;
+    const TOKEN_RE = /^[0-9a-f]{64}$/i;
+    // Lightweight email shape — server-side validation is best-effort; the
+    // canonical check happens when Supabase auth tries to look up the user.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // ── POST ?action=invite — owner sends an email-keyed invite ──
+    // Body: { brain_id, email, role: 'viewer' | 'member' }
+    // Returns: { ok: true, invite: { id, token, accept_url, expires_at, email_sent } }
+    if (req.method === "POST" && action === "invite") {
+      const body = (req.body ?? {}) as {
+        brain_id?: unknown;
+        email?: unknown;
+        role?: unknown;
+      };
+      const brainId = typeof body.brain_id === "string" ? body.brain_id : "";
+      const email =
+        typeof body.email === "string" ? body.email.trim().toLowerCase().slice(0, 200) : "";
+      const role = typeof body.role === "string" ? body.role : "";
+      if (!brainId) return void res.status(400).json({ error: "brain_id required" });
+      if (!EMAIL_RE.test(email)) return void res.status(400).json({ error: "invalid email" });
+      if (!ROLE_RE.test(role)) return void res.status(400).json({ error: "invalid role" });
+      if (email === (user.email ?? "").toLowerCase())
+        return void res.status(400).json({ error: "Cannot invite yourself" });
+      if (!(await requireOwner(brainId)))
+        return void res.status(403).json({ error: "Forbidden" });
+
+      // Block invites to existing members so the owner doesn't accidentally
+      // demote a member by re-inviting at a lower role. Frontend can offer
+      // role-change in the members list instead.
+      const existingMember = await fetch(
+        `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brainId)}&select=user_id`,
+        { headers: hdrs() },
+      );
+      const existingMembers: Array<{ user_id: string }> = existingMember.ok
+        ? await existingMember.json()
+        : [];
+      // Look up user by email to reject re-invites of existing members.
+      // auth.admin.users.list is the only way to resolve email→id with
+      // service-role; uses /auth/v1/admin/users with per_page filter param.
+      // If lookup fails we proceed (best-effort) — duplicate-prevention is a
+      // UX nicety, not a correctness gate.
+      try {
+        const lookupR = await fetch(
+          `${SB_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
+          { headers: { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` } },
+        );
+        if (lookupR.ok) {
+          const lookupData = (await lookupR.json()) as { users?: Array<{ id: string }> };
+          const matchId = lookupData.users?.[0]?.id;
+          if (matchId && existingMembers.some((m) => m.user_id === matchId)) {
+            return void res.status(409).json({ error: "User is already a member" });
+          }
+        }
+      } catch {
+        /* best-effort */
+      }
+
+      // Generate a 64-hex (32-byte) token. App.tsx validates the same shape
+      // on the URL before passing to accept, so any malformed link is
+      // rejected client-side before we even hit the server.
+      const token = crypto.randomBytes(32).toString("hex");
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+      // Replace any prior pending invite for the same (brain_id, email) so
+      // the latest role / link wins. We do this by deleting first to avoid a
+      // unique-violation race with the new insert.
+      await fetch(
+        `${SB_URL}/rest/v1/brain_invites?brain_id=eq.${encodeURIComponent(brainId)}&email=eq.${encodeURIComponent(email)}&accepted_at=is.null`,
+        { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
+      ).catch(() => {});
+
+      const insR = await fetch(`${SB_URL}/rest/v1/brain_invites`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=representation" }),
+        body: JSON.stringify({
+          brain_id: brainId,
+          email,
+          role,
+          token,
+          invited_by: user.id,
+          expires_at: expiresAt.toISOString(),
+        }),
+      });
+      if (!insR.ok) {
+        const detail = await insR.text().catch(() => "");
+        return void res.status(502).json({ error: `Database error: ${detail.slice(0, 200)}` });
+      }
+      const [inviteRow]: any[] = await insR.json();
+
+      // Compose the accept URL. App.tsx already routes ?invite=<token> at the
+      // root, so we point straight at the production origin. Falls back to
+      // the request host so preview deployments work too.
+      const proto = (req.headers["x-forwarded-proto"] as string | undefined) || "https";
+      const host = (req.headers["x-forwarded-host"] || req.headers.host) as string;
+      const acceptUrl = `${proto}://${host}/?invite=${encodeURIComponent(token)}`;
+
+      // Look up brain name + inviter name for the email body. Best-effort —
+      // the link still works without these, the email is just less personal.
+      const [brainNameRow, profileRow] = await Promise.all([
+        fetch(
+          `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&select=name`,
+          { headers: hdrs() },
+        )
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
+        fetch(
+          `${SB_URL}/rest/v1/user_personas?user_id=eq.${encodeURIComponent(user.id)}&select=preferred_name,full_name&limit=1`,
+          { headers: hdrs() },
+        )
+          .then((r) => (r.ok ? r.json() : []))
+          .catch(() => []),
+      ]);
+      const brainName = (brainNameRow as any[])[0]?.name ?? "a brain";
+      const inviterName =
+        (profileRow as any[])[0]?.preferred_name ||
+        (profileRow as any[])[0]?.full_name ||
+        (user.email as string | undefined) ||
+        "Someone";
+
+      const emailResult = await sendInviteEmail({
+        to: email,
+        brainName,
+        inviterName,
+        acceptUrl,
+        role: role as "viewer" | "member",
+      });
+
+      return void res.status(201).json({
+        ok: true,
+        invite: {
+          id: inviteRow.id,
+          token,
+          accept_url: acceptUrl,
+          expires_at: inviteRow.expires_at,
+          email_sent: emailResult.ok,
+          email_error: emailResult.ok ? undefined : emailResult.error,
+        },
+      });
+    }
+
+    // ── POST ?action=accept — recipient redeems an invite token ──
+    // Body: { token }. Recipient must be authenticated (caller is `user`).
+    // We only enforce email-match if the invite has an email; protects
+    // against link-leakage.
+    if (req.method === "POST" && action === "accept") {
+      const { token } = (req.body ?? {}) as { token?: unknown };
+      if (typeof token !== "string" || !TOKEN_RE.test(token))
+        return void res.status(400).json({ error: "invalid token" });
+
+      const lookup = await fetch(
+        `${SB_URL}/rest/v1/brain_invites?token=eq.${encodeURIComponent(token)}&select=id,brain_id,email,role,expires_at,accepted_at,invited_by&limit=1`,
+        { headers: hdrs() },
+      );
+      const inviteRows: any[] = lookup.ok ? await lookup.json() : [];
+      const invite = inviteRows[0];
+      if (!invite) return void res.status(404).json({ error: "Invite not found" });
+      if (invite.accepted_at) return void res.status(410).json({ error: "Invite already used" });
+      if (new Date(invite.expires_at).getTime() < Date.now())
+        return void res.status(410).json({ error: "Invite expired" });
+      const expectedEmail = (invite.email as string).toLowerCase();
+      const callerEmail = (user.email as string | undefined)?.toLowerCase() ?? "";
+      if (expectedEmail && callerEmail !== expectedEmail)
+        return void res.status(403).json({ error: "Invite is for a different email address" });
+
+      // Refuse to add the brain owner as a member (silently treat as accepted
+      // so the UI doesn't error out on a re-redemption from the owner).
+      const ownerCheck = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(invite.brain_id)}&select=owner_id&limit=1`,
+        { headers: hdrs() },
+      );
+      const ownerRows: any[] = ownerCheck.ok ? await ownerCheck.json() : [];
+      if (ownerRows[0]?.owner_id === user.id) {
+        await fetch(
+          `${SB_URL}/rest/v1/brain_invites?id=eq.${encodeURIComponent(invite.id)}`,
+          {
+            method: "PATCH",
+            headers: hdrs({ Prefer: "return=minimal" }),
+            body: JSON.stringify({ accepted_at: new Date().toISOString() }),
+          },
+        ).catch(() => {});
+        return void res.status(200).json({ ok: true, brain_id: invite.brain_id });
+      }
+
+      // Upsert the membership row — replays of the same invite should be
+      // idempotent rather than throwing on the composite PK.
+      const upsert = await fetch(
+        `${SB_URL}/rest/v1/brain_members?on_conflict=brain_id,user_id`,
+        {
+          method: "POST",
+          headers: hdrs({ Prefer: "resolution=merge-duplicates,return=minimal" }),
+          body: JSON.stringify({
+            brain_id: invite.brain_id,
+            user_id: user.id,
+            role: invite.role,
+            invited_by: invite.invited_by,
+          }),
+        },
+      );
+      if (!upsert.ok) {
+        const detail = await upsert.text().catch(() => "");
+        return void res.status(502).json({ error: `Database error: ${detail.slice(0, 200)}` });
+      }
+
+      // Mark invite consumed.
+      await fetch(
+        `${SB_URL}/rest/v1/brain_invites?id=eq.${encodeURIComponent(invite.id)}`,
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=minimal" }),
+          body: JSON.stringify({ accepted_at: new Date().toISOString() }),
+        },
+      ).catch(() => {});
+
+      return void res.status(200).json({ ok: true, brain_id: invite.brain_id });
+    }
+
+    // ── GET ?action=members&id=<brain> — list members + pending invites ──
+    // Owner sees the full picture (members + pending invites). Members and
+    // viewers see members only.
+    if (req.method === "GET" && action === "members") {
+      const brainId = req.query.id as string | undefined;
+      if (!brainId) return void res.status(400).json({ error: "id required" });
+      const access = await checkBrainAccess(user.id, brainId);
+      if (!access) return void res.status(403).json({ error: "Forbidden" });
+
+      // Owner row.
+      const ownerR = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&select=owner_id`,
+        { headers: hdrs() },
+      );
+      const ownerRows: any[] = ownerR.ok ? await ownerR.json() : [];
+      const ownerId = ownerRows[0]?.owner_id;
+
+      // Membership rows.
+      const memR = await fetch(
+        `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brainId)}&select=user_id,role,joined_at&order=joined_at.asc`,
+        { headers: hdrs() },
+      );
+      const memberRows: any[] = memR.ok ? await memR.json() : [];
+
+      // Resolve emails for owner + every member by hitting auth admin.
+      const ids = new Set<string>();
+      if (ownerId) ids.add(ownerId);
+      for (const m of memberRows) ids.add(m.user_id);
+      const emailMap: Record<string, string> = {};
+      await Promise.all(
+        Array.from(ids).map(async (id) => {
+          try {
+            const r = await fetch(`${SB_URL}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+              headers: { apikey: SB_KEY!, Authorization: `Bearer ${SB_KEY}` },
+            });
+            if (r.ok) {
+              const d = (await r.json()) as { email?: string };
+              if (d.email) emailMap[id] = d.email;
+            }
+          } catch {
+            /* best-effort */
+          }
+        }),
+      );
+
+      const members = [
+        ...(ownerId
+          ? [{ user_id: ownerId, role: "owner" as const, email: emailMap[ownerId] ?? null }]
+          : []),
+        ...memberRows.map((m) => ({
+          user_id: m.user_id,
+          role: m.role as "viewer" | "member",
+          email: emailMap[m.user_id] ?? null,
+          joined_at: m.joined_at,
+        })),
+      ];
+
+      let invites: Array<{
+        id: string;
+        email: string;
+        role: string;
+        created_at: string;
+        expires_at: string;
+      }> = [];
+      if (access.role === "owner") {
+        const invR = await fetch(
+          `${SB_URL}/rest/v1/brain_invites?brain_id=eq.${encodeURIComponent(brainId)}&accepted_at=is.null&select=id,email,role,created_at,expires_at&order=created_at.desc`,
+          { headers: hdrs() },
+        );
+        invites = invR.ok ? await invR.json() : [];
+      }
+
+      return void res.status(200).json({ members, invites, my_role: access.role });
+    }
+
+    // ── DELETE ?action=remove-member&id=<brain>&user_id=<X> — owner only ──
+    // Also used by a member to remove themselves (callers sending their own user_id).
+    if (req.method === "DELETE" && action === "remove-member") {
+      const brainId = req.query.id as string | undefined;
+      const targetId = req.query.user_id as string | undefined;
+      if (!brainId || !targetId)
+        return void res.status(400).json({ error: "id and user_id required" });
+
+      const isOwner = await requireOwner(brainId);
+      const isSelf = targetId === user.id;
+      if (!isOwner && !isSelf) return void res.status(403).json({ error: "Forbidden" });
+
+      const del = await fetch(
+        `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brainId)}&user_id=eq.${encodeURIComponent(targetId)}`,
+        { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
+      );
+      if (!del.ok) return void res.status(502).json({ error: "Failed to remove member" });
+      return void res.status(200).json({ ok: true });
+    }
+
+    // ── PATCH ?action=update-role — owner changes a member's role ──
+    // Body: { brain_id, user_id, role: 'viewer' | 'member' }
+    if (req.method === "PATCH" && action === "update-role") {
+      const body = (req.body ?? {}) as {
+        brain_id?: unknown;
+        user_id?: unknown;
+        role?: unknown;
+      };
+      const brainId = typeof body.brain_id === "string" ? body.brain_id : "";
+      const targetId = typeof body.user_id === "string" ? body.user_id : "";
+      const role = typeof body.role === "string" ? body.role : "";
+      if (!brainId || !targetId)
+        return void res.status(400).json({ error: "brain_id and user_id required" });
+      if (!ROLE_RE.test(role)) return void res.status(400).json({ error: "invalid role" });
+      if (!(await requireOwner(brainId)))
+        return void res.status(403).json({ error: "Forbidden" });
+
+      const upd = await fetch(
+        `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brainId)}&user_id=eq.${encodeURIComponent(targetId)}`,
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=minimal" }),
+          body: JSON.stringify({ role }),
+        },
+      );
+      if (!upd.ok) return void res.status(502).json({ error: "Failed to update role" });
+      return void res.status(200).json({ ok: true });
+    }
+
+    // ── DELETE ?action=revoke-invite&invite_id=<X> — owner only ──
+    if (req.method === "DELETE" && action === "revoke-invite") {
+      const inviteId = req.query.invite_id as string | undefined;
+      if (!inviteId) return void res.status(400).json({ error: "invite_id required" });
+
+      // Confirm ownership of the brain the invite belongs to before deleting.
+      const lookup = await fetch(
+        `${SB_URL}/rest/v1/brain_invites?id=eq.${encodeURIComponent(inviteId)}&select=brain_id&limit=1`,
+        { headers: hdrs() },
+      );
+      const inviteRows: any[] = lookup.ok ? await lookup.json() : [];
+      const brainId = inviteRows[0]?.brain_id as string | undefined;
+      if (!brainId || !(await requireOwner(brainId)))
+        return void res.status(403).json({ error: "Forbidden" });
+
+      const del = await fetch(
+        `${SB_URL}/rest/v1/brain_invites?id=eq.${encodeURIComponent(inviteId)}`,
+        { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
+      );
+      if (!del.ok) return void res.status(502).json({ error: "Failed to revoke invite" });
+      return void res.status(200).json({ ok: true });
     }
 
     // ── POST: create a new brain (non-personal) ──
@@ -393,12 +773,29 @@ const handleBrains = withAuth(
     }
 
     // ── GET: list brains + active_brain_id from user_ai_settings ──
+    // Returns owned brains AND brains the user is a member/viewer of, with
+    // a derived `my_role` field on each row so the client can gate write UI
+    // (capture button, edit, delete) without a second round-trip.
     const owned = await fetch(
       `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&order=created_at.asc`,
       { headers: hdrs() },
     );
     if (!owned.ok) return void res.status(502).json({ error: "Failed to fetch brains" });
     let ownedData: any[] = await owned.json();
+    ownedData = ownedData.map((b) => ({ ...b, my_role: "owner" }));
+
+    // Shared brains (member/viewer rows joined to brains).
+    const sharedR = await fetch(
+      `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,brain:brains(id,name,description,owner_id,is_personal,created_at,updated_at)`,
+      { headers: hdrs() },
+    );
+    let sharedData: any[] = [];
+    if (sharedR.ok) {
+      const sharedRows: any[] = await sharedR.json();
+      sharedData = sharedRows
+        .filter((row) => row.brain) // FK row may be null if brain was deleted
+        .map((row) => ({ ...row.brain, my_role: row.role as "viewer" | "member" }));
+    }
 
     if (ownedData.length === 0) {
       const createRes = await fetch(`${SB_URL}/rest/v1/brains`, {
@@ -420,6 +817,14 @@ const handleBrains = withAuth(
       }
     }
 
+    // Merge owned + shared. Owned first (already chronologically sorted),
+    // shared last (sorted by name for stability). The active-brain header
+    // accepts either group.
+    const allBrains = [
+      ...ownedData,
+      ...sharedData.sort((a, b) => String(a.name).localeCompare(String(b.name))),
+    ];
+
     // Backwards compat: response is the array of brains. Active id is exposed
     // via X-Active-Brain-Id header so existing clients (which do `.json()`
     // and expect an array) keep working unchanged.
@@ -432,7 +837,7 @@ const handleBrains = withAuth(
       if (ar.ok) {
         const arows: any[] = await ar.json();
         const candidate = arows[0]?.active_brain_id;
-        if (candidate && ownedData.some((b) => b.id === candidate)) {
+        if (candidate && allBrains.some((b) => b.id === candidate)) {
           activeBrainId = candidate;
         }
       }
@@ -440,7 +845,7 @@ const handleBrains = withAuth(
       /* ignore — header simply absent */
     }
     if (activeBrainId) res.setHeader("X-Active-Brain-Id", activeBrainId);
-    return void res.status(200).json(ownedData);
+    return void res.status(200).json(allBrains);
   },
 );
 

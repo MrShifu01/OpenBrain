@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+> **❌ NEVER USE SUPERPOWERS SKILLS.**
+> Do not invoke the `superpowers:*` skill family — no `superpowers:brainstorming`, no `superpowers:writing-plans`, no `superpowers:code-reviewer`, no design-doc spec gates, no "let me ask one clarifying question at a time" loops.
+> When the user asks to tackle a feature, propose a concise design inline (multiple-choice or short bullets), confirm decisions in the same turn or two, then implement. No `docs/superpowers/specs/` writes. No HARD-GATE language. Just build.
+> The only exception is if the user explicitly types `/superpowers` or names a superpowers skill — then it's user-invoked and fine.
+
 > **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/` (shorthand: `EML`)**
 > The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, and architecture reference. When the user says "EML" they mean this folder — treat it as `EverionMindLaunch/` everywhere. Six core docs:
 > - **`LAUNCH_CHECKLIST.md`** — active to-do (P0/P1/P2 tiered)
