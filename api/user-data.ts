@@ -931,10 +931,17 @@ const handleSentryIssues = withAuth(
       return;
     }
 
+    // 4s timeout — the dashboard does Promise.all on this + 3 other tiles,
+    // so a slow Sentry response (or sentry.io rate-limit hold) drags the
+    // whole panel. Returning a typed empty error tile is better than
+    // making admin "feel broken."
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4_000);
     try {
       const url = `https://sentry.io/api/0/projects/${encodeURIComponent(org)}/${encodeURIComponent(project)}/issues/?query=is%3Aunresolved&statsPeriod=24h&sort=freq&limit=5`;
       const r = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
+        signal: ctrl.signal,
       });
       if (!r.ok) {
         const detail = await r.text().catch(() => "");
@@ -970,6 +977,8 @@ const handleSentryIssues = withAuth(
         issues: [],
         error: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      clearTimeout(timer);
     }
   },
 );

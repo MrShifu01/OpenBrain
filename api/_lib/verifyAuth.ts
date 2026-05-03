@@ -1,8 +1,32 @@
 import type { ApiRequest } from "./types";
 import type { AuthedUser } from "./withAuth.js";
+import crypto from "crypto";
 
 const SB_URL = process.env.SUPABASE_URL;
 const VERIFY_TIMEOUT_MS = 5_000;
+const CACHE_TTL_MS = 30_000;
+const CACHE_MAX_ENTRIES = 500;
+
+// Per-process cache of verified JWTs. A typical page issues 4–8 authed
+// requests in parallel (HomeView fetches profile / gmail / calendar / vault /
+// checklist_done; Settings tabs do their own GETs); each formerly hit
+// /auth/v1/user separately. With a 30s TTL keyed by token-hash, a page load
+// pays one round-trip and the rest are local — turns 8×~100ms into
+// 1×~100ms when Supabase is healthy, and protects against the upstream
+// 504/522 storm we're seeing today.
+//
+// The 30s TTL is a deliberate trade-off: a token revoked in the last 30s
+// could still be honored on this instance, which is fine for this app's
+// threat model (no revocation flow today; tokens auto-expire ~1h).
+//
+// Map preserves insertion order so we can cheaply trim the oldest entry
+// when we exceed CACHE_MAX_ENTRIES — bounds memory on a hot instance.
+type CacheEntry = { user: AuthedUser; expiresAt: number };
+const cache = new Map<string, CacheEntry>();
+
+function tokenHash(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 // Hard-cap the JWT verification round-trip. Supabase auth occasionally
 // returns 504/522 under load (Cloudflare front-of-queue timeout); without
@@ -15,6 +39,11 @@ export async function verifyAuth(req: ApiRequest): Promise<AuthedUser | null> {
   const token = (req.headers.authorization as string | undefined)?.split(" ")[1];
   if (!token) return null;
 
+  const key = tokenHash(token);
+  const now = Date.now();
+  const cached = cache.get(key);
+  if (cached && cached.expiresAt > now) return cached.user;
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), VERIFY_TIMEOUT_MS);
   try {
@@ -25,8 +54,18 @@ export async function verifyAuth(req: ApiRequest): Promise<AuthedUser | null> {
       },
       signal: ctrl.signal,
     });
-    if (!res.ok) return null;
-    return (await res.json()) as AuthedUser;
+    if (!res.ok) {
+      // Drop any stale cache entry for a now-invalid token.
+      if (cached) cache.delete(key);
+      return null;
+    }
+    const user = (await res.json()) as AuthedUser;
+    if (cache.size >= CACHE_MAX_ENTRIES) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) cache.delete(oldestKey);
+    }
+    cache.set(key, { user, expiresAt: now + CACHE_TTL_MS });
+    return user;
   } catch {
     // Network error, abort, or non-2xx — treat as unauthenticated. Caller
     // already maps null → 401 so the client gets a fast failure instead of
