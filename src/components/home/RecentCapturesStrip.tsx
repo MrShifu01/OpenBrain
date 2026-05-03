@@ -63,9 +63,7 @@ export default function RecentCapturesStrip({ entries, onSelectEntry }: RecentCa
           gap: 10,
           overflowX: "auto",
           paddingBottom: 6,
-          margin: "0 -20px",
-          paddingLeft: 20,
-          paddingRight: 20,
+          paddingRight: 4,
           scrollSnapType: "x mandatory",
           WebkitOverflowScrolling: "touch",
         }}

@@ -48,7 +48,7 @@ export default function HomeView({
       className="mx-auto w-full"
       style={{
         maxWidth: 720,
-        padding: "32px 20px 80px",
+        padding: "32px 20px calc(96px + env(safe-area-inset-bottom, 0px))",
         display: "flex",
         flexDirection: "column",
         gap: 20,
