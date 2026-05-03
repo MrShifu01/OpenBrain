@@ -195,16 +195,20 @@ function WeekPager({ weekStart, onChange }: { weekStart: Date; onChange: (d: Dat
 
 function OverdueBanner({
   count,
-  onJump,
+  expanded,
+  onToggle,
   pinned,
 }: {
   count: number;
-  onJump: () => void;
+  expanded?: boolean;
+  onToggle?: () => void;
   pinned?: boolean;
 }) {
+  const interactive = !pinned;
   return (
     <button
-      onClick={onJump}
+      onClick={interactive ? onToggle : undefined}
+      aria-expanded={interactive ? expanded : undefined}
       className="press"
       style={{
         width: "100%",
@@ -217,7 +221,7 @@ function OverdueBanner({
         border: "1px solid color-mix(in oklch, var(--blood) 28%, transparent)",
         background: "color-mix(in oklch, var(--blood) 8%, var(--surface))",
         color: "var(--blood)",
-        cursor: pinned ? "default" : "pointer",
+        cursor: interactive ? "pointer" : "default",
         font: "inherit",
         textAlign: "left",
       }}
@@ -245,13 +249,48 @@ function OverdueBanner({
       </span>
       <span
         className="f-sans"
-        style={{ fontSize: 12, color: "var(--blood)", marginLeft: "auto", fontWeight: 600 }}
+        style={{
+          fontSize: 12,
+          color: "var(--blood)",
+          marginLeft: "auto",
+          fontWeight: 600,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
       >
         {count} {count === 1 ? "item" : "items"}
-        {!pinned && " ›"}
+        {interactive && (
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-block",
+              transition: "transform 160ms ease",
+              transform: expanded ? "rotate(90deg)" : "rotate(0deg)",
+            }}
+          >
+            ›
+          </span>
+        )}
       </span>
     </button>
   );
+}
+
+function fmtOverdueDate(iso: string, todayKey: string): string {
+  // dateStr is YYYY-MM-DD; render "3d overdue" / "yesterday" / "Mon 28 Apr".
+  const [y, m, d] = iso.split("-").map((n) => parseInt(n, 10));
+  const target = new Date(y, m - 1, d);
+  const [ty, tm, td] = todayKey.split("-").map((n) => parseInt(n, 10));
+  const today = new Date(ty, tm - 1, td);
+  const diff = Math.round((today.getTime() - target.getTime()) / (24 * 60 * 60 * 1000));
+  if (diff === 1) return "yesterday";
+  if (diff > 1 && diff < 7) return `${diff}d overdue`;
+  return target.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function UndatedSection({
@@ -329,6 +368,7 @@ export default function TodoView({
   // on each tick when both sides are nullish, invalidating overdue/todoList/etc.
   const entries = useMemo(() => propEntries || ctx?.entries || [], [propEntries, ctx?.entries]);
   const [tab, setTab] = useState<Tab>("calendar");
+  const [overdueExpanded, setOverdueExpanded] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [editState, setEditState] = useState<{ entry: Entry; rect: DOMRect } | null>(null);
   const [, setKarma] = useState(getKarma());
@@ -517,7 +557,50 @@ export default function TodoView({
             </div>
 
             {overdue.length > 0 && toDateKey(selectedDate) === todayKey && (
-              <OverdueBanner count={overdue.length} onJump={() => setTab("list")} />
+              <>
+                <OverdueBanner
+                  count={overdue.length}
+                  expanded={overdueExpanded}
+                  onToggle={() => setOverdueExpanded((v) => !v)}
+                />
+                {overdueExpanded && (
+                  <div
+                    style={{
+                      marginTop: -4,
+                      marginBottom: 12,
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 12,
+                      background: "var(--surface)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {overdue.map(({ entry, dateStr }, i) => (
+                      <div
+                        key={`${entry.id}-${dateStr}`}
+                        style={{
+                          padding: "8px 12px",
+                          borderBottom: i < overdue.length - 1 ? "1px solid var(--line-soft)" : 0,
+                        }}
+                      >
+                        <div
+                          className="f-sans"
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: 1,
+                            textTransform: "uppercase",
+                            color: "var(--blood)",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {fmtOverdueDate(dateStr, todayKey)}
+                        </div>
+                        {renderEntryRow(entry)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
 
             <DayAgenda
@@ -555,9 +638,7 @@ export default function TodoView({
               />
             </div>
 
-            {overdue.length > 0 && (
-              <OverdueBanner count={overdue.length} onJump={() => undefined} pinned />
-            )}
+            {overdue.length > 0 && <OverdueBanner count={overdue.length} pinned />}
 
             <DayAgenda
               date={selectedDate}
