@@ -65,6 +65,9 @@ export function useVoiceRecorder({
         onLoading(true);
         onStatus("transcribing");
         onError(null);
+        // Client-side timing — pair with server [transcribe] timing log to
+        // attribute the gap between user tap-to-stop and text appearing.
+        const tStop = Date.now();
         try {
           const base64 = await new Promise<string>((resolve, reject) => {
             const reader = new FileReader();
@@ -72,6 +75,7 @@ export function useVoiceRecorder({
             reader.onerror = reject;
             reader.readAsDataURL(blob);
           });
+          const tEncoded = Date.now();
           const headers: Record<string, string> = { "Content-Type": "application/json" };
           if (groqKey) headers["X-Groq-Api-Key"] = groqKey;
           const transcribeRes = await authFetch("/api/transcribe", {
@@ -79,6 +83,10 @@ export function useVoiceRecorder({
             headers,
             body: JSON.stringify({ audio: base64, mimeType: actualMime, language: "en" }),
           });
+          const tFetched = Date.now();
+          console.log(
+            `[voice] client timing — total=${tFetched - tStop}ms encode=${tEncoded - tStop}ms upload+server=${tFetched - tEncoded}ms blobBytes=${blob.size} mime=${actualMime}`,
+          );
           if (transcribeRes.ok) {
             const {
               text: t,

@@ -693,6 +693,10 @@ async function handleExtractFile(
 const MAX_AUDIO_BYTES = 24 * 1024 * 1024;
 
 async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void> {
+  // Diagnostic timing — log breakdown so we can split cold-start, multipart
+  // build, Groq round-trip, and retry overhead. Search Vercel function logs
+  // for "[transcribe] timing" to graph p50/p95.
+  const t0 = Date.now();
   if (!GROQ_API_KEY) {
     res.status(500).json({ error: "Voice transcription not configured" });
     return;
@@ -750,10 +754,13 @@ async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void
   // — same pattern as api/_lib/aiProvider.ts. Without this a single Groq
   // 503 dropped voice notes silently; the user re-recorded thinking they
   // misheard the toast.
+  const tBuild = Date.now();
   const TRANSCRIBE_DELAYS = [400, 1200, 3000];
   let whisperRes: Response | null = null;
   let lastNetworkErr: unknown = null;
+  let retryAttempts = 0;
   for (let attempt = 0; attempt <= TRANSCRIBE_DELAYS.length; attempt++) {
+    retryAttempts = attempt;
     try {
       whisperRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
         method: "POST",
@@ -795,7 +802,12 @@ async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void
       });
     return;
   }
+  const tGroq = Date.now();
   const data: any = await whisperRes.json();
+  const tDone = Date.now();
+  console.log(
+    `[transcribe] timing — total=${tDone - t0}ms build=${tBuild - t0}ms groq=${tGroq - tBuild}ms parse=${tDone - tGroq}ms retries=${retryAttempts} bytes=${audioBuffer.byteLength} mime=${mimeType} textLen=${(data.text || "").length}`,
+  );
   res
     .status(200)
     .json({ text: data.text || "", audioBytes: audioBuffer.byteLength, provider: "groq", model });
