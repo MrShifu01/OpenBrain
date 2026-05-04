@@ -200,12 +200,14 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function KV({ k, v }: { k: string; v: React.ReactNode }) {
+  // The .crm-kv class flips between two-column (label | value) on desktop and
+  // stacked (label / value) on mobile via the media query in index.css. Without
+  // that, the 140px label column eats the value column on narrow screens and
+  // overflowWrap: anywhere wraps emails / UUIDs character-by-character.
   return (
     <div
-      className="f-sans"
+      className="f-sans crm-kv"
       style={{
-        display: "grid",
-        gridTemplateColumns: "140px 1fr",
         gap: 10,
         padding: "5px 0",
         fontSize: 12,
@@ -213,7 +215,15 @@ function KV({ k, v }: { k: string; v: React.ReactNode }) {
       }}
     >
       <div style={{ color: "var(--ink-faint)" }}>{k}</div>
-      <div style={{ color: "var(--ink)", overflowWrap: "anywhere" }}>{v}</div>
+      <div
+        style={{
+          color: "var(--ink)",
+          overflowWrap: "anywhere",
+          minWidth: 0,
+        }}
+      >
+        {v}
+      </div>
     </div>
   );
 }
@@ -490,9 +500,8 @@ export default function AdminCRMSection() {
       )}
 
       <div
+        className="crm-split"
         style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.2fr)",
           gap: 16,
           alignItems: "start",
         }}
