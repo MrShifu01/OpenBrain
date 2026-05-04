@@ -284,6 +284,19 @@ Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSque
       Resend is configured. Verify rendering across Gmail, Outlook, Apple Mail. Use Mailtrap or send to real accounts.
 - [ ] **Email sender domain SPF/DKIM/DMARC** 🟡
       `noreply@everion.smashburgerbar.co.za` — copy the records from <https://resend.com/domains> into the DNS provider for `smashburgerbar.co.za`. Step-by-step (including DMARC soak-then-tighten cadence) in `docs/launch-runbook-alerts-and-dns.md`. ~10 min.
+- [ ] **Invite emails inbox-not-spam (full deliverability pass)** 🟡
+      Reported 2026-05-04: invite emails landing in spam. SPF/DKIM/DMARC alone usually fixes it; the rest below is for cases where it doesn't.
+      - [ ] **Domain auth** — SPF + DKIM + DMARC verified at <https://resend.com/domains>; DMARC starts `p=none; rua=mailto:dmarc@smashburgerbar.co.za` then escalates to `p=quarantine` after a week of clean reports.
+      - [ ] **Score check** — paste a real invite into <https://www.mail-tester.com>. Target ≥9/10. Iterate on whatever it flags.
+      - [ ] **From address** — switch from `noreply@…` to a real human at the brand domain (e.g. `christian@everion.smashburgerbar.co.za`). Personal first-name from-addresses survive Gmail/Outlook filters; `noreply` triggers them.
+      - [ ] **Subject + preview** — "Christian invited you to Everion" beats "🎉 You've been invited!". No emoji, no urgency, no exclamation. First 90 chars of body should read like a sentence, not "view this email in your browser."
+      - [ ] **Plain-text body** — Resend supports both. HTML-only is a spam signal.
+      - [ ] **List-Unsubscribe + List-Unsubscribe-Post headers** — effectively required by Gmail in 2026 to dodge the bulk-sender penalty. Resend has a flag for this.
+      - [ ] **One CTA link** — invite + unsubscribe only. Tracking pixels via Resend's domain (not a third-party tracker).
+      - [ ] **Dedicated sending subdomain** — send transactional from `mail.everion.smashburgerbar.co.za` (or similar) so marketing reputation can never poison invites.
+      - [ ] **Warm-up** — first 3 days, send to a handful of opted-in test inboxes only. Blasting 50 invites on a cold subdomain looks like a botnet.
+      - [ ] **Parent domain blocklist check** — <https://mxtoolbox.com/domain/smashburgerbar.co.za>. If the parent is on a blocklist, the subdomain inherits the cloud — file a delisting request before launch.
+      - [ ] **Real-inbox smoke test** — send the final invite to Gmail + Outlook + Apple Mail test accounts. Inbox not Promotions, no warning banner. Record the deliverability scorecard in `EML/Audits/<date>-email-deliverability.md` for the launch runbook.
 - [x] **Customer support channel** ✅ — mailto:stander.christian@gmail.com surfaced in Landing footer + Settings → Account → Help row. Forward `support@everion.smashburgerbar.co.za` if/when a custom inbox is wanted.
       Where do users complain? Email link in app footer is the minimum. `support@` alias forwarded to your inbox.
 
