@@ -1,5 +1,5 @@
 import React from "react";
-import { extractPhone, toWaUrl } from "../lib/phone";
+import { extractEmail, extractPhone, toWaUrl } from "../lib/phone";
 import type { Entry } from "../types";
 import { Button } from "./ui/button";
 
@@ -25,24 +25,28 @@ export function EntryQuickActions({
   onShareMsg,
 }: EntryQuickActionsProps) {
   const phone = extractPhone(entry);
+  const email = extractEmail(entry);
   const isSupplier = entry.tags?.includes("supplier") || entry.metadata?.category === "supplier";
   const isSecret = entry.type === "secret";
 
   const actions: React.ReactNode[] = [];
 
-  if (isSupplier || entry.type === "contact" || entry.type === "person") {
+  // Contact buttons — shown whenever a phone or email is detected anywhere in
+  // the entry (metadata or content), regardless of type. Previously gated on
+  // type=contact|person|supplier which meant a `note` with a phone got nothing.
+  // Secrets are excluded so a stored password that happens to look like a
+  // phone/email doesn't sprout actionable buttons.
+  const linkChipClass =
+    "press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all";
+  const linkChipStyle: React.CSSProperties = {
+    background: "var(--color-surface-container)",
+    border: "1px solid var(--color-outline-variant)",
+    color: "var(--color-on-surface-variant)",
+  };
+  if (!isSecret) {
     if (phone) {
       actions.push(
-        <a
-          key="call"
-          href={`tel:${phone}`}
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
-        >
+        <a key="call" href={`tel:${phone}`} className={linkChipClass} style={linkChipStyle}>
           📞 Call
         </a>,
       );
@@ -52,24 +56,28 @@ export function EntryQuickActions({
           href={toWaUrl(phone)}
           target="_blank"
           rel="noreferrer"
-          className="press-scale inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all"
-          style={{
-            background: "var(--color-surface-container)",
-            border: "1px solid var(--color-outline-variant)",
-            color: "var(--color-on-surface-variant)",
-          }}
+          className={linkChipClass}
+          style={linkChipStyle}
         >
           💬 WhatsApp
         </a>,
       );
     }
-    if (isSupplier && onReorder) {
+    if (email) {
       actions.push(
-        <Button key="reorder" variant="outline" size="sm" onClick={() => onReorder(entry)}>
-          🔁 Reorder
-        </Button>,
+        <a key="email" href={`mailto:${email}`} className={linkChipClass} style={linkChipStyle}>
+          ✉️ Email
+        </a>,
       );
     }
+  }
+
+  if (isSupplier && onReorder) {
+    actions.push(
+      <Button key="reorder" variant="outline" size="sm" onClick={() => onReorder(entry)}>
+        🔁 Reorder
+      </Button>,
+    );
   }
 
   if (entry.type === "reminder") {
