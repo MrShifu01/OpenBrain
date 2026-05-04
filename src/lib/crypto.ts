@@ -2,6 +2,12 @@ const CIPHER = "AES-GCM";
 const IV_BYTES = 12;
 const CIPHERTEXT_PREFIX = "v1:";
 
+// Master KEK usages — needs wrapKey/unwrapKey on top of encrypt/decrypt so
+// phase-2 envelope encryption can wrap the user's RSA private key with the
+// master KEK. Without wrapKey here, setupVault fails on first call to
+// wrapPrivateKey with "Wrapping CryptoKey doesn't support wrapKey operation".
+const MASTER_KEY_USAGES: KeyUsage[] = ["encrypt", "decrypt", "wrapKey", "unwrapKey"];
+
 export async function deriveKeyFromPassphrase(
   passphrase: string,
   salt: Uint8Array,
@@ -18,7 +24,7 @@ export async function deriveKeyFromPassphrase(
     keyMaterial,
     { name: CIPHER, length: 256 },
     true,
-    ["encrypt", "decrypt"],
+    MASTER_KEY_USAGES,
   );
 }
 
@@ -128,10 +134,13 @@ export async function decryptVaultKeyFromRecovery(
     const recoveryAesKey = await deriveKeyFromPassphrase(recoveryKey, saltBytes);
     const rawKeyB64 = await decryptText(ciphertext, recoveryAesKey);
     const rawKeyBytes = Uint8Array.from(atob(rawKeyB64), (c) => c.charCodeAt(0));
-    return await crypto.subtle.importKey("raw", rawKeyBytes, { name: CIPHER, length: 256 }, true, [
-      "encrypt",
-      "decrypt",
-    ]);
+    return await crypto.subtle.importKey(
+      "raw",
+      rawKeyBytes,
+      { name: CIPHER, length: 256 },
+      true,
+      MASTER_KEY_USAGES,
+    );
   } catch {
     return null;
   }
@@ -149,10 +158,13 @@ export async function getCachedVaultKey(): Promise<CryptoKey | null> {
   if (!b64) return null;
   try {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-    return await crypto.subtle.importKey("raw", bytes, { name: CIPHER, length: 256 }, true, [
-      "encrypt",
-      "decrypt",
-    ]);
+    return await crypto.subtle.importKey(
+      "raw",
+      bytes,
+      { name: CIPHER, length: 256 },
+      true,
+      MASTER_KEY_USAGES,
+    );
   } catch {
     return null;
   }
