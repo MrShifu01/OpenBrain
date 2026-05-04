@@ -24,7 +24,6 @@ import {
   scanGmailForUser,
   deepScanBatch,
 } from "./_lib/gmailScan.js";
-import { enrichBrain } from "./_lib/enrich.js";
 
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -264,13 +263,11 @@ const authedHandler = withAuth(
       });
       const rows: any[] = r.ok ? await r.json() : [];
       if (!rows[0]) return void res.status(404).json({ error: "No Gmail integration found" });
-      const brainId = typeof req.body?.brain_id === "string" ? req.body.brain_id : undefined;
-      // Audit #4: prevent brain_id IDOR — caller cannot redirect scan output
-      // into a brain they don't own.
-      if (brainId) await requireBrainAccess(user.id, brainId);
+      // Gmail entries always land in the user's personal brain (see
+      // gmailScan.getUserBrainId) so the caller's brain_id is no longer
+      // honoured. Re-enrichment is targeted at the personal brain.
       try {
-        const result = await scanGmailForUser(rows[0], true, brainId);
-        if (brainId) enrichBrain(user.id, brainId, 10).catch(() => {});
+        const result = await scanGmailForUser(rows[0], true);
         return void res.status(200).json(result);
       } catch (e: any) {
         console.error("[gmail/scan]", e);
@@ -311,14 +308,12 @@ const authedHandler = withAuth(
       });
       const rows: any[] = r.ok ? await r.json() : [];
       if (!rows[0]) return void res.status(404).json({ error: "No Gmail integration found" });
-      const { cursor, sinceMs, brain_id } = req.body ?? {};
-      const deepBrainId = typeof brain_id === "string" ? brain_id : undefined;
-      // Audit #4: prevent brain_id IDOR on deep-scan path too.
-      if (deepBrainId) await requireBrainAccess(user.id, deepBrainId);
+      const { cursor, sinceMs } = req.body ?? {};
+      // Deep-scan output also locks to the personal brain — see
+      // gmailScan.getUserBrainId. brain_id from body is ignored.
       const result = await deepScanBatch(rows[0], {
         cursor: typeof cursor === "string" ? cursor : undefined,
         sinceMs: typeof sinceMs === "number" ? sinceMs : Date.now() - 365 * 24 * 60 * 60 * 1000,
-        activeBrainId: deepBrainId,
       });
       return void res.status(200).json(result);
     }

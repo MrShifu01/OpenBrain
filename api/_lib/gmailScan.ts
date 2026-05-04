@@ -968,10 +968,15 @@ function computeRelevanceScore(block: ThreadBlock, match: any): number {
 
 // ── DB helpers ──────────────────────────────────────────────────────────────
 
+// Gmail entries always belong to the user's PERSONAL brain. Without the
+// is_personal filter this would pick whichever brain came back first —
+// often a shared brain — leaking private email into family/business
+// scopes and hiding it from the personal Memory view.
 async function getUserBrainId(userId: string): Promise<string | null> {
-  const r = await fetch(`${SB_URL}/rest/v1/brains?owner_id=eq.${userId}&select=id&limit=1`, {
-    headers: SB_HEADERS,
-  });
+  const r = await fetch(
+    `${SB_URL}/rest/v1/brains?owner_id=eq.${userId}&is_personal=eq.true&select=id&limit=1`,
+    { headers: SB_HEADERS },
+  );
   if (!r.ok) return null;
   const rows: any[] = await r.json();
   return rows[0]?.id ?? null;
@@ -1702,7 +1707,7 @@ interface DeepScanResult {
 
 export async function deepScanBatch(
   integration: any,
-  params: { cursor?: string; sinceMs: number; activeBrainId?: string },
+  params: { cursor?: string; sinceMs: number },
 ): Promise<DeepScanResult> {
   const token = await refreshGmailToken(integration);
   if (!token)
@@ -1745,7 +1750,9 @@ export async function deepScanBatch(
     messageIds: importedMessageIds,
     subjectFromKeys: importedSubjectFromKeys,
   } = await fetchImportedIdentifiers(integration.user_id);
-  const brainId = params.activeBrainId ?? (await getUserBrainId(integration.user_id));
+  // Gmail always lands in the personal brain regardless of which brain
+  // is active in the UI — see getUserBrainId comment.
+  const brainId = await getUserBrainId(integration.user_id);
 
   const debug = emptyDebug();
   const blocks = await hydrateThreadBlocks(token, refs, importedThreadIds, 40);
@@ -1814,7 +1821,6 @@ export async function deepScanBatch(
 export async function scanGmailForUser(
   integration: any,
   manual = false,
-  activeBrainId?: string,
 ): Promise<{ created: number; debug: ScanDebug; entries: ScanResultItem[] }> {
   const debug = emptyDebug();
 
@@ -1900,7 +1906,8 @@ export async function scanGmailForUser(
       messageIds: importedMessageIds,
       subjectFromKeys: importedSubjectFromKeys,
     } = await fetchImportedIdentifiers(integration.user_id);
-    const brainId = activeBrainId ?? (await getUserBrainId(integration.user_id));
+    // Always the personal brain — see getUserBrainId comment.
+    const brainId = await getUserBrainId(integration.user_id);
 
     // Repair: assign brain_id to any existing gmail entries missing it.
     if (brainId) {

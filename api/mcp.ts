@@ -389,7 +389,11 @@ async function gmailSync(userId: string, brainId: string, lookbackDays = 7): Pro
   const integ = rows[0];
   const days = Math.min(Math.max(1, lookbackDays), 30) as 1 | 7 | 30;
   const prefs: GmailPreferences = { ...(integ.preferences ?? {}), lookbackDays: days };
-  const result = await scanGmailForUser({ ...integ, preferences: prefs }, true, brainId);
+  // brainId is no longer honoured — Gmail always lands in the personal
+  // brain (see gmailScan.getUserBrainId). Param kept on the MCP signature
+  // for backward compat with existing tool definitions.
+  void brainId;
+  const result = await scanGmailForUser({ ...integ, preferences: prefs }, true);
   return {
     created: result.created,
     sync_mode: result.debug.syncMode,
