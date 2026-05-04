@@ -401,13 +401,18 @@ export function useVaultOps({
         setBusy(false);
         return;
       }
-      // Phase 2: ensure asymmetric keypair is loaded into refs (or
-      // backfilled), then load every wrapped DEK we have access to.
-      // Both are best-effort — if they fail, the user can still read
-      // their personal-brain secrets (master-KEK encrypted) and just
-      // can't decrypt shared-brain secrets until the next unlock.
-      await ensureKeypair(key, vaultData);
-      await loadBrainDEKs();
+      // Phase 2 envelope state is best-effort. If the keypair backfill
+      // PATCH 4xxs against an unmigrated DB, or importPublicKey throws on a
+      // stored SPKI that's gone bad, the user can still read their
+      // personal-brain (master-KEK encrypted) secrets — they just can't
+      // decrypt shared-brain secrets until the keypair is sorted out. Don't
+      // let it throw past this boundary or unlock fails wholesale.
+      try {
+        await ensureKeypair(key, vaultData);
+        await loadBrainDEKs();
+      } catch (err) {
+        console.error("[vault] phase-2 setup failed (non-fatal)", err);
+      }
       onVaultUnlock(key);
       // If the PIN/biometric flag is on AND this device has no PIN record
       // yet, route to the one-time PIN setup screen so the next unlock
@@ -435,9 +440,13 @@ export function useVaultOps({
         setBusy(false);
         return;
       }
-      // Phase 2 envelope state — same as handleUnlock.
-      await ensureKeypair(key, vaultData);
-      await loadBrainDEKs();
+      // Phase 2 envelope state — best-effort, see handleUnlock comment.
+      try {
+        await ensureKeypair(key, vaultData);
+        await loadBrainDEKs();
+      } catch (err) {
+        console.error("[vault] phase-2 setup failed (non-fatal)", err);
+      }
       onVaultUnlock(key);
       if (pinFlagEnabled && !loadPinRecord()) {
         setStatus("pin-setup");
@@ -470,8 +479,13 @@ export function useVaultOps({
       // Phase 2: PIN unlock skips the passphrase derivation but still
       // needs the asymmetric keypair + DEKs in memory to read shared
       // brain secrets. vaultData is loaded by the time PIN unlock fires.
-      await ensureKeypair(key, vaultData);
-      await loadBrainDEKs();
+      // Best-effort — see handleUnlock comment.
+      try {
+        await ensureKeypair(key, vaultData);
+        await loadBrainDEKs();
+      } catch (err) {
+        console.error("[vault] phase-2 setup failed (non-fatal)", err);
+      }
       onVaultUnlock(key);
       setStatus("unlocked");
       setPin("");
@@ -500,9 +514,13 @@ export function useVaultOps({
       setPinBusy(false);
       return;
     }
-    // Phase 2 envelope state — same as PIN unlock.
-    await ensureKeypair(key, vaultData);
-    await loadBrainDEKs();
+    // Phase 2 envelope state — best-effort, same as PIN unlock.
+    try {
+      await ensureKeypair(key, vaultData);
+      await loadBrainDEKs();
+    } catch (err) {
+      console.error("[vault] phase-2 setup failed (non-fatal)", err);
+    }
     onVaultUnlock(key);
     setStatus("unlocked");
     setPinBusy(false);

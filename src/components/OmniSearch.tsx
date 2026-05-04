@@ -165,56 +165,59 @@ export default function OmniSearch({
 
         {results.length > 0 && (
           <CommandGroup heading="entries">
-            {results.map((entry) => (
-              <CommandItem
-                key={entry.id}
-                value={`entry-${entry.id}-${entry.title}`}
-                onSelect={() => {
-                  onSelect(entry);
-                  setOpen(false);
-                }}
-              >
-                <span style={{ color: "var(--ink-faint)", display: "inline-flex" }}>
-                  <TypeGlyph type={entry.type} />
-                </span>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
-                    className="f-serif truncate"
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 450,
-                      color: "var(--ink)",
-                      letterSpacing: "-0.005em",
-                    }}
-                  >
-                    {entry.title}
+            {results.map((entry) => {
+              // Secrets are findable by title + tags, but the content is
+              // encrypted at rest — never render it as a snippet here. The
+              // memory view shows the same lock placeholder; OmniSearch
+              // matches that UX so the ciphertext blob never surfaces.
+              const isLocked = entry.type === "secret" || entry.encrypted === true;
+              const subtitle = isLocked
+                ? "🔒 locked — open in Vault"
+                : (entry.tags || []).length > 0
+                  ? (entry.tags || []).slice(0, 3).join(" · ")
+                  : entry.content
+                    ? entry.content.slice(0, 80)
+                    : null;
+              return (
+                <CommandItem
+                  key={entry.id}
+                  value={`entry-${entry.id}-${entry.title}`}
+                  onSelect={() => {
+                    onSelect(entry);
+                    setOpen(false);
+                  }}
+                >
+                  <span style={{ color: "var(--ink-faint)", display: "inline-flex" }}>
+                    <TypeGlyph type={entry.type} />
+                  </span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      className="f-serif truncate"
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 450,
+                        color: "var(--ink)",
+                        letterSpacing: "-0.005em",
+                      }}
+                    >
+                      {entry.title}
+                    </div>
+                    {subtitle ? (
+                      <div
+                        className="f-serif truncate"
+                        style={{
+                          fontSize: 11,
+                          color: "var(--ink-faint)",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {subtitle}
+                      </div>
+                    ) : null}
                   </div>
-                  {(entry.tags || []).length > 0 ? (
-                    <div
-                      className="f-serif truncate"
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-faint)",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      {(entry.tags || []).slice(0, 3).join(" · ")}
-                    </div>
-                  ) : entry.content ? (
-                    <div
-                      className="f-serif truncate"
-                      style={{
-                        fontSize: 11,
-                        color: "var(--ink-faint)",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      {entry.content.slice(0, 80)}
-                    </div>
-                  ) : null}
-                </div>
-              </CommandItem>
-            ))}
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         )}
 
