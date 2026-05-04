@@ -219,11 +219,9 @@ export default function BrainSwitcher({ dropUp, compact, cardMode, onPick, hideC
                   >
                     {b.name}
                   </div>
-                  {b.is_personal && (
-                    <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>
-                      Personal
-                    </div>
-                  )}
+                  <div style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 2 }}>
+                    {b.is_personal ? "Personal" : "Shared"}
+                  </div>
                 </div>
                 {isActive && (
                   <svg
