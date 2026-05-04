@@ -11,7 +11,6 @@ import type { useVaultOps } from "../hooks/useVaultOps";
 import type { Entry } from "../types";
 import { Button } from "../components/ui/button";
 import { Checkbox } from "../components/ui/checkbox";
-import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { getAdminFlags, isFeatureEnabled } from "../lib/featureFlags";
 import { getTemplateOrFreeform, type TemplateId, type VaultTemplate } from "../lib/vaultTemplates";
 import { VaultTemplatePicker } from "../components/vault/VaultTemplatePicker";
@@ -56,10 +55,6 @@ export function VaultUnlocked({
     lockVault,
     startAddSecret,
   } = ops;
-
-  // Match the memory grid's grid/list toggle so the unlocked vault feels
-  // like the same surface, just filtered to encrypted entries.
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const templatesEnabled = isFeatureEnabled("vaultTemplates", getAdminFlags());
 
@@ -147,20 +142,6 @@ export function VaultUnlocked({
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            {/* Grid / List toggle — same visual idiom as the memory grid. */}
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as "grid" | "list")}>
-              <TabsList
-                aria-label="View mode"
-                className="border border-[var(--line-soft)] bg-[var(--surface-low)]"
-              >
-                <TabsTrigger value="grid" className="capitalize">
-                  grid
-                </TabsTrigger>
-                <TabsTrigger value="list" className="capitalize">
-                  list
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
             <Button onClick={openAddSecret} size="sm">
               + Add secret
             </Button>

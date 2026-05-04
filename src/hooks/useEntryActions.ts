@@ -77,12 +77,22 @@ export function useEntryActions({
       entries.filter((e) => e.id !== id),
       activeBrainId,
     );
+    // Vault entries live in their own table (vault_entries) and are
+    // soft-deleted via /api/vault-entries?id=X. Hitting /api/delete-entry
+    // for a vault row 404s silently against the regular entries table —
+    // which is why the modal said "Deleted" but the row stayed in the
+    // Vault grid even after refresh.
+    const isVault = entry.type === "secret";
+    const url = isVault ? `/api/vault-entries?id=${encodeURIComponent(id)}` : "/api/delete-entry";
+    const fetchInit: RequestInit = isVault
+      ? { method: "DELETE" }
+      : {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        };
     if (isOnlineRef.current) {
-      authFetch("/api/delete-entry", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      }).catch((err) => {
+      authFetch(url, fetchInit).catch((err) => {
         captureError(err, "commitPendingDelete");
         // Restore the entry on failure so state stays consistent
         setEntries((prev) => [entry, ...prev.filter((e) => e.id !== id)]);
@@ -95,9 +105,9 @@ export function useEntryActions({
       // exactly the same DELETE call once the user is back online.
       enqueueOfflineOp({
         id: `delete-${id}-${Date.now()}`,
-        url: "/api/delete-entry",
+        url,
         method: "DELETE",
-        body: JSON.stringify({ id }),
+        body: isVault ? "" : JSON.stringify({ id }),
         created_at: new Date().toISOString(),
         // Tagged so the queue badge can group / count distinct op types
         // without inspecting URLs.
@@ -122,6 +132,18 @@ export function useEntryActions({
       removeFromIndex(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
       setVaultEntries?.((prev) => prev.filter((e) => e.id !== id));
+      // useVaultOps maintains its OWN vaultEntries / decryptedSecrets
+      // state that drives the visible Vault grid — separate from
+      // useDataLayer's vaultEntries. The two stores aren't wired up,
+      // so an entry deleted via DetailModal vanishes from the API and
+      // useDataLayer but stays on screen in the Vault tab. Broadcast
+      // a window event so useVaultOps can mirror the optimistic
+      // removal without us having to plumb its setters through here.
+      if (entry.type === "secret") {
+        window.dispatchEvent(
+          new CustomEvent("everion:entry-deleted", { detail: { id, type: "secret" } }),
+        );
+      }
       setSelected(null);
       const timer = setTimeout(() => {
         if (pendingDeleteRef.current?.id === id) {

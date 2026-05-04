@@ -149,6 +149,23 @@ export function useVaultOps({
       .catch(() => setDecryptedSecrets(secrets));
   }, [status, cryptoKey, secrets.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Listen for cross-cutting deletes dispatched from useEntryActions
+  // (e.g. DetailModal's delete button). Without this, deleting a vault
+  // entry from the modal would hit the API and update useDataLayer's
+  // entries / vaultEntries — but the visible Vault grid reads from this
+  // hook's local copy, so the row would linger until the next refresh.
+  useEffect(() => {
+    function onEntryDeleted(ev: Event) {
+      const detail = (ev as CustomEvent).detail as { id?: string; type?: string } | undefined;
+      const id = detail?.id;
+      if (!id) return;
+      setVaultEntries((prev) => prev.filter((e) => e.id !== id));
+      setDecryptedSecrets((prev) => prev.filter((e) => e.id !== id));
+    }
+    window.addEventListener("everion:entry-deleted", onEntryDeleted);
+    return () => window.removeEventListener("everion:entry-deleted", onEntryDeleted);
+  }, []);
+
   useEffect(() => {
     if (["setup", "locked", "recovery"].includes(status)) {
       setTimeout(() => inputRef.current?.focus(), 80);
