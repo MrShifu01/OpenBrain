@@ -91,6 +91,9 @@ export default withAuth(
     if (ctx.req.method === "POST" && action === "bulk-patch") return handleBulkPatch(ctx);
     if (ctx.req.method === "POST" && action === "merge_into") return handleMergeInto(ctx);
     if (ctx.req.method === "POST" && action === "move") return handleMoveEntry(ctx);
+    if (ctx.req.method === "POST" && action === "share") return handleShareEntry(ctx);
+    if (ctx.req.method === "POST" && action === "unshare") return handleUnshareEntry(ctx);
+    if (ctx.req.method === "GET" && action === "shares") return handleListShares(ctx);
     if (ctx.req.method === "GET") return handleGet(ctx);
     if (ctx.req.method === "DELETE") return handleDelete(ctx);
     if (ctx.req.method === "PATCH") return handlePatch(ctx);
@@ -119,7 +122,28 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
   if (brain_id) {
     await requireBrainAccess(user.id, brain_id);
 
-    const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}${typeFilter}&brain_id=eq.${encodeURIComponent(brain_id)}${cursorFilter}`;
+    // Share-overlay (migration 070): the brain's view = entries owned by
+    // this brain UNION entries shared into it via entry_shares. Fetch the
+    // share IDs first so we can pass them as an `id.in.(…)` clause to
+    // PostgREST; capped to keep the URL short. If a brain ever exceeds
+    // SHARES_FETCH_LIMIT shared entries we'll need a join view, but the
+    // overlay is meant to be sparse (a handful of contacts per brain).
+    const SHARES_FETCH_LIMIT = 500;
+    const shareRes = await fetch(
+      `${SB_URL}/rest/v1/entry_shares?target_brain_id=eq.${encodeURIComponent(brain_id)}&select=entry_id&limit=${SHARES_FETCH_LIMIT}`,
+      { headers: sbHeadersNoContent() },
+    );
+    const sharedIds: string[] = shareRes.ok
+      ? ((await shareRes.json()) as { entry_id: string }[]).map((r) => r.entry_id)
+      : [];
+
+    let brainScopeFilter = `&brain_id=eq.${encodeURIComponent(brain_id)}`;
+    if (sharedIds.length > 0) {
+      const idList = sharedIds.map((id) => encodeURIComponent(id)).join(",");
+      brainScopeFilter = `&or=(brain_id.eq.${encodeURIComponent(brain_id)},id.in.(${idList}))`;
+    }
+
+    const directUrl = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${limit + 1}${deletedFilter}${statusFilter}${typeFilter}${brainScopeFilter}${cursorFilter}`;
     const directRes = await fetch(directUrl, { headers: sbHeadersNoContent() });
     if (!directRes.ok) throw new ApiError(502, "Database error");
     const rows: any[] = await directRes.json();
@@ -1266,6 +1290,14 @@ async function handleMoveEntry({ req, res, user, req_id }: HandlerContext): Prom
   });
   if (!upd.ok) throw new ApiError(502, "Failed to move entry");
 
+  // If the entry was previously shared into the destination brain, that
+  // share row is now redundant (the entry IS in that brain). Drop it so
+  // the brain doesn't list the entry twice via OR logic in handleGet.
+  fetch(
+    `${SB_URL}/rest/v1/entry_shares?entry_id=eq.${encodeURIComponent(id)}&target_brain_id=eq.${encodeURIComponent(dest)}`,
+    { method: "DELETE", headers: sbHeaders({ Prefer: "return=minimal" }) },
+  ).catch(() => {});
+
   // Strip from source brain's concept graph snapshot. Don't await — fire and
   // forget; failure here just leaves a dangling reference until next rebuild.
   stripDeletedFromConceptGraph(sourceBrainId, id).catch((err: any) =>
@@ -1291,6 +1323,127 @@ async function handleMoveEntry({ req, res, user, req_id }: HandlerContext): Prom
   enrichInline(id, user.id).catch(() => {});
 
   res.status(200).json({ ok: true, brain_id: dest });
+}
+
+// ── /api/entries?action=share — overlay an entry into another brain ──
+//
+// Share-overlay model (migration 070): the entry stays owned by its
+// source brain (entries.brain_id) and a row in entry_shares makes it
+// visible inside the target brain too. No duplication, no separate
+// enrichment cost — edits in the source reflect everywhere.
+async function handleShareEntry({ req, res, user, req_id }: HandlerContext): Promise<void> {
+  const id = req.query.id as string | undefined;
+  const target = req.query.brain_id as string | undefined;
+  if (!id || typeof id !== "string" || id.length > 100)
+    throw new ApiError(400, "Missing or invalid id");
+  if (!target || typeof target !== "string" || target.length > 100)
+    throw new ApiError(400, "Missing or invalid brain_id");
+
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=id,brain_id,user_id`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!entryRes.ok) throw new ApiError(502, "Database error");
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) throw new ApiError(404, "Entry not found");
+  if (entry.user_id !== user.id) throw new ApiError(403, "Forbidden");
+  if (entry.brain_id === target) {
+    return void res.status(200).json({ ok: true, unchanged: true, reason: "same_brain" });
+  }
+  await Promise.all([
+    requireBrainAccess(user.id, entry.brain_id),
+    requireBrainAccess(user.id, target),
+  ]);
+
+  const ins = await fetch(`${SB_URL}/rest/v1/entry_shares`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal,resolution=ignore-duplicates" }),
+    body: JSON.stringify({
+      entry_id: id,
+      target_brain_id: target,
+      shared_by: user.id,
+    }),
+  });
+  if (!ins.ok && ins.status !== 409) throw new ApiError(502, "Failed to share entry");
+
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entry_share",
+      resource_id: id,
+      request_id: req_id,
+      details: { source: entry.brain_id, target },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({ ok: true, target_brain_id: target });
+}
+
+async function handleUnshareEntry({ req, res, user, req_id }: HandlerContext): Promise<void> {
+  const id = req.query.id as string | undefined;
+  const target = req.query.brain_id as string | undefined;
+  if (!id || typeof id !== "string" || id.length > 100)
+    throw new ApiError(400, "Missing or invalid id");
+  if (!target || typeof target !== "string" || target.length > 100)
+    throw new ApiError(400, "Missing or invalid brain_id");
+
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id,user_id`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!entryRes.ok) throw new ApiError(502, "Database error");
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) throw new ApiError(404, "Entry not found");
+  if (entry.user_id !== user.id) throw new ApiError(403, "Forbidden");
+
+  const del = await fetch(
+    `${SB_URL}/rest/v1/entry_shares?entry_id=eq.${encodeURIComponent(id)}&target_brain_id=eq.${encodeURIComponent(target)}`,
+    { method: "DELETE", headers: sbHeaders({ Prefer: "return=minimal" }) },
+  );
+  if (!del.ok) throw new ApiError(502, "Failed to unshare entry");
+
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entry_unshare",
+      resource_id: id,
+      request_id: req_id,
+      details: { target },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({ ok: true });
+}
+
+// GET ?action=shares&id=X — list brains the entry is currently shared into.
+async function handleListShares({ req, res, user }: HandlerContext): Promise<void> {
+  const id = req.query.id as string | undefined;
+  if (!id || typeof id !== "string" || id.length > 100)
+    throw new ApiError(400, "Missing or invalid id");
+
+  const entryRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(id)}&select=brain_id,user_id`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!entryRes.ok) throw new ApiError(502, "Database error");
+  const [entry]: any[] = await entryRes.json();
+  if (!entry) throw new ApiError(404, "Entry not found");
+  if (entry.user_id !== user.id) throw new ApiError(403, "Forbidden");
+
+  const r = await fetch(
+    `${SB_URL}/rest/v1/entry_shares?entry_id=eq.${encodeURIComponent(id)}&select=target_brain_id,shared_at`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!r.ok) throw new ApiError(502, "Database error");
+  const rows: any[] = await r.json();
+  res.setHeader("Cache-Control", "no-store");
+  res.status(200).json({ shares: rows });
 }
 
 // ── /api/graph (rewritten to /api/entries?resource=graph) ──

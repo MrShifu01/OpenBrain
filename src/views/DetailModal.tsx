@@ -16,6 +16,7 @@ import {
 } from "../lib/importantMemory";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import MoveToBrainModal from "../components/MoveToBrainModal";
+import ShareToBrainsModal from "../components/ShareToBrainsModal";
 import { Button } from "../components/ui/button";
 import {
   Select,
@@ -161,6 +162,7 @@ export default function DetailModal({
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [movingBrain, setMovingBrain] = useState(false);
+  const [sharingBrains, setSharingBrains] = useState(false);
   // Read BrainContext directly (not via useBrain) so DetailModal can render
   // outside a provider in tests. Multi-brain UI only appears when both the
   // feature flag is on AND the context is available with >1 brain.
@@ -613,6 +615,35 @@ No explanation, no punctuation, just one word.`,
                   <path d="M3 12h13" />
                   <path d="m13 6 6 6-6 6" />
                   <rect x="20" y="4" width="2" height="16" rx="1" />
+                </svg>
+              </Button>
+            )}
+
+            {/* Share-overlay: visible in additional brains without moving */}
+            {canWrite && showMoveBrain && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Share with brains"
+                title="Share with brains"
+                onClick={() => setSharingBrains(true)}
+                style={{ color: "var(--ink-faint)" }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
                 </svg>
               </Button>
             )}
@@ -1428,6 +1459,14 @@ No explanation, no punctuation, just one word.`,
             refreshBrains?.()?.catch(() => {});
             onClose();
           }}
+        />
+      )}
+      {sharingBrains && activeBrain && (
+        <ShareToBrainsModal
+          entry={entry}
+          sourceBrain={activeBrain}
+          brains={ctxBrains}
+          onClose={() => setSharingBrains(false)}
         />
       )}
     </DialogPrimitive.Root>
