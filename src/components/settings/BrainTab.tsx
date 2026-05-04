@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import type { Brain } from "../../types";
 import SettingsRow, { SettingsToggle, SettingsValue } from "./SettingsRow";
 import { authFetch } from "../../lib/authFetch";
+import {
+  grantBrainVaultAccess,
+  revokeBrainVaultAccess,
+  listBrainGrants,
+  VaultGrantError,
+} from "../../lib/vaultGrant";
 import { useBrain } from "../../context/BrainContext";
 import { isFeatureEnabled } from "../../lib/featureFlags";
 import { useAdminDevMode } from "../../hooks/useAdminDevMode";
@@ -399,6 +405,10 @@ function MembersSection({ brain }: { brain: Brain }) {
   const [sending, setSending] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  // Set of user_ids who hold a vault grant on this brain. Re-fetched on
+  // brain switch and after every grant/revoke so the per-member status
+  // ("Vault access" vs "Grant vault access") stays in sync.
+  const [vaultGrantedIds, setVaultGrantedIds] = useState<Set<string>>(new Set());
 
   const refresh = async () => {
     setLoading(true);
@@ -416,10 +426,58 @@ function MembersSection({ brain }: { brain: Brain }) {
     }
   };
 
+  const refreshVaultGrants = async () => {
+    try {
+      const grants = await listBrainGrants(brain.id);
+      setVaultGrantedIds(new Set(grants.map((g) => g.user_id)));
+    } catch {
+      // Pre-migration the endpoint returns 502 — show no badges, don't
+      // block the rest of the members UI.
+      setVaultGrantedIds(new Set());
+    }
+  };
+
   useEffect(() => {
     void refresh();
+    void refreshVaultGrants();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh closes over fresh state every render; the brain-switch is the trigger we want.
   }, [brain.id]);
+
+  async function grantVault(userId: string) {
+    const key = `vault-grant-${userId}`;
+    setBusyKey(key);
+    setMsg(null);
+    try {
+      await grantBrainVaultAccess(brain.id, userId);
+      await refreshVaultGrants();
+      setMsg({ text: "Vault access granted.", ok: true });
+    } catch (err) {
+      setMsg({
+        text: err instanceof VaultGrantError ? err.message : "Grant failed",
+        ok: false,
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function revokeVault(userId: string) {
+    const key = `vault-revoke-${userId}`;
+    setBusyKey(key);
+    setMsg(null);
+    try {
+      await revokeBrainVaultAccess(brain.id, userId);
+      await refreshVaultGrants();
+      setMsg({ text: "Vault access revoked.", ok: true });
+    } catch (err) {
+      setMsg({
+        text: err instanceof VaultGrantError ? err.message : "Revoke failed",
+        ok: false,
+      });
+    } finally {
+      setBusyKey(null);
+    }
+  }
 
   async function sendInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -490,7 +548,10 @@ function MembersSection({ brain }: { brain: Brain }) {
         { method: "DELETE" },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      await refresh();
+      // Drop any vault grant they held on this brain. Idempotent —
+      // PostgREST DELETE returns 200 even if no row matched.
+      await revokeBrainVaultAccess(brain.id, userId).catch(() => {});
+      await Promise.all([refresh(), refreshVaultGrants()]);
     } catch (err) {
       setMsg({
         text: err instanceof Error ? err.message : "Remove failed",
@@ -640,6 +701,29 @@ function MembersSection({ brain }: { brain: Brain }) {
                       <option value="member">Member</option>
                       <option value="viewer">Viewer</option>
                     </select>
+                    {vaultGrantedIds.has(m.user_id) ? (
+                      <Button
+                        type="button"
+                        onClick={() => revokeVault(m.user_id)}
+                        disabled={busyKey === `vault-revoke-${m.user_id}`}
+                        variant="outline"
+                        size="xs"
+                        title="Member can read this brain's vault. Click to revoke."
+                      >
+                        {busyKey === `vault-revoke-${m.user_id}` ? "…" : "🔓 Vault"}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={() => grantVault(m.user_id)}
+                        disabled={busyKey === `vault-grant-${m.user_id}`}
+                        variant="outline"
+                        size="xs"
+                        title="Grant this member access to read & write this brain's vault."
+                      >
+                        {busyKey === `vault-grant-${m.user_id}` ? "…" : "Grant vault"}
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       onClick={() => removeMember(m.user_id)}
