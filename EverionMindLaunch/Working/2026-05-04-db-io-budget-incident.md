@@ -247,9 +247,10 @@ through Supabase AI):
    service_role).
 
 2. **`supabase/migrations/074_entries_embedding_hnsw.sql`**
-   Drops the old ivfflat index, creates HNSW. ⚠️ Apply via Supabase
-   Dashboard SQL editor (CREATE INDEX CONCURRENTLY can't run inside
-   a transaction).
+   Drops the old ivfflat index, creates HNSW. Safe via `apply_migration`
+   (no CONCURRENTLY — at our row count the build finishes in seconds and
+   crons are paused anyway). If the table grows past ~50k rows, switch
+   to a manual dashboard apply with CONCURRENTLY.
 
 3. **`api/_lib/enrich.ts` rewrite of `enrichBrain`:**
    - DB-side filter `embedding_status=neq.done` (uses existing
@@ -272,7 +273,7 @@ through Supabase AI):
 # Dashboard → Settings → Usage → Disk IO Budget should be > ~20%.
 
 # 2. Apply 073 (RPC) — safe via apply_migration MCP or dashboard.
-# 3. Apply 074 — MUST go via dashboard SQL editor (CONCURRENTLY).
+# 3. Apply 074 (HNSW) — safe via apply_migration MCP or dashboard.
 # 4. Re-enable crons in this order, watch IO budget for 1 hour each:
 gh workflow enable "Hourly Cron"
 # (wait, watch budget)

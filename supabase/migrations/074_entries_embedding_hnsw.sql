@@ -7,26 +7,25 @@
 -- gives better recall at our entry counts (low thousands), so this
 -- is a one-way migration — ivfflat is removed once HNSW is live.
 --
--- ── Apply notes ─────────────────────────────────────────────────
--- CREATE INDEX CONCURRENTLY cannot run inside a transaction. Two
--- options:
---   (a) Run via the Supabase Dashboard SQL editor — each statement
---       executes outside a transaction by default. Recommended.
---   (b) Run via psql with autocommit (\set AUTOCOMMIT on).
--- The DROP at the end is in the same script for clarity but it WILL
--- run inside a transaction safely on its own. If your migration
--- runner wraps the file in BEGIN/COMMIT, split into two files
--- before applying.
+-- ── Why no CONCURRENTLY ─────────────────────────────────────────
+-- apply_migration wraps the file in a transaction; CREATE INDEX
+-- CONCURRENTLY can't run inside one. With our entry counts (low
+-- thousands × 768 dims) the build completes in seconds, and the
+-- crons are still disabled while the IO-budget incident recovers,
+-- so a brief table lock during the build is acceptable.
+--
+-- If/when the table grows past ~50k rows, switch to a manual
+-- dashboard-SQL-editor apply with CONCURRENTLY.
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS entries_embedding_hnsw_idx
+CREATE INDEX IF NOT EXISTS entries_embedding_hnsw_idx
   ON public.entries
   USING hnsw (embedding vector_cosine_ops);
 
--- ANALYZE so the planner picks up the new index immediately.
-ANALYZE public.entries;
-
--- Drop the old ivfflat. Safe to do AFTER the HNSW build completes —
--- match_entries / match_entries_for_user use the index implicitly via
--- the <=> operator and will switch to whichever index the planner
--- prefers; with HNSW present it will be the new one.
+-- Drop the old ivfflat. Both indexes can coexist briefly above; the
+-- planner picks whichever has better cost. Once HNSW is live, ivfflat
+-- is just dead weight on every INSERT/UPDATE.
 DROP INDEX IF EXISTS public.entries_embedding_idx;
+
+-- Refresh planner stats so match_entries / match_entries_for_user
+-- pick up the new index immediately.
+ANALYZE public.entries;
