@@ -118,9 +118,23 @@ export function useVaultOps({
       fetchVaultEntries();
       return;
     }
+    // Hard timeout so /api/vault hanging doesn't leave the user stuck
+    // on "checking the seal…" forever. 6s is past p95 even on slow
+    // mobile networks; if we haven't heard back by then, fall through
+    // to "setup" — same outcome as a 5xx.
+    let settled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        setStatus("setup");
+      }
+    }, 6000);
     authFetch("/api/vault")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
         if (!data) {
           setStatus("setup");
           return;
@@ -136,7 +150,13 @@ export function useVaultOps({
           fetchVaultEntries();
         } else setStatus("setup");
       })
-      .catch(() => setStatus("setup"));
+      .catch(() => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeoutId);
+        setStatus("setup");
+      });
+    return () => window.clearTimeout(timeoutId);
   }, [cryptoKey, fetchVaultEntries, pinFlagEnabled]);
 
   useEffect(() => {

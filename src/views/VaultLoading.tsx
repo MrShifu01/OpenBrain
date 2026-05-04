@@ -6,25 +6,23 @@
 export function VaultLoading() {
   return (
     <div
+      className="space-y-4 px-4 py-4"
       style={{
-        height: "100%",
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
         background: "var(--bg)",
+        fontFamily: "'DM Sans', system-ui, sans-serif",
       }}
     >
-      <header
-        className="vault-topbar"
+      <div
         style={{
           display: "flex",
-          alignItems: "center",
-          padding: "18px 32px",
+          flexDirection: "column",
+          gap: 12,
+          padding: "18px 0 14px",
           borderBottom: "1px solid var(--line-soft)",
-          minHeight: 72,
+          marginBottom: 20,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <h1
             className="f-serif"
             style={{
@@ -50,15 +48,18 @@ export function VaultLoading() {
             checking the seal…
           </div>
         </div>
-      </header>
+      </div>
 
       <div
         style={{
-          flex: 1,
+          // Sit the loading lock + tagline directly under the title
+          // instead of trying to fill the rest of the viewport. The
+          // previous minHeight: 100dvh stretched the column past the
+          // bottom nav and pushed the centered content off-screen.
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: 40,
+          padding: "40px 24px",
           position: "relative",
           overflow: "hidden",
         }}
@@ -73,8 +74,8 @@ export function VaultLoading() {
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: 600,
-            height: 600,
+            width: 360,
+            height: 360,
             borderRadius: "50%",
             background: "radial-gradient(circle, var(--ember-wash) 0%, transparent 65%)",
             pointerEvents: "none",
