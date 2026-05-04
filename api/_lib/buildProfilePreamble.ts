@@ -78,11 +78,40 @@ function rankFact(f: PersonaFactRow): number {
   return conf + pinned - Math.min(ageDays / 365, 0.4);
 }
 
+// Privacy boundary for shared brains. The persona core (full_name, family,
+// habits, free-form About-Me context) lives in user_personas keyed by
+// user_id and is global — without this gate it would bleed into chat in
+// every brain the user is a member of, including family / business / shared
+// brains where the user does NOT want their personal identity context
+// applied. Only preferred_name + pronouns survive the gate so the assistant
+// can still greet the user correctly. Persona FACTS (type='persona' entries)
+// are already brain-scoped via the brain_id filter and stay as-is.
+async function brainIsOwnerPersonal(userId: string, brainId: string): Promise<boolean> {
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&owner_id=eq.${encodeURIComponent(userId)}&is_personal=eq.true&select=id&limit=1`,
+      { headers: sbHeaders() },
+    );
+    if (!r.ok) return false;
+    const rows = (await r.json()) as Array<{ id: string }>;
+    return rows.length > 0;
+  } catch {
+    // Fail closed — assume shared brain so personal context doesn't leak
+    // into a stranger's chat scope on a transient lookup error.
+    return false;
+  }
+}
+
 export async function buildProfilePreamble(
   userId: string,
   brainId?: string | null,
 ): Promise<string> {
   if (!SB_URL || !userId) return "";
+
+  // Resolve whether the active brain is the user's OWN personal brain. If
+  // it isn't, the persona core gets stripped down to just name + pronouns
+  // below so global identity (family, habits, About-Me) can't bleed.
+  const isOwnPersonalBrain = brainId ? await brainIsOwnerPersonal(userId, brainId) : false;
 
   // ── Core (singular fields) ────────────────────────────────────────────────
   let core: PersonaCoreRow | undefined;
@@ -162,6 +191,12 @@ export async function buildProfilePreamble(
     const pronouns = clean(core.pronouns, 60);
     if (pronouns) coreLines.push(`Pronouns: ${pronouns}`);
 
+    // Stop here when the active brain is not the user's own personal brain.
+    // Family, habits, and About-Me context are global identity surface that
+    // should never bleed into family / business / community / shared brain
+    // chat scope (privacy boundary).
+  }
+  if (core && isOwnPersonalBrain) {
     if (Array.isArray(core.family) && core.family.length) {
       const fam = core.family
         .slice(0, 10)
