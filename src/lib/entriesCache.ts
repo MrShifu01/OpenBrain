@@ -99,19 +99,18 @@ export async function readEntriesCache(brainId?: string | null): Promise<Entry[]
     /* ignore */
   }
 
-  // Tertiary fallback: legacy single-key cache (pre-per-brain), used only
-  // when the per-brain cache is empty so a user carrying over an old install
-  // still sees their list on first offline launch after upgrade.
-  if (brainId) {
-    try {
-      const cached = localStorage.getItem(KEYS.ENTRIES_CACHE);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed as Entry[];
-      }
-    } catch {
-      /* ignore */
-    }
+  // No legacy single-key fallback: the pre-per-brain cache is keyed by user,
+  // not brain, so handing it back for a brand-new brain leaks the user's
+  // personal-brain entries into the empty brain on first switch (the user
+  // creates "Smash Burger Bar", activates it, and sees 312 personal-brain
+  // rows). Per-brain caching has been in place since migration 028 — far
+  // longer than any reasonable upgrade window — so the fallback is now
+  // pure foot-gun. Sweep the stale key on the way out so it can't haunt
+  // a future brain creation.
+  try {
+    localStorage.removeItem(KEYS.ENTRIES_CACHE);
+  } catch {
+    /* ignore */
   }
 
   return null;

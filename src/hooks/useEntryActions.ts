@@ -21,6 +21,12 @@ function normalizeTags(tags: unknown): string {
 interface UseEntryActionsParams {
   entries: Entry[];
   setEntries: React.Dispatch<React.SetStateAction<Entry[]>>;
+  /** Vault entries are loaded separately (encrypted, lazy-fetched). Pass
+   *  them in so handleDelete can find a vault row when deleting from the
+   *  Vault view — without this, deleting a vault entry silently no-ops
+   *  because entries[] doesn't contain it. */
+  vaultEntries?: Entry[];
+  setVaultEntries?: React.Dispatch<React.SetStateAction<Entry[]>>;
   setSelected: React.Dispatch<React.SetStateAction<Entry | null>>;
   isOnline: boolean;
   isOnlineRef: React.MutableRefObject<boolean>;
@@ -51,6 +57,8 @@ interface PendingDelete {
 export function useEntryActions({
   entries,
   setEntries,
+  vaultEntries,
+  setVaultEntries,
   setSelected,
   isOnline,
   isOnlineRef,
@@ -104,11 +112,16 @@ export function useEntryActions({
 
   const handleDelete = useCallback(
     (id: string) => {
-      const entry = entries.find((e) => e.id === id);
+      // Vault entries live in a separate array (lazy-fetched, encrypted),
+      // so a delete invoked from the Vault detail view won't find the row
+      // in `entries`. Fall through to vaultEntries before bailing —
+      // otherwise the click silently no-ops.
+      const entry = entries.find((e) => e.id === id) ?? vaultEntries?.find((e) => e.id === id);
       if (!entry) return;
       commitPendingDelete();
       removeFromIndex(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
+      setVaultEntries?.((prev) => prev.filter((e) => e.id !== id));
       setSelected(null);
       const timer = setTimeout(() => {
         if (pendingDeleteRef.current?.id === id) {
@@ -119,7 +132,7 @@ export function useEntryActions({
       pendingDeleteRef.current = { id, entry, timer };
       setLastAction({ type: "delete", entry });
     },
-    [entries, commitPendingDelete, setEntries, setSelected],
+    [entries, vaultEntries, commitPendingDelete, setEntries, setVaultEntries, setSelected],
   );
 
   const handleUpdate = useCallback(

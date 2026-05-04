@@ -202,15 +202,26 @@ export function useDataLayer({
   useEffect(() => {
     if (!activeBrainId) return;
     if (prevBrainIdRef.current !== activeBrainId) {
-      // Hydrate from cache if the new brain has one — replaces the unconditional
-      // setEntries([]) which used to flash blank for offline users.
-      readEntriesCache(activeBrainId)
-        .then((cached) => {
-          setEntries(cached && cached.length > 0 ? cached : []);
-        })
-        .catch(() => setEntries([]));
+      // Clear synchronously so a stale brain's rows don't briefly render
+      // under the new brain's switch.
+      setEntries([]);
       setLinks([]);
       prevBrainIdRef.current = activeBrainId;
+      // Async cache hydration for instant paint — but only apply if the
+      // API hasn't beaten us to it (state still empty) AND the user
+      // hasn't switched brains again in the meantime. Without these
+      // guards a brand-new brain races: refreshEntries populates real
+      // rows around ~300 ms and the cache .then resolves later with
+      // stale data, clobbering them.
+      const hydrationFor = activeBrainId;
+      readEntriesCache(activeBrainId)
+        .then((cached) => {
+          if (prevBrainIdRef.current !== hydrationFor) return;
+          if (cached && cached.length > 0) {
+            setEntries((prev) => (prev.length === 0 ? cached : prev));
+          }
+        })
+        .catch(() => {});
     }
     refreshEntries();
     // Link prefetch deferred to idle. Links power the "Related" panel inside
@@ -266,6 +277,8 @@ export function useDataLayer({
   } = useEntryActions({
     entries,
     setEntries,
+    vaultEntries,
+    setVaultEntries,
     setSelected,
     isOnline,
     isOnlineRef,
