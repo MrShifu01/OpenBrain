@@ -225,7 +225,76 @@ fan-out cost when the DB is the bottleneck.
 
 ---
 
+## 7. Permanent fix shipped (2026-05-04, awaiting DB recovery to apply)
+
+Diagnosed via pg_stat_statements (separate session — DB MCP timing out, ran
+through Supabase AI):
+
+- **#1 disk-write contributor:** `UPDATE entries SET embedding/embedded_at/...`
+  — 3645 calls, 897 shared blocks written. Cron path doing one PATCH per row
+  in a serial loop (50 entries → 50 transactions → 50 ivfflat index updates
+  → 50 WAL records). This is the smoking gun.
+- **#2 disk-write:** `INSERT INTO realtime.subscription` — 3964 calls, 726
+  blocks. Brain-switch resubscribes. Deferred — fix the cron first.
+- **#3:** `INSERT INTO concept_graphs` — 354 blocks. Smaller, ignore.
+
+### Files committed (NOT yet applied — DB still unhealthy):
+
+1. **`supabase/migrations/073_bulk_apply_embeddings.sql`**
+   `bulk_apply_embeddings(rows jsonb)` RPC. SECURITY DEFINER + locked
+   `search_path`. Single `UPDATE ... FROM jsonb_array_elements(rows)`
+   per chunk. Service-role-only (REVOKE all from PUBLIC, GRANT to
+   service_role).
+
+2. **`supabase/migrations/074_entries_embedding_hnsw.sql`**
+   Drops the old ivfflat index, creates HNSW. ⚠️ Apply via Supabase
+   Dashboard SQL editor (CREATE INDEX CONCURRENTLY can't run inside
+   a transaction).
+
+3. **`api/_lib/enrich.ts` rewrite of `enrichBrain`:**
+   - DB-side filter `embedding_status=neq.done` (uses existing
+     `entries_embedding_status_idx`) — no more 200-row blind pull.
+   - Pass 1: metadata steps (parse/insight/concepts/persona) still
+     per-entry serial via `enrichInline({ skipEmbed: true })`. Per-step
+     retry semantics preserved.
+   - Pass 2: `bulkEmbedBatch` — concurrency-5 parallel compute of
+     embeddings, then one bulk RPC call per chunk of 100 to persist.
+     Failures and empty-content rows go through single bulk PATCH for
+     status updates.
+   - Capture / llm / mcp / v1 paths unchanged — those still call
+     `enrichInline` with default opts (per-entry embed PATCH). One-off
+     traffic doesn't benefit from bulking.
+
+### Apply order once DB is healthy:
+
+```bash
+# 1. Verify budget regen
+# Dashboard → Settings → Usage → Disk IO Budget should be > ~20%.
+
+# 2. Apply 073 (RPC) — safe via apply_migration MCP or dashboard.
+# 3. Apply 074 — MUST go via dashboard SQL editor (CONCURRENTLY).
+# 4. Re-enable crons in this order, watch IO budget for 1 hour each:
+gh workflow enable "Hourly Cron"
+# (wait, watch budget)
+gh workflow enable "Daily Cron"
+gh workflow enable "DB Backup"
+gh workflow enable "Weekly roll-up"
+```
+
+### Realtime subscription churn (deferred, separate fix):
+
+`useEntryRealtime` is the only writer to `realtime.subscription`. Fix
+once the cron-write bleeding stops:
+- Visibility gate (skip subscribe when `document.visibilityState === 'hidden'`)
+- Debounce brain-switch (250ms before resubscribe)
+- Fall back to nuclear option (drop the hook entirely; entries cache
+  polling is sufficient) only if the above isn't enough.
+
+---
+
 ## Resolution log
 
 - 2026-05-04 — Disabled four IO-heavy crons via `gh workflow disable`.
+- 2026-05-04 — Built migrations 073 + 074 and the `enrichBrain` rewrite.
+  Committed to main. Not applied — Supabase project still unhealthy.
 - 2026-05-04 — *(pending — Supabase project unhealthy, MCP timing out)*.

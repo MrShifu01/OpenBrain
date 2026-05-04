@@ -646,7 +646,11 @@ async function fetchBrainIdForEntry(entryId: string): Promise<string | null> {
 // Awaited from capture and any other entry-creation site. Runs every step
 // whose flag isn't already true. Returns true if anything changed.
 
-export async function enrichInline(entryId: string, userId: string): Promise<boolean> {
+export async function enrichInline(
+  entryId: string,
+  userId: string,
+  opts: { skipEmbed?: boolean } = {},
+): Promise<boolean> {
   const entry = await fetchEntry(entryId, userId);
   if (!entry) return false;
   if (entry.type === "secret") return false;
@@ -740,8 +744,10 @@ export async function enrichInline(entryId: string, userId: string): Promise<boo
 
   if (changed) await patchMetadata(entry.id, userId, workingMeta, null);
 
-  // Embedding is independent of the LLM provider.
-  if (!flags.embedded && flags.embedding_status !== "failed") {
+  // Embedding is independent of the LLM provider. Cron callers pass
+  // skipEmbed=true so the per-row PATCH is deferred to bulkEmbedBatch
+  // (one UPDATE...FROM per chunk via bulk_apply_embeddings RPC).
+  if (!opts.skipEmbed && !flags.embedded && flags.embedding_status !== "failed") {
     const embedCfg = await resolveEmbedProviderForUser(userId).catch(() => null);
     if (embedCfg) {
       try {
@@ -768,30 +774,44 @@ export async function enrichBrain(
   batchSize = 50,
   timeBudgetMs = 240_000,
 ): Promise<{ processed: number; remaining: number }> {
+  // DB-filter to entries that aren't fully embedded — uses the partial
+  // index entries_embedding_status_idx (user_id, embedding_status) WHERE
+  // deleted_at IS NULL so we don't hydrate every brain entry to filter
+  // in JS. Replaces the previous "pull 200 rows blind" pattern that hit
+  // every brain even when nothing was pending.
+  //
+  // Tail miss: entries embedded but missing a metadata flag (e.g. older
+  // entries from before persona_extract shipped) are skipped here. They
+  // get caught by Settings → Run-now or a one-shot backfill — not the
+  // daily cron. Worth the simplicity since it's a small fixed set.
   const r = await fetch(
-    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=200`,
+    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&embedding_status=neq.done&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
     { headers: SB_HDR },
   );
   if (!r.ok) return { processed: 0, remaining: 0 };
-  const all: Entry[] = await r.json();
+  const candidates: Entry[] = await r.json();
 
-  const pending = all.filter((e) => {
+  const pending = candidates.filter((e) => {
     const f = flagsOf(e);
     if (f.embedding_status === "failed") {
-      // Embedding is terminal-failed — re-running won't help unless the user
-      // explicitly retries. Still surface as not-fully-enriched for the LLM
-      // steps if any of those are missing.
+      // Embedding terminal-failed — only resurface if metadata steps are
+      // missing. Won't retry the embed itself.
       return !f.parsed || !f.has_insight || !f.concepts_extracted;
     }
     return !f.parsed || !f.has_insight || !f.concepts_extracted || !f.embedded;
   });
 
-  // Time-budget guard: each enrichInline can do up to ~4 LLM calls and an
-  // embed, so a 50-entry batch can chew through real wallclock. Bail out
-  // before the function-level timeout (Vercel max 300s on this path) so the
-  // cron's other steps — Gmail scan, persona decay, admin push — still run.
+  // Time-budget guard: metadata enrichInline does up to 4 LLM calls per
+  // entry, so a 50-entry batch can chew through real wallclock. Bail out
+  // before the function-level timeout (Vercel max 300s) so the cron's
+  // other steps — Gmail scan, persona decay, admin push — still run.
   const deadline = Date.now() + timeBudgetMs;
   const batch = pending.slice(0, batchSize);
+
+  // Pass 1: metadata enrichment, one entry at a time. skipEmbed defers
+  // the embedding write to the bulk path below — preserves per-step
+  // retry semantics for parse/insight/concepts/persona while removing
+  // the per-row UPDATE that was burning disk I/O.
   let processed = 0;
   let stoppedEarly = false;
   for (const entry of batch) {
@@ -799,16 +819,166 @@ export async function enrichBrain(
       stoppedEarly = true;
       break;
     }
-    const changed = await enrichInline(entry.id, userId).catch((err: any) => {
-      console.error("[enrich:brain] entry failed:", entry.id, err?.message ?? err);
-      return false;
-    });
+    const changed = await enrichInline(entry.id, userId, { skipEmbed: true }).catch(
+      (err: any) => {
+        console.error("[enrich:brain] entry failed:", entry.id, err?.message ?? err);
+        return false;
+      },
+    );
     if (changed) processed++;
   }
+
+  // Pass 2: bulk-embed every entry that still needs an embedding.
+  // Parallel compute (concurrency 5), single bulk RPC per chunk of 100.
+  // One UPDATE...FROM transaction replaces N serial PostgREST PATCHes —
+  // this is the pg_stat_statements 2026-05-04 fix.
+  if (!stoppedEarly && Date.now() <= deadline) {
+    const needEmbed = batch.filter((e) => {
+      const f = flagsOf(e);
+      return !f.embedded && f.embedding_status !== "failed";
+    });
+    await bulkEmbedBatch(needEmbed, userId).catch((err: any) => {
+      console.error("[enrich:brain] bulk embed failed:", err?.message ?? err);
+    });
+  }
+
   const remaining = stoppedEarly
     ? pending.length - processed
     : pending.length - batch.length;
   return { processed, remaining };
+}
+
+// ── Bulk embed (cron path) ──────────────────────────────────────────────────
+//
+// Replaces the per-row PATCH in stepEmbed with: parallel-compute embeddings
+// for the whole batch, then one bulk RPC call to persist. The single-entry
+// stepEmbed path is still used by enrichInline when called from capture /
+// llm / mcp / v1 (one-off entries), where bulk would be over-engineering.
+
+const BULK_EMBED_CONCURRENCY = 5;
+const BULK_EMBED_RPC_CHUNK = 100;
+
+interface EmbedResult {
+  id: string;
+  kind: "ok" | "empty" | "failed";
+  values?: number[];
+}
+
+async function bulkEmbedBatch(entries: Entry[], userId: string): Promise<void> {
+  if (!entries.length) return;
+  const embedCfg = await resolveEmbedProviderForUser(userId).catch(() => null);
+  if (!embedCfg) return;
+
+  // Bounded-concurrency parallel compute. Gemini free tier is 60 RPM —
+  // concurrency 5 leaves headroom for capture-path single embeds running
+  // alongside, and is conservative enough that retries don't compound.
+  const results = await mapWithConcurrency<Entry, EmbedResult>(
+    entries,
+    BULK_EMBED_CONCURRENCY,
+    async (entry): Promise<EmbedResult> => {
+      const text = buildEntryText(entry);
+      if (!text) return { id: entry.id, kind: "empty" };
+      try {
+        const values = await generateEmbedding(text, embedCfg);
+        return { id: entry.id, kind: "ok", values };
+      } catch (err: any) {
+        console.error("[bulk-embed]", entry.id, String(err?.message ?? err).slice(0, 200));
+        return { id: entry.id, kind: "failed" };
+      }
+    },
+  );
+
+  const ts = new Date().toISOString();
+  const provider = embedCfg.provider === "gemini" ? "google" : "openai";
+
+  // Successes — bulk RPC in chunks of BULK_EMBED_RPC_CHUNK. Keeps the
+  // JSON payload bounded (each row ships 768 floats as text ≈ 6 KB).
+  const okRows = results
+    .filter((r): r is EmbedResult & { kind: "ok"; values: number[] } => r.kind === "ok")
+    .map((r) => ({
+      id: r.id,
+      embedding: `[${r.values.join(",")}]`,
+      embedded_at: ts,
+      embedding_provider: provider,
+      embedding_model: embedCfg.model,
+      embedding_status: "done",
+    }));
+  for (let i = 0; i < okRows.length; i += BULK_EMBED_RPC_CHUNK) {
+    await callBulkApplyEmbeddings(okRows.slice(i, i + BULK_EMBED_RPC_CHUNK));
+  }
+
+  // Empty content — mark done so the cron doesn't keep re-fetching them.
+  const emptyIds = results.filter((r) => r.kind === "empty").map((r) => r.id);
+  if (emptyIds.length) {
+    await markEmbeddingStatus(emptyIds, { embedding_status: "done", embedded_at: ts });
+  }
+
+  // Hard failures — single bulk PATCH to set status='failed' so the next
+  // pass skips them. Mirrors the per-row stepEmbed catch path.
+  const failedIds = results.filter((r) => r.kind === "failed").map((r) => r.id);
+  if (failedIds.length) {
+    await markEmbeddingStatus(failedIds, { embedding_status: "failed" });
+  }
+}
+
+async function callBulkApplyEmbeddings(
+  rows: Array<{
+    id: string;
+    embedding: string;
+    embedded_at: string;
+    embedding_provider: string;
+    embedding_model: string;
+    embedding_status: string;
+  }>,
+): Promise<void> {
+  if (!rows.length) return;
+  const r = await fetch(`${SB_URL}/rest/v1/rpc/bulk_apply_embeddings`, {
+    method: "POST",
+    headers: SB_HDR,
+    body: JSON.stringify({ rows }),
+  });
+  if (!r.ok) {
+    console.error(
+      `[bulk-embed] RPC HTTP ${r.status}: ${(await r.text().catch(() => "")).slice(0, 300)}`,
+    );
+  }
+}
+
+async function markEmbeddingStatus(
+  ids: string[],
+  fields: { embedding_status: string; embedded_at?: string },
+): Promise<void> {
+  if (!ids.length) return;
+  const idList = ids.map((id) => encodeURIComponent(id)).join(",");
+  await fetch(`${SB_URL}/rest/v1/entries?id=in.(${idList})`, {
+    method: "PATCH",
+    headers: { ...SB_HDR, Prefer: "return=minimal" },
+    body: JSON.stringify(fields),
+  }).catch(() => {});
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const n = Math.max(1, Math.min(concurrency, items.length));
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < n; w++) {
+    workers.push(
+      (async () => {
+        while (true) {
+          const idx = cursor++;
+          if (idx >= items.length) return;
+          out[idx] = await fn(items[idx]!);
+        }
+      })(),
+    );
+  }
+  await Promise.all(workers);
+  return out;
 }
 
 // ── Public: backfillPersonaForBrain ─────────────────────────────────────────
