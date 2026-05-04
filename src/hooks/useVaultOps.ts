@@ -9,6 +9,14 @@ import {
   generateRecoveryKey,
   encryptVaultKeyForRecovery,
   decryptVaultKeyFromRecovery,
+  generateAsymmetricKeypair,
+  exportPublicKey,
+  importPublicKey,
+  wrapPrivateKey,
+  unwrapPrivateKey,
+  generateBrainDEK,
+  wrapDEK,
+  unwrapDEK,
 } from "../lib/crypto";
 import type { TemplateId } from "../lib/vaultTemplates";
 import {
@@ -35,6 +43,10 @@ interface VaultData {
   salt: string;
   verify_token: string;
   recovery_blob: string;
+  // Phase 2 fields — null on legacy rows that haven't backfilled the
+  // asymmetric keypair yet. Backfill happens silently on next unlock.
+  public_key?: string | null;
+  wrapped_private_key?: string | null;
 }
 
 interface UseVaultOpsOptions {
@@ -78,6 +90,14 @@ export function useVaultOps({
 
   // Vault entries from the dedicated vault_entries table
   const [vaultEntries, setVaultEntries] = useState<Entry[]>([]);
+
+  // Phase 2 envelope-encryption state. Lives in refs (not React state)
+  // because none of these need to trigger re-renders — they're pure
+  // crypto inputs consumed by encrypt/decrypt callbacks. Stored in refs
+  // also keeps the keys out of any state-dump telemetry.
+  const privateKeyRef = useRef<CryptoKey | null>(null);
+  const publicKeyRef = useRef<CryptoKey | null>(null);
+  const brainDEKsRef = useRef<Map<string, CryptoKey>>(new Map());
 
   // PIN + biometric (sub-project 3). Behind feature flag; no-op when off.
   const pinFlagEnabled = isFeatureEnabled("vaultPinBiometric", getAdminFlags());
@@ -167,7 +187,24 @@ export function useVaultOps({
       setDecryptedSecrets([]);
       return;
     }
-    Promise.all(secrets.map((e) => decryptEntry(e, cryptoKey)))
+    // Phase 2: try the entry's brain DEK first, fall back to the master
+    // KEK if no DEK exists (legacy entry, or personal-brain row pre-DEK).
+    // decryptEntry never throws — it stamps "[encrypted — key mismatch]"
+    // on the content/metadata when the key is wrong, so we detect that
+    // sentinel and retry with the alternate key.
+    const KEY_MISMATCH = "[encrypted — key mismatch or corrupted]";
+    const tryDecrypt = async (entry: Entry): Promise<Entry> => {
+      const entryBrainId = (entry as Entry & { brain_id?: string }).brain_id;
+      const dek = entryBrainId ? brainDEKsRef.current.get(entryBrainId) : undefined;
+      const primary = dek ?? cryptoKey;
+      const fallback = dek ? cryptoKey : null;
+      let result = (await decryptEntry(entry, primary)) as Entry;
+      if (fallback && result.content === KEY_MISMATCH) {
+        result = (await decryptEntry(entry, fallback)) as Entry;
+      }
+      return result;
+    };
+    Promise.all(secrets.map(tryDecrypt))
       .then((result) => setDecryptedSecrets(result as Entry[]))
       .catch(() => setDecryptedSecrets(secrets));
   }, [status, cryptoKey, secrets.length]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -195,6 +232,117 @@ export function useVaultOps({
     }
   }, [status]);
 
+  // ── Phase 2 helpers (envelope encryption) ────────────────────────────────
+
+  // After the master KEK is in hand, make sure the user's asymmetric
+  // keypair is loaded into refs. New users have a keypair from setup;
+  // pre-phase-2 users get one generated and PATCHed back in place on
+  // first unlock.
+  const ensureKeypair = useCallback(async (masterKEK: CryptoKey, vaultRecord: VaultData | null) => {
+    if (vaultRecord?.public_key && vaultRecord.wrapped_private_key) {
+      const priv = await unwrapPrivateKey(vaultRecord.wrapped_private_key, masterKEK);
+      const pub = await importPublicKey(vaultRecord.public_key);
+      if (priv) {
+        privateKeyRef.current = priv;
+        publicKeyRef.current = pub;
+        return;
+      }
+      // Fall through to backfill path on unwrap failure (corrupted row).
+    }
+    // Backfill: generate a fresh keypair, wrap private with master KEK,
+    // PATCH the vault row in place. Done lazily so existing users
+    // don't need to re-set-up; the next unlock just becomes phase-2
+    // capable.
+    const pair = await generateAsymmetricKeypair();
+    const publicSpki = await exportPublicKey(pair.publicKey);
+    const wrappedPriv = await wrapPrivateKey(pair.privateKey, masterKEK);
+    privateKeyRef.current = pair.privateKey;
+    publicKeyRef.current = pair.publicKey;
+    try {
+      await authFetch("/api/vault", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          public_key: publicSpki,
+          wrapped_private_key: wrappedPriv,
+        }),
+      });
+    } catch (e) {
+      console.error("[vault] backfill keypair PATCH failed", e);
+    }
+  }, []);
+
+  // After the keypair is ready, fetch every brain_vault_grant for this
+  // user and unwrap each wrapped DEK into the brainDEKs map. This is
+  // the read-side of "owner of family brain has wrapped the family DEK
+  // for me; let me unwrap it so I can decrypt family-brain secrets".
+  const loadBrainDEKs = useCallback(async () => {
+    const priv = privateKeyRef.current;
+    if (!priv) return;
+    try {
+      const r = await authFetch("/api/brain-vault-grants");
+      if (!r.ok) return;
+      const grants: Array<{ brain_id: string; wrapped_dek: string }> = await r.json();
+      const next = new Map<string, CryptoKey>();
+      for (const g of grants) {
+        try {
+          const dek = await unwrapDEK(g.wrapped_dek, priv);
+          if (dek) next.set(g.brain_id, dek);
+        } catch (e) {
+          console.error("[vault] unwrapDEK failed for brain", g.brain_id, e);
+        }
+      }
+      brainDEKsRef.current = next;
+    } catch (e) {
+      console.error("[vault] loadBrainDEKs failed", e);
+    }
+  }, []);
+
+  // Make sure the active brain has a DEK we can use to encrypt new
+  // secrets. If we don't have one yet (first secret in this brain),
+  // mint a fresh DEK, wrap with our own public key, POST a grant for
+  // ourselves, and cache.
+  const ensureBrainDEK = useCallback(async (targetBrainId: string): Promise<CryptoKey | null> => {
+    const existing = brainDEKsRef.current.get(targetBrainId);
+    if (existing) return existing;
+    const pub = publicKeyRef.current;
+    if (!pub) return null;
+    const dek = await generateBrainDEK();
+    const wrapped = await wrapDEK(dek, pub);
+    // Need our own user_id for the grant row. Pull it from the vault
+    // row response indirectly: the API enforces "owner only" for
+    // grant inserts, so we send our user_id; the server validates
+    // ownership and inserts.
+    const me = await authFetch("/api/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => (p?.id as string | undefined) ?? null)
+      .catch(() => null);
+    if (!me) {
+      console.error("[vault] ensureBrainDEK: cannot resolve user id");
+      return null;
+    }
+    try {
+      const r = await authFetch("/api/brain-vault-grants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          brain_id: targetBrainId,
+          user_id: me,
+          wrapped_dek: wrapped,
+        }),
+      });
+      if (!r.ok) {
+        console.error("[vault] grant POST failed", r.status);
+        return null;
+      }
+    } catch (e) {
+      console.error("[vault] grant POST threw", e);
+      return null;
+    }
+    brainDEKsRef.current.set(targetBrainId, dek);
+    return dek;
+  }, []);
+
   const handleSetup = useCallback(async () => {
     if (passphrase.length < 8) {
       setError("Passphrase must be at least 8 characters");
@@ -210,10 +358,24 @@ export function useVaultOps({
       const { key, salt, verifyToken } = await setupVault(passphrase);
       const recoveryKey = generateRecoveryKey();
       const recoveryBlob = await encryptVaultKeyForRecovery(key, recoveryKey);
+      // Phase 2: generate the user's asymmetric keypair at setup time.
+      // Public is stored in clear (for other users to wrap DEKs for us);
+      // private is wrapped with the master KEK we just derived.
+      const pair = await generateAsymmetricKeypair();
+      const publicSpki = await exportPublicKey(pair.publicKey);
+      const wrappedPriv = await wrapPrivateKey(pair.privateKey, key);
+      privateKeyRef.current = pair.privateKey;
+      publicKeyRef.current = pair.publicKey;
       const res = await authFetch("/api/vault", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ salt, verify_token: verifyToken, recovery_blob: recoveryBlob }),
+        body: JSON.stringify({
+          salt,
+          verify_token: verifyToken,
+          recovery_blob: recoveryBlob,
+          public_key: publicSpki,
+          wrapped_private_key: wrappedPriv,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
@@ -239,6 +401,13 @@ export function useVaultOps({
         setBusy(false);
         return;
       }
+      // Phase 2: ensure asymmetric keypair is loaded into refs (or
+      // backfilled), then load every wrapped DEK we have access to.
+      // Both are best-effort — if they fail, the user can still read
+      // their personal-brain secrets (master-KEK encrypted) and just
+      // can't decrypt shared-brain secrets until the next unlock.
+      await ensureKeypair(key, vaultData);
+      await loadBrainDEKs();
       onVaultUnlock(key);
       // If the PIN/biometric flag is on AND this device has no PIN record
       // yet, route to the one-time PIN setup screen so the next unlock
@@ -252,7 +421,7 @@ export function useVaultOps({
       setError("Decryption failed");
     }
     setBusy(false);
-  }, [passphrase, vaultData, onVaultUnlock, pinFlagEnabled]);
+  }, [passphrase, vaultData, onVaultUnlock, pinFlagEnabled, ensureKeypair, loadBrainDEKs]);
 
   const handleRecoveryUnlock = useCallback(async () => {
     const cleaned = recoveryInput.trim().toUpperCase();
@@ -266,6 +435,9 @@ export function useVaultOps({
         setBusy(false);
         return;
       }
+      // Phase 2 envelope state — same as handleUnlock.
+      await ensureKeypair(key, vaultData);
+      await loadBrainDEKs();
       onVaultUnlock(key);
       if (pinFlagEnabled && !loadPinRecord()) {
         setStatus("pin-setup");
@@ -276,7 +448,7 @@ export function useVaultOps({
       setError("Recovery failed — check your key and try again");
     }
     setBusy(false);
-  }, [recoveryInput, vaultData, onVaultUnlock, pinFlagEnabled]);
+  }, [recoveryInput, vaultData, onVaultUnlock, pinFlagEnabled, ensureKeypair, loadBrainDEKs]);
 
   // ── PIN + biometric (sub-project 3) ──
 
@@ -295,12 +467,17 @@ export function useVaultOps({
         setPinBusy(false);
         return;
       }
+      // Phase 2: PIN unlock skips the passphrase derivation but still
+      // needs the asymmetric keypair + DEKs in memory to read shared
+      // brain secrets. vaultData is loaded by the time PIN unlock fires.
+      await ensureKeypair(key, vaultData);
+      await loadBrainDEKs();
       onVaultUnlock(key);
       setStatus("unlocked");
       setPin("");
       setPinBusy(false);
     },
-    [onVaultUnlock],
+    [onVaultUnlock, vaultData, ensureKeypair, loadBrainDEKs],
   );
 
   const handleBiometricUnlock = useCallback(async () => {
@@ -323,10 +500,13 @@ export function useVaultOps({
       setPinBusy(false);
       return;
     }
+    // Phase 2 envelope state — same as PIN unlock.
+    await ensureKeypair(key, vaultData);
+    await loadBrainDEKs();
     onVaultUnlock(key);
     setStatus("unlocked");
     setPinBusy(false);
-  }, [onVaultUnlock]);
+  }, [onVaultUnlock, vaultData, ensureKeypair, loadBrainDEKs]);
 
   const handlePinSetup = useCallback(
     async (
@@ -440,7 +620,15 @@ export function useVaultOps({
         tags: tagList,
         metadata,
       };
-      const encrypted = await encryptEntry(plain, cryptoKey);
+      // Phase 2: when adding to a brain, encrypt with that brain's DEK
+      // (envelope encryption). Falls back to the master KEK if the DEK
+      // path fails — keeps brain-less or pre-keypair flows working.
+      let encryptionKey: CryptoKey = cryptoKey;
+      if (brainId) {
+        const dek = await ensureBrainDEK(brainId);
+        if (dek) encryptionKey = dek;
+      }
+      const encrypted = await encryptEntry(plain, encryptionKey);
       const res = await authFetch("/api/vault-entries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -473,7 +661,16 @@ export function useVaultOps({
       setAddError(e instanceof Error ? e.message : "Failed to save secret");
     }
     setAddBusy(false);
-  }, [addTitle, addContent, addTags, addMetaRows, cryptoKey, brainId, onEntryCreated]);
+  }, [
+    addTitle,
+    addContent,
+    addTags,
+    addMetaRows,
+    cryptoKey,
+    brainId,
+    onEntryCreated,
+    ensureBrainDEK,
+  ]);
 
   // New path: template-shaped add. Coexists with handleAddSecret (legacy
   // free-form path) so flag-off keeps working unchanged. Spec:
@@ -510,7 +707,13 @@ export function useVaultOps({
           tags: payload.tags,
           metadata,
         };
-        const encrypted = await encryptEntry(plain, cryptoKey);
+        // Phase 2 envelope encryption — see handleAddSecret comment.
+        let encryptionKey: CryptoKey = cryptoKey;
+        if (brainId) {
+          const dek = await ensureBrainDEK(brainId);
+          if (dek) encryptionKey = dek;
+        }
+        const encrypted = await encryptEntry(plain, encryptionKey);
         const res = await authFetch("/api/vault-entries", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -544,7 +747,7 @@ export function useVaultOps({
       }
       setAddBusy(false);
     },
-    [cryptoKey, brainId, onEntryCreated],
+    [cryptoKey, brainId, onEntryCreated, ensureBrainDEK],
   );
 
   const bulkDelete = useCallback(async () => {

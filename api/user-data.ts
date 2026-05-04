@@ -101,6 +101,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "status") return handlePublicStatus(req, res);
   if (resource === "vault") return handleVault(req, res);
   if (resource === "vault_entries") return handleVaultEntries(req, res);
+  if (resource === "brain_vault_grants") return handleBrainVaultGrants(req, res);
   if (resource === "pin") return handlePin(req, res);
   if (resource === "account") return handleDeleteAccount(req, res);
   if (resource === "full_export") return handleFullExport(req, res);
@@ -1390,11 +1391,32 @@ const handleSentryIssues = withAuth(
 
 // ── /api/vault (rewritten to /api/user-data?resource=vault) ──
 const handleVault = withAuth(
-  { methods: ["GET", "POST"], rateLimit: 20 },
+  { methods: ["GET", "POST", "PATCH"], rateLimit: 20 },
   async ({ req, res, user }) => {
+    const action = req.query.action as string | undefined;
+
+    // ?action=public-key&user_id=X — fetch another user's public key so
+    // the caller can wrap a brain DEK for them. Uses the SECURITY DEFINER
+    // helper so we don't expose any other vault_keys columns.
+    if (req.method === "GET" && action === "public-key") {
+      const targetId = req.query.user_id as string | undefined;
+      if (!targetId || typeof targetId !== "string") {
+        return void res.status(400).json({ error: "user_id required" });
+      }
+      const r = await fetch(`${SB_URL}/rest/v1/rpc/get_user_public_key`, {
+        method: "POST",
+        headers: hdrs(),
+        body: JSON.stringify({ target_user_id: targetId }),
+      });
+      if (!r.ok) return void res.status(502).json({ error: "Database error" });
+      const result = await r.json();
+      const publicKey = typeof result === "string" ? result : (result?.public_key ?? null);
+      return void res.status(200).json({ public_key: publicKey });
+    }
+
     if (req.method === "GET") {
       const r = await fetch(
-        `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob`,
+        `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob,public_key,wrapped_private_key`,
         { headers: hdrs() },
       );
       if (!r.ok) return void res.status(502).json({ error: "Database error" });
@@ -1405,11 +1427,38 @@ const handleVault = withAuth(
         salt: rows[0].salt,
         verify_token: rows[0].verify_token,
         recovery_blob: rows[0].recovery_blob,
+        // Phase 2 fields — null on legacy rows that haven't backfilled yet.
+        public_key: rows[0].public_key ?? null,
+        wrapped_private_key: rows[0].wrapped_private_key ?? null,
       });
     }
 
-    // POST
-    const { salt, verify_token, recovery_blob } = req.body || {};
+    // PATCH — backfill the asymmetric keypair on existing rows. Used
+    // when a pre-phase-2 user unlocks for the first time after upgrade:
+    // the client generates a keypair, wraps the private with the master
+    // KEK, and PATCHes the row in place.
+    if (req.method === "PATCH") {
+      const { public_key, wrapped_private_key } = req.body || {};
+      if (typeof public_key !== "string" || typeof wrapped_private_key !== "string") {
+        return void res.status(400).json({ error: "public_key and wrapped_private_key required" });
+      }
+      const r = await fetch(
+        `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&public_key=is.null`,
+        {
+          method: "PATCH",
+          headers: hdrs({ Prefer: "return=minimal" }),
+          body: JSON.stringify({ public_key, wrapped_private_key }),
+        },
+      );
+      if (!r.ok) {
+        const err = await r.text().catch(() => String(r.status));
+        return void res.status(502).json({ error: `Database error: ${err}` });
+      }
+      return void res.status(200).json({ ok: true });
+    }
+
+    // POST — vault setup
+    const { salt, verify_token, recovery_blob, public_key, wrapped_private_key } = req.body || {};
     if (!salt || typeof salt !== "string" || salt.length !== 32) {
       return void res.status(400).json({ error: "Invalid salt (must be 32-char hex)" });
     }
@@ -1419,6 +1468,15 @@ const handleVault = withAuth(
     if (!recovery_blob || typeof recovery_blob !== "string") {
       return void res.status(400).json({ error: "Missing recovery_blob" });
     }
+    // public_key + wrapped_private_key are optional in the body so older
+    // clients (that haven't shipped the phase 2 update) don't break. The
+    // backfill PATCH route covers them on next unlock.
+    const pubKey =
+      typeof public_key === "string" && public_key.length > 0 ? public_key : null;
+    const wrappedPriv =
+      typeof wrapped_private_key === "string" && wrapped_private_key.length > 0
+        ? wrapped_private_key
+        : null;
 
     // Optional Idempotency-Key. Vault setup is a one-shot action; without
     // this, a network retry between the existence-check and the INSERT can
@@ -1449,10 +1507,19 @@ const handleVault = withAuth(
       return void res.status(409).json({ error: "Vault already set up" });
     }
 
+    const insertPayload: Record<string, unknown> = {
+      user_id: user.id,
+      salt,
+      verify_token,
+      recovery_blob,
+    };
+    if (pubKey) insertPayload.public_key = pubKey;
+    if (wrappedPriv) insertPayload.wrapped_private_key = wrappedPriv;
+
     const r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
       method: "POST",
       headers: hdrs({ Prefer: "return=minimal" }),
-      body: JSON.stringify({ user_id: user.id, salt, verify_token, recovery_blob }),
+      body: JSON.stringify(insertPayload),
     });
     if (!r.ok) {
       if (idemSlot) await releaseIdempotency(user.id, idemSlot);
@@ -1535,6 +1602,89 @@ const handleVaultEntries = withAuth(
         headers: hdrs({ Prefer: "return=minimal" }),
         body: JSON.stringify({ deleted_at: new Date().toISOString() }),
       },
+    );
+    if (!r.ok) return void res.status(502).json({ error: "Database error" });
+    return void res.status(200).json({ ok: true });
+  },
+);
+
+// ── /api/brain-vault-grants (rewritten to /api/user-data?resource=brain_vault_grants) ──
+//
+// Per-brain DEK envelope grants (phase 2 of per-brain vaults). Each row
+// is "user X holds the wrapped DEK for brain Y" — wrapped_dek is the
+// brain's symmetric data-encryption-key encrypted with X's public key.
+//
+// GET — list the caller's own grants (so they can unwrap DEKs on unlock)
+// POST — owner grants access to a member (or themselves) by inserting
+//        a row with the wrapped DEK
+// DELETE — owner revokes a grant (deletes a single brain_id+user_id row)
+const handleBrainVaultGrants = withAuth(
+  { methods: ["GET", "POST", "DELETE"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (req.method === "GET") {
+      // Default: caller's own grants. Optional ?brain_id=X scopes to one
+      // brain (used by the owner's grant-management UI).
+      const brainId = req.query.brain_id as string | undefined;
+      const userScope =
+        typeof brainId === "string" && brainId
+          ? `brain_id=eq.${encodeURIComponent(brainId)}`
+          : `user_id=eq.${encodeURIComponent(user.id)}`;
+      const r = await fetch(
+        `${SB_URL}/rest/v1/brain_vault_grants?${userScope}&select=brain_id,user_id,wrapped_dek,granted_at`,
+        { headers: hdrs() },
+      );
+      if (!r.ok) return void res.status(502).json({ error: "Database error" });
+      return void res.status(200).json(await r.json());
+    }
+
+    if (req.method === "POST") {
+      const { brain_id, user_id, wrapped_dek } = req.body || {};
+      if (typeof brain_id !== "string" || !brain_id) {
+        return void res.status(400).json({ error: "brain_id required" });
+      }
+      if (typeof user_id !== "string" || !user_id) {
+        return void res.status(400).json({ error: "user_id required" });
+      }
+      if (typeof wrapped_dek !== "string" || !wrapped_dek) {
+        return void res.status(400).json({ error: "wrapped_dek required" });
+      }
+      // Brain ownership is enforced by the RLS insert policy; we still
+      // verify here so we can return a clean 403 instead of a 4xx from
+      // PostgREST.
+      const ownerCheck = await fetch(
+        `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brain_id)}&owner_id=eq.${encodeURIComponent(user.id)}&select=id`,
+        { headers: hdrs() },
+      );
+      const ownerRows: any[] = ownerCheck.ok ? await ownerCheck.json() : [];
+      if (ownerRows.length === 0) {
+        return void res.status(403).json({ error: "Only the brain owner can grant vault access" });
+      }
+      const r = await fetch(`${SB_URL}/rest/v1/brain_vault_grants`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=minimal,resolution=merge-duplicates" }),
+        body: JSON.stringify({
+          brain_id,
+          user_id,
+          wrapped_dek,
+          granted_by: user.id,
+        }),
+      });
+      if (!r.ok && r.status !== 409) {
+        const err = await r.text().catch(() => String(r.status));
+        return void res.status(502).json({ error: `Database error: ${err}` });
+      }
+      return void res.status(200).json({ ok: true });
+    }
+
+    // DELETE — owner revoke. Caller must specify both brain_id and user_id.
+    const brainId = req.query.brain_id as string | undefined;
+    const targetUserId = req.query.user_id as string | undefined;
+    if (!brainId || !targetUserId) {
+      return void res.status(400).json({ error: "brain_id and user_id required" });
+    }
+    const r = await fetch(
+      `${SB_URL}/rest/v1/brain_vault_grants?brain_id=eq.${encodeURIComponent(brainId)}&user_id=eq.${encodeURIComponent(targetUserId)}`,
+      { method: "DELETE", headers: hdrs({ Prefer: "return=minimal" }) },
     );
     if (!r.ok) return void res.status(502).json({ error: "Database error" });
     return void res.status(200).json({ ok: true });

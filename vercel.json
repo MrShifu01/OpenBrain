@@ -40,6 +40,10 @@
     { "source": "/api/status", "destination": "/api/user-data?resource=status" },
     { "source": "/api/vault", "destination": "/api/user-data?resource=vault" },
     { "source": "/api/vault-entries", "destination": "/api/user-data?resource=vault_entries" },
+    {
+      "source": "/api/brain-vault-grants",
+      "destination": "/api/user-data?resource=brain_vault_grants"
+    },
     { "source": "/api/audit", "destination": "/api/entries?resource=audit" },
     { "source": "/api/graph", "destination": "/api/entries?resource=graph" },
     { "source": "/v1/:action", "destination": "/api/v1?action=:action" },
