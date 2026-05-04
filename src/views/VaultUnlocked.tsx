@@ -109,69 +109,81 @@ export function VaultUnlocked({
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 12,
+          gap: 14,
           padding: "18px 0 14px",
           borderBottom: "1px solid var(--line-soft)",
           marginBottom: 20,
         }}
       >
+        {/* Row 1: title + subtitle. Stays in its own row so the action
+          buttons below it can never overlap the subtitle on narrow screens. */}
+        <div>
+          <h1
+            className="f-serif"
+            style={{
+              fontSize: 28,
+              fontWeight: 450,
+              letterSpacing: "-0.015em",
+              lineHeight: 1.1,
+              margin: 0,
+              color: "var(--ink)",
+            }}
+          >
+            Vault
+          </h1>
+          <div
+            className="f-serif"
+            style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
+          >
+            unlocked · {decryptedSecrets.length} secret
+            {decryptedSecrets.length === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        {/* Row 2: action toolbar. Horizontally scrollable on narrow screens
+          so the four buttons never wrap into a second line over the title. */}
         <div
-          className="vault-header-row"
-          style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            paddingBottom: 2,
+          }}
         >
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <h1
-              className="f-serif"
-              style={{
-                fontSize: 28,
-                fontWeight: 450,
-                letterSpacing: "-0.015em",
-                lineHeight: 1.1,
-                margin: 0,
-                color: "var(--ink)",
-              }}
-            >
-              Vault
-            </h1>
-            <div
-              className="f-serif"
-              style={{ fontSize: 14, color: "var(--ink-faint)", fontStyle: "italic", marginTop: 4 }}
-            >
-              unlocked · {decryptedSecrets.length} secret
-              {decryptedSecrets.length === 1 ? "" : "s"}
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Button onClick={openAddSecret} size="sm">
-              + Add secret
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setBulkMode((b) => !b);
-                setSelectedIds(new Set());
-              }}
-              style={{
-                color: bulkMode ? "var(--ember)" : undefined,
-                borderColor: bulkMode ? "var(--ember)" : undefined,
-              }}
-            >
-              {bulkMode ? "Cancel" : "Select"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={downloadBackup}
-              disabled={backupBusy}
-              title="Download an encrypted backup you can decrypt offline at /decrypt.html"
-            >
-              {backupBusy ? "Bundling…" : "↓ Backup"}
-            </Button>
-            <Button variant="outline" size="sm" onClick={lockVault}>
-              Lock
-            </Button>
-          </div>
+          <Button onClick={openAddSecret} size="sm" style={{ flexShrink: 0 }}>
+            + Add secret
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setBulkMode((b) => !b);
+              setSelectedIds(new Set());
+            }}
+            style={{
+              color: bulkMode ? "var(--ember)" : undefined,
+              borderColor: bulkMode ? "var(--ember)" : undefined,
+              flexShrink: 0,
+            }}
+          >
+            {bulkMode ? "Cancel" : "Select"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={downloadBackup}
+            disabled={backupBusy}
+            title="Download an encrypted backup you can decrypt offline at /decrypt.html"
+            style={{ flexShrink: 0 }}
+          >
+            {backupBusy ? "Bundling…" : "↓ Backup"}
+          </Button>
+          <Button variant="outline" size="sm" onClick={lockVault} style={{ flexShrink: 0 }}>
+            Lock
+          </Button>
         </div>
       </div>
 
