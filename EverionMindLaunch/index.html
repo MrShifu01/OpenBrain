@@ -1031,9 +1031,19 @@
         // top thing on every visit. Working Archive is muted at the bottom.
         { key: "working", label: "Currently Working" },
         { key: "core", label: "Launch Control" },
+        { key: "roadmap", label: "Roadmap (week-by-week)" },
+        { key: "specs", label: "Specs" },
+        { key: "marketing-playbooks", label: "Marketing — Playbooks" },
         { key: "marketing-producthunt", label: "Marketing — Product Hunt" },
         { key: "audits", label: "Audits" },
         { key: "architecture", label: "Architecture" },
+        { key: "ops", label: "Ops" },
+        { key: "legal", label: "Legal" },
+        { key: "support", label: "Support" },
+        { key: "brand", label: "Brand" },
+        { key: "mobile", label: "Mobile" },
+        { key: "analytics", label: "Analytics" },
+        { key: "specs-archive", label: "Specs Archive", muted: true },
         { key: "audits-archive", label: "Audit Archive", muted: true },
         { key: "working-archive", label: "Working Archive", muted: true },
       ];
@@ -1080,7 +1090,7 @@
           <div class="doc-library-head">
             <div>
               <div class="doc-library-title">Document Library</div>
-              <div class="doc-library-note">Grouped by job: launch control, audits, then architecture reference.</div>
+              <div class="doc-library-note">Start with Playbook. Grouped by job: launch control, sprint plan, then marketing / ops / legal / support / brand / mobile / analytics / architecture reference.</div>
             </div>
             <input type="search" class="doc-search" id="doc-search" placeholder="Find a document..." value="${escapeHtml(docNavTerm)}" aria-label="Search documents" />
           </div>

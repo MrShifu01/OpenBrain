@@ -345,4 +345,4 @@ For each device, run flows 1-8. Document P0/P1/P2 findings in `Audits/2026-05-23
 - [ ] Twitter announce got > 50 impressions, day-1 tweet got > 100 impressions
 - [ ] Mood: tired but proud, not panicked
 
-If yes, the beta phase begins. From here, see `beta-phase-ops.md` for the days-30-60 cadence.
+If yes, the beta phase begins. From here, see `beta-phase.md` for the days-30-60 cadence.

@@ -6,14 +6,30 @@
 > The only exception is if the user explicitly types `/superpowers` or names a superpowers skill — then it's user-invoked and fine.
 
 > **🚀 SINGLE SOURCE OF TRUTH — `EverionMindLaunch/` (shorthand: `EML`)**
-> The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, and architecture reference. When the user says "EML" they mean this folder — treat it as `EverionMindLaunch/` everywhere. Six core docs:
+> The canonical, be-all-end-all knowledge base for **pre-launch, launch, and post-launch** tasks, considerations, decisions, direction, research, strategy, architecture, ops, legal, support, brand, mobile, and analytics reference. When the user says "EML" they mean this folder — treat it as `EverionMindLaunch/` everywhere.
+>
+> **Start with `PLAYBOOK.md`** — the launch hub. 7 phases (state-of-the-world → hardening → brand+domain → marketing → beta → launch day → post-launch ops), each with a checklist and links to the canonical doc behind it.
+>
+> Top-level docs:
+> - **`PLAYBOOK.md`** — the launch hub. Read top to bottom.
 > - **`LAUNCH_CHECKLIST.md`** — active to-do (P0/P1/P2 tiered)
 > - **`ROADMAP.md`** — 21-day sprint + 12-month timeline
 > - **`STRATEGY.md`** — positioning, moat, viral mechanics
 > - **`RESEARCH.md`** — competitor matrix, market evidence, MVP principles
 > - **`BRAINSTORM.md`** — priority-scored idea park
-> - **`IMPORTS_SPEC.md`** — mass + continuous import architecture
-> - **`architecture/*.md`** — reference docs for cross-cutting components (auth, capture, cron, enrich, gmail, bell)
+>
+> Folders:
+> - **`Roadmap/`** — week-by-week sprint detail (week-1, week-2, week-3, week-4, beta-phase)
+> - **`Specs/`** — feature specs (active + archive). Includes imports-spec.md, brain-feed-v0.md, streak-counter.md, android-qa-matrix.md, play-console-submission.md
+> - **`architecture/`** — reference docs for cross-cutting components (auth, capture, cron, enrich, gmail, bell, events, security, onboarding-flow)
+> - **`Ops/`** — env-vars, feature-flags, vendors, crons, incident-response, disaster-recovery
+> - **`Legal/`** — ai-disclosure, pricing-billing, privacy-tos-launch, trademarks-domains
+> - **`Support/`** — sop, account-recovery, faq, abuse-moderation
+> - **`Brand/`** — assets, voice-tone, press-kit, outreach-list
+> - **`Mobile/`** — ios-submission, capacitor-build (Android lives in `Specs/play-console-submission.md`)
+> - **`Analytics/`** — event-taxonomy, north-star, beta-cohort, ab-tests
+> - **`marketing/`** — seo-marketing-playbook + ProductHunt assets
+> - **`Audits/`** — adversarial reviews; addressed audits move to `Audits/archive/`
 >
 > Always:
 > - **Add** new items to the right doc (checklist for now, roadmap for next, brainstorm for someday)

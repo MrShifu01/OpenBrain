@@ -25,21 +25,24 @@ const PORT = Number(process.env.PORT || 5174);
 // Files in AUTO_GROUPS dirs (below) are picked up automatically — no need
 // to list them here unless you want to override the title or pin order.
 const DOCS = [
+  // Hub — first thing in the library, the launch playbook
+  { id: "playbook",     file: "PLAYBOOK.md",         title: "Playbook (start here)", role: "doc" },
   { id: "checklist",    file: "LAUNCH_CHECKLIST.md", title: "Checklist",    role: "checklist" },
   { id: "roadmap",      file: "ROADMAP.md",          title: "Roadmap",      role: "doc" },
   { id: "strategy",     file: "STRATEGY.md",         title: "Strategy",     role: "doc" },
   { id: "research",     file: "RESEARCH.md",         title: "Research",     role: "doc" },
   { id: "brainstorm",   file: "BRAINSTORM.md",       title: "Brainstorm",   role: "doc" },
-  { id: "imports-spec", file: "IMPORTS_SPEC.md",     title: "Imports Spec", role: "doc" },
   // Architecture group — INDEX is the entry point, sub-docs are siblings
-  { id: "arch-index",   file: "architecture/INDEX.md",   title: "Architecture",   role: "doc",  group: "architecture" },
-  { id: "arch-auth",    file: "architecture/auth.md",    title: "Auth",           role: "doc",  group: "architecture" },
-  { id: "arch-bell",    file: "architecture/bell.md",    title: "Notification Bell", role: "doc", group: "architecture" },
-  { id: "arch-capture", file: "architecture/capture.md", title: "Capture pipeline", role: "doc", group: "architecture" },
-  { id: "arch-cron",    file: "architecture/cron.md",    title: "Cron + workflows", role: "doc", group: "architecture" },
-  { id: "arch-enrich",  file: "architecture/enrich.md",  title: "Enrichment pipeline", role: "doc", group: "architecture" },
-  { id: "arch-gmail",   file: "architecture/gmail.md",   title: "Gmail sync",     role: "doc", group: "architecture" },
-  { id: "arch-events",  file: "architecture/events.md",  title: "PostHog events", role: "doc", group: "architecture" },
+  { id: "arch-index",       file: "architecture/INDEX.md",            title: "Architecture",        role: "doc",  group: "architecture" },
+  { id: "arch-auth",        file: "architecture/auth.md",             title: "Auth",                role: "doc",  group: "architecture" },
+  { id: "arch-bell",        file: "architecture/bell.md",             title: "Notification Bell",   role: "doc",  group: "architecture" },
+  { id: "arch-capture",     file: "architecture/capture.md",          title: "Capture pipeline",    role: "doc",  group: "architecture" },
+  { id: "arch-cron",        file: "architecture/cron.md",             title: "Cron + workflows",    role: "doc",  group: "architecture" },
+  { id: "arch-enrich",      file: "architecture/enrich.md",           title: "Enrichment pipeline", role: "doc",  group: "architecture" },
+  { id: "arch-gmail",       file: "architecture/gmail.md",            title: "Gmail sync",          role: "doc",  group: "architecture" },
+  { id: "arch-events",      file: "architecture/events.md",           title: "PostHog events",      role: "doc",  group: "architecture" },
+  { id: "arch-security",    file: "architecture/security.md",         title: "Security",            role: "doc",  group: "architecture" },
+  { id: "arch-onboarding",  file: "architecture/onboarding-flow.md",  title: "Onboarding flow",     role: "doc",  group: "architecture" },
 ];
 
 // Auto-discovery — drop a `.md` file into one of these dirs and it appears
@@ -64,7 +67,18 @@ const AUTO_GROUPS = [
   // subdirectories so ProductHunt/ entries don't double-count.
   { dir: "marketing", group: "marketing-playbooks", sort: "mtime-desc" },
   { dir: "marketing/ProductHunt", group: "marketing-producthunt", sort: "name-asc" },
-  // Future drop-in folders (Decisions/, Specs/) just add another entry here.
+  // Sprint plan — week-by-week pre/launch/post-launch detail
+  { dir: "Roadmap", group: "roadmap", sort: "name-asc" },
+  // Cross-cutting reference docs
+  { dir: "Specs", group: "specs", sort: "mtime-desc" },
+  { dir: "Specs/archive", group: "specs-archive", sort: "mtime-desc" },
+  { dir: "Ops", group: "ops", sort: "name-asc" },
+  { dir: "Legal", group: "legal", sort: "name-asc" },
+  { dir: "Support", group: "support", sort: "name-asc" },
+  { dir: "Brand", group: "brand", sort: "name-asc" },
+  { dir: "Mobile", group: "mobile", sort: "name-asc" },
+  { dir: "Analytics", group: "analytics", sort: "name-asc" },
+  // Future drop-in folders just add another entry here.
 ];
 
 function send(res, status, body, headers = {}) {

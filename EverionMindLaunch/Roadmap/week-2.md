@@ -111,7 +111,7 @@ If a task in this week doesn't move that 60-hour story forward, push it to week 
 
 **Goal:** Backend surfaces all data the feed needs. No render yet.
 
-- 09:00–10:00 — Read `EML/Working/spec-brain-feed-v0.md` end-to-end. Confirm the 3 surfaces: (1) gap-analyst recent output, (2) one resurfaced memory, (3) capture bar.
+- 09:00–10:00 — Read `EML/Specs/brain-feed-v0.md` end-to-end. Confirm the 3 surfaces: (1) gap-analyst recent output, (2) one resurfaced memory, (3) capture bar.
 - 10:00–13:00 — Wire the resurfaced-memory query. Endpoint: `/api/entries?resource=resurface` (existing rewrite or add to the resource switch in `api/entries.ts` — check budget; the 12-fn limit applies). Logic: pick one entry created 30-365 days ago that hasn't been viewed in 14 days, weighted by importance + recency-of-relevance from the concept graph.
 - 14:00–17:00 — Wire the gap-analyst feed query. Reuse existing gap-analyst job output if it's already persisted; otherwise add a `recent_gaps` view that returns the last 3 gap-analyst items.
 
@@ -213,10 +213,10 @@ See `spec-cmd-k-capture.md` for full design. Day plan:
 
 | Spec | What it covers |
 | ---- | -------------- |
-| [spec-brain-feed-v0.md](spec-brain-feed-v0.md) | Data sources, render layout, refresh cadence for the home-view feed |
-| [spec-streak-counter.md](spec-streak-counter.md) | DB schema, increment logic, edge cases, UI surface |
-| [spec-cmd-k-capture.md](spec-cmd-k-capture.md) | Global shortcut handler, mode logic, OmniSearch interaction |
-| [beta-phase-ops.md](beta-phase-ops.md) | What you actually do days 30-60 every day (referenced by Sun's funnel-cohort work) |
+| [Specs/brain-feed-v0.md](../Specs/brain-feed-v0.md) | Data sources, render layout, refresh cadence for the home-view feed |
+| [Specs/streak-counter.md](../Specs/streak-counter.md) | DB schema, increment logic, edge cases, UI surface |
+| [Specs/archive/cmd-k-capture.md](../Specs/archive/cmd-k-capture.md) | Global shortcut handler, mode logic, OmniSearch interaction |
+| [beta-phase.md](beta-phase.md) | What you actually do days 30-60 every day (referenced by Sun's funnel-cohort work) |
 
 ---
 

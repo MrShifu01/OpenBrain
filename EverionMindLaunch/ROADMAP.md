@@ -197,7 +197,7 @@ Target: **value demonstrated in under 60 seconds.** Not a tour. A demo.
 
 ### Product Hunt — the public launch (day 60 = ~2026-07-01)
 
-PH visitors aren't random — they're earned. Six levers, ranked by ROI. **Tactical day-by-day calendar lives in `Working/2026-05-01-30-day-launch-schedule.md`** — the section below is the strategic frame.
+PH visitors aren't random — they're earned. Six levers, ranked by ROI. **Tactical day-by-day calendar lives in `Roadmap/week-1.md` … `week-4.md`** — the section below is the strategic frame.
 
 #### 1. Hunter relationship (highest leverage, hardest to fake)
 

@@ -28,13 +28,13 @@ Evaluation across the seven dimensions that decide whether a SaaS is "open the g
 
 ## Week-plan cross-reference
 
-Every open `[ ]` item below has a calendar slot in one of the four weekly plans in `Working/`. When working from this checklist, find your current week below to see which items land that week.
+Every open `[ ]` item below has a calendar slot in one of the four weekly plans in `Roadmap/`. When working from this checklist, find your current week below to see which items land that week.
 
 > **Maintenance rule:** if you re-prioritize an item, update its row in this table AND in the relevant week plan. Drift between this index and the week plans is the failure mode.
 
 ### Week 1 — DECIDE & PROVISION (Fri 2026-05-01 → Thu 2026-05-07)
 
-Plan: [`Working/2026-05-01-week-1-plan.md`](Working/2026-05-01-week-1-plan.md)
+Plan: [`Roadmap/week-1.md`](Roadmap/week-1.md)
 
 | Day | Checklist item | Section |
 | --- | -------------- | ------- |
@@ -54,7 +54,7 @@ Plan: [`Working/2026-05-01-week-1-plan.md`](Working/2026-05-01-week-1-plan.md)
 
 ### Week 2 — DOMAIN + ONBOARDING + INSTRUMENT + FEED v0 (Fri 2026-05-08 → Thu 2026-05-14)
 
-Plan: [`Working/2026-05-08-week-2-plan.md`](Working/2026-05-08-week-2-plan.md). Sub-specs: [`spec-brain-feed-v0.md`](Working/spec-brain-feed-v0.md), [`spec-streak-counter.md`](Working/spec-streak-counter.md), [`spec-cmd-k-capture.md`](Working/spec-cmd-k-capture.md).
+Plan: [`Roadmap/week-2.md`](Roadmap/week-2.md). Sub-specs: [`Specs/brain-feed-v0.md`](Specs/brain-feed-v0.md), [`Specs/streak-counter.md`](Specs/streak-counter.md), [`Specs/archive/cmd-k-capture.md`](Specs/archive/cmd-k-capture.md).
 
 | Day | Checklist item | Section |
 | --- | -------------- | ------- |
@@ -73,7 +73,7 @@ Plan: [`Working/2026-05-08-week-2-plan.md`](Working/2026-05-08-week-2-plan.md). 
 
 ### Week 3 — QA + Play Console submission (Fri 2026-05-15 → Thu 2026-05-21)
 
-Plan: [`Working/2026-05-15-week-3-plan.md`](Working/2026-05-15-week-3-plan.md). Sub-specs: [`spec-play-console-submission.md`](Working/spec-play-console-submission.md), [`spec-android-qa-matrix.md`](Working/spec-android-qa-matrix.md).
+Plan: [`Roadmap/week-3.md`](Roadmap/week-3.md). Sub-specs: [`Specs/play-console-submission.md`](Specs/play-console-submission.md), [`Specs/android-qa-matrix.md`](Specs/android-qa-matrix.md).
 
 | Day | Checklist item | Section |
 | --- | -------------- | ------- |
@@ -88,7 +88,7 @@ Plan: [`Working/2026-05-15-week-3-plan.md`](Working/2026-05-15-week-3-plan.md). 
 
 ### Week 4 — Polish + closed-beta launch (Fri 2026-05-22 → Sat 2026-05-30)
 
-Plan: [`Working/2026-05-22-week-4-plan.md`](Working/2026-05-22-week-4-plan.md).
+Plan: [`Roadmap/week-4.md`](Roadmap/week-4.md).
 
 | Day | Checklist item | Section |
 | --- | -------------- | ------- |
@@ -109,7 +109,7 @@ Plan: [`Working/2026-05-22-week-4-plan.md`](Working/2026-05-22-week-4-plan.md).
 
 ### Beta phase ops (Sun 2026-05-31 → Mon 2026-07-01) and post-launch deferrals
 
-Doc: [`Working/beta-phase-ops.md`](Working/beta-phase-ops.md).
+Doc: [`Roadmap/beta-phase.md`](Roadmap/beta-phase.md).
 
 | Window | Checklist item | Section |
 | ------ | -------------- | ------- |
