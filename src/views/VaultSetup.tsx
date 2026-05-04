@@ -30,7 +30,7 @@ export function VaultSetupForm({
   return (
     <div
       className="flex flex-col items-center space-y-6 px-4 py-12"
-      style={{ background: "var(--color-background)" }}
+      style={{ background: "var(--bg)" }}
     >
       <div className="space-y-2 text-center">
         <div className="text-4xl">🔐</div>
@@ -124,7 +124,7 @@ export function VaultRecoveryKeyDisplay({
   return (
     <div
       className="flex flex-col items-center space-y-6 px-4 py-12"
-      style={{ background: "var(--color-background)" }}
+      style={{ background: "var(--bg)" }}
     >
       <div className="space-y-2 text-center">
         <div className="text-4xl">🗝</div>

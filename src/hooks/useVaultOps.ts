@@ -366,17 +366,29 @@ export function useVaultOps({
       const wrappedPriv = await wrapPrivateKey(pair.privateKey, key);
       privateKeyRef.current = pair.privateKey;
       publicKeyRef.current = pair.publicKey;
-      const res = await authFetch("/api/vault", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          salt,
-          verify_token: verifyToken,
-          recovery_blob: recoveryBlob,
-          public_key: publicSpki,
-          wrapped_private_key: wrappedPriv,
-        }),
-      });
+      // Hard 30s timeout on the POST. Without it, a Vercel cold start that
+      // overruns or a stalled DB connection leaves the button frozen on
+      // "Setting up…" with no feedback. AbortController.signal hooked up
+      // so the fetch rejects rather than hanging the promise indefinitely.
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 30_000);
+      let res: Response;
+      try {
+        res = await authFetch("/api/vault", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            salt,
+            verify_token: verifyToken,
+            recovery_blob: recoveryBlob,
+            public_key: publicSpki,
+            wrapped_private_key: wrappedPriv,
+          }),
+          signal: ac.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error || `HTTP ${res.status}`);
@@ -386,8 +398,12 @@ export function useVaultOps({
       setStatus("show-recovery");
     } catch (e) {
       setError(friendlyError(e));
+    } finally {
+      // finally so a bug in any of the awaits above (or in the setStatus /
+      // onVaultUnlock callbacks) can never leave the button stuck on
+      // "Setting up…" forever.
+      setBusy(false);
     }
-    setBusy(false);
   }, [passphrase, confirmPhrase, onVaultUnlock]);
 
   const handleUnlock = useCallback(async () => {
