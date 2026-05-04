@@ -930,6 +930,7 @@ function EverionContent({
                 selectedIds={appShell.selectedIds}
                 entries={entries}
                 brains={brains}
+                activeBrainId={activeBrain?.id}
                 allSelected={appShell.selectedIds.size === filtered.length}
                 onSelectAll={() => {
                   if (appShell.selectedIds.size === filtered.length) {
@@ -951,6 +952,12 @@ function EverionContent({
                       body: JSON.stringify({ id }),
                     }).catch((err) => console.error("[bulkDelete]", err));
                   }
+                }}
+                onMoved={(ids: string[]) => {
+                  // Moved rows leave the active brain; drop them from the
+                  // local list so they don't ghost the Memory grid.
+                  const set = new Set(ids);
+                  setEntries((prev) => prev.filter((e) => !set.has(e.id)));
                 }}
                 onDone={(updated) => {
                   setEntries((prev) => prev.map((e) => updated.find((u) => u.id === e.id) ?? e));

@@ -8,29 +8,41 @@ interface Props {
   selectedIds: Set<string>;
   entries: Entry[];
   brains: Brain[];
+  /** Active brain — excluded from the share-target picker since the
+   *  selected entries already live there. */
+  activeBrainId?: string;
   onDone: (updatedEntries: Entry[]) => void;
   onCancel: () => void;
   onSelectAll?: () => void;
   onDelete?: (ids: string[]) => Promise<void>;
+  /** Fired after a successful bulk move so the parent can drop the
+   *  moved entries from its local list. */
+  onMoved?: (ids: string[]) => void;
   allSelected?: boolean;
 }
 
-type Phase = "idle" | "typing" | "confirmDelete";
+type Phase = "idle" | "typing" | "confirmDelete" | "share" | "move";
 
 export default function BulkActionBar({
   selectedIds,
   entries,
-  brains: _brains,
+  brains,
+  activeBrainId,
   onDone,
   onCancel,
   onSelectAll,
   onDelete,
+  onMoved,
   allSelected = false,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [busy, setBusy] = useState(false);
   const [aiTyping, setAiTyping] = useState(false);
   const [suggested, setSuggested] = useState<string | null>(null);
+  const [shareTargets, setShareTargets] = useState<Set<string>>(new Set());
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [moveTarget, setMoveTarget] = useState<string | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
 
   // Reset phase when the selection changes externally — keeps a stale "Are
   // you sure you want to delete?" from sitting around after the user has
@@ -39,8 +51,14 @@ export default function BulkActionBar({
     if (selectedIds.size === 0) {
       setPhase("idle");
       setSuggested(null);
+      setShareTargets(new Set());
+      setShareError(null);
+      setMoveTarget(null);
+      setMoveError(null);
     }
   }, [selectedIds.size]);
+
+  const shareableBrains = brains.filter((b) => b.id !== activeBrainId);
 
   const count = selectedIds.size;
 
@@ -115,6 +133,77 @@ export default function BulkActionBar({
     }
   }
 
+  // Share-overlay (migration 070) — the selected entries become visible
+  // in every chosen target brain without being moved or duplicated.
+  // Idempotent on the server side (Prefer: ignore-duplicates), so re-
+  // toggling a target the user already shared into is safe.
+  async function bulkShare() {
+    if (busy || shareTargets.size === 0) return;
+    setBusy(true);
+    setShareError(null);
+    const ids = [...selectedIds];
+    const targets = [...shareTargets];
+    let failed = 0;
+    for (const id of ids) {
+      for (const brainId of targets) {
+        try {
+          const r = await authFetch(
+            `/api/entries?action=share&id=${encodeURIComponent(id)}&brain_id=${encodeURIComponent(brainId)}`,
+            { method: "POST", headers: { "Content-Type": "application/json" } },
+          );
+          if (!r.ok) failed++;
+        } catch {
+          failed++;
+        }
+      }
+    }
+    setBusy(false);
+    if (failed > 0) {
+      setShareError(`${failed} of ${ids.length * targets.length} shares failed.`);
+      return;
+    }
+    setPhase("idle");
+    setShareTargets(new Set());
+    onCancel();
+  }
+
+  // Bulk move — each selected entry's brain_id changes to the picked
+  // target. Concept-graph trim and re-enrichment happen server-side per
+  // entry (see api/entries.ts handleMoveEntry). Move differs from share:
+  // exactly one target brain, ownership transfers, the entry leaves its
+  // source brain.
+  async function bulkMove() {
+    if (busy || !moveTarget) return;
+    setBusy(true);
+    setMoveError(null);
+    const ids = [...selectedIds];
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const r = await authFetch(
+          `/api/entries?action=move&id=${encodeURIComponent(id)}&brain_id=${encodeURIComponent(moveTarget)}`,
+          { method: "POST", headers: { "Content-Type": "application/json" } },
+        );
+        if (!r.ok) failed++;
+      } catch {
+        failed++;
+      }
+    }
+    setBusy(false);
+    if (failed > 0) {
+      setMoveError(`${failed} of ${ids.length} moves failed.`);
+      return;
+    }
+    setPhase("idle");
+    setMoveTarget(null);
+    // Moved entries leave the active brain — let the parent drop them
+    // from its local list so the user doesn't see ghosts. onDone's
+    // map-by-id semantics can't express removal, so we use a separate
+    // signal (onMoved).
+    onMoved?.(ids);
+    onCancel();
+  }
+
   return (
     <div
       style={{
@@ -162,6 +251,22 @@ export default function BulkActionBar({
               disabled={busy}
               onClick={() => setPhase("typing")}
             />
+            {shareableBrains.length > 0 && (
+              <ActionBtn
+                label="Share with…"
+                tone="moss"
+                disabled={busy}
+                onClick={() => setPhase("share")}
+              />
+            )}
+            {shareableBrains.length > 0 && (
+              <ActionBtn
+                label="Move to…"
+                tone="ghost"
+                disabled={busy}
+                onClick={() => setPhase("move")}
+              />
+            )}
             {onDelete && (
               <ActionBtn
                 label={`Delete · ${count}`}
@@ -170,6 +275,117 @@ export default function BulkActionBar({
                 onClick={() => setPhase("confirmDelete")}
               />
             )}
+          </div>
+        )}
+
+        {phase === "share" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p className="f-sans" style={{ margin: 0, fontSize: 12, color: "var(--ink-soft)" }}>
+              Make {count} {count === 1 ? "entry" : "entries"} visible in…
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {shareableBrains.map((b) => {
+                const picked = shareTargets.has(b.id);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() =>
+                      setShareTargets((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(b.id)) next.delete(b.id);
+                        else next.add(b.id);
+                        return next;
+                      })
+                    }
+                    disabled={busy}
+                    className="press"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 10px",
+                      background: picked ? "var(--ember-wash)" : "var(--surface)",
+                      border: `1px solid ${picked ? "var(--ember)" : "var(--line-soft)"}`,
+                      borderRadius: 8,
+                      color: "var(--ink)",
+                      fontFamily: "var(--f-sans)",
+                      fontSize: 12,
+                      textAlign: "left",
+                      cursor: busy ? "default" : "pointer",
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: 4,
+                        border: `1.5px solid ${picked ? "var(--ember)" : "var(--line-soft)"}`,
+                        background: picked ? "var(--ember)" : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {picked && (
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+                          <path
+                            d="M5 13l4 4L19 7"
+                            stroke="white"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {b.name}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {shareError && (
+              <div role="alert" style={{ fontSize: 11, color: "var(--blood)" }}>
+                {shareError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setPhase("idle");
+                  setShareTargets(new Set());
+                  setShareError(null);
+                }}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="default"
+                onClick={bulkShare}
+                disabled={busy || shareTargets.size === 0}
+              >
+                {busy
+                  ? "Sharing…"
+                  : `Share · ${count} → ${shareTargets.size || 0} brain${shareTargets.size === 1 ? "" : "s"}`}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -210,6 +426,77 @@ export default function BulkActionBar({
                 }}
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {phase === "move" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <p className="f-sans" style={{ margin: 0, fontSize: 12, color: "var(--ink-soft)" }}>
+              Move {count} {count === 1 ? "entry" : "entries"} to…
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {shareableBrains.map((b) => {
+                const picked = moveTarget === b.id;
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setMoveTarget(picked ? null : b.id)}
+                    disabled={busy}
+                    className="press"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "8px 10px",
+                      background: picked ? "var(--ember-wash)" : "var(--surface)",
+                      border: `1px solid ${picked ? "var(--ember)" : "var(--line-soft)"}`,
+                      borderRadius: 8,
+                      color: "var(--ink)",
+                      fontFamily: "var(--f-sans)",
+                      fontSize: 12,
+                      textAlign: "left",
+                      cursor: busy ? "default" : "pointer",
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        border: `1.5px solid ${picked ? "var(--ember)" : "var(--line-soft)"}`,
+                        background: picked ? "var(--ember)" : "transparent",
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0, fontWeight: 500 }}>{b.name}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {moveError && (
+              <div role="alert" style={{ fontSize: 11, color: "var(--blood)" }}>
+                {moveError}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setPhase("idle");
+                  setMoveTarget(null);
+                  setMoveError(null);
+                }}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" variant="default" onClick={bulkMove} disabled={busy || !moveTarget}>
+                {busy ? "Moving…" : `Move · ${count}`}
               </Button>
             </div>
           </div>
