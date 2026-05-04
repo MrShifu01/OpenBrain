@@ -204,3 +204,123 @@ export async function decryptEntry(
   }
   return out;
 }
+
+// ── Envelope encryption (per-brain vault, phase 2) ─────────────────────────
+//
+// Each user has an RSA-OAEP-2048 keypair. The private key is encrypted
+// with their master vault KEK and stored in vault_keys.wrapped_private_key;
+// the public key is stored in clear (vault_keys.public_key) so other users
+// can wrap a brain's DEK for them.
+//
+// Each shared brain has a random AES-256-GCM data-encryption-key (DEK).
+// Every member who has access has a row in brain_vault_grants with the
+// DEK encrypted with their own public key. Owner unlocks → KEK → unwrap
+// private key → unwrap DEK → decrypt brain's secrets.
+//
+// Personal-brain secrets stay master-key-encrypted (no DEK overhead) —
+// they're never shared and the extra hop adds nothing.
+
+const ASYM = {
+  name: "RSA-OAEP",
+  modulusLength: 2048,
+  publicExponent: new Uint8Array([1, 0, 1]),
+  hash: "SHA-256",
+} as const;
+const PRIVATE_KEY_PREFIX = "rsapk:v1:";
+
+export async function generateAsymmetricKeypair(): Promise<{
+  publicKey: CryptoKey;
+  privateKey: CryptoKey;
+}> {
+  const pair = await crypto.subtle.generateKey(ASYM, true, ["wrapKey", "unwrapKey"]);
+  return { publicKey: pair.publicKey, privateKey: pair.privateKey };
+}
+
+export async function exportPublicKey(publicKey: CryptoKey): Promise<string> {
+  // SPKI format → base64. Stored as-is in vault_keys.public_key so other
+  // clients can import it without a JWK parse step.
+  const spki = await crypto.subtle.exportKey("spki", publicKey);
+  return btoa(String.fromCharCode(...new Uint8Array(spki)));
+}
+
+export async function importPublicKey(spkiB64: string): Promise<CryptoKey> {
+  const bytes = Uint8Array.from(atob(spkiB64), (c) => c.charCodeAt(0));
+  return crypto.subtle.importKey("spki", bytes, ASYM, true, ["wrapKey"]);
+}
+
+// Wrap the private key with the user's master KEK (AES-GCM). The output
+// is opaque to anyone without the master KEK and small enough to live
+// in vault_keys.wrapped_private_key.
+export async function wrapPrivateKey(privateKey: CryptoKey, masterKEK: CryptoKey): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const wrapped = await crypto.subtle.wrapKey("pkcs8", privateKey, masterKEK, {
+    name: CIPHER,
+    iv,
+  });
+  const ivHex = Array.from(iv)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  const wrappedB64 = btoa(String.fromCharCode(...new Uint8Array(wrapped)));
+  return `${PRIVATE_KEY_PREFIX}${ivHex}:${wrappedB64}`;
+}
+
+export async function unwrapPrivateKey(
+  wrappedString: string,
+  masterKEK: CryptoKey,
+): Promise<CryptoKey | null> {
+  if (!wrappedString.startsWith(PRIVATE_KEY_PREFIX)) return null;
+  const inner = wrappedString.slice(PRIVATE_KEY_PREFIX.length);
+  const colonIdx = inner.indexOf(":");
+  if (colonIdx === -1) return null;
+  const ivHex = inner.slice(0, colonIdx);
+  const wrappedB64 = inner.slice(colonIdx + 1);
+  const iv = new Uint8Array(ivHex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
+  const wrappedBytes = Uint8Array.from(atob(wrappedB64), (c) => c.charCodeAt(0));
+  try {
+    return await crypto.subtle.unwrapKey(
+      "pkcs8",
+      wrappedBytes,
+      masterKEK,
+      { name: CIPHER, iv },
+      ASYM,
+      true,
+      ["unwrapKey"],
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function generateBrainDEK(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey({ name: CIPHER, length: 256 }, true, ["encrypt", "decrypt"]);
+}
+
+const DEK_PREFIX = "dek:v1:";
+
+export async function wrapDEK(dek: CryptoKey, recipientPublicKey: CryptoKey): Promise<string> {
+  const wrapped = await crypto.subtle.wrapKey("raw", dek, recipientPublicKey, { name: "RSA-OAEP" });
+  return `${DEK_PREFIX}${btoa(String.fromCharCode(...new Uint8Array(wrapped)))}`;
+}
+
+export async function unwrapDEK(
+  wrappedString: string,
+  privateKey: CryptoKey,
+): Promise<CryptoKey | null> {
+  if (!wrappedString.startsWith(DEK_PREFIX)) return null;
+  const wrappedBytes = Uint8Array.from(atob(wrappedString.slice(DEK_PREFIX.length)), (c) =>
+    c.charCodeAt(0),
+  );
+  try {
+    return await crypto.subtle.unwrapKey(
+      "raw",
+      wrappedBytes,
+      privateKey,
+      { name: "RSA-OAEP" },
+      { name: CIPHER, length: 256 },
+      true,
+      ["encrypt", "decrypt"],
+    );
+  } catch {
+    return null;
+  }
+}
