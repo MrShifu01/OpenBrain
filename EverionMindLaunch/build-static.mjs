@@ -47,6 +47,10 @@ const AUTO_GROUPS = [
   { dir: "Working/archive", group: "working-archive",  sort: "mtime-desc" },
   { dir: "Audits",          group: "audits",           sort: "mtime-desc" },
   { dir: "Audits/archive",  group: "audits-archive",   sort: "mtime-desc" },
+  // Top-level marketing/*.md (playbooks, cross-channel strategy). The file
+  // filter inside discoverAutoDocs excludes subdirectories, so ProductHunt/
+  // entries don't double-count in this group.
+  { dir: "marketing",             group: "marketing-playbooks",   sort: "mtime-desc" },
   { dir: "marketing/ProductHunt", group: "marketing-producthunt", sort: "name-asc" },
 ];
 

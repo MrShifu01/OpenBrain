@@ -58,7 +58,11 @@ const AUTO_GROUPS = [
   // Marketing folder — paste-ready launch assets. Each subfolder gets its
   // own group so PH/Twitter/email don't bleed into one big list. Add new
   // subfolders here when launching new channels (e.g. marketing/HackerNews,
-  // marketing/Reddit, marketing/Email).
+  // marketing/Reddit, marketing/Email). Top-level marketing/*.md files
+  // (playbooks, strategy docs that aren't channel-specific) land in the
+  // generic "marketing-playbooks" group — the readdir/file filter excludes
+  // subdirectories so ProductHunt/ entries don't double-count.
+  { dir: "marketing", group: "marketing-playbooks", sort: "mtime-desc" },
   { dir: "marketing/ProductHunt", group: "marketing-producthunt", sort: "name-asc" },
   // Future drop-in folders (Decisions/, Specs/) just add another entry here.
 ];
