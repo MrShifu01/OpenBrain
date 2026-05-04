@@ -314,13 +314,22 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      const e = user?.email || "";
-      setEmail(e);
-      setCachedEmail(e);
-      const meta = user?.app_metadata as { is_admin?: boolean } | undefined;
-      setIsAdmin(meta?.is_admin === true);
-    });
+    // Force a token refresh before reading app_metadata. JWTs issued before
+    // is_admin (or any future role flag) was set on auth.users.app_metadata
+    // carry stale claims until the next scheduled refresh — this makes the
+    // Settings entry-point always reflect the current server-side role
+    // without requiring a manual log-out / log-in.
+    void supabase.auth
+      .refreshSession()
+      .catch(() => null)
+      .then(() => supabase.auth.getUser())
+      .then(({ data: { user } }) => {
+        const e = user?.email || "";
+        setEmail(e);
+        setCachedEmail(e);
+        const meta = user?.app_metadata as { is_admin?: boolean } | undefined;
+        setIsAdmin(meta?.is_admin === true);
+      });
   }, []);
 
   const SECTIONS = isAdmin
