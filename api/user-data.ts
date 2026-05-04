@@ -1470,8 +1470,17 @@ const handleVaultEntries = withAuth(
   { methods: ["GET", "POST", "DELETE"], rateLimit: 60 },
   async ({ req, res, user }) => {
     if (req.method === "GET") {
+      // Phase 1 of per-brain vaults: each brain has its own Vault tab.
+      // Caller passes ?brain_id=X to fetch only that brain's secrets.
+      // Falls back to "all my secrets" when no brain_id is given so older
+      // clients still see something (instead of an empty grid).
+      const brainId = req.query.brain_id as string | undefined;
+      const brainFilter =
+        typeof brainId === "string" && brainId
+          ? `&brain_id=eq.${encodeURIComponent(brainId)}`
+          : "";
       const r = await fetch(
-        `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&select=id,title,content,metadata,tags,brain_id,created_at,updated_at&order=created_at.desc`,
+        `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}${brainFilter}&deleted_at=is.null&select=id,title,content,metadata,tags,brain_id,created_at,updated_at&order=created_at.desc`,
         { headers: hdrs() },
       );
       if (!r.ok) return void res.status(502).json({ error: "Database error" });

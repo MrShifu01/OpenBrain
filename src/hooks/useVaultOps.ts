@@ -93,7 +93,10 @@ export function useVaultOps({
 
   const fetchVaultEntries = useCallback(async () => {
     try {
-      const r = await authFetch("/api/vault-entries");
+      const url = brainId
+        ? `/api/vault-entries?brain_id=${encodeURIComponent(brainId)}`
+        : "/api/vault-entries";
+      const r = await authFetch(url);
       if (r.ok) {
         const data: Array<Record<string, unknown>> = await r.json();
         setVaultEntries(data.map((e) => ({ ...e, type: "secret" as const })) as Entry[]);
@@ -101,7 +104,7 @@ export function useVaultOps({
     } catch (e) {
       console.error("[vault] fetch failed:", e);
     }
-  }, []);
+  }, [brainId]);
 
   // Legacy: secrets still in the entries table (before migration)
   const legacySecrets = entries.filter((e: Entry) => e.type === "secret" || e.encrypted === true);
