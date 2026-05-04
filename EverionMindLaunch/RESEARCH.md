@@ -23,6 +23,10 @@ The competitive landscape, what users praise, what they complain about, and wher
 | Tana                | $10/mo       | Partial       | Yes              | No                  | Free beta         |
 | Supernotes          | $8.08/mo     | Yes           | Shallow          | No                  | 100 cards         |
 | Personal.ai         | $40/mo       | Yes           | Yes (PLM)        | No                  | No                |
+| **CortexOS**        | $9.99/mo     | Yes           | On-device only   | Yes (AES-256-GCM)   | 50 entries/mo     |
+| **Cortex (Poudel)** | Free         | **No** (iOS+) | On-device only   | Implied (on-device) | Free              |
+| **Everloom.app**    | TBD (waitlist) | TBD         | TBD              | TBD                 | TBD               |
+| **Everkeep**        | ~$5/mo (USD eq.) | **No** (iOS+) | None (no AI)   | Not disclosed       | Free + IAP        |
 
 ---
 
@@ -126,6 +130,56 @@ The competitive landscape, what users praise, what they complain about, and wher
 
 ---
 
+### CortexOS — privacy-first on-device journaling
+
+Researched 2026-05-04. Source: <https://cortexos.app/terms/>.
+
+- **Pricing:** Free (basic, 50 entries/mo, 3 emotions) · Premium $9.99/mo or $79.99/yr (14-day trial) · Lifetime $199.99 one-time
+- **Platform:** iOS + Android (both with on-device LLM)
+- **Differentiator:** On-device Llama 3.2 (1B/3B). iOS uses MLX on Neural Engine + CoreML; Android uses TensorFlow Lite. **Zero cloud AI calls** by default. Optional zero-knowledge encrypted cloud vault with AES-256-GCM, Argon2id key derivation, 6-word recovery phrase + 4-digit PIN.
+- **Core features:** AES-256-GCM encrypted journal, 20+ emotion detection, sentiment analysis, cognitive distortion alerts, on-device Whisper voice-to-text, NLP-based reminder detection, behavioral pattern detection, Android home-screen widget.
+- **Positioning:** "Your Mind, Encrypted." Privacy-first journaling, explicitly not a mental health treatment substitute.
+- **Weaknesses:** Single-user only — no shared brains, no family/team. On-device 1B/3B Llama is meaningfully weaker than Gemini 2.5 Flash for Q&A over personal data. Journaling-only — not generalised personal-admin memory. No share-target capture from other apps.
+- **Threat to Everion:** **Medium.** Same privacy-first promise (E2E vault, no cloud AI). But scope is narrower (journaling) and the on-device LLM ceiling limits chat-quality. If their roadmap broadens to "general life memory," they become a direct competitor with a credible privacy story. Watch their changelog.
+
+### Cortex — Private AI Assistant (Pratik Poudel) — calendar planner
+
+Researched 2026-05-04. Source: <https://apps.apple.com/us/app/cortex-private-ai-assistant/id6759742402>.
+
+- **Pricing:** Free
+- **Platform:** iOS 17+, iPadOS 17+, macOS 14+ (M1+), visionOS — Apple-only.
+- **Differentiator:** Calendar-aware AI assistant. On-device only. Summarises schedule, spots conflicts, creates events from natural language. Image-aware chat.
+- **Positioning:** "Private by default and fast on your device." Daily-planning + AI chat hybrid.
+- **Weaknesses:** Apple-only (no Android, no web). Calendar-narrow — not a general personal-memory product. No shared brains. No structured types beyond events. Solo dev (Pratik Poudel) — fragility risk.
+- **Threat to Everion:** **Low.** Different category — calendar planner, not life-admin memory. Same word "Cortex" is a brand-confusion risk; **flag as a name to avoid** if the brand decision is still open. (See `Legal/trademarks-domains.md` and `BRAINSTORM.md` brand-name shortlist.)
+
+### Everloom.app — "second brain is loading"
+
+Researched 2026-05-04. Sources: <https://www.everloom.app/>, marketing search results.
+
+- **Pricing:** TBD — site is a pre-launch/waitlist landing
+- **Platform:** TBD
+- **Differentiator (claimed):** "Save moments. Share memories. Let AI remember for you." Tagline-only product; no shipped features visible.
+- **Positioning:** Generic "second brain" + "AI memory" — same category, same surface promise as Everion. "Share memories" implies multi-user / family-shared from day one.
+- **Weaknesses:** Vapourware as of 2026-05-04. No public pricing, no platform commitment, no privacy claims, no shipped feature surface.
+- **Brand confusion:** **Significant.** "Everloom" is one consonant from "Everion." If Everloom ships first or markets aggressively, organic traffic for "ever\*" memory apps splits. Consider: defensive registration of `everloom.com`/`.app` variants is a non-starter (taken), but `evara`-family domains avoid the collision entirely. (See `Legal/trademarks-domains.md`.)
+- **Threat to Everion:** **Medium-High latent.** Same category, same naming bucket, unknown team capacity. Watch them quarterly. If they ship a polished product first, they get the SEO + tech-press coverage we need. **Track their Twitter / Product Hunt / Indie Hackers presence.**
+
+### Everkeep — time-locked future memories (no AI)
+
+Researched 2026-05-04. Sources: <https://everkeep.app/>, <https://apps.apple.com/vn/app/everkeep/id6748815343>.
+
+- **Pricing:** Free with IAP — Monthly ₫79,000 (~USD $3.20) · Yearly ₫799,000 (~USD $32) — Vietnamese-dong pricing visible; USD store may differ
+- **Platform:** iOS + iPadOS + macOS + visionOS — Apple-only
+- **Differentiator:** Time-locked memory vaults that unlock on a chosen future date. Designed for "future memories" — letters to your future self, milestone messages to family, anniversary surprises. Themes + backgrounds for emotional polish.
+- **Positioning:** "Preserve Your Future Memories" — emotional / sentimental. Explicitly forward-looking, not archival.
+- **AI involvement:** **None disclosed.** No semantic search, no AI chat, no enrichment.
+- **Privacy:** Developer claims "Data Not Collected" on App Store — minimal privacy claim, no encryption details disclosed.
+- **Weaknesses:** Apple-only. No AI. Niche use case — most users don't need a "letter-to-future-self" app monthly; LTV is low. No web. No share-target capture. The "vault" word here means time-locked-until-date, not E2E encryption — different mental model than Everion's vault.
+- **Threat to Everion:** **Low.** Different use case — sentimental future-letter delivery vs. life-admin memory. Could become a Pro-tier feature for Everion ("schedule this entry to surface on YYYY-MM-DD") at trivial implementation cost. **Worth lifting their "themes + backgrounds" UI polish for memory cards** — emotional-design lesson, not feature copy.
+
+---
+
 ## What users consistently praise (cross-app)
 
 | Feature                       | App      | Why it works                                                            |
@@ -170,6 +224,9 @@ The competitive landscape, what users praise, what they complain about, and wher
 - **Obsidian's setup hell** — users who want power without configuration
 - **Limitless's post-acquisition vacuum** — the ambient capture concept is orphaned; no good successor exists
 - **The graveyard problem is unsolved** — most apps capture well, almost none resurface well
+- **CortexOS's narrow scope (journaling-only)** — privacy-first users who want general life-admin memory, not just emotional journaling, have no shipped option that matches both promises
+- **Apple-only privacy plays (Cortex Poudel, Everkeep, Apple Notes)** — Android users who want privacy don't have a strong story to switch to; web + Android coverage is genuine moat
+- **Everkeep's "future-self letter" niche** — could absorb as a Pro-tier feature (scheduled-resurface entry) without building a separate product
 
 ---
 
