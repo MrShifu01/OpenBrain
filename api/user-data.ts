@@ -1415,10 +1415,22 @@ const handleVault = withAuth(
     }
 
     if (req.method === "GET") {
-      const r = await fetch(
+      // Try the phase-2 select first (with public_key + wrapped_private_key).
+      // If those columns don't exist yet (migration 072 hasn't landed),
+      // PostgREST replies 400 — fall back to the legacy select so unlock
+      // keeps working through the upgrade window.
+      let r = await fetch(
         `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob,public_key,wrapped_private_key`,
         { headers: hdrs() },
       );
+      let phase2 = true;
+      if (!r.ok) {
+        phase2 = false;
+        r = await fetch(
+          `${SB_URL}/rest/v1/vault_keys?user_id=eq.${encodeURIComponent(user.id)}&select=salt,verify_token,recovery_blob`,
+          { headers: hdrs() },
+        );
+      }
       if (!r.ok) return void res.status(502).json({ error: "Database error" });
       const rows: any[] = await r.json();
       if (rows.length === 0) return void res.status(200).json({ exists: false });
@@ -1427,9 +1439,8 @@ const handleVault = withAuth(
         salt: rows[0].salt,
         verify_token: rows[0].verify_token,
         recovery_blob: rows[0].recovery_blob,
-        // Phase 2 fields — null on legacy rows that haven't backfilled yet.
-        public_key: rows[0].public_key ?? null,
-        wrapped_private_key: rows[0].wrapped_private_key ?? null,
+        public_key: phase2 ? (rows[0].public_key ?? null) : null,
+        wrapped_private_key: phase2 ? (rows[0].wrapped_private_key ?? null) : null,
       });
     }
 
@@ -1516,11 +1527,25 @@ const handleVault = withAuth(
     if (pubKey) insertPayload.public_key = pubKey;
     if (wrappedPriv) insertPayload.wrapped_private_key = wrappedPriv;
 
-    const r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
+    let r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
       method: "POST",
       headers: hdrs({ Prefer: "return=minimal" }),
       body: JSON.stringify(insertPayload),
     });
+    // Fall back to legacy 3-column INSERT if migration 072 hasn't landed.
+    // The phase-2 fields backfill on the next unlock via the PATCH route.
+    if (!r.ok && (pubKey || wrappedPriv)) {
+      r = await fetch(`${SB_URL}/rest/v1/vault_keys`, {
+        method: "POST",
+        headers: hdrs({ Prefer: "return=minimal" }),
+        body: JSON.stringify({
+          user_id: user.id,
+          salt,
+          verify_token,
+          recovery_blob,
+        }),
+      });
+    }
     if (!r.ok) {
       if (idemSlot) await releaseIdempotency(user.id, idemSlot);
       const err = await r.text().catch(() => String(r.status));
