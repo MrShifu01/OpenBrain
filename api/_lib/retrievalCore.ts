@@ -308,6 +308,177 @@ export async function retrieveEntries(
   return { entries: finalEntries, concepts: matchedConcepts };
 }
 
+// Resolve every brain id the user can read: owned + member-of. Used by
+// retrieveEntriesForUser to scope keyword/tag fallbacks; the vector RPC
+// resolves accessible brains internally so this list is only for the
+// PostgREST OR clauses that fall outside the RPC.
+async function getAccessibleBrainIds(userId: string): Promise<string[]> {
+  const [ownedRes, memberRes] = await Promise.all([
+    fetch(`${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(userId)}&select=id`, {
+      headers: SB_HEADERS,
+    }),
+    fetch(
+      `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(userId)}&select=brain_id`,
+      { headers: SB_HEADERS },
+    ),
+  ]);
+  const ids = new Set<string>();
+  if (ownedRes.ok) {
+    for (const r of (await ownedRes.json()) as { id: string }[]) ids.add(r.id);
+  }
+  if (memberRes.ok) {
+    for (const r of (await memberRes.json()) as { brain_id: string }[]) ids.add(r.brain_id);
+  }
+  return Array.from(ids);
+}
+
+// Retrieve across every brain the user can read — owned + member-of, plus
+// entries shared into any of those via entry_shares (migration 070).
+//
+// Used by /api/llm chat: when the user asks "give me a number for a
+// recommended plumber", we don't want to scope to one brain; we want a
+// single ranked retrieval across everything they can see. RLS already
+// gates which entries are accessible — this just removes the brain_id
+// equality filter so vector ranking can pick the best match anywhere.
+//
+// Graph boost is intentionally skipped here: it's per-brain and merging
+// graphs across N brains is expensive for marginal score gains. Chat
+// users get a slightly less concept-aware ranking, but the trade-off
+// for the cross-brain reach is worth it. Single-brain callers (v1,
+// memory-api, mcp) keep the original retrieveEntries with graph boost.
+export async function retrieveEntriesForUser(
+  query: string,
+  userId: string,
+  geminiApiKey: string,
+  limit = 15,
+): Promise<RetrievalResult> {
+  const embedding = await generateEmbedding(query, geminiApiKey);
+  if (!embedding) throw new Error("Embedding failed");
+
+  const accessibleIds = await getAccessibleBrainIds(userId);
+  if (!accessibleIds.length) return { entries: [], concepts: [] };
+
+  // 1. Vector search across every accessible brain (RPC handles the
+  //    accessible-brains + entry_shares logic server-side).
+  const rpcRes = await fetch(`${SB_URL}/rest/v1/rpc/match_entries_for_user`, {
+    method: "POST",
+    headers: SB_HEADERS,
+    body: JSON.stringify({
+      query_embedding: `[${embedding.join(",")}]`,
+      p_user_id: userId,
+      match_count: 20,
+    }),
+  });
+  let entries: any[] = rpcRes.ok ? await rpcRes.json() : [];
+  const existingIds = new Set(entries.map((e: any) => e.id));
+
+  // PostgREST `in.(…)` filter for the keyword/tag passes. Cap the IN list
+  // length so the URL doesn't balloon — beyond ~50 brains a user's chat
+  // is going to be slow regardless and we can revisit.
+  const brainInList = accessibleIds.slice(0, 50).map((id) => encodeURIComponent(id)).join(",");
+  const brainScope = `brain_id=in.(${brainInList})`;
+
+  // 2. Keyword expand
+  const qTokens = query
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^a-zA-Z0-9]/g, ""))
+    .filter((w) => w.length > 3 && !STOP.has(w.toLowerCase()))
+    .slice(0, 6);
+  if (qTokens.length > 0) {
+    const orFilter = qTokens.map((kw) => `title.ilike.*${kw}*,content.ilike.*${kw}*`).join(",");
+    const kwRes = await fetch(
+      `${SB_URL}/rest/v1/entries?${brainScope}&deleted_at=is.null&type=neq.secret&or=(${encodeURIComponent(orFilter)})&select=id,title,type,tags,content,brain_id&limit=10`,
+      { headers: SB_HEADERS },
+    );
+    if (kwRes.ok) {
+      const rows: any[] = await kwRes.json();
+      for (const r of rows) {
+        if (!existingIds.has(r.id)) {
+          existingIds.add(r.id);
+          entries.push({ ...r, similarity: 0 });
+        }
+      }
+    }
+  }
+
+  // 3. Tag sibling expand
+  const tagTokens = new Set<string>();
+  entries.slice(0, 5).forEach((e: any) => {
+    (e.tags ?? []).forEach((tag: string) => {
+      String(tag)
+        .toLowerCase()
+        .split(/[\s',./_\-]+/)
+        .forEach((w) => {
+          const clean = w.replace(/[^a-z0-9]/g, "");
+          if (clean.length > 3 && !STOP.has(clean) && !/^\d+$/.test(clean)) tagTokens.add(clean);
+        });
+    });
+  });
+  if (tagTokens.size > 0) {
+    const orFilter = Array.from(tagTokens)
+      .slice(0, 8)
+      .map((kw) => `title.ilike.*${kw}*`)
+      .join(",");
+    const sibRes = await fetch(
+      `${SB_URL}/rest/v1/entries?${brainScope}&deleted_at=is.null&type=neq.secret&or=(${encodeURIComponent(orFilter)})&select=id,title,type,tags,content,metadata,brain_id&limit=10`,
+      { headers: SB_HEADERS },
+    );
+    if (sibRes.ok) {
+      const rows: any[] = await sibRes.json();
+      for (const r of rows) {
+        if (!existingIds.has(r.id)) {
+          existingIds.add(r.id);
+          entries.push({ ...r, similarity: 0 });
+        }
+      }
+    }
+  }
+
+  // 4. Metadata hydrate
+  if (entries.length > 0) {
+    const ids = entries.map((e: any) => e.id).join(",");
+    const metaRes = await fetch(`${SB_URL}/rest/v1/entries?id=in.(${ids})&select=id,metadata`, {
+      headers: SB_HEADERS,
+    });
+    if (metaRes.ok) {
+      const metaRows: any[] = await metaRes.json();
+      const metaMap = new Map(metaRows.map((r: any) => [r.id, r.metadata]));
+      entries = entries.map((e: any) => ({
+        ...e,
+        metadata: metaMap.get(e.id) ?? e.metadata ?? null,
+      }));
+    }
+  }
+
+  // 5. Hybrid score + sort
+  const queryTokens = query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 2);
+  entries.forEach((e: any) => {
+    const sim = e.similarity ?? 0;
+    if (!queryTokens.length) {
+      e._score = sim;
+      return;
+    }
+    const metaText = e.metadata
+      ? Object.entries(e.metadata)
+          .map(([k, v]) => `${k} ${typeof v === "string" ? v : ""}`)
+          .join(" ")
+      : "";
+    const text = `${e.title ?? ""} ${e.content ?? ""} ${metaText}`.toLowerCase();
+    const kw = queryTokens.filter((t) => text.includes(t)).length / queryTokens.length;
+    e._score = sim * 0.7 + kw * 0.3;
+  });
+  entries.sort((a: any, b: any) => b._score - a._score);
+  entries = entries.slice(0, limit);
+
+  const finalEntries = entries as RetrievedEntry[];
+  reinforcePersonaFacts(finalEntries).catch(() => {});
+  return { entries: finalEntries, concepts: [] };
+}
+
 async function reinforcePersonaFacts(entries: RetrievedEntry[]): Promise<void> {
   const personaIds = entries.filter((e) => e.type === "persona").map((e) => e.id);
   if (!personaIds.length) return;

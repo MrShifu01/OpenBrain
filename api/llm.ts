@@ -3,7 +3,7 @@ import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
 import { withAuth, type AuthedUser } from "./_lib/withAuth.js";
 import {
-  retrieveEntries,
+  retrieveEntriesForUser,
   rebuildConceptGraph,
   findLockedSecretTitles,
 } from "./_lib/retrievalCore.js";
@@ -125,7 +125,7 @@ const CHAT_TOOLS: ToolSchema[] = [
   {
     name: "retrieve_memory",
     description:
-      "Full semantic retrieval using vector search + keyword expansion + graph boost. Use this for most queries — it finds the most relevant entries.",
+      "Full semantic retrieval across every brain the user can read (their own + brains they're a member or viewer on). Vector search + keyword expansion. Use this for most queries — it finds the most relevant entries regardless of which brain they live in.",
     parameters: {
       type: "object",
       properties: {
@@ -157,7 +157,8 @@ const CHAT_TOOLS: ToolSchema[] = [
   },
   {
     name: "search_entries",
-    description: "Low-level vector-only search. Use retrieve_memory for most queries.",
+    description:
+      "Low-level vector-only search across every brain the user can read. Use retrieve_memory for most queries.",
     parameters: {
       type: "object",
       properties: { query: { type: "string", description: "Natural language search query" } },
@@ -234,10 +235,16 @@ async function execTool(
     return execPersonaTool(name, args, userId, brainId);
   }
   if (name === "retrieve_memory") {
+    // Chat searches every brain the user can read — owned + member-of —
+    // plus entries shared into any of those (migration 070/071). The
+    // single-brain `retrieveEntries` is still used by API-key endpoints
+    // (v1, memory-api, mcp) where the caller picks scope. Locked-secret
+    // titles stay scoped to the active brain — vault entries surface in
+    // the brain you're focused on, not cross-brain.
     const [result, lockedSecrets] = await Promise.all([
-      retrieveEntries(
+      retrieveEntriesForUser(
         args.query,
-        brainId,
+        userId,
         GEMINI_API_KEY,
         Math.min(Math.max(1, args.limit || 15), 50),
       ),
@@ -248,12 +255,12 @@ async function execTool(
   if (name === "search_entries") {
     const embedding = await generateEmbedding(args.query, GEMINI_API_KEY);
     if (!embedding) return { entries: [] };
-    const r = await fetch(`${SB_URL}/rest/v1/rpc/match_entries`, {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/match_entries_for_user`, {
       method: "POST",
       headers: sbHeaders(),
       body: JSON.stringify({
         query_embedding: `[${embedding.join(",")}]`,
-        p_brain_id: brainId,
+        p_user_id: userId,
         match_count: 10,
       }),
     });
