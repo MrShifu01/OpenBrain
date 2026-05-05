@@ -445,9 +445,16 @@ No explanation, no punctuation, just one word.`,
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "14px 18px 14px 24px",
+              // Tightened from 14px 18px 14px 24px / gap:10. The wider
+              // padding + gap together stole 32px of horizontal real
+              // estate from the action toolbar — on a 378px modal the
+              // close button got pushed off-screen as more icons were
+              // added (Pin, Lock, Move, Share, Edit, Close = 6 buttons).
+              // Compact 12px padding + gap:4 buys back ~50px so the
+              // toolbar fits without hiding actions or scrolling.
+              padding: "12px 12px",
               borderBottom: "1px solid var(--line-soft)",
-              gap: 10,
+              gap: 4,
               flexShrink: 0,
               position: "sticky",
               top: 0,
@@ -562,141 +569,12 @@ No explanation, no punctuation, just one word.`,
               </span>
             )}
 
-            {/* Pin */}
-            {canWrite && onUpdate && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={isPinned ? "Unpin" : "Pin"}
-                onClick={() => onUpdate(entry.id, { pinned: !isPinned })}
-                style={{ color: isPinned ? "var(--ember)" : "var(--ink-faint)" }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
-                </svg>
-              </Button>
-            )}
-
-            {/* Vault / lock */}
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={isSecret ? "Vault entry" : "Move to vault"}
-              style={{ color: isSecret ? "var(--ember)" : "var(--ink-faint)" }}
-              onClick={() => {
-                if (canWrite && onUpdate)
-                  onUpdate(entry.id, { type: isSecret ? "note" : "secret" });
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <rect x="4" y="10" width="16" height="10" rx="2" />
-                <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-              </svg>
-            </Button>
-
-            {/* Move to brain (multi-brain phase 1) */}
-            {canWrite && showMoveBrain && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Move to brain"
-                title="Move to brain"
-                onClick={() => setMovingBrain(true)}
-                style={{ color: "var(--ink-faint)" }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path d="M3 12h13" />
-                  <path d="m13 6 6 6-6 6" />
-                  <rect x="20" y="4" width="2" height="16" rx="1" />
-                </svg>
-              </Button>
-            )}
-
-            {/* Share-overlay: visible in additional brains without moving */}
-            {canWrite && showMoveBrain && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Share with brains"
-                title="Share with brains"
-                onClick={() => setSharingBrains(true)}
-                style={{ color: "var(--ink-faint)" }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
-                </svg>
-              </Button>
-            )}
-
-            {/* More / edit */}
-            {canWrite && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Edit"
-                onClick={() => setEditing(true)}
-                style={{ color: "var(--ink-faint)" }}
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <circle cx="6" cy="12" r="1" />
-                  <circle cx="12" cy="12" r="1" />
-                  <circle cx="18" cy="12" r="1" />
-                </svg>
-              </Button>
-            )}
+            {/* Action icons (Pin, Vault, Move, Share, Edit) moved to the
+                modal's bottom nav — see the <div> with role="toolbar"
+                near the bottom-strip section. The top header now hosts
+                only the type chip, time, view-only badge, and the close
+                X so the close button is always reachable on narrow
+                viewports. */}
 
             <Button
               variant="ghost"
@@ -1349,6 +1227,168 @@ No explanation, no punctuation, just one word.`,
                   {keepBusy ? "Saving…" : "Keep"}
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* DetailModal bottom nav — universal entry actions (Pin, Vault,
+              Move, Share, Edit). Moved here from the top header so the
+              close X is always reachable on narrow viewports. Sits above
+              the context strip (Save Contact / Ignore Email / Keep /
+              Delete) so the destructive Delete button stays visually
+              separated from these mostly-toggle actions. flex-shrink:0
+              keeps it pinned to the modal frame even when the body
+              content scrolls. */}
+          {!editing && (canWrite || onUpdate) && (
+            <div
+              role="toolbar"
+              aria-label="Entry actions"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-around",
+                gap: 4,
+                padding: "10px 12px",
+                borderTop: "1px solid var(--line-soft)",
+                background: "var(--surface-high)",
+                flexShrink: 0,
+              }}
+            >
+              {/* Pin */}
+              {canWrite && onUpdate && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={isPinned ? "Unpin" : "Pin"}
+                  title={isPinned ? "Unpin" : "Pin"}
+                  onClick={() => onUpdate(entry.id, { pinned: !isPinned })}
+                  style={{ color: isPinned ? "var(--ember)" : "var(--ink-faint)" }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M15 3 21 9l-4 1-4 4-1 5-3-3-5 5-1-1 5-5-3-3 5-1 4-4z" />
+                  </svg>
+                </Button>
+              )}
+
+              {/* Vault / lock toggle */}
+              {canWrite && onUpdate && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={isSecret ? "Remove from vault" : "Add to vault"}
+                  title={isSecret ? "Remove from vault" : "Add to vault"}
+                  style={{ color: isSecret ? "var(--ember)" : "var(--ink-faint)" }}
+                  onClick={() => onUpdate(entry.id, { type: isSecret ? "note" : "secret" })}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <rect x="4" y="10" width="16" height="10" rx="2" />
+                    <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+                  </svg>
+                </Button>
+              )}
+
+              {/* Move to brain */}
+              {canWrite && showMoveBrain && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Move to brain"
+                  title="Move to brain"
+                  onClick={() => setMovingBrain(true)}
+                  style={{ color: "var(--ink-faint)" }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 12h13" />
+                    <path d="m13 6 6 6-6 6" />
+                    <rect x="20" y="4" width="2" height="16" rx="1" />
+                  </svg>
+                </Button>
+              )}
+
+              {/* Share with brains */}
+              {canWrite && showMoveBrain && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Share with brains"
+                  title="Share with brains"
+                  onClick={() => setSharingBrains(true)}
+                  style={{ color: "var(--ink-faint)" }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+                  </svg>
+                </Button>
+              )}
+
+              {/* Edit */}
+              {canWrite && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Edit"
+                  title="Edit"
+                  onClick={() => setEditing(true)}
+                  style={{ color: "var(--ink-faint)" }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                </Button>
+              )}
             </div>
           )}
 
