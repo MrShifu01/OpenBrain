@@ -162,62 +162,42 @@ export default function CaptureSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialText/resetState/setLoading are stable across renders by design (parent-owned); adding them would re-run the open/close branch every render and stomp on user typing.
   }, [isOpen, resetListening]);
 
-  // Stash onClose in a ref so the touch-listener effect doesn't re-bind
-  // every time the parent passes a new closure identity. Re-binding mid-
-  // gesture would wipe out an in-progress drag and contributed to the
-  // "swipe felt frozen for a moment" report — onClose is propagated from
-  // Everion.tsx via inline arrows, so its identity churns on every parent
-  // render.
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    const handle = handleRef.current;
-    if (!handle || !isOpen) return;
-    let startY = 0;
-    let tracking = false;
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0].clientY;
-      tracking = true;
-    };
-    const onMove = (e: TouchEvent) => {
-      if (!tracking) return;
-      const dy = e.touches[0].clientY - startY;
-      if (dy > 0) {
-        e.preventDefault();
-        // Rubber-band resistance past 200px so the throw feels weighty
-        // instead of running away to the bottom of the screen.
-        const eased = dy < 200 ? dy : 200 + (dy - 200) * 0.4;
-        setDragY(eased);
-      } else if (dy < -8) {
-        // Reverse swipe cancels the gesture cleanly.
-        tracking = false;
-        setDragY(0);
+  // React synthetic touch events on the handle, mirroring the
+  // TodoCalendarChrome BottomSheet pattern that actually works on iOS.
+  // The previous native addEventListener path raced against Radix
+  // DialogContent's pointer/focus management — Radix sets up its outside-
+  // press detection and focus-lock with its own listeners on the same
+  // tree and the user reported swipe-down was unresponsive. Synthetic
+  // events flow through React's event delegation and don't fight Radix
+  // for the gesture. Same rubber-band logic, same threshold, same close
+  // animation hand-off via setVisible(false) + setTimeout(onClose, 360).
+  const dragStartY = useRef(0);
+  const dragTracking = useRef(false);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    dragStartY.current = e.touches[0]?.clientY ?? 0;
+    dragTracking.current = true;
+  };
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragTracking.current) return;
+    const dy = (e.touches[0]?.clientY ?? 0) - dragStartY.current;
+    if (dy > 0) {
+      const eased = dy < 200 ? dy : 200 + (dy - 200) * 0.4;
+      setDragY(eased);
+    } else if (dy < -8) {
+      dragTracking.current = false;
+      setDragY(0);
+    }
+  };
+  const handleTouchEnd = () => {
+    dragTracking.current = false;
+    setDragY((prev) => {
+      if (prev > 80) {
+        setVisible(false);
+        setTimeout(onClose, 360);
       }
-    };
-    const onEnd = () => {
-      tracking = false;
-      setDragY((prev) => {
-        if (prev > 80) {
-          setVisible(false);
-          setTimeout(() => onCloseRef.current(), 360);
-        }
-        return 0;
-      });
-    };
-    handle.addEventListener("touchstart", onStart, { passive: true });
-    handle.addEventListener("touchmove", onMove, { passive: false });
-    handle.addEventListener("touchend", onEnd, { passive: true });
-    handle.addEventListener("touchcancel", onEnd, { passive: true });
-    return () => {
-      handle.removeEventListener("touchstart", onStart);
-      handle.removeEventListener("touchmove", onMove);
-      handle.removeEventListener("touchend", onEnd);
-      handle.removeEventListener("touchcancel", onEnd);
-    };
-  }, [isOpen]);
+      return 0;
+    });
+  };
 
   // Tab focus + Escape handled by Radix Dialog primitive below.
   // Preview-aware Escape (back-to-typing instead of close) goes through
@@ -458,12 +438,17 @@ export default function CaptureSheet({
               keyboard transition. */}
           <div
             ref={handleRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
             className="touch-none lg:touch-auto"
             style={{
               position: "relative",
               minHeight: 56,
               paddingTop: 14,
               paddingBottom: 10,
+              touchAction: "none",
             }}
           >
             <div
