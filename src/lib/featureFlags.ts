@@ -31,7 +31,12 @@ export const FEATURE_FLAGS = {
   multiBrain: {
     label: "Multi-brain",
     icon: "🧠",
-    prodEnabled: import.meta.env.VITE_FEATURE_MULTI_BRAIN === "true",
+    // Ungated 2026-05-05 — shared brains are now a first-class feature for
+    // every user. Brain switcher in headers, Brain settings tab, brain pill
+    // in capture sheet, Move-to-Brain in DetailModal all rely on this flag.
+    // `as boolean` keeps the type identical to other (env-var-derived)
+    // entries so test mocks that walk FEATURE_FLAGS keep type-checking.
+    prodEnabled: true as boolean,
   },
   lists: {
     label: "Lists",

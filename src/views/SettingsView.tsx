@@ -1,24 +1,47 @@
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore, lazy, Suspense } from "react";
 import { supabase } from "../lib/supabase";
 import { getCachedEmail, setCachedEmail } from "../lib/userEmailCache";
 import { useBrain } from "../context/BrainContext";
-import AccountTab from "../components/settings/AccountTab";
-import BrainTab from "../components/settings/BrainTab";
-import DataTab from "../components/settings/DataTab";
-import AITab from "../components/settings/AITab";
-import DangerTab from "../components/settings/DangerTab";
-import ClaudeCodeTab from "../components/settings/ClaudeCodeTab";
-import CalendarSyncTab from "../components/settings/CalendarSyncTab";
-import GmailSyncTab from "../components/settings/GmailSyncTab";
-import NotificationSettings from "../components/NotificationSettings";
-import AppearanceTab from "../components/settings/AppearanceTab";
-import ProfileTab from "../components/settings/ProfileTab";
-import BillingTab from "../components/settings/BillingTab";
-import AdminTab from "../components/settings/AdminTab";
-import SecurityTab from "../components/settings/SecurityTab";
+// Tab modules are lazy-loaded so opening Settings doesn't parse all 14 tabs
+// (~6000 lines + their fetch waterfalls) up front. Each tab now downloads
+// only when its containing section is first revealed via `visited`. AdminTab
+// alone is 1861 lines + 3 mount-time API probes; lazy-loading it cuts the
+// admin-user Settings open from "wait for sentry_issues" to "instant".
+const AccountTab = lazy(() => import("../components/settings/AccountTab"));
+const BrainTab = lazy(() => import("../components/settings/BrainTab"));
+const DataTab = lazy(() => import("../components/settings/DataTab"));
+const AITab = lazy(() => import("../components/settings/AITab"));
+const DangerTab = lazy(() => import("../components/settings/DangerTab"));
+const ClaudeCodeTab = lazy(() => import("../components/settings/ClaudeCodeTab"));
+const CalendarSyncTab = lazy(() => import("../components/settings/CalendarSyncTab"));
+const GmailSyncTab = lazy(() => import("../components/settings/GmailSyncTab"));
+const NotificationSettings = lazy(() => import("../components/NotificationSettings"));
+const AppearanceTab = lazy(() => import("../components/settings/AppearanceTab"));
+const ProfileTab = lazy(() => import("../components/settings/ProfileTab"));
+const BillingTab = lazy(() => import("../components/settings/BillingTab"));
+const AdminTab = lazy(() => import("../components/settings/AdminTab"));
+const SecurityTab = lazy(() => import("../components/settings/SecurityTab"));
 import SettingsRow, { SettingsButton, SettingsExpand } from "../components/settings/SettingsRow";
 import { authFetch } from "../lib/authFetch";
 import { getDecisionCount } from "../lib/learningEngine";
+
+// Skeleton shown while a tab chunk is fetching. Sized roughly to a typical
+// settings tab so the layout doesn't jump when content arrives.
+function TabLoading() {
+  return (
+    <div
+      style={{
+        padding: "20px 0",
+        opacity: 0.5,
+        fontSize: 13,
+        color: "var(--ink-soft)",
+      }}
+      aria-live="polite"
+    >
+      Loading…
+    </div>
+  );
+}
 
 type SectionId = "personal" | "account" | "brain" | "connections" | "privacy" | "admin";
 
@@ -492,28 +515,32 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   title="Personal"
                   subtitle="how the app looks and what the assistant knows about you."
                 />
-                <AppearanceTab />
-                <SubSection
-                  title="About you"
-                  subtitle="injected into every chat — never includes IDs, passport, banking, or anything that belongs in the vault."
-                />
-                <ProfileTab />
+                <Suspense fallback={<TabLoading />}>
+                  <AppearanceTab />
+                  <SubSection
+                    title="About you"
+                    subtitle="injected into every chat — never includes IDs, passport, banking, or anything that belongs in the vault."
+                  />
+                  <ProfileTab />
+                </Suspense>
               </div>
             )}
 
             {visited.has("account") && (
               <div style={{ display: section === "account" ? "block" : "none" }}>
                 <SectionHeader title="Account" />
-                <AccountTab email={email} isAdmin={isAdmin} />
-                {isAdmin && (
-                  <>
-                    <SubSection
-                      title="Billing"
-                      subtitle="manage your plan, usage, and subscription."
-                    />
-                    <BillingTab />
-                  </>
-                )}
+                <Suspense fallback={<TabLoading />}>
+                  <AccountTab email={email} isAdmin={isAdmin} />
+                  {isAdmin && (
+                    <>
+                      <SubSection
+                        title="Billing"
+                        subtitle="manage your plan, usage, and subscription."
+                      />
+                      <BillingTab />
+                    </>
+                  )}
+                </Suspense>
               </div>
             )}
 
@@ -524,7 +551,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   subtitle="the brain you're capturing into, your archive, and the ai layer."
                 />
                 {activeBrain ? (
-                  <>
+                  <Suspense fallback={<TabLoading />}>
                     <BrainTab activeBrain={activeBrain} onRefreshBrains={refresh} />
                     <BrainAuditRow brainId={activeBrain.id} />
                     <BrainLearningRow brainId={activeBrain.id} />
@@ -532,7 +559,7 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                     <DataTab brainId={activeBrain.id} activeBrain={activeBrain} />
                     <SubSection title="AI" subtitle="model providers and enrichment pipeline." />
                     <AITab activeBrain={activeBrain} isAdmin={isAdmin} />
-                  </>
+                  </Suspense>
                 ) : (
                   <EmptyState message="no brain selected. create or pick one to manage its settings." />
                 )}
@@ -554,7 +581,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   </SettingsButton>
                 </SettingsRow>
                 <SettingsExpand open={notificationsOpen} keepMounted>
-                  <NotificationSettings />
+                  <Suspense fallback={<TabLoading />}>
+                    <NotificationSettings />
+                  </Suspense>
                 </SettingsExpand>
                 <SubSection
                   title="Integrations"
@@ -566,7 +595,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   </SettingsButton>
                 </SettingsRow>
                 <SettingsExpand open={calendarOpen} keepMounted>
-                  <CalendarSyncTab />
+                  <Suspense fallback={<TabLoading />}>
+                    <CalendarSyncTab />
+                  </Suspense>
                 </SettingsExpand>
 
                 <SettingsRow
@@ -578,7 +609,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   </SettingsButton>
                 </SettingsRow>
                 <SettingsExpand open={gmailOpen} keepMounted>
-                  <GmailSyncTab isAdmin={isAdmin} />
+                  <Suspense fallback={<TabLoading />}>
+                    <GmailSyncTab isAdmin={isAdmin} />
+                  </Suspense>
                 </SettingsExpand>
 
                 <SettingsRow
@@ -591,7 +624,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   </SettingsButton>
                 </SettingsRow>
                 <SettingsExpand open={apiOpen} last>
-                  <ClaudeCodeTab />
+                  <Suspense fallback={<TabLoading />}>
+                    <ClaudeCodeTab />
+                  </Suspense>
                 </SettingsExpand>
               </div>
             )}
@@ -602,41 +637,45 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   title="Privacy & danger"
                   subtitle="vault pin, encrypted secrets, and irreversible actions."
                 />
-                <SecurityTab />
-                {onNavigate && (
-                  <SettingsRow label="Vault" hint="end-to-end encrypted secrets.">
-                    <SettingsButton onClick={() => onNavigate("vault")}>Open vault</SettingsButton>
-                  </SettingsRow>
-                )}
-                <SubSection
-                  title="Danger zone"
-                  subtitle="all of these are irreversible. we've made them clear, not hidden."
-                  danger
-                />
-                {activeBrain ? (
-                  <DangerTab
-                    activeBrain={activeBrain}
-                    deleteBrain={async (_id: string) => {
-                      /* single brain — no-op */
-                    }}
-                    isOwner={true}
-                    deleteAccount={async () => {
-                      const session = await supabase.auth.getSession();
-                      const token = session.data.session?.access_token;
-                      const r = await fetch("/api/user-data?resource=account", {
-                        method: "DELETE",
-                        headers: { Authorization: `Bearer ${token}` },
-                      });
-                      if (!r.ok) {
-                        const data = await r.json().catch(() => ({}));
-                        throw new Error(data.error || "Failed to delete account");
-                      }
-                      await supabase.auth.signOut();
-                    }}
+                <Suspense fallback={<TabLoading />}>
+                  <SecurityTab />
+                  {onNavigate && (
+                    <SettingsRow label="Vault" hint="end-to-end encrypted secrets.">
+                      <SettingsButton onClick={() => onNavigate("vault")}>
+                        Open vault
+                      </SettingsButton>
+                    </SettingsRow>
+                  )}
+                  <SubSection
+                    title="Danger zone"
+                    subtitle="all of these are irreversible. we've made them clear, not hidden."
+                    danger
                   />
-                ) : (
-                  <EmptyState message="no brain selected. create or pick one to access destructive actions." />
-                )}
+                  {activeBrain ? (
+                    <DangerTab
+                      activeBrain={activeBrain}
+                      deleteBrain={async (_id: string) => {
+                        /* single brain — no-op */
+                      }}
+                      isOwner={true}
+                      deleteAccount={async () => {
+                        const session = await supabase.auth.getSession();
+                        const token = session.data.session?.access_token;
+                        const r = await fetch("/api/user-data?resource=account", {
+                          method: "DELETE",
+                          headers: { Authorization: `Bearer ${token}` },
+                        });
+                        if (!r.ok) {
+                          const data = await r.json().catch(() => ({}));
+                          throw new Error(data.error || "Failed to delete account");
+                        }
+                        await supabase.auth.signOut();
+                      }}
+                    />
+                  ) : (
+                    <EmptyState message="no brain selected. create or pick one to access destructive actions." />
+                  )}
+                </Suspense>
               </div>
             )}
 
@@ -646,7 +685,9 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
                   title="Admin"
                   subtitle="connection tests and diagnostics. only visible to you."
                 />
-                <AdminTab />
+                <Suspense fallback={<TabLoading />}>
+                  <AdminTab />
+                </Suspense>
               </>
             )}
           </div>

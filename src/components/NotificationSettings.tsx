@@ -388,7 +388,8 @@ export default function NotificationSettings(): JSX.Element {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   // Per-brain notification levels — see EML/Specs/shared-brain-notifications.md
   const [brainPrefs, setBrainPrefs] = useState<BrainNotifPref[] | null>(null);
-  const sharedBrainRemindersOn = import.meta.env.VITE_FEATURE_SHARED_BRAIN_REMINDERS === "1";
+  // Ungated 2026-05-05 — every user gets per-brain notification settings.
+  const sharedBrainRemindersOn = true;
   // Subscribing state — push subscription on mobile can take 5–15s while
   // the browser hits FCM/APNs and round-trips to the server. Without a
   // visible loading state the user thinks the app froze and force-quits.

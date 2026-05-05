@@ -2262,9 +2262,11 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
   const dailyR = { sent: 0, skipped: 0, errors: 0 };
   const nudgeR = { sent: 0, skipped: 0, errors: 0 };
   const expiryR = { sent: 0, deduped: 0, skipped: 0, errors: 0 };
-  // Shared-brain expiry fan-out is gated until rolled out to beta.
+  // Shared-brain expiry fan-out — ungated 2026-05-05. Every owner of a brain
+  // with members + an entry that has a due/deadline/expiry/event date gets
+  // the configured lead-time reminder fanned out per brain_notification_prefs.
   // Per EML/Specs/shared-brain-notifications.md.
-  const expiryFanOutOn = process.env.FEATURE_SHARED_BRAIN_REMINDERS === "1";
+  const expiryFanOutOn = true;
   console.log(
     `[cron/hourly] now=${now.toISOString()} utc_hour=${now.getUTCHours()} users=${users.length} expiry_fanout=${expiryFanOutOn}`,
   );

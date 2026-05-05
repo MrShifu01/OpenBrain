@@ -752,10 +752,25 @@ function DebugDashboardSection() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only initial fetch + 30s poll for cross-system status; refresh() updates state via Promise.all callback.
-    void refresh();
+    // Defer the initial probe off the critical path. The probe fans out to
+    // /api/user-data?resource=health (multi-provider ping), sentry_issues
+    // (Sentry REST scrape, 1-3s server-side), GitHub CI + commits, and
+    // sometimes a slow-cold Vercel function. Firing them on mount made the
+    // Admin tab feel locked while the dashboard filled in. Idle callback
+    // (or a 1s setTimeout fallback for Safari < 17) yields the UI a window
+    // to paint and become interactive before the network burst kicks off.
+    type Idle = (cb: () => void, opts?: { timeout?: number }) => number;
+    const ric: Idle | undefined = (window as unknown as { requestIdleCallback?: Idle })
+      .requestIdleCallback;
+    let initialTimer: ReturnType<typeof setTimeout> | null = null;
+    if (ric) ric(() => void refresh(), { timeout: 3000 });
+    else initialTimer = setTimeout(() => void refresh(), 1000);
+
     const id = setInterval(() => void refresh(), REFRESH_MS);
-    return () => clearInterval(id);
+    return () => {
+      clearInterval(id);
+      if (initialTimer) clearTimeout(initialTimer);
+    };
   }, [refresh]);
 
   const ciOk = ci === null ? null : ci.status === "completed" ? ci.conclusion === "success" : null;
