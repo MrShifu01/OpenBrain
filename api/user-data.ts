@@ -786,9 +786,14 @@ const handleBrains = withAuth(
     let ownedData: any[] = await owned.json();
     ownedData = ownedData.map((b) => ({ ...b, my_role: "owner" }));
 
-    // Shared brains (member/viewer rows joined to brains).
+    // Shared brains (member/viewer rows joined to brains). Note: do NOT
+    // request updated_at on the joined brains row — that column doesn't
+    // exist on the brains table. Asking for it makes PostgREST return a
+    // 400 with code 42703, which the if (sharedR.ok) check below silently
+    // swallows, leaving member-role users with zero shared brains in the
+    // brain switcher even though their brain_members row is correct.
     const sharedR = await fetch(
-      `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,brain:brains(id,name,description,owner_id,is_personal,created_at,updated_at)`,
+      `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,brain:brains(id,name,description,owner_id,is_personal,created_at)`,
       { headers: hdrs() },
     );
     let sharedData: any[] = [];
