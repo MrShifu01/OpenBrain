@@ -211,31 +211,6 @@ html[class*="family-"] body {
   }
 }
 
-/* iPhone X+ class (tall portrait) — hardcode a 34px floor for the home-
-   indicator inset so the nav never momentarily drops its bottom safe-area
-   coverage on first paint. iOS Safari (and iOS PWA in standalone mode)
-   does not commit env(safe-area-inset-bottom) until after the first
-   layout pass, so for one frame env() reads as 0 — the inline
-   padding-bottom on the nav goes to 0 and the body background shows
-   through under the icons until a relayout. max() with a known floor
-   guarantees the nav background always covers the indicator zone, and
-   the floor is gated to phone-portrait dimensions so it doesn't add
-   spurious padding on tablets / desktop / older iPhones without a
-   home indicator. Android tall portrait phones with gesture navigation
-   benefit from the same floor — env() commits late on Android Chrome
-   too. */
-@media (max-width: 500px) and (min-height: 700px) and (orientation: portrait) {
-  .bottom-nav-mobile {
-    /* 34px floor matches iPhone X+ home-indicator inset exactly so that
-       first-paint = post-commit visually (no half-coverage during the
-       env() commit race). All devices in this query class (iPhone X-16,
-       Android tall-portrait phones with gesture nav) have a comparable
-       inset, so the floor doesn't add dead space anywhere it matters. */
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 34px) !important;
-    height: calc(56px + max(env(safe-area-inset-bottom, 0px), 34px)) !important;
-  }
-}
-
 /* Chat view — responsive header & padding */
 .chat-topbar {
   padding: 18px 32px;

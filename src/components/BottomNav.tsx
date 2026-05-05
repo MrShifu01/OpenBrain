@@ -51,18 +51,17 @@ function BottomNavInner({
       className="bottom-nav-mobile"
       style={{
         position: "fixed",
-        // bottom:0 anchored — works the same on iOS Safari, iOS PWA, and
-        // Android Chrome (browser + PWA). The previous negative-bottom
-        // trick (bottom: -safe-area) tried to extend the nav's background
-        // *below* the layout viewport into the home-indicator zone, but on
-        // first paint iOS hadn't yet committed the safe-area inset value,
-        // so the env() returned 0 momentarily — pushing the nav above the
-        // bottom edge and leaving a visible gray strip underneath until
-        // the user scrolled and forced a relayout. Anchoring at bottom:0
-        // and growing the nav UP via padding-bottom fills the home-
-        // indicator / Android gesture-bar zone with the nav background
-        // without depending on env() being available at the very first
-        // frame. Icons sit in the top 56px above the safe-area padding.
+        // bottom:0 anchored. Inline padding-bottom uses max(env, 34px) so
+        // even on the very first paint — when iOS / Android haven't yet
+        // committed env(safe-area-inset-bottom) and it momentarily returns
+        // 0 — the nav still extends 34px below the icon row to cover the
+        // home-indicator / gesture-bar zone with the nav's background.
+        // 34px matches iPhone X+ home-indicator height; once env() commits
+        // the real value, max() picks whichever is larger so notched
+        // Android phones with a deeper inset still get full coverage.
+        // Devices with no inset (older iPhones with home button, desktop
+        // window emulator) get 34px of dead padding, which is acceptable
+        // because mobile is the only place this nav renders (lg+ hides it).
         bottom: 0,
         left: 0,
         right: 0,
@@ -71,8 +70,8 @@ function BottomNavInner({
         justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        height: "calc(56px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 34px)",
+        height: "calc(56px + max(env(safe-area-inset-bottom, 0px), 34px))",
       }}
     >
       {navItems.map((item) => {
