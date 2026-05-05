@@ -6,6 +6,7 @@
 // Split out of TodoCalendarTab.tsx; nothing here owns calendar state.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "../components/ui/button";
 import { toDateKey } from "./todoUtils";
 import { type CalEvent, buildMonthGrid, DAY_ABBRS, eventSourceColor } from "./todoCalendarHelpers";
@@ -435,7 +436,7 @@ export function BottomSheet({
     }
   }
 
-  if (!mounted) return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   // Sheet card translates between 100% (off-screen below) and 0%. Sits at
   // z-modal-backdrop (70) so it overlays the bottom nav (50) — the user
@@ -446,7 +447,14 @@ export function BottomSheet({
     dragY > 0 ? `translateY(${dragY}px)` : visible ? "translateY(0)" : "translateY(100%)";
   const scrimOpacity = visible ? Math.max(0, 1 - dragY / 350) : 0;
 
-  return (
+  // Portal to document.body so the sheet escapes any ancestor stacking
+  // context (TodoView is rendered inside Everion's layout tree which has
+  // CSS containment + transform-bearing ancestors that trap z-index).
+  // Without the portal, z-modal-backdrop only beat siblings inside that
+  // local stacking context — the bottom nav, anchored at document root,
+  // ended up rendered on top of the sheet's lower half. Capture works
+  // because Radix Dialog already portals to document.body.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -520,7 +528,8 @@ export function BottomSheet({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

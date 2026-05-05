@@ -127,9 +127,21 @@ export default function CaptureSheet({
       document.body.style.width = "100%";
       requestAnimationFrame(() => {
         setVisible(true);
-        requestAnimationFrame(() => textareaRef.current?.focus());
       });
+      // Defer textarea autofocus until AFTER the sheet's 360ms slide-up
+      // animation finishes. iOS Safari pops the keyboard on focus and
+      // starts its own ~250ms slide-up — overlapping that with the sheet
+      // animation made iOS swallow touch events for the first second or
+      // two after open, so the user's swipe-to-close gesture didn't
+      // register until both transitions were done. 420ms gives the sheet
+      // animation time to settle before the keyboard kicks in. The
+      // user can still tap the textarea manually before that to focus
+      // immediately if they want to type sooner than the timer fires.
+      const focusTimer = window.setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 420);
       return () => {
+        window.clearTimeout(focusTimer);
         document.body.style.position = "";
         document.body.style.top = "";
         document.body.style.width = "";
