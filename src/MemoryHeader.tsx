@@ -34,16 +34,20 @@ export default function MemoryHeader({
   onAcceptMerge,
 }: Props) {
   return (
-    // Sticky wrapper so the Memory topbar + filter row stay pinned under the
-    // global app header while the grid scrolls. --app-header-h is published
-    // by MobileHeader on mobile (~56px + safe-area); on desktop it's unset,
-    // so the fallback 60px matches DesktopHeader's height. z-20 sits below
-    // the global header (z-30) so the bars layer correctly. No translate/
-    // hide — the row stays put and sits flush below the global header.
+    // Sticky wrapper, top: 0 — main-content (the scroll container in the
+    // signed-in shell, see commit a14d914) starts immediately below the
+    // global app header, so sticky 0 pins this filter row at the top of
+    // main-content's visible area (which is right under MobileHeader /
+    // DesktopHeader on screen). The previous top: var(--app-header-h)
+    // was sized for the old body-scroll layout where sticky was
+    // calculated from screen top, not main-content top — that double-
+    // counted the header height post-refactor and pushed the filter row
+    // off-screen by ~163px until the user had scrolled enough that the
+    // pinning kicked in mid-content. z-20 keeps it below the global
+    // header layer (z-30).
     <div
-      className="sticky z-20"
+      className="sticky top-0 z-20"
       style={{
-        top: "var(--app-header-h, 60px)",
         background: "var(--bg)",
       }}
     >

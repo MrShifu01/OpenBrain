@@ -430,11 +430,15 @@ export default function SettingsView({ onNavigate }: SettingsViewProps = {}) {
           background: "var(--surface-low)",
           gap: 4,
           // Sticky on mobile so users deep in a section can always reach
-          // another section without scrolling back. Top sits flush below
-          // the global mobile header via --app-header-h so the bars
-          // never overlap.
+          // another section without scrolling back. top: 0 because the
+          // scroll container is now <main id="main-content"> (post layout
+          // refactor a14d914) which already starts below the global app
+          // header — sticky 0 pins this tab strip at the top of main-
+          // content's visible area, flush under the header bars. Previous
+          // var(--app-header-h) double-counted the header height and
+          // pushed the strip off-screen.
           position: "sticky",
-          top: "var(--app-header-h, calc(56px + env(safe-area-inset-top, 0px)))",
+          top: 0,
           zIndex: "var(--z-sticky)",
         }}
       >
