@@ -890,6 +890,8 @@ function EverionContent({
                   entries={entries}
                   brainCount={brains.length}
                   brainName={activeBrain?.name}
+                  brainId={activeBrain?.id}
+                  isPersonalBrain={activeBrain?.is_personal === true}
                   stagedCount={stagedCount}
                   onNavigate={appShell.setView}
                   onOpenCapture={() => appShell.setShowCapture(true)}

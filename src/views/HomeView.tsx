@@ -11,6 +11,8 @@ interface HomeViewProps {
   entries: Entry[];
   brainCount: number;
   brainName?: string;
+  brainId?: string;
+  isPersonalBrain: boolean;
   stagedCount: number;
   onNavigate: (view: string) => void;
   onOpenCapture: () => void;
@@ -23,6 +25,8 @@ export default function HomeView({
   entries,
   brainCount,
   brainName,
+  brainId,
+  isPersonalBrain,
   stagedCount,
   onNavigate,
   onOpenCapture,
@@ -67,6 +71,8 @@ export default function HomeView({
       <FirstRunChecklist
         entryCount={entries.length}
         brainCount={brainCount}
+        brainId={brainId}
+        isPersonalBrain={isPersonalBrain}
         onNavigate={onNavigate}
         onOpenCapture={onOpenCapture}
         onCreateBrain={onCreateBrain}

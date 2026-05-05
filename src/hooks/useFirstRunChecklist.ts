@@ -28,16 +28,28 @@ export interface FirstRunChecklistState {
   totalCount: number;
   /** True once all items are complete. */
   allDone: boolean;
-  /** User has explicitly hidden the card. */
+  /** User has explicitly hidden the card (separate from completion). */
   dismissed: boolean;
   dismiss: () => void;
   undismiss: () => void;
   /** Re-fetch remote state (call after returning from a settings tab). */
   refresh: () => void;
   loading: boolean;
+  /**
+   * True when the checklist has ever reached allDone for THIS brain. Once
+   * true the consumer should render nothing — no card, no "bring back"
+   * link. Persisted in localStorage per brain id so it stays gone across
+   * refreshes, sessions, and re-mounts.
+   */
+  hidden: boolean;
 }
 
 const DISMISS_KEY = "everion_home_checklist_dismissed_at";
+const REMOTE_CACHE_KEY = "everion_home_checklist_remote_v1";
+const FLAGS_CACHE_KEY = "everion_home_checklist_flags_v1";
+// Per-brain "ever-completed" map — once a brain id appears here the
+// checklist is gone forever for that brain. Format: { [brainId]: ISO }.
+const COMPLETED_KEY = "everion_home_checklist_completed_v1";
 
 // Server-side sticky-done flags. Once an item is observed as done — by a
 // live remote check or an in-memory threshold — we POST it here so the row
@@ -51,6 +63,87 @@ interface RemoteState {
   calendarDone: boolean;
   vaultDone: boolean;
 }
+
+const EMPTY_REMOTE: RemoteState = {
+  personaDone: false,
+  gmailDone: false,
+  calendarDone: false,
+  vaultDone: false,
+};
+
+// ─── localStorage helpers ────────────────────────────────────────────────
+// Cache the last-seen remote signals + done-flags so the next mount
+// renders from cache immediately rather than flashing "must do" while the
+// network round-trip resolves. The user reported this as the visible
+// regression: "it temporarily says I must still do them, then when
+// loading is done, then they disappear." Cache eliminates that frame.
+
+function loadCachedRemote(): RemoteState | null {
+  try {
+    const raw = localStorage.getItem(REMOTE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RemoteState;
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveCachedRemote(state: RemoteState): void {
+  try {
+    localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(state));
+  } catch {
+    /* quota / private mode — fine, in-memory cache still works */
+  }
+}
+
+function loadCachedFlags(): DoneFlags {
+  try {
+    const raw = localStorage.getItem(FLAGS_CACHE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return {};
+    return parsed as DoneFlags;
+  } catch {
+    return {};
+  }
+}
+
+function saveCachedFlags(flags: DoneFlags): void {
+  try {
+    localStorage.setItem(FLAGS_CACHE_KEY, JSON.stringify(flags));
+  } catch {
+    /* ignore */
+  }
+}
+
+function isCompletedFor(brainId: string | undefined): boolean {
+  if (!brainId) return false;
+  try {
+    const raw = localStorage.getItem(COMPLETED_KEY);
+    if (!raw) return false;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return Boolean(map?.[brainId]);
+  } catch {
+    return false;
+  }
+}
+
+function markCompletedFor(brainId: string): void {
+  try {
+    const raw = localStorage.getItem(COMPLETED_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (!map[brainId]) {
+      map[brainId] = new Date().toISOString();
+      localStorage.setItem(COMPLETED_KEY, JSON.stringify(map));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+// ─── Remote loaders ──────────────────────────────────────────────────────
 
 async function loadRemote(): Promise<RemoteState> {
   // Persona lives at /api/user-data?resource=profile (handler reads
@@ -123,22 +216,35 @@ async function pinDoneRemote(id: ChecklistItemId): Promise<void> {
   }
 }
 
+// ─── Hook ────────────────────────────────────────────────────────────────
+
 interface UseFirstRunChecklistOptions {
   entryCount: number;
   brainCount: number;
+  /** Active brain id. Used to scope the "ever-completed" flag. */
+  brainId?: string;
+  /** Personal brain shows the full set; shared brains show only the
+   *  cross-brain core: capture5, persona, vault. Gmail / calendar /
+   *  add-second-brain are personal-account concerns and don't belong on
+   *  a shared family brain. */
+  isPersonalBrain: boolean;
 }
 
 export function useFirstRunChecklist({
   entryCount,
   brainCount,
+  brainId,
+  isPersonalBrain,
 }: UseFirstRunChecklistOptions): FirstRunChecklistState {
-  const [remote, setRemote] = useState<RemoteState>({
-    personaDone: false,
-    gmailDone: false,
-    calendarDone: false,
-    vaultDone: false,
-  });
-  const [loading, setLoading] = useState(true);
+  // Hydrate from cache synchronously so the first render shows the
+  // last-known truth instead of all-undone. Background refresh updates
+  // both the in-memory state and the cache when fresh data arrives.
+  const [remote, setRemote] = useState<RemoteState>(() => loadCachedRemote() ?? EMPTY_REMOTE);
+  const [doneFlags, setDoneFlags] = useState<DoneFlags>(() => loadCachedFlags());
+  const [loading, setLoading] = useState(false);
+  // Stable across the lifetime of THIS brain id — flips to true once
+  // allDone is first observed and writes to localStorage.
+  const [hidden, setHidden] = useState<boolean>(() => isCompletedFor(brainId));
   const [dismissed, setDismissed] = useState<boolean>(() => {
     try {
       return Boolean(localStorage.getItem(DISMISS_KEY));
@@ -146,7 +252,7 @@ export function useFirstRunChecklist({
       return false;
     }
   });
-  const [doneFlags, setDoneFlags] = useState<DoneFlags>({});
+
   // In-flight pin requests so we don't hammer the server with the same id
   // every render while threshold conditions stay true.
   const pinningRef = useRef<Set<ChecklistItemId>>(new Set());
@@ -157,25 +263,27 @@ export function useFirstRunChecklist({
       if (pinningRef.current.has(id)) return prev;
       pinningRef.current.add(id);
       void pinDoneRemote(id).finally(() => pinningRef.current.delete(id));
-      return { ...prev, [id]: new Date().toISOString() };
+      const next = { ...prev, [id]: new Date().toISOString() };
+      saveCachedFlags(next);
+      return next;
     });
   }, []);
 
   const refresh = useCallback(() => {
     setLoading(true);
     void Promise.all([loadRemote(), loadDoneFlags()])
-      .then(([next, serverFlags]) => {
-        setRemote(next);
+      .then(([nextRemote, serverFlags]) => {
+        setRemote(nextRemote);
+        saveCachedRemote(nextRemote);
         setDoneFlags((prev) => {
-          // Merge: server flags are authoritative for the cross-device baseline,
-          // but keep any optimistic local pins from this session.
+          // Merge: server flags are authoritative for the cross-device
+          // baseline, but keep any optimistic local pins from this session.
           const merged: DoneFlags = { ...prev, ...serverFlags };
-          // Pin anything the live check just confirmed if it's not already
-          // on the server.
-          if (next.personaDone && !merged.persona) pinIfNew("persona");
-          if (next.gmailDone && !merged.gmail) pinIfNew("gmail");
-          if (next.calendarDone && !merged.calendar) pinIfNew("calendar");
-          if (next.vaultDone && !merged.vault) pinIfNew("vault");
+          if (nextRemote.personaDone && !merged.persona) pinIfNew("persona");
+          if (nextRemote.gmailDone && !merged.gmail) pinIfNew("gmail");
+          if (nextRemote.calendarDone && !merged.calendar) pinIfNew("calendar");
+          if (nextRemote.vaultDone && !merged.vault) pinIfNew("vault");
+          saveCachedFlags(merged);
           return merged;
         });
       })
@@ -183,7 +291,6 @@ export function useFirstRunChecklist({
   }, [pinIfNew]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-only fetch of remote checklist state.
     refresh();
   }, [refresh]);
 
@@ -201,6 +308,11 @@ export function useFirstRunChecklist({
     if (entryCount >= 5) pinIfNew("capture5");
     if (brainCount > 1) pinIfNew("brain");
   }, [entryCount, brainCount, pinIfNew]);
+
+  // Brain switch — re-evaluate the hidden flag against the new brain id.
+  useEffect(() => {
+    setHidden(isCompletedFor(brainId));
+  }, [brainId]);
 
   const dismiss = useCallback(() => {
     try {
@@ -225,7 +337,8 @@ export function useFirstRunChecklist({
   const stickyDone = (id: ChecklistItemId, live: boolean): boolean =>
     Boolean(live || doneFlags[id]);
 
-  const items: ChecklistItem[] = [
+  // Build the full item set. Ordering matches the previous render.
+  const allItems: ChecklistItem[] = [
     {
       id: "capture5",
       title: "Capture 5 things",
@@ -244,6 +357,13 @@ export function useFirstRunChecklist({
       action: { kind: "settings", tab: "persona" },
     },
     {
+      id: "vault",
+      title: "Set up your vault",
+      body: "Encrypted store for IDs, codes, bank details. Add your first secret to mark this done.",
+      done: stickyDone("vault", remote.vaultDone),
+      action: { kind: "navigate", view: "vault" },
+    },
+    {
       id: "gmail",
       title: "Connect Gmail",
       body: "Continuous inbox capture — the killer feature.",
@@ -258,13 +378,6 @@ export function useFirstRunChecklist({
       action: { kind: "settings", tab: "connections" },
     },
     {
-      id: "vault",
-      title: "Set up your vault",
-      body: "Encrypted store for IDs, codes, bank details. Add your first secret to mark this done.",
-      done: stickyDone("vault", remote.vaultDone),
-      action: { kind: "navigate", view: "vault" },
-    },
-    {
       id: "brain",
       title: "Add a second brain",
       body: "Separate work from personal — switch with one tap.",
@@ -273,10 +386,31 @@ export function useFirstRunChecklist({
     },
   ];
 
+  // Shared brains get only the cross-brain core. Gmail / calendar /
+  // add-second-brain are personal-account concerns and don't belong on a
+  // family brain a member is using.
+  const SHARED_BRAIN_ITEM_IDS: ReadonlySet<ChecklistItemId> = new Set([
+    "capture5",
+    "persona",
+    "vault",
+  ]);
+  const items = isPersonalBrain
+    ? allItems
+    : allItems.filter((i) => SHARED_BRAIN_ITEM_IDS.has(i.id));
+
   const doneCount = items.filter((i) => i.done).length;
   const totalCount = items.length;
   const progress = totalCount === 0 ? 0 : doneCount / totalCount;
-  const allDone = doneCount === totalCount;
+  const allDone = totalCount > 0 && doneCount === totalCount;
+
+  // Once allDone goes true, persist the per-brain hidden flag and flip
+  // local state. Subsequent mounts read isCompletedFor() and start hidden.
+  useEffect(() => {
+    if (!allDone || !brainId) return;
+    if (hidden) return;
+    markCompletedFor(brainId);
+    setHidden(true);
+  }, [allDone, brainId, hidden]);
 
   return {
     items,
@@ -289,5 +423,6 @@ export function useFirstRunChecklist({
     undismiss,
     refresh,
     loading,
+    hidden,
   };
 }

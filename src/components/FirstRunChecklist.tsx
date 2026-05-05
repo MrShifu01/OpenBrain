@@ -3,6 +3,11 @@ import { useFirstRunChecklist, type ChecklistAction } from "../hooks/useFirstRun
 interface FirstRunChecklistProps {
   entryCount: number;
   brainCount: number;
+  /** Active brain id — scopes the per-brain "ever-completed" flag. */
+  brainId?: string;
+  /** Personal brain renders the full checklist; shared brains render
+   *  only capture5 + persona + vault. */
+  isPersonalBrain: boolean;
   onNavigate: (view: string) => void;
   onOpenCapture: () => void;
   onCreateBrain: () => void;
@@ -37,11 +42,23 @@ function resolveAction(
 export default function FirstRunChecklist({
   entryCount,
   brainCount,
+  brainId,
+  isPersonalBrain,
   onNavigate,
   onOpenCapture,
   onCreateBrain,
 }: FirstRunChecklistProps) {
-  const state = useFirstRunChecklist({ entryCount, brainCount });
+  const state = useFirstRunChecklist({
+    entryCount,
+    brainCount,
+    brainId,
+    isPersonalBrain,
+  });
+
+  // Once the checklist has ever reached allDone for THIS brain, render
+  // nothing — no card, no "bring back" link. Persisted in localStorage
+  // per brain id so it stays gone across refreshes and re-mounts.
+  if (state.hidden) return null;
 
   if (state.dismissed && !state.allDone) {
     return (
