@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Entry } from "../../types";
 import { authFetch } from "../../lib/authFetch";
+import { useCachedQuery } from "../../lib/useCachedQuery";
 import {
   toDateKey,
   getActionPlacements,
@@ -26,21 +27,18 @@ function formatTimeOfDay(iso: string): string | null {
 
 export default function TodayCard({ entries, onNavigate }: TodayCardProps) {
   const todayKey = useMemo(() => toDateKey(new Date()), []);
-  const [externalEvents, setExternalEvents] = useState<ExternalCalEvent[]>([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void authFetch("/api/calendar?action=events")
-      .then((r) => r?.json?.())
-      .then((d) => {
-        if (cancelled) return;
-        if (Array.isArray(d?.events)) setExternalEvents(d.events);
-      })
-      .catch(() => null);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: cachedEvents } = useCachedQuery<ExternalCalEvent[]>(
+    "calendar:events:today",
+    async () => {
+      const r = await authFetch("/api/calendar?action=events");
+      const d = await r?.json?.();
+      return Array.isArray(d?.events) ? (d.events as ExternalCalEvent[]) : [];
+    },
+    { ttlMs: 5 * 60_000 },
+  );
+  // Stable reference — keep the same `[]` across renders when null so the
+  // downstream useMemo dependency doesn't churn.
+  const events = useMemo(() => cachedEvents ?? [], [cachedEvents]);
 
   // Today's todos = action-placed entries scheduled today, not done.
   const todayTodos = useMemo(
@@ -51,11 +49,11 @@ export default function TodayCard({ entries, onNavigate }: TodayCardProps) {
 
   const todayEvents = useMemo(
     () =>
-      externalEvents
+      events
         .filter((e) => toDateKey(new Date(e.start)) === todayKey)
         .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
         .slice(0, 3),
-    [externalEvents, todayKey],
+    [events, todayKey],
   );
 
   const totalTodos = useMemo(
@@ -63,8 +61,8 @@ export default function TodayCard({ entries, onNavigate }: TodayCardProps) {
     [entries, todayKey],
   );
   const totalEvents = useMemo(
-    () => externalEvents.filter((e) => toDateKey(new Date(e.start)) === todayKey).length,
-    [externalEvents, todayKey],
+    () => events.filter((e) => toDateKey(new Date(e.start)) === todayKey).length,
+    [events, todayKey],
   );
 
   if (todayTodos.length === 0 && todayEvents.length === 0) {

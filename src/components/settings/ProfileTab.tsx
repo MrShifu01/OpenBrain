@@ -25,6 +25,7 @@ import { useBrain } from "../../context/BrainContext";
 import { useBackgroundOps } from "../../hooks/useBackgroundOps";
 import { useAdminDevMode } from "../../hooks/useAdminDevMode";
 import { useAdminPrefs } from "../../lib/adminPrefs";
+import { useCachedQuery, invalidateCachedQuery } from "../../lib/useCachedQuery";
 import {
   IconBtn,
   Badge,
@@ -202,34 +203,39 @@ export default function ProfileTab() {
   const auditing = brainId ? ops.isRunning("persona-audit", brainId) : false;
 
   // ── Load core ─────────────────────────────────────────────────────────────
+  // Cached so re-mounts (lazy-loaded settings tab) don't re-hit /api/profile.
+  // Mutations call invalidateCachedQuery("profile:core") to drop the cache.
+  interface CoreProfilePayload {
+    profile?: {
+      full_name?: string;
+      preferred_name?: string;
+      pronouns?: string;
+      context?: string;
+      enabled?: boolean;
+    } | null;
+  }
+  const { data: coreData, isLoading: coreLoading } = useCachedQuery<CoreProfilePayload>(
+    "profile:core",
+    async () => {
+      const r = await authFetch("/api/profile");
+      if (!r?.ok) throw new Error("fetch_failed");
+      return (await r.json()) as CoreProfilePayload;
+    },
+  );
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await authFetch("/api/profile");
-        if (!r?.ok) throw new Error("fetch_failed");
-        const data = await r.json();
-        if (cancelled) return;
-        const p = data.profile;
-        if (p) {
-          setCore({
-            full_name: p.full_name || "",
-            preferred_name: p.preferred_name || "",
-            pronouns: p.pronouns || "",
-            context: p.context || "",
-            enabled: p.enabled !== false,
-          });
-        }
-      } catch {
-        /* empty profile is fine */
-      } finally {
-        if (!cancelled) setCoreLoaded(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (coreLoading) return;
+    setCoreLoaded(true);
+    const p = coreData?.profile;
+    if (p) {
+      setCore({
+        full_name: p.full_name || "",
+        preferred_name: p.preferred_name || "",
+        pronouns: p.pronouns || "",
+        context: p.context || "",
+        enabled: p.enabled !== false,
+      });
+    }
+  }, [coreData, coreLoading]);
 
   // ── Load persona facts ────────────────────────────────────────────────────
   async function reloadFacts() {
@@ -399,6 +405,10 @@ export default function ProfileTab() {
         body: JSON.stringify(core),
       });
       if (!r?.ok) throw new Error("save_failed");
+      // Drop the cached profile so the next mount reads the fresh server
+      // copy. Invalidate is enough — we're not re-rendering anything that
+      // reads coreData right now.
+      invalidateCachedQuery("profile:core");
       setCoreSaved(true);
       setTimeout(() => setCoreSaved(false), 1800);
     } catch (e) {

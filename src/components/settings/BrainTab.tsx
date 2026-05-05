@@ -13,6 +13,7 @@ import { isFeatureEnabled } from "../../lib/featureFlags";
 import { useAdminDevMode } from "../../hooks/useAdminDevMode";
 import CreateBrainModal from "../CreateBrainModal";
 import { Button } from "../ui/button";
+import { useCachedQuery } from "../../lib/useCachedQuery";
 
 const CONCEPT_KEY = "everion:brain:concept_extraction";
 const EMBEDDINGS_KEY = "everion:brain:embeddings";
@@ -398,8 +399,6 @@ interface MembersResponse {
 }
 
 function MembersSection({ brain }: { brain: Brain }) {
-  const [data, setData] = useState<MembersResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"viewer" | "member">("member");
   const [sending, setSending] = useState(false);
@@ -410,21 +409,25 @@ function MembersSection({ brain }: { brain: Brain }) {
   // ("Vault access" vs "Grant vault access") stays in sync.
   const [vaultGrantedIds, setVaultGrantedIds] = useState<Set<string>>(new Set());
 
-  const refresh = async () => {
-    setLoading(true);
-    try {
-      const r = await authFetch(`/api/brains?action=members&id=${encodeURIComponent(brain.id)}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      setData((await r.json()) as MembersResponse);
-    } catch (err) {
-      setMsg({
-        text: err instanceof Error ? err.message : "Failed to load members",
-        ok: false,
-      });
-    } finally {
-      setLoading(false);
+  const membersKey = `brain-members:${brain.id}`;
+  const {
+    data,
+    isLoading,
+    refetch: refresh,
+    error: membersError,
+  } = useCachedQuery<MembersResponse>(membersKey, async () => {
+    const r = await authFetch(`/api/brains?action=members&id=${encodeURIComponent(brain.id)}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return (await r.json()) as MembersResponse;
+  });
+  const loading = isLoading && !data;
+
+  // Surface fetch errors via the same msg banner the old refresh used.
+  useEffect(() => {
+    if (membersError) {
+      setMsg({ text: membersError.message || "Failed to load members", ok: false });
     }
-  };
+  }, [membersError]);
 
   const refreshVaultGrants = async () => {
     try {
@@ -438,9 +441,8 @@ function MembersSection({ brain }: { brain: Brain }) {
   };
 
   useEffect(() => {
-    void refresh();
     void refreshVaultGrants();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh closes over fresh state every render; the brain-switch is the trigger we want.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshVaultGrants closes over fresh state every render; the brain-switch is the trigger we want.
   }, [brain.id]);
 
   async function grantVault(userId: string) {

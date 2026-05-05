@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import GmailSetupModal from "./GmailSetupModal";
@@ -9,6 +9,7 @@ import { useBrain } from "../../context/BrainContext";
 import { useBackgroundOps } from "../../hooks/useBackgroundOps";
 import { useAdminPrefs } from "../../lib/adminPrefs";
 import { Button } from "../ui/button";
+import { useCachedQuery, invalidateCachedQuery } from "../../lib/useCachedQuery";
 
 interface GmailIntegration {
   id: string;
@@ -58,34 +59,42 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   // Gmail scan is global: brain-agnostic at the kind level so we don't double-fire
   // if the user changes brains mid-scan.
   const scanning = ops.isRunning("gmail-scan");
-  const [integration, setIntegration] = useState<GmailIntegration | null>(null);
-  const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [modalMode, setModalMode] = useState<"connect" | "edit" | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
   const [lastDebug, setLastDebug] = useState<ScanDebug | null>(null);
   const [reviewItems, setReviewItems] = useState<ScanResultItem[]>([]);
-  const [stagedCount, setStagedCount] = useState(0);
   const [showStagingInbox, setShowStagingInbox] = useState(false);
 
-  function fetchStagedCount() {
-    authFetch("/api/entries?staged=true")
-      .then((r) => r?.json?.())
-      .then((d) => {
-        const gmail = (d?.entries ?? []).filter(
-          (e: { metadata?: { source?: string } }) => e.metadata?.source === "gmail",
-        );
-        setStagedCount(gmail.length);
-      })
-      .catch(() => {});
-  }
+  const {
+    data: integrationData,
+    isLoading,
+    mutate: mutateIntegration,
+  } = useCachedQuery<GmailIntegration | null>("gmail:integration", async () => {
+    const r = await authFetch("/api/gmail?action=integration");
+    const d = await r?.json?.();
+    return (d as GmailIntegration | null) ?? null;
+  });
+  const integration = integrationData ?? null;
+  const loading = isLoading && integrationData === null;
 
-  function fetchIntegration() {
-    return authFetch("/api/gmail?action=integration")
-      .then((r) => r?.json?.())
-      .then((d) => setIntegration(d ?? null))
-      .catch(() => null);
-  }
+  const {
+    data: stagedData,
+    refetch: refetchStaged,
+    mutate: mutateStaged,
+  } = useCachedQuery<number>(
+    "gmail:staged-count",
+    async () => {
+      const r = await authFetch("/api/entries?staged=true");
+      const d = await r?.json?.();
+      const gmail = (d?.entries ?? []).filter(
+        (e: { metadata?: { source?: string } }) => e.metadata?.source === "gmail",
+      );
+      return gmail.length;
+    },
+    { ttlMs: 60_000 },
+  );
+  const stagedCount = stagedData ?? 0;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -93,6 +102,9 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL-param surfacing on mount; the URL is then cleaned via replaceState.
       setMsg({ text: "Gmail connected successfully.", ok: true });
       window.history.replaceState({}, "", window.location.pathname);
+      // Just back from OAuth — drop the cached integration so the post-connect
+      // payload (gmail_email, prefs) shows up immediately.
+      invalidateCachedQuery("gmail:integration");
     }
     if (params.get("gmailError")) {
       setMsg({
@@ -101,29 +113,37 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       });
       window.history.replaceState({}, "", window.location.pathname);
     }
-    fetchIntegration().finally(() => setLoading(false));
-    fetchStagedCount();
   }, []);
 
   // Cross-component deep-link: the gmail-scan toast's Review CTA dispatches
   // this event after the app shell switches to Settings. Open the inbox
   // and refresh the count in case the scan landed extra items between
   // the original count fetch and this nav.
+  //
+  // staged-changed events can fire many times during a Gmail scan (one per
+  // batch of inserts). Coalesce them with a 1.5s trailing debounce so we
+  // make at most one /api/entries?staged=true call per burst.
+  const stagedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     function handleOpenInbox() {
-      fetchStagedCount();
+      void refetchStaged();
       setShowStagingInbox(true);
     }
     function handleStagedChanged() {
-      fetchStagedCount();
+      if (stagedDebounceRef.current) clearTimeout(stagedDebounceRef.current);
+      stagedDebounceRef.current = setTimeout(() => {
+        void refetchStaged();
+        stagedDebounceRef.current = null;
+      }, 1500);
     }
     window.addEventListener("everion:open-staging-inbox", handleOpenInbox);
     window.addEventListener("everion:staged-changed", handleStagedChanged);
     return () => {
       window.removeEventListener("everion:open-staging-inbox", handleOpenInbox);
       window.removeEventListener("everion:staged-changed", handleStagedChanged);
+      if (stagedDebounceRef.current) clearTimeout(stagedDebounceRef.current);
     };
-  }, []);
+  }, [refetchStaged]);
 
   async function handleConnect(preferences: { categories: string[]; custom: string }) {
     // POST with Authorization header so the Supabase bearer never lands in
@@ -152,7 +172,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ preferences }),
     });
-    setIntegration((prev) => (prev ? { ...prev, preferences } : null));
+    mutateIntegration(integration ? { ...integration, preferences } : null);
     setMsg({ text: "Preferences saved.", ok: true });
   }
 
@@ -169,11 +189,11 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
     // and again later as a safety net for slower scans. The runner reports
     // success/failure in the toast; new staged items show in the inbox below.
     setTimeout(() => {
-      fetchIntegration();
+      invalidateCachedQuery("gmail:integration");
       refreshEntries();
     }, 8000);
     setTimeout(() => {
-      fetchIntegration();
+      invalidateCachedQuery("gmail:integration");
       refreshEntries();
     }, 30000);
   }
@@ -181,7 +201,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
   async function handleDisconnect() {
     setDisconnecting(true);
     await authFetch("/api/gmail", { method: "DELETE" }).catch(() => null);
-    setIntegration(null);
+    mutateIntegration(null);
     setDisconnecting(false);
     setMsg({ text: "Gmail disconnected.", ok: false });
   }
@@ -370,7 +390,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           items={reviewItems}
           onClose={() => {
             setReviewItems([]);
-            fetchStagedCount();
+            void refetchStaged();
             refreshEntries();
             authFetch("/api/notifications?type=gmail_review", { method: "DELETE" }).catch(() => {});
           }}
@@ -383,7 +403,7 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
             setShowStagingInbox(false);
             refreshEntries();
           }}
-          onCountChange={setStagedCount}
+          onCountChange={mutateStaged}
         />
       )}
 

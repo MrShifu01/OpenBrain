@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { authFetch } from "../../lib/authFetch";
 import SettingsRow, { SettingsButton } from "./SettingsRow";
@@ -751,6 +751,13 @@ function DebugDashboardSection() {
     setLoading(false);
   }, []);
 
+  // Ref-tracked lastRefresh so the polling effect doesn't tear down on
+  // every state update.
+  const lastRefreshRef = useRef<number | null>(null);
+  useEffect(() => {
+    lastRefreshRef.current = lastRefresh;
+  }, [lastRefresh]);
+
   useEffect(() => {
     // Defer the initial probe off the critical path. The probe fans out to
     // /api/user-data?resource=health (multi-provider ping), sentry_issues
@@ -766,10 +773,25 @@ function DebugDashboardSection() {
     if (ric) ric(() => void refresh(), { timeout: 3000 });
     else initialTimer = setTimeout(() => void refresh(), 1000);
 
-    const id = setInterval(() => void refresh(), REFRESH_MS);
+    // Visibility-gated polling. The previous unconditional 30s setInterval
+    // fired forever — with the admin tab open in any background window it
+    // was hammering /api/user-data?resource=health + Sentry + GitHub on
+    // every tick. Major contributor to the 2026-05 Supabase unhealthy
+    // alerts. Now we only poll while the document is visible, and run a
+    // single catch-up refresh on visibility regain.
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, REFRESH_MS);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const last = lastRefreshRef.current;
+      if (last === null || Date.now() - last > REFRESH_MS) void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       clearInterval(id);
       if (initialTimer) clearTimeout(initialTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [refresh]);
 

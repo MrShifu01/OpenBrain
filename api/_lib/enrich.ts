@@ -774,25 +774,62 @@ export async function enrichBrain(
   batchSize = 50,
   timeBudgetMs = 240_000,
 ): Promise<{ processed: number; remaining: number }> {
-  // DB-filter to entries that aren't fully embedded — uses the partial
-  // index entries_embedding_status_idx (user_id, embedding_status) WHERE
-  // deleted_at IS NULL so we don't hydrate every brain entry to filter
-  // in JS. Replaces the previous "pull 200 rows blind" pattern that hit
-  // every brain even when nothing was pending.
-  //
-  // Tail miss: entries embedded but missing a metadata flag (e.g. older
-  // entries from before persona_extract shipped) are skipped here. They
-  // get caught by Settings → Run-now or a one-shot backfill — not the
-  // daily cron. Worth the simplicity since it's a small fixed set.
-  const r = await fetch(
-    `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret&embedding_status=neq.done&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
-    { headers: SB_HDR },
-  );
-  if (!r.ok) return { processed: 0, remaining: 0 };
-  const candidates: Entry[] = await r.json();
+  // Two parallel queries cover both stuck cases:
+  //   A) embedding still pending/failed/null — uses the partial index
+  //      entries_embedding_status_idx (user_id, embedding_status) WHERE
+  //      deleted_at IS NULL so we don't hydrate every brain entry.
+  //   B) embedding done but a metadata flag is missing — entries the
+  //      LLM call dropped on (parse / insight / concepts step failed
+  //      after embed succeeded, or older entries from before a step
+  //      shipped). These get filtered out by query A's
+  //      embedding_status=neq.done filter, so we need a second pull
+  //      via the JSONB enrichment path. Without this branch a few
+  //      "always loading" entries persist forever and Run-now reports
+  //      "Already up to date." while the UI keeps spinning.
+  const baseFilter = `user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret`;
+  const tailFilter =
+    "embedding_status=eq.done&or=(" +
+    [
+      "metadata->enrichment->>parsed.is.null",
+      "metadata->enrichment->>parsed.eq.false",
+      "metadata->enrichment->>has_insight.is.null",
+      "metadata->enrichment->>has_insight.eq.false",
+      "metadata->enrichment->>concepts_extracted.is.null",
+      "metadata->enrichment->>concepts_extracted.eq.false",
+    ].join(",") +
+    ")";
+  const [embedRes, tailRes] = await Promise.all([
+    fetch(
+      `${SB_URL}/rest/v1/entries?${baseFilter}&embedding_status=neq.done&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
+      { headers: SB_HDR },
+    ),
+    fetch(
+      `${SB_URL}/rest/v1/entries?${baseFilter}&${tailFilter}&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
+      { headers: SB_HDR },
+    ),
+  ]);
+  if (!embedRes.ok && !tailRes.ok) return { processed: 0, remaining: 0 };
+  const embedRows: Entry[] = embedRes.ok ? await embedRes.json().catch(() => []) : [];
+  const tailRows: Entry[] = tailRes.ok ? await tailRes.json().catch(() => []) : [];
+  const seen = new Set<string>();
+  const candidates: Entry[] = [];
+  for (const row of [...embedRows, ...tailRows]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    candidates.push(row);
+  }
 
+  // Soft cap on retry attempts. enrichInline returns changed=true even when
+  // every step throws (it stamps attempts++ + last_error as a breadcrumb), so
+  // without this cap a genuinely-broken entry would hot-loop the runner: 60
+  // iterations × 10 batch = up to 600 LLM calls on the same garbage. After
+  // MAX_ATTEMPTS we leave the entry alone; admins can clear it via the
+  // diagnostic panel or by editing content to coax the LLM into succeeding.
+  const MAX_ATTEMPTS = 5;
   const pending = candidates.filter((e) => {
     const f = flagsOf(e);
+    const attempts = (e.metadata?.enrichment?.attempts as number | undefined) ?? 0;
+    if (attempts >= MAX_ATTEMPTS) return false;
     if (f.embedding_status === "failed") {
       // Embedding terminal-failed — only resurface if metadata steps are
       // missing. Won't retry the embed itself.
@@ -819,12 +856,10 @@ export async function enrichBrain(
       stoppedEarly = true;
       break;
     }
-    const changed = await enrichInline(entry.id, userId, { skipEmbed: true }).catch(
-      (err: any) => {
-        console.error("[enrich:brain] entry failed:", entry.id, err?.message ?? err);
-        return false;
-      },
-    );
+    const changed = await enrichInline(entry.id, userId, { skipEmbed: true }).catch((err: any) => {
+      console.error("[enrich:brain] entry failed:", entry.id, err?.message ?? err);
+      return false;
+    });
     if (changed) processed++;
   }
 
@@ -842,9 +877,7 @@ export async function enrichBrain(
     });
   }
 
-  const remaining = stoppedEarly
-    ? pending.length - processed
-    : pending.length - batch.length;
+  const remaining = stoppedEarly ? pending.length - processed : pending.length - batch.length;
   return { processed, remaining };
 }
 
@@ -1275,10 +1308,7 @@ interface AuditRow {
   created_at: string;
 }
 
-export async function auditPersonaForBrain(
-  userId: string,
-  brainId: string,
-): Promise<AuditResult> {
+export async function auditPersonaForBrain(userId: string, brainId: string): Promise<AuditResult> {
   const out: AuditResult = {
     scanned: 0,
     rejected_duplicates: 0,

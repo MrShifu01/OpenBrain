@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { SettingsButton } from "./SettingsRow";
 import { IntegrationRow, DisconnectButton } from "./GmailSyncTab";
+import { useCachedQuery, invalidateCachedQuery } from "../../lib/useCachedQuery";
 
 interface Integration {
   id: string;
@@ -10,20 +11,22 @@ interface Integration {
   sync_enabled: boolean;
 }
 
+const CALENDAR_INTEGRATIONS_KEY = "calendar:integrations";
+
 export default function CalendarSyncTab() {
-  const [integrations, setIntegrations] = useState<Integration[]>([]);
-  const [loading, setLoading] = useState(true);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  function fetchIntegrations() {
-    return authFetch("/api/calendar?action=integrations")
-      .then((r) => r?.json?.())
-      .then((d) => {
-        if (Array.isArray(d)) setIntegrations(d);
-      })
-      .catch(() => null);
-  }
+  const { data, isLoading, mutate } = useCachedQuery<Integration[]>(
+    CALENDAR_INTEGRATIONS_KEY,
+    async () => {
+      const r = await authFetch("/api/calendar?action=integrations");
+      const d = await r?.json?.();
+      return Array.isArray(d) ? (d as Integration[]) : [];
+    },
+  );
+  const integrations = data ?? [];
+  const loading = isLoading && !data;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,13 +36,13 @@ export default function CalendarSyncTab() {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot URL-param surfacing on mount; the URL is then cleaned via replaceState.
       setMsg("Google Calendar connected successfully.");
       window.history.replaceState({}, "", window.location.pathname);
+      // Force-refresh the cache — we just came back from OAuth.
+      invalidateCachedQuery(CALENDAR_INTEGRATIONS_KEY);
     }
     if (error) {
       setMsg(`Connection failed: ${error.replace(/_/g, " ")}.`);
       window.history.replaceState({}, "", window.location.pathname);
     }
-
-    fetchIntegrations().finally(() => setLoading(false));
   }, []);
 
   async function disconnect(provider: string) {
@@ -49,7 +52,7 @@ export default function CalendarSyncTab() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider }),
     }).catch(() => null);
-    setIntegrations((prev) => prev.filter((i) => i.provider !== provider));
+    mutate(integrations.filter((i) => i.provider !== provider));
     setDisconnecting(null);
   }
 
