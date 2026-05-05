@@ -1568,17 +1568,19 @@ const handleVaultEntries = withAuth(
   { methods: ["GET", "POST", "DELETE"], rateLimit: 60 },
   async ({ req, res, user }) => {
     if (req.method === "GET") {
-      // Phase 1 of per-brain vaults: each brain has its own Vault tab.
-      // Caller passes ?brain_id=X to fetch only that brain's secrets.
-      // Falls back to "all my secrets" when no brain_id is given so older
-      // clients still see something (instead of an empty grid).
+      // Per-brain vaults: each brain has its own Vault. Caller MUST pass
+      // ?brain_id=X — no "all my secrets" fallback. Without the filter the
+      // endpoint would return every secret across every brain the user owns,
+      // and the memory grid (which merges entries + vault rows) would render
+      // them all regardless of active brain. Migration 079 also enforces
+      // this at the RLS layer, but the API gate gives a friendlier 400 and
+      // avoids round-tripping a query that RLS will short-circuit anyway.
       const brainId = req.query.brain_id as string | undefined;
-      const brainFilter =
-        typeof brainId === "string" && brainId
-          ? `&brain_id=eq.${encodeURIComponent(brainId)}`
-          : "";
+      if (typeof brainId !== "string" || !brainId.trim()) {
+        return void res.status(400).json({ error: "brain_id query param required" });
+      }
       const r = await fetch(
-        `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}${brainFilter}&deleted_at=is.null&select=id,title,content,metadata,tags,brain_id,created_at,updated_at&order=created_at.desc`,
+        `${SB_URL}/rest/v1/vault_entries?user_id=eq.${encodeURIComponent(user.id)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&select=id,title,content,metadata,tags,brain_id,created_at,updated_at&order=created_at.desc`,
         { headers: hdrs() },
       );
       if (!r.ok) return void res.status(502).json({ error: "Database error" });
@@ -1599,6 +1601,11 @@ const handleVaultEntries = withAuth(
       if (typeof content !== "string") {
         return void res.status(400).json({ error: "content must be a string (ciphertext)" });
       }
+      // brain_id is mandatory — see GET comment + migration 079. NULL-brain
+      // rows are an isolation hole we no longer accept at any layer.
+      if (typeof brain_id !== "string" || !brain_id.trim()) {
+        return void res.status(400).json({ error: "brain_id required" });
+      }
       const tagArr = Array.isArray(tags) ? tags.filter((t) => typeof t === "string") : [];
       const payload: Record<string, unknown> = {
         user_id: user.id,
@@ -1606,8 +1613,8 @@ const handleVaultEntries = withAuth(
         content,
         metadata: typeof metadata === "string" ? metadata : "",
         tags: tagArr,
+        brain_id,
       };
-      if (typeof brain_id === "string" && brain_id) payload.brain_id = brain_id;
 
       const r = await fetch(`${SB_URL}/rest/v1/vault_entries`, {
         method: "POST",
