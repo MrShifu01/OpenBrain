@@ -708,20 +708,35 @@ async function handleTranscribe(req: ApiRequest, res: ApiResponse): Promise<void
     res.status(500).json({ error: "Voice transcription not configured" });
     return;
   }
-  const { audio, mimeType, language } = req.body;
-  if (!audio || typeof audio !== "string") {
-    res.status(400).json({ error: "audio (base64 string) required" });
-    return;
-  }
-  if (!mimeType || typeof mimeType !== "string") {
-    res.status(400).json({ error: "mimeType required" });
+  // Audio arrives as a raw binary body (Vercel's bodyParser passes
+  // non-JSON/text content-types through as a Buffer). The previous JSON
+  // path base64-encoded the audio twice (client encode + server decode)
+  // and inflated bytes by 33% — sending the Blob directly skips both
+  // hops. mimeType + language ride on the query string.
+  const mimeType =
+    typeof req.query?.mime === "string"
+      ? (req.query.mime as string)
+      : typeof req.headers["content-type"] === "string"
+        ? (req.headers["content-type"] as string).split(";")[0].trim()
+        : "";
+  const language = typeof req.query?.language === "string" ? (req.query.language as string) : "";
+  if (!mimeType) {
+    res.status(400).json({ error: "mime query param or Content-Type header required" });
     return;
   }
   let audioBuffer: Buffer;
-  try {
-    audioBuffer = Buffer.from(audio, "base64");
-  } catch {
-    res.status(400).json({ error: "Invalid base64 audio" });
+  if (Buffer.isBuffer(req.body)) {
+    audioBuffer = req.body;
+  } else if (req.body instanceof Uint8Array) {
+    audioBuffer = Buffer.from(req.body);
+  } else if (typeof req.body === "string") {
+    audioBuffer = Buffer.from(req.body, "binary");
+  } else {
+    res.status(400).json({ error: "Audio body must be raw binary (Content-Type: audio/*)" });
+    return;
+  }
+  if (audioBuffer.byteLength === 0) {
+    res.status(400).json({ error: "Empty audio body" });
     return;
   }
   if (audioBuffer.byteLength > MAX_AUDIO_BYTES) {
