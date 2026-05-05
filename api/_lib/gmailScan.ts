@@ -38,6 +38,57 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+// Clean noise from raw email bodies before they reach the entry's content.
+// Plain-text emails (and the structured output of stripHtml) routinely
+// contain decorative ASCII walls (`*****`, `=====`, `-----`, `~~~~`),
+// long runs of blank lines, and trailing whitespace per line. The DetailModal
+// renders content with white-space: pre-wrap, so an asterisk wall is one
+// unbreakable token that overflowed the modal until we added overflow-wrap.
+// Even with the wrap fix, the noise has zero signal value — it won't survive
+// LLM enrichment and shouldn't sit in the embedding text either. Strip it
+// at ingest so every downstream stage (display, embed, RAG, concept graph)
+// sees clean prose.
+//
+// Rules:
+//   1. Drop lines that are entirely 5+ ASCII-punctuation characters from
+//      the divider set (*, =, -, _, ~, #).
+//   2. Drop lines >10 chars long where >80% of non-space chars are from
+//      that divider set (handles mixed walls like "=====**=====").
+//   3. Trim trailing whitespace per line.
+//   4. Collapse 3+ consecutive blank lines down to a single blank line.
+const DIVIDER_CHARS = /[*=\-_~#]/g;
+function cleanEmailText(text: string): string {
+  if (!text) return text;
+  const lines = text.split(/\r?\n/);
+  const filtered: string[] = [];
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    const trimmed = line.trim();
+    if (trimmed.length >= 5) {
+      if (/^[*=\-_~#]{5,}$/.test(trimmed)) continue;
+      if (trimmed.length > 10) {
+        const dividerCount = (trimmed.match(DIVIDER_CHARS) ?? []).length;
+        const nonSpace = trimmed.replace(/\s/g, "").length;
+        if (nonSpace > 0 && dividerCount / nonSpace > 0.8) continue;
+      }
+    }
+    filtered.push(line);
+  }
+  // Collapse runs of blank lines: keep at most one blank between content.
+  const out: string[] = [];
+  let blanks = 0;
+  for (const line of filtered) {
+    if (line.trim() === "") {
+      blanks++;
+      if (blanks <= 1) out.push(line);
+    } else {
+      blanks = 0;
+      out.push(line);
+    }
+  }
+  return out.join("\n").trim();
+}
+
 function sanitizeEmailField(text: string, maxLen: number): string {
   return text
     .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "") // control chars
@@ -49,17 +100,18 @@ function extractBodyFromPayload(payload: any): string {
   if (!payload) return "";
   if (payload.body?.data) {
     const text = decodeBase64Url(payload.body.data);
-    return payload.mimeType === "text/html" ? stripHtml(text) : text;
+    const stripped = payload.mimeType === "text/html" ? stripHtml(text) : text;
+    return cleanEmailText(stripped);
   }
   if (!payload.parts) return "";
   let htmlFallback = "";
   for (const part of payload.parts) {
     if (part.mimeType === "text/plain" && part.body?.data) {
       const t = decodeBase64Url(part.body.data);
-      if (t.trim()) return t;
+      if (t.trim()) return cleanEmailText(t);
     }
     if (part.mimeType === "text/html" && part.body?.data && !htmlFallback) {
-      htmlFallback = stripHtml(decodeBase64Url(part.body.data));
+      htmlFallback = cleanEmailText(stripHtml(decodeBase64Url(part.body.data)));
     }
     if (part.mimeType?.startsWith("multipart/")) {
       const nested = extractBodyFromPayload(part);

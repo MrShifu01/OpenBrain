@@ -404,7 +404,20 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   const data: any = await response.json();
   res.status(response.ok ? 200 : 502).json(data);
 
-  if (response.ok && (titleChanged || contentChanged)) {
+  // Fire enrichment after the response returns so the user gets snappy
+  // feedback. Two trigger paths:
+  //   (a) title/content changed — re-enrich because the parsed/insight
+  //       flags get cleared above and embedding text needs rebuilding.
+  //   (b) status promoted to active — covers the Gmail accept flow:
+  //       staged emails skip enrichment by design (the user might reject
+  //       them, no point spending Gemini calls on noise). Once accepted,
+  //       they need the full pipeline — embed for RAG, parse for chips,
+  //       concepts for the graph. enrichInline is idempotent (it checks
+  //       the parsed/has_insight flags and short-circuits if everything's
+  //       already done), so calling it on an already-enriched active row
+  //       is a cheap no-op.
+  const promotedToActive = patch.status === "active";
+  if (response.ok && (titleChanged || contentChanged || promotedToActive)) {
     enrichInline(id, user.id).catch(() => {});
   }
 }
