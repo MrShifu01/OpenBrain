@@ -82,38 +82,8 @@ export function VirtualGrid({
     overscan: 4,
     measureElement: (el) => el.getBoundingClientRect().height,
   });
-  // TEMP DIAGNOSTIC — verify virtualizer is correctly bound to main-content.
-  // Shows real numbers so we don't guess about why entries cap at ~7.
-  const main = typeof document !== "undefined" ? document.getElementById("main-content") : null;
-  const dbg = {
-    mainFound: !!main,
-    mainScrollH: main?.scrollHeight,
-    mainClientH: main?.clientHeight,
-    mainOverflowY: main ? getComputedStyle(main).overflowY : "?",
-    rowsTotal: rows.length,
-    virtualItems: virtualizer.getVirtualItems().length,
-    totalSize: virtualizer.getTotalSize(),
-    filteredLen: filtered.length,
-  };
-
   return (
     <div ref={listRef}>
-      <div
-        style={{
-          position: "sticky",
-          top: 64,
-          zIndex: 99999,
-          background: "rgba(0,0,0,0.92)",
-          color: "#0f0",
-          font: "10px/1.3 ui-monospace, monospace",
-          padding: 6,
-          margin: "0 0 6px",
-          whiteSpace: "pre",
-        }}
-      >
-        {`mainFound: ${dbg.mainFound}  scrollH/clientH: ${dbg.mainScrollH}/${dbg.mainClientH}  overflowY: ${dbg.mainOverflowY}
-rows: ${dbg.rowsTotal}  filtered: ${dbg.filteredLen}  virtualItems: ${dbg.virtualItems}  totalSize: ${dbg.totalSize}`}
-      </div>
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {virtualizer.getVirtualItems().map((vRow) => (
           <div
