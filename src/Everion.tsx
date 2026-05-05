@@ -848,7 +848,6 @@ function EverionContent({
                     cryptoKey={cryptoKey}
                     onVaultUnlock={handleVaultUnlock}
                     brainId={activeBrain?.id}
-                    onEntryCreated={(e: Entry) => setEntries((prev) => [e, ...prev])}
                   />
                 </Suspense>
               </ErrorBoundary>
@@ -1171,10 +1170,28 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
   // not in the Memory grid/list/timeline. Strip them out at the single
   // source so every downstream view (filtered, sortedTimeline, Bulk select,
   // search ranking) automatically excludes them.
-  const allDisplayEntries = useMemo(
-    () => [...dataLayer.entries, ...dataLayer.vaultEntries].filter((e) => e.type !== "persona"),
-    [dataLayer.entries, dataLayer.vaultEntries],
-  );
+  //
+  // SECURITY: vault entries (type === "secret") are gated strictly on
+  // brain_id === activeBrain.id. The data layer scopes its fetches per
+  // brain, but a stale row briefly held during a brain switch (or a
+  // future merge bug) would otherwise let a secret from one brain render
+  // in another. Vault rows MUST carry a matching brain_id or they don't
+  // render — no NULL-brain fallback. Non-secret entries are fetched
+  // brain-scoped via /api/entries and trusted as-is (some legacy rows
+  // pre-date brain_id and would unfairly disappear under a strict filter).
+  const activeBrainIdForFilter = activeBrain?.id;
+  const allDisplayEntries = useMemo(() => {
+    const merged = [...dataLayer.entries, ...dataLayer.vaultEntries];
+    return merged.filter((e) => {
+      if (e.type === "persona") return false;
+      if (e.type === "secret") {
+        if (!activeBrainIdForFilter) return false;
+        const rowBrain = (e as Entry & { brain_id?: string }).brain_id;
+        return rowBrain === activeBrainIdForFilter;
+      }
+      return true;
+    });
+  }, [dataLayer.entries, dataLayer.vaultEntries, activeBrainIdForFilter]);
 
   const filtered = useMemo(() => {
     let r = allDisplayEntries;

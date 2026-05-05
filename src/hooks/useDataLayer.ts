@@ -106,19 +106,44 @@ export function useDataLayer({
   // the cached blob is the same AES-GCM ciphertext the server returns, so
   // local storage doesn't widen the trust boundary. Reconnect overwrites
   // with the latest server view.
+  //
+  // SECURITY: this fetch MUST be scoped to activeBrainId. Without the filter
+  // the API returns every secret across every brain the user owns, and the
+  // memory grid (which merges entries + vaultEntries) renders all of them
+  // regardless of which brain the user is currently viewing — leaking
+  // cross-brain secrets into shared brains. Only the current brain's
+  // ciphertext should ever reach memory. Refetched on every brain switch.
   const fetchVaultEntries = useCallback(async () => {
+    if (!activeBrainId) {
+      // No brain context yet — clear any stale list rather than holding a
+      // previous brain's entries while we wait. Belt-and-suspenders for the
+      // brain-switch race.
+      setVaultEntries([]);
+      vaultEntryIdsRef.current = new Set();
+      return;
+    }
     // Cache first — non-blocking, gives offline users immediate vault content.
+    // (The cache is global per the existing API; the fetch below is what
+    // ultimately scopes to the active brain. Cache will be evicted by the
+    // server fetch below within the same tick.)
     readVaultEntriesCache()
       .then((cached) => {
         if (cached && cached.length > 0) {
-          vaultEntryIdsRef.current = new Set(cached.map((e) => e.id));
-          setVaultEntries((prev) => (prev.length === 0 ? cached : prev));
+          // Only show cached rows that match the current brain — a stale
+          // cache built when a different brain was active would otherwise
+          // briefly leak.
+          const scoped = cached.filter(
+            (e) => (e as Entry & { brain_id?: string }).brain_id === activeBrainId,
+          );
+          if (scoped.length === 0) return;
+          vaultEntryIdsRef.current = new Set(scoped.map((e) => e.id));
+          setVaultEntries((prev) => (prev.length === 0 ? scoped : prev));
         }
       })
       .catch(() => {});
 
     try {
-      const r = await authFetch("/api/vault-entries");
+      const r = await authFetch(`/api/vault-entries?brain_id=${encodeURIComponent(activeBrainId)}`);
       if (!r.ok) return;
       const data: Partial<Entry>[] = await r.json();
       const fetched: Entry[] = data.map((e) => ({
@@ -133,16 +158,40 @@ export function useDataLayer({
     } catch (e) {
       console.debug("[useDataLayer] fetchVaultEntries failed", e);
     }
-  }, []);
+  }, [activeBrainId]);
 
   // Defer the vault-entries fetch off the critical path. Vault entries are a
   // separate tab (not the default Memory view), so first paint never depends
   // on this — we yield bandwidth to /api/entries phase 1 instead.
+  // Re-runs on every activeBrainId change so the memory grid never sees
+  // another brain's secrets.
   useEffect(() => {
     idleSchedule(() => {
       fetchVaultEntries();
     });
   }, [fetchVaultEntries]);
+
+  // Optimistic cross-hook bridge — useVaultOps lives inside VaultView and
+  // can't reach setVaultEntries here directly. It dispatches the encrypted
+  // row when a secret is saved; we add it to the data-layer copy so the
+  // memory grid sees it without waiting for the next refetch. brain_id on
+  // the event payload is enforced by the dispatcher, and we double-check
+  // it matches activeBrainId before adding.
+  useEffect(() => {
+    function onVaultEntryAdded(ev: Event) {
+      const entry = (ev as CustomEvent<Entry>).detail;
+      if (!entry || !entry.id) return;
+      const entryBrainId = (entry as Entry & { brain_id?: string }).brain_id;
+      if (!entryBrainId || entryBrainId !== activeBrainId) return;
+      setVaultEntries((prev) => {
+        if (prev.some((e) => e.id === entry.id)) return prev;
+        return [{ ...entry, encrypted: true }, ...prev];
+      });
+      vaultEntryIdsRef.current = new Set([entry.id, ...vaultEntryIdsRef.current]);
+    }
+    window.addEventListener("everion:vault-entry-added", onVaultEntryAdded);
+    return () => window.removeEventListener("everion:vault-entry-added", onVaultEntryAdded);
+  }, [activeBrainId]);
 
   const refreshEntries = useCallback(async () => {
     if (!activeBrainId) return;

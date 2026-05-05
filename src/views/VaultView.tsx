@@ -29,18 +29,21 @@ interface VaultViewProps {
   cryptoKey: CryptoKey | null;
   onVaultUnlock: (key: CryptoKey | null) => void;
   brainId?: string;
-  onEntryCreated?: (entry: Entry) => void;
 }
 
+// SECURITY: vault entries are deliberately ISOLATED from the global memory
+// `entries` array. There is no `onEntryCreated` prop — vault adds must NOT
+// bubble up to a parent that could leak them into the memory grid (which
+// renders both personal and shared brain feeds). Vault state lives entirely
+// inside useVaultOps; the rest of the app never sees plaintext secrets.
 export default function VaultView({
   entries,
   onSelect,
   cryptoKey,
   onVaultUnlock,
   brainId,
-  onEntryCreated,
 }: VaultViewProps) {
-  const ops = useVaultOps({ entries, cryptoKey, onVaultUnlock, brainId, onEntryCreated });
+  const ops = useVaultOps({ entries, cryptoKey, onVaultUnlock, brainId });
 
   // WebAuthn enrolment needs a stable per-user identifier. Fetched lazily
   // on mount; only consumed during the rare PIN-setup flow.

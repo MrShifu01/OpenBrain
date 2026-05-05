@@ -54,7 +54,12 @@ interface UseVaultOpsOptions {
   cryptoKey: CryptoKey | null;
   onVaultUnlock: (key: CryptoKey | null) => void;
   brainId?: string;
-  onEntryCreated?: (entry: Entry) => void;
+  // INTENTIONALLY no onEntryCreated callback. Vault entries must never
+  // propagate to the global memory `entries` array — that array is shared
+  // by the Memory grid, search, chat retrieval and the brain feed, and
+  // any of those leaking a plaintext title would breach the vault's
+  // isolation guarantee. Vault state lives entirely inside this hook
+  // (vaultEntries + decryptedSecrets); the rest of the app never sees it.
 }
 
 export function useVaultOps({
@@ -62,7 +67,6 @@ export function useVaultOps({
   cryptoKey,
   onVaultUnlock,
   brainId,
-  onEntryCreated,
 }: UseVaultOpsOptions) {
   const [status, setStatus] = useState("loading");
   const [passphrase, setPassphrase] = useState("");
@@ -630,6 +634,14 @@ export function useVaultOps({
       setAddError("Vault is locked");
       return;
     }
+    // SECURITY: refuse to save a secret without a brain_id. A NULL-brain
+    // row leaks across all brains because the memory grid's brain filter
+    // can't tell where it belongs. We'd rather block the save than orphan
+    // a secret in a state that breaches isolation.
+    if (!brainId) {
+      setAddError("No active brain — cannot save secret");
+      return;
+    }
     if (!addTitle.trim() || !addContent.trim()) {
       setAddError("Title and content are required");
       return;
@@ -687,12 +699,10 @@ export function useVaultOps({
         type: "secret",
         tags: tagList,
         metadata,
-      };
+        ...(brainId ? { brain_id: brainId } : {}),
+      } as Entry;
       // Mirror the server row into vaultEntries (encrypted, source of
-      // truth) so the next render's `secrets` array includes it. Without
-      // this, decryptedSecrets has the new row but secrets.length is
-      // stale, and any subsequent state change that re-fires the decrypt
-      // useEffect would wipe the optimistic insert.
+      // truth) so the next render's `secrets` array includes it.
       const encryptedEntry: Entry = {
         id: newId,
         title: plain.title,
@@ -704,23 +714,21 @@ export function useVaultOps({
       } as Entry;
       setVaultEntries((prev) => [encryptedEntry, ...prev]);
       setDecryptedSecrets((prev) => [newEntry, ...prev]);
-      onEntryCreated?.(newEntry);
+      // Tell the data layer (which owns the vaultEntries the Memory grid
+      // reads) about the new row. Carries the encrypted shape with brain_id
+      // so the memory grid's brain filter scopes it to the right brain. Do
+      // NOT propagate the plaintext newEntry — global entries state must
+      // never see decrypted secrets.
+      window.dispatchEvent(
+        new CustomEvent("everion:vault-entry-added", { detail: encryptedEntry }),
+      );
       resetAddForm();
       setShowAddSecret(false);
     } catch (e) {
       setAddError(e instanceof Error ? e.message : "Failed to save secret");
     }
     setAddBusy(false);
-  }, [
-    addTitle,
-    addContent,
-    addTags,
-    addMetaRows,
-    cryptoKey,
-    brainId,
-    onEntryCreated,
-    ensureBrainDEK,
-  ]);
+  }, [addTitle, addContent, addTags, addMetaRows, cryptoKey, brainId, ensureBrainDEK]);
 
   // New path: template-shaped add. Coexists with handleAddSecret (legacy
   // free-form path) so flag-off keeps working unchanged. Spec:
@@ -735,6 +743,11 @@ export function useVaultOps({
     }) => {
       if (!cryptoKey) {
         setAddError("Vault is locked");
+        return;
+      }
+      // See handleAddSecret comment — brain_id is mandatory.
+      if (!brainId) {
+        setAddError("No active brain — cannot save secret");
         return;
       }
       if (!payload.title.trim() || !payload.content.trim()) {
@@ -788,7 +801,8 @@ export function useVaultOps({
           type: "secret",
           tags: payload.tags,
           metadata,
-        };
+          ...(brainId ? { brain_id: brainId } : {}),
+        } as Entry;
         // Mirror into vaultEntries so source of truth + decrypted view
         // stay in sync — see handleAddSecret comment.
         const encryptedEntry: Entry = {
@@ -802,7 +816,11 @@ export function useVaultOps({
         } as Entry;
         setVaultEntries((prev) => [encryptedEntry, ...prev]);
         setDecryptedSecrets((prev) => [newEntry, ...prev]);
-        onEntryCreated?.(newEntry);
+        // See handleAddSecret comment — propagate the encrypted shape
+        // (with brain_id) to the data layer; never the plaintext.
+        window.dispatchEvent(
+          new CustomEvent("everion:vault-entry-added", { detail: encryptedEntry }),
+        );
         resetAddForm();
         setShowAddSecret(false);
       } catch (e) {
@@ -810,7 +828,7 @@ export function useVaultOps({
       }
       setAddBusy(false);
     },
-    [cryptoKey, brainId, onEntryCreated, ensureBrainDEK],
+    [cryptoKey, brainId, ensureBrainDEK],
   );
 
   const bulkDelete = useCallback(async () => {
