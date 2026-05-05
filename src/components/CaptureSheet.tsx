@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useVoiceRecorder } from "../hooks/useVoiceRecorder";
 import { useCaptureSheetParse } from "../hooks/useCaptureSheetParse";
+import VoiceCaptureModal from "./VoiceCaptureModal";
 import { useBrain as useBrainCtx } from "../context/BrainContext";
 import type { Brain, Entry } from "../types";
 import CapturePreviewPanel, { type PreviewState } from "./CapturePreviewPanel";
@@ -69,12 +69,16 @@ export default function CaptureSheet({
   const [dragY, setDragY] = useState(0);
   const [visible, setVisible] = useState(false);
 
+  // Fullscreen voice capture modal state. Mic button opens this instead of
+  // recording inline — the modal owns its own useVoiceRecorder and feeds
+  // the transcript back to setText on close.
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+
   const {
     loading,
     setLoading,
     extracting,
     status,
-    setStatus,
     errorDetail,
     setErrorDetail,
     fileParseError,
@@ -105,13 +109,6 @@ export default function CaptureSheet({
     onCreated,
     onClose,
     onBackgroundSave,
-  });
-
-  const { listening, startVoice, resetListening } = useVoiceRecorder({
-    onTranscript: (t) => setText((prev) => (prev ? `${prev} ${t}` : t)),
-    onStatus: setStatus,
-    onError: setErrorDetail,
-    onLoading: setLoading,
   });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -159,10 +156,9 @@ export default function CaptureSheet({
       setCaptureBrain(null);
       resetState();
       setLoading(false);
-      resetListening();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialText/resetState/setLoading are stable across renders by design (parent-owned); adding them would re-run the open/close branch every render and stomp on user typing.
-  }, [isOpen, resetListening]);
+  }, [isOpen]);
 
   // React synthetic touch events on the handle, mirroring the
   // TodoCalendarChrome BottomSheet pattern that actually works on iOS.
@@ -358,77 +354,78 @@ export default function CaptureSheet({
   };
 
   return (
-    <DialogPrimitive.Root
-      open={isOpen || visible}
-      onOpenChange={(o) => {
-        if (o) return;
-        // Escape (Radix-driven close): preview-aware path goes back to
-        // typing instead of closing.
-        if (preview) {
-          setPreview(null);
-          setText(preview._raw || "");
-          return;
-        }
-        // Run our exit animation, then tell parent to unmount.
-        setVisible(false);
-        setTimeout(onClose, 360);
-      }}
-    >
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay
-          className="fixed inset-0 z-50"
-          style={{
-            background: "var(--scrim)",
-            opacity: visible ? Math.max(0, 1 - dragY / 350) : 0,
-            transition: dragY > 0 ? "none" : "opacity 0.32s ease",
-          }}
-        />
-        <DialogPrimitive.Content
-          ref={sheetRef}
-          aria-modal="true"
-          aria-label={preview ? "Confirm entry" : "Capture something"}
-          className="capture-sheet"
-          onEscapeKeyDown={(e) => {
-            // Preview-aware: keep the preview→typing path. Radix's
-            // onOpenChange already handles the regular case.
-            if (preview) {
-              e.preventDefault();
-              setPreview(null);
-              setText(preview._raw || "");
-            }
-          }}
-          onPointerDownOutside={(e) => {
-            // Preview-aware: don't dismiss while reviewing.
-            if (preview) e.preventDefault();
-          }}
-          onInteractOutside={(e) => {
-            if (preview) e.preventDefault();
-          }}
-          style={{
-            background: "var(--surface-high)",
-            border: "1px solid var(--line)",
-            boxShadow: "var(--lift-3)",
-            ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
-            transition:
-              dragY > 0
-                ? "none"
-                : "--capture-y 0.36s cubic-bezier(0.22, 1, 0.36, 1), transform 0.36s cubic-bezier(0.22, 1, 0.36, 1)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          <DialogPrimitive.Title className="sr-only">
-            {preview ? "Confirm entry" : "Capture something"}
-          </DialogPrimitive.Title>
-          <DialogPrimitive.Description className="sr-only">
-            Quickly capture a thought, image, document, or voice note.
-          </DialogPrimitive.Description>
-          <div aria-live="polite" aria-atomic="true" className="sr-only">
-            {loading ? "Processing your entry…" : (status ?? "")}
-          </div>
+    <>
+      <DialogPrimitive.Root
+        open={isOpen || visible}
+        onOpenChange={(o) => {
+          if (o) return;
+          // Escape (Radix-driven close): preview-aware path goes back to
+          // typing instead of closing.
+          if (preview) {
+            setPreview(null);
+            setText(preview._raw || "");
+            return;
+          }
+          // Run our exit animation, then tell parent to unmount.
+          setVisible(false);
+          setTimeout(onClose, 360);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay
+            className="fixed inset-0 z-50"
+            style={{
+              background: "var(--scrim)",
+              opacity: visible ? Math.max(0, 1 - dragY / 350) : 0,
+              transition: dragY > 0 ? "none" : "opacity 0.32s ease",
+            }}
+          />
+          <DialogPrimitive.Content
+            ref={sheetRef}
+            aria-modal="true"
+            aria-label={preview ? "Confirm entry" : "Capture something"}
+            className="capture-sheet"
+            onEscapeKeyDown={(e) => {
+              // Preview-aware: keep the preview→typing path. Radix's
+              // onOpenChange already handles the regular case.
+              if (preview) {
+                e.preventDefault();
+                setPreview(null);
+                setText(preview._raw || "");
+              }
+            }}
+            onPointerDownOutside={(e) => {
+              // Preview-aware: don't dismiss while reviewing.
+              if (preview) e.preventDefault();
+            }}
+            onInteractOutside={(e) => {
+              if (preview) e.preventDefault();
+            }}
+            style={{
+              background: "var(--surface-high)",
+              border: "1px solid var(--line)",
+              boxShadow: "var(--lift-3)",
+              ["--capture-y" as string]: dragY > 0 ? `${dragY}px` : visible ? "0px" : "100%",
+              transition:
+                dragY > 0
+                  ? "none"
+                  : "--capture-y 0.36s cubic-bezier(0.22, 1, 0.36, 1), transform 0.36s cubic-bezier(0.22, 1, 0.36, 1)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <DialogPrimitive.Title className="sr-only">
+              {preview ? "Confirm entry" : "Capture something"}
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">
+              Quickly capture a thought, image, document, or voice note.
+            </DialogPrimitive.Description>
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+              {loading ? "Processing your entry…" : (status ?? "")}
+            </div>
 
-          {/* Top strip — drag handle (mobile only, centered) + per-capture
+            {/* Top strip — drag handle (mobile only, centered) + per-capture
               brain pill (right-aligned, only when multi-brain). The whole
               strip is the swipe-to-close grab region so users don't have
               to hit the tiny pill. Bumped to 56px tall — the previous 36px
@@ -438,164 +435,170 @@ export default function CaptureSheet({
               for a few seconds before "kicking in". A taller grab strip
               gives the user a forgiving target right out from under the
               keyboard transition. */}
-          <div
-            ref={handleRef}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-            className="touch-none lg:touch-auto"
-            style={{
-              position: "relative",
-              minHeight: 56,
-              paddingTop: 14,
-              paddingBottom: 10,
-              touchAction: "none",
-            }}
-          >
             <div
-              className="lg:hidden"
+              ref={handleRef}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+              className="touch-none lg:touch-auto"
               style={{
-                position: "absolute",
-                left: "50%",
-                top: 14,
-                transform: "translateX(-50%)",
-                width: 48,
-                height: 6,
-                borderRadius: 999,
-                background: "var(--line)",
-                pointerEvents: "none",
+                position: "relative",
+                minHeight: 56,
+                paddingTop: 14,
+                paddingBottom: 10,
+                touchAction: "none",
               }}
-              aria-hidden="true"
-            />
-          </div>
+            >
+              <div
+                className="lg:hidden"
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: 14,
+                  transform: "translateX(-50%)",
+                  width: 48,
+                  height: 6,
+                  borderRadius: 999,
+                  background: "var(--line)",
+                  pointerEvents: "none",
+                }}
+                aria-hidden="true"
+              />
+            </div>
 
-          {/* Body */}
-          {secretCandidate ? (
-            <SecretConfirmPanel
-              title={secretCandidate.title}
-              hasVault={!!cryptoKey}
-              onYes={handleSecretYes}
-              onNo={handleSecretNo}
-              onCancel={() => clearSecretCandidate()}
-            />
-          ) : preview ? (
-            <CapturePreviewPanel
-              preview={previewStateObj}
-              onPreviewChange={handlePreviewChange}
-              onBack={() => {
-                setPreview(null);
-                setText(preview._raw || "");
-              }}
-              onConfirm={confirmSave}
-              loading={loading}
-              errorDetail={errorDetail}
-            />
-          ) : activeTab === "secret" ? (
-            <CaptureSecretPanel
-              form={secretForm}
-              onFormChange={setSecretForm}
-              saving={secretSaving}
-              error={secretError}
-              onBack={toggleVault}
-              onSave={async () => {
-                if (!secretForm.title.trim() || !secretForm.content.trim()) return;
-                setSecretSaving(true);
-                setSecretError("");
-                await doSave({
-                  title: secretForm.title.trim(),
-                  content: secretForm.content,
-                  type: "secret",
-                  tags: [],
-                  metadata: {},
-                });
-                setSecretSaving(false);
-                if (errorDetail) setSecretError(errorDetail);
-                else setSecretForm({ title: "", content: "" });
-              }}
-            />
-          ) : activeTab === "list" ? (
-            <CaptureListBody
-              text={text}
-              onTextChange={setText}
-              loading={loading}
-              canSave={canSave}
-              brainPill={
-                showBrainPill && brainCtx.brains.length > 1 ? (
-                  <CaptureBrainPill
-                    brains={brainCtx.brains}
-                    activeBrain={brainCtx.activeBrain}
-                    captureBrain={captureBrain}
-                    onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+            {/* Body */}
+            {secretCandidate ? (
+              <SecretConfirmPanel
+                title={secretCandidate.title}
+                hasVault={!!cryptoKey}
+                onYes={handleSecretYes}
+                onNo={handleSecretNo}
+                onCancel={() => clearSecretCandidate()}
+              />
+            ) : preview ? (
+              <CapturePreviewPanel
+                preview={previewStateObj}
+                onPreviewChange={handlePreviewChange}
+                onBack={() => {
+                  setPreview(null);
+                  setText(preview._raw || "");
+                }}
+                onConfirm={confirmSave}
+                loading={loading}
+                errorDetail={errorDetail}
+              />
+            ) : activeTab === "secret" ? (
+              <CaptureSecretPanel
+                form={secretForm}
+                onFormChange={setSecretForm}
+                saving={secretSaving}
+                error={secretError}
+                onBack={toggleVault}
+                onSave={async () => {
+                  if (!secretForm.title.trim() || !secretForm.content.trim()) return;
+                  setSecretSaving(true);
+                  setSecretError("");
+                  await doSave({
+                    title: secretForm.title.trim(),
+                    content: secretForm.content,
+                    type: "secret",
+                    tags: [],
+                    metadata: {},
+                  });
+                  setSecretSaving(false);
+                  if (errorDetail) setSecretError(errorDetail);
+                  else setSecretForm({ title: "", content: "" });
+                }}
+              />
+            ) : activeTab === "list" ? (
+              <CaptureListBody
+                text={text}
+                onTextChange={setText}
+                loading={loading}
+                canSave={canSave}
+                brainPill={
+                  showBrainPill && brainCtx.brains.length > 1 ? (
+                    <CaptureBrainPill
+                      brains={brainCtx.brains}
+                      activeBrain={brainCtx.activeBrain}
+                      captureBrain={captureBrain}
+                      onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                    />
+                  ) : undefined
+                }
+                typePill={
+                  <CaptureTypePill
+                    captureType={displayedType}
+                    somedayEnabled={somedayEnabled}
+                    onPick={handlePickType}
                   />
-                ) : undefined
-              }
-              typePill={
-                <CaptureTypePill
-                  captureType={displayedType}
-                  somedayEnabled={somedayEnabled}
-                  onPick={handlePickType}
-                />
-              }
-              onSave={handleSaveList}
-            />
-          ) : (
-            <CaptureEntryBody
-              text={text}
-              onTextChange={setText}
-              uploadedFiles={uploadedFiles}
-              listening={listening}
-              loading={loading}
-              extracting={extracting}
-              showSavedWhisper={showSavedWhisper}
-              canSave={canSave}
-              somedayActive={somedayActive}
-              brainPill={
-                showBrainPill && brainCtx.brains.length > 1 ? (
-                  <CaptureBrainPill
-                    brains={brainCtx.brains}
-                    activeBrain={brainCtx.activeBrain}
-                    captureBrain={captureBrain}
-                    onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                }
+                onSave={handleSaveList}
+              />
+            ) : (
+              <CaptureEntryBody
+                text={text}
+                onTextChange={setText}
+                uploadedFiles={uploadedFiles}
+                listening={false}
+                loading={loading}
+                extracting={extracting}
+                showSavedWhisper={showSavedWhisper}
+                canSave={canSave}
+                somedayActive={somedayActive}
+                brainPill={
+                  showBrainPill && brainCtx.brains.length > 1 ? (
+                    <CaptureBrainPill
+                      brains={brainCtx.brains}
+                      activeBrain={brainCtx.activeBrain}
+                      captureBrain={captureBrain}
+                      onPick={(b) => setCaptureBrain(b.id === brainCtx.activeBrain?.id ? null : b)}
+                    />
+                  ) : undefined
+                }
+                typePill={
+                  <CaptureTypePill
+                    captureType={displayedType}
+                    somedayEnabled={somedayEnabled}
+                    onPick={handlePickType}
                   />
-                ) : undefined
-              }
-              typePill={
-                <CaptureTypePill
-                  captureType={displayedType}
-                  somedayEnabled={somedayEnabled}
-                  onPick={handlePickType}
-                />
-              }
-              statusInfo={{
-                status,
-                errorDetail,
-                fileParseError,
-                statusLabel,
-              }}
-              handlers={{
-                onSave: handleSave,
-                onStartVoice: startVoice,
-                onRemoveFile: removeUploadedFile,
-                onAttachFiles: (files) => {
-                  handleDocFiles(files).catch((err) => console.error("[docInput]", err));
-                },
-                onImageFile: handleImageFile,
-                onRetryFile: retryLastFile,
-                onManualFill: () => {
-                  setFileParseError(null);
-                  setErrorDetail(null);
-                  setPreview({ title: "", content: "", type: "note", tags: [] });
-                  setPreviewTitle("");
-                  setPreviewTags("");
-                  setPreviewType("note");
-                },
-              }}
-            />
-          )}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+                }
+                statusInfo={{
+                  status,
+                  errorDetail,
+                  fileParseError,
+                  statusLabel,
+                }}
+                handlers={{
+                  onSave: handleSave,
+                  onStartVoice: () => setVoiceModalOpen(true),
+                  onRemoveFile: removeUploadedFile,
+                  onAttachFiles: (files) => {
+                    handleDocFiles(files).catch((err) => console.error("[docInput]", err));
+                  },
+                  onImageFile: handleImageFile,
+                  onRetryFile: retryLastFile,
+                  onManualFill: () => {
+                    setFileParseError(null);
+                    setErrorDetail(null);
+                    setPreview({ title: "", content: "", type: "note", tags: [] });
+                    setPreviewTitle("");
+                    setPreviewTags("");
+                    setPreviewType("note");
+                  },
+                }}
+              />
+            )}
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+      <VoiceCaptureModal
+        isOpen={voiceModalOpen}
+        onClose={() => setVoiceModalOpen(false)}
+        onTranscript={(t) => setText((prev) => (prev ? `${prev} ${t}` : t))}
+      />
+    </>
   );
 }
 
