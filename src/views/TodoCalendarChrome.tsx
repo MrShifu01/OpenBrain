@@ -369,15 +369,42 @@ export function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  // Lock body scroll while sheet is open.
+  // Two-stage visibility so we can animate close BEFORE unmount. `mounted`
+  // tracks DOM presence, `visible` drives the open/close CSS state. Mirrors
+  // the CaptureSheet pattern. Without this the sheet flashed off — parent's
+  // `open=false` unmounted the component before any exit animation could
+  // run, which is what users were calling "jerky / flashes closed."
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(false);
+
+  // Open: mount, then on next frame flip visible→true so the slide-up CSS
+  // transition runs from the off-screen starting point. Close: slide off,
+  // unmount after the transition finishes. The two-state shuffle is the
+  // standard React entry/exit pattern; the lint rule's "no setState in
+  // effect" rejects it, but there's no cleaner way to react to a parent
+  // prop flipping without driving local state from it.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      setMounted(true);
+      const id = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(id);
+    }
+    setVisible(false);
+    const id = window.setTimeout(() => setMounted(false), 280);
+    return () => window.clearTimeout(id);
+  }, [open]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Lock body scroll while sheet is mounted.
+  useEffect(() => {
+    if (!mounted) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [mounted]);
 
   // Drag-to-dismiss state. Only triggered from the handle area at the top —
   // otherwise scrolling through the event list would conflict with closing.
@@ -398,16 +425,27 @@ export function BottomSheet({
   function onHandleTouchEnd() {
     setDragging(false);
     if (dragY > CLOSE_THRESHOLD) {
+      // Snap dragY to 0 so the visible→false transition takes over the
+      // slide. Without this the transform stayed mid-drag and the close
+      // looked half-stuck.
+      setDragY(0);
       onClose();
-      // Reset for next open. The sheet animates closed via animation; the
-      // transform jumps back to 0 once `open=false` unmounts.
-      setTimeout(() => setDragY(0), 200);
     } else {
       setDragY(0); // snap back
     }
   }
 
-  if (!open) return null;
+  if (!mounted) return null;
+
+  // Sheet card translates between 100% (off-screen below) and 0%. Sits at
+  // z-modal-backdrop (70) so it overlays the bottom nav (50) — the user
+  // sees only the sheet while it's open, the nav is fully covered like
+  // Capture's sheet does. No bottom-padding clearance for the nav since
+  // it's hidden underneath.
+  const sheetTransform =
+    dragY > 0 ? `translateY(${dragY}px)` : visible ? "translateY(0)" : "translateY(100%)";
+  const scrimOpacity = visible ? Math.max(0, 1 - dragY / 350) : 0;
+
   return (
     <div
       role="dialog"
@@ -415,11 +453,11 @@ export function BottomSheet({
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: "var(--z-fullscreen)",
+        zIndex: "var(--z-modal-backdrop)",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-end",
-        animation: "cal-sheet-fade 200ms ease",
+        pointerEvents: "auto",
       }}
     >
       <button
@@ -431,6 +469,8 @@ export function BottomSheet({
           background: "var(--scrim)",
           border: 0,
           cursor: "pointer",
+          opacity: scrimOpacity,
+          transition: dragY > 0 ? "none" : "opacity 240ms ease",
         }}
       />
       <div
@@ -439,15 +479,14 @@ export function BottomSheet({
           background: "var(--surface)",
           borderTopLeftRadius: 20,
           borderTopRightRadius: 20,
-          // Bottom padding includes the 56px BottomNav height so the last
-          // event card has clearance instead of disappearing under the nav.
-          padding: "14px 20px calc(84px + env(safe-area-inset-bottom))",
+          padding: "14px 20px calc(20px + env(safe-area-inset-bottom))",
           boxShadow: "var(--lift-3)",
           maxHeight: "85vh",
           overflowY: "auto",
-          animation: dragY > 0 ? undefined : "cal-sheet-slide 240ms cubic-bezier(0.22, 1, 0.36, 1)",
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragging ? "none" : "transform 200ms cubic-bezier(0.22, 1, 0.36, 1)",
+          transform: sheetTransform,
+          transition:
+            dragging || dragY > 0 ? "none" : "transform 280ms cubic-bezier(0.22, 1, 0.36, 1)",
+          willChange: "transform",
           touchAction: "pan-y",
         }}
       >

@@ -121,23 +121,6 @@ export default function TodoCalendarTab({
     >
       <QuickAdd brainId={brainId} onAdded={onAdded} />
 
-      {externalEvents.length === 0 && (
-        <p
-          className="f-sans"
-          style={{
-            fontSize: 11,
-            color: "var(--ink-ghost)",
-            margin: 0,
-          }}
-        >
-          Connect Google or Outlook in{" "}
-          <strong style={{ color: "var(--ink-soft)", fontWeight: 600 }}>
-            Settings → Calendar Sync
-          </strong>{" "}
-          to see your events here.
-        </p>
-      )}
-
       <CalendarHeader
         title={headerTitle}
         onPrev={handlePrev}

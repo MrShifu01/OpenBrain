@@ -150,6 +150,17 @@ export default function CaptureSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- initialText/resetState/setLoading are stable across renders by design (parent-owned); adding them would re-run the open/close branch every render and stomp on user typing.
   }, [isOpen, resetListening]);
 
+  // Stash onClose in a ref so the touch-listener effect doesn't re-bind
+  // every time the parent passes a new closure identity. Re-binding mid-
+  // gesture would wipe out an in-progress drag and contributed to the
+  // "swipe felt frozen for a moment" report — onClose is propagated from
+  // Everion.tsx via inline arrows, so its identity churns on every parent
+  // render.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   useEffect(() => {
     const handle = handleRef.current;
     if (!handle || !isOpen) return;
@@ -179,7 +190,7 @@ export default function CaptureSheet({
       setDragY((prev) => {
         if (prev > 80) {
           setVisible(false);
-          setTimeout(onClose, 360);
+          setTimeout(() => onCloseRef.current(), 360);
         }
         return 0;
       });
@@ -194,7 +205,7 @@ export default function CaptureSheet({
       handle.removeEventListener("touchend", onEnd);
       handle.removeEventListener("touchcancel", onEnd);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Tab focus + Escape handled by Radix Dialog primitive below.
   // Preview-aware Escape (back-to-typing instead of close) goes through
@@ -426,15 +437,21 @@ export default function CaptureSheet({
           {/* Top strip — drag handle (mobile only, centered) + per-capture
               brain pill (right-aligned, only when multi-brain). The whole
               strip is the swipe-to-close grab region so users don't have
-              to hit the tiny pill. */}
+              to hit the tiny pill. Bumped to 56px tall — the previous 36px
+              was a fragile hit target and combined with iOS Safari briefly
+              swallowing touches during the keyboard slide-up animation
+              (textarea autofocuses on open) it felt like swipe was stuck
+              for a few seconds before "kicking in". A taller grab strip
+              gives the user a forgiving target right out from under the
+              keyboard transition. */}
           <div
             ref={handleRef}
             className="touch-none lg:touch-auto"
             style={{
               position: "relative",
-              minHeight: 36,
-              paddingTop: 10,
-              paddingBottom: 6,
+              minHeight: 56,
+              paddingTop: 14,
+              paddingBottom: 10,
             }}
           >
             <div
@@ -442,10 +459,10 @@ export default function CaptureSheet({
               style={{
                 position: "absolute",
                 left: "50%",
-                top: 10,
+                top: 14,
                 transform: "translateX(-50%)",
-                width: 40,
-                height: 5,
+                width: 48,
+                height: 6,
                 borderRadius: 999,
                 background: "var(--line)",
                 pointerEvents: "none",
