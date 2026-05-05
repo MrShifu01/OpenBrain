@@ -65,6 +65,11 @@ export default function VoiceCaptureModal({ isOpen, onClose, onTranscript }: Pro
       if (s === "transcribing") setPhase("transcribing");
     },
     onError: (msg) => {
+      // useVoiceRecorder can fire a late onError during stream/recorder
+      // teardown after a successful onTranscript — without this guard the
+      // modal flashes "recording failed" right before closing on a happy
+      // path. If we already accepted a transcript, ignore subsequent errors.
+      if (transcriptFiredRef.current) return;
       setPhase("error");
       setErrorMessage(msg);
     },
