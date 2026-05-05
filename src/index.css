@@ -602,7 +602,16 @@ body {
   min-height: 100dvh;
   background: var(--color-background);
   color: var(--color-on-surface);
-  overflow-x: hidden;
+  /* overflow-x:hidden silently turns html+body into scroll containers
+     (per CSS spec, the other axis becomes overflow-y:auto). On mobile
+     this kills position:sticky for every descendant — they bind to a
+     non-scrolling container while the actual scroll happens elsewhere,
+     so they appear to scroll out of view. overflow-x:clip clips
+     horizontal overflow without creating a scroll container, which is
+     what we actually want here. Supported in iOS Safari 16+ / Chrome
+     90+ / Firefox 81+ — covers ~98% of users; older Safari falls back
+     to visible (acceptable, the page rarely overflows horizontally). */
+  overflow-x: clip;
   max-width: 100vw;
 }
 body {
