@@ -51,18 +51,15 @@ function BottomNavInner({
       className="bottom-nav-mobile"
       style={{
         position: "fixed",
-        // bottom:0 anchored. Inline padding-bottom uses max(env, 34px) so
-        // even on the very first paint — when iOS / Android haven't yet
-        // committed env(safe-area-inset-bottom) and it momentarily returns
-        // 0 — the nav still extends 34px below the icon row to cover the
-        // home-indicator / gesture-bar zone with the nav's background.
-        // 34px matches iPhone X+ home-indicator height; once env() commits
-        // the real value, max() picks whichever is larger so notched
-        // Android phones with a deeper inset still get full coverage.
-        // Devices with no inset (older iPhones with home button, desktop
-        // window emulator) get 34px of dead padding, which is acceptable
-        // because mobile is the only place this nav renders (lg+ hides it).
-        bottom: 0,
+        // bottom:0 anchors the nav to the layout viewport bottom — but
+        // on iPhones with a home indicator iOS keeps the safe-area zone
+        // BELOW the layout viewport clear, and the body background
+        // shows through it as a visible gap under the nav. Negative
+        // bottom + extra height extends the nav's background DOWN into
+        // that zone so the bar visually reaches the very bottom edge of
+        // the device. Same pattern LoadingScreen uses. Icons sit in the
+        // top 56px (above the safe area) thanks to padding-bottom.
+        bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))",
         left: 0,
         right: 0,
         zIndex: "var(--z-nav)",
@@ -70,8 +67,8 @@ function BottomNavInner({
         justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
-        paddingBottom: "max(env(safe-area-inset-bottom, 0px), 34px)",
-        height: "calc(56px + max(env(safe-area-inset-bottom, 0px), 34px))",
+        paddingBottom: "calc(2 * env(safe-area-inset-bottom, 0px))",
+        height: "calc(56px + 2 * env(safe-area-inset-bottom, 0px))",
       }}
     >
       {navItems.map((item) => {
