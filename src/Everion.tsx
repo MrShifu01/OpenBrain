@@ -342,30 +342,6 @@ function EverionContent({
     });
   }, [conceptMap]);
 
-  // Layout viewport settle — runs on every platform. Diagnosed via
-  // DebugViewportOverlay (commit 649ea9c): innerHeight starts smaller than
-  // the device screen height and grows to full only after the first user-
-  // initiated scroll. Measured shrinkage was 29px on iPhone 14-class PWA
-  // standalone (innerHeight 815 → 844), but the same class of "viewport
-  // settles after first interaction" exists in Android Chrome PWAs, Edge,
-  // and some desktop browser-zoom states. The bottom nav anchors to the
-  // layout viewport bottom, so any shrinkage shows as a body-bg strip
-  // below the nav until the viewport settles.
-  //
-  // Fix is platform-agnostic: a single synthetic scrollTo(1) → scrollTo(0)
-  // round-trip on mount forces the browser to commit the full layout
-  // viewport. Skipped if the user already scrolled (deep-link / hash
-  // navigation) so we don't clobber an intentional scroll position.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const id = requestAnimationFrame(() => {
-      if (window.scrollY !== 0) return;
-      window.scrollTo(0, 1);
-      window.scrollTo(0, 0);
-    });
-    return () => cancelAnimationFrame(id);
-  }, []);
-
   // Cmd/Ctrl+K opens the capture sheet — matches the keyboard hint shown
   // on the floating capture button. Cmd/Ctrl+N kept as an alias for muscle
   // memory. Search now lives on Cmd/Ctrl+/, see OmniSearch.
