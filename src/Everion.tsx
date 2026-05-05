@@ -409,7 +409,18 @@ function EverionContent({
         onSearchChange={appShell.setSearchInput}
       ></DesktopSidebar>
 
-      <div className="w-full overflow-x-hidden">
+      {/* overflow-x-clip (not -hidden) is critical: -hidden makes the other
+          axis become overflow-y:auto, which silently turns this div into a
+          CSS scroll container. Any position:sticky descendant then binds
+          to this container as its scroll ancestor — but the div has no
+          bounded height, so it never actually scrolls; the body does. The
+          headers ended up "sticking" to a non-scrolling container while
+          the body scrolled past them, making them appear to scroll away
+          on memory + timeline (the only views tall enough to need it).
+          overflow-x:clip clips horizontal overflow without creating a
+          scroll container, so sticky descendants bind to the body and
+          behave correctly. */}
+      <div className="w-full overflow-x-clip">
         <div className="bg-background min-h-dvh lg:ml-60 lg:max-w-[calc(100vw-240px)]">
           <MobileHeader
             onToggleTheme={toggleTheme}
