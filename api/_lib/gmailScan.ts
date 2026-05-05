@@ -183,7 +183,7 @@ async function extractViaGemini(
     .trim();
 }
 
-async function fetchAndExtractAttachments(
+export async function fetchAndExtractAttachments(
   token: string,
   messageId: string,
   attachments: AttachmentInfo[],
@@ -1683,6 +1683,13 @@ async function persistClusters(
       gmail_subject: rep.primary.subject,
       gmail_date: rep.primary.date,
       gmail_participants: rep.participants,
+      // Stash attachment refs (no content yet) so accept-time extraction
+      // can fetch them from Gmail. Cluster mode skips at-scan extraction
+      // entirely — most clusters are newsletters with no attachments and
+      // the user often rejects the cluster wholesale, so spending Gemini
+      // calls on PDFs we throw away is wasteful. Refs only; content gets
+      // pulled by extractGmailAttachmentsForEntry on PATCH→active.
+      attachments: rep.attachments,
       cluster: {
         size,
         sender_domain: sig.senderDomain,
@@ -2144,4 +2151,63 @@ export async function runGmailScanAllUsers(): Promise<{
   );
 
   return summary;
+}
+
+// Accept-time attachment extraction. Called from api/entries.ts PATCH
+// handler when a Gmail-sourced entry's status flips staged → active.
+// Cluster-mode entries land with attachment refs but no content; this
+// pulls each attachment from Gmail, runs LLM extraction, and stamps
+// metadata.attachment_text. Idempotent — short-circuits when
+// attachment_text is already present (classifier-mode entries that
+// extracted at scan), when there are no attachments, or when the
+// entry isn't Gmail-sourced.
+export async function extractGmailAttachmentsForEntry(
+  entryId: string,
+  userId: string,
+): Promise<{ ok: boolean; reason?: string; chars?: number }> {
+  const GEMINI_KEY = (process.env.GEMINI_API_KEY || "").trim();
+  if (!GEMINI_KEY) return { ok: false, reason: "no Gemini key configured" };
+
+  const er = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}&user_id=eq.${encodeURIComponent(userId)}&select=metadata&limit=1`,
+    { headers: SB_HEADERS },
+  );
+  if (!er.ok) return { ok: false, reason: `entry fetch ${er.status}` };
+  const rows: any[] = await er.json();
+  const entry = rows[0];
+  if (!entry) return { ok: false, reason: "entry not found" };
+
+  const meta = (entry.metadata || {}) as Record<string, any>;
+  if (meta.source !== "gmail") return { ok: true, reason: "not a gmail entry" };
+  if (typeof meta.attachment_text === "string" && meta.attachment_text.length > 0) {
+    return { ok: true, reason: "already extracted" };
+  }
+  const messageId: string | undefined = meta.gmail_message_id;
+  const attachments = Array.isArray(meta.attachments) ? (meta.attachments as AttachmentInfo[]) : [];
+  if (!messageId || attachments.length === 0) return { ok: true, reason: "no attachments" };
+
+  const ir = await fetch(
+    `${SB_URL}/rest/v1/gmail_integrations?user_id=eq.${encodeURIComponent(userId)}&select=*&limit=1`,
+    { headers: SB_HEADERS },
+  );
+  if (!ir.ok) return { ok: false, reason: `integration fetch ${ir.status}` };
+  const irows: any[] = await ir.json();
+  const integration = irows[0];
+  if (!integration) return { ok: false, reason: "no gmail integration" };
+
+  const token = await refreshGmailToken(integration);
+  if (!token) return { ok: false, reason: "token refresh failed" };
+
+  const text = await fetchAndExtractAttachments(token, messageId, attachments, GEMINI_KEY);
+  if (!text || !text.trim()) return { ok: true, reason: "no extractable text" };
+
+  const newMeta = { ...meta, attachment_text: text.slice(0, 6000) };
+  const pr = await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`, {
+    method: "PATCH",
+    headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+    body: JSON.stringify({ metadata: newMeta }),
+  });
+  return pr.ok
+    ? { ok: true, chars: newMeta.attachment_text.length }
+    : { ok: false, reason: `metadata patch ${pr.status}` };
 }

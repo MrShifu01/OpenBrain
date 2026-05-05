@@ -404,21 +404,41 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   const data: any = await response.json();
   res.status(response.ok ? 200 : 502).json(data);
 
-  // Fire enrichment after the response returns so the user gets snappy
-  // feedback. Two trigger paths:
+  // Post-response work: extract Gmail attachments (if any) THEN run full
+  // enrichment. The two trigger conditions:
   //   (a) title/content changed — re-enrich because the parsed/insight
   //       flags get cleared above and embedding text needs rebuilding.
   //   (b) status promoted to active — covers the Gmail accept flow:
-  //       staged emails skip enrichment by design (the user might reject
-  //       them, no point spending Gemini calls on noise). Once accepted,
-  //       they need the full pipeline — embed for RAG, parse for chips,
-  //       concepts for the graph. enrichInline is idempotent (it checks
-  //       the parsed/has_insight flags and short-circuits if everything's
-  //       already done), so calling it on an already-enriched active row
-  //       is a cheap no-op.
+  //       staged emails skip enrichment + attachment extraction by
+  //       design (the user might reject them, no point spending Gemini
+  //       calls on noise). Once accepted, they need the full pipeline.
+  //
+  // Order matters: when a Gmail entry is promoted, attachments must be
+  // pulled from Gmail and LLM-extracted FIRST so enrichInline's later
+  // pass sees attachment_text in metadata and folds it into the embed
+  // text + concept extraction. Attachments-then-enrich runs as one
+  // chained promise so the steps don't race. enrichInline + the
+  // attachment helper are both idempotent — already-extracted /
+  // already-enriched rows short-circuit cheaply.
   const promotedToActive = patch.status === "active";
   if (response.ok && (titleChanged || contentChanged || promotedToActive)) {
-    enrichInline(id, user.id).catch(() => {});
+    if (promotedToActive && entry?.metadata?.source === "gmail") {
+      (async () => {
+        try {
+          const mod = await import("./_lib/gmailScan.js");
+          await mod.extractGmailAttachmentsForEntry(id, user.id);
+        } catch (e) {
+          console.error("[entries:patch] attachment extract failed", e);
+        }
+        try {
+          await enrichInline(id, user.id);
+        } catch (e) {
+          console.error("[entries:patch] enrichInline failed", e);
+        }
+      })();
+    } else {
+      enrichInline(id, user.id).catch(() => {});
+    }
   }
 }
 
