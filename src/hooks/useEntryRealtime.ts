@@ -1,106 +1,112 @@
 // ============================================================
-// Realtime sync for entry cards.
+// Lightweight enrichment-progress polling.
 // ============================================================
 //
-// Subscribes to UPDATEs on public.entries filtered to the active brain
-// and merges the enrichment-relevant fields into the local entries
-// state, so the P/I/C/E chips and wave-dot reflect server progress
-// without a manual refresh.
+// Replaces the previous postgres_changes realtime subscription that was
+// responsible for ~65% of total Supabase DB time (the WAL decoder + the
+// publication-tables lookup query each time a channel reconnected). The
+// publication on `entries` decoded every insert/update/delete for every
+// subscriber even though almost no UI surfaces actually consumed those
+// updates beyond the enrichment loading dot.
 //
-// Why this hook (and not useEnrichmentOrchestrator):
-//   The orchestrator hook is the legacy client-side enrichment pipeline.
-//   It's defined but never mounted — and dragging it back in would also
-//   re-enable the duplicate client-side LLM calls that the new server
-//   pipeline replaced. This hook does only the propagation.
+// Replacement contract:
+//   A 15s setInterval ticks while the active brain is mounted. Each tick
+//   bails out early if the document is hidden, or if no entry in the
+//   active brain is currently pending enrichment. When at least one
+//   entry IS pending and the tab is visible, fetch only those ids
+//   (id=in.(...)) and merge enrichment-relevant fields back into local
+//   state. Fires an immediate catch-up tick on visibility regain.
 //
-// Auth/RLS:
-//   getRealtimeClient() carries the user JWT via the accessToken
-//   callback, so RLS on entries (user_id = auth.uid()) admits the
-//   broadcast. Without that JWT every UPDATE is silently filtered.
-//
-// Required server-side prerequisites (already done):
-//   - migration 047: ALTER PUBLICATION supabase_realtime ADD TABLE entries
-//   - REPLICA IDENTITY DEFAULT (so payload.new contains the full row)
+// Why this is enough:
+//   The only consumer of the old realtime stream was the P/I/C/E chips
+//   and the wave-dot. Those advance over a 5-30s enrichment window after
+//   capture. A 15s poll catches them with at most one stale frame, which
+//   matches what users already saw on flaky networks.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
-import { getRealtimeClient } from "../lib/supabaseRealtime";
-import { supabase } from "../lib/supabase";
 import type { Entry } from "../types";
+import { isPendingEnrichment } from "../lib/enrichFlags";
+import { authFetch } from "../lib/authFetch";
+
+const POLL_MS = 15_000;
 
 export function useEntryRealtime(
   activeBrainId: string | undefined,
   setEntries: Dispatch<SetStateAction<Entry[]>>,
 ): void {
+  const setEntriesRef = useRef(setEntries);
+  useEffect(() => {
+    setEntriesRef.current = setEntries;
+  }, [setEntries]);
+
   useEffect(() => {
     if (!activeBrainId) return;
 
     let cancelled = false;
-    let cleanup: (() => void) | null = null;
 
-    (async () => {
-      // Critical: set the access token BEFORE the channel.subscribe sends
-      // its phx_join message. Without this, the join races the async
-      // onAuthStateChange listener and goes out with claims_role=anon —
-      // server-side RLS on entries (user_id = auth.uid()) then filters
-      // out every row and the channel never delivers a payload, even
-      // though it reports SUBSCRIBED.
-      const { data } = await supabase.auth.getSession();
+    // Snapshot pending ids from current state without actually mutating.
+    // The functional setter calls our updater synchronously so we can
+    // capture state in a closure and return prev unchanged.
+    const snapshotPending = (): string[] => {
+      let ids: string[] = [];
+      setEntriesRef.current((prev) => {
+        ids = prev
+          .filter((e) => e.brain_id === activeBrainId && isPendingEnrichment(e))
+          .map((e) => e.id);
+        return prev;
+      });
+      return ids;
+    };
+
+    const tick = async () => {
       if (cancelled) return;
-      const token = data.session?.access_token ?? null;
-
-      const rt = getRealtimeClient();
-      if (token) {
-        await rt.setAuth(token);
-      } else {
-        console.warn(
-          "[realtime] no session token at subscribe time — broadcast will be filtered as anon",
-        );
-      }
-
-      if (cancelled) return;
-      const channel = rt.channel(`entries:${activeBrainId}`);
-
-      channel
-        .on(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          "postgres_changes" as any,
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "entries",
-            filter: `brain_id=eq.${activeBrainId}`,
-          },
-          (payload: { new?: Partial<Entry> & { id?: string } }) => {
-            const row = payload?.new;
-            if (!row?.id) return;
-            setEntries((prev) => {
-              const idx = prev.findIndex((e) => e.id === row.id);
-              if (idx === -1) return prev;
-              const next = prev.slice();
-              const merged: Entry = { ...next[idx] };
-              if (row.metadata !== undefined) merged.metadata = row.metadata;
-              if (row.embedded_at !== undefined) merged.embedded_at = row.embedded_at;
-              if (row.embedding_status !== undefined)
-                merged.embedding_status = row.embedding_status;
-              if (row.status !== undefined) merged.status = row.status;
-              next[idx] = merged;
-              return next;
-            });
-          },
-        )
-        .subscribe((status: string, err?: Error) => {
-          if (err) console.warn(`[realtime] entries:${activeBrainId} → ${status}`, err);
+      if (document.visibilityState !== "visible") return;
+      const pending = snapshotPending();
+      if (pending.length === 0) return;
+      try {
+        const idList = pending.slice(0, 100).join(",");
+        const r = await authFetch(`/api/entries?ids=${encodeURIComponent(idList)}`, {
+          cache: "no-store",
         });
+        if (!r?.ok) return;
+        const data = await r.json().catch(() => null);
+        const rows: Entry[] = Array.isArray(data) ? data : (data?.entries ?? []);
+        if (!rows.length || cancelled) return;
+        setEntriesRef.current((prev) => {
+          const byId = new Map(rows.map((row) => [row.id, row]));
+          let dirty = false;
+          const next = prev.map((e) => {
+            const fresh = byId.get(e.id);
+            if (!fresh) return e;
+            // Merge only fields enrichment flips — leaves any in-flight
+            // optimistic edits to title / tags / content untouched.
+            const merged: Entry = {
+              ...e,
+              metadata: fresh.metadata ?? e.metadata,
+              embedded_at: fresh.embedded_at ?? e.embedded_at,
+              embedding_status: fresh.embedding_status ?? e.embedding_status,
+              status: fresh.status ?? e.status,
+            };
+            dirty = true;
+            return merged;
+          });
+          return dirty ? next : prev;
+        });
+      } catch {
+        // Network blip — next tick retries. Don't surface to the UI.
+      }
+    };
 
-      cleanup = () => {
-        channel.unsubscribe();
-      };
-    })();
-
+    const id = setInterval(tick, POLL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
-      cleanup?.();
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [activeBrainId, setEntries]);
+  }, [activeBrainId]);
 }

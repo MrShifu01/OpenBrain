@@ -109,6 +109,32 @@ async function handleGet({ req, res, user }: HandlerContext): Promise<void> {
   const trash = req.query.trash === "true";
   const staged = req.query.staged === "true";
 
+  // Targeted fetch by id list — used by the enrichment-progress poller
+  // (replaced postgres_changes realtime, see src/hooks/useEntryRealtime.ts).
+  // Caller passes ?ids=uuid1,uuid2,...; we filter to entries owned by the
+  // requesting user and return the same { entries } shape as a list.
+  const idsParam = req.query.ids as string | undefined;
+  if (idsParam && typeof idsParam === "string") {
+    const ids = idsParam
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))
+      .slice(0, 200);
+    if (ids.length === 0) {
+      res.setHeader("Cache-Control", "no-store");
+      res.status(200).json({ entries: [] });
+      return;
+    }
+    const idList = ids.map((id) => encodeURIComponent(id)).join(",");
+    const url = `${SB_URL}/rest/v1/entries?select=${encodeURIComponent(ENTRY_FIELDS)}&user_id=eq.${encodeURIComponent(user.id)}&id=in.(${idList})`;
+    const response = await fetch(url, { headers: sbHeadersNoContent() });
+    if (!response.ok) throw new ApiError(502, "Database error");
+    const rows = (await response.json()) as unknown[];
+    res.setHeader("Cache-Control", "no-store");
+    res.status(200).json({ entries: rows });
+    return;
+  }
+
   const cursorFilter = cursor ? `&created_at=lt.${encodeURIComponent(cursor)}` : "";
   const deletedFilter = trash ? "&deleted_at=not.is.null" : "&deleted_at=is.null";
   const statusFilter = staged ? "&status=eq.staged" : "&status=eq.active";
