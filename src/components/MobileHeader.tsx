@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
@@ -6,6 +6,54 @@ import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+
+// Auto-hide on scroll-down, slide back in on scroll-up. Pattern shipping
+// in Mail / Twitter / Instagram — gives users back the vertical real
+// estate while reading without losing access to search / bell / brain
+// switcher (a flick up brings the header right back).
+//
+// Threshold of 60px means the first short scroll never triggers a hide,
+// only a meaningful intent to read deeper. Tiny dy gates (>4 / <-4) kill
+// jitter from rubber-band on iOS.
+//
+// Listens via capture-phase on document AND window — covers both normal
+// page scroll and any scroll bubbling from descendant scroll containers.
+function readScrollY(): number {
+  if (typeof window === "undefined") return 0;
+  return Math.max(
+    window.scrollY || 0,
+    window.pageYOffset || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0,
+  );
+}
+
+function useHideOnScroll(threshold = 60): boolean {
+  const [hidden, setHidden] = useState(false);
+  useEffect(() => {
+    let lastY = readScrollY();
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = readScrollY();
+        const dy = y - lastY;
+        if (y > threshold && dy > 4) setHidden(true);
+        else if (dy < -4 || y < threshold) setHidden(false);
+        lastY = y;
+        ticking = false;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("scroll", onScroll, true);
+    };
+  }, [threshold]);
+  return hidden;
+}
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -40,22 +88,25 @@ export default function MobileHeader({
 }: MobileHeaderProps) {
   const { adminFlags } = useAdminDevMode();
   const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
+  const hidden = useHideOnScroll();
 
-  // Publish the header height as a CSS var so other sticky bars (e.g.
-  // settings mobile tabs) can offset themselves correctly. Includes the
-  // safe-area inset for notched phones. With the active-brain card sitting
-  // below the header bar, total height grows when multibrain is on.
+  // Publish the header's effective height as a CSS var so other sticky
+  // bars (e.g. MemoryHeader's title + filter row) can sit flush at the
+  // top while the header is hidden — and back below it when it
+  // reappears. Goes to 0 when hidden so the secondary bars slide up to
+  // top:0 in lock-step. Includes safe-area inset for notched phones;
+  // multibrain widens the bar with the active-brain card beneath.
   useEffect(() => {
     const root = document.documentElement;
     const baseHeight = showBrainSwitcher ? 116 : 56;
     root.style.setProperty(
       "--app-header-h",
-      `calc(${baseHeight}px + env(safe-area-inset-top, 0px))`,
+      hidden ? "0px" : `calc(${baseHeight}px + env(safe-area-inset-top, 0px))`,
     );
     return () => {
       root.style.removeProperty("--app-header-h");
     };
-  }, [showBrainSwitcher]);
+  }, [hidden, showBrainSwitcher]);
 
   return (
     <div
@@ -63,6 +114,9 @@ export default function MobileHeader({
       style={{
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
+        transform: hidden ? "translateY(-100%)" : "translateY(0)",
+        transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        willChange: "transform",
       }}
     >
       {/* Outer wrapper carries `.safe-top` (env(safe-area-inset-top)). Don't
