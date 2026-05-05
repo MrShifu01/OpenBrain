@@ -1132,9 +1132,13 @@ export default function Everion({ initialShowCapture }: { initialShowCapture?: b
     patchEntryIdRef.current = dataLayer.patchEntryId;
   }, [dataLayer.patchEntryId]);
 
-  // Single-user app — all brains are owned by the authenticated user.
-  // If multi-user support is added, wire this to brain membership/ownership.
-  const canWrite = true;
+  // Multi-brain (post-2026-05-05): owners + members can write; viewers are
+  // read-only. activeBrain.my_role is set by /api/brains based on
+  // brain_members.role for shared brains and 'owner' for owned brains.
+  // Falls back to true when activeBrain is undefined (boot-time, brain
+  // switcher in transit) so the UI stays usable while we wait — the API
+  // then enforces the same check server-side via requireBrainAccess.
+  const canWrite = !activeBrain || activeBrain.my_role !== "viewer";
   const { nudge, setNudge } = useNudge({
     entriesLoaded: dataLayer.entriesLoaded,
     entries: dataLayer.entries,
