@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" class="family-bronze theme-dark dark" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
@@ -21,8 +21,8 @@
       fallbacks cover the FOUC window; DesignThemeContext then writes a
       dynamic <meta name="theme-color"> matching the resolved --bg.
     -->
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f6efe1" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0e0e0e" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3efe9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#393c42" />
     <meta
       name="description"
       content="One private place for the thoughts you'd lose and the facts you can't afford to — gate codes, policy numbers, half-formed ideas, and everything in between. Capture in one tap, recall by asking. Local-first, end-to-end encrypted."
@@ -221,16 +221,30 @@
       window so the visual stays identical the whole way through.
     -->
     <style>
+      /* Bronze / Slate dark — inline fallbacks so the very first paint
+         (before family-bronze.css arrives) already shows the bronze tokens.
+         Values mirror src/design/family-bronze.css. Keeps boot shell
+         identical to the resolved theme so there's no first-frame flash. */
+      :root {
+        --bg: oklch(24% 0.008 250);
+        --ink: oklch(94% 0.012 84);
+        --ember: oklch(76% 0.105 82);
+        --color-background: oklch(24% 0.008 250);
+        --color-primary: oklch(76% 0.105 82);
+        --color-tertiary: oklch(62% 0.07 152);
+        --color-surface-container-highest: oklch(34% 0.012 246);
+        --color-outline-variant: oklch(31% 0.01 250);
+      }
       html,
       body {
         margin: 0;
-        background: var(--bg, var(--color-background, #0e0e0e));
+        background: var(--bg, #393c42);
         color: var(--ink, #f0ede6);
         min-height: 100%;
       }
       #root {
         min-height: 100dvh;
-        background: var(--bg, var(--color-background, #0e0e0e));
+        background: var(--bg, #393c42);
       }
       .app-shell-boot {
         position: fixed;
@@ -242,7 +256,7 @@
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        background: var(--bg, var(--color-background, #0e0e0e));
+        background: var(--bg, #393c42);
         z-index: 100;
       }
       .app-shell-boot__stack {

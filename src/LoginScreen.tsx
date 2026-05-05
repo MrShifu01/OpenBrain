@@ -181,13 +181,22 @@ export default function LoginScreen({
       }}
     >
       {/* ── DESKTOP: two-column layout ── */}
-      <div style={{ position: "relative", zIndex: 1, width: "100%" }}>
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+        }}
+      >
         <div
           data-testid="login-center-wrapper"
           className="login-two-col"
           style={{
             width: "100%",
             maxWidth: 960,
+            margin: "0 auto",
             display: "flex",
             alignItems: "stretch",
             minHeight: 560,
