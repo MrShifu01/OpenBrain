@@ -9,7 +9,7 @@
 // the two entry points used by Everion.tsx.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Entry } from "../types";
 import { EntryCard } from "./EntryCard";
 import { EntryRow } from "./EntryRow";
@@ -67,12 +67,19 @@ export function VirtualGrid({
   }, [filtered, cols]);
   const listRef = useRef<HTMLDivElement>(null);
   const ROW_GAP = 16;
-  // eslint-disable-next-line react-hooks/refs
-  const virtualizer = useWindowVirtualizer({
+  // Bind the virtualizer to <main id="main-content"> — the signed-in
+  // shell's actual scroll container post-refactor (commit a14d914).
+  // useWindowVirtualizer (previously here) listens to window scroll
+  // events, but with body locked at 100lvh + overflow:hidden, scroll
+  // happens on main-content and window scroll never fires — virtualizer
+  // froze at the initial overscan window so only ~7 entries rendered.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
     count: rows.length,
+    getScrollElement: () =>
+      typeof document !== "undefined" ? document.getElementById("main-content") : null,
     estimateSize: () => (isList ? 60 : 190 + ROW_GAP),
     overscan: 4,
-    scrollMargin: listRef.current?.offsetTop ?? 0, // eslint-disable-line react-hooks/refs
     measureElement: (el) => el.getBoundingClientRect().height,
   });
   return (
@@ -85,7 +92,7 @@ export function VirtualGrid({
             ref={virtualizer.measureElement}
             style={{
               position: "absolute",
-              top: vRow.start - virtualizer.options.scrollMargin,
+              top: vRow.start,
               left: 0,
               right: 0,
               display: "grid",
