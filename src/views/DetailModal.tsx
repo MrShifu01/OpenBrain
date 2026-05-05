@@ -400,13 +400,23 @@ No explanation, no punctuation, just one word.`,
           onInteractOutside={(e) => {
             if (editing) e.preventDefault();
           }}
-          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-[calc(100%-12px)] max-w-[720px] -translate-x-1/2 flex-col lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
+          // Tailwind v4 needs underscores inside arbitrary calc() values
+          // (`calc(100%_-_12px)`); the prior `calc(100%-12px)` was invalid
+          // CSS and Tailwind dropped the rule, so the modal lost its width
+          // cap and grew to its content's intrinsic width — pushing the
+          // close button off-screen on narrow viewports. width + bottom
+          // now ride on inline style to sidestep the v4 tokenizer; the
+          // translate classes still drive centering so desktop's vertical
+          // centering keeps composing correctly.
+          className="fixed left-1/2 z-50 flex max-w-[720px] -translate-x-1/2 flex-col lg:top-1/2 lg:bottom-auto lg:-translate-y-1/2"
           style={{
             background: "var(--surface-high)",
             border: "1px solid var(--line-soft)",
             borderRadius: 18,
             boxShadow: "var(--lift-3)",
             animation: "design-scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+            width: "calc(100% - 12px)",
+            bottom: "calc(96px + env(safe-area-inset-bottom))",
             maxHeight:
               "calc(100dvh - 96px - env(safe-area-inset-bottom) - env(safe-area-inset-top))",
           }}
@@ -938,7 +948,14 @@ No explanation, no punctuation, just one word.`,
                   </div>
                 ) : (
                   <>
-                    {/* Body — serif 18/1.65, the redesign's "reading surface" */}
+                    {/* Body — serif 18/1.65, the redesign's "reading surface".
+                        overflowWrap: "anywhere" handles unbreakable tokens
+                        like long URLs and the `*****…*` divider walls Gmail
+                        statements love — without it pre-wrap preserves
+                        newlines but the wall overflows horizontally and
+                        drags subsequent lines off-screen. minWidth: 0 is the
+                        flex-child escape hatch so this <p> can actually
+                        shrink below its content's intrinsic width. */}
                     <p
                       className="f-serif"
                       style={{
@@ -947,6 +964,9 @@ No explanation, no punctuation, just one word.`,
                         color: "var(--ink)",
                         margin: 0,
                         whiteSpace: "pre-wrap",
+                        overflowWrap: "anywhere",
+                        wordBreak: "break-word",
+                        minWidth: 0,
                       }}
                     >
                       {!showFullText && (editContent || "").length > CONTENT_PREVIEW_LIMIT
