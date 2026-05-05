@@ -34,7 +34,18 @@ export default function MemoryHeader({
   onAcceptMerge,
 }: Props) {
   return (
-    <>
+    // Sticky wrapper so the Memory topbar + filter row stay pinned under the
+    // global app header while the grid scrolls. --app-header-h is published
+    // by MobileHeader on mobile (~56px + safe-area); on desktop it's unset,
+    // so the fallback 60px matches DesktopHeader's height. z-20 sits below
+    // the global header (z-30) so the bars layer correctly.
+    <div
+      className="sticky z-20"
+      style={{
+        top: "var(--app-header-h, 60px)",
+        background: "var(--bg)",
+      }}
+    >
       {/* Memory top bar — title + Remember */}
       <header
         className="memory-topbar hidden lg:flex"
@@ -237,6 +248,6 @@ export default function MemoryHeader({
               : "Recent first"}
         </Button>
       </div>
-    </>
+    </div>
   );
 }
