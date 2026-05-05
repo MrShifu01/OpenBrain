@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { AppNotification } from "../hooks/useNotifications";
 import NotificationBell from "./NotificationBell";
 import BrainSwitcher from "./BrainSwitcher";
@@ -6,54 +6,7 @@ import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-
-// Auto-hide on scroll-down, slide back in on scroll-up. Pattern shipping
-// in Mail / Twitter / Instagram — gives users back the vertical real
-// estate while reading without losing access to search / bell / brain
-// switcher (a flick up brings the header right back).
-//
-// Threshold of 60px means the first short scroll never triggers a hide,
-// only a meaningful intent to read deeper. Tiny dy gates (>4 / <-4) kill
-// jitter from rubber-band on iOS.
-//
-// Listens via capture-phase on document AND window — covers both normal
-// page scroll and any scroll bubbling from descendant scroll containers.
-function readScrollY(): number {
-  if (typeof window === "undefined") return 0;
-  return Math.max(
-    window.scrollY || 0,
-    window.pageYOffset || 0,
-    document.documentElement?.scrollTop || 0,
-    document.body?.scrollTop || 0,
-  );
-}
-
-function useHideOnScroll(threshold = 60): boolean {
-  const [hidden, setHidden] = useState(false);
-  useEffect(() => {
-    let lastY = readScrollY();
-    let ticking = false;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const y = readScrollY();
-        const dy = y - lastY;
-        if (y > threshold && dy > 4) setHidden(true);
-        else if (dy < -4 || y < threshold) setHidden(false);
-        lastY = y;
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    document.addEventListener("scroll", onScroll, { passive: true, capture: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      document.removeEventListener("scroll", onScroll, true);
-    };
-  }, [threshold]);
-  return hidden;
-}
+import { useHideOnScroll } from "../hooks/useHideOnScroll";
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -115,13 +68,16 @@ export default function MobileHeader({
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
         transform: hidden ? "translateY(-100%)" : "translateY(0)",
+        opacity: hidden ? 0 : 1,
         // Match the --app-header-h transition timing in index.css so the
         // global header and MemoryHeader's filter row animate in
         // lockstep. cubic-bezier(0.32, 0.72, 0, 1) is iOS-style
-        // ease-out — feels natural for header slide vs the previous
-        // snappier curve which read as jerky.
-        transition: "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
-        willChange: "transform",
+        // ease-out — feels natural for header slide. Opacity fades on
+        // the same curve so the header dissolves as it leaves rather
+        // than sliding behind the iPhone status bar still fully opaque.
+        transition:
+          "transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 220ms cubic-bezier(0.32, 0.72, 0, 1)",
+        willChange: "transform, opacity",
       }}
     >
       {/* Outer wrapper carries `.safe-top` (env(safe-area-inset-top)). Don't
