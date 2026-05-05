@@ -1,5 +1,22 @@
 # CLAUDE.md
 
+> **🛑 NO GUESSING. EVER. SENIOR-ENGINEER STANDARD.**
+> This is an enterprise-level app — public-launch, thousands of users, security-critical (vault, biometrics, recovery keys, RLS). Speculative patches are unacceptable.
+>
+> Before changing code in response to a bug report, you MUST:
+> 1. **Get hard numbers**, not theories. Real values from the user's device or environment — DOM measurements, computed styles, network responses, log lines, supabase rows, env vars. If you can't see them, build a diagnostic that prints them on screen / to a log / to the response, ship it, and ask for the readings. No "this is probably env() commit timing" — measure env() and prove it.
+> 2. **Identify root cause from those numbers.** State the cause in one sentence with the supporting evidence. If multiple causes are plausible, list them and what would distinguish them.
+> 3. **Apply the surgical fix that addresses the cause.** Not a workaround layered over a workaround.
+> 4. **Verify the fix lands** — typecheck, lint, dev-build, and where possible a real-device check. Don't claim "fixed" without evidence the fix solves the named cause.
+>
+> If you find yourself stacking patches because the previous didn't work, STOP. The cause was wrong. Revert and re-diagnose. Do not ship a third attempt.
+>
+> Forbidden phrases when you don't actually know: "should fix it", "this is the fix", "now it works". Use "the diagnostic shows X, fix is Y, here's the proof" or admit you need more data.
+>
+> **Use `/caveman` (full mode) for all user-facing prose** — drop articles, filler, hedging. Short, lean, powerful. Code blocks and exact strings stay verbatim. Never compress technical content for cuteness.
+>
+> Repeat: hard numbers → root cause → surgical fix → verify. No guessing.
+
 > **❌ NEVER USE SUPERPOWERS SKILLS.**
 > Do not invoke the `superpowers:*` skill family — no `superpowers:brainstorming`, no `superpowers:writing-plans`, no `superpowers:code-reviewer`, no design-doc spec gates, no "let me ask one clarifying question at a time" loops.
 > When the user asks to tackle a feature, propose a concise design inline (multiple-choice or short bullets), confirm decisions in the same turn or two, then implement. No `docs/superpowers/specs/` writes. No HARD-GATE language. Just build.
