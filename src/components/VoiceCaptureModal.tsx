@@ -183,6 +183,13 @@ export default function VoiceCaptureModal({ isOpen, onClose, onTranscript }: Pro
           opacity: visible ? 1 : 0,
           transform: visible ? "translateY(0)" : "translateY(12px)",
           transition: "opacity 240ms ease, transform 240ms cubic-bezier(0.22, 1, 0.36, 1)",
+          // Radix Dialog (the parent CaptureSheet) sets pointer-events:none
+          // on <body> while open and routes them only through its own portal.
+          // We portal to document.body too, so without this override every
+          // click in the voice modal falls through to nothing — the user sees
+          // the stop button do nothing while recording continues. Force auto
+          // here to claim our own pointer events back.
+          pointerEvents: "auto",
         }}
       >
         {/* Top row — cancel X */}

@@ -397,9 +397,15 @@ export default function CaptureSheet({
             onPointerDownOutside={(e) => {
               // Preview-aware: don't dismiss while reviewing.
               if (preview) e.preventDefault();
+              // Voice modal portals to document.body, so clicks inside it
+              // are technically "outside" the Radix DialogContent tree —
+              // without this guard, tapping the stop button would dismiss
+              // CaptureSheet mid-recording.
+              if (voiceModalOpen) e.preventDefault();
             }}
             onInteractOutside={(e) => {
               if (preview) e.preventDefault();
+              if (voiceModalOpen) e.preventDefault();
             }}
             style={{
               background: "var(--surface-high)",
