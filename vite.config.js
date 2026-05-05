@@ -48,12 +48,27 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("/node_modules/@supabase/")) return "supabase";
           if (id.includes("/node_modules/@sentry/")) return "sentry";
-          // pdfjs/mammoth/exceljs are dynamically imported in fileExtract.ts.
-          // Letting Vite auto-chunk them keeps small shared utilities out of
-          // the eagerly-modulepreloaded set — manual chunking these would
-          // pin shared utility modules into a "named" chunk that the entry
-          // statically pulls (~120KB gzip pdfjs preload regression we saw in
-          // the bundle audit).
+          // Group radix-ui primitives into one vendor chunk. Without this each
+          // primitive (dialog, popover, tabs, select, ...) ends up in its own
+          // micro-chunk — ~15 separate dist-*.js requests on first paint, each
+          // < 5 KB. One ~80 KB chunk gzips better and saves the per-request
+          // HTTP/2 stream overhead. radix is used both eagerly (Tooltip,
+          // Toaster) and lazily (Dialog inside DetailModal); putting it in a
+          // shared chunk means lazy paths reuse the eager download.
+          if (id.includes("/node_modules/@radix-ui/")) return "radix";
+          // lucide-react fans out into per-icon chunks otherwise. Single chunk
+          // is cheaper than 8 separate icon-bundle requests.
+          if (id.includes("/node_modules/lucide-react/")) return "lucide";
+          // posthog-js is consent + idle-deferred (see main.tsx deferSdks).
+          // Pinning to its own chunk keeps the deferred fetch from accidentally
+          // pulling in unrelated vendor code via cross-chunk imports.
+          if (id.includes("/node_modules/posthog-js/")) return "posthog";
+          // pdfjs/mammoth/exceljs/jszip are dynamically imported in
+          // fileExtract.ts. Letting Vite auto-chunk them keeps small shared
+          // utilities out of the eagerly-modulepreloaded set — manual chunking
+          // these would pin shared utility modules into a "named" chunk that
+          // the entry statically pulls (~120 KB gzip pdfjs preload regression
+          // we saw in the bundle audit).
         },
       },
     },

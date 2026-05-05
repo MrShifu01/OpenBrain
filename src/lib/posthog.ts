@@ -38,12 +38,19 @@ export async function initPostHog(): Promise<void> {
     autocapture: true,
     capture_pageview: true,
     capture_pageleave: true,
-    session_recording: {
-      // Privacy hard-stop: never capture what users type. Entries, vault
-      // contents, secret notes, and search queries all flow through inputs
-      // — masking is the only safe default for this product.
-      maskAllInputs: true,
-    },
+    // Disable session recording — pulls a separate ~120 KB recorder bundle
+    // and uploads a continuous stream of mutation events for every user.
+    // We don't review recordings as a routine debugging tool. Re-enable per
+    // cohort via PostHog feature flag remote config when investigating a
+    // specific UX issue. maskAllInputs is preserved as a safety belt for the
+    // re-enable case (entries, vault content, secret notes flow through
+    // inputs — never capture what users type).
+    disable_session_recording: true,
+    session_recording: { maskAllInputs: true },
+    // Dead-clicks autocapture pulls another ~80 KB sub-bundle and we don't
+    // action that data. Surveys are also unused — kill both.
+    capture_dead_clicks: false,
+    disable_surveys: true,
   });
   client = posthog;
 

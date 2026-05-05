@@ -43,8 +43,13 @@ applyInitialDesignTheme();
 // CSP `script-src 'self'` blocks inline event handlers — captured by e2e
 // when we tried it. JS injection is allowed, so do it from here.
 (function loadFontsAsync() {
+  // JetBrains Mono dropped from the cold-load font request — code blocks fall
+  // back to system monospace (Menlo / Consolas / monospace) which is perfectly
+  // legible. Saves ~70 KB and one round-trip on every visit. If we want
+  // JetBrains Mono back for code blocks specifically, lazy-inject from the
+  // CodeBlock component on mount.
   const href =
-    "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter+Tight:wght@400;450;500;600&family=JetBrains+Mono:wght@400;500&display=swap";
+    "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter+Tight:wght@400;450;500;600&display=swap";
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = href;
@@ -60,13 +65,26 @@ async function initSentry() {
   });
 }
 
-// Init immediately if user already consented in a previous session
-if (getConsentDecision() === "accepted") {
-  void initSentry();
-  // Fire-and-forget — posthog-js is lazy-imported so this returns quickly
-  // and the actual SDK loads in a separate chunk after the app is up.
-  void initPostHog();
+// Defer 3rd-party SDK boot until after first paint + idle. Sentry +
+// posthog-js together pull ~700 KB + 5 round-trips of static assets
+// (recorder, surveys, dead-clicks, web-vitals, config). Running them
+// eagerly competes with App / Landing / Supabase chunks for the same
+// bandwidth and main-thread time on cold start. requestIdleCallback
+// (with a 2s setTimeout fallback for Safari < 17) yields the boot path
+// a clean window; errors thrown in the first ~2s are still caught by
+// boot-watchdog.js, just not symbolicated by Sentry.
+function deferSdks() {
+  type Idle = (cb: () => void, opts?: { timeout?: number }) => number;
+  const ric: Idle | undefined = (window as unknown as { requestIdleCallback?: Idle })
+    .requestIdleCallback;
+  const run = () => {
+    void initSentry();
+    void initPostHog();
+  };
+  if (ric) ric(run, { timeout: 4000 });
+  else setTimeout(run, 2000);
 }
+if (getConsentDecision() === "accepted") deferSdks();
 
 // Don't auto-reload on `controllerchange`. vite-plugin-pwa already handles
 // the reload internally — when the user taps "Refresh" in <UpdatePrompt>,
