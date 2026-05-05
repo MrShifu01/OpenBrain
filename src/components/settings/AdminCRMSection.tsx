@@ -241,7 +241,14 @@ function TierChangePanel({
 }) {
   const [next, setNext] = useState<Tier>(currentTier as Tier);
   const [reason, setReason] = useState("");
-  const valid = next !== currentTier && reason.trim().length > 0;
+  const tierChanged = next !== currentTier;
+  const reasonValid = reason.trim().length > 0;
+  // Show the validation error inline once the user has interacted with the
+  // pill row or pressed Apply once. Pre-interaction silence keeps the panel
+  // calm; post-interaction explicit so the disabled button doesn't feel
+  // broken (the original UX bug — user clicked Starter, button stayed
+  // disabled, nothing surfaced the missing reason).
+  const [touched, setTouched] = useState(false);
 
   return (
     <div
@@ -301,14 +308,14 @@ function TierChangePanel({
         onChange={(e) => setReason(e.target.value)}
         rows={2}
         maxLength={200}
-        placeholder="Reason (required) — e.g. compensating support gift, refund offset, support escalation"
+        placeholder="Reason (required) — e.g. family member complimentary access, support escalation, refund offset"
         className="f-sans"
         style={{
           width: "100%",
           padding: "8px 10px",
           fontSize: 12,
           background: "var(--surface)",
-          border: "1px solid var(--line)",
+          border: `1px solid ${touched && !reasonValid ? "var(--blood)" : "var(--line)"}`,
           borderRadius: 8,
           color: "var(--ink)",
           outline: "none",
@@ -317,9 +324,16 @@ function TierChangePanel({
       />
       <div
         className="f-sans"
-        style={{ fontSize: 10, color: "var(--ink-faint)", marginTop: 4, marginBottom: 10 }}
+        style={{
+          fontSize: 10,
+          color: touched && !reasonValid ? "var(--blood)" : "var(--ink-faint)",
+          marginTop: 4,
+          marginBottom: 10,
+        }}
       >
-        {reason.trim().length} / 200 — recorded in audit_log
+        {touched && !reasonValid
+          ? "Reason is required — describe why you're changing this tier."
+          : `${reason.trim().length} / 200 — recorded in audit_log`}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <SettingsButton onClick={onCancel} disabled={busy}>
@@ -327,8 +341,13 @@ function TierChangePanel({
         </SettingsButton>
         <SettingsButton
           danger={next === "free"}
-          onClick={() => valid && onApply(next, reason.trim())}
-          disabled={!valid || busy}
+          onClick={() => {
+            setTouched(true);
+            if (!tierChanged) return;
+            if (!reasonValid) return;
+            onApply(next, reason.trim());
+          }}
+          disabled={!tierChanged || busy}
         >
           {busy ? "Applying…" : `Set to ${next}`}
         </SettingsButton>
