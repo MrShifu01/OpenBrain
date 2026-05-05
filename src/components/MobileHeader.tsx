@@ -115,7 +115,12 @@ export default function MobileHeader({
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
         transform: hidden ? "translateY(-100%)" : "translateY(0)",
-        transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
+        // Match the --app-header-h transition timing in index.css so the
+        // global header and MemoryHeader's filter row animate in
+        // lockstep. cubic-bezier(0.32, 0.72, 0, 1) is iOS-style
+        // ease-out — feels natural for header slide vs the previous
+        // snappier curve which read as jerky.
+        transition: "transform 280ms cubic-bezier(0.32, 0.72, 0, 1)",
         willChange: "transform",
       }}
     >
