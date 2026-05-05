@@ -264,15 +264,7 @@ export function VaultUnlocked({
             Passwords, PINs, recovery codes, anything you don't want in plaintext. Encrypted
             client-side with your master passphrase.
           </p>
-          <Button
-            type="button"
-            onClick={() =>
-              window.dispatchEvent(
-                new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
-              )
-            }
-            className="mt-1"
-          >
+          <Button type="button" onClick={openAddSecret} className="mt-1">
             Add a secret
           </Button>
         </div>

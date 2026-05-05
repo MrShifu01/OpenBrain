@@ -615,25 +615,17 @@ body {
   max-width: 100vw;
 }
 
-/* Register --app-header-h as a typed custom property so it can be
-   smoothly interpolated. Without this @property declaration, CSS
-   variables jump from value to value with no transition — which made
-   MemoryHeader's sticky filter row snap to top:0 instantly while the
-   mobile global header was still translating up over 220ms. They
-   detached mid-animation and looked disconnected. With the property
-   registered we can transition it and have the filter row slide in
-   lockstep with the header's translate. Initial 60px matches
-   DesktopHeader's height for the desktop case where MobileHeader
-   doesn't render and the variable would otherwise be unset. */
+/* Register --app-header-h as a typed custom property so secondary sticky
+   bars (MemoryHeader filter row, SettingsView tabs nav) can use it as
+   their `top:` offset and sit flush under the global header. Initial
+   60px matches DesktopHeader's height for the desktop case where
+   MobileHeader doesn't render and the variable would otherwise be unset. */
 @property --app-header-h {
   syntax: "<length>";
   inherits: true;
   initial-value: 60px;
 }
 
-html {
-  transition: --app-header-h 280ms cubic-bezier(0.32, 0.72, 0, 1);
-}
 body {
   font-family: "DM Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;

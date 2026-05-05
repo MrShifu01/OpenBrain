@@ -4,7 +4,6 @@ import type { AppNotification } from "./hooks/useNotifications";
 import type { Entry } from "./types";
 import { Button } from "./components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./components/ui/tabs";
-import { useHideOnScroll, useIsMobileViewport } from "./hooks/useHideOnScroll";
 
 interface Props {
   appShell: AppShellState;
@@ -34,34 +33,18 @@ export default function MemoryHeader({
   onDismissAllNotifications,
   onAcceptMerge,
 }: Props) {
-  // Auto-hide-on-scroll mirror — same `hidden` decision as MobileHeader,
-  // scoped to mobile only. On mobile the wrapper translates + fades in
-  // lockstep with the global header so the filter row doesn't peek out
-  // behind the iPhone status bar after the header has slid away.
-  const hidden = useHideOnScroll();
-  const isMobile = useIsMobileViewport();
-  const shouldHide = hidden && isMobile;
-
   return (
     // Sticky wrapper so the Memory topbar + filter row stay pinned under the
     // global app header while the grid scrolls. --app-header-h is published
     // by MobileHeader on mobile (~56px + safe-area); on desktop it's unset,
     // so the fallback 60px matches DesktopHeader's height. z-20 sits below
-    // the global header (z-30) so the bars layer correctly.
+    // the global header (z-30) so the bars layer correctly. No translate/
+    // hide — the row stays put and sits flush below the global header.
     <div
       className="sticky z-20"
       style={{
         top: "var(--app-header-h, 60px)",
         background: "var(--bg)",
-        transform: shouldHide ? "translateY(-110%)" : "translateY(0)",
-        opacity: shouldHide ? 0 : 1,
-        // Same timing as MobileHeader so both animate as one motion.
-        // -110% (vs -100%) gives a small extra clearance so the bottom
-        // border doesn't peek through during the slide.
-        transition:
-          "transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 220ms cubic-bezier(0.32, 0.72, 0, 1)",
-        willChange: "transform, opacity",
-        pointerEvents: shouldHide ? "none" : "auto",
       }}
     >
       {/* Memory top bar — title + Remember */}

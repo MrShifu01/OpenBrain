@@ -679,14 +679,30 @@ export function useVaultOps({
         throw new Error(data?.error || `HTTP ${res.status}`);
       }
       const result = await res.json().catch(() => null);
+      const newId = result?.id || Date.now().toString();
       const newEntry: Entry = {
-        id: result?.id || Date.now().toString(),
+        id: newId,
         title: plain.title,
         content: plain.content,
         type: "secret",
         tags: tagList,
         metadata,
       };
+      // Mirror the server row into vaultEntries (encrypted, source of
+      // truth) so the next render's `secrets` array includes it. Without
+      // this, decryptedSecrets has the new row but secrets.length is
+      // stale, and any subsequent state change that re-fires the decrypt
+      // useEffect would wipe the optimistic insert.
+      const encryptedEntry: Entry = {
+        id: newId,
+        title: plain.title,
+        content: encrypted.content,
+        type: "secret",
+        tags: tagList,
+        metadata: typeof encrypted.metadata === "string" ? encrypted.metadata : metadata,
+        ...(brainId ? { brain_id: brainId } : {}),
+      } as Entry;
+      setVaultEntries((prev) => [encryptedEntry, ...prev]);
       setDecryptedSecrets((prev) => [newEntry, ...prev]);
       onEntryCreated?.(newEntry);
       resetAddForm();
@@ -764,14 +780,27 @@ export function useVaultOps({
           throw new Error(data?.error || `HTTP ${res.status}`);
         }
         const result = await res.json().catch(() => null);
+        const newId = result?.id || Date.now().toString();
         const newEntry: Entry = {
-          id: result?.id || Date.now().toString(),
+          id: newId,
           title: plain.title,
           content: plain.content,
           type: "secret",
           tags: payload.tags,
           metadata,
         };
+        // Mirror into vaultEntries so source of truth + decrypted view
+        // stay in sync — see handleAddSecret comment.
+        const encryptedEntry: Entry = {
+          id: newId,
+          title: plain.title,
+          content: encrypted.content,
+          type: "secret",
+          tags: payload.tags,
+          metadata: typeof encrypted.metadata === "string" ? encrypted.metadata : metadata,
+          ...(brainId ? { brain_id: brainId } : {}),
+        } as Entry;
+        setVaultEntries((prev) => [encryptedEntry, ...prev]);
         setDecryptedSecrets((prev) => [newEntry, ...prev]);
         onEntryCreated?.(newEntry);
         resetAddForm();

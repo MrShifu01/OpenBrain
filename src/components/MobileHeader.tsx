@@ -6,7 +6,6 @@ import { isFeatureEnabled } from "../lib/featureFlags";
 import { useAdminDevMode } from "../hooks/useAdminDevMode";
 import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { useHideOnScroll } from "../hooks/useHideOnScroll";
 
 interface MobileHeaderProps {
   onToggleTheme: () => void;
@@ -41,25 +40,23 @@ export default function MobileHeader({
 }: MobileHeaderProps) {
   const { adminFlags } = useAdminDevMode();
   const showBrainSwitcher = isFeatureEnabled("multiBrain", adminFlags);
-  const hidden = useHideOnScroll();
 
   // Publish the header's effective height as a CSS var so other sticky
-  // bars (e.g. MemoryHeader's title + filter row) can sit flush at the
-  // top while the header is hidden — and back below it when it
-  // reappears. Goes to 0 when hidden so the secondary bars slide up to
-  // top:0 in lock-step. Includes safe-area inset for notched phones;
-  // multibrain widens the bar with the active-brain card beneath.
+  // bars (MemoryHeader's filter row, SettingsView's tabs nav) can use
+  // it as their `top:` offset and sit flush below the header with no
+  // overlap. Includes safe-area inset for notched phones; multibrain
+  // widens the bar with the active-brain card beneath.
   useEffect(() => {
     const root = document.documentElement;
     const baseHeight = showBrainSwitcher ? 116 : 56;
     root.style.setProperty(
       "--app-header-h",
-      hidden ? "0px" : `calc(${baseHeight}px + env(safe-area-inset-top, 0px))`,
+      `calc(${baseHeight}px + env(safe-area-inset-top, 0px))`,
     );
     return () => {
       root.style.removeProperty("--app-header-h");
     };
-  }, [hidden, showBrainSwitcher]);
+  }, [showBrainSwitcher]);
 
   return (
     <div
@@ -67,17 +64,6 @@ export default function MobileHeader({
       style={{
         background: "var(--bg)",
         borderBottom: "1px solid var(--line-soft)",
-        transform: hidden ? "translateY(-100%)" : "translateY(0)",
-        opacity: hidden ? 0 : 1,
-        // Match the --app-header-h transition timing in index.css so the
-        // global header and MemoryHeader's filter row animate in
-        // lockstep. cubic-bezier(0.32, 0.72, 0, 1) is iOS-style
-        // ease-out — feels natural for header slide. Opacity fades on
-        // the same curve so the header dissolves as it leaves rather
-        // than sliding behind the iPhone status bar still fully opaque.
-        transition:
-          "transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 220ms cubic-bezier(0.32, 0.72, 0, 1)",
-        willChange: "transform, opacity",
       }}
     >
       {/* Outer wrapper carries `.safe-top` (env(safe-area-inset-top)). Don't
