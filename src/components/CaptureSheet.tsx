@@ -121,10 +121,16 @@ export default function CaptureSheet({
   useEffect(() => {
     if (isOpen) {
       if (initialText) setText(initialText);
-      const scrollY = window.scrollY;
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
+      // Deliberately NOT touching document.body styles. Both this sheet
+      // and the Schedule drawer used to set body.style.overflow="hidden"
+      // (or worse, position:fixed) to lock background scroll while the
+      // drawer was open. iOS Safari treats body becoming non-scrollable
+      // as a signal to re-evaluate its dynamic viewport — the URL bar
+      // expands/collapses and the page content underneath the drawer
+      // visibly shifts. The fixed-position scrim already swallows pointer
+      // events on the background, so locking body scroll buys nothing
+      // on iOS and costs a layout jump. The drawer just slides over the
+      // top, leaves the background alone, the user sees no movement.
       requestAnimationFrame(() => {
         setVisible(true);
       });
@@ -142,10 +148,6 @@ export default function CaptureSheet({
       }, 420);
       return () => {
         window.clearTimeout(focusTimer);
-        document.body.style.position = "";
-        document.body.style.top = "";
-        document.body.style.width = "";
-        window.scrollTo(0, scrollY);
       };
     } else {
       setVisible(false);

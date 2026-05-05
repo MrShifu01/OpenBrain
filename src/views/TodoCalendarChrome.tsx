@@ -397,15 +397,14 @@ export function BottomSheet({
   }, [open]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Lock body scroll while sheet is mounted.
-  useEffect(() => {
-    if (!mounted) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [mounted]);
+  // Deliberately NOT touching document.body styles. Setting
+  // body.style.overflow="hidden" on iOS Safari triggers a URL bar
+  // expand/collapse re-evaluation; the page underneath visibly shifts
+  // when the drawer opens and snaps back when it closes. The fixed
+  // scrim above already absorbs pointer events on the background, so
+  // we don't need a body-level scroll lock to keep the user from
+  // scrolling behind the sheet — scroll bleed is blocked by the scrim
+  // covering the page.
 
   // Drag-to-dismiss state. Only triggered from the handle area at the top —
   // otherwise scrolling through the event list would conflict with closing.
