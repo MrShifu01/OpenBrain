@@ -423,7 +423,14 @@ No explanation, no punctuation, just one word.`,
             Entry details
           </DialogPrimitive.Description>
 
-          {/* Header — bell + TYPE · time on left, action icons on right */}
+          {/* Header — bell + TYPE · time on left, action icons on right.
+              position:sticky belt + flex-shrink:0 braces — on desktop the
+              flex layout alone keeps it pinned, but on mobile (anchored
+              by the modal's bottom: env(safe-area-inset-bottom) calc) iOS
+              Safari occasionally lets the inner scroll bleed past the
+              flex bounds. Sticky guarantees the header stays at the top
+              of the visible modal region regardless of which container
+              is doing the scrolling. */}
           <div
             style={{
               display: "flex",
@@ -432,6 +439,12 @@ No explanation, no punctuation, just one word.`,
               borderBottom: "1px solid var(--line-soft)",
               gap: 10,
               flexShrink: 0,
+              position: "sticky",
+              top: 0,
+              zIndex: 2,
+              background: "var(--surface-high)",
+              borderTopLeftRadius: 18,
+              borderTopRightRadius: 18,
             }}
           >
             <div
