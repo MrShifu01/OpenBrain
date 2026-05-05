@@ -3,13 +3,13 @@ import { useState } from "react";
 
 export const IconMic = ({ on = false }: { on?: boolean }) =>
   on ? (
-    <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg width="22" height="22" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
       <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   ) : (
     <svg
-      width="18"
-      height="18"
+      width="22"
+      height="22"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
@@ -25,8 +25,8 @@ export const IconMic = ({ on = false }: { on?: boolean }) =>
 
 export const IconAttach = (
   <svg
-    width="18"
-    height="18"
+    width="22"
+    height="22"
     fill="none"
     stroke="currentColor"
     strokeWidth="1.5"
@@ -90,8 +90,8 @@ export const IconX = (
 
 export const IconCamera = (
   <svg
-    width="18"
-    height="18"
+    width="22"
+    height="22"
     fill="none"
     stroke="currentColor"
     strokeWidth="1.5"
