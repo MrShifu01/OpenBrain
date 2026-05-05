@@ -30,6 +30,18 @@ Solo founder pre-launch, but the discipline matters: it forces clarity on whethe
 
 5. **Decide**: vendor outage (wait + post status), our bug (revert + fix), or capacity (scale + throttle).
 
+## DB load triage — when Supabase says "DB unhealthy"
+
+`scripts/db-health-check.sql` has 7 read-only blocks for triaging high CPU / IO. Run blocks **1, 2, 3** first — they cover the 2026-05 root cause (Realtime over-publishing on `entries`). Block 1 surfaces the dominant offender by total exec time; block 2 confirms the Realtime publication is empty (should be, post-072); block 3 catches subscription churn.
+
+Quick interpretation:
+- Block 1 anything > 5% of total → investigate. Realtime queries (`SELECT wal->>...`, `with sub_tables as (select rr.entity from pg_publication_tables ...`) at the top means a regression — some migration re-added a table to `supabase_realtime`.
+- Block 2 with rows in it → drop them via `ALTER PUBLICATION supabase_realtime DROP TABLE …`.
+- Block 4 sustained postgrest "active" > 5 → queries are queuing; probably need cache layer or query optimization. "idle in transaction" > 0 → a server function is leaking a transaction; find via block 5.
+- Block 6 mean > 500ms on a frequent query → missing index or RLS recompute; explain-analyze it.
+
+After landing a fix, run block 7 (`pg_stat_statements_reset()`) and re-check 24h later for the post-fix shape.
+
 ## Vendor-outage playbook
 
 If a vendor's status page is red:
