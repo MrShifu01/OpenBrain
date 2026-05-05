@@ -48,6 +48,7 @@ function prefetchCaptureSheet() {
   else setTimeout(() => void captureSheetImport().catch(() => {}), 1500);
 }
 import DesktopSidebar from "./components/DesktopSidebar";
+import DebugViewportOverlay from "./components/DebugViewportOverlay";
 import DesktopHeader from "./components/DesktopHeader";
 import LoadingScreen from "./components/LoadingScreen";
 import SkeletonCard from "./components/SkeletonCard";
@@ -364,6 +365,7 @@ function EverionContent({
         focused; `focus:not-sr-only` brings it into view as a styled chip.
         Counterpart `id="main-content"` is on the view-content wrapper below.
       */}
+      <DebugViewportOverlay />
       <OfflineBanner isOnline={isOnline} pendingCount={pendingCount} />
       <a
         href="#main-content"
