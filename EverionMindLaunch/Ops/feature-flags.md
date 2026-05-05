@@ -22,6 +22,8 @@ Every flag the app reads, who owns it, default state, and the removal target. Re
 | `VITE_FEATURE_APP_LOCK` | ON | core | OS-level lock screen on cold open (PIN/biometric). | Permanent. |
 | `VITE_FEATURE_LISTS` | OFF | beta | Paste-driven checklists (`Specs/archive/lists-v1.md`). | Flip ON when post-launch user feedback validates the format. |
 | `VITE_FEATURE_EXTRA_THEMES` | OFF | beta | Extra colour palettes beyond the default Ember + Ink set. | Flip ON if A/B test shows engagement lift. |
+| `VITE_FEATURE_SHARED_BRAIN_REMINDERS` | OFF | beta | Shared-brain expiry-reminder fan-out: per-brain notification level pills surface in `Settings → Notifications`. See `Specs/shared-brain-notifications.md`. **Pair with the server-side `FEATURE_SHARED_BRAIN_REMINDERS` (no `VITE_` prefix) on Vercel.** | Flip ON for staging once cron tested; for production after 7 days of stable beta-cohort behavior. |
+| `FEATURE_SHARED_BRAIN_REMINDERS` (server-only) | OFF | beta | Cron-side gate inside `handleCronHourly`. Without this set, the expiry fan-out block is skipped so the dormant feature cannot accidentally fire even if the UI flag is on. | Flip together with the VITE flag above. |
 
 ## Reading convention
 

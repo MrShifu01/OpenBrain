@@ -45,6 +45,15 @@ interface NotificationPrefs {
   expiry_lead_days: number[];
 }
 
+interface BrainNotifPref {
+  brain_id: string;
+  brain_name: string;
+  is_personal: boolean;
+  is_owner: boolean;
+  role: "owner" | "member" | "viewer";
+  level: "all" | "owner_only" | "off";
+}
+
 const DEFAULT_PREFS: NotificationPrefs = {
   daily_enabled: false,
   daily_time: "20:00",
@@ -377,6 +386,9 @@ export default function NotificationSettings(): JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  // Per-brain notification levels — see EML/Specs/shared-brain-notifications.md
+  const [brainPrefs, setBrainPrefs] = useState<BrainNotifPref[] | null>(null);
+  const sharedBrainRemindersOn = import.meta.env.VITE_FEATURE_SHARED_BRAIN_REMINDERS === "1";
   // Subscribing state — push subscription on mobile can take 5–15s while
   // the browser hits FCM/APNs and round-trips to the server. Without a
   // visible loading state the user thinks the app froze and force-quits.
@@ -392,6 +404,15 @@ export default function NotificationSettings(): JSX.Element {
       .then((data) => setPrefs(data ? { ...DEFAULT_PREFS, ...data } : DEFAULT_PREFS))
       .catch(() => setPrefs(DEFAULT_PREFS))
       .finally(() => setLoading(false));
+
+    if (sharedBrainRemindersOn) {
+      authFetch("/api/brain-notification-prefs")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { prefs?: BrainNotifPref[] } | null) => {
+          setBrainPrefs(data?.prefs ?? []);
+        })
+        .catch(() => setBrainPrefs([]));
+    }
 
     if (pushSupported) {
       navigator.serviceWorker.ready
@@ -491,6 +512,28 @@ export default function NotificationSettings(): JSX.Element {
       ? current.filter((d) => d !== day)
       : [...current, day].sort((a, b) => b - a);
     savePref({ expiry_lead_days: next });
+  }
+
+  // Set per-brain notification level. Optimistic update; revert on failure.
+  async function setBrainLevel(
+    brainId: string,
+    level: "all" | "owner_only" | "off",
+  ): Promise<void> {
+    if (!brainPrefs) return;
+    const prev = brainPrefs;
+    setBrainPrefs(brainPrefs.map((bp) => (bp.brain_id === brainId ? { ...bp, level } : bp)));
+    try {
+      const r = await authFetch("/api/brain-notification-prefs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brain_id: brainId, level }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    } catch (err) {
+      console.error("[NotificationSettings] Failed to save brain level", err);
+      setBrainPrefs(prev);
+      flash("Failed to save");
+    }
   }
 
   function flash(msg: string): void {
@@ -668,10 +711,109 @@ export default function NotificationSettings(): JSX.Element {
                   );
                 })}
               </div>
+
+              {sharedBrainRemindersOn && brainPrefs && brainPrefs.length > 0 && (
+                <div style={{ marginTop: 18 }}>
+                  <div className="micro" style={{ marginBottom: 4 }}>
+                    per brain
+                  </div>
+                  <div
+                    className="text-on-surface-variant"
+                    style={{ fontSize: 11, marginBottom: 10 }}
+                  >
+                    Mute a brain that's gone noisy. Owner-only fires only when you own the brain in
+                    question.
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {brainPrefs.map((bp) => (
+                      <BrainLevelRow
+                        key={bp.brain_id}
+                        pref={bp}
+                        onChange={(level) => setBrainLevel(bp.brain_id, level)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// One row in the per-brain notification level list. Three pills:
+// All / Owner-only / Off. Owner-only is hidden for personal brains
+// (where it's redundant with All).
+function BrainLevelRow({
+  pref,
+  onChange,
+}: {
+  pref: BrainNotifPref;
+  onChange: (level: "all" | "owner_only" | "off") => void;
+}): JSX.Element {
+  const opts: Array<{ value: "all" | "owner_only" | "off"; label: string }> = pref.is_personal
+    ? [
+        { value: "all", label: "All" },
+        { value: "off", label: "Off" },
+      ]
+    : [
+        { value: "all", label: "All" },
+        { value: "owner_only", label: "Owner-only" },
+        { value: "off", label: "Off" },
+      ];
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
+      <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: "var(--ink)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {pref.brain_name}
+        </div>
+        <div className="text-on-surface-variant" style={{ fontSize: 10 }}>
+          {pref.role}
+          {pref.is_personal ? " · personal" : ""}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 4 }}>
+        {opts.map((opt) => {
+          const active = pref.level === opt.value;
+          return (
+            <Button
+              key={opt.value}
+              onClick={() => onChange(opt.value)}
+              aria-pressed={active}
+              variant="outline"
+              size="sm"
+              className="rounded-full"
+              style={{
+                background: active ? "var(--ember-wash)" : "var(--surface)",
+                color: active ? "var(--ember)" : "var(--ink-soft)",
+                borderColor: active ? "var(--ember)" : "var(--line-soft)",
+                fontWeight: active ? 600 : 500,
+              }}
+            >
+              {opt.label}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }

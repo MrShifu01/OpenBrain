@@ -74,6 +74,7 @@ bell falls back to `AutoMergedCard` for unknown values.
 | `daily_prompt` | `api/user-data.ts` `handleCronHourly` | Per-user daily capture prompt at chosen local time | `AutoMergedCard` (catch-all) |
 | `weekly_nudge` | `api/user-data.ts` `handleCronHourly` | Weekly nudge at chosen local time | `AutoMergedCard` (catch-all) |
 | `test_push` | `scripts/test-push.mjs` | Admin → Push diagnostics → Send test push | `AutoMergedCard` (catch-all) |
+| `expiry_reminder` | `api/user-data.ts` `handleCronHourly` (expiry fan-out block) | Entry's `due_date`/`deadline`/`expiry_date`/`event_date` is N days out where N ∈ user's `expiry_lead_days` (default `[90,30,7,1]`). Fans out to all brain members per `brain_notification_prefs`. Gated by `FEATURE_SHARED_BRAIN_REMINDERS=1`. | `AutoMergedCard` (catch-all) — dedicated `ExpiryCard` deferred. See `Specs/shared-brain-notifications.md`. |
 
 ### Inserter helpers
 
@@ -276,6 +277,13 @@ their own rows.
 - **Commit `9ad2ad2`** (2026-04-29): Bell badge now lights on `stagedCount`
   too, not just `unreadCount`. Fixed swipe gesture stale-state bug and the
   PATCH/event race that kept the inbox count stuck after accept.
+- **2026-05-05**: Shared-brain expiry-reminder fan-out plumbing landed
+  (gated). New `expiry_reminder` notification type, `brain_notification_prefs`
+  table, `expiry_notification_log.brain_id` column, per-brain mute pills in
+  `Settings → Notifications`. Until the gates flip ON
+  (`FEATURE_SHARED_BRAIN_REMINDERS=1` server, `VITE_FEATURE_SHARED_BRAIN_REMINDERS=1`
+  client), notifications remain user-only. See
+  `Specs/shared-brain-notifications.md` and `Ops/feature-flags.md`.
 
 ---
 

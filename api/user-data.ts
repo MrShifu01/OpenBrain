@@ -109,6 +109,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
   if (resource === "prefs") return handleNotificationPrefs(req, res);
   if (resource === "push") return handlePushSubscribe(req, res);
   if (resource === "brains") return handleBrains(req, res);
+  if (resource === "brain-notification-prefs") return handleBrainNotificationPrefs(req, res);
   if (resource === "important_memories") return handleImportantMemories(req, res);
   if (resource === "cron-daily") return handleCronDaily(req, res);
   if (resource === "cron-hourly") return handleCronHourly(req, res);
@@ -2260,8 +2261,12 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
   const now = new Date();
   const dailyR = { sent: 0, skipped: 0, errors: 0 };
   const nudgeR = { sent: 0, skipped: 0, errors: 0 };
+  const expiryR = { sent: 0, deduped: 0, skipped: 0, errors: 0 };
+  // Shared-brain expiry fan-out is gated until rolled out to beta.
+  // Per EML/Specs/shared-brain-notifications.md.
+  const expiryFanOutOn = process.env.FEATURE_SHARED_BRAIN_REMINDERS === "1";
   console.log(
-    `[cron/hourly] now=${now.toISOString()} utc_hour=${now.getUTCHours()} users=${users.length}`,
+    `[cron/hourly] now=${now.toISOString()} utc_hour=${now.getUTCHours()} users=${users.length} expiry_fanout=${expiryFanOutOn}`,
   );
 
   for (const user of users) {
@@ -2364,10 +2369,205 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
     } else {
       nudgeR.skipped++;
     }
+
+    // ── Expiry reminders (shared-brain fan-out) ──
+    // Iterates every brain the user can access (owner + member), respects
+    // brain_notification_prefs (default 'all'), looks for entries with a
+    // due/deadline/expiry/event date within the user's lead-day window, and
+    // sends one push + bell row per (user, entry, brain, lead_days). The
+    // expiry_notification_log UNIQUE constraint is the dedup gate — a 409
+    // means we already fired and we silently move on.
+    if (expiryFanOutOn && prefs.expiry_enabled) {
+      const tz = prefs.daily_timezone || "UTC";
+      const targetHour = parseInt(String(prefs.daily_time || "20:00").split(":")[0], 10);
+      if (localHour(tz, now) === targetHour) {
+        try {
+          const rawLeads: unknown = prefs.expiry_lead_days;
+          const leadDays: number[] = Array.isArray(rawLeads) && rawLeads.length
+            ? (rawLeads as unknown[])
+                .map((n) => Number(n))
+                .filter((n) => Number.isInteger(n) && n >= 0 && n <= 3650)
+            : [90, 30, 7, 1];
+          if (!leadDays.length) continue;
+          const maxLead = Math.max(...leadDays);
+
+          // Brains the user can access: owner OR member/viewer.
+          const ownedR = await fetch(
+            `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&select=id,name,owner_id&limit=200`,
+            { headers: adminHdrs },
+          );
+          const owned: Array<{ id: string; name: string; owner_id: string }> = ownedR.ok
+            ? await ownedR.json()
+            : [];
+          const memberR = await fetch(
+            `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=brain:brains(id,name,owner_id)&limit=200`,
+            { headers: adminHdrs },
+          );
+          const memberRows: Array<{
+            brain: { id: string; name: string; owner_id: string } | null;
+          }> = memberR.ok ? await memberR.json() : [];
+          const brainMap = new Map<string, { id: string; name: string; owner_id: string }>();
+          for (const b of owned) brainMap.set(b.id, b);
+          for (const row of memberRows) {
+            if (row.brain && !brainMap.has(row.brain.id)) brainMap.set(row.brain.id, row.brain);
+          }
+
+          // Per-brain notification levels for this user (default 'all').
+          const bnpR = await fetch(
+            `${SB_URL}/rest/v1/brain_notification_prefs?user_id=eq.${encodeURIComponent(user.id)}&select=brain_id,level&limit=500`,
+            { headers: adminHdrs },
+          );
+          const bnpRows: Array<{ brain_id: string; level: string }> = bnpR.ok
+            ? await bnpR.json()
+            : [];
+          const levelMap = new Map(bnpRows.map((r) => [r.brain_id, r.level]));
+
+          const todayMs = Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+          );
+          const todayIso = new Date(todayMs).toISOString().slice(0, 10);
+          const dateFieldOr = [
+            `metadata->>due_date.gte.${todayIso}`,
+            `metadata->>deadline.gte.${todayIso}`,
+            `metadata->>expiry_date.gte.${todayIso}`,
+            `metadata->>event_date.gte.${todayIso}`,
+          ].join(",");
+          // PostgREST `or=(...)` syntax is parenthesised. Encode the comma
+          // separators but keep the parens literal.
+          const orParam = `or=(${dateFieldOr})`;
+
+          for (const brain of brainMap.values()) {
+            const level = levelMap.get(brain.id) ?? "all";
+            if (level === "off") {
+              expiryR.skipped++;
+              continue;
+            }
+            if (level === "owner_only" && brain.owner_id !== user.id) {
+              expiryR.skipped++;
+              continue;
+            }
+
+            const eR = await fetch(
+              `${SB_URL}/rest/v1/entries?brain_id=eq.${encodeURIComponent(brain.id)}&deleted_at=is.null&${orParam}&select=id,title,metadata&limit=200`,
+              { headers: adminHdrs },
+            );
+            if (!eR.ok) {
+              expiryR.errors++;
+              continue;
+            }
+            const entries: Array<{
+              id: string;
+              title: string | null;
+              metadata: Record<string, unknown> | null;
+            }> = await eR.json();
+
+            for (const entry of entries) {
+              const m = entry.metadata ?? {};
+              const field: "due_date" | "deadline" | "expiry_date" | "event_date" | null =
+                typeof m.due_date === "string" && m.due_date
+                  ? "due_date"
+                  : typeof m.deadline === "string" && m.deadline
+                    ? "deadline"
+                    : typeof m.expiry_date === "string" && m.expiry_date
+                      ? "expiry_date"
+                      : typeof m.event_date === "string" && m.event_date
+                        ? "event_date"
+                        : null;
+              if (!field) continue;
+              const dateStr = String(m[field]);
+              const dateMs = Date.parse(dateStr);
+              if (!Number.isFinite(dateMs)) continue;
+              if (dateMs > todayMs + maxLead * 86_400_000) continue;
+              if (dateMs < todayMs) continue;
+              const dayOffset = Math.round((dateMs - todayMs) / 86_400_000);
+              if (!leadDays.includes(dayOffset)) continue;
+
+              const itemLabel = `${field}:${dateStr}`;
+              const logR = await fetch(`${SB_URL}/rest/v1/expiry_notification_log`, {
+                method: "POST",
+                headers: {
+                  ...adminHdrs,
+                  "Content-Type": "application/json",
+                  Prefer: "return=minimal",
+                },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  entry_id: entry.id,
+                  brain_id: brain.id,
+                  item_label: itemLabel,
+                  expiry_date: dateStr,
+                  lead_days: dayOffset,
+                }),
+              });
+              if (logR.status === 409) {
+                expiryR.deduped++;
+                continue;
+              }
+              if (!logR.ok) {
+                const t = await logR.text().catch(() => "");
+                console.error(
+                  `[cron/hourly] expiry log insert HTTP ${logR.status}: ${t.slice(0, 200)}`,
+                );
+                expiryR.errors++;
+                continue;
+              }
+
+              const friendlyDate = new Date(dateMs).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              });
+              const dayWord = dayOffset === 1 ? "day" : "days";
+              const titleStr = `${entry.title || "Reminder"} · ${dayOffset} ${dayWord}`;
+              const bodyStr = `${friendlyDate} · ${brain.name || "brain"}`;
+
+              try {
+                await webpush.sendNotification(
+                  { endpoint: sub.endpoint, keys: sub.keys },
+                  JSON.stringify({
+                    title: titleStr,
+                    body: bodyStr,
+                    url: `/?entry=${entry.id}`,
+                  }),
+                );
+                await insertCronNotification(user.id, "expiry_reminder", titleStr, bodyStr, {
+                  entry_id: entry.id,
+                  brain_id: brain.id,
+                  brain_name: brain.name,
+                  lead_days: dayOffset,
+                  due_date: dateStr,
+                  field,
+                  url: `/?entry=${entry.id}`,
+                  source: "cron-hourly",
+                });
+                expiryR.sent++;
+              } catch (err: any) {
+                console.error(`[cron/hourly] expiry push failed:`, err?.message ?? err);
+                expiryR.errors++;
+              }
+            }
+          }
+        } catch (err: any) {
+          console.error(
+            `[cron/hourly] expiry block failed for ${user.id}:`,
+            err?.message ?? err,
+          );
+          expiryR.errors++;
+        }
+      } else {
+        expiryR.skipped++;
+      }
+    } else {
+      expiryR.skipped++;
+    }
   }
 
-  console.log(`[cron/hourly] done daily=${JSON.stringify(dailyR)} nudge=${JSON.stringify(nudgeR)}`);
-  return void res.status(200).json({ daily: dailyR, nudge: nudgeR });
+  console.log(
+    `[cron/hourly] done daily=${JSON.stringify(dailyR)} nudge=${JSON.stringify(nudgeR)} expiry=${JSON.stringify(expiryR)}`,
+  );
+  return void res.status(200).json({ daily: dailyR, nudge: nudgeR, expiry: expiryR });
 }
 
 // ── /api/cron/daily (rewritten to /api/user-data?resource=cron-daily) ──
@@ -2540,6 +2740,134 @@ const handleNotifications = withAuth(
       },
     );
     return void res.status(200).json({ ok: true });
+  },
+);
+
+// ── /api/brain-notification-prefs (rewritten to ?resource=brain-notification-prefs) ──
+//
+// Per-(user, brain) notification level. Members default to 'all' when no row
+// exists — the GET response always includes a row for every brain the user
+// can access, falling back to 'all' for ones never customised. PUT upserts.
+// See EML/Specs/shared-brain-notifications.md.
+const handleBrainNotificationPrefs = withAuth(
+  { methods: ["GET", "PUT"], rateLimit: 60 },
+  async ({ req, res, user }) => {
+    if (req.method === "GET") {
+      // Brains the user owns.
+      const ownedR = await fetch(
+        `${SB_URL}/rest/v1/brains?owner_id=eq.${encodeURIComponent(user.id)}&select=id,name,owner_id,is_personal&limit=200`,
+        { headers: hdrs() },
+      );
+      const owned: Array<{ id: string; name: string; owner_id: string; is_personal: boolean }> =
+        ownedR.ok ? await ownedR.json() : [];
+
+      // Brains the user is a member/viewer of.
+      const memberR = await fetch(
+        `${SB_URL}/rest/v1/brain_members?user_id=eq.${encodeURIComponent(user.id)}&select=role,brain:brains(id,name,owner_id,is_personal)&limit=200`,
+        { headers: hdrs() },
+      );
+      const memberRows: Array<{
+        role: string;
+        brain: { id: string; name: string; owner_id: string; is_personal: boolean } | null;
+      }> = memberR.ok ? await memberR.json() : [];
+
+      // Existing per-brain prefs.
+      const bnpR = await fetch(
+        `${SB_URL}/rest/v1/brain_notification_prefs?user_id=eq.${encodeURIComponent(user.id)}&select=brain_id,level&limit=500`,
+        { headers: hdrs() },
+      );
+      const bnpRows: Array<{ brain_id: string; level: string }> = bnpR.ok ? await bnpR.json() : [];
+      const levelMap = new Map(bnpRows.map((r) => [r.brain_id, r.level]));
+
+      const out: Array<{
+        brain_id: string;
+        brain_name: string;
+        is_personal: boolean;
+        is_owner: boolean;
+        role: "owner" | "member" | "viewer";
+        level: "all" | "owner_only" | "off";
+      }> = [];
+      const seen = new Set<string>();
+
+      for (const b of owned) {
+        seen.add(b.id);
+        out.push({
+          brain_id: b.id,
+          brain_name: b.name,
+          is_personal: b.is_personal,
+          is_owner: true,
+          role: "owner",
+          level: ((levelMap.get(b.id) as any) ?? "all"),
+        });
+      }
+      for (const row of memberRows) {
+        if (!row.brain || seen.has(row.brain.id)) continue;
+        seen.add(row.brain.id);
+        out.push({
+          brain_id: row.brain.id,
+          brain_name: row.brain.name,
+          is_personal: row.brain.is_personal,
+          is_owner: row.brain.owner_id === user.id,
+          role: row.role === "viewer" ? "viewer" : "member",
+          level: ((levelMap.get(row.brain.id) as any) ?? "all"),
+        });
+      }
+      return void res.status(200).json({ prefs: out });
+    }
+
+    // PUT — upsert one row { brain_id, level }
+    const body = (req.body ?? {}) as { brain_id?: unknown; level?: unknown };
+    const brainId = typeof body.brain_id === "string" ? body.brain_id : "";
+    const level = typeof body.level === "string" ? body.level : "";
+    if (!brainId) return void res.status(400).json({ error: "brain_id required" });
+    if (level !== "all" && level !== "owner_only" && level !== "off") {
+      return void res.status(400).json({ error: "level must be all|owner_only|off" });
+    }
+
+    // Verify the user actually has access to this brain (owner or member).
+    const accessR = await fetch(
+      `${SB_URL}/rest/v1/brains?id=eq.${encodeURIComponent(brainId)}&select=id,owner_id&limit=1`,
+      { headers: hdrs() },
+    );
+    const accessRows: Array<{ id: string; owner_id: string }> = accessR.ok
+      ? await accessR.json()
+      : [];
+    const isOwner = accessRows[0]?.owner_id === user.id;
+    let isMember = false;
+    if (!isOwner) {
+      const mr = await fetch(
+        `${SB_URL}/rest/v1/brain_members?brain_id=eq.${encodeURIComponent(brainId)}&user_id=eq.${encodeURIComponent(user.id)}&select=user_id&limit=1`,
+        { headers: hdrs() },
+      );
+      const mRows: Array<{ user_id: string }> = mr.ok ? await mr.json() : [];
+      isMember = mRows.length > 0;
+    }
+    if (!isOwner && !isMember) {
+      return void res.status(403).json({ error: "Not a member of that brain" });
+    }
+
+    const r = await fetch(
+      `${SB_URL}/rest/v1/brain_notification_prefs?on_conflict=user_id,brain_id`,
+      {
+        method: "POST",
+        headers: hdrs({
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        }),
+        body: JSON.stringify({
+          user_id: user.id,
+          brain_id: brainId,
+          level,
+          updated_at: new Date().toISOString(),
+        }),
+      },
+    );
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      console.error(`[brain-notification-prefs] upsert HTTP ${r.status}: ${t.slice(0, 200)}`);
+      return void res.status(502).json({ error: "Failed to save preference" });
+    }
+    return void res.status(200).json({ ok: true, brain_id: brainId, level });
   },
 );
 

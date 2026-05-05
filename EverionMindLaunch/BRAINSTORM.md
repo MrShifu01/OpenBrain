@@ -121,6 +121,27 @@ None yet. As ideas get killed, log them here with date + reason. Examples of wha
 
 ---
 
+## Notification deepening (deferred from `Specs/shared-brain-notifications.md`)
+
+These are the non-v1 ideas captured during the shared-brain notification design (2026-05-05). Each is independently valuable; together they're the difference between "notifications work" and "notifications feel like a respected colleague pinging you only when it matters."
+
+- **Per-type notification levels** — separate switches for due dates / merge / persona / Gmail. Today the v1 mute toggle is whole-brain; once a few brains are noisy in different ways the user will want surgical control. Trigger: first user complaint about "I want due dates from this brain but not merge suggestions."
+- **Daily digest mode** — instead of N pushes, send one push at the user's chosen time summarising "3 things due in the next week, 2 merge suggestions, 1 Gmail item." Less fragmenting. Likely the right default for power users.
+- **Snooze a notification for X days** — per-row "remind me later" button on the bell card. Three taps: 1 day / 1 week / pick a date. Probably the highest single-click value-add.
+- **Smart prioritization by entry type** — bookkeeper auto-pinged on financial entries (invoices, payments, expiries on banking docs); owner pinged on everything. Per-brain × per-type matrix. Heavy product surface but is the difference between "shared brain" and "shared brain that respects roles."
+- **Read receipts** — show which member has seen a reminder for a shared-brain entry. Subtle: a moss-green eye icon next to the entry chip in the bell card. Helps avoid the "did anyone see this?" anxiety in business brains. Adds a write surface (`notifications_read_log`) and a UI dimension. Defer until shared-brain phase 2 settles.
+- **Email fallback for critical due dates** — if push delivery fails (Service Worker dead, subscription expired, user on platform without web-push) AND the lead is ≤7 days, fall back to email at the user's `daily_time`. Resend already wired.
+- **Calendar push** — write upcoming `due_date` / `expiry_date` / `event_date` entries into the user's connected Google / Microsoft calendar so they show up in everyday tools. Two-way sync is a separate spec; one-way push is cheap and high-leverage.
+- **Native push (post-Capacitor)** — replace Web Push with APNs (iOS) / FCM (Android) for richer payloads, badging, action buttons ("Done" / "Snooze 1d"), reliable delivery on background.
+- **Notification history UI in Settings** — Settings → Notifications → "History" — last 90 days of fired notifications with delivery status (delivered / failed / dismissed). Gives users (and the founder) a paper trail when "I never got the reminder" support tickets land.
+- **Quiet hours window** — global "don't push between 22:00 and 06:00 local time" override. Today's design fires at the user's `daily_time` which is implicitly their preferred slot, but for ad-hoc items (e.g. a last-minute merge suggestion that triggers a push) we should respect a quiet window.
+- **Per-brain quiet hours** — extension of the above, scoped to a brain. Useful for the family brain that wakes the user at 2am because a teenager added a date.
+- **Mute all from a specific person in a shared brain** — "I love this brain but X member adds 50 entries a day." Per-(viewer, author) mute. Adds yet more product surface — defer until specific complaint pattern emerges.
+
+When promoting any of these to LAUNCH_CHECKLIST or ROADMAP, link back to this section so the original reasoning isn't lost.
+
+---
+
 ## Wild swings worth considering (parking lot)
 
 These are higher-risk, higher-reward ideas not yet scored. Bring up in a brainstorm session before promoting one to the master table.

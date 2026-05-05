@@ -250,6 +250,17 @@ Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSque
 
 ## P1 — Should have at launch
 
+### Shared-brain notifications (fan-out)
+
+- [ ] **Wire shared-brain expiry-reminder fan-out** 🟡
+      Plumbing landed 2026-05-05. Migrations `075_brain_notification_prefs.sql` + `076_expiry_log_brain_id.sql` apply on next deploy. `handleCronHourly` has the expiry block gated by `FEATURE_SHARED_BRAIN_REMINDERS=1`, `/api/brain-notification-prefs` endpoint live, `Settings → Notifications` per-brain pills gated by `VITE_FEATURE_SHARED_BRAIN_REMINDERS=1`. Spec at `Specs/shared-brain-notifications.md`.
+      Remaining to ship the feature:
+      - [ ] Set `FEATURE_SHARED_BRAIN_REMINDERS=1` on Vercel (server) and `VITE_FEATURE_SHARED_BRAIN_REMINDERS=1` (client build) for staging.
+      - [ ] Manual test: create test business brain with 2 members, add an entry with `due_date` 1 day out, run `cron-hourly` at the user's daily-time hour. Verify both members get push + bell row. Verify second cron run does not double-fire.
+      - [ ] Set per-brain `level=off` for one member; verify they receive nothing.
+      - [ ] Set per-brain `level=owner_only` for non-owner; verify they receive nothing.
+      - [ ] Roll to beta cohort; observe for 7 days; flip flag on for production once stable.
+
 ### Quality
 
 - [ ] **Lighthouse pass** ❌
