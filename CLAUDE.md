@@ -17,6 +17,15 @@
 >
 > Repeat: hard numbers → root cause → surgical fix → verify. No guessing.
 
+> **📚 ALWAYS CHECK context7 FOR LIBRARY / SPEC / API KNOWLEDGE.**
+> Default to context7 (`mcp__context7__resolve-library-id` then `mcp__context7__query-docs`) before changing code that touches CSS, JS APIs, framework behavior, browser specs, library APIs, or platform docs. The model's training is stale by months and silently wrong about recent specs (CSS viewport units `dvh`/`lvh`/`svh`, env() safe-area, `position: fixed` containing-block on mobile, iOS Safari/PWA quirks, Web APIs added since cutoff, framework breaking changes).
+>
+> Do not "remember" — verify. If you cite a spec/behavior in commentary or commit messages, the citation must come from a context7 query you actually ran in this session, not from training memory.
+>
+> **When to skip context7:** project-internal logic, business rules, things that aren't in any external spec.
+>
+> **When to ALWAYS use context7:** any reasoning that includes "iOS Safari does X", "the spec says Y", "in version N this changed", "this CSS property behaves like…", "this React hook…", "this Tailwind class…", "this Supabase API…". If you'd write "I think" or "as I recall" — query context7 first.
+
 > **❌ NEVER USE SUPERPOWERS SKILLS.**
 > Do not invoke the `superpowers:*` skill family — no `superpowers:brainstorming`, no `superpowers:writing-plans`, no `superpowers:code-reviewer`, no design-doc spec gates, no "let me ask one clarifying question at a time" loops.
 > When the user asks to tackle a feature, propose a concise design inline (multiple-choice or short bullets), confirm decisions in the same turn or two, then implement. No `docs/superpowers/specs/` writes. No HARD-GATE language. Just build.
