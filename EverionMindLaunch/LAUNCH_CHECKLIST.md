@@ -604,15 +604,21 @@ New items surfaced by the cross-dimensional audit. Grouped by priority. None are
 
 ---
 
-## Mobile app launch — Capacitor wrap (Apple App Store + Google Play)
+## Mobile app launch — Capacitor wrap (Google Play first, App Store deferred)
 
 Separate launch track from the web product. Web launches first (PWA at everionmind.com); Capacitor wrap follows. Items below block native-app submission, not the web launch.
+
+> **🤖 ANDROID-FIRST DECISION (2026-05-05)**: Apple App Store submission is **deferred to a post-launch sprint** (see § Post-launch — iOS launch sprint). Capacitor treats iOS / Android as fully independent native projects — there is zero coupling.
+>
+> **Why Android first**: Play Console review is hours, not days; $25 one-time vs Apple's $99/yr + tax forms + bank verification; we get a real-user platform iterating on metrics while iOS goes through its own review later. Half-platform billing QA (RevenueCat sandbox covers Android only until iOS ships) is the only meaningful tradeoff and is acceptable for staged rollout.
+>
+> **iOS-only items below are tagged `[iOS — DEFERRED]`** and consolidated in the post-launch section. Don't burn calendar on them now — they'd just rot.
 
 **Decided 2026-04-29:**
 
 - Wrap technology: **Capacitor 6** (single TS source, native shell per store)
-- Stores: **Both** (Apple App Store + Google Play)
-- Apple primary category: **Utilities**, secondary: Productivity
+- Stores at launch: **Google Play only**. Apple App Store deferred to post-launch sprint.
+- Apple primary category (when iOS ships): **Utilities**, secondary: Productivity `[iOS — DEFERRED]`
 - Google Play primary category: **Productivity** (Play's Utilities is dominated by system tools — flashlights/cleaners — wrong neighborhood)
 - Bundle identifier (both): `com.everionmind.app`
 - Tagline: _"your second brain — kept quietly."_
@@ -681,7 +687,7 @@ App Store / Google Play
 
 - [ ] **7. Get Android running on a real device first.** Easier path. Resolve build, signing, and basic launch issues here before adding iOS complexity.
 
-- [ ] **8. Get iOS running on a real device.** TestFlight build at minimum.
+- [ ] **8. Get iOS running on a real device.** TestFlight build at minimum. `[iOS — DEFERRED]`
 
 - [x] **9. Fix Supabase magic links** ✅ — schemes registered in iOS Info.plist + Android intent filter; `src/lib/capacitorBridge.ts` handles `appUrlOpen` and hands tokens to `supabase.auth.setSession()`/`exchangeCodeForSession()`. **Still owed:** real-device verification (cold + warm start).
 
@@ -811,24 +817,24 @@ The wrap is done when:
 
 **Identity & legal**
 
-- [ ] **Trademark check on "Everion"** — USPTO + WIPO Madrid + ZA-CIPC. 5 minutes of due diligence saves a rejection. Confirm no conflicting class-9 software mark.
-- [ ] **Apple Developer Program enrollment** ($99/yr) — under personal name initially; transfer to entity later.
+- [ ] **Trademark check on "Everion"** — USPTO + WIPO Madrid + ZA-CIPC. 5 minutes of due diligence saves a rejection. Confirm no conflicting class-9 software mark. (Both platforms.)
 - [ ] **Google Play Developer account** ($25 one-time).
-- [ ] **D-U-N-S number** (Apple needs it for org accounts; skip if enrolling as individual).
+- [ ] **Apple Developer Program enrollment** ($99/yr) — under personal name initially; transfer to entity later. `[iOS — DEFERRED]`
+- [ ] **D-U-N-S number** (Apple needs it for org accounts; skip if enrolling as individual). `[iOS — DEFERRED]`
 
-**iOS — Privacy Manifest (`PrivacyInfo.xcprivacy`, required iOS 17+)**
+**iOS — Privacy Manifest (`PrivacyInfo.xcprivacy`, required iOS 17+)** `[iOS — DEFERRED]`
 
-- [ ] Declare `NSPrivacyAccessedAPICategoryUserDefaults` (localStorage `everion_*` keys).
-- [ ] Declare `NSPrivacyAccessedAPICategoryFileTimestamp` (PWA cache).
-- [ ] `NSPrivacyTracking: false`.
-- [ ] List third-party SDKs that ship in the bundle (Capacitor plugins).
+- [ ] Declare `NSPrivacyAccessedAPICategoryUserDefaults` (localStorage `everion_*` keys). `[iOS — DEFERRED]`
+- [ ] Declare `NSPrivacyAccessedAPICategoryFileTimestamp` (PWA cache). `[iOS — DEFERRED]`
+- [ ] `NSPrivacyTracking: false`. `[iOS — DEFERRED]`
+- [ ] List third-party SDKs that ship in the bundle (Capacitor plugins). `[iOS — DEFERRED]`
 
-**iOS — `Info.plist` usage strings (rejection if any UI triggers these without a string)**
+**iOS — `Info.plist` usage strings (rejection if any UI triggers these without a string)** `[iOS — DEFERRED]`
 
-- [ ] `NSCameraUsageDescription` — "to capture photos for your entries."
-- [ ] `NSMicrophoneUsageDescription` — "to record voice memos."
-- [ ] `NSPhotoLibraryUsageDescription` — "to attach photos from your library."
-- [ ] `NSFaceIDUsageDescription` — "to unlock your encrypted vault." (only if biometric unlock wired)
+- [ ] `NSCameraUsageDescription` — "to capture photos for your entries." `[iOS — DEFERRED]`
+- [ ] `NSMicrophoneUsageDescription` — "to record voice memos." `[iOS — DEFERRED]`
+- [ ] `NSPhotoLibraryUsageDescription` — "to attach photos from your library." `[iOS — DEFERRED]`
+- [ ] `NSFaceIDUsageDescription` — "to unlock your encrypted vault." (only if biometric unlock wired) `[iOS — DEFERRED]`
 
 **Android — `AndroidManifest.xml` permissions**
 
@@ -844,14 +850,14 @@ The wrap is done when:
 
 ### M1 — Listing copy (paste-ready, drafted 2026-04-29)
 
-**Apple App Store**
+**Apple App Store** `[iOS — DEFERRED — see § Post-launch — iOS launch sprint]`
 
-- [ ] Title (29/30): `Everion: Second Brain & Vault`
-- [ ] Subtitle (29/30): `Notes, vault, AI you can ask.`
-- [ ] Keywords field (98/100 bytes): `journal,diary,memory,encrypted,private,voice,memo,capture,recall,offline,GPT,Gemini,Claude,ID,tasks`
+- [ ] Title (29/30): `Everion: Second Brain & Vault` `[iOS — DEFERRED]`
+- [ ] Subtitle (29/30): `Notes, vault, AI you can ask.` `[iOS — DEFERRED]`
+- [ ] Keywords field (98/100 bytes): `journal,diary,memory,encrypted,private,voice,memo,capture,recall,offline,GPT,Gemini,Claude,ID,tasks` `[iOS — DEFERRED]`
       No repeats from title/subtitle. No "password" — wrong intent (we're not 1Password). No "note(s)" — already in subtitle. No spaces.
-- [ ] Promotional text (137/170): `Quietly kept. The thoughts you'd lose and the facts you can't afford to — held in one private, encrypted home you can ask anything.`
-- [ ] Description: see "Apple description" block below — ~1,400 chars, conversion-only (Apple does NOT index the long description).
+- [ ] Promotional text (137/170): `Quietly kept. The thoughts you'd lose and the facts you can't afford to — held in one private, encrypted home you can ask anything.` `[iOS — DEFERRED]`
+- [ ] Description: see "Apple description" block below — ~1,400 chars, conversion-only (Apple does NOT index the long description). `[iOS — DEFERRED]`
 
 **Google Play**
 
@@ -960,10 +966,10 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 - [ ] **7. Privacy** — caption: _"encrypted on your device. yours."_ Frame: phone with key icon → cloud with locked blob, arrow labeled "we never see this."
 - [ ] **8. Pricing** — caption: _"free forever. paid only when it earns it."_ Frame: three pricing cards (Hobby free, Starter $4.99, Pro $9.99 ember-bordered). Match Landing.tsx layout.
 
-**Apple-only optional (frames 9-10, lower ROI — most users never scroll past frame 3):**
+**Apple-only optional (frames 9-10, lower ROI — most users never scroll past frame 3):** `[iOS — DEFERRED]`
 
-- [ ] 9. Multi-modal: paste a screenshot, drop a PDF — _"everything goes in the same place"_
-- [ ] 10. Cross-device: phone + laptop showing same memory grid — _"kept in sync, encrypted in transit"_
+- [ ] 9. Multi-modal: paste a screenshot, drop a PDF — _"everything goes in the same place"_ `[iOS — DEFERRED]`
+- [ ] 10. Cross-device: phone + laptop showing same memory grid — _"kept in sync, encrypted in transit"_ `[iOS — DEFERRED]`
 
 **Other visual assets**
 
@@ -980,20 +986,20 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
   if (!(window as any).Capacitor?.isNativePlatform()) registerSW();
   ```
   Capacitor + service workers have a long history of pain — disable SW inside the native shell.
-- [ ] **Universal Links file** served at `https://everionmind.com/.well-known/apple-app-site-association` (iOS deep linking from email, share sheets).
+- [ ] **Universal Links file** served at `https://everionmind.com/.well-known/apple-app-site-association` (iOS deep linking from email, share sheets). `[iOS — DEFERRED]`
 - [ ] **App Links file** served at `https://everionmind.com/.well-known/assetlinks.json` (Android equivalent).
-- [ ] **Demo account for Apple review** — `review@everionmind.com` with a fixed-password backdoor that skips magic-link auth and onboarding. Apple's reviewer will reject if they can't get past auth.
+- [ ] **Demo account for review** — `review@everionmind.com` with a fixed-password backdoor that skips magic-link auth and onboarding. Play's reviewer will reject if they can't get past auth (Apple has the same requirement when iOS ships).
 
 ### M4 — Store metadata forms
 
-**Apple App Store Connect**
+**Apple App Store Connect** `[iOS — DEFERRED]`
 
-- [ ] **App Privacy nutrition labels** (must match `/privacy`):
+- [ ] **App Privacy nutrition labels** (must match `/privacy`): `[iOS — DEFERRED]`
   - Data Linked to You: Email (account), Purchase history (LemonSqueezy on web; Apple/Google in-app via RevenueCat on native), Diagnostic (Sentry, no PII)
   - Data Not Linked to You: Usage analytics (PostHog, consent-gated)
   - Data Not Collected: Vault contents, location, contacts, browsing history
-- [ ] **Age rating:** 4+ — pick "Infrequent/Mild — Mature Themes" if onboarding keeps the "if I die" copy.
-- [ ] **App Review Information:** demo account credentials, contact email, notes explaining magic-link → fixed-password review path.
+- [ ] **Age rating:** 4+ — pick "Infrequent/Mild — Mature Themes" if onboarding keeps the "if I die" copy. `[iOS — DEFERRED]`
+- [ ] **App Review Information:** demo account credentials, contact email, notes explaining magic-link → fixed-password review path. `[iOS — DEFERRED]`
 
 **Google Play Console**
 
@@ -1008,21 +1014,22 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 
 ### M5 — Pre-submission gate (run all before clicking Submit)
 
-- [ ] iOS Privacy Manifest written and validated (Xcode reports no warnings)
-- [ ] iOS `Info.plist` usage strings filled for every permission the app actually requests
+- [ ] iOS Privacy Manifest written and validated (Xcode reports no warnings) `[iOS — DEFERRED]`
+- [ ] iOS `Info.plist` usage strings filled for every permission the app actually requests `[iOS — DEFERRED]`
 - [ ] Android `AndroidManifest.xml` permissions match runtime requests (no extras)
-- [ ] Bundle ID `com.everionmind.app` locked in App Store Connect + Play Console
-- [ ] Universal Links + App Links files served at `/.well-known/` and validated by Apple's `swcutil` / Google's Digital Asset Links tester
+- [ ] Bundle ID `com.everionmind.app` locked in Play Console (App Store Connect deferred)
+- [ ] App Links file served at `/.well-known/assetlinks.json` and validated by Google's Digital Asset Links tester
+- [ ] Universal Links file served at `/.well-known/apple-app-site-association` and validated by Apple's `swcutil` `[iOS — DEFERRED]`
 - [x] IAP path resolved (Path B — RevenueCat for native + LemonSqueezy for web; shipped 2026-04-30 commit `c484030`)
 - [ ] Service-worker registration gated behind `!isNativePlatform()`
-- [ ] 8 screenshots generated at all required sizes (Apple 6.9", 6.5", 5.5"; Android phone, tablet)
-- [ ] Feature graphic 1024×500 generated
-- [ ] App icons 1024² generated for both stores
-- [ ] Privacy policy URL live and matches what's declared in store metadata
+- [ ] 8 screenshots generated at Android phone (1080×1920+) + tablet sizes. Apple 6.9"/6.5"/5.5" deferred. `[iOS — DEFERRED]` (Apple sizes only)
+- [ ] Feature graphic 1024×500 generated (Play Console)
+- [ ] App icons: Android 512×512 generated; iOS 1024² deferred. `[iOS — DEFERRED]` (iOS master only)
+- [ ] Privacy policy URL live and matches what's declared in Play Console metadata
 - [ ] Trademark check on "Everion" complete (USPTO + WIPO + ZA-CIPC)
 - [ ] Demo `review@everionmind.com` account created with backdoor login
-- [ ] App Privacy nutrition labels (Apple) submitted and match `/privacy`
 - [ ] Data Safety form (Google) submitted and matches `/privacy`
+- [ ] App Privacy nutrition labels (Apple) submitted and match `/privacy` `[iOS — DEFERRED]`
 
 ### M6 — Cannot assess without paid tools (deferred)
 
@@ -1035,6 +1042,75 @@ Generate at iPhone 6.9" canvas (`1290 × 2796`) — downscales cleanly. Android 
 ---
 
 ## Post-launch — deferred from V0 (build only after public launch ships)
+
+### iOS launch sprint (deferred 2026-05-05)
+
+Aggregated iOS-specific items from the Mobile section above. Don't start before Android has 30 days of stable production data and zero S1 incidents. Capacitor handles iOS as a fully separate native project — no code changes needed beyond the items below.
+
+**Why deferred** (not killed): Apple Developer Program is $99/yr + tax forms + bank verification + D-U-N-S; first review is the strictest pass; reviewer can reject for things like a privacy-policy nit and burn another 24-72h cycle. Android-first lets us ship to real users in days, learn from real usage, and bring that learning into the iOS submission.
+
+**Sprint structure** (rough — refine when starting):
+
+- **Day 1-2: Operator setup**
+  - [ ] Apple Developer Program enrollment ($99/yr) under personal name; transfer to entity later
+  - [ ] D-U-N-S number (only if enrolling as org, skip if individual)
+  - [ ] App Store Connect app entry created with bundle ID `com.everionmind.app`
+  - [ ] RevenueCat dashboard: add iOS app entry; iOS public key wired into `VITE_REVENUECAT_API_KEY_IOS`
+
+- **Day 3-4: Native shell + privacy compliance**
+  - [ ] Run `npx cap add ios` if `ios/App/App.xcworkspace` doesn't exist (it does as of 2026-04-30, just verify)
+  - [ ] Privacy Manifest `PrivacyInfo.xcprivacy` (required iOS 17+):
+    - Declare `NSPrivacyAccessedAPICategoryUserDefaults` (localStorage `everion_*` keys)
+    - Declare `NSPrivacyAccessedAPICategoryFileTimestamp` (PWA cache)
+    - `NSPrivacyTracking: false`
+    - List third-party SDKs (Capacitor plugins shipped in the bundle)
+  - [ ] `Info.plist` usage strings:
+    - `NSCameraUsageDescription` — "to capture photos for your entries."
+    - `NSMicrophoneUsageDescription` — "to record voice memos."
+    - `NSPhotoLibraryUsageDescription` — "to attach photos from your library."
+    - `NSFaceIDUsageDescription` — "to unlock your encrypted vault." (only if biometric unlock wired)
+  - [ ] iOS URL scheme registered in `Info.plist` `CFBundleURLTypes` for `everion://` + `com.everionmind.app://`
+  - [ ] Associated Domains entitlement for universal links from email
+  - [ ] `apple-app-site-association` file at `https://everionmind.com/.well-known/apple-app-site-association` validated by Apple's `swcutil`
+
+- **Day 5-6: Listing copy + assets**
+  - [ ] Title (29/30): `Everion: Second Brain & Vault`
+  - [ ] Subtitle (29/30): `Notes, vault, AI you can ask.`
+  - [ ] Keywords (98/100 bytes): `journal,diary,memory,encrypted,private,voice,memo,capture,recall,offline,GPT,Gemini,Claude,ID,tasks` (no repeats from title/subtitle, no spaces)
+  - [ ] Promotional text (170): "Quietly kept. The thoughts you'd lose and the facts you can't afford to — held in one private, encrypted home you can ask anything."
+  - [ ] Description: ~1,400 chars, conversion-only — Apple does NOT index the long description. (Block in Mobile § M1 above is paste-ready.)
+  - [ ] App Privacy nutrition labels (must match `/privacy` and the Android Data Safety form word-for-word):
+    - Data Linked to You: Email (account), Purchase history (Apple/Google in-app via RevenueCat), Diagnostic (Sentry, no PII)
+    - Data Not Linked to You: Usage analytics (PostHog, consent-gated)
+    - Data Not Collected: Vault contents, location, contacts, browsing history
+  - [ ] Age rating: 4+ — pick "Infrequent/Mild — Mature Themes" if onboarding keeps the "if I die" copy
+  - [ ] Apple App Review Information: demo `review@everionmind.com` credentials, contact email, notes on magic-link → fixed-password review path
+  - [ ] Apple primary category: Utilities, secondary: Productivity
+  - [ ] Apple-only screenshot frames 9-10 (multi-modal, cross-device) — generate at iPhone 6.9" canvas (1290×2796), downscale to 6.5" + 5.5" sizes
+  - [ ] iOS preview video (15-30s, optional but +20-40% conversion lift) — capture → ask → cited answer
+  - [ ] iOS app icon 1024×1024 master generated (Capacitor handles the rest)
+
+- **Day 7: Build + TestFlight**
+  - [ ] Open `ios/App/App.xcworkspace` in Xcode
+  - [ ] Set release scheme, archive, distribute → App Store Connect
+  - [ ] TestFlight internal track approval (Apple processes ~30-60 min)
+  - [ ] Real-device test on at least one iPhone (cold + warm magic-link, capture, chat, vault, sandbox subscription)
+  - [ ] Service-worker stays gated behind `!isNativePlatform()` (already wired — verify)
+
+- **Day 8: Production submission**
+  - [ ] App Store Connect product creation: subscription products `everionmind.starter.monthly` + `everionmind.pro.monthly` linked to RC entitlements `starter`/`pro`
+  - [ ] Sandbox subscribe → renewal → cancel cycle on real iPhone — passes
+  - [ ] Submit for production review
+  - [ ] Wait 24-72h (median ~24h on second-time apps)
+
+**iOS-specific risks to watch** (from Apple's review guidelines):
+- "Cannot sign in to test" — provide demo creds in App Review Information
+- "Privacy policy not accessible" — confirm `https://everionmind.com/privacy` returns 200, not Vercel-protection 401
+- "App appears to be a copycat" — second-brain category has visual sameness; mitigation is distinct icon + brand-name uniqueness (the trademark check covers this)
+- "IAP gates content not paid for" — make sure free-tier limits in `Legal/pricing-billing.md` match what Apple sees in the demo account
+- "App Tracking Transparency mismatch" — declared "no tracking" but ATT framework imported. Verify the SDK isn't accidentally linked.
+
+**Once iOS ships**: tick the iOS items in `PLAYBOOK.md` Phase 5; revisit `Mobile/ios-submission.md` as the canonical runbook for v1.1+ updates.
 
 ### Important Memories — beyond v0 (user-curated)
 

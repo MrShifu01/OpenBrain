@@ -106,6 +106,8 @@ Don't move to Phase 5 until activation rate is healthy and bug surface is quiet.
 
 This is one of three tactical days that matter most. Plan it like an event.
 
+> **Decided 2026-05-05: Android-first launch.** iOS App Store ship is deferred to a post-launch sprint (see Phase 6). Capacitor treats iOS / Android as fully independent native projects, so this is a clean cut — no coupling. Android gives us a real-user platform with cheaper review (~hours vs Apple's 24-72h), a $25 one-time fee instead of $99/yr + tax forms, and lets us iterate on real metrics while iOS goes through its own cycle later. Rationale + dependencies: see `LAUNCH_CHECKLIST.md` § Mobile app launch — Android-first decision.
+
 - [ ] Pick the date — see `Roadmap/week-4.md`
 - [ ] Product Hunt prep (assets, captain coordination, hunter friend) — `marketing/ProductHunt/`
 - [ ] Hacker News "Show HN" draft prepared (post on launch day morning)
@@ -113,8 +115,9 @@ This is one of three tactical days that matter most. Plan it like an event.
 - [ ] LinkedIn announcement drafted
 - [ ] Email blast to mailing list drafted
 - [ ] Press list pitched 48h ahead — `Brand/outreach-list.md`
-- [ ] iOS app live in App Store — `Mobile/ios-submission.md`
-- [ ] Android app live in Play Store — `Specs/play-console-submission.md`
+- [ ] **Android app live in Play Store** — `Specs/play-console-submission.md`
+- [ ] PWA install banner for iOS users (until iOS app ships) — landing-page CTA + `/install` deep-link to "Add to Home Screen" instructions
+- [ ] ~~iOS app live in App Store~~ — **deferred to Phase 6 post-launch sprint** (see `LAUNCH_CHECKLIST.md` § Post-launch — iOS launch sprint)
 - [ ] Status page ready — TODO
 - [ ] On-call schedule (yes, even solo — block your day; no other commitments)
 - [ ] Incident response playbook reviewed — `Ops/incident-response.md`
@@ -142,6 +145,7 @@ Launch day is a spike. Retention and growth are the real product.
 - [ ] Incident postmortems written — `Ops/incident-response.md`
 - [ ] A/B tests started (1–2 at a time) — `Analytics/ab-tests.md`
 - [ ] Content cadence: 1 blog post / week, 1 social thread / week — `marketing/seo-marketing-playbook.md`
+- [ ] **iOS launch sprint** — once Android has 30 days of stable production data and no S1 incidents, run the iOS submission sprint. Plan in `LAUNCH_CHECKLIST.md` § Post-launch — iOS launch sprint; runbook in `Mobile/ios-submission.md`. Don't start before Android stability is proven.
 - [ ] Quarterly: re-read `Legal/ai-disclosure.md` for vendor changes
 - [ ] Quarterly: re-read `architecture/security.md` for threat surface drift
 - [ ] Bi-annually: tabletop a `Ops/disaster-recovery.md` scenario
