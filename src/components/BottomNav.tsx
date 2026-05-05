@@ -51,7 +51,15 @@ function BottomNavInner({
       className="bottom-nav-mobile"
       style={{
         position: "fixed",
-        bottom: 0,
+        // bottom:0 anchors the nav to the layout viewport bottom — but
+        // on iPhones with a home indicator iOS keeps the safe-area zone
+        // BELOW the layout viewport clear, and the body background
+        // shows through it as a visible gap under the nav. Negative
+        // bottom + extra height extends the nav's background DOWN into
+        // that zone so the bar visually reaches the very bottom edge of
+        // the device. Same pattern LoadingScreen uses. Icons sit in the
+        // top 56px (above the safe area) thanks to padding-bottom.
+        bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))",
         left: 0,
         right: 0,
         zIndex: "var(--z-nav)",
@@ -59,8 +67,8 @@ function BottomNavInner({
         justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        height: "calc(56px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "calc(2 * env(safe-area-inset-bottom, 0px))",
+        height: "calc(56px + 2 * env(safe-area-inset-bottom, 0px))",
       }}
     >
       {navItems.map((item) => {
