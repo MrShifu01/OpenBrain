@@ -4,6 +4,7 @@
 // the brain has a DEK, fetch the target user's public key, wrap, POST.
 
 import { authFetch } from "./authFetch";
+import { supabase, readCachedSession } from "./supabase";
 import {
   getCachedVaultKey,
   unwrapPrivateKey,
@@ -50,10 +51,18 @@ async function loadOwnGrantForBrain(
 }
 
 async function fetchOwnUserId(): Promise<string | null> {
-  const r = await authFetch("/api/profile");
-  if (!r.ok) return null;
-  const data = (await r.json()) as { id?: string } | null;
-  return data?.id ?? null;
+  // Read from the Supabase auth session — this is always the authoritative
+  // source for "who am I". The previous implementation hit /api/profile and
+  // expected `{ id }` at the top level, but that endpoint returns
+  // `{ profile: { user_id } | null }` and `profile` is null for users who
+  // haven't filled in About-You — so granting vault access from a fresh
+  // account would always fail with "Couldn't resolve your user id".
+  const cached = readCachedSession();
+  if (cached?.user?.id) return cached.user.id;
+  // Fallback for the rare boot window where the cache hasn't materialised
+  // yet (private-mode or cache-cleared session).
+  const { data } = await supabase.auth.getUser();
+  return data?.user?.id ?? null;
 }
 
 async function fetchTargetPublicKey(userId: string): Promise<CryptoKey | null> {
