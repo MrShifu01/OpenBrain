@@ -84,6 +84,12 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.js",
       registerType: "prompt",
+      // We register the SW ourselves via UpdatePrompt.tsx so we can gate on
+      // Capacitor.isNativePlatform() — service workers inside the Capacitor
+      // WebView have a long history of pain (cache mismatches, ghost SWs
+      // surviving app upgrades). Default 'auto' would inject an unconditional
+      // <script> in index.html that registers before our gate can run.
+      injectRegister: false,
       manifest: {
         name: "Everion",
         short_name: "Everion",

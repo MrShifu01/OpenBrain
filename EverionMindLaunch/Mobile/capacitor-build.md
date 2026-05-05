@@ -2,7 +2,7 @@
 
 How the web app gets wrapped into iOS / Android shells, and how to release a new build to TestFlight / internal testing.
 
-> **Stub**: this doc captures the high-level flow today. Fill in concrete commands once Capacitor is integrated (currently still web-only on launch path).
+> **Status as of 2026-05-05**: Capacitor scaffolded; Android shell ready for keystore wiring + first AAB. iOS deferred to post-launch sprint (see `EML/LAUNCH_CHECKLIST.md` § Post-launch — iOS launch sprint).
 
 ## Architecture
 
@@ -53,6 +53,111 @@ cd android && ./gradlew bundleRelease
 # iOS: Xcode → target → General → Identity → Build (auto-increment via Xcode setting)
 # Android: android/app/build.gradle → versionCode + versionName
 ```
+
+## Android signing — one-time keystore setup
+
+The keystore is the single most fragile artifact in the entire mobile pipeline. Lose it and you cannot ship updates ever — Google rejects any future AAB signed with a different key, and the only recovery is republishing under a new package name (extinction-level event for an indie app). Treat this section like a security procedure.
+
+### 1. Generate the production keystore
+
+```bash
+cd android
+keytool -genkey -v -keystore everion-release.jks -keyalg RSA \
+  -keysize 2048 -validity 10000 -alias everion
+```
+
+Prompts (answer carefully — these go on every AAB):
+- **Keystore password**: 20+ chars, store in 1Password.
+- **Key password**: same as keystore password (simpler).
+- **Common name**: `Christian Stander`
+- **Organisational unit**: `Everion Mind`
+- **Organisation**: `Everion Mind` (or the (Pty) Ltd name once registered)
+- **Locality**: `Vereeniging`
+- **State**: `Gauteng`
+- **Country code**: `ZA`
+
+Validity 10000 days = 27.4 years. Long-lived because rotating keystores is a nightmare.
+
+### 2. Wire `keystore.properties`
+
+```bash
+cp android/keystore.properties.example android/keystore.properties
+# edit android/keystore.properties — replace the REPLACE_ME placeholders
+```
+
+Reference: `android/keystore.properties.example`. The `.gitignore` already excludes `keystore.properties` and `*.jks`.
+
+`android/app/build.gradle` reads from this file at build time (added 2026-05-05). If the file is missing, the release build falls back to debug signing so `./gradlew assembleDebug` still works in CI.
+
+### 3. Back up to 3 separate encrypted locations
+
+Mandatory. Pick three of:
+- Encrypted USB stick — physical (locked drawer)
+- Encrypted ZIP in personal cloud (Dropbox / iCloud)
+- Encrypted ZIP in a separate cloud (Google Drive in a different account)
+- Encrypted ZIP in 1Password as a binary attachment
+
+Use a passphrase you'll remember in 10 years. If your house burns down AND your laptop dies AND one cloud goes down, you still have the keystore.
+
+### 4. Verify the AAB signs
+
+```bash
+cd android
+./gradlew bundleRelease
+~/Android/Sdk/build-tools/<version>/apksigner verify \
+  --print-certs \
+  app/build/outputs/bundle/release/app-release.aab
+```
+
+Output should show one signing certificate matching your keystore SHA-256.
+
+### 5. Extract the SHA-256 fingerprint for App Links
+
+```bash
+keytool -list -v -keystore android/everion-release.jks -alias everion \
+  | grep "SHA256:" \
+  | head -1 \
+  | awk '{print $2}'
+```
+
+Paste the output (colons and all) into `public/.well-known/assetlinks.json`, replacing `REPLACE_WITH_PRODUCTION_KEYSTORE_SHA256_FINGERPRINT`. Deploy. Verify the file is reachable:
+
+```bash
+curl https://everionmind.com/.well-known/assetlinks.json
+```
+
+Then validate via Google's tester: <https://developers.google.com/digital-asset-links/tools/generator>.
+
+Once validated, flip `android:autoVerify="false"` to `"true"` on the App Link intent-filter in `android/app/src/main/AndroidManifest.xml` and rebuild. Verify on a real device:
+
+```bash
+adb shell pm verify-app-links --re-verify com.everionmind.app
+adb shell pm get-app-links com.everionmind.app
+# STATE_VERIFIED = success; STATE_FAIL = fingerprint mismatch or 404
+```
+
+## Demo review-tester account (Play Console App Access)
+
+Play Console requires test credentials so reviewers can sign in past auth. The setup is automated:
+
+```bash
+REVIEW_TESTER_EMAIL=play-tester@everionmind.com \
+REVIEW_TESTER_PASSWORD='your-strong-12+-char-pw' \
+SUPABASE_URL=$SUPABASE_URL \
+SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY \
+node scripts/setup-review-tester.mjs
+```
+
+What it does (idempotent — safe to re-run):
+1. Creates `play-tester@everionmind.com` user (or refreshes the password if exists).
+2. Marks `user_profiles.onboarding_completed=true` so the OnboardingModal doesn't gate the reviewer.
+3. Provisions a personal brain.
+4. Seeds 6 curated sample entries spanning note / todo / person / reminder so the app feels populated on first open.
+5. Writes an `audit_log` row each run.
+
+Paste the email + password into Play Console → App Access → Add login credentials. Pick "All other apps", point at the sign-in URL of the production app, fill the credentials.
+
+Refresh the password (and re-run the script) any time the credentials are exposed or before each major release.
 
 ## Version-bump rules
 

@@ -28,14 +28,18 @@
                 <data android:scheme="com.everionmind.app" />
             </intent-filter>
 
-            <!-- Universal-link surface for everionmind.com (App Links).
-                 Disabled (autoVerify=false) until /.well-known/assetlinks.json
-                 is published — flip to true after that ships. -->
+            <!-- App Links for everionmind.com auth + share routes.
+                 Path-restricted: don't claim /, /privacy, /pricing etc. — only
+                 the surfaces where the app should intercept the browser.
+                 Flip android:autoVerify="true" once /.well-known/assetlinks.json
+                 is published with the production keystore SHA-256 fingerprint. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="everionmind.com" />
+                <data android:scheme="https" android:host="everionmind.com" android:pathPrefix="/invite/" />
+                <data android:scheme="https" android:host="everionmind.com" android:pathPrefix="/share/" />
+                <data android:scheme="https" android:host="everionmind.com" android:pathPrefix="/auth/callback" />
             </intent-filter>
         </activity>
 
@@ -48,7 +52,29 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- Permissions — keep minimal. Each line is justified by an actual
+         runtime call site. Adding speculative permissions triggers extra
+         Play review and looks suspicious in Data Safety. -->
 
+    <!-- Required: every API call hits the public internet. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Voice memo capture via getUserMedia (src/hooks/useVoiceRecorder.ts).
+         Without this declaration, the WebView mic-permission prompt never
+         shows and getUserMedia rejects with NotAllowedError on Android. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Camera capture from the entry body's file input
+         (src/components/CaptureEntryBody.tsx — capture="environment").
+         Same WebView-prompt requirement as RECORD_AUDIO. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- DELIBERATELY OMITTED:
+         - WRITE_EXTERNAL_STORAGE: scoped storage on Android 11+ removes the
+           need; including it triggers extra Play review.
+         - READ_MEDIA_IMAGES (Android 13+): we use <input type="file"> which
+           delegates to the system picker; no direct media read.
+         - POST_NOTIFICATIONS (Android 13+): push notifications are deferred
+           to the post-launch sprint per LAUNCH_CHECKLIST. Add together with
+           the Web Push wiring when that ships. -->
 </manifest>

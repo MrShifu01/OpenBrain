@@ -51,7 +51,14 @@
     { "source": "/api/audit", "destination": "/api/entries?resource=audit" },
     { "source": "/api/graph", "destination": "/api/entries?resource=graph" },
     { "source": "/v1/:action", "destination": "/api/v1?action=:action" },
-    { "source": "/.well-known/:path*", "destination": "/api/mcp?_wk=1" },
+    {
+      "source": "/.well-known/oauth-authorization-server",
+      "destination": "/api/mcp?_wk=1"
+    },
+    {
+      "source": "/.well-known/openid-configuration",
+      "destination": "/api/mcp?_wk=1"
+    },
     { "source": "/token", "destination": "/api/mcp?_oauth=token" },
     { "source": "/register", "destination": "/api/mcp?_oauth=register" },
     { "source": "/authorize", "destination": "/api/mcp?_oauth=authorize" },

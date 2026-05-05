@@ -1,5 +1,24 @@
 apply plugin: 'com.android.application'
 
+// Production signing — reads from android/keystore.properties (gitignored).
+// Template: keystore.properties.example. If the file is missing (CI without
+// secrets, debug-only build), the release build falls back to the debug
+// signing config so `./gradlew assembleDebug` still works.
+//
+// To generate the keystore (one-time, do this on a machine you control):
+//   keytool -genkey -v -keystore everion-release.jks -keyalg RSA \
+//     -keysize 2048 -validity 10000 -alias everion
+//
+// BACK IT UP TO 3 SEPARATE ENCRYPTED LOCATIONS. Lose the keystore and you
+// can't ship updates — Google Play will reject any future AAB signed with
+// a different key.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.everionmind.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +35,25 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // If keystore.properties is missing (early-stage dev, CI without
+            // secrets), fall back to the debug signing config so the build
+            // doesn't fail. Production AABs MUST be built with the release
+            // keystore present — see Mobile/capacitor-build.md.
+            signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
         }
     }
 }
