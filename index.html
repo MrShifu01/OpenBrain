@@ -246,6 +246,12 @@
         min-height: 100dvh;
         background: var(--bg, #393c42);
       }
+      /* When the signed-in app shell mounts, #root must also be fixed-
+         height so the inner flex column can rely on its parent height. */
+      #root:has(.app-shell-fixed) {
+        height: 100lvh;
+        overflow: hidden;
+      }
       .app-shell-boot {
         position: fixed;
         inset: 0;

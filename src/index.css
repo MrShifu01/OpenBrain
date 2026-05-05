@@ -600,6 +600,7 @@ select:focus-visible {
 html,
 body {
   min-height: 100dvh;
+  background: var(--color-background);
   color: var(--color-on-surface);
   /* overflow-x:hidden silently turns html+body into scroll containers
      (per CSS spec, the other axis becomes overflow-y:auto). On mobile
@@ -614,27 +615,30 @@ body {
   max-width: 100vw;
 }
 
-/* HTML bg = bottom-nav color, body bg = page color.
-   Diagnosed via DebugViewportOverlay (commit 649ea9c, real on-device
-   readings on iPhone 14 PWA standalone): innerHeight launches at 797–816
-   and only grows to the device-screen 844 after first user-initiated
-   scroll. The bottom nav anchors to layout-viewport-bottom via
-   position:fixed, AND iOS clips its visual rendering at innerHeight even
-   though getBoundingClientRect reports the rect extending into the safe-
-   area zone. So in the (lvh − dvh) gap below the nav, only whatever sits
-   behind the nav renders — and that's the html element when body's
-   min-height: 100dvh stops short of the screen.
-   Setting html bg to --surface-low means that gap renders the SAME color
-   as the nav, eliminating the visible body-bg strip. Body keeps its own
-   page-color bg so the rest of the page reads correctly. Universal —
-   works in any browser/PWA where layout viewport settles after first
-   paint (iOS PWA, Android Chrome PWA, some desktop zoom states).
-   No env() / device gating needed. */
-html {
-  background: var(--surface-low);
+/* Signed-in app shell: body becomes fixed-height (100lvh) with
+   overflow:hidden so the inner <main id="main-content"> is the actual
+   scroll container. The bottom nav is then a regular in-flow flex child
+   of .app-shell-fixed and does not depend on window.innerHeight.
+
+   Why: position:fixed bottom:0 in iOS PWA standalone anchors to the
+   layout viewport (innerHeight). On launch, iOS PWA reports innerHeight
+   smaller than the device screen (measured 815/816 → 844 on iPhone 14,
+   transition over ~1s — see DebugViewportOverlay readings, commits
+   649ea9c, 4472234). Fixed elements leave a body-bg strip below them
+   until iOS commits the full viewport. Synthetic scrollTo/resize events
+   do not shortcut the commit.
+
+   Scoping via .app-shell-fixed (added in Everion.tsx outer wrapper)
+   instead of html/body globally — the Landing/Login pages still need
+   body-scroll for their long marketing pages and the ExitIntentSlideIn
+   scroll listener. */
+body:has(.app-shell-fixed) {
+  height: 100lvh;
+  overflow: hidden;
 }
-body {
-  background: var(--color-background);
+.app-shell-fixed {
+  height: 100lvh;
+  overflow: hidden;
 }
 
 /* Register --app-header-h as a typed custom property so secondary sticky

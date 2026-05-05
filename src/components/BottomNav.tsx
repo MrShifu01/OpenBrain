@@ -50,25 +50,23 @@ function BottomNavInner({
       aria-label="Primary navigation"
       className="bottom-nav-mobile"
       style={{
-        position: "fixed",
-        // bottom:0 anchors the nav to the layout viewport bottom — but
-        // on iPhones with a home indicator iOS keeps the safe-area zone
-        // BELOW the layout viewport clear, and the body background
-        // shows through it as a visible gap under the nav. Negative
-        // bottom + extra height extends the nav's background DOWN into
-        // that zone so the bar visually reaches the very bottom edge of
-        // the device. Same pattern LoadingScreen uses. Icons sit in the
-        // top 56px (above the safe area) thanks to padding-bottom.
-        bottom: "calc(-1 * env(safe-area-inset-bottom, 0px))",
-        left: 0,
-        right: 0,
+        // In-flow flex child of the app shell (not position:fixed).
+        // App shell is body-height = 100lvh = full settled viewport, with
+        // <main id="main-content"> as the inner scroll container. Nav is
+        // the last flex child, pinned to the bottom by flex layout — no
+        // dependency on window.innerHeight or layout-viewport timing.
+        // padding-bottom: env(safe-area-inset-bottom) plus matching height
+        // makes the nav background fill the home-indicator / gesture-bar
+        // zone naturally; iOS PWA renders body content through the safe
+        // area via viewport-fit=cover.
+        flexShrink: 0,
         zIndex: "var(--z-nav)",
         alignItems: "center",
         justifyContent: "space-around",
         background: "var(--surface-low)",
         borderTop: "1px solid var(--line-soft)",
-        paddingBottom: "calc(2 * env(safe-area-inset-bottom, 0px))",
-        height: "calc(56px + 2 * env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+        height: "calc(56px + env(safe-area-inset-bottom, 0px))",
       }}
     >
       {navItems.map((item) => {

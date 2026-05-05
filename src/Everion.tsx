@@ -422,8 +422,8 @@ function EverionContent({
           overflow-x:clip clips horizontal overflow without creating a
           scroll container, so sticky descendants bind to the body and
           behave correctly. */}
-      <div className="w-full overflow-x-clip">
-        <div className="bg-background min-h-dvh lg:ml-60 lg:max-w-[calc(100vw-240px)]">
+      <div className="app-shell-fixed w-full overflow-x-clip">
+        <div className="bg-background flex h-full flex-col overflow-hidden lg:ml-60 lg:max-w-[calc(100vw-240px)]">
           <MobileHeader
             onToggleTheme={toggleTheme}
             isDark={isDark}
@@ -505,7 +505,12 @@ function EverionContent({
               source_entries: c.source_entries,
             }))}
           />
-          <div id="main-content" key={appShell.view} className="animate-view-enter" tabIndex={-1}>
+          <div
+            id="main-content"
+            key={appShell.view}
+            className="animate-view-enter flex-1 overflow-y-auto"
+            tabIndex={-1}
+          >
             {(appShell.view === "memory" || appShell.view === "timeline") && (
               <>
                 <MemoryHeader

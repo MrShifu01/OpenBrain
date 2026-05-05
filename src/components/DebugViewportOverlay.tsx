@@ -135,29 +135,6 @@ nav rect (top/bottom/h/w): ${snap.navRect ? `${snap.navRect.top} / ${snap.navRec
 nav css (bottom/pb/h): ${snap.navComputed ? `${snap.navComputed.bottom} / ${snap.navComputed.paddingBottom} / ${snap.navComputed.height}` : "n/a"}
 gap below nav: ${snap.navRect ? snap.innerHeight - snap.navRect.bottom : "?"}px
 readings: ${readings.length}  last innerH/vvH/inB: ${readings.map((r) => `${r.innerHeight}/${r.vvHeight}/${r.insetBottom}`).join(" → ")}`}
-      {/* RED PROBE STRIP — fixed bottom: -28; height: 28. If iOS renders
-          fixed elements past innerHeight into the safe-area zone, this
-          strip will be visible at the very bottom of the screen. If iOS
-          clips fixed elements at innerHeight, the strip will not appear.
-          Decisive test for which fix path to take. */}
-      <div
-        aria-hidden
-        style={{
-          position: "fixed",
-          bottom: "-28px",
-          left: 0,
-          right: 0,
-          height: "28px",
-          background: "red",
-          color: "white",
-          zIndex: 99998,
-          pointerEvents: "none",
-          font: "11px/28px monospace",
-          textAlign: "center",
-        }}
-      >
-        RED PROBE — fixed bottom:-28; height:28
-      </div>
     </div>
   );
 }
