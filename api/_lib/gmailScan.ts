@@ -1456,6 +1456,23 @@ async function persistMatches(
           .catch((err) => console.error(`[gmail-scan:embed] entry ${inserted.id}:`, err));
       }
 
+      // Auto-accept (Phase 1 pattern auto-accept): kick off the same enrich
+      // chain a PATCH-time accept would. Classifier mode already extracted
+      // attachments via deepExtractEntry above, so just fire enrichInline
+      // here so parse/insight/concepts run with attachment_text included.
+      if (verdict?.kind === "auto-accept" && inserted?.id) {
+        const userId = integration.user_id as string;
+        const entryId = inserted.id as string;
+        (async () => {
+          try {
+            const enr = await import("./enrich.js");
+            await enr.enrichInline(entryId, userId);
+          } catch (err) {
+            console.error(`[gmail-scan:auto-accept-enrich] ${entryId}:`, err);
+          }
+        })();
+      }
+
       // Contact dedup: share the same upsert promise for concurrent same-sender entries.
       if (!contactCache.has(fromEmail)) {
         contactCache.set(
@@ -1792,6 +1809,28 @@ async function persistClusters(
           }),
         )
         .catch((err) => console.error(`[gmail-cluster:embed] entry ${inserted.id}:`, err));
+    }
+
+    // Auto-accepted entries skip the PATCH-time pipeline (extract+enrich) so
+    // schedule it here. Fire-and-forget; hourly cron is the safety net for
+    // anything Vercel kills mid-flight (the cron's enrichBrain will pick up
+    // any entry where flags are still unset).
+    if (verdict?.kind === "auto-accept" && inserted?.id) {
+      const userId = integration.user_id as string;
+      const entryId = inserted.id as string;
+      (async () => {
+        try {
+          await extractGmailAttachmentsForEntry(entryId, userId);
+        } catch (err) {
+          console.error(`[gmail-cluster:auto-accept-extract] ${entryId}:`, err);
+        }
+        try {
+          const enr = await import("./enrich.js");
+          await enr.enrichInline(entryId, userId);
+        } catch (err) {
+          console.error(`[gmail-cluster:auto-accept-enrich] ${entryId}:`, err);
+        }
+      })();
     }
   }
 

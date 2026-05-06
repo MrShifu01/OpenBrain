@@ -179,9 +179,47 @@ const USER_OWNED_KEYS = new Set([
   "day_of_month",
 ]);
 
+// ── Shared enrichment input builder ─────────────────────────────────────────
+//
+// Every LLM step (parse / insight / concepts) and the embedder need to read
+// the same superset of "what this entry says." Previously each step pulled
+// from entry.content + entry.title only, which was bad for Gmail entries
+// where the meat is in metadata.attachment_text (extracted PDF/image text)
+// or metadata.full_text (the full email body that got truncated to fit
+// content's 400-char cap at scan time). Result: the LLM saw "see attached"
+// and produced empty concepts / blank insights.
+//
+// buildEnrichText concatenates everything semantically meaningful, capped
+// at maxLen. Headers (Title:, Content:, Attachment:) keep the LLM aware
+// of structure even when fields run together.
+function buildEnrichText(
+  entry: { title: string; content: string | null; metadata: Record<string, any> | null },
+  maxLen = 8000,
+): string {
+  const meta = entry.metadata ?? {};
+  const fullText = typeof meta.full_text === "string" ? meta.full_text : "";
+  const attachmentText =
+    typeof meta.attachment_text === "string" ? meta.attachment_text : "";
+
+  const parts: string[] = [];
+  if (entry.title) parts.push(`Title: ${entry.title}`);
+  if (entry.content) parts.push(`Content:\n${entry.content}`);
+  // full_text usually mirrors content for short captures but holds the full
+  // body for entries where content was truncated. Skip if it's a substring
+  // of content to avoid duplication.
+  if (fullText && (!entry.content || !entry.content.includes(fullText.slice(0, 100)))) {
+    parts.push(`Full text:\n${fullText}`);
+  }
+  if (attachmentText) parts.push(`Attachment text:\n${attachmentText}`);
+  return parts.join("\n\n").slice(0, maxLen);
+}
+
 async function stepParse(entry: Entry, cfg: AICall): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
-  const raw = String(meta.full_text || entry.content || entry.title || "");
+  // Reads the union of title + content + metadata.full_text + attachment_text
+  // so emails where the meat lives in the PDF still get useful structured
+  // extraction and aren't classified by their "see attached" body alone.
+  const raw = buildEnrichText({ ...entry, metadata: meta }, 10000);
   if (!raw) return { ...meta, enrichment: { ...(meta.enrichment ?? {}), parsed: true } };
 
   const aiRaw = await callAI(cfg, SERVER_PROMPTS.CAPTURE, raw, { maxTokens: 1500, json: true });
@@ -202,9 +240,28 @@ async function stepParse(entry: Entry, cfg: AICall): Promise<Record<string, any>
       safeAIMeta[k] = v;
     }
 
+    // For Gmail-sourced entries the original content is auto-generated at
+    // scan time (cluster-mode: first 400 chars of email body; classifier-
+    // mode: one-sentence summary). It's never user-edited, so when the
+    // parse LLM produces a richer summary off the full text + attachment,
+    // we stamp it as metadata.ai_summary. The card prefers ai_summary
+    // over content for source=gmail (see EntryCard) so the user sees
+    // the substantive summary instead of "Good day, please find attached."
+    const isGmailSource = meta.source === "gmail";
+    const llmContent =
+      typeof parsed.data.content === "string" ? parsed.data.content.trim() : "";
+    if (isGmailSource && llmContent && llmContent.length >= 40) {
+      safeAIMeta.ai_summary = llmContent.slice(0, 1500);
+    }
+
     return {
       ...safeAIMeta,
       ...meta,
+      // safeAIMeta wrote ai_summary BEFORE the meta spread, so meta wins on
+      // every key except keys not yet in meta — but ai_summary isn't in meta
+      // yet so it lands. Re-assert here to be explicit and survive future
+      // refactors of the order.
+      ...(safeAIMeta.ai_summary ? { ai_summary: safeAIMeta.ai_summary } : {}),
       enrichment: { ...(meta.enrichment ?? {}), parsed: true },
     };
   }
@@ -228,7 +285,12 @@ const REFUSAL_RE =
 async function stepInsight(entry: Entry, cfg: AICall): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
   const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
-  const prompt = `<user_entry>\nType: ${entry.type || "note"}${tagStr}\nTitle: ${entry.title}\n${String(entry.content || "").slice(0, 1500)}\n</user_entry>`;
+  // Insight reads the same superset as parse so emails-with-attachments get
+  // their attachment text folded in. Cap the body slice tighter than parse
+  // (4000 chars) since insight only outputs ~300 tokens — input bloat
+  // increases cost for negligible quality gain past ~4k.
+  const enrichBody = buildEnrichText({ ...entry, metadata: meta }, 4000);
+  const prompt = `<user_entry>\nType: ${entry.type || "note"}${tagStr}\n${enrichBody}\n</user_entry>`;
   const insight = await callAI(cfg, SERVER_PROMPTS.INSIGHT, prompt, { maxTokens: 300 });
   if (!insight) return null;
 
@@ -253,7 +315,11 @@ async function stepInsight(entry: Entry, cfg: AICall): Promise<Record<string, an
 
 async function stepConcepts(entry: Entry, cfg: AICall): Promise<Record<string, any> | null> {
   const meta = { ...(entry.metadata ?? {}) };
-  const conceptPrompt = `Entry ID: ${entry.id}\n<user_entry>\nTitle: ${entry.title}\nType: ${entry.type || "note"}\nContent: ${String(entry.content || "").slice(0, 2000)}\n</user_entry>`;
+  // Same reasoning as insight — concepts step needs to see attachment text
+  // or it can't extract concepts from "Customer Statements / see attached"
+  // emails. Capped at 4000 chars to balance signal vs cost.
+  const enrichBody = buildEnrichText({ ...entry, metadata: meta }, 4000);
+  const conceptPrompt = `Entry ID: ${entry.id}\n<user_entry>\nType: ${entry.type || "note"}\n${enrichBody}\n</user_entry>`;
   const conceptRaw = await callAI(cfg, SERVER_PROMPTS.ENTRY_CONCEPTS, conceptPrompt, {
     maxTokens: 400,
     json: true,
@@ -281,15 +347,6 @@ interface EmbedConfig {
   provider: "gemini" | "openai";
   apiKey: string;
   model: string;
-}
-
-function buildEntryText(entry: {
-  title: string;
-  content: string | null;
-  tags: string[] | null;
-}): string {
-  const tagStr = entry.tags?.length ? ` [${entry.tags.join(", ")}]` : "";
-  return `${entry.title}${tagStr}\n${entry.content ?? ""}`.trim();
 }
 
 // Pgvector column on entries.embedding is fixed at vector(768). Both providers
@@ -354,7 +411,12 @@ async function generateEmbedding(text: string, embed: EmbedConfig): Promise<numb
 }
 
 async function stepEmbed(entry: Entry, embed: EmbedConfig): Promise<void> {
-  const text = buildEntryText(entry);
+  // Embedding sees the full enrichment input — title + content + full_text +
+  // attachment_text — so semantic search can find emails by phrases that
+  // only appear in their PDF attachments. Capped at 8000 chars (Gemini
+  // embedding-001 native limit is higher but bigger inputs reduce signal
+  // density per dimension at the 768-dim truncation we use).
+  const text = buildEnrichText(entry, 8000);
   if (!text) {
     // No content to embed — mark done so we don't retry forever.
     await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entry.id)}`, {
@@ -651,9 +713,40 @@ export async function enrichInline(
   userId: string,
   opts: { skipEmbed?: boolean } = {},
 ): Promise<boolean> {
-  const entry = await fetchEntry(entryId, userId);
+  let entry = await fetchEntry(entryId, userId);
   if (!entry) return false;
   if (entry.type === "secret") return false;
+
+  // Gmail safety net: if this is a Gmail entry with attachments listed but
+  // attachment_text not yet extracted, pull it first. Means the LLM steps
+  // below see the full text. Belt-and-braces — covers entries that were
+  // auto-accepted at scan time but had their fire-and-forget extract call
+  // killed by Vercel, AND historical entries imported before extraction
+  // was wired up. Idempotent — extractGmailAttachmentsForEntry short-
+  // circuits when attachment_text is already present.
+  const needsGmailExtract =
+    entry.metadata?.source === "gmail" &&
+    typeof entry.metadata?.gmail_message_id === "string" &&
+    Array.isArray(entry.metadata?.attachments) &&
+    entry.metadata.attachments.length > 0 &&
+    (typeof entry.metadata?.attachment_text !== "string" ||
+      entry.metadata.attachment_text.length === 0);
+  if (needsGmailExtract) {
+    try {
+      const mod = await import("./gmailScan.js");
+      await mod.extractGmailAttachmentsForEntry(entryId, userId);
+      // Re-fetch so workingMeta below sees the new attachment_text. Without
+      // this the LLM steps would still operate on the pre-extract metadata.
+      const refreshed = await fetchEntry(entryId, userId);
+      if (refreshed) entry = refreshed;
+    } catch (err: any) {
+      console.error(
+        "[enrich:gmail-extract]",
+        entryId,
+        String(err?.message ?? err).slice(0, 200),
+      );
+    }
+  }
 
   const flags = flagsOf(entry);
   let changed = false;
@@ -926,7 +1019,10 @@ async function bulkEmbedBatch(entries: Entry[], userId: string): Promise<void> {
     entries,
     BULK_EMBED_CONCURRENCY,
     async (entry): Promise<EmbedResult> => {
-      const text = buildEntryText(entry);
+      // Same text-builder as the single-entry stepEmbed so search treats
+      // both paths consistently. Includes attachment_text and full_text
+      // when available.
+      const text = buildEnrichText(entry, 8000);
       if (!text) return { id: entry.id, kind: "empty" };
       try {
         const values = await generateEmbedding(text, embedCfg);

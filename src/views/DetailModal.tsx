@@ -834,23 +834,53 @@ No explanation, no punctuation, just one word.`,
                         drags subsequent lines off-screen. minWidth: 0 is the
                         flex-child escape hatch so this <p> can actually
                         shrink below its content's intrinsic width. */}
-                    <p
-                      className="f-serif"
-                      style={{
-                        fontSize: 18,
-                        lineHeight: 1.65,
-                        color: "var(--ink)",
-                        margin: 0,
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "anywhere",
-                        wordBreak: "break-word",
-                        minWidth: 0,
-                      }}
-                    >
-                      {!showFullText && (editContent || "").length > CONTENT_PREVIEW_LIMIT
-                        ? (editContent || "").slice(0, CONTENT_PREVIEW_LIMIT) + "…"
-                        : editContent}
-                    </p>
+                    {(() => {
+                      // Prefer the rich AI-generated summary for Gmail entries
+                      // whose raw content is the thin scan-time placeholder
+                      // ("see attached" / cluster-time body excerpt). Editing
+                      // still bound to editContent so when the user clicks Edit
+                      // they see the underlying source-of-truth, not the AI
+                      // paraphrase. Same logic as EntryCard — kept in sync.
+                      const meta = entry.metadata as Record<string, unknown> | undefined;
+                      const isGmail = (meta?.source as string | undefined) === "gmail";
+                      const aiSummary =
+                        isGmail && typeof meta?.ai_summary === "string"
+                          ? (meta.ai_summary as string).trim()
+                          : "";
+                      const aiInsight =
+                        isGmail && typeof meta?.ai_insight === "string"
+                          ? (meta.ai_insight as string).trim()
+                          : "";
+                      const raw = editContent ?? "";
+                      const displayContent = editing
+                        ? raw
+                        : aiSummary && aiSummary.length >= raw.length / 2
+                          ? aiSummary
+                          : aiInsight && raw.length < 200 && aiInsight.length > raw.length
+                            ? aiInsight
+                            : raw;
+                      const truncated =
+                        !showFullText && displayContent.length > CONTENT_PREVIEW_LIMIT
+                          ? displayContent.slice(0, CONTENT_PREVIEW_LIMIT) + "…"
+                          : displayContent;
+                      return (
+                        <p
+                          className="f-serif"
+                          style={{
+                            fontSize: 18,
+                            lineHeight: 1.65,
+                            color: "var(--ink)",
+                            margin: 0,
+                            whiteSpace: "pre-wrap",
+                            overflowWrap: "anywhere",
+                            wordBreak: "break-word",
+                            minWidth: 0,
+                          }}
+                        >
+                          {truncated}
+                        </p>
+                      );
+                    })()}
                     {(editContent || "").length > CONTENT_PREVIEW_LIMIT && (
                       <Button
                         variant="link"
@@ -1044,8 +1074,21 @@ No explanation, no punctuation, just one word.`,
                         entry.metadata?.concepts ??
                         (entry as Entry & { concepts?: unknown }).concepts ??
                         [];
+                      // Concepts shape: { label: string, entry_ids: string[] }[]
+                      // (per stepConcepts in api/_lib/enrich.ts) OR a legacy
+                      // string[]. Both must render. Previous code only allowed
+                      // strings — newer object-shape concepts were silently
+                      // dropped, so the chips never appeared on Gmail entries.
                       const concepts = Array.isArray(rawConcepts)
-                        ? rawConcepts.filter((c) => typeof c === "string")
+                        ? rawConcepts
+                            .map((c) =>
+                              typeof c === "string"
+                                ? c
+                                : typeof (c as { label?: unknown })?.label === "string"
+                                  ? (c as { label: string }).label
+                                  : null,
+                            )
+                            .filter((c): c is string => typeof c === "string" && c.length > 0)
                         : [];
                       if (concepts.length === 0) return null;
                       return (

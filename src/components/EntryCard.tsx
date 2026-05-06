@@ -336,19 +336,51 @@ export const EntryCard = memo(function EntryCard({
           >
             encrypted — tap to reveal.
           </p>
-        ) : e.content ? (
-          <p
-            className="f-serif line-clamp-3"
-            style={{
-              fontSize: 15,
-              lineHeight: 1.55,
-              color: "var(--ink-soft)",
-              margin: "8px 0 0",
-            }}
-          >
-            {e.content as string}
-          </p>
-        ) : null}
+        ) : (
+          (() => {
+            // For Gmail-sourced entries the raw `content` field is auto-
+            // generated at scan time (cluster-mode: first 400 chars of email
+            // body; classifier-mode: a one-sentence LLM summary). When the
+            // body is "see attached" the card was useless. We now prefer
+            // metadata.ai_summary (richer summary the parse step writes from
+            // the full body + attachment_text) and fall back to ai_insight,
+            // then finally raw content. Non-Gmail entries always render
+            // user-authored content.
+            const meta = e.metadata as Record<string, unknown> | undefined;
+            const isGmail = (meta?.source as string | undefined) === "gmail";
+            const aiSummary =
+              isGmail && typeof meta?.ai_summary === "string"
+                ? (meta.ai_summary as string).trim()
+                : "";
+            const aiInsight =
+              isGmail && typeof meta?.ai_insight === "string"
+                ? (meta.ai_insight as string).trim()
+                : "";
+            const rawContent = (e.content as string | null) ?? "";
+            // Use the richer text only when meaningfully longer than raw —
+            // a 30-char ai_summary on a 400-char body would be a downgrade.
+            const display =
+              aiSummary && aiSummary.length >= rawContent.length / 2
+                ? aiSummary
+                : aiInsight && rawContent.length < 200 && aiInsight.length > rawContent.length
+                  ? aiInsight
+                  : rawContent;
+            if (!display) return null;
+            return (
+              <p
+                className="f-serif line-clamp-3"
+                style={{
+                  fontSize: 15,
+                  lineHeight: 1.55,
+                  color: "var(--ink-soft)",
+                  margin: "8px 0 0",
+                }}
+              >
+                {display}
+              </p>
+            );
+          })()
+        )}
 
         {conceptLabels.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 14 }}>
