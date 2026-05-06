@@ -42,7 +42,7 @@ interface Props {
   onHide: () => void;
   /** User cancelled — kill the session entirely. */
   onCancel: () => void;
-  onCommitted: (mergedId: string, sourceIds: string[]) => void;
+  onCommitted: (mergedId: string, sourceIds: string[], merged: unknown) => void;
 }
 
 export default function MergePreviewModal({
@@ -106,6 +106,7 @@ export default function MergePreviewModal({
       const data = (await r.json()) as {
         merged_id: string;
         source_ids: string[];
+        merged?: unknown;
         enrichment_pending?: boolean;
       };
 
@@ -140,7 +141,7 @@ export default function MergePreviewModal({
         },
       });
 
-      onCommitted(data.merged_id, data.source_ids);
+      onCommitted(data.merged_id, data.source_ids, data.merged);
     } catch (err) {
       setCommitError(err instanceof Error ? err.message : "Merge failed");
       setCommitting(false);

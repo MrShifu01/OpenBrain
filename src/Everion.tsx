@@ -1067,14 +1067,21 @@ function EverionContent({
               error={mergeSession.error}
               onHide={() => setMergeSession((s) => (s ? { ...s, modalOpen: false } : s))}
               onCancel={() => setMergeSession(null)}
-              onCommitted={(_mergedId, sourceIds) => {
+              onCommitted={(_mergedId, sourceIds, merged) => {
                 setMergeSession(null);
-                // Drop the sources from the local list. The merged entry
-                // arrives via the existing realtime subscription
-                // (useEntryRealtime) on insert — same path that surfaces
-                // capture-time inserts on every other client.
+                // Drop the sources from the local list AND insert the merged
+                // entry optimistically. Realtime should also surface the
+                // INSERT but it can lag a beat — we don't want the user
+                // staring at a hole in the grid while it catches up.
                 const set = new Set(sourceIds);
-                setEntries((prev) => prev.filter((e) => !set.has(e.id)));
+                const mergedEntry = merged as Entry | null;
+                setEntries((prev) => {
+                  const filtered = prev.filter((e) => !set.has(e.id));
+                  if (!mergedEntry?.id) return filtered;
+                  // Dedup in case realtime beat us to it.
+                  if (filtered.some((e) => e.id === mergedEntry.id)) return filtered;
+                  return [mergedEntry, ...filtered];
+                });
                 appShell.toggleSelectMode();
               }}
             />
