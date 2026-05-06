@@ -309,11 +309,35 @@ function EverionContent({
   // 429 noise. The session-scoped sessionStorage gate inside
   // syncTimezoneIfChanged still handles legit duplicate calls within a
   // single page load.
+  //
+  // Same effect bootstraps RevenueCat on native platforms: configure once,
+  // then logIn the Supabase user.id so the webhook (api/user-data.ts
+  // handleRevenueCatWebhook) can resolve appUserID → user_profiles row.
+  // No-op on web — that flow uses LemonSqueezy.
   useEffect(() => {
     syncTimezoneIfChanged();
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+    let revenueCatLoaded = false;
+    (async () => {
+      const { configureRevenueCat, loginRevenueCatUser, isNative } =
+        await import("./lib/revenuecat");
+      if (!isNative()) return;
+      await configureRevenueCat();
+      revenueCatLoaded = true;
+      const { data } = await supabase.auth.getUser();
+      if (data.user?.id) await loginRevenueCatUser(data.user.id);
+    })().catch((err) => console.error("[everion] revenuecat bootstrap failed", err));
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_IN") {
         syncTimezoneIfChanged();
+        if (revenueCatLoaded && session?.user?.id) {
+          const { loginRevenueCatUser } = await import("./lib/revenuecat");
+          await loginRevenueCatUser(session.user.id);
+        }
+      }
+      if (event === "SIGNED_OUT" && revenueCatLoaded) {
+        const { resetRevenueCatUser } = await import("./lib/revenuecat");
+        await resetRevenueCatUser();
       }
     });
     return () => sub.subscription.unsubscribe();

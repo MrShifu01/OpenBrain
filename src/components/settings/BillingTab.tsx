@@ -155,43 +155,28 @@ async function startWebCheckout(plan: "starter" | "pro"): Promise<{ ok: boolean;
 // calling it on every checkout keeps the appUserId bound to user_profiles.id
 // even after a sign-out/sign-in cycle without us tracking RC state separately.
 async function startNativeCheckout(
-  appUserId: string,
-  plan: "starter" | "pro",
+  _appUserId: string,
+  _plan: "starter" | "pro",
 ): Promise<{ ok: boolean; error?: string }> {
+  // Native flow now goes through the RevenueCat-hosted paywall — that
+  // component presents the offering, handles all package picking, restore,
+  // privacy/terms links, and the loading/error states required for App
+  // Store review. Configure + login already happens at app boot in
+  // Everion.tsx, so this just opens the paywall.
   try {
-    const { Purchases } = await import("@revenuecat/purchases-capacitor");
-
-    // Pick the platform-specific public RC key. Vite inlines these at build,
-    // so they must be prefixed VITE_*. Missing keys are operator error —
-    // surface clearly rather than failing inside the native bridge.
-    const isIOS = Capacitor.getPlatform() === "ios";
-    const apiKey = isIOS
-      ? import.meta.env.VITE_REVENUECAT_API_KEY_IOS
-      : import.meta.env.VITE_REVENUECAT_API_KEY_ANDROID;
-    if (!apiKey || typeof apiKey !== "string") {
-      return {
-        ok: false,
-        error: `Missing VITE_REVENUECAT_API_KEY_${isIOS ? "IOS" : "ANDROID"}`,
-      };
+    const { presentPaywall } = await import("../../lib/revenuecat");
+    const { PAYWALL_RESULT } = await import("@revenuecat/purchases-capacitor-ui");
+    const result = await presentPaywall();
+    if (result === PAYWALL_RESULT.PURCHASED || result === PAYWALL_RESULT.RESTORED) {
+      return { ok: true };
     }
-
-    await Purchases.configure({ apiKey, appUserID: appUserId });
-
-    const offeringsRes = await Purchases.getOfferings();
-    const current = offeringsRes.current;
-    if (!current) {
-      return { ok: false, error: "No offerings configured in RevenueCat dashboard" };
+    if (result === PAYWALL_RESULT.CANCELLED) return { ok: false };
+    if (result === PAYWALL_RESULT.NOT_PRESENTED) {
+      return { ok: false, error: "Paywall not configured. Set up an offering in RevenueCat." };
     }
-    const pkg = current.availablePackages.find((p) => p.identifier.toLowerCase().includes(plan));
-    if (!pkg) {
-      return { ok: false, error: `No package found for tier "${plan}"` };
-    }
-    await Purchases.purchasePackage({ aPackage: pkg });
-    return { ok: true };
+    return { ok: false, error: "Paywall closed without a purchase." };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Native checkout failed";
-    // RC throws on user-cancelled; treat that as a soft no-op.
-    if (/cancel/i.test(message)) return { ok: false };
     return { ok: false, error: message };
   }
 }
@@ -269,10 +254,17 @@ export default function BillingTab() {
     setError(null);
     setBusyPlan("portal");
     try {
-      // Native users manage in App Store / Play settings — we can't open
-      // those from inside the app reliably, so surface a hint instead of
-      // calling /api/lemon-portal which only works for web subs.
+      // RevenueCat on native: open the in-app Customer Center which handles
+      // cancel / change plan / refund-request / contact-support. No web
+      // equivalent — the hosted /api/lemon-portal only knows about Lemon.
       if (provider === "revenuecat") {
+        const { presentCustomerCenter, isNative } = await import("../../lib/revenuecat");
+        if (isNative()) {
+          await presentCustomerCenter();
+          return;
+        }
+        // RC subscription seen on web (rare — user paid on mobile, viewing
+        // settings from desktop). Fall back to platform-store guidance.
         setError(
           "Manage your subscription from your device's Subscriptions settings (iOS) or Play Store > Subscriptions (Android).",
         );
