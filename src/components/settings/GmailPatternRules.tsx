@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { authFetch } from "../../lib/authFetch";
 import { Button } from "../ui/button";
+import { useCachedQuery } from "../../lib/useCachedQuery";
 
 // Patterns are clusters of accept/reject decisions the user has taught the
 // classifier. Surfaces what the system has learned and lets the user prune,
@@ -365,30 +366,23 @@ function PatternCard({
 }
 
 export default function GmailPatternRules() {
-  const [patterns, setPatterns] = useState<Pattern[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  async function load() {
-    try {
-      const r = await authFetch("/api/gmail?action=patterns-list");
-      const d = await r?.json?.();
-      setPatterns(Array.isArray(d?.patterns) ? d.patterns : []);
-      setError(null);
-    } catch (e) {
-      setError((e as Error).message);
-      setPatterns([]);
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
+  const {
+    data: patterns,
+    isLoading,
+    error,
+    refetch,
+    mutate,
+  } = useCachedQuery<Pattern[]>("gmail:patterns", async () => {
+    const r = await authFetch("/api/gmail?action=patterns-list");
+    const d = await r?.json?.();
+    return Array.isArray(d?.patterns) ? (d.patterns as Pattern[]) : [];
+  });
 
   function onPatternDeleted(id: string) {
-    setPatterns((curr) => (curr ? curr.filter((p) => p.id !== id) : curr));
+    mutate((patterns ?? []).filter((p) => p.id !== id));
   }
 
-  if (patterns === null) {
+  if (isLoading && !patterns) {
     return (
       <div style={{ padding: "16px 0", color: "var(--ink-faint)", fontSize: 12 }}>
         Loading patterns…
@@ -409,7 +403,7 @@ export default function GmailPatternRules() {
           marginBottom: 10,
         }}
       >
-        Learned patterns ({patterns.length})
+        Learned patterns ({patterns?.length ?? 0})
       </div>
       {error && (
         <div
@@ -423,10 +417,10 @@ export default function GmailPatternRules() {
             marginBottom: 10,
           }}
         >
-          {error}
+          {error.message}
         </div>
       )}
-      {patterns.length === 0 ? (
+      {(patterns?.length ?? 0) === 0 ? (
         <div
           className="f-sans"
           style={{
@@ -445,8 +439,8 @@ export default function GmailPatternRules() {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {patterns.map((p) => (
-            <PatternCard key={p.id} p={p} onChanged={load} onDelete={onPatternDeleted} />
+          {(patterns ?? []).map((p) => (
+            <PatternCard key={p.id} p={p} onChanged={() => refetch()} onDelete={onPatternDeleted} />
           ))}
         </div>
       )}
