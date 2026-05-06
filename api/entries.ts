@@ -30,6 +30,43 @@ const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
   "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at,embedded_at,embedding_status,status";
 
+// Strip markdown formatting so content survives the plain-text renderer
+// (cards + DetailModal use whiteSpace:pre-wrap with no markdown parser).
+// Used by handleMerge to clean LLM output and user-edited commit bodies.
+// Conservative: only removes formatting markers, keeps the inner text and
+// list bullets / paragraph structure intact.
+function stripMarkdown(input: string): string {
+  if (!input) return "";
+  let s = input;
+  // Fenced code blocks → keep contents, drop the fences.
+  s = s.replace(/```[a-zA-Z0-9]*\n?/g, "").replace(/```/g, "");
+  // Inline code: `text` → text
+  s = s.replace(/`([^`\n]+)`/g, "$1");
+  // Bold/italic combinations: ***text***, ___text___ → text
+  s = s.replace(/\*\*\*([^\n*]+)\*\*\*/g, "$1");
+  s = s.replace(/___([^\n_]+)___/g, "$1");
+  // Bold: **text**, __text__ → text
+  s = s.replace(/\*\*([^\n*]+)\*\*/g, "$1");
+  s = s.replace(/__([^\n_]+)__/g, "$1");
+  // Italic: *text*, _text_ → text. Require a non-space immediately inside
+  // so we don't eat random asterisks in math / glob patterns.
+  s = s.replace(/(^|[\s(])\*(\S[^\n*]*?\S|\S)\*(?=[\s.,;:!?)]|$)/g, "$1$2");
+  s = s.replace(/(^|[\s(])_(\S[^\n_]*?\S|\S)_(?=[\s.,;:!?)]|$)/g, "$1$2");
+  // Strikethrough: ~~text~~ → text
+  s = s.replace(/~~([^\n~]+)~~/g, "$1");
+  // Headings: leading #, ##, ### at start of line → drop the # markers.
+  s = s.replace(/^[ \t]*#{1,6}[ \t]+/gm, "");
+  // Blockquote: leading > → drop. Keep content.
+  s = s.replace(/^[ \t]*>[ \t]?/gm, "");
+  // Markdown links [label](url) → "label (url)" so URLs survive readably.
+  s = s.replace(/\[([^\]\n]+)\]\(([^)\n]+)\)/g, "$1 ($2)");
+  // Bare HTML tags: <b>, <br>, <i>, etc. → drop tag, keep content.
+  s = s.replace(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?>/g, "");
+  // Collapse 3+ blank lines to 2.
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s;
+}
+
 function rateLimitForEntries(req: ApiRequest): number {
   const resource = req.query.resource as string | undefined;
   const action = req.query.action as string | undefined;
@@ -1475,8 +1512,8 @@ async function handleMerge({ req, res, user }: HandlerContext): Promise<void> {
     }
     res.status(200).json({
       preview: true,
-      title: typeof parsed.title === "string" ? parsed.title.slice(0, 200) : "Merged entry",
-      content: typeof parsed.content === "string" ? parsed.content.slice(0, 50_000) : "",
+      title: typeof parsed.title === "string" ? stripMarkdown(parsed.title).slice(0, 200) : "Merged entry",
+      content: typeof parsed.content === "string" ? stripMarkdown(parsed.content).slice(0, 50_000) : "",
       type: typeof parsed.type === "string" ? parsed.type.toLowerCase().slice(0, 50) : "note",
       tags: Array.isArray(parsed.tags)
         ? parsed.tags
@@ -1490,8 +1527,12 @@ async function handleMerge({ req, res, user }: HandlerContext): Promise<void> {
   }
 
   // ── Commit mode — caller passes the (possibly user-edited) merged fields
-  const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
-  const content = typeof body.content === "string" ? body.content.slice(0, 50_000) : "";
+  // Strip markdown defensively even on commit — entry content renders as
+  // plain text (whiteSpace: pre-wrap), so any **bold** or ## headings
+  // would surface as ugly literal punctuation. The LLM gets told this in
+  // the prompt; this is the belt-and-braces.
+  const title = typeof body.title === "string" ? stripMarkdown(body.title).trim().slice(0, 200) : "";
+  const content = typeof body.content === "string" ? stripMarkdown(body.content).slice(0, 50_000) : "";
   const type = typeof body.type === "string" ? body.type.toLowerCase().trim().slice(0, 50) : "note";
   const tags = Array.isArray(body.tags)
     ? body.tags
