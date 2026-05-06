@@ -323,7 +323,17 @@ async function execTool(
     if (!r.ok) return { error: `Failed to create: ${await r.text().catch(() => r.status)}` };
     const rows: any[] = await r.json();
     if (GEMINI_API_KEY) rebuildConceptGraph(brainId, GEMINI_API_KEY).catch(() => {});
-    enrichInline(id, userId).catch(() => {});
+    // AWAIT enrichInline before returning — fire-and-forget on Vercel Node.js
+    // is unreliable (function instance can be killed before the IIFE
+    // completes, leaving entries with parsed=false forever). Slows the chat
+    // tool call by a few seconds but the user sees a fully-enriched entry
+    // on first render. Hourly cron is the safety net for any path that
+    // somehow misses this.
+    try {
+      await enrichInline(id, userId);
+    } catch (err) {
+      console.error("[llm:create_entry:enrich]", id, err);
+    }
     return rows[0];
   }
   if (name === "update_entry") {
@@ -373,7 +383,12 @@ async function execTool(
     if (!r.ok) return { error: `Update failed: ${await r.text().catch(() => r.status)}` };
     const updated: any[] = await r.json();
     if (GEMINI_API_KEY) rebuildConceptGraph(brainId, GEMINI_API_KEY).catch(() => {});
-    enrichInline(args.id, userId).catch(() => {});
+    // AWAIT — see create_entry above for rationale.
+    try {
+      await enrichInline(args.id, userId);
+    } catch (err) {
+      console.error("[llm:update_entry:enrich]", args.id, err);
+    }
     return updated[0];
   }
   if (name === "delete_entry") {

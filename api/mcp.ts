@@ -656,7 +656,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
             args.type,
             args.tags,
           );
-          if ((result as any)?.id) enrichInline((result as any).id, userId).catch(() => {});
+          // AWAIT enrichInline so the MCP tool returns a fully-enriched
+          // entry. Fire-and-forget on Vercel was getting killed before the
+          // pipeline finished, leaving entries with red P/I/C chips.
+          if ((result as any)?.id) {
+            try {
+              await enrichInline((result as any).id, userId);
+            } catch (err) {
+              console.error("[mcp:create_entry:enrich]", (result as any).id, err);
+            }
+          }
           if (iKey && (result as any)?.id)
             finalizeIdempotency(userId, iKey, (result as any).id).catch(() => {});
         }
@@ -679,7 +688,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
           type: args.type,
           tags: args.tags,
         });
-        enrichInline(args.id, userId).catch(() => {});
+        // AWAIT — see create_entry above for rationale.
+        try {
+          await enrichInline(args.id, userId);
+        } catch (err) {
+          console.error("[mcp:update_entry:enrich]", args.id, err);
+        }
       } else if (toolName === "delete_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         result = await deleteEntry(brainId, args.id);

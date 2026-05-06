@@ -224,7 +224,15 @@ async function handleIngest({ userId, brainId }: Auth, body: any) {
   if (!r.ok)
     throw new Error(`Failed to create entry: ${await r.text().catch(() => String(r.status))}`);
   const rows: any[] = await r.json();
-  enrichInline(id, userId).catch(() => {});
+  // AWAIT enrichInline so the v1 API returns a fully-enriched entry on
+  // first call. Fire-and-forget on Vercel was unreliable — function
+  // instance gets killed before the IIFE finishes, leaving entries with
+  // parsed=false forever.
+  try {
+    await enrichInline(id, userId);
+  } catch (err) {
+    console.error("[v1:create:enrich]", id, err);
+  }
   return { id: rows[0].id, title: rows[0].title, created_at: rows[0].created_at };
 }
 
@@ -272,7 +280,12 @@ async function handleUpdate({ brainId, userId }: Auth, body: any) {
   });
   if (!r.ok) throw new Error(`Update failed: ${await r.text().catch(() => String(r.status))}`);
   const updated: any[] = await r.json();
-  enrichInline(id, userId).catch(() => {});
+  // AWAIT — see create above.
+  try {
+    await enrichInline(id, userId);
+  } catch (err) {
+    console.error("[v1:update:enrich]", id, err);
+  }
   return {
     id: updated[0].id,
     title: updated[0].title,
