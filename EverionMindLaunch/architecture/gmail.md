@@ -459,3 +459,37 @@ Brain-id IDOR guard on every action that takes `brain_id` —
 - **Manual scan from the bell** isn't wired — the bell card's "Open
   inbox" event opens the staging modal but doesn't trigger a fresh scan.
   User has to navigate to Settings → Gmail Sync → Scan now.
+
+---
+
+## Pattern Rules — scored accept/reject learning (2026-05-06)
+
+Shipped commits `c54edaf` + `0986412`. Migration `080_gmail_pattern_rules.sql`.
+Full design in **[`Specs/gmail-pattern-rules.md`](../Specs/gmail-pattern-rules.md)**.
+
+Replaces the old "soft-hint" `prefs.custom` reject rules with structured
+pattern records that strengthen with each consistent decision.
+
+- **Decoupled scores** (Alt 1): every accept/reject embeds the email
+  (gemini-embedding-001, 768d), finds the nearest pattern at cosine ≥
+  0.82, and bumps `accept_score` or `reject_score` (capped at 10). New
+  clusters anchor at 1.
+- **Decision matrix:** `accept ≥ 8 AND reject ≤ 2 AND past probation` →
+  auto-accept (status='active', skips staging). `reject ≥ 8 AND accept ≤ 2`
+  → hard-block (drops pre-LLM, saves embedding + classifier costs).
+  `both > 3` → contested (always staging).
+- **7-day probation** when `accept_score` first crosses 8 — matched
+  emails still go to staging with an "auto-accept by 13 May" badge.
+  Catches runaway classifiers before they flood the brain.
+- **Pre-filter at scan** (Phase 2): hard-block matches dropped from
+  `usableBlocks` BEFORE clustering / classifier call. Cluster mode reuses
+  block-level verdicts via thread-id map (no double embedding).
+- **Settings UI** (`src/components/settings/GmailPatternRules.tsx`):
+  list with state pill + score bars + edit/delete. Backed by
+  `/api/gmail?action=patterns-list / patterns-delete / patterns-update`.
+- **Probation badge** on `GmailStagingInbox` rows where
+  `metadata.auto_accept_pending=true`.
+
+The old `prefs.custom` text-blob is still respected as soft hints in the
+classifier prompt — pattern rules are additive, didn't break the legacy
+path.

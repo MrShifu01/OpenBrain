@@ -399,11 +399,39 @@ Failures here are tracked too: `stepErrors.push(\`provider: …\`)` if
 - **`auditPersonaForBrain` Phase 4** (LLM rules pass) sends candidate facts
   to Gemini in one call. ~100 candidates fit in 600 max tokens; bigger
   brains either truncate or need pagination — not yet wired.
-- **No queue / job table**. All enrichment runs synchronously inside the
-  request that triggers it. A long capture (full PDF + 5 enrichment
-  steps) ties up one Vercel function for ~25 s. Reasonable on Hobby's
-  12-function cap, but capture-burst users see lower availability.
 - **Client mirror drift risk**. Two `flagsOf` files. They're tiny but
   diverging is silently bad — the chip and the pipeline disagree about
   what's "done." Worth a unit test that imports both and runs them on
   fixtures.
+
+---
+
+## Phase 2A — queue state, daily quota, claim worker (2026-05-06)
+
+Shipped commit `beecc65`. Migrations `081_enrichment_queue.sql` +
+`082_recompute_enrichment_state.sql`. Full design in
+**[`Specs/enrichment-queue-v1.md`](../Specs/enrichment-queue-v1.md)**.
+
+What changed in `enrich.ts`:
+
+- **`enrichInline` now stamps `enrichment_state`**. At entry: `processing`
+  + `locked_at = now()`. At exit: calls `recompute_enrichment_state(uuid[])`
+  RPC which inspects metadata flags + embedding_status and writes the
+  correct final state (`done` / `pending` / `failed`).
+- **Quota gate** (`api/_lib/enrichQuota.ts`) — every enrichInline call
+  consumes one daily credit unless the user is pro/max (unlimited
+  sentinel). Free=20/day, starter=200/day. Over-quota entries get marked
+  `quota_exceeded` and skipped. Fail-OPEN on infra error so a Supabase
+  blip can't freeze the pipeline.
+- **`enrichBrain` switched to claim RPC**. `claim_pending_enrichments
+  (user_id, brain_id, limit)` does `FOR UPDATE SKIP LOCKED` against the
+  partial state index — concurrent crons can't double-process. Stale
+  `processing` rows (locked >5min) auto-recover. After bulk embed, calls
+  `recompute_enrichment_state(claimed_ids)` to converge state.
+- **Backward compatible.** Every existing call site of `enrichInline`
+  works the same way. Quota is the only behavior change, and only for
+  free-tier users exceeding 20/day.
+
+State distribution after deploy: 329 done, 0 pending. Worker drains
+within an hour. Foundation ready for Phase 2B (async capture / fire-fast)
+when needed.

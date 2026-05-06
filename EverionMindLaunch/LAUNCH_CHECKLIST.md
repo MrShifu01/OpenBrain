@@ -404,6 +404,63 @@ Phase 1 (solo multi-brain plumbing) shipped behind flag `multiBrain`. Spec: `doc
 - [ ] **Phase 3: brain-level activity feed** — see who added/edited what, when (read from audit_log).
 - [ ] **Phase 4: discovery / public brains** — out of scope for 2026; only revisit if community use case re-emerges.
 
+### Enrichment pipeline — Phase 2A shipped, Phase 2B+3 deferred (2026-05-06)
+
+Phase 2A (queue state + daily quota + claim worker) shipped behind the
+existing enrichInline path — no behavior change for users. Full design
+in `Specs/enrichment-queue-v1.md`. Migrations 081+082. Foundation for
+the higher-leverage async work below.
+
+- [x] **Phase 2A — queue + quota** ✅ commit `beecc65`. `enrichment_state`
+  column on entries with partial index, `claim_pending_enrichments` RPC
+  (FOR UPDATE SKIP LOCKED) for atomic worker claims, `user_enrich_quota`
+  table + `consume_enrich_quota` RPC for daily tier-based limits
+  (free=20/day, starter=200/day, pro/max=unlimited). Stale-claim
+  recovery (>5min). Backward compatible with every existing call site.
+- [x] **Pre-Phase-2A enrich hardening** ✅ commits `3bb1be1`, `9302207`,
+  `9b403ca`. (1) Dropped invalid Anthropic env path — pro/max env-managed
+  enrichment now routes to Gemini per `CLAUDE.md`. (2) Awaited
+  `enrichInline` on every entry-creation door (chat/MCP/v1 had been
+  fire-and-forget; only capture awaited). (3) Added hourly cron sweep as
+  safety net. (4) `last_skip_reason` breadcrumb on silent LLM failures.
+  (5) Enrichment now reads `metadata.attachment_text` + `metadata.full_text`
+  via `buildEnrichText` so PDF email attachments feed into all 4 LLM
+  steps. (6) `metadata.ai_summary` stamped on Gmail entries; card +
+  DetailModal prefer it over thin scan-time content. (7) Auto-accepted
+  Gmail entries trigger extract+enrich at scan time.
+- [ ] **Phase 2B — async capture / fire-fast (P2 deferred).** Switch
+  capture/llm/mcp/v1 from `await enrichInline` to fire-fast — entry
+  returns `state='pending'` instantly, worker drains within ~1min.
+  Trade: capture latency drops from 3-5s to <200ms, but UI shows red
+  P/I/C chips for ~30-60s post-capture (need Supabase realtime
+  subscription to flip when worker completes). **Trigger:** when
+  capture latency or function concurrency limits become user-visible.
+  Probably ~3000-5000 active users.
+- [ ] **Phase 3 — Vercel Queues / Inngest migration (P2 deferred).**
+  When the cron worker can't keep up (~10k+ active users): move from
+  cron-driven sweep to event-driven worker, per-user round-robin
+  scheduling, step-level durability + exponential backoff. Vercel
+  Queues (Beta) is lowest-friction; Inngest is best-in-class for
+  workflow durability. Cost ~$50-200/mo. Triggered by p95 cron drain
+  time exceeding 1h.
+
+### Gmail pattern rules — shipped (2026-05-06)
+
+- [x] **Phase 1+2+3 — scored accept/reject patterns** ✅ commits `c54edaf`
+  + `0986412`. Migration 080. Decoupled accept/reject scores 0–10
+  (Alt 1), 7-day probation, hard-block at score 10, contested-state
+  flagging. Pre-filter at scan saves embedding + classifier costs.
+  Settings UI to view/edit/delete patterns. Probation badge on staging
+  inbox. Full design in `Specs/gmail-pattern-rules.md`.
+- [ ] **Phase 4 — smarter scoring (P2 deferred).** Wilson lower bound
+  (Bayesian confidence) and/or EWMA temporal decay (90-day half-life)
+  layered onto current model. Trigger: when users complain about
+  "rejected this 3 months ago, why is it back?" Centroid drift via EMA
+  on each match would also fit here.
+- [ ] **Phase 4 — UX (P2 deferred).** "Test pattern" diagnostic tool,
+  pattern merge/split affordances when cosine > 0.95 / contested-state
+  patterns surface for splitting.
+
 ### Other backlog
 
 - [ ] **More e2e specs** — calendar persona-facts still owed. **Updates:** `404.spec.ts` and `search.spec.ts` (3 sub-tests) shipped 2026-04-27. `vault.spec.ts` smoke layer shipped earlier. `important-memories.spec.ts` shipped 2026-04-29 (full happy path: create → filter chips → retire → API cleanup). `delete-cascade.spec.ts` and `schedule.spec.ts` shipped 2026-04-29 (capture → delete → undo → API cleanup; Schedule Day/Week/Month tab routing).
