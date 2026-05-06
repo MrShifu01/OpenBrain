@@ -33,6 +33,7 @@ import {
   type ExtractorContext,
 } from "./extractPersonaFacts.js";
 import { checkAndConsumeQuota, fetchUserTier } from "./enrichQuota.js";
+import { getPersonalBrainId } from "./personalBrain.js";
 import {
   generateEmbedding as personaGenerateEmbedding,
   buildEntryText as personaBuildEntryText,
@@ -512,10 +513,20 @@ async function stepPersonaExtract(
 
   // Always stamp the flag — empty extraction is a real answer.
   const stampedMeta = { ...meta, enrichment: { ...enr, persona_extracted: true } };
-  if (!facts.length || !brainId) return stampedMeta;
+  if (!facts.length) return stampedMeta;
 
-  // Dedup set for inline duplicate refusal. Provided by batch callers
-  // (backfill); falls back to a per-entry fetch otherwise.
+  // Persona facts ALWAYS land in the user's personal brain, regardless of
+  // which brain the source entry came from. Without this, capturing in a
+  // shared brain fragments the user's identity across brains AND leaks
+  // private facts ("user's wife is Sarah") into a brain other people can
+  // read. The personal brain is the privacy boundary for identity context.
+  const personalBrainId = (await getPersonalBrainId(userId)) ?? brainId;
+  if (!personalBrainId) return stampedMeta; // no personal brain yet — skip silently
+
+  // Dedup set for inline duplicate refusal. Scoped to the personal brain
+  // so the user's full persona dedups against itself, not against the
+  // shared brain's slice (which would only see the source-brain facts
+  // and let duplicates land in the personal brain).
   //
   // CRITICAL: share the SAME set references across all entries in a batch.
   // We push newly-inserted facts (embedding AND normalized title) to them
@@ -523,11 +534,11 @@ async function stepPersonaExtract(
   // would silently break dedup across entries — every "User runs Smash
   // Burger Bar" emitted by a different source entry would slip through.
   const dedup: PersonaDedupSet =
-    precomputed?.dedup ?? (await fetchPersonaDedupSet(userId, brainId));
+    precomputed?.dedup ?? (await fetchPersonaDedupSet(userId, personalBrainId));
 
   for (const f of facts) {
     try {
-      const inserted = await insertExtractedFactDeduped(f, entry, userId, brainId, dedup);
+      const inserted = await insertExtractedFactDeduped(f, entry, userId, personalBrainId, dedup);
       if (inserted) {
         dedup.embeddings.push(inserted.embedding);
         dedup.titles.add(inserted.title);

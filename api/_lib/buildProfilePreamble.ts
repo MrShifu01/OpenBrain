@@ -130,13 +130,24 @@ export async function buildProfilePreamble(
   if (core && core.enabled === false) return ""; // master kill switch
 
   // ── Active persona-typed entries (the growing memory) ─────────────────────
+  // Persona facts ALWAYS read from the user's PERSONAL brain — never from
+  // the active brain. This pairs with stepPersonaExtract writing facts to
+  // the personal brain. Two reasons:
+  //   1. Privacy: a shared brain shouldn't surface family / identity facts
+  //      to other members (the user_id filter would already do that, but
+  //      this is belt-and-braces and prevents future regressions).
+  //   2. Continuity: the user's identity context is the same regardless of
+  //      which brain they're chatting in. Scoping to the active brain
+  //      fragments their persona across brains.
+  const { getPersonalBrainId } = await import("./personalBrain.js");
+  const personalBrainId = await getPersonalBrainId(userId);
   let facts: PersonaFactRow[] = [];
-  if (brainId) {
+  if (personalBrainId) {
     try {
       // PostgREST jsonb path: metadata->>status eq 'active'. Fetch a generous
       // 60 then re-rank locally so confidence + pinned + recency contribute.
       const r = await fetch(
-        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=id,title,content,tags,metadata,updated_at&order=updated_at.desc&limit=60`,
+        `${SB_URL}/rest/v1/entries?user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(personalBrainId)}&type=eq.persona&deleted_at=is.null&metadata->>status=eq.active&select=id,title,content,tags,metadata,updated_at&order=updated_at.desc&limit=60`,
         { headers: sbHeaders() },
       );
       if (r.ok) {
