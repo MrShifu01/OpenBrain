@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { authFetch } from "../lib/authFetch";
 import { Button } from "./ui/button";
@@ -11,28 +11,20 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 
-// Two-phase merge UI:
-//   1. Mount → POST /api/entries?action=merge with preview=true. Server runs
-//      the LLM and returns a {title, content, type, tags} suggestion. We
-//      show it for the user to review / edit.
-//   2. User hits "Save & Replace" → POST same endpoint with preview=false
-//      and the (possibly edited) fields. Server inserts merged entry,
-//      runs enrichInline (up to 60s), soft-deletes the sources, writes
-//      audit_log. Modal closes and the post-merge sonner toast offers a
-//      10-second Undo.
+// Controlled merge UI. The PREVIEW fetch lives in Everion.tsx so the user
+// can close the modal mid-generation without killing the request — the
+// session keeps running, a sonner Review toast fires when ready, and
+// re-opening the modal shows the cached preview without re-hitting the LLM.
 //
-// Failure modes covered:
-//   - 429 quota → close modal, surface error toast.
-//   - 503 LLM unavailable → keep modal open with retry button.
-//   - 60s enrichment timeout → still succeeds; toast notes "enriching shortly".
+// This component is purely presentational on (status, preview, error). It
+// owns the local edit state (title/content/tags) so user edits survive a
+// hide/show cycle as long as the session itself is alive.
+//
+// Commit path stays local: on Save & Replace we POST preview=false with
+// the edited fields, surface the post-merge Undo toast, and fire
+// onCommitted to clear the session.
 
-interface Props {
-  ids: string[];
-  onCancel: () => void;
-  onCommitted: (mergedId: string, sourceIds: string[]) => void;
-}
-
-interface PreviewShape {
+export interface MergePreviewShape {
   title: string;
   content: string;
   type: string;
@@ -40,49 +32,46 @@ interface PreviewShape {
   source_count: number;
 }
 
-export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props) {
-  const [preview, setPreview] = useState<PreviewShape | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(true);
-  const [previewError, setPreviewError] = useState<string | null>(null);
+interface Props {
+  ids: string[];
+  open: boolean;
+  status: "loading" | "ready" | "error";
+  preview: MergePreviewShape | null;
+  error: string | null;
+  /** User dismissed the modal (X / outside / Hide). Session stays alive. */
+  onHide: () => void;
+  /** User cancelled — kill the session entirely. */
+  onCancel: () => void;
+  onCommitted: (mergedId: string, sourceIds: string[]) => void;
+}
+
+export default function MergePreviewModal({
+  ids,
+  open,
+  status,
+  preview,
+  error,
+  onHide,
+  onCancel,
+  onCommitted,
+}: Props) {
   const [committing, setCommitting] = useState(false);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editTags, setEditTags] = useState("");
+  const initializedRef = useRef(false);
 
+  // Populate edit fields once when the preview first arrives. After that,
+  // user edits are preserved across hide/show cycles — we never overwrite.
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoadingPreview(true);
-      setPreviewError(null);
-      try {
-        const r = await authFetch("/api/entries?action=merge", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids, preview: true }),
-        });
-        if (cancelled) return;
-        if (!r.ok) {
-          const data = await r.json().catch(() => ({}) as { error?: string });
-          throw new Error((data as { error?: string })?.error || `HTTP ${r.status}`);
-        }
-        const data = (await r.json()) as PreviewShape;
-        if (cancelled) return;
-        setPreview(data);
-        setEditTitle(data.title);
-        setEditContent(data.content);
-        setEditTags((data.tags || []).join(", "));
-      } catch (err) {
-        if (cancelled) return;
-        setPreviewError(err instanceof Error ? err.message : "Failed to generate merge");
-      } finally {
-        if (!cancelled) setLoadingPreview(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ids]);
+    if (preview && !initializedRef.current) {
+      setEditTitle(preview.title);
+      setEditContent(preview.content);
+      setEditTags((preview.tags || []).join(", "));
+      initializedRef.current = true;
+    }
+  }, [preview]);
 
   async function commit() {
     if (committing || !preview) return;
@@ -120,8 +109,6 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
         enrichment_pending?: boolean;
       };
 
-      // Sonner toast with Undo for 10 seconds. Action calls merge-undo
-      // which resurrects the sources + hard-deletes the merged entry.
       const baseMsg = `Merged ${data.source_ids.length} entries → "${editTitle.trim().slice(0, 60)}"`;
       const description = data.enrichment_pending
         ? "Enrichment will finish shortly in the background."
@@ -146,10 +133,6 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
                 throw new Error((errData as { error?: string })?.error || `HTTP ${undoRes.status}`);
               }
               toast.success("Merge undone — original entries restored");
-              // The realtime subscription (useEntryRealtime) catches the
-              // hard-delete of the merged row and the deleted_at clear on
-              // the sources, so the entry list converges without a manual
-              // refetch on the next tick.
             } catch (err) {
               toast.error(`Undo failed: ${err instanceof Error ? err.message : "unknown error"}`);
             }
@@ -165,7 +148,7 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && !committing && onCancel()}>
+    <Dialog open={open} onOpenChange={(o) => !o && !committing && onHide()}>
       <DialogContent
         className="sm:max-w-2xl"
         style={{ background: "var(--bg)", borderColor: "var(--line-soft)" }}
@@ -183,12 +166,13 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
             Merge {ids.length} entries
           </DialogTitle>
           <DialogDescription style={{ fontSize: 13, color: "var(--ink-faint)" }}>
-            The AI has combined your selection into a single entry. Edit anything you want — the
-            originals stay safe until you save.
+            {status === "loading"
+              ? "AI is combining your selection. You can hide this and we'll let you know when it's ready."
+              : "The AI has combined your selection into a single entry. Edit anything you want — the originals stay safe until you save."}
           </DialogDescription>
         </DialogHeader>
 
-        {loadingPreview && (
+        {status === "loading" && !preview && (
           <div
             className="f-sans"
             style={{
@@ -202,7 +186,7 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
           </div>
         )}
 
-        {previewError && (
+        {status === "error" && error && (
           <div
             className="f-sans"
             style={{
@@ -214,11 +198,11 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
               border: "1px solid var(--blood)",
             }}
           >
-            {previewError}
+            {error}
           </div>
         )}
 
-        {preview && !previewError && (
+        {preview && status !== "error" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <label style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span
@@ -336,14 +320,30 @@ export default function MergePreviewModal({ ids, onCancel, onCommitted }: Props)
         )}
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onCancel} disabled={committing}>
-            Cancel
-          </Button>
-          <Button onClick={commit} disabled={committing || !preview || loadingPreview}>
-            {committing
-              ? "Merging…"
-              : `Save & Replace ${ids.length} ${ids.length === 1 ? "entry" : "entries"}`}
-          </Button>
+          {status === "loading" && (
+            <>
+              <Button variant="ghost" onClick={onCancel} disabled={committing}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={onHide} disabled={committing}>
+                Hide — notify when ready
+              </Button>
+            </>
+          )}
+          {status !== "loading" && (
+            <>
+              <Button variant="ghost" onClick={onCancel} disabled={committing}>
+                Cancel
+              </Button>
+              {status === "ready" && (
+                <Button onClick={commit} disabled={committing || !preview}>
+                  {committing
+                    ? "Merging…"
+                    : `Save & Replace ${ids.length} ${ids.length === 1 ? "entry" : "entries"}`}
+                </Button>
+              )}
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

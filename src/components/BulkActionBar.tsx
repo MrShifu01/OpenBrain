@@ -1,9 +1,8 @@
-import { useState, useEffect, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 import { Button } from "./ui/button";
-import MergePreviewModal from "./MergePreviewModal";
 
 interface Props {
   selectedIds: Set<string>;
@@ -19,9 +18,13 @@ interface Props {
   /** Fired after a successful bulk move so the parent can drop the
    *  moved entries from its local list. */
   onMoved?: (ids: string[]) => void;
-  /** Fired after a successful merge so the parent can drop the source
-   *  entries from its local list and refresh to show the merged entry. */
-  onMerged?: (mergedId: string, sourceIds: string[]) => void;
+  /** Kicks off a merge session in the parent — the parent owns the
+   *  preview fetch + modal so the user can hide it mid-generation. */
+  onStartMerge?: (ids: string[]) => void;
+  /** True when the parent's merge modal is currently visible. The bar
+   *  hides itself to stop the fixed-bottom container from covering the
+   *  modal footer. */
+  mergeModalOpen?: boolean;
   allSelected?: boolean;
 }
 
@@ -37,7 +40,8 @@ export default function BulkActionBar({
   onSelectAll,
   onDelete,
   onMoved,
-  onMerged,
+  onStartMerge,
+  mergeModalOpen = false,
   allSelected = false,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -48,7 +52,6 @@ export default function BulkActionBar({
   const [shareError, setShareError] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
-  const [mergeOpen, setMergeOpen] = useState(false);
 
   // Reset phase when the selection changes externally — keeps a stale "Are
   // you sure you want to delete?" from sitting around after the user has
@@ -230,8 +233,8 @@ export default function BulkActionBar({
         // fixed-bottom position otherwise covers the modal's footer
         // (Save/Cancel buttons), confusing the user. Visibility instead
         // of display so the modal's parent doesn't reflow.
-        visibility: mergeOpen ? "hidden" : "visible",
-        pointerEvents: mergeOpen ? "none" : "auto",
+        visibility: mergeModalOpen ? "hidden" : "visible",
+        pointerEvents: mergeModalOpen ? "none" : "auto",
       }}
     >
       <div
@@ -314,10 +317,10 @@ export default function BulkActionBar({
               <ActionBtn
                 label={`Merge · ${count}`}
                 tone="ember"
-                disabled={busy || !canMerge}
+                disabled={busy || !canMerge || !onStartMerge}
                 onClick={() => {
-                  if (!canMerge) return;
-                  setMergeOpen(true);
+                  if (!canMerge || !onStartMerge) return;
+                  onStartMerge([...selectedIds]);
                 }}
               />
               <ActionBtn
@@ -578,19 +581,6 @@ export default function BulkActionBar({
           </div>
         )}
       </div>
-
-      {mergeOpen && (
-        <MergePreviewModal
-          ids={[...selectedIds]}
-          onCancel={() => setMergeOpen(false)}
-          onCommitted={(mergedId, sourceIds) => {
-            setMergeOpen(false);
-            setPhase("idle");
-            onMerged?.(mergedId, sourceIds);
-            onCancel();
-          }}
-        />
-      )}
     </div>
   );
 }

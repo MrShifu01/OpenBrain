@@ -20,6 +20,7 @@ import { useBackgroundCapture } from "./hooks/useBackgroundCapture";
 import { useStagedCount } from "./hooks/useStagedCount";
 import { VirtualGrid, VirtualTimeline } from "./components/EntryList";
 import BulkActionBar from "./components/BulkActionBar";
+import MergePreviewModal, { type MergePreviewShape } from "./components/MergePreviewModal";
 import OnboardingModal from "./components/OnboardingModal";
 import OfflineBanner from "./components/OfflineBanner";
 import BottomNav from "./components/BottomNav";
@@ -355,6 +356,73 @@ function EverionContent({
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- appShell as a whole would invalidate this listener every render; only the setter is read.
   }, [appShell.setShowCapture]);
+
+  // ── Merge session ────────────────────────────────────────────────────────
+  // Lives at this scope so the preview fetch survives a modal close. User
+  // can click "Hide — notify when ready"; the bar reappears, the LLM keeps
+  // generating in this same async scope, and a sonner Review toast fires
+  // the moment the response lands. No server-side draft persistence — a
+  // tab close still kills the request, which is fine: cost is bounded
+  // (one LLM call, ~few seconds typical).
+  type MergeSession = {
+    ids: string[];
+    preview: MergePreviewShape | null;
+    error: string | null;
+    status: "loading" | "ready" | "error";
+    modalOpen: boolean;
+  };
+  const [mergeSession, setMergeSession] = useState<MergeSession | null>(null);
+
+  const startMerge = useCallback((ids: string[]) => {
+    setMergeSession({
+      ids,
+      preview: null,
+      error: null,
+      status: "loading",
+      modalOpen: true,
+    });
+
+    (async () => {
+      try {
+        const r = await authFetch("/api/entries?action=merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, preview: true }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}) as { error?: string });
+          throw new Error((data as { error?: string })?.error || `HTTP ${r.status}`);
+        }
+        const data = (await r.json()) as MergePreviewShape;
+        setMergeSession((cur) => {
+          // Stale response — a newer session replaced this one (or it was
+          // cancelled). Drop the result.
+          if (!cur || cur.ids !== ids) return cur;
+          if (!cur.modalOpen) {
+            toast.success("Merge ready to review", {
+              description: data.title.slice(0, 80),
+              duration: Infinity,
+              action: {
+                label: "Review",
+                onClick: () =>
+                  setMergeSession((s) => (s && s.ids === ids ? { ...s, modalOpen: true } : s)),
+              },
+            });
+          }
+          return { ...cur, preview: data, status: "ready" };
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to generate merge";
+        setMergeSession((cur) => {
+          if (!cur || cur.ids !== ids) return cur;
+          if (!cur.modalOpen) {
+            toast.error(`Merge failed: ${msg}`);
+          }
+          return { ...cur, error: msg, status: "error" };
+        });
+      }
+    })();
+  }, []);
 
   return (
     <>
@@ -976,14 +1044,8 @@ function EverionContent({
                   const set = new Set(ids);
                   setEntries((prev) => prev.filter((e) => !set.has(e.id)));
                 }}
-                onMerged={(_mergedId: string, sourceIds: string[]) => {
-                  // Drop the sources from the local list. The merged entry
-                  // arrives via the existing realtime subscription
-                  // (useEntryRealtime) on insert — same path that surfaces
-                  // capture-time inserts on every other client.
-                  const set = new Set(sourceIds);
-                  setEntries((prev) => prev.filter((e) => !set.has(e.id)));
-                }}
+                onStartMerge={startMerge}
+                mergeModalOpen={!!mergeSession?.modalOpen}
                 onDone={(updated) => {
                   setEntries((prev) => prev.map((e) => updated.find((u) => u.id === e.id) ?? e));
                   appShell.toggleSelectMode();
@@ -991,6 +1053,32 @@ function EverionContent({
                 onCancel={appShell.toggleSelectMode}
               />
             )}
+
+          {/* Merge preview lives at this scope so user can hide the modal
+              while the LLM is generating — see startMerge above. Mounted
+              for the lifetime of the session so local edit state survives
+              hide/show toggles. */}
+          {mergeSession && (
+            <MergePreviewModal
+              ids={mergeSession.ids}
+              open={mergeSession.modalOpen}
+              status={mergeSession.status}
+              preview={mergeSession.preview}
+              error={mergeSession.error}
+              onHide={() => setMergeSession((s) => (s ? { ...s, modalOpen: false } : s))}
+              onCancel={() => setMergeSession(null)}
+              onCommitted={(_mergedId, sourceIds) => {
+                setMergeSession(null);
+                // Drop the sources from the local list. The merged entry
+                // arrives via the existing realtime subscription
+                // (useEntryRealtime) on insert — same path that surfaces
+                // capture-time inserts on every other client.
+                const set = new Set(sourceIds);
+                setEntries((prev) => prev.filter((e) => !set.has(e.id)));
+                appShell.toggleSelectMode();
+              }}
+            />
+          )}
 
           <Suspense fallback={null}>
             {selectedVaultEntry && (
