@@ -1,0 +1,40 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": [
+    ".claude/**",
+    ".smashOS/**",
+    ".smash-os/**",
+    ".worktrees/**",
+    "graphify-out/**",
+    "scripts/mock-prompt-audit/**",
+    "supabase/functions/**",
+    "dist/**",
+    "e2e/**",
+    "playwright.config.ts"
+  ],
+  "ignoreDependencies": [
+    "@fontsource-variable/geist",
+    "tw-animate-css",
+    "tailwindcss",
+    "shadcn",
+    "@capacitor/ios",
+    "@capacitor/preferences",
+    "@capacitor/assets",
+    "next-themes",
+    "vaul",
+    "chrome-launcher"
+  ],
+  "entry": [
+    "api/*.ts",
+    "src/sw.js",
+    "sheriff.config.ts",
+    "tests/**/*.test.{ts,tsx}",
+    "scripts/**/*.ts"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "api/**/*.ts", "tests/**/*.ts"],
+  "ignoreExportsUsedInFile": true,
+  "tags": ["-lintignore"],
+  "rules": {
+    "exports": "off"
+  }
+}

@@ -22,3 +22,66 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.env
+openbrain-dashboard.jsx
+
+.vercel
+.env*.local
+
+# Git worktrees
+.worktrees
+
+# Local prompt audit (mock testing only, never commit)
+scripts/mock-prompt-audit/
+
+.vercel
+.env*.local
+
+# Claude Code session state (machine-local; not source)
+# settings.json stays tracked as shared project config
+.claude/*
+!.claude/settings.json
+.claude-state/
+
+# SmashOS ephemeral planning state (both naming conventions)
+.smashOS/
+.smash-os/
+
+# Graphify build artifacts
+graphify-out/
+.graphify_chunk_*.json
+
+# Generated lighthouse reports (run on demand, not source)
+.lighthouse-*
+
+# Supabase CLI scratch (project link cache, not credentials but still ephemeral)
+supabase/.temp/
+
+# Walkthrough screenshots — regenerated on demand
+screenshots/walkthrough-*
+.graphify_detect.json
+.graphify_python
+
+# Playwright outputs
+e2e/.auth/
+test-results/
+playwright-report/
+/blob-report/
+/.playwright/
+
+# Lighthouse audit reports — large HTML, regenerated on demand
+.lighthouse/
+docs/everion-mind-for-notebooklm.md
+
+# Capacitor build artifacts (commit project scaffolding, ignore generated/local)
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/

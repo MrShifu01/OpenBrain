@@ -1,0 +1,235 @@
+# Week 2 — Domain + onboarding + funnel + streak + Cmd+K + Brain Feed v0
+
+**Window: Fri 2026-05-08 → Thu 2026-05-14 (day 8 → day 14 of the 30-day arc).**
+**Theme: instrument the activation loop, ship the differentiating surfaces, migrate the domain in one quiet day so nothing breaks mid-week.**
+
+This doc is the canonical day-by-day plan for week 2. It assumes week 1 closed clean — trademark verified, dashboards paid, dev accounts enrolled, mobile nav flag-gated (already shipped), 8-event PostHog funnel wired (already shipped). If any of those are still red, fix the red before starting Saturday's onboarding work.
+
+Each day has: **goal**, **work**, **done means**, **commit pattern**. Sub-specs for the new features live alongside this doc — see the table at the bottom.
+
+---
+
+## North star for the week
+
+> The user signs up Fri evening, captures Sat morning, opens the app Sun afternoon and sees a streak + a Brain Feed item that feels personal. Funnel events fire at every step. Wed they hit Cmd+K and the capture sheet opens in 80ms.
+
+If a task in this week doesn't move that 60-hour story forward, push it to week 3.
+
+---
+
+## The five hard outputs of this week
+
+| # | Output | Why it matters | Verifies how |
+| - | ------ | -------------- | ------------ |
+| 1 | `everionmind.com` live, all redirects/webhooks updated | Day-30 closed beta needs a stable URL — last-minute domain swap = high regression risk | Magic-link round-trip + LS checkout + RC webhook fire on the new host |
+| 2 | Onboarding aha-in-60s polished + timed | Highest-leverage retention lever pre-launch (per ROADMAP assumption #11) | PostHog `signup_completed → first_capture` median time < 90s |
+| 3 | PostHog funnel visible in dashboard with live test events | Without it, days 30-60 are flying blind | Pin the 5-step funnel; see ≥10 test events post-deploy |
+| 4 | Brain Feed v0 (gap-analyst + 1 resurfaced + capture bar) on the home view | Empty home screen at launch = bounce | First load shows ≥1 of each surface for any user with ≥3 entries |
+| 5 | Streak counter + Cmd+K capture both live | Habit hook + power-user activation | Streak increments on consecutive-day capture; Cmd+K opens sheet < 100ms |
+
+---
+
+## Daily blocks (PST)
+
+### Fri 2026-05-08 — Domain day (HARD DEADLINE per schedule)
+
+**Goal:** `everionmind.com` is the canonical host. Nothing else this day.
+
+- 09:00–10:00 — Buy `everionmind.com` (Cloudflare Registrar preferred — at-cost, free WHOIS privacy, native DNS).
+- 10:00–11:00 — Vercel: add domain + SSL. Confirm A grade on ssllabs.
+- 11:00–12:30 — Supabase: add `https://everionmind.com` to Auth → URL Configuration → Site URL **and** Redirect URLs (keep `everion.smashburgerbar.co.za` as a fallback redirect for one week).
+- 13:30–15:00 — Update LemonSqueezy webhook URL to `https://everionmind.com/api/lemon-webhook`. Update RevenueCat webhook URL to `https://everionmind.com/api/revenuecat-webhook`. Both have to be updated *before* DNS propagates fully so the first webhook on the new host doesn't 404.
+- 15:00–16:00 — Update `EML/architecture/auth.md`, `architecture/cron.md`, and any `.env.example` references to the new domain. Don't change `.env.local` until tomorrow.
+- 16:00–17:00 — End-to-end smoke: signup magic link, paid checkout sandbox, RC sandbox webhook. All three must succeed on `everionmind.com` before the day ends.
+- 17:00–17:30 — **Resend SPF / DKIM / DMARC for new domain.** Per checklist line 438. Resend → Domains → add `everionmind.com` → copy the 3 DNS records into your DNS provider. Verify in Resend dashboard.
+- 17:30–18:00 — **SSL grade A confirm + DNS A/AAAA confirm + support email forward.**
+  - https://www.ssllabs.com/ssltest/analyze.html?d=everionmind.com → grade A.
+  - `nslookup everionmind.com 1.1.1.1` → A + AAAA records present.
+  - Set up `support@everionmind.com` → forwards to `stander.christian@gmail.com` (re-do from week 1's legacy-host setup).
+
+**Done means:**
+- `dig everionmind.com` resolves to Vercel.
+- Magic-link signup succeeds end-to-end on the new domain.
+- LS sandbox checkout fires its webhook to the new host (verify in LS dashboard's webhook logs).
+- RC sandbox subscription event fires to new host.
+- SSL grade A confirmed.
+- 3 Resend DNS records added (full mail-tester verification happens week 4).
+- `support@everionmind.com` forward verified by smoke-send.
+
+**Commit pattern:** `chore(domain): cut everionmind.com over — supabase auth + LS/RC webhooks updated`
+
+**Tripwire:** if any of the three smoke tests fail, **stop and revert webhook URLs** to the old host before going to bed. Better to have one extra week on the old domain than a silent payment-webhook drop.
+
+---
+
+### Sat 2026-05-09 — Onboarding polish + timing
+
+**Goal:** the existing OnboardingModal hits "aha" in under 60 seconds, instrumented end-to-end.
+
+- 09:00–10:00 — Re-read `src/components/OnboardingModal.tsx`. List every transition: capture → processing → ask → answer. Note any current friction (loading states, copy ambiguity, weak example chips).
+- 10:00–13:00 — Polish pass:
+  - Tighten copy on the "thinking…" state. Currently fires for parse + chat round-trip; want sub-1s for the parse phase by parallelising the embed call.
+  - Add a "didn't quite work? try this" affordance on the answer step if the AI returns an empty answer (it sometimes does on a 1-entry brain).
+  - Verify the "show me with sample data" button always succeeds — it currently bulk-saves 4 entries serially; consider parallelising via `Promise.all`.
+- 14:00–16:00 — Wire in timing telemetry:
+  - Add `posthog.capture('onboarding_step_complete', { step, dur_ms })` at each transition so we can graph the median time for each.
+  - These are *not* funnel events — they're auxiliary, kept off the main `events.ts` taxonomy. Add inline in OnboardingModal.tsx.
+- 16:00–18:00 — Manual run-through on real device (Android + desktop). Time yourself. Target: 60s from "let's give your brain its first thing" to seeing the cited answer.
+
+**Done means:**
+- Median onboarding time on local instrumented run < 90s. (Real-user median will be higher; 90s on instrumented is the leading indicator.)
+- All four steps emit `onboarding_step_complete` events.
+- No 5xx in Vercel logs during a 5-runs-in-a-row test.
+
+**Commit pattern:** `feat(onboarding): polish + step-timing telemetry — sub-90s aha`
+
+---
+
+### Sun 2026-05-10 — Funnel verification + dashboard
+
+**Goal:** PostHog dashboard has the 5-step funnel pinned. Live test events visible.
+
+- 10:00–12:00 — Set `VITE_POSTHOG_KEY` in Vercel prod (and `VITE_POSTHOG_HOST` if using EU region). Redeploy. Open private window, accept consent, run through signup → capture → chat. Verify all 8 events appear in PostHog within 30s.
+- 13:00–15:00 — In PostHog UI:
+  - Build the canonical funnel: `signup_completed → first_capture → first_chat → day_7_return → tier_upgraded`. Pin to workspace.
+  - Build a secondary funnel: `signup_completed → first_capture → first_insight_viewed`. This is the activation funnel; if drop-off is bad, the AI value isn't landing.
+  - Build a "capture surface" insight: bar chart of `capture_method` by method (text vs file vs voice). Tells you which surface to invest in.
+- 15:00–17:00 — Set up two cohorts: `Day-7 retained` (anyone who fired `day_7_return`), `Activated` (anyone who fired `first_insight_viewed`). These will be the load-bearing cohorts during the beta phase.
+- 17:00–18:00 — **Sentry alerts re-verification on new domain.** Week 1 set up the 3 rules (error spike, new issue, slow `/api/llm`+`/api/capture` p95). Domain cutover may have changed the transaction names (host segment). Open each rule, confirm it's still scoped correctly, trigger a test event, confirm the email/Slack alert fires.
+
+**Done means:**
+- 5-step funnel visible, with at least one self-test user passing through all 5 steps (including a sandbox tier upgrade).
+- Cohorts saved.
+- Screenshot of the funnel pinned to your launch-day notes doc — you'll want a "before" baseline.
+- 3 Sentry alert rules confirmed firing on the new domain.
+
+**Commit pattern:** N/A — PostHog work is dashboard-side, no code commit.
+
+---
+
+### Mon 2026-05-11 — Brain Feed v0 day 1 (data layer)
+
+**Goal:** Backend surfaces all data the feed needs. No render yet.
+
+- 09:00–10:00 — Read `EML/Specs/brain-feed-v0.md` end-to-end. Confirm the 3 surfaces: (1) gap-analyst recent output, (2) one resurfaced memory, (3) capture bar.
+- 10:00–13:00 — Wire the resurfaced-memory query. Endpoint: `/api/entries?resource=resurface` (existing rewrite or add to the resource switch in `api/entries.ts` — check budget; the 12-fn limit applies). Logic: pick one entry created 30-365 days ago that hasn't been viewed in 14 days, weighted by importance + recency-of-relevance from the concept graph.
+- 14:00–17:00 — Wire the gap-analyst feed query. Reuse existing gap-analyst job output if it's already persisted; otherwise add a `recent_gaps` view that returns the last 3 gap-analyst items.
+
+**Done means:**
+- `GET /api/entries?resource=resurface` returns one entry JSON for any user with ≥3 entries, falls back to `null` for emptier brains.
+- `GET /api/entries?resource=recent_gaps` returns ≤3 gap items.
+- Both endpoints have integration tests in `tests/`.
+
+**Commit pattern:** `feat(brain-feed): backend surfaces — resurface + recent_gaps endpoints`
+
+---
+
+### Tue 2026-05-12 — Brain Feed v0 day 2 (render + capture bar)
+
+**Goal:** Home view renders the feed. Capture bar is the first thing under the header.
+
+- 09:00–10:00 — Decide where the feed lives. Most likely: `src/views/MemoryView.tsx` gets a new `<BrainFeed />` block above the entry grid, gated by entry-count ≥ 3 (no point feeding an empty brain).
+- 10:00–13:00 — Build `<BrainFeed />`:
+  - One row at the top: a slim capture bar with placeholder "what's on your mind?" — taps open CaptureSheet with the typed text pre-filled.
+  - One row: "Picking up where you left off" — the resurfaced memory card. Tap → opens DetailModal.
+  - One row: "Where your brain is thin" — top gap from `recent_gaps`. Tap → opens a guided capture (CaptureSheet pre-filled with the gap concept as a prompt).
+- 14:00–16:00 — Mobile pass. The feed needs to fit comfortably above the BottomNav on a 375px-wide screen.
+- 16:00–18:00 — Empty / loading / error states. Skeleton on first load. "We need a bit more in your brain to surface things — keep capturing" for ≤2 entries.
+
+**Done means:**
+- Feed visible on home view for any test user with 3+ entries.
+- Capture bar tap opens CaptureSheet with text intact.
+- Resurfaced and gap items both clickable, both lead to a useful next action.
+
+**Commit pattern:** `feat(brain-feed): v0 render — capture bar + resurfaced + gap`
+
+---
+
+### Wed 2026-05-13 — Streak counter ship
+
+**Goal:** A streak number visible somewhere prominent. Increments on consecutive-day capture.
+
+See `spec-streak-counter.md` for full design. Day plan:
+
+- 09:00–11:00 — DB migration: add `last_capture_date date`, `streak_days int default 0` to `user_profiles`. Migration name: `068_streak_counter.sql`. Backfill existing users by running a one-off compute against `entries.created_at`.
+- 11:00–14:00 — Server-side increment:
+  - Hook into `/api/capture` after a successful insert.
+  - If `last_capture_date == today_utc`: no-op.
+  - If `last_capture_date == yesterday_utc`: increment `streak_days`, set `last_capture_date = today_utc`.
+  - Else: reset `streak_days = 1`, set `last_capture_date = today_utc`.
+- 14:00–16:00 — Client read + render. Add to `useDataLayer` (already polls user state on mount). Render a small chip on the home view: `🔥 12 days`.
+- 16:00–18:00 — Edge cases: timezone (use the user's IANA from `syncTimezone`, not server UTC), offline capture (gets recorded server-side when sync runs), grace period (NONE — break = break, retention is the metric).
+
+**Done means:**
+- Two days of continuous testing show the counter increment correctly.
+- A user offline-captures, comes online, the streak respects the original capture date.
+- Counter visible on home, no degraded layout.
+
+**Commit pattern:** `feat(streak): consecutive-day capture counter`
+
+---
+
+### Thu 2026-05-14 — Cmd+K capture + LS/RC operator setup + week retro
+
+**Goal:** Power users hit Cmd+K, capture sheet opens in <100ms with focus in the textarea. Billing operator setup landed (HARD DEADLINE per schedule). Plus a one-page retro on what shipped.
+
+See `spec-cmd-k-capture.md` for full design. Day plan:
+
+- 09:00–11:00 — Wire the global key handler. Already an OmniSearch listener for Cmd+K — extend or move to a generic `useKeyboardShortcuts` hook that owns Cmd+K, Cmd+/, Esc.
+- 11:00–13:00 — Mode logic: Cmd+K alone → opens CaptureSheet. Shift+Cmd+K → opens OmniSearch. Doc the rebinding in the help menu.
+- 14:00–16:00 — **LemonSqueezy + RevenueCat operator setup** (HARD DEADLINE 2026-05-14 per schedule line 48). Per checklist lines 136-141:
+  - LS dashboard: create the Starter + Pro variants. Set Vercel env vars: `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_STARTER_VARIANT_ID`, `LEMONSQUEEZY_PRO_VARIANT_ID`. Webhook URL → `https://everionmind.com/api/lemon-webhook`.
+  - RC dashboard: create RC project. Add iOS + Android app entries. Configure entitlements `starter` + `pro`. Set Vercel env: `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`. Vite-side: `VITE_REVENUECAT_API_KEY_IOS`, `VITE_REVENUECAT_API_KEY_ANDROID`. Webhook URL → `https://everionmind.com/api/revenuecat-webhook`.
+  - **Skip Play Console subscription products today** — happens week 3 once the AAB is uploaded. App Store Connect products defer to week 5 (iOS).
+- 16:00–17:00 — **Smoke-test billing.** LS sandbox checkout (don't use real card; use LS test mode if available). RC sandbox subscription event. Verify both webhook calls land at production endpoints — check LS + RC dashboard webhook logs.
+- 17:00–18:00 — Week-2 retro: write `EML/Working/2026-05-14-week-2-retro.md`. What shipped, what slipped, what tripwires got triggered, what to change in week 3's plan.
+
+**Done means:**
+- Cmd+K from any view opens CaptureSheet, focus in the textarea, no scroll jump.
+- Shift+Cmd+K opens OmniSearch.
+- LS + RC env vars set in Vercel; webhook URLs configured at LS + RC dashboards; smoke tests passed.
+- Retro doc written and linked from MEMORY.md (auto-discovered by EML dashboard).
+
+**Tripwire:** if LS or RC operator setup isn't complete by EOD Thu, the schedule's Wed Wk2 deadline is breached. Native build can't reach an entitlement on Android. **Plan B per schedule:** launch closed beta as free-only, paid web-only — but it splits the billing surface. Decide Fri morning before week 3 starts.
+
+**Commit pattern:** `feat(cmd-k): global capture shortcut + retro` (two commits — one for the feature, one for the retro doc). LS/RC operator setup is dashboard-side, no commit.
+
+---
+
+## Risk register for the week
+
+| Risk | Likelihood | Mitigation |
+| ---- | ---------- | ---------- |
+| Domain DNS propagation > 1 hour blocks Saturday work | Medium | Buy through Cloudflare Registrar (instant DNS); preflight DNS Friday morning; if propagation drags, push Saturday's polish to Sunday |
+| PostHog test events not appearing | Low | Verify `VITE_POSTHOG_KEY` is set in Vercel prod env; consent banner accepted in private window; check posthog-js loaded in DevTools network tab |
+| Brain Feed v0 needs more than 2 days | Medium | Cut "where your brain is thin" surface — ship resurface + capture bar only. Gap surface moves to v1 (week 4) |
+| Streak migration breaks on the 50k existing rows | Low | Run the migration in a Supabase branch first; backfill in a separate transaction |
+| Cmd+K conflict with OS shortcuts on Windows/Linux | Medium | Provide Ctrl+K binding too; doc both in help menu |
+| Onboarding polish reveals a real perf problem | Medium | If Gemini round-trip is the bottleneck, defer the polish to week 3 and just add timing — the lever is bigger if we know where the latency lives |
+
+---
+
+## Sub-specs referenced from this plan
+
+| Spec | What it covers |
+| ---- | -------------- |
+| [Specs/brain-feed-v0.md](../Specs/brain-feed-v0.md) | Data sources, render layout, refresh cadence for the home-view feed |
+| [Specs/streak-counter.md](../Specs/streak-counter.md) | DB schema, increment logic, edge cases, UI surface |
+| [Specs/archive/cmd-k-capture.md](../Specs/archive/cmd-k-capture.md) | Global shortcut handler, mode logic, OmniSearch interaction |
+| [beta-phase.md](beta-phase.md) | What you actually do days 30-60 every day (referenced by Sun's funnel-cohort work) |
+
+---
+
+## Verification at end of week
+
+Open the dashboard at `localhost:5174`. The "Working" group should show:
+- This plan doc
+- 4 sub-specs (spec-brain-feed-v0, spec-streak-counter, spec-cmd-k-capture, beta-phase-ops)
+- A week-2 retro doc
+
+PostHog dashboard should show:
+- 5-step funnel pinned
+- ≥10 self-test events flowing through it
+- 2 cohorts saved (Day-7 retained, Activated)
+
+If both check out, you're ahead of where week 1 left you. Then move to week 3's prune-and-submit work.

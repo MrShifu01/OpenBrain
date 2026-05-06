@@ -1,15 +1,431 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="family-bronze theme-dark dark" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f0f23" />
-    <link rel="manifest" href="/manifest.json" />
-    <title>OpenBrain</title>
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Everion" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual"
+    />
+    <!--
+      theme-color drives the iOS PWA status bar AND the safe-area chin around
+      the home indicator. A single hardcoded value leaks the wrong colour
+      whenever the active design family doesn't match. Two media-aware
+      fallbacks cover the FOUC window; DesignThemeContext then writes a
+      dynamic <meta name="theme-color"> matching the resolved --bg.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f3efe9" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#393c42" />
+    <meta
+      name="description"
+      content="One private place for the thoughts you'd lose and the facts you can't afford to — gate codes, policy numbers, half-formed ideas, and everything in between. Capture in one tap, recall by asking. Local-first, end-to-end encrypted."
+    />
+    <link rel="canonical" href="https://everionmind.com/" />
+    <meta property="og:site_name" content="Everion" />
+    <meta property="og:title" content="Everion — your second memory, quietly kept." />
+    <meta
+      property="og:description"
+      content="One private place for the thoughts you'd lose and the facts you can't afford to. Encrypted vault, AI you can ask, no system to maintain."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://everionmind.com" />
+    <meta property="og:image" content="https://everionmind.com/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Everion — your second memory, quietly kept" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Everion — your second memory, quietly kept." />
+    <meta
+      name="twitter:description"
+      content="One private place for the thoughts you'd lose and the facts you can't afford to. Encrypted vault, AI you can ask, no system to maintain."
+    />
+    <meta name="twitter:image" content="https://everionmind.com/og.png" />
+    <title>Everion — your second memory, quietly kept.</title>
+
+    <!-- JSON-LD: Organization + WebSite + SoftwareApplication. Helps Google
+         classify what we are and unlocks rich-result eligibility (sitelinks,
+         pricing, app card). -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://everionmind.com/#organization",
+            "name": "Everion",
+            "url": "https://everionmind.com",
+            "logo": "https://everionmind.com/icons/icon-512.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://everionmind.com/#website",
+            "url": "https://everionmind.com",
+            "name": "Everion",
+            "description": "One private place for the thoughts you'd lose and the facts you can't afford to.",
+            "publisher": { "@id": "https://everionmind.com/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Everion",
+            "description": "Personal second-brain and encrypted vault. Capture notes, links, IDs, gate codes, policy numbers — and ask the AI to recall anything.",
+            "applicationCategory": "ProductivityApplication",
+            "operatingSystem": "Web, iOS (PWA), Android (PWA)",
+            "url": "https://everionmind.com",
+            "publisher": { "@id": "https://everionmind.com/#organization" },
+            "offers": [
+              {
+                "@type": "Offer",
+                "name": "Hobby",
+                "price": "0",
+                "priceCurrency": "USD",
+                "description": "Free forever. Unlimited entries, local-first, encrypted vault, BYO AI key."
+              },
+              {
+                "@type": "Offer",
+                "name": "Pro",
+                "price": "6",
+                "priceCurrency": "USD",
+                "description": "Hosted AI, sync across devices, shared brains. 14-day trial, no card required."
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+
+    <!-- FAQPage schema. Lets AI systems extract Q&A passages directly into
+         answer summaries (Google AI Overviews, ChatGPT, Perplexity, Claude).
+         Same questions appear in /learn.html for reinforcement. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Everion?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Everion is a personal second brain and encrypted vault. It holds fleeting thoughts (notes, links, voice memos, half-thoughts, screenshots) and high-stakes facts (gate codes, policy numbers, ID and bank details, medical info) in one private place. Capture is one tap. Recall is a chat — ask the AI anything and it reads your entries, cites sources, answers in plain language. Local-first, end-to-end encrypted."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is a second brain?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A second brain is a private, searchable place outside your head where you keep the things worth remembering — notes, ideas, links, voice memos, half-formed thoughts, and high-stakes facts like gate codes, policy numbers, or where the spare key is hidden. The point is to stop trying to remember everything yourself."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from Notion or Obsidian?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Notion and Obsidian are blank canvases — folders, templates, tags, databases. Everion has nothing to set up. One input field, no folders, no templates. The same atomic entry holds a half-thought or a serial number. Retrieval is by asking, not by hunting through a hierarchy."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from Mem.ai or Reflect?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Mem and Reflect are AI-native notes apps. Everion covers the same ground for fleeting thoughts but adds a vault layer for high-stakes facts (bank details, gate codes, IDs) with end-to-end encryption — territory those tools don't cover. Everion is also local-first; Mem and Reflect are cloud-first."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is Everion different from 1Password or Bitwarden?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "1Password and Bitwarden are built for credentials — usernames, passwords, 2FA codes. Everion is for the free-form facts that aren't credentials: gate codes, medical aid numbers, account details, the doctor's contact, 'if I die' notes for your spouse."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my data private with bank details and IDs in Everion?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Storage is local-first — entries live on your device, encrypted. The vault layer uses end-to-end encryption for high-stakes content. On the free Hobby tier you bring your own AI key (Anthropic, OpenAI, OpenRouter, or Groq), so prompts go directly to your provider with no Everion server in the path."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does BYO AI key mean?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Bring Your Own key. On the free Hobby tier, you supply an API key from Anthropic, OpenAI, OpenRouter, or Groq, and Everion calls those providers directly using your key. Your usage shows up on your provider bill, your prompts never touch our infrastructure."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I share my brain with my spouse or partner?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes — on the Pro tier, you can share one brain with one other person. The household / next-of-kin angle: the policy number, the gate code, the alarm panel password, the 'if something happens to me' notes are findable by your spouse without you having to be there to answer."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does Everion work offline?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Everion is a local-first PWA — entries are stored on your device and capture works without a network connection. Sync resumes when you're back online. AI recall requires a network call to your chosen model."
+            }
+          }
+        ]
+      }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <!--
+      Google Fonts: preload to kick off the byte download in parallel with
+      the rest of the critical path. The actual stylesheet is injected by
+      main.tsx so the <link> isn't render-blocking. Can't use the standard
+      onload="this.media='all'" trick — CSP `script-src 'self'` blocks
+      inline event handlers, so the swap silently never fires. <noscript>
+      mirror is the JS-disabled fallback. Same href in both keeps cached.
+    -->
+    <link
+      rel="preload"
+      as="style"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter+Tight:wght@400;450;500;600&display=swap"
+    />
+    <noscript
+      ><link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter+Tight:wght@400;450;500;600&display=swap"
+    /></noscript>
+    <!--
+      Inline app-shell shown on the first paint, before main.tsx parses.
+      React replaces #root.children once it mounts, so this disappears
+      naturally. Goal: something on screen at ~500ms instead of white
+      until 4-5s on a cold cell connection. No external assets — must
+      not introduce another network request to fix a network problem.
+
+      Markup mirrors src/components/LoadingScreen.tsx 1:1 (orbital orb,
+      pulsing ring, dashed orbital ring, glass panel + logo, gradient
+      brand title, sweep bar). Project utility classes are applied so once
+      index.css arrives the styling matches LoadingScreen exactly. The
+      inline declarations + keyframe copies below cover the brief pre-CSS
+      window so the visual stays identical the whole way through.
+    -->
+    <style>
+      /* Bronze / Slate dark — inline fallbacks so the very first paint
+         (before family-bronze.css arrives) already shows the bronze tokens.
+         Values mirror src/design/family-bronze.css. Keeps boot shell
+         identical to the resolved theme so there's no first-frame flash. */
+      :root {
+        --bg: oklch(24% 0.008 250);
+        --ink: oklch(94% 0.012 84);
+        --ember: oklch(76% 0.105 82);
+        --color-background: oklch(24% 0.008 250);
+        --color-primary: oklch(76% 0.105 82);
+        --color-tertiary: oklch(62% 0.07 152);
+        --color-surface-container-highest: oklch(34% 0.012 246);
+        --color-outline-variant: oklch(31% 0.01 250);
+      }
+      html,
+      body {
+        margin: 0;
+        background: var(--bg, #393c42);
+        color: var(--ink, #f0ede6);
+        min-height: 100%;
+      }
+      #root {
+        min-height: 100dvh;
+        background: var(--bg, #393c42);
+      }
+      /* When the signed-in app shell mounts, #root must also be fixed-
+         height so the inner flex column can rely on its parent height. */
+      #root:has(.app-shell-fixed) {
+        height: 100lvh;
+        overflow: hidden;
+      }
+      .app-shell-boot {
+        position: fixed;
+        inset: 0;
+        bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
+        min-height: calc(100dvh + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        background: var(--bg, #393c42);
+        z-index: 100;
+      }
+      .app-shell-boot__stack {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 32px;
+      }
+      .app-shell-boot__orb {
+        position: relative;
+        width: 104px;
+        height: 104px;
+      }
+      .app-shell-boot__halo {
+        position: absolute;
+        inset: -10px;
+        border-radius: 50%;
+        filter: blur(16px);
+        background: radial-gradient(
+          circle,
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 22%, transparent),
+          color-mix(in oklch, var(--color-tertiary, oklch(62% 0.1 145)) 18%, transparent),
+          transparent 70%
+        );
+        animation: hero-glow 3s ease-in-out infinite;
+      }
+      .app-shell-boot__ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 1px solid
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 25%, transparent);
+        animation: ring-pulse 2.6s ease-in-out infinite;
+      }
+      .app-shell-boot__orbital {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        border: 1px dashed
+          color-mix(in oklch, var(--color-tertiary, oklch(62% 0.1 145)) 20%, transparent);
+        animation: orbital-spin 18s linear infinite;
+      }
+      .app-shell-boot__glass {
+        position: relative;
+        width: 104px;
+        height: 104px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 20%, transparent);
+        background: color-mix(
+          in oklch,
+          var(--color-surface-container-highest, oklch(37% 0.016 65)) 60%,
+          transparent
+        );
+        backdrop-filter: blur(24px) saturate(140%);
+        -webkit-backdrop-filter: blur(24px) saturate(140%);
+      }
+      .app-shell-boot__logo {
+        width: 81px;
+        height: 81px;
+        object-fit: contain;
+        display: block;
+      }
+      .app-shell-boot__brand {
+        margin: 0;
+        font-family: var(--f-serif, "Newsreader", Georgia, serif);
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--color-primary, oklch(68% 0.09 75));
+        -webkit-text-fill-color: var(--color-primary, oklch(68% 0.09 75));
+        text-shadow: 0 0 20px
+          color-mix(in oklch, var(--color-primary, oklch(68% 0.09 75)) 40%, transparent);
+      }
+      .app-shell-boot__bar {
+        width: 112px;
+        height: 1px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--color-outline-variant, oklch(22% 0.012 65));
+      }
+      .app-shell-boot__bar::after {
+        content: "";
+        display: block;
+        width: 50%;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--color-primary, oklch(68% 0.09 75));
+        animation: loading-sweep 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+      }
+      /* Inline keyframe copies — index.css redefines the same names with
+         identical declarations, so once the stylesheet arrives there's no
+         visible jump. Kept here so the boot shell animates pre-CSS too. */
+      @keyframes hero-glow {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      @keyframes ring-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.08);
+          opacity: 1;
+        }
+      }
+      @keyframes orbital-spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes loading-sweep {
+        0% {
+          transform: translateX(-200%);
+        }
+        100% {
+          transform: translateX(300%);
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div id="root">
+      <div class="app-shell-boot" aria-hidden="true">
+        <div class="synapse-bg"></div>
+        <div class="grain"></div>
+        <div class="app-shell-boot__stack">
+          <div class="app-shell-boot__orb">
+            <div class="app-shell-boot__halo"></div>
+            <div class="app-shell-boot__ring"></div>
+            <div class="app-shell-boot__orbital"></div>
+            <div class="app-shell-boot__glass glass-panel">
+              <img class="app-shell-boot__logo" src="/logoNew.webp" alt="" />
+            </div>
+          </div>
+          <h1 class="app-shell-boot__brand font-headline gradient-text glow-text">Everion Mind</h1>
+          <div class="app-shell-boot__bar"></div>
+        </div>
+      </div>
+    </div>
+    <!--
+      Boot watchdog — extracted to /public/boot-watchdog.js because the CSP
+      `script-src 'self'` (vercel.json:69) blocks every inline <script>.
+      Self-hosting it satisfies CSP without an `'unsafe-inline'` opt-out or
+      a fragile sha256 hash pin. The watchdog itself fires on visibilitychange
+      so it doesn't need to run before main.tsx — load order is fine.
+    -->
+    <script src="/boot-watchdog.js"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

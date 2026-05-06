@@ -1,0 +1,111 @@
+name: E2E
+
+# Tests run against real deployed URLs, not a local dev server. Three triggers:
+#
+#   1. deployment_status — fires after every Vercel deploy. We FILTER to
+#      only the production environment, because Vercel preview URLs have
+#      Deployment Protection enabled (HTTP 401 on every request without
+#      Vercel SSO). Testing post-promotion is fine for the direct-to-main
+#      workflow this project uses; no PRs need preview validation.
+#
+#   2. schedule — daily 06:30 UTC against production. Catches drift even
+#      when no deploys are happening (Supabase / Gemini / DNS changes).
+#
+#   3. workflow_dispatch — manual, with optional URL input. Useful for
+#      poking a specific URL or rerunning a failed run.
+#
+# Required repo secrets:
+#   E2E_ADMIN_EMAIL, E2E_ADMIN_PASSWORD, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+#
+# To extend to preview testing later: turn off Deployment Protection in
+# Vercel, OR generate a Protection Bypass for Automation secret and add
+# it as a header / query param to all outbound requests.
+
+on:
+  deployment_status:
+  schedule:
+    - cron: "30 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "URL to test against (defaults to production)"
+        required: false
+        default: "https://everion.smashburgerbar.co.za"
+
+jobs:
+  e2e:
+    # Skip the noisy "pending"/"in_progress" deployment_status events,
+    # AND skip preview deploys (Vercel Deployment Protection blocks them
+    # with HTTP 401). Only run on successful production deploys.
+    if: |
+      (github.event_name == 'deployment_status'
+        && github.event.deployment_status.state == 'success'
+        && github.event.deployment.environment == 'Production') ||
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Resolve target URL
+        id: target
+        # Why we don't use github.event.deployment_status.target_url even
+        # on production deploys: Vercel reports the underlying *.vercel.app
+        # URL, which has Deployment Protection (HTTP 401 to anyone without
+        # SSO). The production custom domain is unprotected, points at the
+        # same deploy via Vercel's alias system, and is what real users hit.
+        run: |
+          if [[ "${{ github.event_name }}" == "deployment_status" ]]; then
+            URL="https://everion.smashburgerbar.co.za"
+          elif [[ -n "${{ inputs.target_url }}" ]]; then
+            URL="${{ inputs.target_url }}"
+          else
+            URL="https://everion.smashburgerbar.co.za"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Testing against: $URL"
+
+      - name: Warm up the deployment
+        # Fresh Vercel previews have cold lambdas + cold CDN; the first
+        # request can take 20-30s to hydrate. Curl the URL a few times so
+        # everything is warm before Playwright starts. If we see 401/302
+        # to vercel.com/auth here, deployment protection is on and the
+        # tests will fail differently — surface that early.
+        run: |
+          URL="${{ steps.target.outputs.url }}"
+          for i in 1 2 3; do
+            curl -sSL -o /dev/null -w "  attempt $i: HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/" || true
+            sleep 2
+          done
+          # Warm a couple of API endpoints — they boot as separate lambdas.
+          curl -sSL -o /dev/null -w "  /api/vault:  HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/api/vault" || true
+          curl -sSL -o /dev/null -w "  /api/brains: HTTP %{http_code} in %{time_total}s\n" -m 60 "$URL/api/brains" || true
+
+      - name: Run Playwright tests
+        env:
+          E2E_BASE_URL: ${{ steps.target.outputs.url }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14

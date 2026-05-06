@@ -1,0 +1,65 @@
+name: Test Push
+
+# Manually-triggered diagnostic. Bypasses Vercel entirely: runs webpush
+# directly from the GitHub Actions runner using VAPID secrets to deliver
+# a single test notification to a target user (admin by default).
+#
+# Use when:
+#   - The daily cron reports push.errors=0 AND push.sent=0 (i.e. nothing
+#     happened), and you need to know whether VAPID/subscription are
+#     valid or whether Vercel is the broken link.
+#   - You're tweaking notification copy and want a one-off send.
+#
+# Trigger:
+#   gh workflow run test-push.yml
+#   gh workflow run test-push.yml -f title="Hi" -f body="Custom body"
+#   gh workflow run test-push.yml -f target_email=other@user.com
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_email:
+        description: "Email of the user to push to (defaults to ADMIN_EMAIL)"
+        required: false
+        type: string
+      title:
+        description: "Notification title"
+        required: false
+        type: string
+        default: "Everion · test push"
+      body:
+        description: "Notification body"
+        required: false
+        type: string
+        default: "Sent from GitHub Actions. If you see this, push is wired correctly."
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: Send test push
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Install web-push
+        run: npm install --no-save web-push@^3.6.7
+
+      - name: Send
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          TEST_PUSH_EMAIL: ${{ inputs.target_email }}
+          TEST_PUSH_TITLE: ${{ inputs.title }}
+          TEST_PUSH_BODY: ${{ inputs.body }}
+        run: node scripts/test-push.mjs

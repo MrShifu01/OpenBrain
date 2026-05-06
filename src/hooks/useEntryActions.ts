@@ -1,0 +1,385 @@
+import { useState, useCallback, useRef } from "react";
+import { authFetch } from "../lib/authFetch";
+import { showError, captureError, showToast } from "../lib/notifications";
+import { removeFromIndex, indexEntry } from "../lib/searchIndex";
+import { writeEntriesCache } from "../lib/entriesCache";
+import { encryptEntry } from "../lib/crypto";
+import { getEmbedHeaders } from "../lib/aiSettings";
+import { recordDecision } from "../lib/learningEngine";
+import { enqueue as enqueueOfflineOp } from "../lib/offlineQueue";
+import type { Entry, OfflineOp } from "../types";
+
+function normalizeTags(tags: unknown): string {
+  if (!Array.isArray(tags)) return "";
+  return [...tags]
+    .map((t) => String(t).trim())
+    .filter(Boolean)
+    .sort()
+    .join(",");
+}
+
+interface UseEntryActionsParams {
+  entries: Entry[];
+  setEntries: React.Dispatch<React.SetStateAction<Entry[]>>;
+  /** Vault entries are loaded separately (encrypted, lazy-fetched). Pass
+   *  them in so handleDelete can find a vault row when deleting from the
+   *  Vault view — without this, deleting a vault entry silently no-ops
+   *  because entries[] doesn't contain it. */
+  vaultEntries?: Entry[];
+  setVaultEntries?: React.Dispatch<React.SetStateAction<Entry[]>>;
+  setSelected: React.Dispatch<React.SetStateAction<Entry | null>>;
+  isOnline: boolean;
+  isOnlineRef: React.MutableRefObject<boolean>;
+  refreshCount: () => void;
+  cryptoKey: CryptoKey | null;
+  /** Active brain — used to key the per-brain entries cache so edits/deletes
+   *  persist into the right slot for offline reads. */
+  activeBrainId?: string;
+}
+
+// Undoable action history. Discriminated union — `type` narrows the shape.
+// Used by handleUndo to pick the right rollback path. Was `any` before.
+export type LastAction =
+  | { type: "delete"; entry: Entry }
+  | {
+      type: "update";
+      id: string;
+      previous: Pick<Entry, "title" | "content" | "type" | "tags" | "metadata">;
+    }
+  | { type: "create"; id: string };
+
+interface PendingDelete {
+  id: string;
+  entry: Entry;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+export function useEntryActions({
+  entries,
+  setEntries,
+  vaultEntries,
+  setVaultEntries,
+  setSelected,
+  isOnline,
+  isOnlineRef,
+  refreshCount,
+  cryptoKey,
+  activeBrainId,
+}: UseEntryActionsParams) {
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const pendingDeleteRef = useRef<PendingDelete | null>(null);
+
+  const commitPendingDelete = useCallback(() => {
+    if (!pendingDeleteRef.current) return;
+    const { id, entry } = pendingDeleteRef.current;
+    writeEntriesCache(
+      entries.filter((e) => e.id !== id),
+      activeBrainId,
+    );
+    // Vault entries live in their own table (vault_entries) and are
+    // soft-deleted via /api/vault-entries?id=X. Hitting /api/delete-entry
+    // for a vault row 404s silently against the regular entries table —
+    // which is why the modal said "Deleted" but the row stayed in the
+    // Vault grid even after refresh.
+    const isVault = entry.type === "secret";
+    const url = isVault ? `/api/vault-entries?id=${encodeURIComponent(id)}` : "/api/delete-entry";
+    const fetchInit: RequestInit = isVault
+      ? { method: "DELETE" }
+      : {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id }),
+        };
+    if (isOnlineRef.current) {
+      authFetch(url, fetchInit).catch((err) => {
+        captureError(err, "commitPendingDelete");
+        // Restore the entry on failure so state stays consistent
+        setEntries((prev) => [entry, ...prev.filter((e) => e.id !== id)]);
+        showToast("Delete failed — entry restored.", "error");
+      });
+    } else {
+      // Offline: queue the delete instead of dropping it on the floor.
+      // useOfflineSync.drain replays generic ops (everything other than
+      // raw-capture) by url+method+body, so this entry-delete op replays
+      // exactly the same DELETE call once the user is back online.
+      enqueueOfflineOp({
+        id: `delete-${id}-${Date.now()}`,
+        url,
+        method: "DELETE",
+        body: isVault ? "" : JSON.stringify({ id }),
+        created_at: new Date().toISOString(),
+        // Tagged so the queue badge can group / count distinct op types
+        // without inspecting URLs.
+        type: "entry-delete",
+      } as OfflineOp & { type: string }).catch((err) =>
+        captureError(err, "commitPendingDelete:enqueue"),
+      );
+      showToast("Delete queued — will sync when online.", "info");
+    }
+    pendingDeleteRef.current = null;
+  }, [entries, isOnlineRef, setEntries, activeBrainId]);
+
+  const handleDelete = useCallback(
+    (id: string) => {
+      // Vault entries live in a separate array (lazy-fetched, encrypted),
+      // so a delete invoked from the Vault detail view won't find the row
+      // in `entries`. Fall through to vaultEntries before bailing —
+      // otherwise the click silently no-ops.
+      const entry = entries.find((e) => e.id === id) ?? vaultEntries?.find((e) => e.id === id);
+      if (!entry) return;
+      commitPendingDelete();
+      removeFromIndex(id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      setVaultEntries?.((prev) => prev.filter((e) => e.id !== id));
+      // useVaultOps maintains its OWN vaultEntries / decryptedSecrets
+      // state that drives the visible Vault grid — separate from
+      // useDataLayer's vaultEntries. The two stores aren't wired up,
+      // so an entry deleted via DetailModal vanishes from the API and
+      // useDataLayer but stays on screen in the Vault tab. Broadcast
+      // a window event so useVaultOps can mirror the optimistic
+      // removal without us having to plumb its setters through here.
+      if (entry.type === "secret") {
+        window.dispatchEvent(
+          new CustomEvent("everion:entry-deleted", { detail: { id, type: "secret" } }),
+        );
+      }
+      setSelected(null);
+      const timer = setTimeout(() => {
+        if (pendingDeleteRef.current?.id === id) {
+          commitPendingDelete();
+          setLastAction(null);
+        }
+      }, 5000);
+      pendingDeleteRef.current = { id, entry, timer };
+      setLastAction({ type: "delete", entry });
+    },
+    [entries, vaultEntries, commitPendingDelete, setEntries, setVaultEntries, setSelected],
+  );
+
+  const handleUpdate = useCallback(
+    async (id: string, changes: Partial<Entry>, options?: { silent?: boolean }) => {
+      const previous = entries.find((e) => e.id === id);
+      const entryType = changes.type || previous?.type;
+      const isSecret = entryType === "secret";
+      // Phase 3 of schedule fix: stamp user_edited_at whenever metadata is
+      // included in the update so the enrichment pipeline can tell user
+      // edits apart from initial AI extraction. The marker is also a tag
+      // for "do NOT have AI re-derive these fields" — see USER_OWNED_KEYS
+      // in api/_lib/enrich.ts.
+      if (changes.metadata && typeof changes.metadata === "object") {
+        changes = {
+          ...changes,
+          metadata: {
+            ...(changes.metadata as Record<string, unknown>),
+            user_edited_at: new Date().toISOString(),
+          } as Entry["metadata"],
+        };
+      }
+      // Wire-payload shape — accepts encrypted ciphertext (string) for
+      // metadata when the entry is a secret, in addition to the normal
+      // EntryMetadata object. The server decrypts back into the object
+      // before persisting. Omit-then-extend so metadata isn't intersected
+      // with EntryMetadata.
+      let serverChanges: Omit<Partial<Entry>, "metadata"> & {
+        metadata?: Entry["metadata"] | string;
+      } = { ...changes };
+      if (isSecret && cryptoKey && (changes.content || changes.metadata)) {
+        const encrypted = await encryptEntry(
+          { content: changes.content, metadata: changes.metadata },
+          cryptoKey,
+        );
+        if (changes.content) serverChanges.content = encrypted.content;
+        if (changes.metadata) serverChanges.metadata = encrypted.metadata;
+      }
+
+      // Apply optimistically before the request so the UI feels instant
+      setEntries((prev) => {
+        const next = prev.map((e) => (e.id === id ? { ...e, ...changes } : e));
+        writeEntriesCache(next, activeBrainId);
+        return next;
+      });
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...changes } : prev));
+
+      // Offline: queue the update instead of throwing. Optimistic state has
+      // already been applied above and cached; useOfflineSync.drain replays
+      // this PATCH on reconnect. We don't roll back the optimistic update on
+      // queue-enqueue — the cache + the queued op are both consistent until
+      // the server speaks.
+      if (!isOnline) {
+        try {
+          await enqueueOfflineOp({
+            id: `update-${id}-${Date.now()}`,
+            url: "/api/update-entry",
+            method: "PATCH",
+            body: JSON.stringify({ id, ...serverChanges }),
+            created_at: new Date().toISOString(),
+            type: "entry-update",
+          } as OfflineOp & { type: string });
+          if (!options?.silent) {
+            showToast("Saved locally — will sync when online.", "info");
+          }
+        } catch (err) {
+          captureError(err, "handleUpdate:enqueue");
+          if (!options?.silent) {
+            showToast("Couldn't queue your edit. Try again.", "error");
+          }
+        }
+        return;
+      }
+
+      try {
+        const res = await authFetch("/api/update-entry", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, ...serverChanges }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) throw new Error((data?.message || data?.error) ?? `HTTP ${res.status}`);
+        if (Array.isArray(data) && data.length === 0) throw new Error(`No row matched id=${id}`);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        // Rollback optimistic update to previous state
+        if (previous) {
+          setEntries((prev) => {
+            const rolled = prev.map((e) => (e.id === id ? previous : e));
+            writeEntriesCache(rolled, activeBrainId);
+            return rolled;
+          });
+          setSelected((prev) => (prev?.id === id ? previous : prev));
+        }
+        captureError(e, "handleUpdate");
+        if (!options?.silent) {
+          showError(`Save failed: ${message}`);
+          setSaveError(`Save failed: ${message}`);
+          setTimeout(() => setSaveError(null), 5000);
+        }
+        return;
+      }
+      if (!isSecret) {
+        const embedHeaders = getEmbedHeaders();
+        if (embedHeaders) {
+          authFetch("/api/embed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...embedHeaders },
+            body: JSON.stringify({ entry_id: id }),
+          }).catch((err) => console.error("embed re-index failed:", err));
+        }
+      }
+      removeFromIndex(id);
+      const updated = { ...entries.find((e) => e.id === id), ...changes } as Entry;
+      indexEntry(updated);
+      if (previous && !options?.silent)
+        setLastAction({
+          type: "update",
+          id,
+          previous: {
+            title: previous.title,
+            content: previous.content,
+            type: previous.type,
+            tags: previous.tags,
+            metadata: previous.metadata,
+          },
+        });
+
+      // Record user-initiated edits as learning signals. Skip silent updates
+      // (enrichment pipeline, auto-flag writes) — those aren't human decisions.
+      // brain_id lives on the entry; only record if we can attribute the edit.
+      const brainId = previous?.brain_id;
+      if (previous && brainId && !options?.silent) {
+        const c = changes as Partial<Entry>;
+        if (c.title !== undefined && c.title !== previous.title) {
+          recordDecision(brainId, {
+            source: "refine",
+            type: "TITLE_EDIT",
+            action: "edit",
+            field: "title",
+            originalValue: String(previous.title ?? ""),
+            finalValue: String(c.title ?? ""),
+          });
+        }
+        if (c.type !== undefined && c.type !== previous.type) {
+          recordDecision(brainId, {
+            source: "refine",
+            type: "TYPE_MISMATCH",
+            action: "edit",
+            field: "type",
+            originalValue: String(previous.type ?? ""),
+            finalValue: String(c.type ?? ""),
+          });
+        }
+        if (c.tags !== undefined && normalizeTags(c.tags) !== normalizeTags(previous.tags)) {
+          recordDecision(brainId, {
+            source: "refine",
+            type: "TAG_EDIT",
+            action: "edit",
+            field: "tags",
+            originalValue: normalizeTags(previous.tags),
+            finalValue: normalizeTags(c.tags),
+          });
+        }
+        if (c.content !== undefined && c.content !== previous.content) {
+          recordDecision(brainId, {
+            source: "refine",
+            type: "CONTENT_EDIT",
+            action: "edit",
+            field: "content",
+          });
+        }
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshCount is the explicit "force this callback to recreate when entries reload" trigger; lint says it's unused but removing it lets the callback close over a stale entries snapshot.
+    [entries, isOnline, refreshCount, cryptoKey, setEntries, setSelected],
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!lastAction) return;
+    if (lastAction.type === "delete" && pendingDeleteRef.current) {
+      const pending = pendingDeleteRef.current;
+      clearTimeout(pending.timer);
+      setEntries((prev) => [pending.entry, ...prev]);
+      pendingDeleteRef.current = null;
+    }
+    if (lastAction.type === "update") {
+      const { id, previous } = lastAction;
+      authFetch("/api/update-entry", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...previous }),
+      }).catch((err) => captureError(err, "undo:update"));
+      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...previous } : e)));
+      setSelected((prev) => (prev?.id === id ? { ...prev, ...previous } : prev));
+    }
+    if (lastAction.type === "create") {
+      const { id } = lastAction;
+      authFetch("/api/delete-entry", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      }).catch((err) => captureError(err, "undo:delete"));
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+    }
+    setLastAction(null);
+  }, [lastAction, setEntries, setSelected]);
+
+  const handleCreated = useCallback(
+    (newEntry: Entry) => {
+      setEntries((prev) => [newEntry, ...prev]);
+      setLastAction({ type: "create", id: newEntry.id });
+    },
+    [setEntries],
+  );
+
+  return {
+    lastAction,
+    setLastAction,
+    saveError,
+    setSaveError,
+    pendingDeleteRef,
+    handleDelete,
+    handleUpdate,
+    handleUndo,
+    handleCreated,
+    commitPendingDelete,
+  };
+}

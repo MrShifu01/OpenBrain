@@ -1,0 +1,54 @@
+name: Lighthouse
+
+# Weekly synthetic audit against the production custom domain. Reports
+# (mobile + desktop, HTML + JSON) get uploaded as artifacts so trend
+# data accumulates without ever blocking a deploy on a flaky score.
+#
+# - schedule: Sunday 04:00 UTC (low traffic window, lightest impact)
+# - workflow_dispatch: manual run on demand
+#
+# We deliberately don't fail the workflow on score thresholds. Lighthouse
+# scores wobble ±5–10 points run-to-run on shared CI runners purely from
+# CPU/network jitter — gating on them would just train people to ignore
+# red builds. Eyeball the trend monthly instead.
+
+on:
+  schedule:
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: "URL to audit (defaults to production)"
+        required: false
+        default: "https://everion.smashburgerbar.co.za"
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Run Lighthouse
+        env:
+          LH_URL: ${{ inputs.target_url || 'https://everion.smashburgerbar.co.za' }}
+        run: npm run lighthouse
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: .lighthouse/
+          # The dir is dot-prefixed; default hidden-file filter would
+          # silently drop everything inside. Flip the flag so reports
+          # actually upload.
+          include-hidden-files: true
+          retention-days: 90
+          if-no-files-found: error

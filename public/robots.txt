@@ -1,0 +1,89 @@
+# Default — humans and traditional crawlers
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+# AI search bots — explicitly allowed so we can be cited in AI answers
+# (ChatGPT, Claude, Perplexity, Gemini, Copilot, Brave AI)
+
+User-agent: GPTBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: anthropic-ai
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /admin
+Disallow: /login
+Disallow: /reset-password
+
+# Common Crawl — disallowed (training-only crawler, no citation value)
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://everionmind.com/sitemap.xml

@@ -1,0 +1,97 @@
+name: DB Backup
+
+# Daily pg_dump of the public schema, compressed and stored as a private
+# GitHub Release. Stop-gap until Supabase Pro is on (which gives you real
+# automated backups via the dashboard). See LAUNCH_CHECKLIST.md "Supabase
+# Pro upgrade" item for the trade-off.
+#
+# Storage: GitHub Releases on a private repo are unlimited — each daily
+# dump is ~5-10 MB compressed. We auto-prune anything older than 30 days
+# at the end of every run, so the working set stays bounded.
+#
+# Setup: add SUPABASE_DB_URL to repo Settings → Secrets and variables →
+# Actions. Format:
+#   postgresql://postgres.<project-ref>:<password>@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
+# (Session pooler mode, port 5432 — NOT the transaction pooler on 6543,
+# which doesn't support pg_dump. Get the URI from Supabase dashboard →
+# Project Settings → Database → Connection string.)
+
+on:
+  schedule:
+    # 03:00 UTC daily — quiet hours globally, no overlap with cron-daily
+    # (04:00 UTC) or cron-hourly's heaviest tick.
+    - cron: "17 3 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write # required to create AND delete releases
+
+jobs:
+  backup:
+    name: Dump + upload + prune
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Match the Supabase server version (Postgres 17.6) so pg_dump
+      # output is fully restorable. Ubuntu's default postgresql-client
+      # ships an older minor that emits SQL not parseable by 17.
+      - name: Install postgresql-client-17
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Dump public schema
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is missing"
+            exit 1
+          fi
+          DATE=$(date -u +%Y-%m-%d)
+          OUT="db-$DATE.sql.gz"
+          pg_dump \
+            --schema=public \
+            --no-owner \
+            --no-privileges \
+            --no-comments \
+            "$DATABASE_URL" \
+            | gzip -9 > "$OUT"
+          echo "DUMP_DATE=$DATE"  >> "$GITHUB_ENV"
+          echo "DUMP_FILE=$OUT"   >> "$GITHUB_ENV"
+          ls -lh "$OUT"
+
+      - name: Upload as private GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "backup-$DUMP_DATE" \
+            "$DUMP_FILE" \
+            --title "DB backup $DUMP_DATE" \
+            --notes "Automated pg_dump of \`public\` schema (no owner / privileges / auth schema). Restore: see RUNBOOK.md."
+
+      # 30-day rolling window. Releases tagged `backup-YYYY-MM-DD` whose
+      # date is older than the threshold are deleted along with their git
+      # tag. Anything not matching the pattern is left alone.
+      - name: Prune backup releases older than 30 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          THRESHOLD_TS=$(date -u -d "30 days ago" +%s)
+          gh release list --limit 200 --json tagName --jq '.[] | .tagName' \
+            | while read tag; do
+              case "$tag" in
+                backup-*)
+                  date_part="${tag#backup-}"
+                  tag_ts=$(date -u -d "$date_part" +%s 2>/dev/null) || continue
+                  if [ "$tag_ts" -lt "$THRESHOLD_TS" ]; then
+                    echo "Pruning $tag (older than 30 days)"
+                    gh release delete "$tag" --yes --cleanup-tag
+                  fi
+                  ;;
+              esac
+            done

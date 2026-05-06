@@ -1,0 +1,38 @@
+name: Hourly Cron
+
+# Per-user time-aware push notifications. Fires at the top of every hour;
+# the endpoint loops every user and only pushes those whose chosen local
+# time matches the current hour in their stored IANA timezone. Daily
+# capture prompt + weekly nudge both flow through here.
+#
+# Heavy work (gmail scan, enrich, persona hygiene) lives in cron-daily.yml
+# at 04:00 UTC — separate concerns, separate cadences.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Ping /api/cron/hourly
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Hit hourly cron endpoint
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET secret missing in repo settings"
+            exit 1
+          fi
+          response=$(curl --silent --show-error --fail --max-time 300 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -X POST \
+            "https://everion.smashburgerbar.co.za/api/cron/hourly")
+          echo "Cron response:"
+          echo "$response" | head -c 4096

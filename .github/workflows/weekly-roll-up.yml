@@ -1,0 +1,53 @@
+name: Weekly roll-up
+
+# Composes one Monday-morning email summarising Sentry, PostHog, Vercel,
+# Lighthouse, and e2e. Each section degrades gracefully when its secret is
+# missing, so this can run usefully even before all integrations are wired.
+#
+# First run: trigger via workflow_dispatch with dry_run=true to eyeball the
+# composed email body in the workflow log before flipping to live send.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mon 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Log the email body to stdout instead of sending"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  roll-up:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+
+      - name: Compose and send roll-up
+        env:
+          # GitHub auto-injects this for the lighthouse + e2e workflow lookups.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Sentry
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          # PostHog
+          POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ secrets.POSTHOG_PROJECT_ID }}
+          # Vercel
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Resend
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WEEKLY_REPORT_TO: ${{ secrets.WEEKLY_REPORT_TO }}
+          # Dispatch toggle, defaults to live
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: npx tsx scripts/weekly-roll-up.ts

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  # Only run on PRs targeting main. Without this filter, the long-running
+  # audit PR (#51, head=main → base=audit-base) re-fires CI on every push
+  # to main, doubling email noise. Dependabot PRs target main and are still
+  # covered.
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # src/lib/supabase.ts evaluates new URL(VITE_SUPABASE_URL) at module load,
+    # which throws when imported by the test suite without env. Real values
+    # aren't needed — tests mock @supabase/* — but the URL must parse.
+    env:
+      VITE_SUPABASE_URL: https://placeholder.supabase.co
+      VITE_SUPABASE_ANON_KEY: placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build

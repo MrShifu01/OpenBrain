@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1310" />
+    <title>Everion Mind — Launch Knowledge Base</title>
+    <style>
+      :root {
+        --bg: #f7f3ee;
+        --surface: #fffcf6;
+        --surface-high: #ffffff;
+        --ink: #2a1f1a;
+        --ink-soft: #5b4b41;
+        --ink-faint: #94857a;
+        --ink-ghost: #b8aca0;
+        --line: #e6dccf;
+        --line-soft: #efe7da;
+        --ember: #c64f17;
+        --ember-wash: #fbe5d6;
+        --moss: #4d7755;
+        --moss-wash: #e0eadf;
+        --blood: #a83a2a;
+        --blood-wash: #f7d9d3;
+        --gold: #b88a2c;
+        --shadow-sm: 0 1px 2px rgba(42, 31, 26, 0.06);
+        --shadow-md: 0 2px 8px rgba(42, 31, 26, 0.08);
+        --shadow-lg: 0 8px 24px rgba(42, 31, 26, 0.12);
+        --shadow-drawer: 0 0 40px rgba(42, 31, 26, 0.18);
+        --f-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        --f-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Source Serif 4", Georgia, serif;
+        --f-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bot: env(safe-area-inset-bottom, 0px);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #1a1310;
+          --surface: #221a16;
+          --surface-high: #2a201b;
+          --ink: #f0e6da;
+          --ink-soft: #c0b3a4;
+          --ink-faint: #8a7a6c;
+          --ink-ghost: #5b4d43;
+          --line: #3a2e26;
+          --line-soft: #322620;
+          --ember: #e6814d;
+          --ember-wash: #3a221a;
+          --moss: #7fa787;
+          --moss-wash: #1f2a22;
+          --blood: #d66659;
+          --blood-wash: #2e1a18;
+          --shadow-drawer: 0 0 40px rgba(0, 0, 0, 0.45);
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--f-sans);
+        font-size: 14px;
+        line-height: 1.5;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: var(--ember); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      code {
+        font-family: var(--f-mono);
+        font-size: 0.85em;
+        background: var(--line-soft);
+        padding: 1px 5px;
+        border-radius: 4px;
+        color: var(--ink-soft);
+      }
+      pre {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px 14px;
+        overflow-x: auto;
+        font-family: var(--f-mono);
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--ink);
+      }
+      pre code { background: none; padding: 0; font-size: inherit; color: inherit; }
+      blockquote {
+        margin: 0 0 14px;
+        padding: 8px 14px;
+        border-left: 3px solid var(--ember);
+        background: var(--ember-wash);
+        color: var(--ink-soft);
+        border-radius: 0 8px 8px 0;
+      }
+      blockquote p { margin: 4px 0; }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 8px 0 16px;
+        font-size: 13px;
+        display: block;
+        overflow-x: auto;
+      }
+      th, td {
+        text-align: left;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        vertical-align: top;
+        white-space: normal;
+      }
+      th { background: var(--surface); font-weight: 600; color: var(--ink); }
+      td { background: var(--surface-high); }
+      hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
+
+      /* ── App shell ────────────────────────────────────────────────────── */
+      .app {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100vh;
+        height: 100dvh;
+      }
+
+      /* ── Top bar ─────────────────────────────────────────────────────── */
+      .topbar {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 14px calc(10px) 14px;
+        padding-top: calc(10px + var(--safe-top));
+        background: var(--surface);
+        border-bottom: 1px solid var(--line);
+        z-index: 30;
+      }
+      .topbar .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .ember-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ember);
+        flex-shrink: 0;
+        box-shadow: 0 0 8px color-mix(in srgb, var(--ember) 60%, transparent);
+      }
+      .brand-name {
+        font-family: var(--f-serif);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.005em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .doc-title-bar {
+        font-size: 12px;
+        color: var(--ink-faint);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        padding: 0 8px;
+      }
+      .doc-title-bar .live-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--moss);
+        margin-right: 5px;
+        vertical-align: 1px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .topbar-actions {
+        display: flex;
+        gap: 6px;
+      }
+      .icon-btn {
+        appearance: none;
+        background: transparent;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 12px;
+        height: 32px;
+        font: 600 12px var(--f-sans);
+        color: var(--ink-soft);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        transition: all 0.12s ease;
+      }
+      .icon-btn:hover { background: var(--ember-wash); border-color: var(--ember); color: var(--ember); }
+      .icon-btn.active { background: var(--ember); border-color: var(--ember); color: #fff; }
+      .icon-btn:active { transform: scale(0.96); }
+      .icon-btn svg { width: 14px; height: 14px; }
+      .icon-btn .label-only { display: inline; }
+      @media (max-width: 480px) {
+        .topbar { padding: 8px 10px; padding-top: calc(8px + var(--safe-top)); }
+        .brand-name { display: none; }
+        .doc-title-bar { font-size: 11px; }
+        .icon-btn { padding: 0 10px; }
+        .icon-btn .label-only { display: none; }
+      }
+
+      /* ── Body — desktop = 3 columns; mobile = 1 column with drawers ── */
+      .body {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        min-height: 0;
+      }
+      @media (max-width: 900px) {
+        .body { grid-template-columns: 1fr; }
+      }
+
+      /* ── Library (left rail / drawer) ────────────────────────────────── */
+      .library {
+        background: var(--surface);
+        border-right: 1px solid var(--line);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 14px 12px calc(20px + var(--safe-bot));
+      }
+      .library-search-wrap {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--surface);
+        padding-bottom: 10px;
+        margin-bottom: 4px;
+      }
+      .library-search {
+        width: 100%;
+        padding: 8px 13px;
+        font-size: 13px;
+        font-family: var(--f-sans);
+        background: var(--surface-high);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        outline: none;
+      }
+      .library-search:focus {
+        border-color: var(--ember);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 12%, transparent);
+      }
+      .library-group {
+        margin: 0 0 6px;
+      }
+      .library-group.muted { opacity: 0.65; }
+      .library-group-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        background: transparent;
+        border: 0;
+        padding: 8px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        text-align: left;
+        font: 700 10.5px/1 var(--f-sans);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        transition: background 0.12s ease, color 0.12s ease;
+      }
+      .library-group-head:hover { background: var(--ember-wash); color: var(--ember); }
+      .library-group-head .chev {
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        flex-shrink: 0;
+        transition: transform 0.18s ease;
+      }
+      .library-group.open .library-group-head .chev { transform: rotate(90deg); }
+      .library-group-head .left { display: flex; align-items: center; min-width: 0; }
+      .library-group-head .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .library-group-head .count {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0;
+        font-size: 11px;
+        color: var(--ink-ghost);
+        background: var(--line-soft);
+        padding: 1px 7px;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .library-group-items {
+        display: none;
+        flex-direction: column;
+        gap: 1px;
+        padding: 2px 0 4px 14px;
+      }
+      .library-group.open .library-group-items { display: flex; }
+      .doc-btn {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        min-height: 36px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 7px 9px;
+        color: var(--ink-soft);
+        cursor: pointer;
+        font: 400 13px/1.25 var(--f-sans);
+        text-align: left;
+        transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+      }
+      .doc-btn:hover {
+        background: var(--ember-wash);
+        color: var(--ember);
+      }
+      .doc-btn.active {
+        background: var(--surface);
+        border-color: var(--ember);
+        color: var(--ink);
+        box-shadow: var(--shadow-sm);
+      }
+      .doc-btn:focus-visible {
+        outline: 2px solid var(--ember);
+        outline-offset: 2px;
+      }
+      .doc-btn > .doc-label {
+        min-width: 0;
+        overflow: hidden;
+      }
+      .doc-btn .doc-title {
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .doc-btn .doc-path {
+        display: block;
+        overflow: hidden;
+        color: var(--ink-faint);
+        font-family: var(--f-mono);
+        font-size: 10px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-top: 1px;
+      }
+      .doc-btn .doc-role {
+        border-radius: 999px;
+        background: var(--line-soft);
+        color: var(--ink-faint);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 2px 6px;
+        text-transform: uppercase;
+      }
+      .doc-empty {
+        color: var(--ink-faint);
+        font-family: var(--f-serif);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px 10px;
+      }
+
+      /* ── Main content ────────────────────────────────────────────────── */
+      .main {
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 0;
+        position: relative;
+      }
+      .main-inner {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 22px 22px calc(60px + var(--safe-bot));
+      }
+      @media (max-width: 600px) {
+        .main-inner { padding: 16px 14px calc(80px + var(--safe-bot)); }
+      }
+
+      /* ── TOC ─ floating button + drawer (mobile); inline aside (desktop) */
+      .toc-fab {
+        position: fixed;
+        right: 16px;
+        bottom: calc(16px + var(--safe-bot));
+        z-index: 25;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0 14px;
+        height: 40px;
+        display: none;
+        align-items: center;
+        gap: 7px;
+        font: 600 12px var(--f-sans);
+        color: var(--ink);
+        cursor: pointer;
+        box-shadow: var(--shadow-md);
+      }
+      .toc-fab:hover { background: var(--ember-wash); color: var(--ember); border-color: var(--ember); }
+      .toc-fab svg { width: 14px; height: 14px; }
+      .toc-fab[hidden] { display: none !important; }
+      @media (max-width: 1100px) {
+        .toc-fab.has-toc { display: inline-flex; }
+      }
+
+      /* ── Doc rendering ───────────────────────────────────────────────── */
+      .doc-content h1 {
+        font-family: var(--f-serif);
+        font-size: clamp(22px, 4vw, 30px);
+        font-weight: 600;
+        margin: 0 0 6px;
+        color: var(--ink);
+        letter-spacing: -0.01em;
+        line-height: 1.15;
+      }
+      .doc-content h2 {
+        font-family: var(--f-serif);
+        font-size: clamp(18px, 3vw, 22px);
+        font-weight: 600;
+        margin: 0;
+        color: var(--ink);
+        line-height: 1.25;
+        scroll-margin-top: 80px;
+      }
+      .doc-content h3 {
+        font-family: var(--f-sans);
+        font-size: 15px;
+        font-weight: 700;
+        margin: 18px 0 6px;
+        color: var(--ink);
+        scroll-margin-top: 80px;
+      }
+      .doc-content h4 {
+        font-family: var(--f-sans);
+        font-size: 13px;
+        font-weight: 700;
+        margin: 14px 0 4px;
+        color: var(--ink-soft);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .doc-content p { margin: 0 0 12px; color: var(--ink); }
+      .doc-content ul, .doc-content ol { margin: 0 0 14px; padding-left: 20px; }
+      .doc-content li { margin: 4px 0; }
+      .doc-content li.checkbox-item {
+        list-style: none;
+        margin-left: -20px;
+        padding-left: 0;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: flex-start;
+        margin-bottom: 6px;
+      }
+      .doc-content li.checkbox-item .label { line-height: 1.5; padding-top: 1px; }
+      .doc-content li.checkbox-item.done .label {
+        text-decoration: line-through;
+        color: var(--ink-faint);
+      }
+      .doc-content li.checkbox-item .checkbox { margin-top: 1px; }
+
+      /* H2 collapsible sections */
+      .h2-section {
+        margin: 22px 0 0;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 18px;
+      }
+      .h2-section:first-of-type { border-top: 0; padding-top: 0; }
+      .h2-toggle {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: transparent;
+        border: 0;
+        padding: 4px 0;
+        margin: 0 0 6px;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+        font: inherit;
+        color: inherit;
+      }
+      .h2-toggle:hover { color: var(--ember); }
+      .h2-toggle .chev {
+        width: 14px;
+        height: 14px;
+        margin-top: 6px;
+        color: var(--ink-faint);
+        transition: transform 0.18s ease;
+        flex-shrink: 0;
+      }
+      .h2-section.open .h2-toggle .chev { transform: rotate(90deg); }
+      .h2-section.open .h2-toggle:hover .chev { color: var(--ember); }
+      .h2-body { display: none; padding-top: 8px; }
+      .h2-section.open .h2-body { display: block; }
+
+      /* Custom checkbox — never use OS-native UI per CLAUDE.md DESIGN PHILOSOPHY */
+      .checkbox {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        border: 1.5px solid var(--ink-ghost);
+        background: var(--surface-high);
+        cursor: pointer;
+        position: relative;
+        transition: all 0.15s ease;
+        flex-shrink: 0;
+        margin: 0;
+      }
+      .checkbox:hover { border-color: var(--ember); }
+      .checkbox:checked { background: var(--moss); border-color: var(--moss); }
+      .checkbox:checked::after {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 2px;
+        width: 6px;
+        height: 11px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+      .checkbox:disabled { opacity: 0.4; cursor: not-allowed; }
+
+      /* ── Score band (checklist only) ─────────────────────────────────── */
+      .scorecard {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin: 4px 0 8px;
+      }
+      .score {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 14px;
+        box-shadow: var(--shadow-sm);
+      }
+      .score .num {
+        font-family: var(--f-serif);
+        font-size: clamp(20px, 4vw, 28px);
+        font-weight: 600;
+        line-height: 1;
+        color: var(--ink);
+      }
+      .score .label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-faint);
+        margin-top: 6px;
+      }
+      .score.done .num { color: var(--moss); }
+      .score.partial .num { color: var(--gold); }
+      .score.missing .num { color: var(--blood); }
+      .score.open .num { color: var(--ink-soft); }
+      @media (max-width: 480px) {
+        .scorecard { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+      }
+
+      .progress-bar {
+        margin-top: 12px;
+        background: var(--line-soft);
+        border-radius: 999px;
+        overflow: hidden;
+        height: 8px;
+        display: flex;
+        box-shadow: var(--shadow-sm) inset;
+      }
+      .progress-bar .seg.done { background: var(--moss); }
+      .progress-bar .seg.partial { background: var(--gold); }
+      .progress-bar .seg.missing { background: var(--blood); }
+      .progress-bar .seg.open { background: var(--ink-ghost); }
+
+      /* ── Filters (checklist) ─────────────────────────────────────────── */
+      .filters {
+        margin: 22px 0 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .chip-row {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .chip {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        color: var(--ink-soft);
+        font: 500 12px var(--f-sans);
+        padding: 5px 11px;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.12s ease;
+        white-space: nowrap;
+      }
+      .chip:hover { background: var(--ember-wash); border-color: var(--ember); color: var(--ember); }
+      .chip.active { background: var(--ember); color: #fff; border-color: var(--ember); }
+      .chip .count {
+        opacity: 0.6;
+        margin-left: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .chip.active .count { opacity: 0.9; }
+      .search {
+        flex: 1;
+        min-width: 200px;
+        padding: 8px 14px;
+        font-size: 13px;
+        font-family: var(--f-sans);
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: var(--ink);
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .search:focus { border-color: var(--ember); }
+
+      /* Scrollable chip rows on small screens */
+      .chip-row.scroll {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        margin: 0 -14px;
+        padding: 0 14px;
+        scrollbar-width: none;
+      }
+      .chip-row.scroll::-webkit-scrollbar { display: none; }
+
+      /* ── Sections + Items (checklist) ────────────────────────────────── */
+      .check-section {
+        margin: 18px 0;
+      }
+      .check-section h2 {
+        font-family: var(--f-serif);
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 4px;
+        color: var(--ink);
+      }
+      .check-section .section-meta {
+        font-size: 12px;
+        color: var(--ink-faint);
+        margin-bottom: 10px;
+      }
+      .cat-tag {
+        display: inline-block;
+        background: var(--ember-wash);
+        color: var(--ember);
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-right: 6px;
+      }
+      .item {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: 12px;
+        align-items: flex-start;
+        transition: box-shadow 0.15s, border-color 0.15s;
+      }
+      .item:hover { border-color: var(--ink-ghost); box-shadow: var(--shadow-md); }
+      .item.done { background: color-mix(in srgb, var(--moss-wash) 35%, var(--surface)); border-color: color-mix(in srgb, var(--moss) 30%, var(--line)); }
+      .item .checkbox { margin-top: 2px; }
+      .item .body { min-width: 0; }
+      .item .title { font-weight: 500; color: var(--ink); line-height: 1.4; }
+      .item.done .title { text-decoration: line-through; color: var(--ink-faint); }
+      .item .title strong { font-weight: 700; }
+      .item .desc {
+        margin-top: 4px;
+        color: var(--ink-soft);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .item .desc.collapsed {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .item .desc-toggle {
+        background: none;
+        border: 0;
+        padding: 0;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--ember);
+        cursor: pointer;
+        font-family: var(--f-sans);
+      }
+      .item .desc-toggle:hover { text-decoration: underline; }
+
+      .status-pill {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        flex-shrink: 0;
+        font-family: var(--f-sans);
+      }
+      .status-pill.done { background: var(--moss-wash); color: var(--moss); }
+      .status-pill.partial { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+      .status-pill.missing { background: var(--blood-wash); color: var(--blood); }
+      .status-pill.open { background: var(--line-soft); color: var(--ink-faint); }
+
+      /* ── Drawers (mobile library + TOC) ──────────────────────────────── */
+      .drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0);
+        z-index: 40;
+        pointer-events: none;
+        transition: background 0.22s ease;
+      }
+      .drawer-overlay.open {
+        pointer-events: auto;
+        background: rgba(0, 0, 0, 0.42);
+      }
+      .drawer {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        width: min(85vw, 360px);
+        background: var(--surface);
+        z-index: 50;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-drawer);
+        transition: transform 0.22s ease;
+        will-change: transform;
+        padding-top: var(--safe-top);
+        padding-bottom: var(--safe-bot);
+      }
+      .drawer.left { left: 0; transform: translateX(-100%); border-right: 1px solid var(--line); }
+      .drawer.right { right: 0; transform: translateX(100%); border-left: 1px solid var(--line); }
+      .drawer.open { transform: translateX(0); }
+      .drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 14px 16px 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .drawer-title {
+        font: 600 13px var(--f-sans);
+        color: var(--ink);
+      }
+      .drawer-close {
+        appearance: none;
+        background: transparent;
+        border: 0;
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        cursor: pointer;
+        color: var(--ink-faint);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .drawer-close:hover { background: var(--ember-wash); color: var(--ember); }
+      .drawer-close svg { width: 16px; height: 16px; }
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 10px 12px 18px;
+      }
+
+      /* On mobile, hide the inline library; on desktop, hide drawer button. */
+      @media (max-width: 900px) {
+        .library { display: none; }
+      }
+      @media (min-width: 901px) {
+        .topbar-actions .btn-library { display: none; }
+        .drawer.left { display: none; }
+      }
+
+      /* ── TOC drawer body (right side) ────────────────────────────────── */
+      .toc-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .toc-list a {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--ink-soft);
+        text-decoration: none;
+        line-height: 1.35;
+      }
+      .toc-list a:hover { background: var(--ember-wash); color: var(--ember); }
+      .toc-list a.depth-3 { padding-left: 22px; font-size: 12px; opacity: 0.85; }
+      .toc-list a .num {
+        font-size: 10px;
+        color: var(--ink-faint);
+        font-variant-numeric: tabular-nums;
+      }
+      .toc-empty {
+        color: var(--ink-faint);
+        font-family: var(--f-serif);
+        font-size: 13px;
+        font-style: italic;
+        padding: 8px 10px;
+      }
+
+      /* Inline (desktop) sidebar TOC for very wide viewports */
+      @media (min-width: 1280px) {
+        .body { grid-template-columns: 280px 1fr 240px; }
+        .toc-rail { display: block; }
+        .toc-fab { display: none !important; }
+      }
+      .toc-rail {
+        display: none;
+        background: var(--surface);
+        border-left: 1px solid var(--line);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 18px 14px calc(20px + var(--safe-bot));
+      }
+      .toc-rail h4 {
+        margin: 0 0 8px;
+        font: 700 10.5px var(--f-sans);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--ink-faint);
+      }
+
+      /* ── Toast ───────────────────────────────────────────────────────── */
+      .toast {
+        position: fixed;
+        bottom: calc(20px + var(--safe-bot));
+        left: 50%;
+        transform: translateX(-50%) translateY(60px);
+        background: var(--ink);
+        color: var(--bg);
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transition: all 0.25s ease;
+        pointer-events: none;
+        z-index: 100;
+      }
+      .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      .toast.error { background: var(--blood); color: #fff; }
+
+      /* ── Empty state ─────────────────────────────────────────────────── */
+      .empty {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--ink-faint);
+        font-style: italic;
+        font-family: var(--f-serif);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="ember-dot" aria-hidden="true"></span>
+          <span class="brand-name">Everion Mind</span>
+        </div>
+        <div class="doc-title-bar" id="doc-title-bar">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span id="active-doc-title">Loading…</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn btn-library" id="btn-library" type="button" aria-label="Open document library">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="4" x2="13" y2="4"/><line x1="3" y1="8" x2="13" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/></svg>
+            <span class="label-only">Library</span>
+          </button>
+          <button class="icon-btn btn-toc" id="btn-toc" type="button" aria-label="Open table of contents" hidden>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" y1="5" x2="9" y2="5"/><line x1="2" y1="9" x2="11" y2="9"/><line x1="2" y1="13" x2="7" y2="13"/></svg>
+            <span class="label-only">Sections</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="body">
+        <aside class="library" id="library" aria-label="Document library"></aside>
+        <main class="main"><div class="main-inner" id="root"></div></main>
+        <aside class="toc-rail" id="toc-rail" aria-label="On this page"></aside>
+      </div>
+    </div>
+
+    <!-- Drawers -->
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <aside class="drawer left" id="drawer-library" aria-label="Document library">
+      <div class="drawer-head">
+        <span class="drawer-title">Document Library</span>
+        <button class="drawer-close" data-close-drawer aria-label="Close library">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="drawer-body" id="drawer-library-body"></div>
+    </aside>
+    <aside class="drawer right" id="drawer-toc" aria-label="On this page">
+      <div class="drawer-head">
+        <span class="drawer-title">On this page</span>
+        <button class="drawer-close" data-close-drawer aria-label="Close TOC">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="4" x2="12" y2="12"/><line x1="12" y1="4" x2="4" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="drawer-body" id="drawer-toc-body"></div>
+    </aside>
+
+    <button class="toc-fab" id="toc-fab" type="button" aria-label="Open table of contents">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="2" y1="5" x2="9" y2="5"/><line x1="2" y1="9" x2="11" y2="9"/><line x1="2" y1="13" x2="7" y2="13"/></svg>
+      Sections
+    </button>
+
+    <div class="toast" id="toast"></div>
+
+    <script type="module">
+      // ───────────────────────────────────────────────────────────────────
+      // State
+      // ───────────────────────────────────────────────────────────────────
+      let docs = [];
+      let activeDocId = "playbook";        // start on the hub
+      let docCache = new Map();
+      let docNavTerm = "";
+      let activeStatus = "all";
+      let activeCategory = "all";
+      let searchTerm = "";
+      let openGroups = new Set();          // library groups currently expanded
+      let collapsedH2 = new Set();         // doc-mode H2 anchors collapsed (per-doc, cleared on doc switch)
+
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      function toast(msg, kind = "ok") {
+        clearTimeout(toastTimer);
+        toastEl.textContent = msg;
+        toastEl.className = `toast show ${kind === "error" ? "error" : ""}`;
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1800);
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Group config
+      // ───────────────────────────────────────────────────────────────────
+      const DOC_GROUPS = [
+        { key: "working", label: "Currently Working" },
+        { key: "core", label: "Launch Control" },
+        { key: "roadmap", label: "Roadmap (week-by-week)" },
+        { key: "specs", label: "Specs" },
+        { key: "marketing-playbooks", label: "Marketing — Playbooks" },
+        { key: "marketing-producthunt", label: "Marketing — Product Hunt" },
+        { key: "audits", label: "Audits" },
+        { key: "architecture", label: "Architecture" },
+        { key: "ops", label: "Ops" },
+        { key: "legal", label: "Legal" },
+        { key: "support", label: "Support" },
+        { key: "brand", label: "Brand" },
+        { key: "mobile", label: "Mobile" },
+        { key: "analytics", label: "Analytics" },
+        { key: "specs-archive", label: "Specs Archive", muted: true },
+        { key: "audits-archive", label: "Audit Archive", muted: true },
+        { key: "working-archive", label: "Working Archive", muted: true },
+      ];
+
+      const docGroupOf = (doc) => doc.group || "core";
+
+      // ───────────────────────────────────────────────────────────────────
+      // Category map (checklist sub-categorization — unchanged)
+      // ───────────────────────────────────────────────────────────────────
+      const CATEGORY_MAP = [
+        { match: ["readiness scorecard"], cat: "Overview" },
+        { match: ["infrastructure"], cat: "Infrastructure" },
+        { match: ["security"], cat: "Security" },
+        { match: ["compliance", "legal"], cat: "Compliance" },
+        { match: ["telemetry", "observability"], cat: "Telemetry" },
+        { match: ["weekly automated roll-up"], cat: "Telemetry" },
+        { match: ["billing", "lemonsqueezy", "revenuecat", "stripe"], cat: "Billing" },
+        { match: ["quality"], cat: "Quality / UX" },
+        { match: ["communications"], cat: "Communications" },
+        { match: ["design system", "ui consistency", "shadcn", "phase 1", "phase 2", "phase 3", "cross-cutting"], cat: "Design System" },
+        { match: ["pwa"], cat: "PWA" },
+        { match: ["performance"], cat: "Performance" },
+        { match: ["shared brains"], cat: "Multi-Brain (P2)" },
+        { match: ["other backlog"], cat: "Backlog" },
+        { match: ["owner-only", "before public launch", "weekly roll-up email setup", "people stuff", "visibility", "one-time then quarterly"], cat: "Owner Tasks" },
+        { match: ["findings from readiness audit"], cat: "Audit Findings" },
+        { match: ["stability-critical"], cat: "Stability" },
+        { match: ["ux", "accessibility"], cat: "Quality / UX" },
+        { match: ["maintainability"], cat: "Code Quality" },
+        { match: ["compliance follow-ups"], cat: "Compliance" },
+        { match: ["post-launch hardening"], cat: "Post-Launch" },
+        { match: ["operations", "bus factor"], cat: "Operations" },
+        { match: ["mobile app launch", "capacitor wrap", "implementation playbook", "build order", "app-feel requirements", "auth", "deep linking", "native plugins", "session storage", "offline behaviour", "real-device test", "acceptance criteria"], cat: "Mobile" },
+        { match: ["m0", "submission blockers", "m4", "store metadata", "m5", "pre-submission gate", "m6", "cannot assess"], cat: "App Store Submission" },
+        { match: ["m1", "listing copy", "apple description", "google play full description", "marketing copy"], cat: "Marketing / Store Copy" },
+        { match: ["m2", "visual assets"], cat: "Visual Assets" },
+        { match: ["m3", "native shell config"], cat: "Mobile" },
+        { match: ["important memories", "vault"], cat: "Post-Launch" },
+        { match: ["this week"], cat: "Owner Tasks" },
+      ];
+      function categorize(headingPath) {
+        const haystack = headingPath.join(" ").toLowerCase();
+        for (const { match, cat } of CATEGORY_MAP) {
+          if (match.some((m) => haystack.includes(m))) return cat;
+        }
+        return "Other";
+      }
+      function statusOf(line) {
+        const checked = /^\s*-\s*\[[xX]\]/.test(line);
+        if (checked) return "done";
+        if (line.includes("🟡")) return "partial";
+        if (line.includes("❌")) return "missing";
+        return "open";
+      }
+      const STATUS_LABEL = { done: "Done", partial: "Partial", missing: "Missing", open: "Open" };
+
+      // ───────────────────────────────────────────────────────────────────
+      // Markdown parsing — checklist
+      // ───────────────────────────────────────────────────────────────────
+      function parseChecklist(md) {
+        const lines = md.split(/\r?\n/);
+        const items = [];
+        const headingPath = [];
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          const hMatch = /^(#{1,4})\s+(.+)$/.exec(line);
+          if (hMatch) {
+            const depth = hMatch[1].length;
+            headingPath.length = depth - 1;
+            headingPath[depth - 1] = hMatch[2].trim();
+            continue;
+          }
+          const cbMatch = /^(\s{0,4})-\s*\[([ xX])\]\s*(.+)$/.exec(line);
+          if (!cbMatch) continue;
+          const [, indent, , rest] = cbMatch;
+          if (indent.length > 4) continue;
+
+          const descLines = [];
+          let j = i + 1;
+          while (j < lines.length) {
+            const next = lines[j];
+            if (/^(\s{0,4})-\s*\[[ xX]\]/.test(next)) break;
+            if (/^#{1,4}\s/.test(next)) break;
+            if (/^\s*$/.test(next)) {
+              const after = lines[j + 1];
+              if (!after) break;
+              if (/^(\s{0,4})-\s*\[[ xX]\]/.test(after)) break;
+              if (/^#{1,4}\s/.test(after)) break;
+            }
+            descLines.push(next);
+            j++;
+          }
+
+          const status = statusOf(line);
+          const title = rest.replace(/✅|🟡|❌/g, "").trim();
+          const desc = descLines.join("\n").trim();
+
+          items.push({
+            lineNumber: i + 1,
+            status,
+            title,
+            desc,
+            headingPath: [...headingPath],
+            section: headingPath.slice(1).join(" › ") || "Top",
+            category: categorize(headingPath),
+          });
+        }
+        return items;
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Markdown rendering — doc mode
+      // ───────────────────────────────────────────────────────────────────
+      const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[c]));
+
+      function inlineMd(s) {
+        let out = escapeHtml(s);
+        out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+        out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+        out = out.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+        out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+        return out;
+      }
+
+      function renderMarkdown(md) {
+        const lines = md.split(/\r?\n/);
+        const out = [];
+        const headings = [];
+        let i = 0;
+        let inList = null;
+        let listBuffer = [];
+        const flushList = () => {
+          if (!inList) return;
+          out.push(`<${inList}>${listBuffer.join("")}</${inList}>`);
+          listBuffer = [];
+          inList = null;
+        };
+        const slug = (s) => "h-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+        while (i < lines.length) {
+          const line = lines[i];
+
+          if (/^```/.test(line)) {
+            flushList();
+            const lang = line.slice(3).trim();
+            const code = [];
+            i++;
+            while (i < lines.length && !/^```/.test(lines[i])) {
+              code.push(lines[i]);
+              i++;
+            }
+            i++;
+            out.push(`<pre><code class="lang-${escapeHtml(lang)}">${escapeHtml(code.join("\n"))}</code></pre>`);
+            continue;
+          }
+
+          if (/^\s*---+\s*$/.test(line)) {
+            flushList();
+            out.push("<hr/>");
+            i++;
+            continue;
+          }
+
+          const hMatch = /^(#{1,6})\s+(.+)$/.exec(line);
+          if (hMatch) {
+            flushList();
+            const depth = hMatch[1].length;
+            const text = hMatch[2].trim();
+            const anchor = slug(text);
+            headings.push({ depth, text, anchor });
+            out.push(`<h${depth} id="${anchor}">${inlineMd(text)}</h${depth}>`);
+            i++;
+            continue;
+          }
+
+          if (/^>\s?/.test(line)) {
+            flushList();
+            const block = [];
+            while (i < lines.length && /^>\s?/.test(lines[i])) {
+              block.push(lines[i].replace(/^>\s?/, ""));
+              i++;
+            }
+            out.push(`<blockquote>${block.map(l => `<p>${inlineMd(l)}</p>`).join("")}</blockquote>`);
+            continue;
+          }
+
+          if (/^\s*\|.+\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|?\s*[-:]+/.test(lines[i + 1])) {
+            flushList();
+            const header = line.split("|").map(c => c.trim()).filter(Boolean);
+            i += 2;
+            const rows = [];
+            while (i < lines.length && /^\s*\|.+\|\s*$/.test(lines[i])) {
+              rows.push(lines[i].split("|").map(c => c.trim()).filter(Boolean));
+              i++;
+            }
+            out.push(
+              `<table><thead><tr>${header.map(c => `<th>${inlineMd(c)}</th>`).join("")}</tr></thead><tbody>` +
+              rows.map(r => `<tr>${r.map(c => `<td>${inlineMd(c)}</td>`).join("")}</tr>`).join("") +
+              `</tbody></table>`
+            );
+            continue;
+          }
+
+          const cbMatch = /^(\s*)-\s*\[([ xX])\]\s*(.+)$/.exec(line);
+          if (cbMatch) {
+            if (inList !== "ul") { flushList(); inList = "ul"; }
+            const [, , box, rest] = cbMatch;
+            const checked = box.toLowerCase() === "x";
+            const lineNumber = i + 1;
+            const labelHtml = inlineMd(rest);
+            listBuffer.push(
+              `<li class="checkbox-item ${checked ? "done" : ""}">` +
+                `<input type="checkbox" class="checkbox doc-toggle" data-line="${lineNumber}" id="cb-${lineNumber}" name="cb-${lineNumber}" ${checked ? "checked" : ""} />` +
+                `<span class="label">${labelHtml}</span>` +
+              `</li>`
+            );
+            i++;
+            continue;
+          }
+
+          const bMatch = /^(\s*)[-*]\s+(.+)$/.exec(line);
+          if (bMatch) {
+            if (inList !== "ul") { flushList(); inList = "ul"; }
+            listBuffer.push(`<li>${inlineMd(bMatch[2])}</li>`);
+            i++;
+            continue;
+          }
+
+          const oMatch = /^(\s*)(\d+)\.\s+(.+)$/.exec(line);
+          if (oMatch) {
+            if (inList !== "ol") { flushList(); inList = "ol"; }
+            listBuffer.push(`<li>${inlineMd(oMatch[3])}</li>`);
+            i++;
+            continue;
+          }
+
+          if (/^\s*$/.test(line)) {
+            flushList();
+            i++;
+            continue;
+          }
+
+          flushList();
+          const para = [line];
+          i++;
+          while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|>\s|```|---|\s*[-*]\s|\s*\d+\.\s|\s*\|.+\|\s*$)/.test(lines[i])) {
+            para.push(lines[i]);
+            i++;
+          }
+          out.push(`<p>${inlineMd(para.join(" "))}</p>`);
+        }
+        flushList();
+        return { html: out.join("\n"), headings };
+      }
+
+      // Wrap H2-and-following content into collapsible <section>s. Anything
+      // before the first H2 stays as a preamble. H1 stays at top, untouched.
+      function wrapH2Sections(html) {
+        const tpl = document.createElement("template");
+        tpl.innerHTML = html;
+        const frag = tpl.content;
+        const out = document.createDocumentFragment();
+        let preamble = document.createElement("div");
+        preamble.className = "doc-preamble";
+        let currentSection = null;
+        let firstH2Seen = false;
+
+        const children = Array.from(frag.childNodes);
+        for (const node of children) {
+          if (node.nodeType === 1 && node.tagName === "H2") {
+            firstH2Seen = true;
+            if (currentSection) out.appendChild(currentSection);
+            currentSection = document.createElement("section");
+            currentSection.className = "h2-section open";
+            const id = node.id || "";
+            const headingText = node.innerHTML;
+            const toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "h2-toggle";
+            toggle.dataset.target = id;
+            toggle.innerHTML = `
+              <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6,3 11,8 6,13"/></svg>
+              <span>${headingText}</span>
+            `;
+            // Move the H2's id onto the wrapper so anchor jumps still land here.
+            currentSection.id = id;
+            // Replace H2 element with toggle button + body.
+            currentSection.appendChild(toggle);
+            const body = document.createElement("div");
+            body.className = "h2-body";
+            currentSection.appendChild(body);
+          } else if (currentSection) {
+            currentSection.querySelector(".h2-body").appendChild(node);
+          } else {
+            preamble.appendChild(node);
+          }
+        }
+        if (currentSection) out.appendChild(currentSection);
+        const wrapper = document.createElement("div");
+        if (preamble.childNodes.length) wrapper.appendChild(preamble);
+        if (firstH2Seen) wrapper.appendChild(out);
+        // No H2 case: preamble already contains every node (we moved them).
+        return wrapper.innerHTML;
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Toggle handler (writes back to source markdown)
+      // ───────────────────────────────────────────────────────────────────
+      async function onToggle(e) {
+        const cb = e.target;
+        if (!cb.matches(".checkbox")) return;
+        const lineNumber = Number(cb.dataset.line);
+        if (!Number.isFinite(lineNumber)) return;
+        const checked = cb.checked;
+        cb.disabled = true;
+        const doc = docs.find(d => d.id === activeDocId);
+        if (!doc) return;
+        try {
+          const res = await fetch("/toggle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ docPath: doc.file, lineNumber, checked }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          toast(checked ? "Marked done" : "Re-opened");
+          docCache.delete(activeDocId);
+          await loadActiveDoc(true);
+        } catch (err) {
+          cb.checked = !checked;
+          toast(`Toggle failed: ${err.message}`, "error");
+        } finally {
+          cb.disabled = false;
+        }
+      }
+
+      function onDescToggle(e) {
+        const btn = e.target;
+        const desc = btn.previousElementSibling;
+        const collapsed = desc.classList.toggle("collapsed");
+        btn.textContent = collapsed ? "Show more" : "Show less";
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Library rendering — collapsible accordion
+      // ───────────────────────────────────────────────────────────────────
+      function renderLibraryInto(host) {
+        const needle = docNavTerm.trim().toLowerCase();
+        const visible = docs.filter((d) => {
+          if (!needle) return true;
+          return [d.title, d.file, d.group || "launch"].join(" ").toLowerCase().includes(needle);
+        });
+        const known = new Set(DOC_GROUPS.map(g => g.key));
+        const extras = [...new Set(visible.map(docGroupOf).filter(g => !known.has(g)))]
+          .map(key => ({ key, label: key.replace(/[-_]/g, " ") }));
+        const allGroups = [...DOC_GROUPS, ...extras];
+
+        // If searching, expand all groups with matches.
+        const expandKeys = new Set(openGroups);
+        if (needle) {
+          for (const g of allGroups) {
+            if (visible.some(d => docGroupOf(d) === g.key)) expandKeys.add(g.key);
+          }
+        }
+
+        const groupsHtml = allGroups.map((g) => {
+          const groupDocs = visible.filter(d => docGroupOf(d) === g.key);
+          if (!groupDocs.length) return "";
+          const isOpen = expandKeys.has(g.key);
+          return `
+            <div class="library-group ${isOpen ? "open" : ""} ${g.muted ? "muted" : ""}" data-group="${g.key}">
+              <button class="library-group-head" type="button" aria-expanded="${isOpen}">
+                <span class="left">
+                  <svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6,3 11,8 6,13"/></svg>
+                  <span class="label">${escapeHtml(g.label)}</span>
+                </span>
+                <span class="count">${groupDocs.length}</span>
+              </button>
+              <div class="library-group-items">
+                ${groupDocs.map(doc => `
+                  <button class="doc-btn ${doc.id === activeDocId ? "active" : ""}" data-doc="${doc.id}" type="button">
+                    <span class="doc-label">
+                      <span class="doc-title">${escapeHtml(doc.title)}</span>
+                      <span class="doc-path">${escapeHtml(doc.file)}</span>
+                    </span>
+                    <span class="doc-role">${doc.role === "checklist" ? "tasks" : "doc"}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        host.innerHTML = `
+          <div class="library-search-wrap">
+            <input type="search" class="library-search" placeholder="Find a document…" value="${escapeHtml(docNavTerm)}" aria-label="Search documents" />
+          </div>
+          ${groupsHtml || `<div class="doc-empty">No documents match that search.</div>`}
+        `;
+
+        const search = host.querySelector(".library-search");
+        search.addEventListener("input", (e) => {
+          docNavTerm = e.target.value;
+          renderLibraries();
+          // Refocus only in the host the user typed in.
+          const live = host.querySelector(".library-search");
+          if (live) {
+            live.focus();
+            live.setSelectionRange(live.value.length, live.value.length);
+          }
+        });
+
+        host.querySelectorAll(".library-group-head").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const key = btn.parentElement.dataset.group;
+            if (openGroups.has(key)) openGroups.delete(key);
+            else openGroups.add(key);
+            renderLibraries();
+          });
+        });
+
+        host.querySelectorAll(".doc-btn").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            activeDocId = btn.dataset.doc;
+            collapsedH2.clear();
+            closeDrawers();
+            renderLibraries();
+            loadActiveDoc(true);
+          });
+        });
+      }
+
+      function renderLibraries() {
+        // Always rebuild both rails so they stay in sync.
+        renderLibraryInto(document.getElementById("library"));
+        renderLibraryInto(document.getElementById("drawer-library-body"));
+        // Ensure the active doc's group is open by default.
+        const active = docs.find(d => d.id === activeDocId);
+        if (active) {
+          const g = docGroupOf(active);
+          if (!openGroups.has(g)) {
+            openGroups.add(g);
+            renderLibraryInto(document.getElementById("library"));
+            renderLibraryInto(document.getElementById("drawer-library-body"));
+          }
+        }
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // TOC rendering (right rail + drawer)
+      // ───────────────────────────────────────────────────────────────────
+      function renderTOC(headings) {
+        const items = (headings || []).filter(h => h.depth === 2 || h.depth === 3);
+        const html = items.length
+          ? `<div class="toc-list">` + items.map(h =>
+              `<a href="#${h.anchor}" class="depth-${h.depth}"><span>${escapeHtml(h.text)}</span></a>`
+            ).join("") + `</div>`
+          : `<div class="toc-empty">No sections.</div>`;
+
+        const rail = document.getElementById("toc-rail");
+        rail.innerHTML = items.length ? `<h4>On this page</h4>${html}` : "";
+
+        const drawerBody = document.getElementById("drawer-toc-body");
+        drawerBody.innerHTML = html;
+
+        const fab = document.getElementById("toc-fab");
+        const btn = document.getElementById("btn-toc");
+        if (items.length) {
+          fab.classList.add("has-toc");
+          btn.hidden = false;
+        } else {
+          fab.classList.remove("has-toc");
+          btn.hidden = true;
+        }
+
+        // Wire anchor clicks in the drawer to close after jumping.
+        drawerBody.querySelectorAll("a").forEach((a) => {
+          a.addEventListener("click", () => {
+            closeDrawers();
+            // Make sure the section is open if user jumps into it.
+            const id = a.getAttribute("href").slice(1);
+            const sec = document.getElementById(id);
+            if (sec && sec.classList.contains("h2-section") && !sec.classList.contains("open")) {
+              sec.classList.add("open");
+              collapsedH2.delete(id);
+            }
+          });
+        });
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Checklist mode
+      // ───────────────────────────────────────────────────────────────────
+      function anchorize(s) {
+        return "s-" + s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      function renderChecklist(items) {
+        const root = document.getElementById("root");
+        const counts = { done: 0, partial: 0, missing: 0, open: 0 };
+        for (const it of items) counts[it.status]++;
+        const total = items.length || 1;
+
+        const catCounts = {};
+        for (const it of items) catCounts[it.category] = (catCounts[it.category] || 0) + 1;
+        const cats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]);
+
+        const filtered = items.filter((it) => {
+          if (activeStatus !== "all" && it.status !== activeStatus) return false;
+          if (activeCategory !== "all" && it.category !== activeCategory) return false;
+          if (searchTerm) {
+            const hay = (it.title + " " + it.desc + " " + it.section).toLowerCase();
+            if (!hay.includes(searchTerm)) return false;
+          }
+          return true;
+        });
+
+        const grouped = new Map();
+        for (const it of filtered) {
+          const key = it.headingPath.slice(1).join(" › ") || it.headingPath[0] || "Top";
+          if (!grouped.has(key)) grouped.set(key, { items: [], category: it.category });
+          grouped.get(key).items.push(it);
+        }
+
+        // Build TOC for the right rail / drawer (one entry per section).
+        const tocHeadings = [...grouped.entries()].map(([section]) => ({
+          depth: 2,
+          text: section.split(" › ").pop() || section,
+          anchor: anchorize(section),
+        }));
+        renderTOC(tocHeadings);
+
+        root.innerHTML = `
+          <div class="scorecard">
+            <div class="score done"><div class="num">${counts.done}</div><div class="label">Done</div></div>
+            <div class="score partial"><div class="num">${counts.partial}</div><div class="label">Partial</div></div>
+            <div class="score missing"><div class="num">${counts.missing}</div><div class="label">Missing</div></div>
+            <div class="score open"><div class="num">${counts.open}</div><div class="label">Open</div></div>
+          </div>
+          <div class="progress-bar">
+            <div class="seg done" style="width: ${(counts.done / total) * 100}%"></div>
+            <div class="seg partial" style="width: ${(counts.partial / total) * 100}%"></div>
+            <div class="seg missing" style="width: ${(counts.missing / total) * 100}%"></div>
+            <div class="seg open" style="width: ${(counts.open / total) * 100}%"></div>
+          </div>
+          <div class="filters">
+            <div class="chip-row scroll" id="status-filter">
+              ${[["all", "All", items.length], ["open", "Open", counts.open], ["missing", "Missing", counts.missing], ["partial", "Partial", counts.partial], ["done", "Done", counts.done]]
+                .map(([k, label, n]) => `<button class="chip ${activeStatus === k ? "active" : ""}" data-status="${k}">${label}<span class="count">${n}</span></button>`).join("")}
+            </div>
+            <div class="chip-row scroll" id="category-filter">
+              <button class="chip ${activeCategory === "all" ? "active" : ""}" data-cat="all">All categories</button>
+              ${cats.map(([cat, n]) => `<button class="chip ${activeCategory === cat ? "active" : ""}" data-cat="${cat}">${escapeHtml(cat)}<span class="count">${n}</span></button>`).join("")}
+            </div>
+            <input type="search" class="search" id="search" placeholder="Search items…" value="${escapeHtml(searchTerm)}" />
+          </div>
+          <div>${grouped.size === 0 ? `<div class="empty">No items match these filters.</div>` :
+            [...grouped.entries()].map(([section, { items, category }]) => `
+              <section class="check-section" id="${anchorize(section)}">
+                <h2>${escapeHtml(section.split(" › ").pop() || section)}</h2>
+                <div class="section-meta">
+                  <span class="cat-tag">${escapeHtml(category)}</span>
+                  ${escapeHtml(section)}
+                </div>
+                ${items.map(renderItem).join("")}
+              </section>
+            `).join("")
+          }</div>
+        `;
+
+        root.querySelector("#status-filter").addEventListener("click", (e) => {
+          const btn = e.target.closest(".chip");
+          if (!btn) return;
+          activeStatus = btn.dataset.status;
+          renderChecklist(items);
+        });
+        root.querySelector("#category-filter").addEventListener("click", (e) => {
+          const btn = e.target.closest(".chip");
+          if (!btn) return;
+          activeCategory = btn.dataset.cat;
+          renderChecklist(items);
+        });
+        root.querySelector("#search").addEventListener("input", (e) => {
+          searchTerm = e.target.value.trim().toLowerCase();
+          renderChecklist(items);
+        });
+        root.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
+        root.querySelectorAll(".desc-toggle").forEach((btn) => btn.addEventListener("click", onDescToggle));
+      }
+
+      function renderItem(it) {
+        const checked = it.status === "done" ? "checked" : "";
+        const showMore = it.desc && it.desc.length > 220;
+        const descHtml = it.desc ? inlineMd(it.desc.split(/\n\s*\n/)[0].trim()) : "";
+        return `
+          <article class="item ${it.status === "done" ? "done" : ""}">
+            <input type="checkbox" class="checkbox" id="cb-${it.lineNumber}" name="cb-${it.lineNumber}" data-line="${it.lineNumber}" ${checked} aria-label="Toggle ${escapeHtml(it.title.slice(0, 60))}" />
+            <div class="body">
+              <div class="title">${inlineMd(it.title)}</div>
+              ${descHtml ? `<div class="desc${showMore ? " collapsed" : ""}">${descHtml}</div>` : ""}
+              ${showMore ? `<button class="desc-toggle">Show more</button>` : ""}
+            </div>
+            <span class="status-pill ${it.status}">${STATUS_LABEL[it.status]}</span>
+          </article>
+        `;
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Doc mode
+      // ───────────────────────────────────────────────────────────────────
+      function renderDoc(rendered) {
+        const root = document.getElementById("root");
+        const wrappedHtml = wrapH2Sections(rendered.html);
+        root.innerHTML = `<div class="doc-content">${wrappedHtml}</div>`;
+        renderTOC(rendered.headings);
+
+        // Reapply collapsed state from this doc-render cycle.
+        root.querySelectorAll(".h2-section").forEach((sec) => {
+          const id = sec.id;
+          if (collapsedH2.has(id)) sec.classList.remove("open");
+        });
+
+        // H2 toggle behavior.
+        root.querySelectorAll(".h2-toggle").forEach((toggle) => {
+          toggle.addEventListener("click", () => {
+            const sec = toggle.closest(".h2-section");
+            const id = sec.id;
+            const willOpen = !sec.classList.contains("open");
+            sec.classList.toggle("open", willOpen);
+            if (willOpen) collapsedH2.delete(id);
+            else collapsedH2.add(id);
+          });
+        });
+
+        root.querySelectorAll(".checkbox").forEach((cb) => cb.addEventListener("change", onToggle));
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Drawer behavior
+      // ───────────────────────────────────────────────────────────────────
+      const overlay = document.getElementById("drawer-overlay");
+      const drawerLib = document.getElementById("drawer-library");
+      const drawerToc = document.getElementById("drawer-toc");
+
+      function openDrawer(which) {
+        closeDrawers();
+        if (which === "library") drawerLib.classList.add("open");
+        if (which === "toc") drawerToc.classList.add("open");
+        overlay.classList.add("open");
+      }
+      function closeDrawers() {
+        drawerLib.classList.remove("open");
+        drawerToc.classList.remove("open");
+        overlay.classList.remove("open");
+      }
+      overlay.addEventListener("click", closeDrawers);
+      document.querySelectorAll("[data-close-drawer]").forEach((b) => b.addEventListener("click", closeDrawers));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeDrawers();
+      });
+
+      document.getElementById("btn-library").addEventListener("click", () => openDrawer("library"));
+      document.getElementById("btn-toc").addEventListener("click", () => openDrawer("toc"));
+      document.getElementById("toc-fab").addEventListener("click", () => openDrawer("toc"));
+
+      // ───────────────────────────────────────────────────────────────────
+      // Loading
+      // ───────────────────────────────────────────────────────────────────
+      async function loadDocList() {
+        const res = await fetch("/docs", { cache: "no-store" });
+        const { docs: list } = await res.json();
+        docs = list;
+        // If the URL hash references a known doc id, switch to it.
+        const hash = location.hash.replace(/^#/, "");
+        if (hash && docs.some(d => d.id === hash)) activeDocId = hash;
+        else if (!docs.some(d => d.id === activeDocId)) {
+          // Fallback: prefer playbook → checklist → first doc.
+          if (docs.some(d => d.id === "playbook")) activeDocId = "playbook";
+          else if (docs.some(d => d.id === "checklist")) activeDocId = "checklist";
+          else if (docs[0]) activeDocId = docs[0].id;
+        }
+      }
+
+      async function loadActiveDoc(force = false) {
+        const doc = docs.find(d => d.id === activeDocId);
+        if (!doc) return;
+        document.getElementById("active-doc-title").textContent = doc.title;
+
+        try {
+          const res = await fetch(`/docs/${encodeURIComponent(doc.file)}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const mtime = Number(res.headers.get("x-mtime") || 0);
+          const cached = docCache.get(activeDocId);
+          if (!force && cached && cached.mtime === mtime) return;
+          const md = await res.text();
+          docCache.set(activeDocId, { content: md, mtime });
+
+          if (doc.role === "checklist") {
+            const items = parseChecklist(md);
+            renderChecklist(items);
+          } else {
+            const rendered = renderMarkdown(md);
+            renderDoc(rendered);
+          }
+          // Scroll to top on doc switch (force=true).
+          if (force) document.querySelector(".main").scrollTo({ top: 0 });
+        } catch (err) {
+          console.error(err);
+          toast(`Load failed: ${err.message}`, "error");
+        }
+      }
+
+      // ───────────────────────────────────────────────────────────────────
+      // Boot + live polling
+      // ───────────────────────────────────────────────────────────────────
+      async function boot() {
+        await loadDocList();
+        // Open the active doc's group by default.
+        const active = docs.find(d => d.id === activeDocId);
+        if (active) openGroups.add(docGroupOf(active));
+        // Always start with launch-control surfaces visible to give context.
+        openGroups.add("core");
+        renderLibraries();
+        await loadActiveDoc(true);
+      }
+      boot();
+
+      setInterval(() => loadActiveDoc(false), 2500);
+
+      // Update hash on doc switch so deep links work.
+      const _prevLoad = loadActiveDoc;
+      // (No-op — hash sync happens implicitly via boot's hash-read; if you
+      //  want hash-write on switch, uncomment below.)
+      // window.addEventListener("hashchange", () => { ... });
+    </script>
+  </body>
+</html>

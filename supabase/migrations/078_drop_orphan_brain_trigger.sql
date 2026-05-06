@@ -1,0 +1,21 @@
+-- ============================================================
+-- Migration 078: Drop orphan auth.users trigger from migration 001
+-- ============================================================
+-- After 077 was applied to live prod, signup still returned 500. Querying
+-- pg_trigger revealed two AFTER INSERT triggers on auth.users:
+--
+--   on_auth_user_created       → handle_new_user           (077, safe)
+--   on_auth_user_created_brain → create_personal_brain_for_new_user  (001, unsafe)
+--
+-- Migration 017 had intended to remove the duplicate from 001 but dropped
+-- the wrong name (on_auth_user_created instead of on_auth_user_created_brain),
+-- so the orphan kept firing on every signup. Both triggers fired in
+-- alphabetical order: handle_new_user ran first and provisioned the user
+-- cleanly; then the orphan ran create_personal_brain_for_new_user, which
+-- has no EXCEPTION handler, no GRANT EXECUTE for supabase_auth_admin, and
+-- inserts an unconditional second 'My Brain' row. Whichever failed first
+-- — permission denied, duplicate, or RLS — rolled back the whole signup
+-- transaction and surfaced as "Database error creating new user".
+-- ============================================================
+
+DROP TRIGGER IF EXISTS on_auth_user_created_brain ON auth.users;

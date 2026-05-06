@@ -1,0 +1,33 @@
+-- 061_admin_role.sql
+-- =====================================================================
+-- Admin role lives in auth.users.raw_app_meta_data.is_admin (boolean).
+-- Replaces the older single-email env-var gate (ADMIN_EMAIL).
+--
+-- This is a data convention, not a schema change — auth.users.raw_app_meta_data
+-- is JSONB and pre-existing. Server reads the flag from the verified JWT
+-- (api/_lib/withAuth.ts surfaces app_metadata on the user object); client
+-- reads from session.user.app_metadata.is_admin and caches into localStorage
+-- on every auth state change so render-time consumers stay sync.
+--
+-- This migration does NOT bootstrap any user — emails belong in env, not in
+-- migration files that ship in git. Bootstrap is operator-driven via the
+-- Supabase MCP / dashboard. To grant admin to a user:
+--
+--   UPDATE auth.users
+--   SET    raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb)
+--                              || jsonb_build_object('is_admin', true)
+--   WHERE  email = '<user-email>';
+--
+-- To revoke:
+--
+--   UPDATE auth.users
+--   SET    raw_app_meta_data = raw_app_meta_data - 'is_admin'
+--   WHERE  email = '<user-email>';
+--
+-- The flag rides in the JWT after the next session refresh (every hour, or
+-- on explicit supabase.auth.refreshSession()). Newly-promoted users see
+-- admin features immediately if they sign out + back in; otherwise within
+-- the hour. See Docs/Components/auth.md for the full lifecycle.
+
+-- No-op marker so this migration counts as applied.
+SELECT 1;
