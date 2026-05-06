@@ -4,6 +4,7 @@ import { SettingsButton } from "./SettingsRow";
 import GmailSetupModal from "./GmailSetupModal";
 import GmailScanReviewModal, { type ScanResultItem } from "./GmailScanReviewModal";
 import GmailStagingInbox from "./GmailStagingInbox";
+import GmailPatternRules from "./GmailPatternRules";
 import { useEntries } from "../../context/EntriesContext";
 import { useBrain } from "../../context/BrainContext";
 import { useBackgroundOps } from "../../hooks/useBackgroundOps";
@@ -257,6 +258,8 @@ export default function GmailSyncTab({ isAdmin }: { isAdmin?: boolean }) {
           <SettingsButton onClick={() => setModalMode("connect")}>Connect Gmail</SettingsButton>
         )}
       </IntegrationRow>
+
+      {integration && <GmailPatternRules />}
 
       {isAdmin && adminPrefs.showGmailScanDebug && lastDebug && (
         <div

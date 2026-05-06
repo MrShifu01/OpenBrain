@@ -7,6 +7,13 @@ import {
 import { computeCompletenessScore } from "./completeness.js";
 import { storeNotification } from "./mergeDetect.js";
 import { encryptToken, decryptToken } from "./gmailTokenCrypto.js";
+import {
+  applyPatternVerdict,
+  evaluatePatternsForBlocks,
+  loadScoredRules,
+  renderScoredRulesBlock,
+  type PatternVerdict,
+} from "./gmailPatternScore.js";
 
 // Mask sensitive PII before storing in metadata (POPIA/GDPR compliance).
 // Keeps first/last characters for user context; obscures the middle.
@@ -274,10 +281,11 @@ export async function loadGmailLearnings(
   const { loadRecentGmailDecisions } = await import("./distillGmail.js");
   const acceptedSummary = (integration.accepted_summary ?? "").trim() || null;
   const rejectedSummary = (integration.rejected_summary ?? "").trim() || null;
-  const recent = await loadRecentGmailDecisions(userId, 5).catch(() => ({
-    accepts: [],
-    rejects: [],
-  }));
+  // Parallel — no dependency between recent decisions and scored rules.
+  const [recent, scoredRules] = await Promise.all([
+    loadRecentGmailDecisions(userId, 5).catch(() => ({ accepts: [], rejects: [] })),
+    loadScoredRules(userId).catch(() => []),
+  ]);
   return {
     acceptedSummary,
     rejectedSummary,
@@ -291,6 +299,7 @@ export async function loadGmailLearnings(
       from: r.from,
       reason: r.reason,
     })),
+    scoredRulesBlock: renderScoredRulesBlock(scoredRules),
   };
 }
 
@@ -669,6 +678,9 @@ export interface GmailLearnings {
   rejectedSummary: string | null;
   recentAccepts: Array<{ subject: string; from: string; reason: string | null }>;
   recentRejects: Array<{ subject: string; from: string; reason: string | null }>;
+  // Pre-rendered prompt block of scored pattern rules (4..9). Empty string
+  // when the user has no patterns at that strength yet.
+  scoredRulesBlock: string;
 }
 
 function emptyLearnings(): GmailLearnings {
@@ -677,6 +689,7 @@ function emptyLearnings(): GmailLearnings {
     rejectedSummary: null,
     recentAccepts: [],
     recentRejects: [],
+    scoredRulesBlock: "",
   };
 }
 
@@ -724,7 +737,7 @@ export function buildPrompt(
         )
         .join("\n")}`
     : "";
-  const learningsBlock = `${keepRulesBlock}${skipRulesBlock}${acceptExamplesBlock}${rejectExamplesBlock}`;
+  const learningsBlock = `${keepRulesBlock}${skipRulesBlock}${acceptExamplesBlock}${rejectExamplesBlock}${learnings.scoredRulesBlock ?? ""}`;
 
   const threadBlocks = blocks
     .map((b, i) => {
@@ -1175,6 +1188,10 @@ interface ScanDebug {
   classifierModel: string;
   syncMode: "history" | "polling";
   contactsUpserted: number;
+  // Pattern-rule enforcement counters (Alt 1 scoring system).
+  skippedHardBlock?: number;
+  autoAccepted?: number;
+  autoAcceptProbation?: number;
 }
 
 function emptyDebug(): ScanDebug {
@@ -1201,6 +1218,9 @@ function emptyDebug(): ScanDebug {
     classifierModel: "",
     syncMode: "polling",
     contactsUpserted: 0,
+    skippedHardBlock: 0,
+    autoAccepted: 0,
+    autoAcceptProbation: 0,
   };
 }
 
@@ -1250,6 +1270,7 @@ async function persistMatches(
   importedMessageIds: Set<string>,
   importedSubjectFromKeys: Set<string>,
   debug: ScanDebug,
+  verdicts: (PatternVerdict | undefined)[] = [],
 ): Promise<{ created: number; scanEntries: ScanResultItem[]; contactsUpserted: number }> {
   const threshold = prefs.minRelevanceScore ?? 60;
   // Dedup contacts within this scan: reuse the same upsert promise per sender email.
@@ -1389,6 +1410,17 @@ async function persistMatches(
         status: "staged",
       };
       if (brainId) entry.brain_id = brainId;
+
+      // Pattern verdict — drop hard-blocks pre-insert; auto-accept stamps
+      // status='active' (past probation) or staged-with-pending-badge.
+      const verdict = verdicts[match.index];
+      if (applyPatternVerdict(verdict, entry, metadata) === "drop") {
+        debug.skippedHardBlock = (debug.skippedHardBlock ?? 0) + 1;
+        return null;
+      }
+      if (verdict?.kind === "auto-accept") debug.autoAccepted = (debug.autoAccepted ?? 0) + 1;
+      if (verdict?.kind === "auto-accept-probation")
+        debug.autoAcceptProbation = (debug.autoAcceptProbation ?? 0) + 1;
 
       const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
         method: "POST",
@@ -1624,10 +1656,13 @@ async function persistClusters(
   importedSubjectFromKeys: Set<string>,
   geminiKey: string,
   debug: ScanDebug,
+  verdicts: (PatternVerdict | undefined)[] = [],
 ): Promise<{ created: number }> {
   let created = 0;
 
-  for (const cluster of clusters) {
+  for (let ci = 0; ci < clusters.length; ci++) {
+    const cluster = clusters[ci]!;
+    const verdict = verdicts[ci];
     // Filter members already imported.
     const fresh = cluster.members.filter((b) => {
       if (importedThreadIds.has(b.threadId)) return false;
@@ -1715,6 +1750,16 @@ async function persistClusters(
       status: "staged",
     };
     if (brainId) entry.brain_id = brainId;
+
+    // Pattern verdict — drop hard-block clusters before insert; auto-accept
+    // promotes status to 'active' (or stays staged with a probation badge).
+    if (applyPatternVerdict(verdict, entry, metadata) === "drop") {
+      debug.skippedHardBlock = (debug.skippedHardBlock ?? 0) + 1;
+      continue;
+    }
+    if (verdict?.kind === "auto-accept") debug.autoAccepted = (debug.autoAccepted ?? 0) + 1;
+    if (verdict?.kind === "auto-accept-probation")
+      debug.autoAcceptProbation = (debug.autoAcceptProbation ?? 0) + 1;
 
     const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
       method: "POST",
@@ -1815,7 +1860,7 @@ export async function deepScanBatch(
 
   const debug = emptyDebug();
   const blocks = await hydrateThreadBlocks(token, refs, importedThreadIds, 40);
-  const usableBlocks = blocks.filter((b) => {
+  const preFilteredBlocks = blocks.filter((b) => {
     if (isBulkThread(b)) {
       debug.skippedBulk++;
       return false;
@@ -1823,6 +1868,37 @@ export async function deepScanBatch(
     return true;
   });
 
+  if (!preFilteredBlocks.length) {
+    return {
+      nextCursor: nextPageToken,
+      processed: refs.length,
+      created: 0,
+      entries: [],
+      done: !nextPageToken,
+      totalEstimate: resultSizeEstimate,
+    };
+  }
+
+  // Phase 2 pre-filter: drop hard-block threads before paying classifier
+  // costs. Same shape as scanGmailForUser — see comments there.
+  const blockVerdicts = await evaluatePatternsForBlocks(
+    integration.user_id,
+    preFilteredBlocks.map((b) => ({
+      subject: b.primary.subject,
+      from: b.primary.from,
+      body: b.primary.body,
+    })),
+  );
+  const usableBlocks: ThreadBlock[] = [];
+  const patternVerdicts: (PatternVerdict | undefined)[] = [];
+  for (let i = 0; i < preFilteredBlocks.length; i++) {
+    if (blockVerdicts[i]?.kind === "hard-block") {
+      debug.skippedHardBlock = (debug.skippedHardBlock ?? 0) + 1;
+      continue;
+    }
+    usableBlocks.push(preFilteredBlocks[i]!);
+    patternVerdicts.push(blockVerdicts[i]);
+  }
   if (!usableBlocks.length) {
     return {
       nextCursor: nextPageToken,
@@ -1863,6 +1939,7 @@ export async function deepScanBatch(
     importedMessageIds,
     importedSubjectFromKeys,
     debug,
+    patternVerdicts,
   );
 
   return {
@@ -1996,7 +2073,7 @@ export async function scanGmailForUser(
     debug.threadsScanned = blocks.length;
     debug.subjects = blocks.slice(0, 10).map((b) => b.primary.subject);
 
-    const usableBlocks = blocks.filter((b) => {
+    const preFilteredBlocks = blocks.filter((b) => {
       if (isBulkThread(b)) {
         debug.skippedBulk++;
         return false;
@@ -2004,6 +2081,41 @@ export async function scanGmailForUser(
       return true;
     });
 
+    if (!preFilteredBlocks.length) {
+      storeNotification(
+        integration.user_id,
+        "gmail_scan",
+        "Gmail scan finished",
+        "No new entries found.",
+        { created: 0 },
+      ).catch(() => {});
+      return { created: 0, debug, entries: [] };
+    }
+
+    // Phase 2 pre-filter: evaluate pattern verdicts ONCE per block, then
+    // drop hard-block threads before clustering / classification. Saves the
+    // downstream embedding (cluster mode) + LLM call (classifier mode) for
+    // anything the user has already taught us is noise. We keep the verdicts
+    // for survivors so persistMatches / persistClusters can apply the
+    // auto-accept and probation paths without re-evaluating.
+    const blockVerdicts = await evaluatePatternsForBlocks(
+      integration.user_id,
+      preFilteredBlocks.map((b) => ({
+        subject: b.primary.subject,
+        from: b.primary.from,
+        body: b.primary.body,
+      })),
+    );
+    const usableBlocks: ThreadBlock[] = [];
+    const usableVerdicts: (PatternVerdict | undefined)[] = [];
+    for (let i = 0; i < preFilteredBlocks.length; i++) {
+      if (blockVerdicts[i]?.kind === "hard-block") {
+        debug.skippedHardBlock = (debug.skippedHardBlock ?? 0) + 1;
+        continue;
+      }
+      usableBlocks.push(preFilteredBlocks[i]!);
+      usableVerdicts.push(blockVerdicts[i]);
+    }
     if (!usableBlocks.length) {
       storeNotification(
         integration.user_id,
@@ -2028,6 +2140,16 @@ export async function scanGmailForUser(
       debug.classifierUsed = "cluster";
       debug.classifierModel = "gemini-embedding-001";
       debug.classified = clusters.length;
+      // Map each cluster to its representative's pre-computed block-level
+      // verdict instead of re-evaluating. Hard-blocks are already filtered
+      // out so the worst case is "normal" (no extra work) or "auto-accept".
+      const verdictByThreadId = new Map<string, PatternVerdict | undefined>();
+      for (let i = 0; i < usableBlocks.length; i++) {
+        verdictByThreadId.set(usableBlocks[i]!.threadId, usableVerdicts[i]);
+      }
+      const verdicts = clusters.map((c) =>
+        verdictByThreadId.get(c.representative.threadId),
+      );
       const { created } = await persistClusters(
         integration,
         brainId,
@@ -2037,6 +2159,7 @@ export async function scanGmailForUser(
         importedSubjectFromKeys,
         geminiKey,
         debug,
+        verdicts,
       );
       const totalMembers = clusters.reduce((acc, c) => acc + c.members.length, 0);
       storeNotification(
@@ -2050,6 +2173,11 @@ export async function scanGmailForUser(
       ).catch(() => {});
       return { created, debug, entries: [] };
     }
+
+    // Phase 2: hard-blocks already filtered out at top of scan. usableVerdicts
+    // is parallel to usableBlocks. persistMatches reads verdicts[match.index]
+    // for auto-accept / probation handling.
+    const patternVerdicts = usableVerdicts;
 
     const learnings = await loadGmailLearnings(integration.user_id, integration);
     const prompt = buildPrompt(usableBlocks, prefs, learnings);
@@ -2089,6 +2217,7 @@ export async function scanGmailForUser(
       importedMessageIds,
       importedSubjectFromKeys,
       debug,
+      patternVerdicts,
     );
     debug.contactsUpserted = contactsUpserted;
 

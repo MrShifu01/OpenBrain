@@ -15,6 +15,7 @@ import { flagsOf } from "./_lib/enrichFlags.js";
 import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js";
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
 import { distillGmailForUser, loadRecentGmailDecisions } from "./_lib/distillGmail.js";
+import { recordPatternDecision } from "./_lib/gmailPatternScore.js";
 import {
   buildPrompt as buildGmailPrompt,
   defaultPreferences as defaultGmailPreferences,
@@ -891,6 +892,20 @@ async function handleGmailDecision({ req, res, user }: HandlerContext): Promise<
     distillGmailForUser(user.id).catch(() => {});
   }
 
+  // Pattern-rule scoring (Alt 1 — see api/_lib/gmailPatternScore.ts). Embeds
+  // the email, finds nearest pattern at cosine ≥ 0.82, bumps accept/reject
+  // score capped at 10, and starts a 7-day probation when accept_score first
+  // crosses 8. Fire-and-forget so the staging-inbox tap stays snappy.
+  recordPatternDecision({
+    userId: user.id,
+    decision,
+    subject: row.subject as string | null,
+    from_email: row.from_email as string | null,
+    from_name: row.from_name as string | null,
+    snippet: row.snippet as string | null,
+    reason: row.reason as string | null,
+  }).catch((e) => console.error("[gmail-pattern] decision recorder failed:", e));
+
   res.status(200).json({ ok: true, total });
 }
 
@@ -982,6 +997,10 @@ async function handleGmailPrompt({ res, user }: HandlerContext): Promise<void> {
         from: r.from,
         reason: r.reason,
       })),
+      // Admin debug panel doesn't fetch scored rules; the template just
+      // shows the static prompt skeleton. Live scans assemble this via
+      // loadGmailLearnings which queries gmail_pattern_rules.
+      scoredRulesBlock: "",
     };
     const prefs = integ.preferences ?? defaultGmailPreferences();
     const placeholder: any = {

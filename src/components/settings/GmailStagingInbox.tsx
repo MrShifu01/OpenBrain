@@ -419,6 +419,36 @@ export default function GmailStagingInbox({ onClose, onCountChange }: Props) {
               {urgency.toUpperCase()}
             </span>
           )}
+          {/* Probation badge — pattern at score 8+ but still inside the
+              7-day probation window. Once auto_accept_eligible_at passes,
+              future matching emails skip staging entirely. */}
+          {meta.auto_accept_pending === true && (
+            <span
+              title={
+                meta.auto_accept_eligible_at
+                  ? `auto-accepting from ${new Date(meta.auto_accept_eligible_at as string).toLocaleDateString()}`
+                  : "auto-accepting soon"
+              }
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: "var(--f-sans)",
+                color: "var(--moss)",
+                background: "color-mix(in oklch, var(--moss) 14%, transparent)",
+                border: "1px solid color-mix(in oklch, var(--moss) 30%, transparent)",
+                borderRadius: 999,
+                padding: "2px 10px",
+              }}
+            >
+              auto-accept{" "}
+              {meta.auto_accept_eligible_at
+                ? new Date(meta.auto_accept_eligible_at as string).toLocaleDateString(undefined, {
+                    day: "numeric",
+                    month: "short",
+                  })
+                : "soon"}
+            </span>
+          )}
         </div>
 
         {/* Title */}

@@ -318,6 +318,68 @@ const authedHandler = withAuth(
       return void res.status(200).json(result);
     }
 
+    // ── Pattern rules CRUD ────────────────────────────────────────────────
+    // Backs the Settings → Patterns UI. All scoped to user_id; RLS guards
+    // the table independently in case a request slips past withAuth.
+
+    if (req.method === "GET" && action === "patterns-list") {
+      const r = await fetch(
+        `${SB_URL}/rest/v1/gmail_pattern_rules?user_id=eq.${user.id}` +
+          `&select=id,summary,example_subject,example_from,accept_score,reject_score,accept_hits,reject_hits,last_accept_at,last_reject_at,auto_accept_eligible_at,created_at` +
+          `&order=greatest(accept_score,reject_score).desc.nullslast,created_at.desc` +
+          `&limit=200`,
+        { headers: SB_HEADERS },
+      );
+      const rows: any[] = r.ok ? await r.json() : [];
+      return void res.status(200).json({ patterns: rows });
+    }
+
+    if (req.method === "DELETE" && action === "patterns-delete") {
+      const { id } = req.query as Record<string, string>;
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!id || !uuidRe.test(id))
+        return void res.status(400).json({ error: "valid pattern id required" });
+      await fetch(
+        `${SB_URL}/rest/v1/gmail_pattern_rules?id=eq.${encodeURIComponent(id)}&user_id=eq.${user.id}`,
+        { method: "DELETE", headers: SB_HEADERS },
+      );
+      return void res.status(200).json({ ok: true });
+    }
+
+    if (req.method === "PATCH" && action === "patterns-update") {
+      const body = req.body ?? {};
+      const id: unknown = body.id;
+      const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (typeof id !== "string" || !uuidRe.test(id))
+        return void res.status(400).json({ error: "valid pattern id required" });
+      const patch: Record<string, unknown> = {};
+      if (typeof body.summary === "string") patch.summary = body.summary.slice(0, 500);
+      if (typeof body.accept_score === "number")
+        patch.accept_score = Math.max(0, Math.min(10, Math.round(body.accept_score)));
+      if (typeof body.reject_score === "number")
+        patch.reject_score = Math.max(0, Math.min(10, Math.round(body.reject_score)));
+      // Manual probation toggle: setting auto_accept_eligible_at to null
+      // re-arms probation; setting it to "now" or a past ISO clears it.
+      if (body.auto_accept_eligible_at === null) patch.auto_accept_eligible_at = null;
+      else if (typeof body.auto_accept_eligible_at === "string")
+        patch.auto_accept_eligible_at = body.auto_accept_eligible_at;
+      if (Object.keys(patch).length === 0)
+        return void res.status(400).json({ error: "no updatable fields supplied" });
+      const r = await fetch(
+        `${SB_URL}/rest/v1/gmail_pattern_rules?id=eq.${encodeURIComponent(id)}&user_id=eq.${user.id}`,
+        {
+          method: "PATCH",
+          headers: { ...SB_HEADERS, Prefer: "return=minimal" },
+          body: JSON.stringify(patch),
+        },
+      );
+      if (!r.ok) {
+        const txt = await r.text().catch(() => "");
+        return void res.status(502).json({ error: `update failed: ${txt.slice(0, 200)}` });
+      }
+      return void res.status(200).json({ ok: true });
+    }
+
     if (req.method === "POST" && action === "ignore") {
       const { subject, from, email_type, content_preview } = req.body ?? {};
       const rule = await generateIgnoreRule({ subject, from, email_type, content_preview });
