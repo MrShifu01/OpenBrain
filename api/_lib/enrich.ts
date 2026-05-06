@@ -32,6 +32,7 @@ import {
   loadExtractorContext,
   type ExtractorContext,
 } from "./extractPersonaFacts.js";
+import { checkAndConsumeQuota, fetchUserTier } from "./enrichQuota.js";
 import {
   generateEmbedding as personaGenerateEmbedding,
   buildEntryText as personaBuildEntryText,
@@ -703,6 +704,47 @@ async function fetchBrainIdForEntry(entryId: string): Promise<string | null> {
   return rows[0]?.brain_id ?? null;
 }
 
+// ── State helpers ──────────────────────────────────────────────────────────
+//
+// Phase 2A introduced enrichment_state on entries. These small helpers keep
+// the state column converged with the underlying flags so the worker query
+// (claim_pending_enrichments) only ever sees rows that genuinely need work.
+// Failures are swallowed — state is observable, not load-bearing for the
+// LLM pipeline itself.
+
+async function setEnrichmentState(
+  entryId: string,
+  state: "processing" | "done" | "failed" | "quota_exceeded" | "pending",
+): Promise<void> {
+  const body: Record<string, unknown> = { enrichment_state: state };
+  // Stamp / clear the lock timestamp so stale claims are recoverable. A
+  // 'processing' row with a fresh locked_at is owned; a 'pending' /
+  // 'done' / 'failed' row is unowned.
+  body.enrichment_locked_at = state === "processing" ? new Date().toISOString() : null;
+  try {
+    await fetch(`${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(entryId)}`, {
+      method: "PATCH",
+      headers: { ...SB_HDR, Prefer: "return=minimal" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    console.error("[enrich:set-state]", entryId, state, err);
+  }
+}
+
+async function recomputeEnrichmentState(entryIds: string[]): Promise<void> {
+  if (!entryIds.length) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/rpc/recompute_enrichment_state`, {
+      method: "POST",
+      headers: SB_HDR,
+      body: JSON.stringify({ p_ids: entryIds }),
+    });
+  } catch (err) {
+    console.error("[enrich:recompute-state]", err);
+  }
+}
+
 // ── Public: enrichInline ────────────────────────────────────────────────────
 //
 // Awaited from capture and any other entry-creation site. Runs every step
@@ -715,7 +757,48 @@ export async function enrichInline(
 ): Promise<boolean> {
   let entry = await fetchEntry(entryId, userId);
   if (!entry) return false;
-  if (entry.type === "secret") return false;
+  if (entry.type === "secret") {
+    // Secrets bypass enrichment entirely — keep state consistent with
+    // backfill so the worker doesn't re-claim them next sweep.
+    await setEnrichmentState(entryId, "done");
+    return false;
+  }
+
+  // Quick exit if everything's already done. Belt-and-braces converge of
+  // state column with reality — covers entries that completed via direct
+  // PATCHes outside this function (e.g. legacy code paths). Avoids
+  // consuming a quota credit for a no-op.
+  const earlyFlags = flagsOf(entry);
+  const earlyAllDone =
+    earlyFlags.parsed &&
+    earlyFlags.has_insight &&
+    earlyFlags.concepts_extracted &&
+    earlyFlags.embedded;
+  if (earlyAllDone) {
+    await setEnrichmentState(entryId, "done");
+    return false;
+  }
+
+  // Quota gate — every entry that's about to run LLM steps consumes one
+  // daily credit. Persona-typed entries bail through flagsOf and don't
+  // reach the LLM block, so they're exempt. Pro/max tiers are unlimited
+  // (-1 sentinel inside checkAndConsumeQuota). Failure mode is fail-OPEN
+  // (see enrichQuota.ts) — a Supabase blip can't freeze the pipeline.
+  if (entry.type !== "persona") {
+    const tier = await fetchUserTier(userId);
+    const quota = await checkAndConsumeQuota(userId, tier);
+    if (!quota.allowed) {
+      console.warn(
+        `[enrich:quota] ${userId} blocked at ${quota.used}/${quota.limit} daily — entry ${entryId} marked quota_exceeded`,
+      );
+      await setEnrichmentState(entryId, "quota_exceeded");
+      return false;
+    }
+  }
+
+  // Stamp 'processing' + locked_at so concurrent workers SKIP LOCKED past
+  // this row. recompute below rewrites it to a final state.
+  await setEnrichmentState(entryId, "processing");
 
   // Gmail safety net: if this is a Gmail entry with attachments listed but
   // attachment_text not yet extracted, pull it first. Means the LLM steps
@@ -869,6 +952,13 @@ export async function enrichInline(
     }
   }
 
+  // Converge enrichment_state with what's actually on the row now. Picks
+  // 'done' if every flag is green, 'failed' if attempts >= 5, 'pending'
+  // otherwise. The cron-path (skipEmbed=true) intentionally lands at
+  // 'pending' here — bulkEmbedBatch's caller (enrichBrain) calls
+  // recompute again after the bulk embed finishes to flip them to 'done'.
+  await recomputeEnrichmentState([entryId]);
+
   return changed;
 }
 
@@ -884,76 +974,56 @@ export async function enrichBrain(
   batchSize = 50,
   timeBudgetMs = 240_000,
 ): Promise<{ processed: number; remaining: number }> {
-  // Two parallel queries cover both stuck cases:
-  //   A) embedding still pending/failed/null — uses the partial index
-  //      entries_embedding_status_idx (user_id, embedding_status) WHERE
-  //      deleted_at IS NULL so we don't hydrate every brain entry.
-  //   B) embedding done but a metadata flag is missing — entries the
-  //      LLM call dropped on (parse / insight / concepts step failed
-  //      after embed succeeded, or older entries from before a step
-  //      shipped). These get filtered out by query A's
-  //      embedding_status=neq.done filter, so we need a second pull
-  //      via the JSONB enrichment path. Without this branch a few
-  //      "always loading" entries persist forever and Run-now reports
-  //      "Already up to date." while the UI keeps spinning.
-  const baseFilter = `user_id=eq.${encodeURIComponent(userId)}&brain_id=eq.${encodeURIComponent(brainId)}&deleted_at=is.null&type=neq.secret`;
-  const tailFilter =
-    "embedding_status=eq.done&or=(" +
-    [
-      "metadata->enrichment->>parsed.is.null",
-      "metadata->enrichment->>parsed.eq.false",
-      "metadata->enrichment->>has_insight.is.null",
-      "metadata->enrichment->>has_insight.eq.false",
-      "metadata->enrichment->>concepts_extracted.is.null",
-      "metadata->enrichment->>concepts_extracted.eq.false",
-    ].join(",") +
-    ")";
-  const [embedRes, tailRes] = await Promise.all([
-    fetch(
-      `${SB_URL}/rest/v1/entries?${baseFilter}&embedding_status=neq.done&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
-      { headers: SB_HDR },
-    ),
-    fetch(
-      `${SB_URL}/rest/v1/entries?${baseFilter}&${tailFilter}&select=${encodeURIComponent(ENTRY_FIELDS)}&order=created_at.desc&limit=${batchSize * 2}`,
-      { headers: SB_HDR },
-    ),
-  ]);
-  if (!embedRes.ok && !tailRes.ok) return { processed: 0, remaining: 0 };
-  const embedRows: Entry[] = embedRes.ok ? await embedRes.json().catch(() => []) : [];
-  const tailRows: Entry[] = tailRes.ok ? await tailRes.json().catch(() => []) : [];
-  const seen = new Set<string>();
-  const candidates: Entry[] = [];
-  for (const row of [...embedRows, ...tailRows]) {
-    if (seen.has(row.id)) continue;
-    seen.add(row.id);
-    candidates.push(row);
-  }
-
-  // Soft cap on retry attempts. enrichInline returns changed=true even when
-  // every step throws (it stamps attempts++ + last_error as a breadcrumb), so
-  // without this cap a genuinely-broken entry would hot-loop the runner: 60
-  // iterations × 10 batch = up to 600 LLM calls on the same garbage. After
-  // MAX_ATTEMPTS we leave the entry alone; admins can clear it via the
-  // diagnostic panel or by editing content to coax the LLM into succeeding.
-  const MAX_ATTEMPTS = 5;
-  const pending = candidates.filter((e) => {
-    const f = flagsOf(e);
-    const attempts = (e.metadata?.enrichment?.attempts as number | undefined) ?? 0;
-    if (attempts >= MAX_ATTEMPTS) return false;
-    if (f.embedding_status === "failed") {
-      // Embedding terminal-failed — only resurface if metadata steps are
-      // missing. Won't retry the embed itself.
-      return !f.parsed || !f.has_insight || !f.concepts_extracted;
+  // Phase 2A: claim work via the queue RPC. Atomically marks up to
+  // batchSize rows as 'processing' (with locked_at = now) and returns
+  // their IDs, FOR UPDATE SKIP LOCKED so concurrent workers don't fight.
+  // Stale 'processing' rows (locked >5min) are reclaimed automatically.
+  // 'failed' / 'quota_exceeded' / 'done' rows are NOT claimed —
+  // recompute_enrichment_state transitions them on each pass.
+  let claimedIds: string[] = [];
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/claim_pending_enrichments`, {
+      method: "POST",
+      headers: SB_HDR,
+      body: JSON.stringify({
+        p_user_id: userId,
+        p_brain_id: brainId,
+        p_limit: batchSize,
+      }),
+    });
+    if (r.ok) {
+      const rows: Array<string | { claim_pending_enrichments: string }> = await r
+        .json()
+        .catch(() => []);
+      claimedIds = rows
+        .map((row) =>
+          typeof row === "string" ? row : (row as { claim_pending_enrichments?: string })
+              .claim_pending_enrichments ?? "",
+        )
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+    } else {
+      console.error(`[enrich:brain:claim] HTTP ${r.status}`);
     }
-    return !f.parsed || !f.has_insight || !f.concepts_extracted || !f.embedded;
-  });
+  } catch (err: any) {
+    console.error("[enrich:brain:claim]", err?.message ?? err);
+  }
+  if (!claimedIds.length) return { processed: 0, remaining: 0 };
+
+  // Hydrate the claimed rows in a single round-trip. Worker doesn't need
+  // to handle "row deleted between claim and fetch" — soft delete just
+  // means enrichInline below will return false harmlessly.
+  const idList = claimedIds.map((id) => encodeURIComponent(id)).join(",");
+  const hydrateRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=in.(${idList})&select=${encodeURIComponent(ENTRY_FIELDS)}`,
+    { headers: SB_HDR },
+  );
+  const batch: Entry[] = hydrateRes.ok ? await hydrateRes.json().catch(() => []) : [];
 
   // Time-budget guard: metadata enrichInline does up to 4 LLM calls per
   // entry, so a 50-entry batch can chew through real wallclock. Bail out
   // before the function-level timeout (Vercel max 300s) so the cron's
   // other steps — Gmail scan, persona decay, admin push — still run.
   const deadline = Date.now() + timeBudgetMs;
-  const batch = pending.slice(0, batchSize);
 
   // Pass 1: metadata enrichment, one entry at a time. skipEmbed defers
   // the embedding write to the bulk path below — preserves per-step
@@ -987,7 +1057,18 @@ export async function enrichBrain(
     });
   }
 
-  const remaining = stoppedEarly ? pending.length - processed : pending.length - batch.length;
+  // Final state convergence: now that LLM steps + embedding have run for
+  // this batch, recompute_enrichment_state inspects the row state and
+  // flips each entry to 'done' (all flags green), 'failed' (>= 5
+  // attempts), or leaves at 'pending' for the next sweep.
+  await recomputeEnrichmentState(claimedIds);
+
+  // claimedIds is the universe we tried to drain; processed counts the
+  // entries enrichInline reported as changed. remaining is best-effort
+  // (enrichInline may have flipped some 'pending' → 'done' which we
+  // can't see without a re-query). The cron framework just uses this
+  // for logging; precise accuracy isn't load-bearing.
+  const remaining = stoppedEarly ? claimedIds.length - processed : 0;
   return { processed, remaining };
 }
 
