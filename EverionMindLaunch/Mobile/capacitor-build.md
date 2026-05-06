@@ -239,5 +239,6 @@ For solo pre-launch, manual is fine. Revisit when shipping multiple times per we
 ## References
 - `Mobile/ios-submission.md` — App Store Connect submission
 - `Specs/play-console-submission.md` — Play Console submission
+- `Specs/billing-revenuecat.md` — **RevenueCat SDK integration spec** (paywall, customer center, webhook tier sync, sandbox test flow, env vars)
 - Capacitor docs: <https://capacitorjs.com/docs>
 - RevenueCat Capacitor docs: <https://www.revenuecat.com/docs/getting-started/installation/capacitor>

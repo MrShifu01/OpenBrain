@@ -154,6 +154,7 @@ Source of enforcement: TODO — currently in `api/_lib/quota.ts` (verify path).
 
 ## References
 
+- `Specs/billing-revenuecat.md` — **mobile IAP implementation spec** (SDK wiring, dashboard checklist, paywall, customer center, webhook tier sync, sandbox test flow)
 - `Support/sop.md` — billing-related ticket flow
 - `architecture/security.md` — service-role / RLS that gates what billing data the user can see
 - `Ops/env-vars.md` — `LEMONSQUEEZY_*`, `REVENUECAT_*` keys

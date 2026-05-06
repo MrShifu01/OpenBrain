@@ -231,12 +231,14 @@ Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSque
 
 - [x] **Code shipped — billing migration to LemonSqueezy + RevenueCat** ✅
       Migration `065` relocated billing columns to `user_profiles` + lock-billing trigger covers Lemon/RC/audit columns. `api/user-data.ts` exposes `lemon-checkout`, `lemon-webhook` (with RC bridge), `lemon-portal`, `revenuecat-webhook`. Frontend `BillingTab.tsx` branches on `Capacitor.isNativePlatform()` — web POSTs to `/api/lemon-checkout`, native dynamic-imports `@revenuecat/purchases-capacitor`. `useSubscription` exposes `provider` so the Manage button knows whether to call the LS portal or surface OS-settings hint.
+- [x] **RevenueCat SDK integration shipped** ✅ (commit `3814d13`, 2026-05-06)
+      Native flow now goes through RC paywall + Customer Center. `src/lib/revenuecat.ts` wraps the SDK (configure / login / paywall / customer-center / restore / listener — every export no-op on web). `src/hooks/useRevenueCatEntitlement.ts` provides optimistic-unlock React hook layered in front of the canonical `useSubscription()`. Boot wired in `src/Everion.tsx` (configure + login Supabase user.id; re-login on SIGNED_IN; logout on SIGNED_OUT). `BillingTab.tsx` `startNativeCheckout` now calls `presentPaywall()`; `handleManage` calls `presentCustomerCenter()`. **Implementation spec → `Specs/billing-revenuecat.md`.**
 - [x] **Webhook idempotency** ✅
       `api/_lib/webhookIdempotency.ts` (replaces `stripeIdempotency.ts`) uses Upstash `SET NX` with 24h TTL, namespaced per provider (`lemon:event:<id>`, `revenuecat:event:<id>`). Both handlers also drop PROMOTIONAL-store RC events to avoid echo-loop with the bridge. **Caveat:** without Upstash configured the dedup is bypassed — see "Webhook idempotency fail-open" finding below.
 - [ ] **LemonSqueezy live store configured** ❌
       Operator setup: create the two variants in LS dashboard, set `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_STARTER_VARIANT_ID`, `LEMONSQUEEZY_PRO_VARIANT_ID` in Vercel env. Point webhook URL at `https://<host>/api/lemon-webhook`.
 - [ ] **RevenueCat dashboard configured** ❌
-      Operator setup: create RC project, add iOS + Android app entries (each gets its own public key), set `REVENUECAT_SECRET_API_KEY` (server) + `REVENUECAT_WEBHOOK_AUTH` (bearer secret). Vite-side: `VITE_REVENUECAT_API_KEY_IOS`, `VITE_REVENUECAT_API_KEY_ANDROID` (build-inlined). Configure entitlements named `starter` and `pro`. Webhook URL → `https://<host>/api/revenuecat-webhook`.
+      Operator setup. **Detailed checklist → `Specs/billing-revenuecat.md` § Operator setup checklist.** Summary: RC project + iOS/Android apps + products imported from App Store + Play; entitlement `everion_mind_pro` (id MUST match `ENTITLEMENT_ID` in `src/lib/revenuecat.ts`); offering `default` with monthly/yearly/lifetime packages; V2 paywall designed; webhook → `https://<host>/api/revenuecat-webhook` with `Bearer REVENUECAT_WEBHOOK_AUTH`. Env vars (Vercel): `VITE_REVENUECAT_API_KEY_IOS`, `VITE_REVENUECAT_API_KEY_ANDROID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `REVENUECAT_STARTER_PRODUCT_ID`, `REVENUECAT_PRO_PRODUCT_ID`, `REVENUECAT_MAX_PRODUCT_ID`.
 - [ ] **App Store Connect + Play Console products** ❌
       Register matching subscription products in both stores. Link them as `starter` / `pro` in the RC dashboard so `Purchases.getOfferings()` returns them on device.
 - [x] **Tax handling — solved by merchant-of-record** ✅
@@ -244,7 +246,7 @@ Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSque
 - [ ] **Subscription cancellation flow tested** ❌
       End-to-end: subscribe (LS) → portal → cancel → confirm `lemon-webhook` `subscription_cancelled` fires → RC `revoke_promotionals` succeeds → user_profiles drops to free → BillingTab reflects new state.
 - [ ] **End-to-end native sandbox test** ❌
-      Once App Store Connect + Play Console products are live and TestFlight/internal track is up, run a sandbox subscribe → renewal → cancel cycle on a real device per platform.
+      Once App Store Connect + Play Console products are live and TestFlight/internal track is up, run a sandbox subscribe → renewal → cancel cycle on a real device per platform. **Step-by-step test flow → `Specs/billing-revenuecat.md` § Test flow checklist** (paywall presents → optimistic isPro flip → canonical tier sync within 5s → cross-device tier match → cancel → free).
 
 ---
 
