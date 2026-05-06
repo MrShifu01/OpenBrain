@@ -8,6 +8,27 @@ Project-specific, prioritized for solo dev shipping a public-scale product.
 
 ---
 
+## Production Hardening Audit Deferrals — 2026-05-06
+
+Traceability source: [`Audits/audit-production-hardening-2026-05-06.md`](Audits/audit-production-hardening-2026-05-06.md).
+
+- [ ] **P0-1** Rotate local/prod secrets if `.env.local` values or this audit transcript ever left the machine.
+- [ ] **P0-4** Add `OAUTH_TOKEN_ENCRYPTION_KEY` to Vercel production/staging and audit existing OAuth token rows for plaintext legacy values.
+- [ ] **P1-3** Harden Gmail/enrichment cron with bounded concurrency, queueing, timeouts, and paginated pending-work scans.
+- [ ] **P1-7** Define and enforce explicit shared-brain roles for member write/delete permissions.
+- [ ] **P1-8** Run bundle visualizer and split heavy chunks on non-capture paths.
+- [ ] **P1-10** Resolve the shadcn transitive `ip-address` advisory without breaking `@import "shadcn/tailwind.css"`.
+- [ ] **P1-11** Extract `api/entries.ts` into internal handler modules without adding Vercel functions.
+- [ ] **P1-12** Centralize service-role Supabase headers through `_lib/sbHeaders.ts` and add lint enforcement.
+- [ ] **P2-2** Regenerate `.env.example` from `Ops/env-vars.md` with required-vs-optional labels.
+- [ ] **P2-6** Move API request bodies from `any` to `unknown` plus endpoint validators.
+- [ ] **P2-7** Review app copy so PIN is described as an app lock, not strong local encryption.
+- [ ] **P2-8** Plan CSP migration away from `style-src 'unsafe-inline'`.
+- [ ] **P3-3** Route audit/security logs through structured logger helpers.
+- [ ] **P3-4** Remove build chunk-warning noise by splitting bundles or documenting an intentional threshold.
+
+---
+
 ## Readiness Scorecard — 2026-04-27
 
 Evaluation across the seven dimensions that decide whether a SaaS is "open the gate" ready. Scores are honest, not aspirational. **Overall: 6.5/10 — closed-beta ready, not full-public-launch ready.** Several P0 stability gaps below would bite within the first 1k users.
@@ -236,11 +257,11 @@ Stripe was replaced 2026-04-30 (commit `c484030`). Web subs go through LemonSque
 - [x] **Webhook idempotency** ✅
       `api/_lib/webhookIdempotency.ts` (replaces `stripeIdempotency.ts`) uses Upstash `SET NX` with 24h TTL, namespaced per provider (`lemon:event:<id>`, `revenuecat:event:<id>`). Both handlers also drop PROMOTIONAL-store RC events to avoid echo-loop with the bridge. **Caveat:** without Upstash configured the dedup is bypassed — see "Webhook idempotency fail-open" finding below.
 - [ ] **LemonSqueezy live store configured** ❌
-      Operator setup: create the two variants in LS dashboard, set `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_STARTER_VARIANT_ID`, `LEMONSQUEEZY_PRO_VARIANT_ID` in Vercel env. Point webhook URL at `https://<host>/api/lemon-webhook`.
+      **Step-by-step → `Setup/lemonsqueezy.md`** (store, products, variants, API key, webhook, test mode round-trip, go-live).
 - [ ] **RevenueCat dashboard configured** ❌
-      Operator setup. **Detailed checklist → `Specs/billing-revenuecat.md` § Operator setup checklist.** Summary: RC project + iOS/Android apps + products imported from App Store + Play; entitlement `everion_mind_pro` (id MUST match `ENTITLEMENT_ID` in `src/lib/revenuecat.ts`); offering `default` with monthly/yearly/lifetime packages; V2 paywall designed; webhook → `https://<host>/api/revenuecat-webhook` with `Bearer REVENUECAT_WEBHOOK_AUTH`. Env vars (Vercel): `VITE_REVENUECAT_API_KEY_IOS`, `VITE_REVENUECAT_API_KEY_ANDROID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_WEBHOOK_AUTH`, `REVENUECAT_STARTER_PRODUCT_ID`, `REVENUECAT_PRO_PRODUCT_ID`, `REVENUECAT_MAX_PRODUCT_ID`.
+      **Step-by-step → `Setup/revenuecat.md`** (RC project, iOS/Android apps, products import, entitlement `everion_mind_pro`, offering `default`, V2 paywall, customer center, webhook). Implementation spec: `Specs/billing-revenuecat.md`.
 - [ ] **App Store Connect + Play Console products** ❌
-      Register matching subscription products in both stores. Link them as `starter` / `pro` in the RC dashboard so `Purchases.getOfferings()` returns them on device.
+      **Step-by-step → `Setup/ios.md` § Subscription products + `Setup/android.md` § Subscription products** (create matching `monthly` / `yearly` / `lifetime` products in both stores so RC can import them).
 - [x] **Tax handling — solved by merchant-of-record** ✅
       LemonSqueezy is the merchant of record so SA VAT, EU VAT, US sales tax are all handled by them — no Stripe Tax / VAT registration needed for the web path. Mobile flows are taxed by Apple / Google in their respective regions automatically. (Original concern was around the R1M/year SA VAT threshold.)
 - [ ] **Subscription cancellation flow tested** ❌

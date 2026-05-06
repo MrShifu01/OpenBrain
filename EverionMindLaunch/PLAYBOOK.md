@@ -164,6 +164,13 @@ Launch day is a spike. Retention and growth are the real product.
 - `Ops/incident-response.md` — what to do when something breaks
 - `Ops/disaster-recovery.md` — RPO/RTO + worst-case scenarios
 
+### Setup runbooks (one-time operator dashboard work)
+- `Setup/README.md` — index
+- `Setup/lemonsqueezy.md` — web billing dashboard
+- `Setup/revenuecat.md` — mobile IAP dashboard
+- `Setup/ios.md` — Apple Developer + App Store Connect + Xcode signing
+- `Setup/android.md` — Google Play Console + keystore + App Links
+
 ### Architecture
 - `architecture/INDEX.md` — what each doc covers
 - `architecture/auth.md`
