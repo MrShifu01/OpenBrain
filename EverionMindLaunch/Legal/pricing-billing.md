@@ -76,6 +76,25 @@ Free tier doesn't get BYOK — we want them on managed Gemini so we control qual
 
 When the same user pays on both web AND mobile, the higher tier wins. (TODO: confirm in code; this is an edge case worth handling explicitly.)
 
+> **Decided 2026-05-06: keep LemonSqueezy for web + RevenueCat for native — do NOT consolidate to RevenueCat-only.**
+>
+> RevenueCat now ships RC Web Billing (Stripe under the hood) which would let us run one provider end-to-end with one CustomerInfo, one webhook, one paywall dashboard, and no LS↔RC bridge to maintain.
+>
+> **Why we're staying split:**
+>
+> - **MoR coverage matters more than tooling unity.** LemonSqueezy is merchant of record — they handle SA VAT, EU VAT (post-threshold), US sales tax, chargebacks, fraud, refund disputes. RC Web Billing → direct Stripe → we become the merchant. For a public launch in ZA + global, the operational + legal lift of registering for VAT in N regions and handling chargebacks ourselves outweighs the tooling win.
+> - **Cost math favours LS at our ticket size.** LS bundled fee (~5% all-in) beats RC Web Billing % + Stripe 2.9%+fixed + our own VAT/tax handling on small monthly tickets (R49 / $3.99). The split widens at lower ticket sizes; small advantage shrinks but doesn't reverse at higher tiers.
+> - **Migration cost is negative-value pre-launch.** LS handler, webhook idempotency, audit log, BillingTab branching, LS↔RC promotional bridge are all live and tested (commits `3814d13`, `c484030`, migration `065`). Pre-launch is the wrong moment for a billing migration — see the production audit (`Audits/production-2026-05-06.md`) which flagged 7 critical / 15 high-priority issues to clear first.
+> - **Architecture already anticipates the swap.** `useSubscription().provider` differentiates `lemonsqueezy | revenuecat | stripe`. Either side can be replaced without touching the other when conditions change.
+>
+> **Revisit at the 6-month review if:**
+>
+> - Most revenue lands on web AND we've crossed VAT thresholds in 2+ regions (the MoR advantage shrinks because we're handling tax registration anyway).
+> - The LS↔RC bridge eats meaningful eng time on bugs / edge cases.
+> - RC Web Billing reaches feature parity with LS's MoR coverage (SA VAT included, EU VAT-MOSS, US Streamlined Sales Tax, chargeback handling, dunning).
+>
+> Until any of those flip, the split stays.
+
 ## Trial
 
 - **Pro** — 14-day trial, no card required. Card collected when trial ends (LemonSqueezy supports this; RevenueCat does too).
