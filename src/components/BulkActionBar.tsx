@@ -226,6 +226,12 @@ export default function BulkActionBar({
         bottom: "calc(76px + env(safe-area-inset-bottom, 0px))",
         zIndex: "var(--z-fab)",
         width: "min(96vw, 520px)",
+        // Hide the action bar while the merge modal is open — the bar's
+        // fixed-bottom position otherwise covers the modal's footer
+        // (Save/Cancel buttons), confusing the user. Visibility instead
+        // of display so the modal's parent doesn't reflow.
+        visibility: mergeOpen ? "hidden" : "visible",
+        pointerEvents: mergeOpen ? "none" : "auto",
       }}
     >
       <div
