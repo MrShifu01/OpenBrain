@@ -117,17 +117,18 @@ export async function resolveProviderForUser(userId: string): Promise<AICall | n
   }
 
   // No BYOK — fall back to managed provider based on tier.
+  //
+  // Per project policy (CLAUDE.md): the env-set ANTHROPIC_API_KEY is not yet
+  // valid, so the previous "pro/max → managed Anthropic" branch silently
+  // dropped every LLM call (callAnthropic returns "" on 401, which leaves
+  // enrichInline's parse/insight/concepts steps with no metadata change AND
+  // no breadcrumb — the entry just stays red forever). Until the key is
+  // valid, route all managed enrichment to Gemini regardless of tier.
+  // Restore the Anthropic branch only after verifying the key returns 200
+  // on a real /v1/messages call.
   const profile = await fetchProfile(userId);
   const tier = (profile?.tier ?? settings?.plan ?? "free").toLowerCase();
 
-  if (tier === "pro" || tier === "max") {
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (anthropicKey) {
-      return { provider: "anthropic", apiKey: anthropicKey, model: DEFAULT_MODELS.anthropic };
-    }
-    // Fall through to managed Gemini so pro/max users still get enrichment
-    // when ANTHROPIC_API_KEY isn't configured (per project policy).
-  }
   if (tier === "pro" || tier === "max" || tier === "starter") {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) return null;

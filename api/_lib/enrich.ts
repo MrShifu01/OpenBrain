@@ -663,6 +663,12 @@ export async function enrichInline(
   // "nothing ever happened" — the diagnostic UI can't distinguish "haven't
   // tried" from "tried and crashed silently."
   const stepErrors: string[] = [];
+  // Steps that ran but returned null cleanly (e.g. callAI returned "" on
+  // a 401 from an invalid Anthropic key — see CLAUDE.md). These produce
+  // no metadata change AND no thrown error, so without this list the
+  // entry would look like "never attempted" in the diagnostic UI. We log
+  // them as silent skips so an admin can spot the pattern.
+  const stepSilentSkips: string[] = [];
   const runStep = async (
     name: string,
     fn: () => Promise<Record<string, any> | null>,
@@ -672,6 +678,8 @@ export async function enrichInline(
       if (next) {
         workingMeta = next;
         changed = true;
+      } else {
+        stepSilentSkips.push(name);
       }
     } catch (err: any) {
       const msg = String(err?.message ?? err).slice(0, 200);
@@ -714,15 +722,24 @@ export async function enrichInline(
   // entry that 429'd on every step would look like "nothing ever happened"
   // in the diagnostic UI. attempts is a running counter; last_error is the
   // joined messages from this run's failures (capped to keep metadata small).
-  if (stepErrors.length > 0) {
+  // Silent skips (callAI returned "" on auth failure / refusal) record
+  // last_attempt_at + last_skip_reason so the diagnostic shows "we tried,
+  // got nothing back" — distinct from "never tried."
+  if (stepErrors.length > 0 || stepSilentSkips.length > 0) {
     const prevEnr = (workingMeta as any).enrichment ?? {};
+    const errorMsg = stepErrors.join(" · ").slice(0, 500);
+    const skipMsg =
+      stepSilentSkips.length > 0
+        ? `silent skip: ${stepSilentSkips.join(",")}`.slice(0, 200)
+        : null;
     workingMeta = {
       ...workingMeta,
       enrichment: {
         ...prevEnr,
         attempts: ((prevEnr.attempts as number | undefined) ?? 0) + 1,
         last_attempt_at: new Date().toISOString(),
-        last_error: stepErrors.join(" · ").slice(0, 500),
+        last_error: errorMsg || prevEnr.last_error || null,
+        last_skip_reason: skipMsg || prevEnr.last_skip_reason || null,
       },
     };
     changed = true;
@@ -1630,30 +1647,47 @@ Return ONLY a JSON array of integer indices to REJECT. Example: [0, 3, 7]. Empty
   return [];
 }
 
-// ── Public: enrichAllBrains (daily cron) ────────────────────────────────────
+// ── Public: enrichAllBrains (cron sweep) ────────────────────────────────────
+//
+// Daily call uses defaults (240s total / 60s per brain / batchSize 50).
+// Hourly safety-net call passes mode='hourly' which trims the budget so the
+// hourly cron stays inside its function-timeout but still drains a steady
+// trickle: anything created inside the last hour gets cleaned up before
+// the next pass. Together they guarantee that no entry waits >1h to be
+// fully enriched, even if the inline-enrich path on PATCH somehow misses.
 
-export async function enrichAllBrains(): Promise<{ brains: number; processed: number }> {
+export interface EnrichSweepOpts {
+  mode?: "daily" | "hourly";
+}
+
+export async function enrichAllBrains(
+  opts: EnrichSweepOpts = {},
+): Promise<{ brains: number; processed: number; mode: "daily" | "hourly" }> {
+  const mode = opts.mode ?? "daily";
   const r = await fetch(`${SB_URL}/rest/v1/brains?select=id,owner_id`, { headers: SB_HDR });
-  if (!r.ok) return { brains: 0, processed: 0 };
+  if (!r.ok) return { brains: 0, processed: 0, mode };
   const brains: { id: string; owner_id: string }[] = await r.json();
   let totalProcessed = 0;
-  // Daily catch-up needs to keep up with users who capture 10–30/day on a
-  // free-tier Gemini key. The previous batchSize=3 left them permanently
-  // behind. Share a 240s wallclock budget across all brains so a single
-  // chatty brain can't starve the others.
-  const PER_RUN_BUDGET_MS = 240_000;
+  // Daily: 240s budget / 60s per brain / 50 batch — chunky catch-up.
+  // Hourly: 90s budget / 25s per brain / 30 batch — keeps within the
+  // hourly cron's tighter wallclock and drains anything the inline
+  // enrich path missed in the last 60 minutes. Adjust if Vercel logs
+  // show the hourly cron approaching its function-timeout.
+  const PER_RUN_BUDGET_MS = mode === "hourly" ? 90_000 : 240_000;
+  const PER_BRAIN_BUDGET_MS = mode === "hourly" ? 25_000 : 60_000;
+  const BATCH_SIZE = mode === "hourly" ? 30 : 50;
   const startedAt = Date.now();
   for (const brain of brains) {
     const remainingBudget = Math.max(0, PER_RUN_BUDGET_MS - (Date.now() - startedAt));
     if (remainingBudget < 5_000) break; // not enough left to make progress
-    const perBrainBudget = Math.min(remainingBudget, 60_000);
-    const { processed } = await enrichBrain(brain.owner_id, brain.id, 50, perBrainBudget).catch(
-      () => ({
-        processed: 0,
-        remaining: 0,
-      }),
-    );
+    const perBrainBudget = Math.min(remainingBudget, PER_BRAIN_BUDGET_MS);
+    const { processed } = await enrichBrain(
+      brain.owner_id,
+      brain.id,
+      BATCH_SIZE,
+      perBrainBudget,
+    ).catch(() => ({ processed: 0, remaining: 0 }));
     totalProcessed += processed;
   }
-  return { brains: brains.length, processed: totalProcessed };
+  return { brains: brains.length, processed: totalProcessed, mode };
 }

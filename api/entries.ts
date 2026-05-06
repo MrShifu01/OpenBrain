@@ -403,44 +403,37 @@ async function handlePatch({ req, res, user, req_id }: HandlerContext): Promise<
   }).catch(() => {});
 
   const data: any = await response.json();
-  res.status(response.ok ? 200 : 502).json(data);
 
-  // Post-response work: extract Gmail attachments (if any) THEN run full
-  // enrichment. The two trigger conditions:
-  //   (a) title/content changed — re-enrich because the parsed/insight
-  //       flags get cleared above and embedding text needs rebuilding.
-  //   (b) status promoted to active — covers the Gmail accept flow:
-  //       staged emails skip enrichment + attachment extraction by
-  //       design (the user might reject them, no point spending Gemini
-  //       calls on noise). Once accepted, they need the full pipeline.
-  //
-  // Order matters: when a Gmail entry is promoted, attachments must be
-  // pulled from Gmail and LLM-extracted FIRST so enrichInline's later
-  // pass sees attachment_text in metadata and folds it into the embed
-  // text + concept extraction. Attachments-then-enrich runs as one
-  // chained promise so the steps don't race. enrichInline + the
-  // attachment helper are both idempotent — already-extracted /
-  // already-enriched rows short-circuit cheaply.
+  // Run enrichment BEFORE the response so the user sees fully-enriched state
+  // on the next render. Previous fire-and-forget pattern was unreliable on
+  // Vercel — the function instance gets killed after res.send so the IIFE
+  // often never completed (proof: today's accepted Gmail entries had
+  // enrichment.parsed=false with no last_error — meaning the step never
+  // ran, not that it failed). Trade-off: PATCH is now slower (3-5s with
+  // multiple LLM calls) but every entry is fully enriched on first try.
+  // Hourly cron sweep (cron-hourly) is the safety net for any path that
+  // somehow misses this — but the inline path should now succeed 100% of
+  // the time the LLM is reachable.
   const promotedToActive = patch.status === "active";
   if (response.ok && (titleChanged || contentChanged || promotedToActive)) {
     if (promotedToActive && entry?.metadata?.source === "gmail") {
-      (async () => {
-        try {
-          const mod = await import("./_lib/gmailScan.js");
-          await mod.extractGmailAttachmentsForEntry(id, user.id);
-        } catch (e) {
-          console.error("[entries:patch] attachment extract failed", e);
-        }
-        try {
-          await enrichInline(id, user.id);
-        } catch (e) {
-          console.error("[entries:patch] enrichInline failed", e);
-        }
-      })();
-    } else {
-      enrichInline(id, user.id).catch(() => {});
+      // Gmail accept: pull attachments first so enrichInline's parse +
+      // concept steps see attachment_text in metadata.
+      try {
+        const mod = await import("./_lib/gmailScan.js");
+        await mod.extractGmailAttachmentsForEntry(id, user.id);
+      } catch (e) {
+        console.error("[entries:patch] attachment extract failed", e);
+      }
+    }
+    try {
+      await enrichInline(id, user.id);
+    } catch (e) {
+      console.error("[entries:patch] enrichInline failed", e);
     }
   }
+
+  res.status(response.ok ? 200 : 502).json(data);
 }
 
 // ── POST /api/entries?action=bulk-patch ──

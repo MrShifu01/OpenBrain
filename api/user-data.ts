@@ -2578,10 +2578,28 @@ async function handleCronHourly(req: ApiRequest, res: ApiResponse): Promise<void
     }
   }
 
+  // ── Enrich sweep (hourly safety net) ──
+  // Catches any entry the inline PATCH-time enrichInline call dropped — e.g.
+  // a Vercel cold-start that timed out, an LLM 429 that won't retry from
+  // user code, or a contact-creation path that never queued enrichment.
+  // Together with the daily cron and the inline path this is the third
+  // layer that guarantees no entry stays unenriched longer than ~1 hour.
+  // Tighter budget than daily (90s total) so we stay inside the function
+  // timeout shared with push notifications above.
+  const enrichR = await enrichAllBrains({ mode: "hourly" }).catch((e) => {
+    console.error("[cron/hourly] enrich sweep failed:", e);
+    return { brains: 0, processed: 0, mode: "hourly" as const };
+  });
+
   console.log(
-    `[cron/hourly] done daily=${JSON.stringify(dailyR)} nudge=${JSON.stringify(nudgeR)} expiry=${JSON.stringify(expiryR)}`,
+    `[cron/hourly] done daily=${JSON.stringify(dailyR)} nudge=${JSON.stringify(nudgeR)} expiry=${JSON.stringify(expiryR)} enrich=${JSON.stringify(enrichR)}`,
   );
-  return void res.status(200).json({ daily: dailyR, nudge: nudgeR, expiry: expiryR });
+  return void res.status(200).json({
+    daily: dailyR,
+    nudge: nudgeR,
+    expiry: expiryR,
+    enrich: enrichR,
+  });
 }
 
 // ── /api/cron/daily (rewritten to /api/user-data?resource=cron-daily) ──
