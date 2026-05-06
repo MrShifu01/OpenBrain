@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import type { ApiRequest, ApiResponse } from "./_lib/types";
 import { SERVER_PROMPTS } from "./_lib/prompts.js";
-import { withAuth, type AuthedUser } from "./_lib/withAuth.js";
+import { withAuth, ApiError, type AuthedUser } from "./_lib/withAuth.js";
+import { mergeEntriesOneShot } from "./_lib/mergeEntries.js";
 import {
   retrieveEntriesForUser,
   rebuildConceptGraph,
@@ -212,11 +213,28 @@ const CHAT_TOOLS: ToolSchema[] = [
       required: ["id"],
     },
   },
+  {
+    name: "merge_entries",
+    description:
+      "Combine 2-8 user-owned entries into one LLM-synthesised entry, then soft-delete the sources. The originals are recoverable from trash. Use after the user has explicitly confirmed which entries to merge — do NOT call this on speculation. All entries must be in the same brain; vault entries (type='secret') cannot be merged. Returns the new merged entry.",
+    parameters: {
+      type: "object",
+      properties: {
+        ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "UUIDs of the entries to merge (2-8)",
+        },
+      },
+      required: ["ids"],
+    },
+  },
 ];
 
 const DESTRUCTIVE_TOOLS = new Set([
   "update_entry",
   "delete_entry",
+  "merge_entries",
   ...Array.from(PERSONA_DESTRUCTIVE_TOOLS),
 ]);
 
@@ -412,6 +430,18 @@ async function execTool(
     if (!r.ok) return { error: `Delete failed: ${await r.text().catch(() => r.status)}` };
     return { id: args.id, deleted: true };
   }
+  if (name === "merge_entries") {
+    if (!Array.isArray(args.ids) || args.ids.length < 2 || args.ids.length > 8) {
+      return { error: "ids must be an array of 2-8 entry uuids" };
+    }
+    try {
+      const result = await mergeEntriesOneShot(userId, args.ids);
+      return result;
+    } catch (err: unknown) {
+      if (err instanceof ApiError) return { error: err.message };
+      return { error: err instanceof Error ? err.message : "Merge failed" };
+    }
+  }
   return { error: `Unknown tool: ${name}` };
 }
 
@@ -535,6 +565,19 @@ async function handleChat(
       if (PERSONA_DESTRUCTIVE_TOOLS.has(toolName)) {
         return buildPersonaConfirmLabel(toolName, args, brain_id);
       }
+      if (toolName === "merge_entries") {
+        const ids = Array.isArray(args.ids) ? args.ids : [];
+        const titles = await Promise.all(
+          ids.slice(0, 3).map((idVal: unknown) =>
+            typeof idVal === "string" ? fetchEntryTitle(idVal, brain_id) : Promise.resolve(null),
+          ),
+        );
+        const named = titles.filter((t): t is string => !!t);
+        const overflow = ids.length > named.length ? ` + ${ids.length - named.length} more` : "";
+        return named.length
+          ? `Merge ${ids.length} entries: ${named.map((t) => `"${t}"`).join(", ")}${overflow}`
+          : `Merge ${ids.length} entries`;
+      }
       const verb = toolName === "delete_entry" ? "Delete" : "Update";
       const title = await fetchEntryTitle(args.id, brain_id);
       return title ? `${verb} "${title}"` : `${verb} entry (${String(args.id).slice(0, 8)}…)`;
@@ -544,6 +587,8 @@ async function handleChat(
         return "I'm about to move this from your About You into history. Confirm?";
       if (toolName === "persona.update_fact")
         return "I'm about to replace this fact with a new version. Confirm?";
+      if (toolName === "merge_entries")
+        return "I'm about to combine these entries into one and move the originals to trash. Confirm?";
       return toolName === "delete_entry"
         ? "I'm about to delete this entry. Confirm?"
         : "I'm about to update this entry. Confirm?";

@@ -4,6 +4,7 @@
  * POST /v1/ingest   — add a new entry
  * POST /v1/update   — edit an existing entry
  * POST /v1/delete   — soft-delete an entry
+ * POST /v1/merge    — combine 2-8 entries into one (one-shot LLM merge)
  *
  * Auth: Authorization: Bearer em_<raw_key>
  * Routed via vercel.json: /v1/:action → /api/v1?action=:action
@@ -15,6 +16,7 @@ export const config = { api: { bodyParser: { sizeLimit: "1mb" } } };
 import { retrieveEntries } from "./_lib/retrievalCore.js";
 import { generateEmbedding, buildEntryText } from "./_lib/generateEmbedding.js";
 import { enrichInline } from "./_lib/enrich.js";
+import { mergeEntriesOneShot } from "./_lib/mergeEntries.js";
 import {
   reserveIdempotency,
   finalizeIdempotency,
@@ -316,6 +318,16 @@ async function handleDelete({ brainId }: Auth, body: any) {
   return { id, deleted: true };
 }
 
+// ── /v1/merge ─────────────────────────────────────────────────────────────────
+
+async function handleMerge({ userId }: Auth, body: any) {
+  const { ids } = body;
+  // mergeEntriesOneShot validates length, uuid format, ownership, same brain,
+  // vault guard, quota peek. Errors thrown as ApiError surface as 4xx/5xx
+  // via withApiKey's error handler.
+  return mergeEntriesOneShot(userId, ids);
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 const HANDLERS: Record<string, (auth: Auth, body: any) => Promise<any>> = {
@@ -324,6 +336,7 @@ const HANDLERS: Record<string, (auth: Auth, body: any) => Promise<any>> = {
   ingest: handleIngest,
   update: handleUpdate,
   delete: handleDelete,
+  merge: handleMerge,
 };
 
 export default withApiKey({ methods: ["POST"], rateLimit: 30 }, async ({ req, res, auth }) => {

@@ -24,6 +24,8 @@ import { enrichInline, enrichBrain } from "./_lib/enrich.js";
 import { reserveIdempotency, finalizeIdempotency } from "./_lib/idempotency.js";
 import { checkAndIncrement } from "./_lib/usage.js";
 import { getReqId, createLogger } from "./_lib/logger.js";
+import { mergeEntriesOneShot } from "./_lib/mergeEntries.js";
+import { ApiError } from "./_lib/withAuth.js";
 const SB_URL = process.env.SUPABASE_URL!;
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
@@ -137,6 +139,24 @@ const TOOLS = [
         id: { type: "string", description: "Entry UUID to delete" },
       },
       required: ["id"],
+    },
+  },
+  {
+    name: "merge_entries",
+    description:
+      "Combine 2-8 user-owned entries into a single LLM-synthesised entry, then soft-delete the sources. Useful for collapsing duplicates, consolidating related notes, or merging contact records. All entries must be in the same brain and none can be vault (type='secret'). Returns the merged row including its new id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ids: {
+          type: "array",
+          items: { type: "string" },
+          minItems: 2,
+          maxItems: 8,
+          description: "UUIDs of the entries to merge (2-8)",
+        },
+      },
+      required: ["ids"],
     },
   },
   {
@@ -697,6 +717,29 @@ export default async function handler(req: ApiRequest, res: ApiResponse): Promis
       } else if (toolName === "delete_entry") {
         if (!args.id) return res.status(200).json(jsonRpcErr(id, -32602, "id is required"));
         result = await deleteEntry(brainId, args.id);
+      } else if (toolName === "merge_entries") {
+        if (!Array.isArray(args.ids) || args.ids.length < 2 || args.ids.length > 8) {
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32602, "ids must be an array of 2-8 entry uuids"));
+        }
+        // Per-tool rate limit — merge is more expensive than create. 5/min
+        // mirrors gmail_sync; the daily quota gate inside mergeEntriesOneShot
+        // is the longer-horizon cap.
+        if (!(await rateLimit(req, 5, 60_000, "merge_entries"))) {
+          return res
+            .status(200)
+            .json(jsonRpcErr(id, -32000, "Rate limit exceeded for merge_entries (5/min)"));
+        }
+        try {
+          result = await mergeEntriesOneShot(userId, args.ids);
+          log.info("merge_entries_ok", { merged_id: (result as any)?.merged_id });
+        } catch (err: unknown) {
+          if (err instanceof ApiError) {
+            return res.status(200).json(jsonRpcErr(id, -32000, err.message));
+          }
+          throw err;
+        }
       } else if (toolName === "gmail_sync") {
         // Per-tool rate limit: 5 gmail_sync calls/min per IP — prevents scan DoS
         if (!(await rateLimit(req, 5, 60_000, "gmail_sync"))) {

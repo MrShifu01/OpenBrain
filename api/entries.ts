@@ -16,10 +16,12 @@ import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
 import { distillGmailForUser, loadRecentGmailDecisions } from "./_lib/distillGmail.js";
 import { recordPatternDecision } from "./_lib/gmailPatternScore.js";
-import { callAI } from "./_lib/aiProvider.js";
-import { resolveProviderForUser } from "./_lib/resolveProvider.js";
-import { fetchUserTier, dailyLimitForTier, readQuotaUsage } from "./_lib/enrichQuota.js";
-import { randomUUID } from "crypto";
+import {
+  validateMergeRequest,
+  checkMergeQuota,
+  generateMergePreview,
+  commitMerge,
+} from "./_lib/mergeEntries.js";
 import {
   buildPrompt as buildGmailPrompt,
   defaultPreferences as defaultGmailPreferences,
@@ -29,43 +31,6 @@ import {
 const SB_URL = process.env.SUPABASE_URL;
 const ENTRY_FIELDS =
   "id,title,content,type,tags,metadata,brain_id,importance,pinned,created_at,embedded_at,embedding_status,status";
-
-// Strip markdown formatting so content survives the plain-text renderer
-// (cards + DetailModal use whiteSpace:pre-wrap with no markdown parser).
-// Used by handleMerge to clean LLM output and user-edited commit bodies.
-// Conservative: only removes formatting markers, keeps the inner text and
-// list bullets / paragraph structure intact.
-function stripMarkdown(input: string): string {
-  if (!input) return "";
-  let s = input;
-  // Fenced code blocks → keep contents, drop the fences.
-  s = s.replace(/```[a-zA-Z0-9]*\n?/g, "").replace(/```/g, "");
-  // Inline code: `text` → text
-  s = s.replace(/`([^`\n]+)`/g, "$1");
-  // Bold/italic combinations: ***text***, ___text___ → text
-  s = s.replace(/\*\*\*([^\n*]+)\*\*\*/g, "$1");
-  s = s.replace(/___([^\n_]+)___/g, "$1");
-  // Bold: **text**, __text__ → text
-  s = s.replace(/\*\*([^\n*]+)\*\*/g, "$1");
-  s = s.replace(/__([^\n_]+)__/g, "$1");
-  // Italic: *text*, _text_ → text. Require a non-space immediately inside
-  // so we don't eat random asterisks in math / glob patterns.
-  s = s.replace(/(^|[\s(])\*(\S[^\n*]*?\S|\S)\*(?=[\s.,;:!?)]|$)/g, "$1$2");
-  s = s.replace(/(^|[\s(])_(\S[^\n_]*?\S|\S)_(?=[\s.,;:!?)]|$)/g, "$1$2");
-  // Strikethrough: ~~text~~ → text
-  s = s.replace(/~~([^\n~]+)~~/g, "$1");
-  // Headings: leading #, ##, ### at start of line → drop the # markers.
-  s = s.replace(/^[ \t]*#{1,6}[ \t]+/gm, "");
-  // Blockquote: leading > → drop. Keep content.
-  s = s.replace(/^[ \t]*>[ \t]?/gm, "");
-  // Markdown links [label](url) → "label (url)" so URLs survive readably.
-  s = s.replace(/\[([^\]\n]+)\]\(([^)\n]+)\)/g, "$1 ($2)");
-  // Bare HTML tags: <b>, <br>, <i>, etc. → drop tag, keep content.
-  s = s.replace(/<\/?[a-zA-Z][a-zA-Z0-9-]*(?:\s[^>]*)?>/g, "");
-  // Collapse 3+ blank lines to 2.
-  s = s.replace(/\n{3,}/g, "\n\n");
-  return s;
-}
 
 function rateLimitForEntries(req: ApiRequest): number {
   const resource = req.query.resource as string | undefined;
@@ -1314,366 +1279,34 @@ async function handleEmptyTrash({ res, user, req_id }: HandlerContext): Promise<
 // half-merged state.
 async function handleMerge({ req, res, user }: HandlerContext): Promise<void> {
   const body = req.body ?? {};
-  const ids: unknown = body.ids;
-
-  // Validate ids array
-  if (!Array.isArray(ids) || ids.length < 2 || ids.length > 8) {
-    throw new ApiError(400, "ids must be an array of 2-8 entry uuids");
-  }
-  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  const cleanIds: string[] = [];
-  const seen = new Set<string>();
-  for (const raw of ids) {
-    if (typeof raw !== "string" || !uuidRe.test(raw)) {
-      throw new ApiError(400, "ids must be valid uuids");
-    }
-    if (seen.has(raw)) continue; // dedup silently
-    seen.add(raw);
-    cleanIds.push(raw);
-  }
-  if (cleanIds.length < 2) {
-    throw new ApiError(400, "merge needs at least 2 distinct entries");
-  }
-
-  // Fetch all entries in one round-trip and verify ownership + same brain
-  // + no vault. RLS would already block cross-user reads but defense-in-
-  // depth: we filter explicitly on user_id + check no row missing.
-  const idList = cleanIds.map((id) => encodeURIComponent(id)).join(",");
-  const fetchRes = await fetch(
-    `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&select=${encodeURIComponent(ENTRY_FIELDS)}`,
-    { headers: sbHeadersNoContent() },
-  );
-  if (!fetchRes.ok) throw new ApiError(502, `Failed to fetch entries: HTTP ${fetchRes.status}`);
-  const sources: any[] = await fetchRes.json();
-  if (sources.length !== cleanIds.length) {
-    throw new ApiError(404, "One or more entries not found, deleted, or not owned by you");
-  }
-  const vault = sources.find((s) => s.type === "secret");
-  if (vault) {
-    throw new ApiError(400, `Cannot merge vault entry "${vault.title}" — vault contents can't be processed by the LLM`);
-  }
-  const brainIds = new Set(sources.map((s) => s.brain_id).filter(Boolean));
-  if (brainIds.size > 1) {
-    throw new ApiError(400, "All selected entries must be in the same brain");
-  }
-  if (brainIds.size === 0) {
-    throw new ApiError(400, "Selected entries have no brain assigned");
-  }
-  const brainId = [...brainIds][0]!;
-  await requireBrainAccess(user.id, brainId);
-
-  // Quota peek — refuse upfront for over-quota users so they don't see a
-  // partially-completed merge. Pro/max are unlimited (sentinel -1 from
-  // dailyLimitForTier).
-  const tier = await fetchUserTier(user.id);
-  const dailyLimit = dailyLimitForTier(tier);
-  if (dailyLimit > 0) {
-    const used = await readQuotaUsage(user.id);
-    if (used && used.used >= dailyLimit) {
-      throw new ApiError(
-        429,
-        `Daily enrichment quota reached (${used.used}/${dailyLimit}). Try again tomorrow.`,
-      );
-    }
-  }
+  const validation = await validateMergeRequest(user.id, body.ids);
+  await checkMergeQuota(user.id);
 
   const isPreview = body.preview === true;
 
-  // Internal/AI-managed metadata keys — never inherit these onto the merged
-  // entry (they get regenerated by enrichInline) and never expose them to
-  // the LLM (they're noise that bloats the prompt).
-  const INTERNAL_META_KEYS = new Set<string>([
-    "enrichment",
-    "ai_summary",
-    "ai_insight",
-    "ai_concepts",
-    "concepts",
-    "concept_ids",
-    "full_text",
-    "raw_content",
-    "attachment_text",
-    "chunks",
-    "embedding",
-    "embedded_at",
-    "embedding_status",
-    "embedding_dim",
-    "classifier",
-    "classifier_score",
-    "classifier_label",
-    "auto_accept_pending",
-    "skip_persona",
-    "ingest_source",
-    "source_message_id",
-    "gmail_message_id",
-    "gmail_thread_id",
-    "gmail_account",
-    "gmail_subject",
-    "gmail_from",
-    "gmail_to",
-    "gmail_date",
-    "gmail_attachment_ids",
-    "gmail_attachment_names",
-    "gmail_html",
-    "gmail_text",
-    "gmail_snippet",
-    "extracted_at",
-    "parsed_at",
-    "last_skip_reason",
-    "merged_from",
-    "merged_at",
-  ]);
-
-  // First-class structured fields (cell, id_number, address, etc.) that the
-  // detail panel renders as DETAILS chips and that the LLM should see in the
-  // source block so it can reference them in the merged content. Not an
-  // exhaustive whitelist — any non-internal primitive / primitive array on
-  // a source's metadata will be inherited at commit time. This list is for
-  // *prompt rendering order* only.
-  const PROMPT_DETAIL_KEYS = [
-    "name", "contact_name", "full_name", "preferred_name", "pronouns",
-    "amount", "price", "currency", "account_number", "reference_number",
-    "reference", "invoice_number",
-    "due_date", "deadline", "expiry_date", "renewal_date", "event_date",
-    "date", "when", "time",
-    "cellphone", "cell", "phone", "mobile", "landline", "fax",
-    "email", "secondary_email",
-    "address", "location", "where", "city", "country", "postcode", "province",
-    "id_number", "national_id", "passport_number", "dob", "birthday",
-    "url", "website", "link", "status", "vendor", "company", "organization",
-  ];
-
-  // Render a source's metadata as "key: value" lines for the prompt so the
-  // LLM can see structured fields it would otherwise miss.
-  function renderSourceMeta(meta: any): string {
-    if (!meta || typeof meta !== "object") return "";
-    const lines: string[] = [];
-    const seen = new Set<string>();
-    const emit = (k: string) => {
-      if (seen.has(k) || INTERNAL_META_KEYS.has(k)) return;
-      const v = meta[k];
-      if (v == null) return;
-      if (Array.isArray(v)) {
-        const items = v.filter((x) => x != null && x !== "").map((x) => String(x));
-        if (!items.length) return;
-        lines.push(`${k}: ${items.join(", ")}`);
-      } else if (typeof v === "object") {
-        // Skip nested objects — they're usually internal structures.
-        return;
-      } else {
-        const s = String(v).trim();
-        if (!s) return;
-        lines.push(`${k}: ${s}`);
-      }
-      seen.add(k);
-    };
-    for (const k of PROMPT_DETAIL_KEYS) emit(k);
-    for (const k of Object.keys(meta)) emit(k);
-    return lines.join("\n");
-  }
-
   // ── Preview mode — call LLM, return merged shape, no DB writes
   if (isPreview) {
-    const cfg = await resolveProviderForUser(user.id).catch(() => null);
-    if (!cfg) {
-      throw new ApiError(503, "AI provider unavailable — try again shortly");
-    }
-    const sourcesBlock = sources
-      .map((s, i) => {
-        const tagStr = (s.tags || []).join(", ") || "(none)";
-        const detailsBlock = renderSourceMeta(s.metadata);
-        const detailsLine = detailsBlock ? `Details:\n${detailsBlock}\n` : "";
-        return [
-          `### Source ${i + 1}`,
-          `Title: ${s.title}`,
-          `Type: ${s.type ?? "note"}`,
-          `Tags: ${tagStr}`,
-          detailsLine ? detailsLine.trimEnd() : null,
-          `Content:\n${(s.content ?? "").slice(0, 4000)}`,
-        ]
-          .filter(Boolean)
-          .join("\n");
-      })
-      .join("\n\n");
-    const prompt = SERVER_PROMPTS.MERGE_ENTRIES.replace("{{SOURCES}}", sourcesBlock);
-    const aiRaw = await callAI(cfg, prompt, "Merge the entries above.", {
-      maxTokens: 4000,
-      json: true,
-    });
-    if (!aiRaw) {
-      throw new ApiError(502, "LLM merge call returned empty — try again");
-    }
-    let parsed: { title?: string; content?: string; type?: string; tags?: string[] } = {};
-    try {
-      const cleaned = aiRaw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : {};
-    } catch {
-      throw new ApiError(502, "LLM merge call returned malformed JSON");
-    }
+    const fields = await generateMergePreview(validation.sources, user.id);
     res.status(200).json({
       preview: true,
-      title: typeof parsed.title === "string" ? stripMarkdown(parsed.title).slice(0, 200) : "Merged entry",
-      content: typeof parsed.content === "string" ? stripMarkdown(parsed.content).slice(0, 50_000) : "",
-      type: typeof parsed.type === "string" ? parsed.type.toLowerCase().slice(0, 50) : "note",
-      tags: Array.isArray(parsed.tags)
-        ? parsed.tags
-            .filter((t): t is string => typeof t === "string")
-            .map((t) => t.toLowerCase().slice(0, 40))
-            .slice(0, 10)
-        : [],
-      source_count: sources.length,
+      ...fields,
+      source_count: validation.sources.length,
     });
     return;
   }
 
-  // ── Commit mode — caller passes the (possibly user-edited) merged fields
-  // Strip markdown defensively even on commit — entry content renders as
-  // plain text (whiteSpace: pre-wrap), so any **bold** or ## headings
-  // would surface as ugly literal punctuation. The LLM gets told this in
-  // the prompt; this is the belt-and-braces.
-  const title = typeof body.title === "string" ? stripMarkdown(body.title).trim().slice(0, 200) : "";
-  const content = typeof body.content === "string" ? stripMarkdown(body.content).slice(0, 50_000) : "";
-  const type = typeof body.type === "string" ? body.type.toLowerCase().trim().slice(0, 50) : "note";
-  const tags = Array.isArray(body.tags)
-    ? body.tags
-        .filter((t: unknown): t is string => typeof t === "string")
-        .map((t: string) => t.toLowerCase().trim().slice(0, 40))
-        .filter(Boolean)
-        .slice(0, 10)
-    : [];
-  if (!title || !content) {
-    throw new ApiError(400, "title and content required for commit");
-  }
-  if (type === "secret") {
-    throw new ApiError(400, "Cannot create a vault entry via merge — use the in-app Vault flow");
-  }
-
-  // Inheritance: pinned union, importance max, tags merged with source tags
-  const pinned = sources.some((s) => !!s.pinned);
-  const importance = sources.reduce((m, s) => Math.max(m, s.importance ?? 0), 0);
-  const sourceTags = sources.flatMap((s) => s.tags ?? []) as string[];
-  const mergedTags = Array.from(new Set([...tags, ...sourceTags.map((t) => t.toLowerCase())])).slice(
-    0,
-    10,
-  );
-  // Newest source's created_at — the merged entry IS the latest moment
-  const newestCreated = sources
-    .map((s) => s.created_at)
-    .filter(Boolean)
-    .sort()
-    .pop() as string | undefined;
-
-  // Inherit structured metadata from the sources. First non-empty value
-  // wins (sources are already in caller-provided order). Skip internal/AI-
-  // managed keys — those get regenerated by enrichInline running on the
-  // merged content. This is what makes DETAILS chips (Cell, ID Number,
-  // Address …) survive the merge instead of coming back empty.
-  const inheritedMeta: Record<string, unknown> = {};
-  for (const s of sources) {
-    const sm = s.metadata;
-    if (!sm || typeof sm !== "object") continue;
-    for (const [k, v] of Object.entries(sm)) {
-      if (INTERNAL_META_KEYS.has(k)) continue;
-      if (k in inheritedMeta) continue;
-      if (v == null) continue;
-      if (Array.isArray(v)) {
-        if (!v.length) continue;
-        inheritedMeta[k] = v;
-      } else if (typeof v === "object") {
-        // Skip nested objects — usually classifier/enrichment structures.
-        continue;
-      } else {
-        const s2 = String(v).trim();
-        if (!s2) continue;
-        inheritedMeta[k] = v;
-      }
-    }
-  }
-
-  const mergedId = (randomUUID as () => string)();
-  const insertBody = {
-    id: mergedId,
-    user_id: user.id,
-    brain_id: brainId,
-    title,
-    content,
-    type,
-    tags: mergedTags,
-    pinned,
-    importance,
-    metadata: {
-      ...inheritedMeta,
-      merged_from: cleanIds,
-      merged_at: new Date().toISOString(),
-    },
-    status: "active",
-    enrichment_state: "pending",
-    created_at: newestCreated ?? new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  // ── Commit mode — caller passes the (possibly user-edited) fields.
+  const body_ = body as { title?: unknown; content?: unknown; type?: unknown; tags?: unknown };
+  const fields = {
+    title: typeof body_.title === "string" ? body_.title : "",
+    content: typeof body_.content === "string" ? body_.content : "",
+    type: typeof body_.type === "string" ? body_.type : "note",
+    tags: Array.isArray(body_.tags)
+      ? (body_.tags.filter((t): t is string => typeof t === "string"))
+      : [],
   };
-  const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
-    method: "POST",
-    headers: sbHeaders({ Prefer: "return=representation" }),
-    body: JSON.stringify(insertBody),
-  });
-  if (!insertRes.ok) {
-    const txt = await insertRes.text().catch(() => "");
-    throw new ApiError(502, `Failed to insert merged entry: ${txt.slice(0, 200)}`);
-  }
-  const [merged] = (await insertRes.json()) as any[];
-
-  // Run enrichment with a 60s timeout. If it doesn't land in time the
-  // hourly cron will pick it up — we still soft-delete the sources because
-  // the merged entry exists and is searchable. Toast on the client surfaces
-  // the deferred-enrichment case.
-  let enrichTimedOut = false;
-  await Promise.race([
-    enrichInline(mergedId, user.id).catch((err: any) => {
-      console.error("[entries:merge:enrichInline]", mergedId, err?.message ?? err);
-    }),
-    new Promise<void>((resolve) => {
-      setTimeout(() => {
-        enrichTimedOut = true;
-        resolve();
-      }, 60_000);
-    }),
-  ]);
-
-  // Soft-delete sources
-  const deletedAt = new Date().toISOString();
-  await fetch(
-    `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}`,
-    {
-      method: "PATCH",
-      headers: sbHeaders({ Prefer: "return=minimal" }),
-      body: JSON.stringify({ deleted_at: deletedAt }),
-    },
-  ).catch((err) => {
-    // If source delete fails, the merged entry still exists. User sees
-    // both — slightly weird but no data loss. Logged for triage.
-    console.error("[entries:merge:soft-delete-sources]", err);
-  });
-
-  // Audit log entry — best-effort, doesn't block the response
-  fetch(`${SB_URL}/rest/v1/audit_log`, {
-    method: "POST",
-    headers: sbHeaders({ Prefer: "return=minimal" }),
-    body: JSON.stringify({
-      user_id: user.id,
-      action: "entries_merged",
-      resource_id: mergedId,
-      metadata: { source_ids: cleanIds, count: cleanIds.length },
-      timestamp: new Date().toISOString(),
-    }),
-  }).catch(() => {});
-
-  res.status(200).json({
-    ok: true,
-    merged_id: mergedId,
-    merged: merged ?? null,
-    source_ids: cleanIds,
-    enrichment_pending: enrichTimedOut,
-  });
+  const result = await commitMerge(user.id, validation, { fields });
+  res.status(200).json({ ok: true, ...result });
 }
 
 // ── POST /api/entries?action=merge-undo ─────────────────────────────────────
