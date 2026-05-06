@@ -976,6 +976,14 @@ function EverionContent({
                   const set = new Set(ids);
                   setEntries((prev) => prev.filter((e) => !set.has(e.id)));
                 }}
+                onMerged={(_mergedId: string, sourceIds: string[]) => {
+                  // Drop the sources from the local list. The merged entry
+                  // arrives via the existing realtime subscription
+                  // (useEntryRealtime) on insert — same path that surfaces
+                  // capture-time inserts on every other client.
+                  const set = new Set(sourceIds);
+                  setEntries((prev) => prev.filter((e) => !set.has(e.id)));
+                }}
                 onDone={(updated) => {
                   setEntries((prev) => prev.map((e) => updated.find((u) => u.id === e.id) ?? e));
                   appShell.toggleSelectMode();

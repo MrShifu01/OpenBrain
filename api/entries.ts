@@ -16,6 +16,10 @@ import { buildPrompt, loadExtractorContext } from "./_lib/extractPersonaFacts.js
 import { distillRejectedForUser } from "./_lib/distillRejected.js";
 import { distillGmailForUser, loadRecentGmailDecisions } from "./_lib/distillGmail.js";
 import { recordPatternDecision } from "./_lib/gmailPatternScore.js";
+import { callAI } from "./_lib/aiProvider.js";
+import { resolveProviderForUser } from "./_lib/resolveProvider.js";
+import { fetchUserTier, dailyLimitForTier, readQuotaUsage } from "./_lib/enrichQuota.js";
+import { randomUUID } from "crypto";
 import {
   buildPrompt as buildGmailPrompt,
   defaultPreferences as defaultGmailPreferences,
@@ -90,6 +94,8 @@ export default withAuth(
       return handleRetryFailed(ctx);
     if (ctx.req.method === "POST" && action === "empty-trash") return handleEmptyTrash(ctx);
     if (ctx.req.method === "POST" && action === "bulk-patch") return handleBulkPatch(ctx);
+    if (ctx.req.method === "POST" && action === "merge") return handleMerge(ctx);
+    if (ctx.req.method === "POST" && action === "merge-undo") return handleMergeUndo(ctx);
     if (ctx.req.method === "POST" && action === "merge_into") return handleMergeInto(ctx);
     if (ctx.req.method === "POST" && action === "move") return handleMoveEntry(ctx);
     if (ctx.req.method === "POST" && action === "share") return handleShareEntry(ctx);
@@ -1249,6 +1255,335 @@ async function handleEmptyTrash({ res, user, req_id }: HandlerContext): Promise<
   }).catch(() => {});
 
   res.status(200).json({ deleted: deleted.length });
+}
+
+// ── POST /api/entries?action=merge ──────────────────────────────────────────
+// Combine 2-8 user-selected entries into a single LLM-generated merged entry,
+// then soft-delete the sources. Two-phase via the `preview` flag in the body:
+//
+//   preview=true  → LLM generates {title, content, type, tags}, NO DB writes.
+//                   Frontend shows it in a modal, user can edit.
+//   preview=false → frontend re-POSTs with the (possibly edited) fields,
+//                   server inserts merged entry, awaits enrichInline up to
+//                   60s, then soft-deletes sources, writes audit_log row.
+//
+// Validation: all ids must be UUIDs, must belong to caller, must share a
+// brain_id, none can be vault (type='secret') — vault contents can't be sent
+// to LLM. Range: 2 ≤ N ≤ 8 (above 8 the merge LLM context starts dropping
+// fidelity AND cost balloons).
+//
+// Quota: 1 credit per merge (the inline enrichInline call consumes one).
+// We peek upfront so over-quota free users get a clean 429 instead of a
+// half-merged state.
+async function handleMerge({ req, res, user }: HandlerContext): Promise<void> {
+  const body = req.body ?? {};
+  const ids: unknown = body.ids;
+
+  // Validate ids array
+  if (!Array.isArray(ids) || ids.length < 2 || ids.length > 8) {
+    throw new ApiError(400, "ids must be an array of 2-8 entry uuids");
+  }
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const cleanIds: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of ids) {
+    if (typeof raw !== "string" || !uuidRe.test(raw)) {
+      throw new ApiError(400, "ids must be valid uuids");
+    }
+    if (seen.has(raw)) continue; // dedup silently
+    seen.add(raw);
+    cleanIds.push(raw);
+  }
+  if (cleanIds.length < 2) {
+    throw new ApiError(400, "merge needs at least 2 distinct entries");
+  }
+
+  // Fetch all entries in one round-trip and verify ownership + same brain
+  // + no vault. RLS would already block cross-user reads but defense-in-
+  // depth: we filter explicitly on user_id + check no row missing.
+  const idList = cleanIds.map((id) => encodeURIComponent(id)).join(",");
+  const fetchRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}&deleted_at=is.null&select=${encodeURIComponent(ENTRY_FIELDS)}`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!fetchRes.ok) throw new ApiError(502, `Failed to fetch entries: HTTP ${fetchRes.status}`);
+  const sources: any[] = await fetchRes.json();
+  if (sources.length !== cleanIds.length) {
+    throw new ApiError(404, "One or more entries not found, deleted, or not owned by you");
+  }
+  const vault = sources.find((s) => s.type === "secret");
+  if (vault) {
+    throw new ApiError(400, `Cannot merge vault entry "${vault.title}" — vault contents can't be processed by the LLM`);
+  }
+  const brainIds = new Set(sources.map((s) => s.brain_id).filter(Boolean));
+  if (brainIds.size > 1) {
+    throw new ApiError(400, "All selected entries must be in the same brain");
+  }
+  if (brainIds.size === 0) {
+    throw new ApiError(400, "Selected entries have no brain assigned");
+  }
+  const brainId = [...brainIds][0]!;
+  await requireBrainAccess(user.id, brainId);
+
+  // Quota peek — refuse upfront for over-quota users so they don't see a
+  // partially-completed merge. Pro/max are unlimited (sentinel -1 from
+  // dailyLimitForTier).
+  const tier = await fetchUserTier(user.id);
+  const dailyLimit = dailyLimitForTier(tier);
+  if (dailyLimit > 0) {
+    const used = await readQuotaUsage(user.id);
+    if (used && used.used >= dailyLimit) {
+      throw new ApiError(
+        429,
+        `Daily enrichment quota reached (${used.used}/${dailyLimit}). Try again tomorrow.`,
+      );
+    }
+  }
+
+  const isPreview = body.preview === true;
+
+  // ── Preview mode — call LLM, return merged shape, no DB writes
+  if (isPreview) {
+    const cfg = await resolveProviderForUser(user.id).catch(() => null);
+    if (!cfg) {
+      throw new ApiError(503, "AI provider unavailable — try again shortly");
+    }
+    const sourcesBlock = sources
+      .map((s, i) => {
+        const tagStr = (s.tags || []).join(", ") || "(none)";
+        return [
+          `### Source ${i + 1}`,
+          `Title: ${s.title}`,
+          `Type: ${s.type ?? "note"}`,
+          `Tags: ${tagStr}`,
+          `Content:\n${(s.content ?? "").slice(0, 4000)}`,
+        ].join("\n");
+      })
+      .join("\n\n");
+    const prompt = SERVER_PROMPTS.MERGE_ENTRIES.replace("{{SOURCES}}", sourcesBlock);
+    const aiRaw = await callAI(cfg, prompt, "Merge the entries above.", {
+      maxTokens: 4000,
+      json: true,
+    });
+    if (!aiRaw) {
+      throw new ApiError(502, "LLM merge call returned empty — try again");
+    }
+    let parsed: { title?: string; content?: string; type?: string; tags?: string[] } = {};
+    try {
+      const cleaned = aiRaw.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "");
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : {};
+    } catch {
+      throw new ApiError(502, "LLM merge call returned malformed JSON");
+    }
+    res.status(200).json({
+      preview: true,
+      title: typeof parsed.title === "string" ? parsed.title.slice(0, 200) : "Merged entry",
+      content: typeof parsed.content === "string" ? parsed.content.slice(0, 50_000) : "",
+      type: typeof parsed.type === "string" ? parsed.type.toLowerCase().slice(0, 50) : "note",
+      tags: Array.isArray(parsed.tags)
+        ? parsed.tags
+            .filter((t): t is string => typeof t === "string")
+            .map((t) => t.toLowerCase().slice(0, 40))
+            .slice(0, 10)
+        : [],
+      source_count: sources.length,
+    });
+    return;
+  }
+
+  // ── Commit mode — caller passes the (possibly user-edited) merged fields
+  const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
+  const content = typeof body.content === "string" ? body.content.slice(0, 50_000) : "";
+  const type = typeof body.type === "string" ? body.type.toLowerCase().trim().slice(0, 50) : "note";
+  const tags = Array.isArray(body.tags)
+    ? body.tags
+        .filter((t: unknown): t is string => typeof t === "string")
+        .map((t: string) => t.toLowerCase().trim().slice(0, 40))
+        .filter(Boolean)
+        .slice(0, 10)
+    : [];
+  if (!title || !content) {
+    throw new ApiError(400, "title and content required for commit");
+  }
+  if (type === "secret") {
+    throw new ApiError(400, "Cannot create a vault entry via merge — use the in-app Vault flow");
+  }
+
+  // Inheritance: pinned union, importance max, tags merged with source tags
+  const pinned = sources.some((s) => !!s.pinned);
+  const importance = sources.reduce((m, s) => Math.max(m, s.importance ?? 0), 0);
+  const sourceTags = sources.flatMap((s) => s.tags ?? []) as string[];
+  const mergedTags = Array.from(new Set([...tags, ...sourceTags.map((t) => t.toLowerCase())])).slice(
+    0,
+    10,
+  );
+  // Newest source's created_at — the merged entry IS the latest moment
+  const newestCreated = sources
+    .map((s) => s.created_at)
+    .filter(Boolean)
+    .sort()
+    .pop() as string | undefined;
+
+  const mergedId = (randomUUID as () => string)();
+  const insertBody = {
+    id: mergedId,
+    user_id: user.id,
+    brain_id: brainId,
+    title,
+    content,
+    type,
+    tags: mergedTags,
+    pinned,
+    importance,
+    metadata: {
+      merged_from: cleanIds,
+      merged_at: new Date().toISOString(),
+    },
+    status: "active",
+    enrichment_state: "pending",
+    created_at: newestCreated ?? new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const insertRes = await fetch(`${SB_URL}/rest/v1/entries`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=representation" }),
+    body: JSON.stringify(insertBody),
+  });
+  if (!insertRes.ok) {
+    const txt = await insertRes.text().catch(() => "");
+    throw new ApiError(502, `Failed to insert merged entry: ${txt.slice(0, 200)}`);
+  }
+  const [merged] = (await insertRes.json()) as any[];
+
+  // Run enrichment with a 60s timeout. If it doesn't land in time the
+  // hourly cron will pick it up — we still soft-delete the sources because
+  // the merged entry exists and is searchable. Toast on the client surfaces
+  // the deferred-enrichment case.
+  let enrichTimedOut = false;
+  await Promise.race([
+    enrichInline(mergedId, user.id).catch((err: any) => {
+      console.error("[entries:merge:enrichInline]", mergedId, err?.message ?? err);
+    }),
+    new Promise<void>((resolve) => {
+      setTimeout(() => {
+        enrichTimedOut = true;
+        resolve();
+      }, 60_000);
+    }),
+  ]);
+
+  // Soft-delete sources
+  const deletedAt = new Date().toISOString();
+  await fetch(
+    `${SB_URL}/rest/v1/entries?id=in.(${idList})&user_id=eq.${encodeURIComponent(user.id)}`,
+    {
+      method: "PATCH",
+      headers: sbHeaders({ Prefer: "return=minimal" }),
+      body: JSON.stringify({ deleted_at: deletedAt }),
+    },
+  ).catch((err) => {
+    // If source delete fails, the merged entry still exists. User sees
+    // both — slightly weird but no data loss. Logged for triage.
+    console.error("[entries:merge:soft-delete-sources]", err);
+  });
+
+  // Audit log entry — best-effort, doesn't block the response
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entries_merged",
+      resource_id: mergedId,
+      metadata: { source_ids: cleanIds, count: cleanIds.length },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({
+    ok: true,
+    merged_id: mergedId,
+    merged: merged ?? null,
+    source_ids: cleanIds,
+    enrichment_pending: enrichTimedOut,
+  });
+}
+
+// ── POST /api/entries?action=merge-undo ─────────────────────────────────────
+// Reverses a recent merge — hard-deletes the merged entry and resurrects
+// the sources by clearing deleted_at. Used by the post-merge Undo toast
+// (10-second window). Defends with metadata.merged_from check so a caller
+// can't undo arbitrary entries by guessing IDs.
+async function handleMergeUndo({ req, res, user }: HandlerContext): Promise<void> {
+  const body = req.body ?? {};
+  const mergedId: unknown = body.merged_id;
+  const sourceIds: unknown = body.source_ids;
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (typeof mergedId !== "string" || !uuidRe.test(mergedId)) {
+    throw new ApiError(400, "merged_id must be a valid uuid");
+  }
+  if (!Array.isArray(sourceIds) || sourceIds.length < 2 || sourceIds.length > 8) {
+    throw new ApiError(400, "source_ids must be 2-8 valid uuids");
+  }
+  const cleanSourceIds: string[] = [];
+  for (const raw of sourceIds) {
+    if (typeof raw !== "string" || !uuidRe.test(raw)) {
+      throw new ApiError(400, "source_ids must be valid uuids");
+    }
+    cleanSourceIds.push(raw);
+  }
+
+  // Verify the merged entry exists, belongs to the user, and was created
+  // by a merge of EXACTLY these source ids. The merged_from check stops
+  // a malicious caller from undoing arbitrary entries.
+  const mergedRes = await fetch(
+    `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(mergedId)}&user_id=eq.${encodeURIComponent(user.id)}&select=metadata`,
+    { headers: sbHeadersNoContent() },
+  );
+  if (!mergedRes.ok) throw new ApiError(502, "Database error");
+  const [mergedRow]: any[] = await mergedRes.json();
+  if (!mergedRow) throw new ApiError(404, "Merged entry not found");
+  const mergedFrom: string[] = Array.isArray(mergedRow.metadata?.merged_from)
+    ? mergedRow.metadata.merged_from
+    : [];
+  const expectSet = new Set(cleanSourceIds);
+  const actualSet = new Set(mergedFrom);
+  const sameSet = expectSet.size === actualSet.size && [...expectSet].every((id) => actualSet.has(id));
+  if (!sameSet) {
+    throw new ApiError(400, "merged_from mismatch — refusing to undo");
+  }
+
+  // Resurrect sources, hard-delete merged
+  const sourceIdList = cleanSourceIds.map((id) => encodeURIComponent(id)).join(",");
+  await Promise.all([
+    fetch(
+      `${SB_URL}/rest/v1/entries?id=in.(${sourceIdList})&user_id=eq.${encodeURIComponent(user.id)}`,
+      {
+        method: "PATCH",
+        headers: sbHeaders({ Prefer: "return=minimal" }),
+        body: JSON.stringify({ deleted_at: null }),
+      },
+    ),
+    fetch(
+      `${SB_URL}/rest/v1/entries?id=eq.${encodeURIComponent(mergedId)}&user_id=eq.${encodeURIComponent(user.id)}`,
+      { method: "DELETE", headers: sbHeaders({ Prefer: "return=minimal" }) },
+    ),
+  ]);
+
+  fetch(`${SB_URL}/rest/v1/audit_log`, {
+    method: "POST",
+    headers: sbHeaders({ Prefer: "return=minimal" }),
+    body: JSON.stringify({
+      user_id: user.id,
+      action: "entries_merge_undone",
+      resource_id: mergedId,
+      metadata: { source_ids: cleanSourceIds },
+      timestamp: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+
+  res.status(200).json({ ok: true, restored: cleanSourceIds.length });
 }
 
 // ── POST /api/entries?action=merge_into — merge source entry into target, then soft-delete source ──

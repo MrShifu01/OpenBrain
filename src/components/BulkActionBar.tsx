@@ -3,6 +3,7 @@ import { authFetch } from "../lib/authFetch";
 import { CANONICAL_TYPES } from "../types";
 import type { Brain, Entry } from "../types";
 import { Button } from "./ui/button";
+import MergePreviewModal from "./MergePreviewModal";
 
 interface Props {
   selectedIds: Set<string>;
@@ -18,10 +19,13 @@ interface Props {
   /** Fired after a successful bulk move so the parent can drop the
    *  moved entries from its local list. */
   onMoved?: (ids: string[]) => void;
+  /** Fired after a successful merge so the parent can drop the source
+   *  entries from its local list and refresh to show the merged entry. */
+  onMerged?: (mergedId: string, sourceIds: string[]) => void;
   allSelected?: boolean;
 }
 
-type Phase = "idle" | "typing" | "confirmDelete" | "share" | "move";
+type Phase = "idle" | "typing" | "confirmDelete" | "share" | "move" | "more";
 
 export default function BulkActionBar({
   selectedIds,
@@ -33,6 +37,7 @@ export default function BulkActionBar({
   onSelectAll,
   onDelete,
   onMoved,
+  onMerged,
   allSelected = false,
 }: Props) {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -43,6 +48,7 @@ export default function BulkActionBar({
   const [shareError, setShareError] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   // Reset phase when the selection changes externally — keeps a stale "Are
   // you sure you want to delete?" from sitting around after the user has
@@ -61,6 +67,13 @@ export default function BulkActionBar({
   const shareableBrains = brains.filter((b) => b.id !== activeBrainId);
 
   const count = selectedIds.size;
+
+  // Merge guard — refuse if any selected entry is vault. Vault contents
+  // can't be sent to the LLM (encryption is the whole point) and the
+  // server would refuse anyway; this just gives a cleaner UX.
+  const selectedEntries = entries.filter((e) => selectedIds.has(e.id));
+  const hasVault = selectedEntries.some((e) => e.type === "secret");
+  const canMerge = count >= 2 && count <= 8 && !hasVault;
 
   async function applyType(type: string) {
     if (busy) return;
@@ -274,6 +287,44 @@ export default function BulkActionBar({
                 disabled={busy}
                 onClick={() => setPhase("confirmDelete")}
               />
+            )}
+            {/* More — overflow for less-frequent actions (Merge today,
+                future overflow goes here). Hidden when count < 2 since
+                merge is the only More action and needs at least 2. */}
+            {count >= 2 && (
+              <ActionBtn
+                label="More"
+                tone="ghost"
+                disabled={busy}
+                onClick={() => setPhase("more")}
+              />
+            )}
+          </div>
+        )}
+
+        {phase === "more" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <ActionBtn
+                label={`Merge · ${count}`}
+                tone="ember"
+                disabled={busy || !canMerge}
+                onClick={() => {
+                  if (!canMerge) return;
+                  setMergeOpen(true);
+                }}
+              />
+              <ActionBtn
+                label="Back"
+                tone="ghost"
+                disabled={busy}
+                onClick={() => setPhase("idle")}
+              />
+            </div>
+            {hasVault && (
+              <p className="f-sans" style={{ margin: 0, fontSize: 11, color: "var(--ink-faint)" }}>
+                Cannot merge: vault entries can't be processed by the AI.
+              </p>
             )}
           </div>
         )}
@@ -521,6 +572,19 @@ export default function BulkActionBar({
           </div>
         )}
       </div>
+
+      {mergeOpen && (
+        <MergePreviewModal
+          ids={[...selectedIds]}
+          onCancel={() => setMergeOpen(false)}
+          onCommitted={(mergedId, sourceIds) => {
+            setMergeOpen(false);
+            setPhase("idle");
+            onMerged?.(mergedId, sourceIds);
+            onCancel();
+          }}
+        />
+      )}
     </div>
   );
 }
